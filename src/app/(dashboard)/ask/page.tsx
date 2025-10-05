@@ -126,13 +126,20 @@ export default function AskWikiPage() {
   useEffect(() => {
     const loadChatSessions = async () => {
       try {
+        console.log('🔄 Loading chat sessions...')
         const response = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
+        console.log('📡 Response status:', response.status, response.ok)
+        
         if (response.ok) {
           const sessions = await response.json()
+          console.log('✅ Loaded sessions:', sessions)
           setChatSessions(sessions)
+        } else {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          console.error('❌ Failed to load chat sessions:', errorData)
         }
       } catch (error) {
-        console.error('Error loading chat sessions:', error)
+        console.error('💥 Error loading chat sessions:', error)
       } finally {
         setIsLoadingSessions(false)
       }
@@ -291,6 +298,7 @@ export default function AskWikiPage() {
 
   const createNewChat = async () => {
     try {
+      console.log('🆕 Creating new chat session...')
       const response = await fetch('/api/ai/chat-sessions', {
         method: 'POST',
         headers: {
@@ -302,8 +310,11 @@ export default function AskWikiPage() {
         })
       })
 
+      console.log('📡 Create response:', response.status, response.ok)
+
       if (response.ok) {
         const newSession = await response.json()
+        console.log('✅ Created session:', newSession)
         setCurrentSessionId(newSession.id)
         setMessages([{
           id: "1",
@@ -320,14 +331,19 @@ export default function AskWikiPage() {
         })
         
         // Reload sessions
+        console.log('🔄 Reloading sessions...')
         const sessionsResponse = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
         if (sessionsResponse.ok) {
           const sessions = await sessionsResponse.json()
+          console.log('✅ Reloaded sessions:', sessions)
           setChatSessions(sessions)
         }
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('❌ Failed to create chat session:', errorData)
       }
     } catch (error) {
-      console.error('Error creating new chat:', error)
+      console.error('💥 Error creating new chat:', error)
     }
   }
 
@@ -409,7 +425,14 @@ export default function AskWikiPage() {
                 ))}
               </div>
             ) : (
-              chatSessions.map((session) => (
+              <>
+                {console.log('🎨 Rendering sessions:', chatSessions.length, 'sessions')}
+                {chatSessions.length === 0 ? (
+                  <div className="text-center text-gray-500 text-sm py-4">
+                    No chat sessions yet
+                  </div>
+                ) : (
+                  chatSessions.map((session) => (
                 <div
                   key={session.id}
                   className={`p-3 rounded-lg cursor-pointer transition-colors ${
@@ -444,7 +467,9 @@ export default function AskWikiPage() {
                     </Button>
                   </div>
                 </div>
-              ))
+                  ))
+                )}
+              </>
             )}
           </div>
         </div>
