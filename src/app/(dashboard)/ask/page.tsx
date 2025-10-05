@@ -126,10 +126,17 @@ export default function AskWikiPage() {
   useEffect(() => {
     const loadChatSessions = async () => {
       try {
+        console.log('Loading chat sessions...')
         const response = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
+        console.log('Chat sessions response:', response.status, response.ok)
+        
         if (response.ok) {
           const sessions = await response.json()
+          console.log('Loaded chat sessions:', sessions)
           setChatSessions(sessions)
+        } else {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          console.error('Failed to load chat sessions:', errorData)
         }
       } catch (error) {
         console.error('Error loading chat sessions:', error)
@@ -291,6 +298,7 @@ export default function AskWikiPage() {
 
   const createNewChat = async () => {
     try {
+      console.log('Creating new chat session...')
       const response = await fetch('/api/ai/chat-sessions', {
         method: 'POST',
         headers: {
@@ -302,8 +310,11 @@ export default function AskWikiPage() {
         })
       })
 
+      console.log('Create chat session response:', response.status, response.ok)
+
       if (response.ok) {
         const newSession = await response.json()
+        console.log('Created new session:', newSession)
         setCurrentSessionId(newSession.id)
         setMessages([{
           id: "1",
@@ -320,11 +331,16 @@ export default function AskWikiPage() {
         })
         
         // Reload sessions
+        console.log('Reloading chat sessions after creating new one...')
         const sessionsResponse = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
         if (sessionsResponse.ok) {
           const sessions = await sessionsResponse.json()
+          console.log('Reloaded sessions:', sessions)
           setChatSessions(sessions)
         }
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Failed to create chat session:', errorData)
       }
     } catch (error) {
       console.error('Error creating new chat:', error)
