@@ -173,6 +173,9 @@ export default function AskWikiPage() {
     setQuery("")
 
     try {
+      console.log('📤 Sending message to AI:', query)
+      console.log('🆔 Current session ID:', currentSessionId)
+      
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: {
