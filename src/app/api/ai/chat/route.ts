@@ -137,7 +137,9 @@ REMEMBER: Your response must be ONLY the JSON object above - no additional text,
     let parsedResponse
     try {
       parsedResponse = JSON.parse(aiResponse)
-    } catch {
+      console.log('Successfully parsed JSON response:', parsedResponse)
+    } catch (error) {
+      console.log('Failed to parse JSON, treating as text:', error.message)
       parsedResponse = { content: aiResponse }
     }
 
@@ -207,11 +209,16 @@ REMEMBER: Your response must be ONLY the JSON object above - no additional text,
     //   }
     // }
 
-    return NextResponse.json({
+    const response = {
       content: parsedResponse.content || aiResponse,
       sources,
       documentPlan: parsedResponse.documentPlan || null
-    })
+    }
+    
+    console.log('Final API response:', response)
+    console.log('Document plan detected:', !!response.documentPlan)
+    
+    return NextResponse.json(response)
 
   } catch (error) {
     console.error('Error in AI chat:', error)
