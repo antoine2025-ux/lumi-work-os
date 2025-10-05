@@ -6,6 +6,8 @@ import { authOptions } from '@/lib/auth'
 // GET /api/ai/chat-sessions - Get all chat sessions for a user
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔍 GET /api/ai/chat-sessions - Starting request')
+    
     // Temporarily bypass authentication for development
     // const session = await getServerSession(authOptions)
     // if (!session?.user?.email) {
@@ -14,6 +16,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    
+    console.log('📋 Workspace ID:', workspaceId)
     
     const chatSessions = await prisma.chatSession.findMany({
       where: {
@@ -38,9 +42,12 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    console.log('✅ Found chat sessions:', chatSessions.length)
+    console.log('📊 Sessions data:', chatSessions)
+
     return NextResponse.json(chatSessions)
   } catch (error) {
-    console.error('Error fetching chat sessions:', error)
+    console.error('💥 Error in GET /api/ai/chat-sessions:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
