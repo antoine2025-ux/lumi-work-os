@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
@@ -31,14 +32,14 @@ import {
 import Link from "next/link"
 
 interface Message {
-  id: string
-  type: 'user' | 'ai'
-  content: string
-  sources?: Array<{
-    title: string
-    url: string
-    excerpt: string
-  }>
+    id: string
+    type: 'user' | 'ai'
+    content: string
+    sources?: Array<{
+      title: string
+      url: string
+      excerpt: string
+    }>
   isTyping?: boolean
   documentPlan?: {
     title: string
@@ -451,16 +452,16 @@ export default function AskWikiPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold flex items-center space-x-2">
-                <MessageSquare className="h-8 w-8 text-primary" />
-                <span>Ask Wiki</span>
-              </h1>
-              <p className="text-muted-foreground">
-                AI-powered search and Q&A over your company's knowledge base
-              </p>
+      <div>
+        <h1 className="text-3xl font-bold flex items-center space-x-2">
+          <MessageSquare className="h-8 w-8 text-primary" />
+          <span>Ask Wiki</span>
+        </h1>
+        <p className="text-muted-foreground">
+          AI-powered search and Q&A over your company's knowledge base
+        </p>
             </div>
             <div className="flex space-x-2">
               <Button
@@ -479,7 +480,7 @@ export default function AskWikiPage() {
                 {sidebarOpen ? 'Hide' : 'Show'} History
               </Button>
             </div>
-          </div>
+      </div>
 
       {/* Chat Interface */}
       <div className="flex flex-col h-[600px]">
@@ -504,7 +505,7 @@ export default function AskWikiPage() {
                         {message.isTyping ? (
                           <Loader2 className="h-4 w-4 text-primary-foreground animate-spin" />
                         ) : (
-                          <Sparkles className="h-4 w-4 text-primary-foreground" />
+                        <Sparkles className="h-4 w-4 text-primary-foreground" />
                         )}
                       </div>
                     </div>
@@ -585,15 +586,15 @@ export default function AskWikiPage() {
                             </div>
                           </div>
                         )}
-                        
-                        {/* Sources */}
-                        {message.sources && message.sources.length > 0 && (
-                          <div className="mt-3 space-y-2">
-                            <p className="text-xs font-medium opacity-70">Sources:</p>
-                            {message.sources.map((source, index) => (
+                    
+                    {/* Sources */}
+                    {message.sources && message.sources.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-xs font-medium opacity-70">Sources:</p>
+                        {message.sources.map((source, index) => (
                               <div key={index} className="text-xs bg-background/50 rounded p-2 hover:bg-background/70 transition-colors">
-                                <div className="flex items-center space-x-1 mb-1">
-                                  <BookOpen className="h-3 w-3" />
+                            <div className="flex items-center space-x-1 mb-1">
+                              <BookOpen className="h-3 w-3" />
                                   <Link 
                                     href={source.url} 
                                     target="_blank" 
@@ -603,31 +604,31 @@ export default function AskWikiPage() {
                                     {source.title}
                                   </Link>
                                   <ExternalLink className="h-2 w-2 text-gray-400" />
-                                </div>
+                            </div>
                                 <p className="opacity-70 text-xs leading-relaxed overflow-hidden" style={{
                                   display: '-webkit-box',
                                   WebkitLineClamp: 2,
                                   WebkitBoxOrient: 'vertical'
                                 }}>{source.excerpt}</p>
-                              </div>
-                            ))}
                           </div>
-                        )}
+                        ))}
+                      </div>
+                    )}
 
-                        {/* Action Buttons for AI messages */}
+                    {/* Action Buttons for AI messages */}
                         {message.type === 'ai' && !message.isTyping && (
-                          <div className="flex items-center space-x-2 mt-3">
-                            <Button variant="ghost" size="sm" className="h-6 px-2">
-                              <Copy className="h-3 w-3 mr-1" />
-                              Copy
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-6 px-2">
-                              <ThumbsUp className="h-3 w-3" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-6 px-2">
-                              <ThumbsDown className="h-3 w-3" />
-                            </Button>
-                          </div>
+                      <div className="flex items-center space-x-2 mt-3">
+                        <Button variant="ghost" size="sm" className="h-6 px-2">
+                          <Copy className="h-3 w-3 mr-1" />
+                          Copy
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-6 px-2">
+                          <ThumbsUp className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-6 px-2">
+                          <ThumbsDown className="h-3 w-3" />
+                        </Button>
+                      </div>
                         )}
                       </>
                     )}
@@ -641,20 +642,34 @@ export default function AskWikiPage() {
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="flex space-x-2">
           <div className="flex-1 relative">
-            <Input
+            <Textarea
               placeholder="Ask me anything about your wiki or request document creation..."
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pr-10"
+              onChange={(e) => {
+                setQuery(e.target.value)
+                // Auto-resize textarea
+                e.target.style.height = 'auto'
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  if (query.trim() && !isLoading) {
+                    handleSubmit(e)
+                  }
+                }
+              }}
+              className="pr-10 min-h-[40px] max-h-[120px] resize-none"
               disabled={isLoading}
+              rows={1}
             />
-            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
           </div>
           <Button type="submit" disabled={!query.trim() || isLoading}>
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+            <Send className="h-4 w-4" />
             )}
           </Button>
         </form>
