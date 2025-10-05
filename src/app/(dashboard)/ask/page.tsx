@@ -122,29 +122,17 @@ export default function AskWikiPage() {
       .trim()
   }
 
-  // Debug currentSessionId changes
-  useEffect(() => {
-    console.log('🆔 Current session ID changed to:', currentSessionId)
-  }, [currentSessionId])
-
   // Load chat sessions on component mount
   useEffect(() => {
     const loadChatSessions = async () => {
       try {
-        console.log('🔄 Loading chat sessions...')
         const response = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
-        console.log('📡 Response status:', response.status, response.ok)
-        
         if (response.ok) {
           const sessions = await response.json()
-          console.log('✅ Loaded sessions:', sessions)
           setChatSessions(sessions)
-        } else {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-          console.error('❌ Failed to load chat sessions:', errorData)
         }
       } catch (error) {
-        console.error('💥 Error loading chat sessions:', error)
+        console.error('Error loading chat sessions:', error)
       } finally {
         setIsLoadingSessions(false)
       }
@@ -178,9 +166,6 @@ export default function AskWikiPage() {
     setQuery("")
 
     try {
-      console.log('📤 Sending message to AI:', query)
-      console.log('🆔 Current session ID:', currentSessionId)
-      
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: {
@@ -228,7 +213,6 @@ export default function AskWikiPage() {
 
       // Reload chat sessions to update titles
       if (currentSessionId) {
-        console.log('🔄 Reloading sessions to update titles...')
         const sessionsResponse = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
         if (sessionsResponse.ok) {
           const sessions = await sessionsResponse.json()
