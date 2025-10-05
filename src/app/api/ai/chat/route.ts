@@ -20,6 +20,12 @@ export async function POST(request: NextRequest) {
 
     const { message, context, workspaceId, sessionId } = await request.json()
 
+    console.log('📨 Received request:')
+    console.log('  - Message:', message)
+    console.log('  - Session ID:', sessionId)
+    console.log('  - Workspace ID:', workspaceId)
+    console.log('  - Context:', context)
+
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
@@ -174,6 +180,8 @@ REMEMBER: Your response must be ONLY the JSON object above - no additional text,
     if (sessionId) {
       try {
         console.log('💾 Saving messages to database for session:', sessionId)
+        console.log('📝 User message:', message)
+        console.log('🤖 AI response:', parsedResponse.content || aiResponse)
         
         // Save user message
         await prisma.chatMessage.create({
