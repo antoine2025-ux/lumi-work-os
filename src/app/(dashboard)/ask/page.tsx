@@ -221,6 +221,16 @@ export default function AskWikiPage() {
         }))
       }
 
+      // Reload chat sessions to update titles
+      if (currentSessionId) {
+        console.log('🔄 Reloading sessions to update titles...')
+        const sessionsResponse = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
+        if (sessionsResponse.ok) {
+          const sessions = await sessionsResponse.json()
+          setChatSessions(sessions)
+        }
+      }
+
     } catch (error) {
       console.error('Error getting AI response:', error)
       

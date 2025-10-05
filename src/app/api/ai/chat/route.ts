@@ -197,11 +197,28 @@ REMEMBER: Your response must be ONLY the JSON object above - no additional text,
           }
         })
 
-        // Update session timestamp
-        await prisma.chatSession.update({
-          where: { id: sessionId },
-          data: { updatedAt: new Date() }
+        // Update session timestamp and generate title if it's still "New Chat"
+        const session = await prisma.chatSession.findUnique({
+          where: { id: sessionId }
         })
+        
+        if (session && session.title === 'New Chat') {
+          // Generate a title from the first message (truncate to 50 chars)
+          const title = message.length > 50 ? message.substring(0, 50) + '...' : message
+          await prisma.chatSession.update({
+            where: { id: sessionId },
+            data: { 
+              updatedAt: new Date(),
+              title: title
+            }
+          })
+          console.log('📝 Updated session title to:', title)
+        } else {
+          await prisma.chatSession.update({
+            where: { id: sessionId },
+            data: { updatedAt: new Date() }
+          })
+        }
         
         console.log('✅ Messages saved to database')
       } catch (dbError) {
