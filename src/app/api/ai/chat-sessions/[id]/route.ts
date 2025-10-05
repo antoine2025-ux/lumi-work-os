@@ -9,6 +9,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log('🔍 GET /api/ai/chat-sessions/[id] - Starting request')
+    
     // Temporarily bypass authentication for development
     // const session = await getServerSession(authOptions)
     // if (!session?.user?.email) {
@@ -16,6 +18,7 @@ export async function GET(
     // }
 
     const resolvedParams = await params
+    console.log('📋 Session ID:', resolvedParams.id)
     
     const chatSession = await prisma.chatSession.findFirst({
       where: {
@@ -32,12 +35,16 @@ export async function GET(
     })
 
     if (!chatSession) {
+      console.log('❌ Chat session not found')
       return NextResponse.json({ error: 'Chat session not found' }, { status: 404 })
     }
 
+    console.log('✅ Found chat session with', chatSession.messages.length, 'messages')
+    console.log('📊 Session data:', chatSession)
+
     return NextResponse.json(chatSession)
   } catch (error) {
-    console.error('Error fetching chat session:', error)
+    console.error('💥 Error in GET /api/ai/chat-sessions/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

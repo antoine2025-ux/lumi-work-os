@@ -170,42 +170,45 @@ REMEMBER: Your response must be ONLY the JSON object above - no additional text,
         }
       })
 
-    // Temporarily disable database saving until auth is implemented
     // Save messages to database if sessionId is provided
-    // if (sessionId) {
-    //   try {
-    //     // Save user message
-    //     await prisma.chatMessage.create({
-    //       data: {
-    //         sessionId,
-    //         type: 'USER',
-    //         content: message
-    //       }
-    //     })
+    if (sessionId) {
+      try {
+        console.log('💾 Saving messages to database for session:', sessionId)
+        
+        // Save user message
+        await prisma.chatMessage.create({
+          data: {
+            sessionId,
+            type: 'USER',
+            content: message
+          }
+        })
 
-    //     // Save AI response
-    //     await prisma.chatMessage.create({
-    //       data: {
-    //         sessionId,
-    //         type: 'AI',
-    //         content: parsedResponse.content || aiResponse,
-    //         metadata: {
-    //           sources,
-    //           documentPlan: parsedResponse.documentPlan || null
-    //         }
-    //       }
-    //     })
+        // Save AI response
+        await prisma.chatMessage.create({
+          data: {
+            sessionId,
+            type: 'AI',
+            content: parsedResponse.content || aiResponse,
+            metadata: {
+              sources,
+              documentPlan: parsedResponse.documentPlan || null
+            }
+          }
+        })
 
-    //     // Update session timestamp
-    //     await prisma.chatSession.update({
-    //       where: { id: sessionId },
-    //       data: { updatedAt: new Date() }
-    //     })
-    //   } catch (dbError) {
-    //     console.error('Error saving messages to database:', dbError)
-    //     // Continue with response even if DB save fails
-    //   }
-    // }
+        // Update session timestamp
+        await prisma.chatSession.update({
+          where: { id: sessionId },
+          data: { updatedAt: new Date() }
+        })
+        
+        console.log('✅ Messages saved to database')
+      } catch (dbError) {
+        console.error('💥 Error saving messages to database:', dbError)
+        // Continue with response even if DB save fails
+      }
+    }
 
     return NextResponse.json({
       content: parsedResponse.content || aiResponse,

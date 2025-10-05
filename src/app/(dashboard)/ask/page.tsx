@@ -349,9 +349,15 @@ export default function AskWikiPage() {
 
   const loadChatSession = async (sessionId: string) => {
     try {
+      console.log('📂 Loading chat session:', sessionId)
       const response = await fetch(`/api/ai/chat-sessions/${sessionId}`)
+      console.log('📡 Load session response:', response.status, response.ok)
+      
       if (response.ok) {
         const session = await response.json()
+        console.log('✅ Loaded session data:', session)
+        console.log('💬 Messages count:', session.messages?.length || 0)
+        
         setCurrentSessionId(sessionId)
         setMessages(session.messages || [])
         setDocumentCreationMode(false)
@@ -361,9 +367,12 @@ export default function AskWikiPage() {
           title: '',
           content: ''
         })
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('❌ Failed to load chat session:', errorData)
       }
     } catch (error) {
-      console.error('Error loading chat session:', error)
+      console.error('💥 Error loading chat session:', error)
     }
   }
 
