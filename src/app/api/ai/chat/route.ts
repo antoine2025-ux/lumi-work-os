@@ -88,7 +88,7 @@ CRITICAL: You MUST respond with ONLY valid JSON for document creation requests. 
 
 Required JSON format:
 {
-  "content": "The FULL document content with actual text, not just a plan. Use ALL the user's input to create comprehensive content with detailed explanations, specific examples, technical details, and thorough coverage of every topic mentioned.",
+  "content": "The FULL document content in clean markdown format (no HTML tags). Use ALL the user's input to create comprehensive content with detailed explanations, specific examples, technical details, and thorough coverage of every topic mentioned. Use markdown formatting: # for main headings, ## for subheadings, **bold** for emphasis, *italic* for emphasis, - for bullet points, 1. for numbered lists.",
   "documentPlan": {
     "title": "Suggested document title",
     "structure": ["Section 1", "Section 2", "Section 3"],
@@ -108,6 +108,8 @@ CRITICAL RULES:
 - Structure the content with proper headings and detailed information based on user input
 - Make the document comprehensive and detailed, using every piece of information provided
 - Include specific features, benefits, technical specifications, and use cases mentioned by the user
+- Use clean markdown formatting: # for headings, **bold**, *italic*, - for lists, no HTML tags
+- Structure content with proper markdown headings and formatting
 
 REMEMBER: Your response must be ONLY the JSON object above - no additional text, explanations, or formatting outside the JSON.`
     }

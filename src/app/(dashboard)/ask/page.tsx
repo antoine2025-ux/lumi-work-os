@@ -88,6 +88,39 @@ export default function AskWikiPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isLoadingSessions, setIsLoadingSessions] = useState(true)
 
+  // Helper function to clean HTML content for preview
+  const cleanHtmlForPreview = (html: string) => {
+    // Remove HTML tags but preserve structure
+    return html
+      .replace(/<h1[^>]*>/gi, '\n# ')
+      .replace(/<h2[^>]*>/gi, '\n## ')
+      .replace(/<h3[^>]*>/gi, '\n### ')
+      .replace(/<h4[^>]*>/gi, '\n#### ')
+      .replace(/<h5[^>]*>/gi, '\n##### ')
+      .replace(/<h6[^>]*>/gi, '\n###### ')
+      .replace(/<\/h[1-6]>/gi, '\n')
+      .replace(/<p[^>]*>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '\n• ')
+      .replace(/<\/li>/gi, '')
+      .replace(/<ul[^>]*>/gi, '\n')
+      .replace(/<\/ul>/gi, '\n')
+      .replace(/<ol[^>]*>/gi, '\n')
+      .replace(/<\/ol>/gi, '\n')
+      .replace(/<strong[^>]*>/gi, '**')
+      .replace(/<\/strong>/gi, '**')
+      .replace(/<b[^>]*>/gi, '**')
+      .replace(/<\/b>/gi, '**')
+      .replace(/<em[^>]*>/gi, '*')
+      .replace(/<\/em>/gi, '*')
+      .replace(/<i[^>]*>/gi, '*')
+      .replace(/<\/i>/gi, '*')
+      .replace(/<[^>]*>/g, '') // Remove any remaining HTML tags
+      .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean up multiple newlines
+      .trim()
+  }
+
   // Load chat sessions on component mount
   useEffect(() => {
     const loadChatSessions = async () => {
@@ -676,7 +709,7 @@ export default function AskWikiPage() {
               <div className="space-y-2">
                 <Label>Content Preview</Label>
                 <div className="max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-lg border text-sm">
-                  <pre className="whitespace-pre-wrap font-sans">{wikiParameters.content}</pre>
+                  <div className="whitespace-pre-wrap font-sans">{cleanHtmlForPreview(wikiParameters.content)}</div>
                 </div>
               </div>
             )}
