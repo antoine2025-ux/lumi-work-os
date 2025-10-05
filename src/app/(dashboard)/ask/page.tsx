@@ -42,8 +42,8 @@ interface Message {
   isTyping?: boolean
   documentPlan?: {
     title: string
-    structure: string[]
-    questions: string[]
+    structure?: string[]
+    questions?: string[]
   }
   wikiPage?: {
     title: string
@@ -491,7 +491,7 @@ export default function AskWikiPage() {
                               <div>
                                 <p className="text-sm font-medium text-blue-800 mb-1">Structure:</p>
                                 <ul className="text-sm text-blue-700 space-y-1">
-                                  {message.documentPlan.structure.map((item, index) => (
+                                  {message.documentPlan.structure && message.documentPlan.structure.map((item, index) => (
                                     <li key={index} className="flex items-center space-x-2">
                                       <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
                                       <span>{item}</span>
@@ -499,7 +499,7 @@ export default function AskWikiPage() {
                                   ))}
                                 </ul>
                               </div>
-                              {message.documentPlan.questions.length > 0 && (
+                              {message.documentPlan.questions && message.documentPlan.questions.length > 0 && (
                                 <div>
                                   <p className="text-sm font-medium text-blue-800 mb-1">Questions to clarify:</p>
                                   <ul className="text-sm text-blue-700 space-y-1">
