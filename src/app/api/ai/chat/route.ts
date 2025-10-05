@@ -133,11 +133,16 @@ REMEMBER: Your response must be ONLY the JSON object above - no additional text,
 
     const aiResponse = completion.choices[0]?.message?.content || "I apologize, but I couldn't generate a response."
 
+    console.log('🤖 Raw AI response:', aiResponse)
+    console.log('📏 Response length:', aiResponse.length)
+
     // Try to parse JSON response for document creation
     let parsedResponse
     try {
       parsedResponse = JSON.parse(aiResponse)
+      console.log('✅ Successfully parsed JSON response:', parsedResponse)
     } catch (error) {
+      console.log('❌ Failed to parse JSON, treating as text:', error.message)
       parsedResponse = { content: aiResponse }
     }
 
@@ -231,11 +236,21 @@ REMEMBER: Your response must be ONLY the JSON object above - no additional text,
       console.log('⚠️ No sessionId provided, skipping message saving')
     }
 
-    return NextResponse.json({
+    const response = {
       content: parsedResponse.content || aiResponse,
       sources,
       documentPlan: parsedResponse.documentPlan || null
-    })
+    }
+    
+    console.log('📤 Final API response:')
+    console.log('  - Content length:', response.content.length)
+    console.log('  - Sources count:', response.sources.length)
+    console.log('  - Document plan:', !!response.documentPlan)
+    if (response.documentPlan) {
+      console.log('  - Document plan details:', response.documentPlan)
+    }
+    
+    return NextResponse.json(response)
 
   } catch (error) {
     console.error('Error in AI chat:', error)
