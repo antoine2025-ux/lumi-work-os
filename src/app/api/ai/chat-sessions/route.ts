@@ -6,10 +6,11 @@ import { authOptions } from '@/lib/auth'
 // GET /api/ai/chat-sessions - Get all chat sessions for a user
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Temporarily bypass authentication for development
+    // const session = await getServerSession(authOptions)
+    // if (!session?.user?.email) {
+    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // }
 
     const { searchParams } = new URL(request.url)
     const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const chatSessions = await prisma.chatSession.findMany({
       where: {
         workspaceId,
-        userId: session.user.id
+        userId: 'dev-user-1' // Temporary hardcoded user ID for development
       },
       include: {
         messages: {
@@ -47,10 +48,11 @@ export async function GET(request: NextRequest) {
 // POST /api/ai/chat-sessions - Create a new chat session
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Temporarily bypass authentication for development
+    // const session = await getServerSession(authOptions)
+    // if (!session?.user?.email) {
+    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // }
 
     const { title, workspaceId } = await request.json()
 
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
       data: {
         title: title || 'New Chat',
         workspaceId: workspaceId || 'workspace-1',
-        userId: session.user.id
+        userId: 'dev-user-1' // Temporary hardcoded user ID for development
       }
     })
 

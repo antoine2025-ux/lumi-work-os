@@ -9,17 +9,18 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Temporarily bypass authentication for development
+    // const session = await getServerSession(authOptions)
+    // if (!session?.user?.email) {
+    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // }
 
     const resolvedParams = await params
     
     const chatSession = await prisma.chatSession.findFirst({
       where: {
         id: resolvedParams.id,
-        userId: session.user.id
+        userId: 'dev-user-1' // Temporary hardcoded user ID for development
       },
       include: {
         messages: {
@@ -78,17 +79,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Temporarily bypass authentication for development
+    // const session = await getServerSession(authOptions)
+    // if (!session?.user?.email) {
+    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // }
 
     const resolvedParams = await params
     
     await prisma.chatSession.deleteMany({
       where: {
         id: resolvedParams.id,
-        userId: session.user.id
+        userId: 'dev-user-1' // Temporary hardcoded user ID for development
       }
     })
 

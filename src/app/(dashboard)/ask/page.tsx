@@ -85,7 +85,7 @@ export default function AskWikiPage() {
   })
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true) // Show sidebar by default
   const [isLoadingSessions, setIsLoadingSessions] = useState(true)
 
   // Helper function to clean HTML content for preview
@@ -462,13 +462,23 @@ export default function AskWikiPage() {
                 AI-powered search and Q&A over your company's knowledge base
               </p>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden"
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="lg:hidden"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="hidden lg:flex"
+              >
+                <Menu className="h-4 w-4 mr-2" />
+                {sidebarOpen ? 'Hide' : 'Show'} History
+              </Button>
+            </div>
           </div>
 
       {/* Chat Interface */}
