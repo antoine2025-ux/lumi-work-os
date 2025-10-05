@@ -122,6 +122,11 @@ export default function AskWikiPage() {
       .trim()
   }
 
+  // Debug currentSessionId changes
+  useEffect(() => {
+    console.log('🆔 Current session ID changed to:', currentSessionId)
+  }, [currentSessionId])
+
   // Load chat sessions on component mount
   useEffect(() => {
     const loadChatSessions = async () => {
@@ -328,6 +333,7 @@ export default function AskWikiPage() {
       if (response.ok) {
         const newSession = await response.json()
         console.log('✅ Created session:', newSession)
+        console.log('🆔 Setting currentSessionId to:', newSession.id)
         setCurrentSessionId(newSession.id)
         setMessages([{
           id: "1",
