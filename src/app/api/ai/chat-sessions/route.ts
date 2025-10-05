@@ -55,6 +55,8 @@ export async function GET(request: NextRequest) {
 // POST /api/ai/chat-sessions - Create a new chat session
 export async function POST(request: NextRequest) {
   try {
+    console.log('🆕 POST /api/ai/chat-sessions - Starting request')
+    
     // Temporarily bypass authentication for development
     // const session = await getServerSession(authOptions)
     // if (!session?.user?.email) {
@@ -62,6 +64,7 @@ export async function POST(request: NextRequest) {
     // }
 
     const { title, workspaceId } = await request.json()
+    console.log('📝 Creating session with title:', title, 'workspaceId:', workspaceId)
 
     const chatSession = await prisma.chatSession.create({
       data: {
@@ -71,9 +74,11 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('✅ Created session:', chatSession)
+
     return NextResponse.json(chatSession)
   } catch (error) {
-    console.error('Error creating chat session:', error)
+    console.error('💥 Error in POST /api/ai/chat-sessions:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
