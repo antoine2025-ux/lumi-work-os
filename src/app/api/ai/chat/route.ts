@@ -173,6 +173,11 @@ REMEMBER: Your response must be ONLY the JSON object above - no additional text,
     // Save messages to database if sessionId is provided
     if (sessionId) {
       try {
+        console.log('💾 Saving messages to database for session:', sessionId)
+        console.log('📝 User message:', message)
+        console.log('🤖 AI response:', parsedResponse.content || aiResponse)
+        console.log('📋 Document plan:', parsedResponse.documentPlan)
+        
         // Save user message
         await prisma.chatMessage.create({
           data: {
@@ -216,10 +221,14 @@ REMEMBER: Your response must be ONLY the JSON object above - no additional text,
             data: { updatedAt: new Date() }
           })
         }
+        
+        console.log('✅ Messages saved to database successfully')
       } catch (dbError) {
         console.error('💥 Error saving messages to database:', dbError)
         // Continue with response even if DB save fails
       }
+    } else {
+      console.log('⚠️ No sessionId provided, skipping message saving')
     }
 
     return NextResponse.json({
