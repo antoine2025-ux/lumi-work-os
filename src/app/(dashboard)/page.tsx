@@ -46,9 +46,17 @@ export default function HomePage() {
             .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
             .slice(0, 4)
           setRecentPages(sortedPages)
+        } else if (response.status === 401) {
+          // User not authenticated, show empty state
+          console.log('User not authenticated, showing empty state')
+          setRecentPages([])
+        } else {
+          console.error('Failed to load recent pages:', response.status)
+          setRecentPages([])
         }
       } catch (error) {
         console.error('Error loading recent pages:', error)
+        setRecentPages([])
       } finally {
         setIsLoadingRecentPages(false)
       }

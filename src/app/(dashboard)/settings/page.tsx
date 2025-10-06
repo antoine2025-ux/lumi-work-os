@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { ThemeSelector } from "@/components/theme-selector"
+import { MigrationModal } from "@/components/migrations/migration-modal"
 import { 
   Settings, 
   User, 
@@ -17,11 +19,36 @@ import {
   Edit,
   Trash2,
   UserPlus,
-  Crown
+  Crown,
+  Plug,
+  Download
 } from "lucide-react"
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("workspace")
+
+  const handleMigration = async (platform: string, apiKey: string, workspaceId: string, additionalConfig?: any) => {
+    const response = await fetch('/api/migrations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        platform,
+        apiKey,
+        workspaceId,
+        additionalConfig
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Migration failed')
+    }
+
+    const result = await response.json()
+    return result
+  }
 
   const workspaceMembers = [
     {
@@ -117,6 +144,30 @@ export default function SettingsPage() {
         >
           <Palette className="mr-2 h-4 w-4" />
           Appearance
+        </Button>
+        <Button
+          variant={activeTab === "integrations" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setActiveTab("integrations")}
+        >
+          <Plug className="mr-2 h-4 w-4" />
+          Integrations
+        </Button>
+        <Button
+          variant={activeTab === "permissions" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setActiveTab("permissions")}
+        >
+          <Shield className="mr-2 h-4 w-4" />
+          Permissions
+        </Button>
+        <Button
+          variant={activeTab === "migrations" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setActiveTab("migrations")}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Migrations
         </Button>
       </div>
 
@@ -294,41 +345,345 @@ export default function SettingsPage() {
       {/* Appearance Settings */}
       {activeTab === "appearance" && (
         <div className="space-y-6">
+          <ThemeSelector />
+        </div>
+      )}
+
+      {/* Integrations Settings */}
+      {activeTab === "integrations" && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold">Integrations</h2>
+            <p className="text-muted-foreground">
+              Connect Lumi with your favorite tools and services
+            </p>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <Plug className="h-4 w-4 text-white" />
+                  </div>
+                  <span>Slack</span>
+                </CardTitle>
+                <CardDescription>Connect with Slack for notifications</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Badge variant="secondary" className="mb-4">Connected</Badge>
+                <div className="space-y-2">
+                  <p className="text-sm">• Send notifications to channels</p>
+                  <p className="text-sm">• Sync user data</p>
+                  <p className="text-sm">• Trigger workflows from messages</p>
+                </div>
+                <div className="flex space-x-2 mt-4">
+                  <Button variant="outline" size="sm">Configure</Button>
+                  <Button variant="outline" size="sm">Disconnect</Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+                    <Globe className="h-4 w-4 text-white" />
+                  </div>
+                  <span>Google Drive</span>
+                </CardTitle>
+                <CardDescription>Sync documents and files</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Badge variant="outline" className="mb-4">Available</Badge>
+                <div className="space-y-2">
+                  <p className="text-sm">• Sync documents to wiki</p>
+                  <p className="text-sm">• Auto-import new files</p>
+                  <p className="text-sm">• Version control integration</p>
+                </div>
+                <div className="flex space-x-2 mt-4">
+                  <Button size="sm">Connect</Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                    <Settings className="h-4 w-4 text-white" />
+                  </div>
+                  <span>Microsoft Teams</span>
+                </CardTitle>
+                <CardDescription>Team notifications and collaboration</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Badge variant="outline" className="mb-4">Available</Badge>
+                <div className="space-y-2">
+                  <p className="text-sm">• Team notifications</p>
+                  <p className="text-sm">• Meeting integration</p>
+                  <p className="text-sm">• File sharing</p>
+                </div>
+                <div className="flex space-x-2 mt-4">
+                  <Button size="sm">Connect</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* Permissions Settings */}
+      {activeTab === "permissions" && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold">Permissions</h2>
+            <p className="text-muted-foreground">
+              Manage access control and security settings
+            </p>
+          </div>
+          
           <Card>
             <CardHeader>
-              <CardTitle>Theme</CardTitle>
+              <CardTitle>Role Management</CardTitle>
               <CardDescription>
-                Choose your preferred theme
+                Configure roles and their permissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Crown className="h-5 w-5 text-yellow-500" />
+                    <div>
+                      <h4 className="font-medium">Owner</h4>
+                      <p className="text-sm text-muted-foreground">Full access to all features</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-yellow-500">1 member</Badge>
+                </div>
+                
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Shield className="h-5 w-5 text-blue-500" />
+                    <div>
+                      <h4 className="font-medium">Admin</h4>
+                      <p className="text-sm text-muted-foreground">Manage workspace and users</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-blue-500">2 members</Badge>
+                </div>
+                
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <User className="h-5 w-5 text-gray-500" />
+                    <div>
+                      <h4 className="font-medium">Member</h4>
+                      <p className="text-sm text-muted-foreground">Standard workspace access</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-gray-500">5 members</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Page Permissions</CardTitle>
+              <CardDescription>
+                Control who can view and edit specific pages
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <div className="h-20 bg-background border rounded-lg flex items-center justify-center">
-                    <Globe className="h-8 w-8" />
-                  </div>
-                  <h4 className="font-medium text-center">System</h4>
-                  <p className="text-sm text-muted-foreground text-center">
-                    Follow system preference
-                  </p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Public pages</span>
+                  <Badge variant="outline">12 pages</Badge>
                 </div>
-                <div className="space-y-2">
-                  <div className="h-20 bg-white border rounded-lg flex items-center justify-center">
-                    <Globe className="h-8 w-8" />
-                  </div>
-                  <h4 className="font-medium text-center">Light</h4>
-                  <p className="text-sm text-muted-foreground text-center">
-                    Light theme
-                  </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Team-only pages</span>
+                  <Badge variant="outline">8 pages</Badge>
                 </div>
-                <div className="space-y-2">
-                  <div className="h-20 bg-gray-900 border rounded-lg flex items-center justify-center">
-                    <Globe className="h-8 w-8 text-white" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Private pages</span>
+                  <Badge variant="outline">3 pages</Badge>
+                </div>
+              </div>
+              <Button variant="outline" className="mt-4">
+                <Shield className="mr-2 h-4 w-4" />
+                Manage Page Permissions
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Migrations Settings */}
+      {activeTab === "migrations" && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold">Platform Migrations</h2>
+            <p className="text-muted-foreground">
+              Seamlessly migrate your documentation from other platforms
+            </p>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <Download className="h-4 w-4 text-white" />
                   </div>
-                  <h4 className="font-medium text-center">Dark</h4>
-                  <p className="text-sm text-muted-foreground text-center">
-                    Dark theme
-                  </p>
+                  <span>Slite Migration</span>
+                </CardTitle>
+                <CardDescription>Import your Slite workspace</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 mb-4">
+                  <p className="text-sm">• All documents and folders</p>
+                  <p className="text-sm">• Comments and version history</p>
+                  <p className="text-sm">• Attachments and media</p>
+                  <p className="text-sm">• Team structure and permissions</p>
+                </div>
+                <MigrationModal
+                  platform="Slite"
+                  platformIcon={
+                    <div className="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center">
+                      <Download className="h-3 w-3 text-white" />
+                    </div>
+                  }
+                  description="Import your Slite workspace into Lumi Work OS"
+                  features={[
+                    "All documents and folders",
+                    "Comments and version history", 
+                    "Attachments and media",
+                    "Team structure and permissions"
+                  ]}
+                  onStartMigration={(apiKey, workspaceId) => 
+                    handleMigration("slite", apiKey, workspaceId)
+                  }
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                    <Download className="h-4 w-4 text-white" />
+                  </div>
+                  <span>ClickUp Migration</span>
+                </CardTitle>
+                <CardDescription>Import ClickUp tasks and projects</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 mb-4">
+                  <p className="text-sm">• Tasks and subtasks</p>
+                  <p className="text-sm">• Project documentation</p>
+                  <p className="text-sm">• Custom fields and tags</p>
+                  <p className="text-sm">• Team assignments</p>
+                </div>
+                <MigrationModal
+                  platform="ClickUp"
+                  platformIcon={
+                    <div className="w-6 h-6 bg-purple-500 rounded-lg flex items-center justify-center">
+                      <Download className="h-3 w-3 text-white" />
+                    </div>
+                  }
+                  description="Import your ClickUp workspace into Lumi Work OS"
+                  features={[
+                    "Tasks and subtasks",
+                    "Project documentation",
+                    "Custom fields and tags", 
+                    "Team assignments"
+                  ]}
+                  onStartMigration={(apiKey, workspaceId, additionalConfig) => 
+                    handleMigration("clickup", apiKey, workspaceId, additionalConfig)
+                  }
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-gray-500 rounded-lg flex items-center justify-center">
+                    <Download className="h-4 w-4 text-white" />
+                  </div>
+                  <span>Notion Migration</span>
+                </CardTitle>
+                <CardDescription>Transfer your Notion workspace</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 mb-4">
+                  <p className="text-sm">• Pages and databases</p>
+                  <p className="text-sm">• Blocks and content</p>
+                  <p className="text-sm">• Relations and properties</p>
+                  <p className="text-sm">• Team permissions</p>
+                </div>
+                <Button className="w-full">
+                  <Download className="mr-2 h-4 w-4" />
+                  Start Migration
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <Download className="h-4 w-4 text-white" />
+                  </div>
+                  <span>Confluence Migration</span>
+                </CardTitle>
+                <CardDescription>Migrate from Atlassian Confluence</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 mb-4">
+                  <p className="text-sm">• Spaces and pages</p>
+                  <p className="text-sm">• Attachments and macros</p>
+                  <p className="text-sm">• Comments and labels</p>
+                  <p className="text-sm">• User permissions</p>
+                </div>
+                <Button className="w-full">
+                  <Download className="mr-2 h-4 w-4" />
+                  Start Migration
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Migration History</CardTitle>
+              <CardDescription>
+                View your past migrations and their status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div>
+                      <p className="font-medium">Slite Migration</p>
+                      <p className="text-sm text-muted-foreground">Completed 2 hours ago</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-green-500">24 items imported</Badge>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <div>
+                      <p className="font-medium">ClickUp Migration</p>
+                      <p className="text-sm text-muted-foreground">In progress</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-yellow-500">Processing...</Badge>
                 </div>
               </div>
             </CardContent>

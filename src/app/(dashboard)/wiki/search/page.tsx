@@ -47,10 +47,6 @@ export default function WikiSearchPage() {
     tags: [] as string[]
   })
 
-  // Get all unique tags and authors from results
-  const allTags = Array.from(new Set(results.flatMap(page => page.tags)))
-  const allAuthors = Array.from(new Set(results.map(page => page.author)))
-
   // Perform search
   const performSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -132,9 +128,9 @@ export default function WikiSearchPage() {
     return text.replace(regex, '<mark class="bg-yellow-200 px-1 rounded">$1</mark>')
   }
 
-  // Get all unique tags
-  const allTags = Array.from(new Set(mockPages.flatMap(page => page.tags)))
-  const allAuthors = Array.from(new Set(mockPages.map(page => page.author)))
+  // Get all unique tags and authors from results
+  const allTags = Array.from(new Set(results.flatMap(page => page.tags)))
+  const allAuthors = Array.from(new Set(results.map(page => page.author)))
 
   // Initial search on mount
   useEffect(() => {

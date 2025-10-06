@@ -1,4 +1,5 @@
 // Permission system for Lumi Work OS
+import { WorkspaceRole } from '@prisma/client'
 export enum PermissionLevel {
   PUBLIC = 'public',      // Anyone can view
   TEAM = 'team',          // Team members can view

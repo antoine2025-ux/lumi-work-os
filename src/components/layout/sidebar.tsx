@@ -9,20 +9,19 @@ import {
   GraduationCap, 
   BookOpen, 
   MessageSquare, 
-  Workflow,
   Settings,
-  Zap,
-  Shield
+  Download,
+  Target
 } from "lucide-react"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Projects", href: "/projects", icon: Target },
   { name: "Org Chart", href: "/org", icon: Users },
   { name: "Clario Onboarding", href: "/onboarding", icon: GraduationCap },
   { name: "Wiki", href: "/wiki", icon: BookOpen },
   { name: "Ask Wiki", href: "/ask", icon: MessageSquare },
-  { name: "Integrations", href: "/integrations", icon: Zap },
-  { name: "Permissions", href: "/permissions", icon: Shield },
+  { name: "Migration Review", href: "/migrations/review", icon: Download },
 ]
 
 export function Sidebar() {

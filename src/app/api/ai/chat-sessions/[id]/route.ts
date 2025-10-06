@@ -42,7 +42,25 @@ export async function GET(
     console.log('✅ Found chat session with', chatSession.messages.length, 'messages')
     console.log('📊 Session data:', chatSession)
 
-    return NextResponse.json(chatSession)
+    // Transform messages to include wikiPage data from metadata
+    const transformedMessages = chatSession.messages.map((message: any) => {
+      const transformedMessage = {
+        id: message.id,
+        type: message.type.toLowerCase(),
+        content: message.content,
+        sources: message.metadata?.sources || [],
+        documentPlan: message.metadata?.documentPlan || null,
+        wikiPage: message.metadata?.wikiPage || null
+      }
+      return transformedMessage
+    })
+
+    const transformedSession = {
+      ...chatSession,
+      messages: transformedMessages
+    }
+
+    return NextResponse.json(transformedSession)
   } catch (error) {
     console.error('💥 Error in GET /api/ai/chat-sessions/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

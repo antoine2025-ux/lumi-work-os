@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import { 
   Send, 
   MessageSquare, 
@@ -23,13 +22,12 @@ import {
   CheckCircle,
   ExternalLink,
   FileEdit,
-  History,
   Trash2,
-  Edit3,
   Menu,
   X
 } from "lucide-react"
 import Link from "next/link"
+import { DocumentCreationConfirmation } from "@/components/ai/document-creation-confirmation"
 
 interface Message {
     id: string
@@ -47,11 +45,10 @@ interface Message {
     questions?: string[]
   }
   wikiPage?: {
+    id: string
     title: string
-    content: string
-    category: string
-    visibility: string
     slug: string
+    url: string
   }
 }
 
@@ -69,14 +66,8 @@ interface ChatSession {
 export default function AskWikiPage() {
   const [query, setQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      type: "ai",
-      content: "Hello! I'm Lumi AI, your intelligent documentation assistant. I can help you find information, answer questions, and even create comprehensive wiki pages based on your requirements. What would you like to work on today?",
-      sources: []
-    }
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
+  const [showInitialGreeting, setShowInitialGreeting] = useState(true)
   const [documentCreationMode, setDocumentCreationMode] = useState(false)
   const [wikiParameters, setWikiParameters] = useState({
     category: '',
@@ -145,6 +136,8 @@ export default function AskWikiPage() {
     e.preventDefault()
     if (!query.trim() || isLoading) return
 
+    console.log('🚀 handleSubmit called with currentSessionId:', currentSessionId)
+
     // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -166,6 +159,7 @@ export default function AskWikiPage() {
     setQuery("")
 
     try {
+      console.log('📡 Making API request with sessionId:', currentSessionId)
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: {
@@ -239,6 +233,122 @@ export default function AskWikiPage() {
     }
   }
 
+  const handleOptionSelect = async (option: string) => {
+    setShowInitialGreeting(false)
+    await sendMessage(option)
+  }
+
+  const sendMessage = async (messageContent: string) => {
+    if (!messageContent.trim() || isLoading) return
+
+    console.log('🚀 sendMessage called with currentSessionId:', currentSessionId)
+
+    // Hide initial greeting when user sends first message
+    if (showInitialGreeting) {
+      setShowInitialGreeting(false)
+    }
+
+    // Add user message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: messageContent,
+    }
+    setMessages(prev => [...prev, userMessage])
+
+    // Add typing indicator
+    const typingMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      type: 'ai',
+      content: '',
+      isTyping: true
+    }
+    setMessages(prev => [...prev, typingMessage])
+
+    setIsLoading(true)
+
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: messageContent,
+          context: 'wiki_assistant',
+          workspaceId: 'workspace-1',
+          sessionId: currentSessionId
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to get AI response: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      // Remove typing indicator
+      setMessages(prev => prev.filter(msg => !msg.isTyping))
+      
+      // Set session ID if provided
+      if (data.sessionId && !currentSessionId) {
+        setCurrentSessionId(data.sessionId)
+      }
+      
+      // Add AI response
+      const aiMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        type: 'ai',
+        content: data.content,
+        sources: data.sources,
+        documentPlan: data.documentPlan,
+        wikiPage: data.wikiPage
+      }
+      setMessages(prev => [...prev, aiMessage])
+
+      // Check if we're in document creation mode
+      if (data.documentPlan) {
+        setDocumentCreationMode(true)
+        setWikiParameters(prev => ({
+          ...prev,
+          title: data.documentPlan.title,
+          content: data.content || ''
+        }))
+      }
+
+      // Reload chat sessions to update titles
+      if (currentSessionId) {
+        const sessionsResponse = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
+        if (sessionsResponse.ok) {
+          const sessions = await sessionsResponse.json()
+          setChatSessions(sessions)
+        }
+      }
+
+    } catch (error) {
+      console.error('Error getting AI response:', error)
+      
+      // Remove typing indicator
+      setMessages(prev => prev.filter(msg => !msg.isTyping))
+      
+      // Add error message
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        type: 'ai',
+        content: "I apologize, but I'm having trouble processing your request right now. Please try again in a moment.",
+        sources: []
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleConfirmDocumentCreation = async (messageContent: string) => {
+    // Send confirmation message to AI
+    await sendMessage(messageContent)
+  }
+
   const handleCreateWikiPage = async () => {
     if (!wikiParameters.title || !wikiParameters.content) return
 
@@ -280,6 +390,34 @@ export default function AskWikiPage() {
         }
       }
       setMessages(prev => [...prev, successMessage])
+
+      // Save the success message to the database if we have a session
+      if (currentSessionId) {
+        try {
+          await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: `[SYSTEM] Wiki page created: ${wikiParameters.title}`,
+              context: 'wiki_assistant',
+              workspaceId: 'workspace-1',
+              sessionId: currentSessionId,
+              isSystemMessage: true,
+              wikiPageData: {
+                title: newPage.title,
+                content: newPage.content,
+                category: newPage.category,
+                visibility: wikiParameters.visibility,
+                slug: newPage.slug
+              }
+            })
+          })
+        } catch (error) {
+          console.error('Error saving wiki page success message:', error)
+        }
+      }
       
       // Reset form
       setDocumentCreationMode(false)
@@ -523,6 +661,65 @@ export default function AskWikiPage() {
       <div className="flex flex-col h-[600px]">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+          {/* Initial Greeting */}
+          {showInitialGreeting && messages.length === 0 && (
+            <div className="flex justify-start">
+              <div className="max-w-[80%] rounded-lg p-4 bg-muted">
+                <div className="flex items-start space-x-2">
+                  <div className="flex-shrink-0">
+                    <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                      <Sparkles className="h-4 w-4 text-primary-foreground" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm mb-4">
+                      Hello! I&apos;m Lumi AI, your intelligent documentation assistant. What can I help you with today?
+                    </p>
+                    <p className="text-sm mb-4">Please choose from the following options:</p>
+                    
+                    <div className="space-y-3">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left h-auto p-4"
+                        onClick={() => handleOptionSelect('Creating a Wiki')}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <FileText className="h-5 w-5 text-blue-600" />
+                          <div>
+                            <div className="font-semibold">📝 Creating a Wiki</div>
+                            <div className="text-sm text-muted-foreground">
+                              I&apos;ll help you create comprehensive wiki pages, documents, policies, or procedures. I&apos;ll ask relevant questions to gather all necessary information and then generate a complete wiki page for you.
+                            </div>
+                          </div>
+                        </div>
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left h-auto p-4"
+                        onClick={() => handleOptionSelect('General Info')}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Search className="h-5 w-5 text-green-600" />
+                          <div>
+                            <div className="font-semibold">💡 General Info</div>
+                            <div className="text-sm text-muted-foreground">
+                              I&apos;ll help you find information from existing wiki content and provide general guidance on various topics.
+                            </div>
+                          </div>
+                        </div>
+                      </Button>
+                    </div>
+                    
+                    <p className="text-sm text-muted-foreground mt-4">
+                      Simply click your choice or describe what you need help with!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {messages.map((message) => (
             <div
               key={message.id}
@@ -560,6 +757,21 @@ export default function AskWikiPage() {
                     ) : (
                       <>
                         <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        
+                        {/* Document Creation Confirmation */}
+                        {message.type === 'ai' && !message.documentPlan && !message.wikiPage && 
+                         (message.content.toLowerCase().includes('would you like me to create') ||
+                          message.content.toLowerCase().includes('should i create') ||
+                          message.content.toLowerCase().includes('would you like me to generate') ||
+                          message.content.toLowerCase().includes('would you like me to draft')) && (
+                          <div className="mt-4">
+                            <DocumentCreationConfirmation
+                              onConfirm={() => handleConfirmDocumentCreation('Yes, create the wiki page')}
+                              onCancel={() => handleConfirmDocumentCreation('No, thanks')}
+                              documentType="document"
+                            />
+                          </div>
+                        )}
                         
                         {/* Document Plan */}
                         {message.documentPlan && (
@@ -609,12 +821,9 @@ export default function AskWikiPage() {
                                 <strong>Title:</strong> {message.wikiPage.title}
                               </p>
                               <p className="text-sm text-green-700">
-                                <strong>Category:</strong> {message.wikiPage.category}
+                                <strong>URL:</strong> {message.wikiPage.url}
                               </p>
-                              <p className="text-sm text-green-700">
-                                <strong>Visibility:</strong> {message.wikiPage.visibility}
-                              </p>
-                              <Link href={`/wiki/${message.wikiPage.slug}`}>
+                              <Link href={message.wikiPage.url}>
                                 <Button size="sm" className="bg-green-600 hover:bg-green-700">
                                   <ExternalLink className="h-3 w-3 mr-1" />
                                   View Page

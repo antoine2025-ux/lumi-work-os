@@ -4,7 +4,6 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { Header } from "@/components/layout/header"
-import { Navigation } from "@/components/layout/navigation"
 
 export default function DashboardLayout({
   children,
@@ -32,10 +31,9 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="h-screen bg-background">
+    <div className="min-h-screen bg-background">
       <Header />
-      <Navigation />
-      <main className="h-full overflow-auto">
+      <main className="min-h-screen">
         {children}
       </main>
     </div>

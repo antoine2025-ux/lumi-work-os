@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { 
   BookOpen, 
   Plus, 
@@ -33,6 +34,9 @@ export default function WikiPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [wikiPages, setWikiPages] = useState<any[]>([])
+  const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set())
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Load pages from API
   useEffect(() => {
@@ -79,6 +83,60 @@ export default function WikiPage() {
   const handleNewPage = () => {
     router.push('/wiki/new')
   }
+
+  // Handle page selection
+  const handlePageSelect = (pageId: string) => {
+    const newSelected = new Set(selectedPages)
+    if (newSelected.has(pageId)) {
+      newSelected.delete(pageId)
+    } else {
+      newSelected.add(pageId)
+    }
+    setSelectedPages(newSelected)
+  }
+
+  // Handle select all
+  const handleSelectAll = () => {
+    if (selectedPages.size === filteredPages.length) {
+      setSelectedPages(new Set())
+    } else {
+      setSelectedPages(new Set(filteredPages.map(page => page.id)))
+    }
+  }
+
+  // Handle delete selected pages
+  const handleDeleteSelected = async () => {
+    if (selectedPages.size === 0) return
+
+    try {
+      setIsDeleting(true)
+      
+      // Delete pages one by one
+      for (const pageId of selectedPages) {
+        const response = await fetch(`/api/wiki/pages/${pageId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to delete page ${pageId}`)
+        }
+      }
+
+      // Remove deleted pages from state
+      setWikiPages(prev => prev.filter(page => !selectedPages.has(page.id)))
+      setSelectedPages(new Set())
+      setShowDeleteDialog(false)
+    } catch (error) {
+      console.error('Error deleting pages:', error)
+      alert('Failed to delete some pages. Please try again.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
 
   const handleViewPage = (page: any) => {
     router.push(`/wiki/${page.slug}`)
@@ -251,6 +309,34 @@ export default function WikiPage() {
         </div>
       ) : (
         <>
+          {/* Bulk Actions */}
+          {selectedPages.size > 0 && (
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium">
+                  {selectedPages.size} page{selectedPages.size > 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedPages(new Set())}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Pages Grid/List */}
           {viewMode === "grid" ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -260,6 +346,11 @@ export default function WikiPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
+                      <Checkbox
+                        checked={selectedPages.has(page.id)}
+                        onCheckedChange={() => handlePageSelect(page.id)}
+                        className="mt-1"
+                      />
                       <Link href={`/wiki/${page.slug}`}>
                         <CardTitle className="text-lg group-hover:text-primary transition-colors cursor-pointer">
                           {page.title}
@@ -410,6 +501,61 @@ export default function WikiPage() {
         </Card>
       )}
         </>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="flex-shrink-0">
+                <Trash2 className="h-6 w-6 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Delete Pages
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700 dark:text-gray-300">
+                Are you sure you want to delete <strong>{selectedPages.size} page{selectedPages.size > 1 ? 's' : ''}</strong>? 
+                This will permanently remove the page{selectedPages.size > 1 ? 's' : ''} and all their content.
+              </p>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteSelected}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Pages
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

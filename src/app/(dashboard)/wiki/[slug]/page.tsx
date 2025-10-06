@@ -27,7 +27,8 @@ import {
   Settings,
   Lock,
   Loader2,
-  FileText
+  FileText,
+  Trash2
 } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
@@ -54,6 +55,8 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
   const [permissionLevel, setPermissionLevel] = useState<PermissionLevel>('team' as PermissionLevel)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [category, setCategory] = useState('general')
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Handle permission level change
   const handlePermissionChange = async (newLevel: PermissionLevel) => {
@@ -279,6 +282,34 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
     setContent(originalContent)
   }
 
+  // Handle delete page
+  const handleDelete = async () => {
+    if (!pageData?.id) return
+    
+    try {
+      setIsDeleting(true)
+      const response = await fetch(`/api/wiki/pages/${pageData.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete page')
+      }
+
+      // Redirect to wiki home after successful deletion
+      window.location.href = '/wiki'
+    } catch (error) {
+      console.error('Error deleting page:', error)
+      alert('Failed to delete page. Please try again.')
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteDialog(false)
+    }
+  }
+
   // Permission checks
   // const currentUser = PermissionService.getCurrentUser()
   // const canEdit = PermissionService.canUserEditResource(currentUser.id, resolvedParams.slug, 'page')
@@ -362,10 +393,20 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
               Permissions
             </Button>
             {!isEditing && canEdit && (
-              <Button onClick={() => setIsEditing(true)}>
-                <Edit3 className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
+              <>
+                <Button onClick={() => setIsEditing(true)}>
+                  <Edit3 className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </Button>
+              </>
             )}
             {!canEdit && (
               <div className="flex items-center space-x-1 text-sm text-muted-foreground">
@@ -583,6 +624,61 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
           onClose={() => setShowVersionHistory(false)}
           onRestore={handleVersionRestore}
         />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="flex-shrink-0">
+                <Trash2 className="h-6 w-6 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Delete Page
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700 dark:text-gray-300">
+                Are you sure you want to delete <strong>"{pageData?.title}"</strong>? 
+                This will permanently remove the page and all its content.
+              </p>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Page
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import {
   Home,
@@ -9,10 +10,7 @@ import {
   Bot,
   Users,
   Building2,
-  Plug,
-  Shield,
-  Settings,
-  Sparkles
+  Settings
 } from "lucide-react"
 
 const navigationItems = [
@@ -47,18 +45,6 @@ const navigationItems = [
     description: "Organization chart and structure"
   },
   {
-    name: "Integrations",
-    href: "/integrations",
-    icon: Plug,
-    description: "Third-party integrations"
-  },
-  {
-    name: "Permissions",
-    href: "/permissions",
-    icon: Shield,
-    description: "Access control and security"
-  },
-  {
     name: "Settings",
     href: "/settings",
     icon: Settings,
@@ -68,18 +54,34 @@ const navigationItems = [
 
 export function Navigation() {
   const pathname = usePathname()
+  const [isVisible, setIsVisible] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      
+      if (currentScrollY < lastScrollY || currentScrollY < 10) {
+        // Scrolling up or at the top
+        setIsVisible(true)
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        // Scrolling down and past 100px
+        setIsVisible(false)
+      }
+      
+      setLastScrollY(currentScrollY)
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [lastScrollY])
 
   return (
-    <nav className="bg-white border-b border-gray-200 px-6">
-      <div className="flex items-center justify-between h-16">
-        {/* Logo */}
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <Sparkles className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-xl font-semibold text-gray-900">Lumi</span>
-        </div>
-
+    <nav className={cn(
+      "bg-white border-b border-gray-200 px-6 transition-transform duration-300 ease-in-out",
+      isVisible ? "translate-y-0" : "-translate-y-full"
+    )}>
+      <div className="flex items-center justify-center h-16">
         {/* Navigation Items */}
         <div className="flex items-center space-x-1">
           {navigationItems.map((item) => {
@@ -111,15 +113,6 @@ export function Navigation() {
               </Link>
             )
           })}
-        </div>
-
-        {/* Mobile menu button */}
-        <div className="sm:hidden">
-          <button className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
         </div>
       </div>
     </nav>
