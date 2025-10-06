@@ -24,15 +24,17 @@ export default function NewWikiPage() {
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
   const [category, setCategory] = useState("general")
+  const [error, setError] = useState<string | null>(null)
 
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
-      alert("Please enter both title and content")
+      setError("Please enter both title and content")
       return
     }
 
     try {
       setIsSaving(true)
+      setError(null)
       const response = await fetch('/api/wiki/pages', {
         method: 'POST',
         headers: {
@@ -48,16 +50,23 @@ export default function NewWikiPage() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error('API Error:', errorData)
-        throw new Error(`Failed to create page: ${errorData.error || 'Unknown error'}`)
+        let errorMessage = 'Unknown error'
+        try {
+          const errorData = await response.json()
+          console.error('API Error:', errorData)
+          errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError)
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        }
+        throw new Error(`Failed to create page: ${errorMessage}`)
       }
 
       const newPage = await response.json()
       router.push(`/wiki/${newPage.slug}`)
     } catch (error) {
       console.error('Error creating page:', error)
-      alert('Failed to create page. Please try again.')
+      setError(error instanceof Error ? error.message : 'Failed to create page. Please try again.')
     } finally {
       setIsSaving(false)
     }
@@ -104,6 +113,17 @@ export default function NewWikiPage() {
             </Button>
           </div>
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div className="flex items-center">
+              <X className="h-5 w-5 text-red-600 dark:text-red-400 mr-2" />
+              <p className="text-red-800 dark:text-red-200 font-medium">Error</p>
+            </div>
+            <p className="text-red-700 dark:text-red-300 mt-1">{error}</p>
+          </div>
+        )}
 
         {/* Page Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

@@ -1,26 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
 
-// GET /api/tasks - Get all tasks for a workspace or project
+const prisma = new PrismaClient()
+
+// GET /api/tasks - Get all tasks for a project
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId')
     const projectId = searchParams.get('projectId')
+    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
     const status = searchParams.get('status')
     const assigneeId = searchParams.get('assigneeId')
 
-    if (!workspaceId) {
-      return NextResponse.json({ error: 'workspaceId is required' }, { status: 400 })
+    if (!projectId) {
+      return NextResponse.json({ 
+        error: 'Missing required parameter: projectId' 
+      }, { status: 400 })
     }
 
-    const where: any = { workspaceId }
-    if (projectId) {
-      where.projectId = projectId
+    // Ensure user and workspace exist for development
+    const createdById = 'dev-user-1'
+    
+    let user = await prisma.user.findUnique({
+      where: { id: createdById }
+    })
+    
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          id: createdById,
+          email: 'dev@lumi.com',
+          name: 'Development User'
+        }
+      })
     }
+
+    let workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId }
+    })
+    
+    if (!workspace) {
+      workspace = await prisma.workspace.create({
+        data: {
+          id: workspaceId,
+          name: 'Development Workspace',
+          slug: 'dev-workspace',
+          description: 'Development workspace',
+          ownerId: createdById
+        }
+      })
+    }
+
+    const where: any = { 
+      projectId,
+      workspaceId 
+    }
+    
     if (status) {
       where.status = status
     }
+    
     if (assigneeId) {
       where.assigneeId = assigneeId
     }
@@ -28,13 +67,6 @@ export async function GET(request: NextRequest) {
     const tasks = await prisma.task.findMany({
       where,
       include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
         assignee: {
           select: {
             id: true,
@@ -49,12 +81,20 @@ export async function GET(request: NextRequest) {
             email: true
           }
         },
+        project: {
+          select: {
+            id: true,
+            name: true,
+            color: true
+          }
+        },
         subtasks: {
           include: {
             assignee: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                email: true
               }
             }
           },
@@ -73,7 +113,7 @@ export async function GET(request: NextRequest) {
             }
           },
           orderBy: {
-            createdAt: 'asc'
+            createdAt: 'desc'
           }
         },
         _count: {
@@ -83,9 +123,12 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      orderBy: {
-        order: 'asc'
-      }
+      orderBy: [
+        { status: 'asc' },
+        { priority: 'desc' },
+        { dueDate: 'asc' },
+        { createdAt: 'desc' }
+      ]
     })
 
     return NextResponse.json(tasks)
@@ -103,50 +146,83 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { 
       projectId,
-      workspaceId,
-      title,
+      workspaceId = 'workspace-1',
+      title, 
       description,
+      status = 'TODO',
       priority = 'MEDIUM',
       assigneeId,
       dueDate,
       tags = [],
-      createdById
+      subtasks = []
     } = body
 
-    if (!projectId || !workspaceId || !title || !createdById) {
+    if (!projectId || !title) {
       return NextResponse.json({ 
-        error: 'Missing required fields: projectId, workspaceId, title, createdById' 
+        error: 'Missing required fields: projectId, title' 
       }, { status: 400 })
     }
 
-    // Get the next order number for this project
-    const lastTask = await prisma.task.findFirst({
-      where: { projectId },
-      orderBy: { order: 'desc' }
-    })
-    const nextOrder = (lastTask?.order || 0) + 1
+    // Use hardcoded user ID for development
+    const createdById = 'dev-user-1'
 
+    // Ensure user and workspace exist for development
+    let user = await prisma.user.findUnique({
+      where: { id: createdById }
+    })
+    
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          id: createdById,
+          email: 'dev@lumi.com',
+          name: 'Development User'
+        }
+      })
+    }
+
+    let workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId }
+    })
+    
+    if (!workspace) {
+      workspace = await prisma.workspace.create({
+        data: {
+          id: workspaceId,
+          name: 'Development Workspace',
+          slug: 'dev-workspace',
+          description: 'Development workspace',
+          ownerId: createdById
+        }
+      })
+    }
+
+    // Verify project exists
+    const project = await prisma.project.findUnique({
+      where: { id: projectId }
+    })
+
+    if (!project) {
+      return NextResponse.json({ 
+        error: 'Project not found' 
+      }, { status: 404 })
+    }
+
+    // Create the task
     const task = await prisma.task.create({
       data: {
         projectId,
         workspaceId,
         title,
         description,
+        status: status as any,
         priority: priority as any,
-        assigneeId,
+        assigneeId: assigneeId || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         tags,
-        order: nextOrder,
         createdById
       },
       include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
         assignee: {
           select: {
             id: true,
@@ -161,33 +237,15 @@ export async function POST(request: NextRequest) {
             email: true
           }
         },
-        subtasks: {
-          include: {
-            assignee: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          },
-          orderBy: {
-            order: 'asc'
+        project: {
+          select: {
+            id: true,
+            name: true,
+            color: true
           }
         },
-        comments: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'asc'
-          }
-        },
+        subtasks: true,
+        comments: true,
         _count: {
           select: {
             subtasks: true,
@@ -196,6 +254,20 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+
+    // Create subtasks if provided
+    if (subtasks && subtasks.length > 0) {
+      await prisma.subtask.createMany({
+        data: subtasks.map((subtask: any, index: number) => ({
+          taskId: task.id,
+          title: subtask.title,
+          description: subtask.description,
+          assigneeId: subtask.assigneeId || null,
+          dueDate: subtask.dueDate ? new Date(subtask.dueDate) : null,
+          order: index
+        }))
+      })
+    }
 
     return NextResponse.json(task)
   } catch (error) {

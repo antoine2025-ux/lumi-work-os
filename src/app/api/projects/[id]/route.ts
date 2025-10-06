@@ -56,6 +56,15 @@ export async function GET(
           select: {
             tasks: true
           }
+        },
+        wikiPage: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            content: true,
+            updatedAt: true
+          }
         }
       }
     })
@@ -91,7 +100,8 @@ export async function PUT(
       priority,
       startDate,
       endDate,
-      color
+      color,
+      wikiPageId
     } = body
 
     if (!projectId) {
@@ -117,7 +127,8 @@ export async function PUT(
         ...(priority && { priority: priority as any }),
         ...(startDate && { startDate: new Date(startDate) }),
         ...(endDate && { endDate: new Date(endDate) }),
-        ...(color && { color })
+        ...(color && { color }),
+        ...(wikiPageId !== undefined && { wikiPageId: wikiPageId || null })
       },
       include: {
         createdBy: {
@@ -156,6 +167,15 @@ export async function PUT(
         _count: {
           select: {
             tasks: true
+          }
+        },
+        wikiPage: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            content: true,
+            updatedAt: true
           }
         }
       }

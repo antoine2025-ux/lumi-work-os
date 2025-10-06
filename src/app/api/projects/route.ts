@@ -123,7 +123,13 @@ export async function POST(request: NextRequest) {
       priority = 'MEDIUM',
       startDate,
       endDate,
-      color
+      color,
+      department,
+      team,
+      ownerId,
+      watcherIds = [],
+      assigneeIds = [],
+      wikiPageId
     } = body
 
     if (!workspaceId || !name) {
@@ -177,6 +183,10 @@ export async function POST(request: NextRequest) {
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         color,
+        department,
+        team,
+        ownerId: ownerId || createdById, // Use provided owner or default to creator
+        wikiPageId: wikiPageId || null, // Handle empty string as null
         createdById
       },
       include: {
@@ -214,6 +224,27 @@ export async function POST(request: NextRequest) {
         role: 'OWNER'
       }
     })
+
+    // Create watchers
+    if (watcherIds && watcherIds.length > 0) {
+      await prisma.projectWatcher.createMany({
+        data: watcherIds.map((userId: string) => ({
+          projectId: project.id,
+          userId
+        }))
+      })
+    }
+
+    // Create assignees
+    if (assigneeIds && assigneeIds.length > 0) {
+      await prisma.projectAssignee.createMany({
+        data: assigneeIds.map((userId: string) => ({
+          projectId: project.id,
+          userId,
+          role: 'MEMBER' // Default role for assignees
+        }))
+      })
+    }
 
     return NextResponse.json(project)
   } catch (error) {

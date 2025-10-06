@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,12 @@ import {
   Users,
   AlertCircle,
   CheckCircle,
-  Loader2
+  Loader2,
+  Building2,
+  UserPlus,
+  Eye,
+  Link as LinkIcon,
+  Checkbox
 } from "lucide-react"
 import Link from "next/link"
 
@@ -28,6 +33,12 @@ interface ProjectFormData {
   startDate: string
   endDate: string
   color: string
+  department: string
+  team: string
+  ownerId: string
+  watcherIds: string[]
+  assigneeIds: string[]
+  wikiPageId: string
 }
 
 const statusOptions = [
@@ -55,10 +66,34 @@ const colorOptions = [
   { value: '#ec4899', label: 'Pink', color: 'bg-pink-500' }
 ]
 
+const departmentOptions = [
+  { value: 'engineering', label: 'Engineering' },
+  { value: 'product', label: 'Product' },
+  { value: 'design', label: 'Design' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'sales', label: 'Sales' },
+  { value: 'operations', label: 'Operations' },
+  { value: 'hr', label: 'Human Resources' },
+  { value: 'finance', label: 'Finance' }
+]
+
+const teamOptions = [
+  { value: 'frontend', label: 'Frontend Team' },
+  { value: 'backend', label: 'Backend Team' },
+  { value: 'mobile', label: 'Mobile Team' },
+  { value: 'devops', label: 'DevOps Team' },
+  { value: 'qa', label: 'QA Team' },
+  { value: 'data', label: 'Data Team' },
+  { value: 'security', label: 'Security Team' },
+  { value: 'platform', label: 'Platform Team' }
+]
+
 export default function NewProjectPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [users, setUsers] = useState<Array<{id: string, name: string, email: string}>>([])
+  const [wikiPages, setWikiPages] = useState<Array<{id: string, title: string, category: string}>>([])
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
     description: '',
@@ -66,8 +101,40 @@ export default function NewProjectPage() {
     priority: 'MEDIUM',
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
-    color: '#3b82f6'
+    color: '#3b82f6',
+    department: '',
+    team: '',
+    ownerId: '',
+    watcherIds: [],
+    assigneeIds: [],
+    wikiPageId: ''
   })
+
+  // Load users and wiki pages on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load users (we'll create some sample users for now)
+        setUsers([
+          { id: 'dev-user-1', name: 'Development User', email: 'dev@lumi.com' },
+          { id: 'user-2', name: 'John Doe', email: 'john@lumi.com' },
+          { id: 'user-3', name: 'Jane Smith', email: 'jane@lumi.com' },
+          { id: 'user-4', name: 'Mike Johnson', email: 'mike@lumi.com' }
+        ])
+
+        // Load wiki pages
+        const wikiResponse = await fetch('/api/wiki/pages?workspaceId=workspace-1')
+        if (wikiResponse.ok) {
+          const wikiData = await wikiResponse.json()
+          setWikiPages(wikiData)
+        }
+      } catch (error) {
+        console.error('Error loading data:', error)
+      }
+    }
+
+    loadData()
+  }, [])
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -123,12 +190,22 @@ export default function NewProjectPage() {
     }
   }
 
-  const handleInputChange = (field: keyof ProjectFormData, value: string) => {
+  const handleInputChange = (field: keyof ProjectFormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
+  }
+
+  const handleMultiSelectChange = (field: 'watcherIds' | 'assigneeIds', userId: string) => {
+    setFormData(prev => {
+      const currentIds = prev[field] as string[]
+      const newIds = currentIds.includes(userId)
+        ? currentIds.filter(id => id !== userId)
+        : [...currentIds, userId]
+      return { ...prev, [field]: newIds }
+    })
   }
 
   return (
@@ -304,6 +381,207 @@ export default function NewProjectPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Team & Organization */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Building2 className="h-5 w-5" />
+                <span>Organization</span>
+              </CardTitle>
+              <CardDescription>
+                Department and team assignment
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="department">Department</Label>
+                <Select 
+                  value={formData.department} 
+                  onValueChange={(value) => handleInputChange('department', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departmentOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="team">Team</Label>
+                <Select 
+                  value={formData.team} 
+                  onValueChange={(value) => handleInputChange('team', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teamOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Users className="h-5 w-5" />
+                <span>Project Owner</span>
+              </CardTitle>
+              <CardDescription>
+                Who is responsible for this project
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="owner">Project Owner</Label>
+                <Select 
+                  value={formData.ownerId} 
+                  onValueChange={(value) => handleInputChange('ownerId', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select project owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span>{user.name}</span>
+                          <span className="text-sm text-muted-foreground">({user.email})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Team Members */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Eye className="h-5 w-5" />
+                <span>Watchers</span>
+              </CardTitle>
+              <CardDescription>
+                Users who will be notified about project updates
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Select Watchers</Label>
+                <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-2">
+                  {users.map((user) => (
+                    <div key={user.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`watcher-${user.id}`}
+                        checked={formData.watcherIds.includes(user.id)}
+                        onChange={() => handleMultiSelectChange('watcherIds', user.id)}
+                        className="rounded border-gray-300"
+                      />
+                      <label htmlFor={`watcher-${user.id}`} className="flex items-center space-x-2 cursor-pointer">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-sm">{user.name}</span>
+                        <span className="text-xs text-muted-foreground">({user.email})</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <UserPlus className="h-5 w-5" />
+                <span>Assignees</span>
+              </CardTitle>
+              <CardDescription>
+                Team members assigned to work on this project
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Select Assignees</Label>
+                <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-2">
+                  {users.map((user) => (
+                    <div key={user.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`assignee-${user.id}`}
+                        checked={formData.assigneeIds.includes(user.id)}
+                        onChange={() => handleMultiSelectChange('assigneeIds', user.id)}
+                        className="rounded border-gray-300"
+                      />
+                      <label htmlFor={`assignee-${user.id}`} className="flex items-center space-x-2 cursor-pointer">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                        <span className="text-sm">{user.name}</span>
+                        <span className="text-xs text-muted-foreground">({user.email})</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Wiki Integration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <LinkIcon className="h-5 w-5" />
+              <span>Wiki Integration</span>
+            </CardTitle>
+            <CardDescription>
+              Link this project to a wiki page for documentation
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="wikiPage">Related Wiki Page</Label>
+              <Select 
+                value={formData.wikiPageId} 
+                onValueChange={(value) => handleInputChange('wikiPageId', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a wiki page (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {wikiPages.map((page) => (
+                    <SelectItem key={page.id} value={page.id}>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="outline" className="text-xs">
+                          {page.category}
+                        </Badge>
+                        <span>{page.title}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Error Message */}
         {errors.submit && (

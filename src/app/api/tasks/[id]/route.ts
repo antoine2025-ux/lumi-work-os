@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
 
 // GET /api/tasks/[id] - Get a specific task
 export async function GET(
@@ -7,17 +9,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params
+    const { id: taskId } = await params
+
     const task = await prisma.task.findUnique({
-      where: { id: resolvedParams.id },
+      where: { id: taskId },
       include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
         assignee: {
           select: {
             id: true,
@@ -32,12 +28,21 @@ export async function GET(
             email: true
           }
         },
+        project: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            status: true
+          }
+        },
         subtasks: {
           include: {
             assignee: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                email: true
               }
             }
           },
@@ -56,7 +61,7 @@ export async function GET(
             }
           },
           orderBy: {
-            createdAt: 'asc'
+            createdAt: 'desc'
           }
         },
         _count: {
@@ -69,15 +74,16 @@ export async function GET(
     })
 
     if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+      return NextResponse.json({ 
+        error: 'Task not found' 
+      }, { status: 404 })
     }
 
     return NextResponse.json(task)
   } catch (error) {
     console.error('Error fetching task:', error)
     return NextResponse.json({ 
-      error: 'Failed to fetch task',
-      details: error.message 
+      error: 'Failed to fetch task' 
     }, { status: 500 })
   }
 }
@@ -88,48 +94,45 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params
+    const { id: taskId } = await params
     const body = await request.json()
     const { 
-      title,
+      title, 
       description,
       status,
       priority,
       assigneeId,
       dueDate,
       tags,
-      order
+      completedAt
     } = body
 
+    // Build update data object
     const updateData: any = {}
     
     if (title !== undefined) updateData.title = title
     if (description !== undefined) updateData.description = description
-    if (status !== undefined) updateData.status = status as any
-    if (priority !== undefined) updateData.priority = priority as any
-    if (assigneeId !== undefined) updateData.assigneeId = assigneeId
+    if (status !== undefined) updateData.status = status
+    if (priority !== undefined) updateData.priority = priority
+    if (assigneeId !== undefined) updateData.assigneeId = assigneeId || null
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null
     if (tags !== undefined) updateData.tags = tags
-    if (order !== undefined) updateData.order = order
+    if (completedAt !== undefined) updateData.completedAt = completedAt ? new Date(completedAt) : null
 
-    // If status is being changed to DONE, set completedAt
-    if (status === 'DONE') {
+    // If status is DONE and completedAt is not set, set it to now
+    if (status === 'DONE' && !completedAt) {
       updateData.completedAt = new Date()
-    } else if (status && status !== 'DONE') {
+    }
+
+    // If status is not DONE, clear completedAt
+    if (status && status !== 'DONE') {
       updateData.completedAt = null
     }
 
     const task = await prisma.task.update({
-      where: { id: resolvedParams.id },
+      where: { id: taskId },
       data: updateData,
       include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
         assignee: {
           select: {
             id: true,
@@ -144,12 +147,21 @@ export async function PUT(
             email: true
           }
         },
+        project: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            status: true
+          }
+        },
         subtasks: {
           include: {
             assignee: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                email: true
               }
             }
           },
@@ -168,7 +180,7 @@ export async function PUT(
             }
           },
           orderBy: {
-            createdAt: 'asc'
+            createdAt: 'desc'
           }
         },
         _count: {
@@ -196,23 +208,27 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params
+    const { id: taskId } = await params
 
     // Check if task exists
     const task = await prisma.task.findUnique({
-      where: { id: resolvedParams.id }
+      where: { id: taskId }
     })
 
     if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+      return NextResponse.json({ 
+        error: 'Task not found' 
+      }, { status: 404 })
     }
 
-    // Delete the task (cascade will handle related records)
+    // Delete the task (cascade will handle subtasks and comments)
     await prisma.task.delete({
-      where: { id: resolvedParams.id }
+      where: { id: taskId }
     })
 
-    return NextResponse.json({ message: 'Task deleted successfully' })
+    return NextResponse.json({ 
+      message: 'Task deleted successfully' 
+    })
   } catch (error) {
     console.error('Error deleting task:', error)
     return NextResponse.json({ 
