@@ -1,1040 +1,963 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { 
-  Send, 
-  MessageSquare, 
-  BookOpen, 
-  FileText,
-  Search,
-  Sparkles,
-  Copy,
-  ThumbsUp,
-  ThumbsDown,
-  Plus,
-  Loader2,
-  CheckCircle,
-  ExternalLink,
-  FileEdit,
-  Trash2,
-  Menu,
-  X
-} from "lucide-react"
-import Link from "next/link"
-import { DocumentCreationConfirmation } from "@/components/ai/document-creation-confirmation"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Send, Bot, FileText, Search, Plus, X, History, Clock, Trash2, ExternalLink, CheckCircle, Loader2, ChevronDown } from "lucide-react"
+import MarkdownViewer from "@/components/assistant/markdown-viewer"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Message {
-    id: string
-    type: 'user' | 'ai'
-    content: string
-    sources?: Array<{
-      title: string
-      url: string
-      excerpt: string
-    }>
-  isTyping?: boolean
-  documentPlan?: {
-    title: string
-    structure?: string[]
-    questions?: string[]
-  }
-  wikiPage?: {
-    id: string
-    title: string
-    slug: string
-    url: string
-  }
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: Date
 }
 
-interface ChatSession {
+interface Session {
+  id: string
+  intent: string
+  phase: string
+  requirementNotes?: any
+  draftTitle?: string
+  draftBody?: string
+  wikiUrl?: string
+}
+
+interface DraftSettings {
+  category: string
+  visibility: string
+  tags: string[]
+  reviewRequired: boolean
+}
+
+interface ChatHistoryItem {
   id: string
   title: string
+  intent: string
+  phase: string
+  draftTitle?: string
+  wikiUrl?: string
   createdAt: string
   updatedAt: string
-  messages: Message[]
-  _count: {
-    messages: number
-  }
+  messageCount: number
 }
 
-export default function AskWikiPage() {
-  const [query, setQuery] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+export default function AskPage() {
+  const [input, setInput] = useState("")
   const [messages, setMessages] = useState<Message[]>([])
-  const [showInitialGreeting, setShowInitialGreeting] = useState(true)
-  const [documentCreationMode, setDocumentCreationMode] = useState(false)
-  const [wikiParameters, setWikiParameters] = useState({
-    category: '',
+  const [session, setSession] = useState<Session | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [showDraft, setShowDraft] = useState(false)
+  const [showPublishSheet, setShowPublishSheet] = useState(false)
+  const [showHistory, setShowHistory] = useState(true)
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
+  const [draftSettings, setDraftSettings] = useState<DraftSettings>({
+    category: 'general',
     visibility: 'public',
-    title: '',
-    content: ''
+    tags: [],
+    reviewRequired: false
   })
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(true) // Show sidebar by default
-  const [isLoadingSessions, setIsLoadingSessions] = useState(true)
+  const [selectedQuickActions, setSelectedQuickActions] = useState<string[]>([])
+  const [showWelcome, setShowWelcome] = useState(true)
 
-  // Helper function to clean HTML content for preview
-  const cleanHtmlForPreview = (html: string) => {
-    // Remove HTML tags but preserve structure
-    return html
-      .replace(/<h1[^>]*>/gi, '\n# ')
-      .replace(/<h2[^>]*>/gi, '\n## ')
-      .replace(/<h3[^>]*>/gi, '\n### ')
-      .replace(/<h4[^>]*>/gi, '\n#### ')
-      .replace(/<h5[^>]*>/gi, '\n##### ')
-      .replace(/<h6[^>]*>/gi, '\n###### ')
-      .replace(/<\/h[1-6]>/gi, '\n')
-      .replace(/<p[^>]*>/gi, '\n')
-      .replace(/<\/p>/gi, '\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<li[^>]*>/gi, '\n• ')
-      .replace(/<\/li>/gi, '')
-      .replace(/<ul[^>]*>/gi, '\n')
-      .replace(/<\/ul>/gi, '\n')
-      .replace(/<ol[^>]*>/gi, '\n')
-      .replace(/<\/ol>/gi, '\n')
-      .replace(/<strong[^>]*>/gi, '**')
-      .replace(/<\/strong>/gi, '**')
-      .replace(/<b[^>]*>/gi, '**')
-      .replace(/<\/b>/gi, '**')
-      .replace(/<em[^>]*>/gi, '*')
-      .replace(/<\/em>/gi, '*')
-      .replace(/<i[^>]*>/gi, '*')
-      .replace(/<\/i>/gi, '*')
-      .replace(/<[^>]*>/g, '') // Remove any remaining HTML tags
-      .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean up multiple newlines
-      .trim()
-  }
-
-  // Load chat sessions on component mount
+  // Load chat history on mount
   useEffect(() => {
-    const loadChatSessions = async () => {
-      try {
-        const response = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
-        if (response.ok) {
-          const sessions = await response.json()
-          setChatSessions(sessions)
-        }
-      } catch (error) {
-        console.error('Error loading chat sessions:', error)
-      } finally {
-        setIsLoadingSessions(false)
-      }
-    }
-
-    loadChatSessions()
+    loadChatHistory()
   }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!query.trim() || isLoading) return
-
-    console.log('🚀 handleSubmit called with currentSessionId:', currentSessionId)
-
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: query,
-    }
-    setMessages(prev => [...prev, userMessage])
-
-    // Add typing indicator
-    const typingMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      type: 'ai',
-      content: '',
-      isTyping: true
-    }
-    setMessages(prev => [...prev, typingMessage])
-
-    setIsLoading(true)
-    setQuery("")
-
-    try {
-      console.log('📡 Making API request with sessionId:', currentSessionId)
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: query,
-          context: 'wiki_assistant',
-          workspaceId: 'workspace-1',
-          sessionId: currentSessionId
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    const messagesContainer = document.getElementById('messages-container')
+    if (messagesContainer) {
+      setTimeout(() => {
+        messagesContainer.scrollTo({
+          top: messagesContainer.scrollHeight,
+          behavior: 'smooth'
         })
+      }, 150)
+    }
+  }, [messages])
+
+  // Handle scroll events to show/hide scroll-to-bottom button
+  useEffect(() => {
+    const messagesContainer = document.getElementById('messages-container')
+    if (!messagesContainer) return
+
+    const handleScroll = () => {
+      const isNearBottom = messagesContainer.scrollTop + messagesContainer.clientHeight >= messagesContainer.scrollHeight - 100
+      setShowScrollToBottom(!isNearBottom && messages.length > 0)
+    }
+
+    messagesContainer.addEventListener('scroll', handleScroll)
+    return () => messagesContainer.removeEventListener('scroll', handleScroll)
+  }, [messages.length])
+
+  const scrollToBottom = () => {
+    const messagesContainer = document.getElementById('messages-container')
+    if (messagesContainer) {
+      messagesContainer.scrollTo({
+        top: messagesContainer.scrollHeight,
+        behavior: 'smooth'
       })
+    }
+  }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.error('API Error:', errorData)
-        throw new Error(`Failed to get AI response: ${errorData.error || 'Unknown error'}`)
-      }
+  const loadChatHistory = async () => {
+    setIsLoadingHistory(true)
+    try {
+      const response = await fetch('/api/assistant/history?limit=20')
+      const data = await response.json()
+      setChatHistory(data.sessions || [])
+    } catch (error) {
+      console.error('Error loading chat history:', error)
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }
 
+  const loadSession = async (sessionId: string) => {
+    setIsLoading(true)
+    try {
+      const response = await fetch(`/api/assistant?sessionId=${sessionId}`)
       const data = await response.json()
       
-      // Remove typing indicator
-      setMessages(prev => prev.filter(msg => !msg.isTyping))
-
-      // Add AI response
-      const aiMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        type: 'ai',
-        content: data.content,
-        sources: data.sources,
-        documentPlan: data.documentPlan,
-        wikiPage: data.wikiPage
-      }
-      setMessages(prev => [...prev, aiMessage])
-
-      // Check if we're in document creation mode
-      if (data.documentPlan) {
-        setDocumentCreationMode(true)
-        setWikiParameters(prev => ({
-          ...prev,
-          title: data.documentPlan.title,
-          content: data.content || ''
-        }))
-      }
-
-      // Reload chat sessions to update titles
-      if (currentSessionId) {
-        const sessionsResponse = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
-        if (sessionsResponse.ok) {
-          const sessions = await sessionsResponse.json()
-          setChatSessions(sessions)
-        }
-      }
-
-    } catch (error) {
-      console.error('Error getting AI response:', error)
-      
-      // Remove typing indicator
-      setMessages(prev => prev.filter(msg => !msg.isTyping))
-      
-      // Add error message
-      const errorMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        type: 'ai',
-        content: "I apologize, but I'm having trouble processing your request right now. Please try again in a moment.",
-        sources: []
-      }
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleOptionSelect = async (option: string) => {
-    setShowInitialGreeting(false)
-    await sendMessage(option)
-  }
-
-  const sendMessage = async (messageContent: string) => {
-    if (!messageContent.trim() || isLoading) return
-
-    console.log('🚀 sendMessage called with currentSessionId:', currentSessionId)
-
-    // Hide initial greeting when user sends first message
-    if (showInitialGreeting) {
-      setShowInitialGreeting(false)
-    }
-
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: messageContent,
-    }
-    setMessages(prev => [...prev, userMessage])
-
-    // Add typing indicator
-    const typingMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      type: 'ai',
-      content: '',
-      isTyping: true
-    }
-    setMessages(prev => [...prev, typingMessage])
-
-    setIsLoading(true)
-
-    try {
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: messageContent,
-          context: 'wiki_assistant',
-          workspaceId: 'workspace-1',
-          sessionId: currentSessionId
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to get AI response: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      
-      // Remove typing indicator
-      setMessages(prev => prev.filter(msg => !msg.isTyping))
-      
-      // Set session ID if provided
-      if (data.sessionId && !currentSessionId) {
-        setCurrentSessionId(data.sessionId)
-      }
-      
-      // Add AI response
-      const aiMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        type: 'ai',
-        content: data.content,
-        sources: data.sources,
-        documentPlan: data.documentPlan,
-        wikiPage: data.wikiPage
-      }
-      setMessages(prev => [...prev, aiMessage])
-
-      // Check if we're in document creation mode
-      if (data.documentPlan) {
-        setDocumentCreationMode(true)
-        setWikiParameters(prev => ({
-          ...prev,
-          title: data.documentPlan.title,
-          content: data.content || ''
-        }))
-      }
-
-      // Reload chat sessions to update titles
-      if (currentSessionId) {
-        const sessionsResponse = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
-        if (sessionsResponse.ok) {
-          const sessions = await sessionsResponse.json()
-          setChatSessions(sessions)
-        }
-      }
-
-    } catch (error) {
-      console.error('Error getting AI response:', error)
-      
-      // Remove typing indicator
-      setMessages(prev => prev.filter(msg => !msg.isTyping))
-      
-      // Add error message
-      const errorMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        type: 'ai',
-        content: "I apologize, but I'm having trouble processing your request right now. Please try again in a moment.",
-        sources: []
-      }
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleConfirmDocumentCreation = async (messageContent: string) => {
-    // Send confirmation message to AI
-    await sendMessage(messageContent)
-  }
-
-  const handleCreateWikiPage = async () => {
-    if (!wikiParameters.title || !wikiParameters.content) return
-
-    setIsLoading(true)
-    
-    try {
-      const response = await fetch('/api/wiki/pages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          workspaceId: 'workspace-1',
-          title: wikiParameters.title,
-          content: wikiParameters.content,
-          category: wikiParameters.category,
-          tags: [],
-          isPublished: wikiParameters.visibility === 'public'
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create wiki page')
-      }
-
-      const newPage = await response.json()
-      
-      // Add success message with link
-      const successMessage: Message = {
-        id: Date.now().toString(),
-        type: 'ai',
-        content: `Perfect! I've created your wiki page "${wikiParameters.title}". You can view and edit it using the link below.`,
-        wikiPage: {
-          title: newPage.title,
-          content: newPage.content,
-          category: newPage.category,
-          visibility: wikiParameters.visibility,
-          slug: newPage.slug
-        }
-      }
-      setMessages(prev => [...prev, successMessage])
-
-      // Save the success message to the database if we have a session
-      if (currentSessionId) {
-        try {
-          await fetch('/api/ai/chat', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              message: `[SYSTEM] Wiki page created: ${wikiParameters.title}`,
-              context: 'wiki_assistant',
-              workspaceId: 'workspace-1',
-              sessionId: currentSessionId,
-              isSystemMessage: true,
-              wikiPageData: {
-                title: newPage.title,
-                content: newPage.content,
-                category: newPage.category,
-                visibility: wikiParameters.visibility,
-                slug: newPage.slug
-              }
-            })
-          })
-        } catch (error) {
-          console.error('Error saving wiki page success message:', error)
-        }
-      }
-      
-      // Reset form
-      setDocumentCreationMode(false)
-      setWikiParameters({
-        category: '',
-        visibility: 'public',
-        title: '',
-        content: ''
-      })
-
-    } catch (error) {
-      console.error('Error creating wiki page:', error)
-      alert('Failed to create wiki page. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const createNewChat = async () => {
-    try {
-      console.log('🆕 Creating new chat session...')
-      const response = await fetch('/api/ai/chat-sessions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: 'New Chat',
-          workspaceId: 'workspace-1'
-        })
-      })
-
-      console.log('📡 Create response:', response.status, response.ok)
-
-      if (response.ok) {
-        const newSession = await response.json()
-        console.log('✅ Created session:', newSession)
-        console.log('🆔 Setting currentSessionId to:', newSession.id)
-        setCurrentSessionId(newSession.id)
-        setMessages([{
-          id: "1",
-          type: "ai",
-          content: "Hello! I'm Lumi AI, your intelligent documentation assistant. I can help you find information, answer questions, and even create comprehensive wiki pages based on your requirements. What would you like to work on today?",
-          sources: []
-        }])
-        setDocumentCreationMode(false)
-        setWikiParameters({
-          category: '',
-          visibility: 'public',
-          title: '',
-          content: ''
+      if (data.id) {
+        setSession({
+          id: data.id,
+          intent: data.intent,
+          phase: data.phase,
+          requirementNotes: data.requirementNotes,
+          draftTitle: data.draftTitle,
+          draftBody: data.draftBody,
+          wikiUrl: data.wikiUrl
         })
         
-        // Reload sessions
-        console.log('🔄 Reloading sessions...')
-        const sessionsResponse = await fetch('/api/ai/chat-sessions?workspaceId=workspace-1')
-        if (sessionsResponse.ok) {
-          const sessions = await sessionsResponse.json()
-          console.log('✅ Reloaded sessions:', sessions)
-          setChatSessions(sessions)
-        }
-      } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.error('❌ Failed to create chat session:', errorData)
-      }
-    } catch (error) {
-      console.error('💥 Error creating new chat:', error)
-    }
-  }
-
-  const loadChatSession = async (sessionId: string) => {
-    try {
-      console.log('📂 Loading chat session:', sessionId)
-      const response = await fetch(`/api/ai/chat-sessions/${sessionId}`)
-      console.log('📡 Load session response:', response.status, response.ok)
-      
-      if (response.ok) {
-        const session = await response.json()
-        console.log('✅ Loaded session data:', session)
-        console.log('💬 Messages count:', session.messages?.length || 0)
+        // Load messages for this session
+        const messagesResponse = await fetch(`/api/ai/chat-sessions/${sessionId}`)
+        const messagesData = await messagesResponse.json()
         
-        setCurrentSessionId(sessionId)
-        setMessages(session.messages || [])
-        setDocumentCreationMode(false)
-        setWikiParameters({
-          category: '',
-          visibility: 'public',
-          title: '',
-          content: ''
-        })
-      } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.error('❌ Failed to load chat session:', errorData)
+        if (messagesData.messages) {
+          const formattedMessages = messagesData.messages.map((msg: any) => ({
+            id: msg.id,
+            role: msg.type === 'USER' ? 'user' : 'assistant',
+            content: msg.content,
+            timestamp: new Date(msg.createdAt)
+          }))
+          setMessages(formattedMessages)
+        }
+        
+        setShowWelcome(false)
       }
     } catch (error) {
-      console.error('💥 Error loading chat session:', error)
+      console.error('Error loading session:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const deleteChatSession = async (sessionId: string) => {
+  const deleteSession = async (sessionId: string) => {
     try {
-      const response = await fetch(`/api/ai/chat-sessions/${sessionId}`, {
+      await fetch(`/api/ai/chat-sessions/${sessionId}`, {
         method: 'DELETE'
       })
+      setChatHistory(prev => prev.filter(item => item.id !== sessionId))
       
-      if (response.ok) {
-        setChatSessions(prev => prev.filter(session => session.id !== sessionId))
-        if (currentSessionId === sessionId) {
-          setCurrentSessionId(null)
-          setMessages([{
-            id: "1",
-            type: "ai",
-            content: "Hello! I'm Lumi AI, your intelligent documentation assistant. I can help you find information, answer questions, and even create comprehensive wiki pages based on your requirements. What would you like to work on today?",
-            sources: []
-          }])
-        }
+      // If this was the current session, clear it
+      if (session?.id === sessionId) {
+        setSession(null)
+        setMessages([])
+        setShowWelcome(true)
       }
     } catch (error) {
-      console.error('Error deleting chat session:', error)
+      console.error('Error deleting session:', error)
     }
   }
 
+  const startNewChat = () => {
+    setSession(null)
+    setMessages([])
+    setShowDraft(false)
+    setShowPublishSheet(false)
+    setShowWelcome(true)
+  }
+
+  const startSession = async (intent: 'doc_gen' | 'assist') => {
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intent, workspaceId: 'workspace-1' })
+      })
+
+      const data = await response.json()
+      console.log('Session created:', data)
+      
+      setSession({
+        id: data.sessionId,
+        intent: data.intent,
+        phase: data.phase,
+        requirementNotes: undefined,
+        draftTitle: undefined,
+        draftBody: undefined,
+        wikiUrl: undefined
+      })
+
+      setShowWelcome(false)
+      
+      // Send initial message for both intents
+      const initialMessage = intent === 'doc_gen' 
+        ? "I want to create a document. Please help me get started."
+        : "I need help with general questions about our wiki and knowledge base."
+      
+      await sendMessage(initialMessage, data.sessionId)
+      loadChatHistory()
+    } catch (error) {
+      console.error('Error starting session:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const sendMessage = async (message: string, sessionId?: string) => {
+    const currentSessionId = sessionId || session?.id
+    if (!message.trim() || !currentSessionId) {
+      console.error('No message or session ID:', { message, sessionId, currentSessionId })
+      return
+    }
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: message,
+      timestamp: new Date()
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setInput("")
+    setIsLoading(true)
+
+    try {
+      console.log('Sending message:', { message, sessionId: currentSessionId, phase: session?.phase })
+      
+      const response = await fetch('/api/assistant/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: currentSessionId,
+          message,
+          phase: session?.phase
+        })
+      })
+
+      const data = await response.json()
+      console.log('Message response:', data)
+      
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.message || 'I received your message but had trouble processing it. Please try again.',
+        timestamp: new Date()
+      }
+
+      setMessages(prev => [...prev, aiMessage])
+      
+      // Update session phase
+      if (data.phase && data.phase !== session?.phase) {
+        setSession(prev => prev ? { ...prev, phase: data.phase } : null)
+      }
+
+      // Also update session ID if provided
+      if (data.sessionId && data.sessionId !== session?.id) {
+        setSession(prev => prev ? { ...prev, id: data.sessionId } : null)
+      }
+
+      // Check if we should show the generate draft button
+      if (data.phase === 'ready_to_draft' && session?.intent === 'doc_gen') {
+        const draftButtonMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          role: 'assistant',
+          content: "I have enough information to generate your document. Click 'Generate Draft' in the sidebar when you're ready!",
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, draftButtonMessage])
+      }
+
+    } catch (error) {
+      console.error('Error sending message:', error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "Sorry, I encountered an error. Please try again.",
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (input.trim()) {
+      if (session) {
+        sendMessage(input, session.id)
+      } else {
+        // If no session, start a general assistance session
+        startSession('assist')
+      }
+    }
+  }
+
+  const generateDraft = async () => {
+    if (!session) return
+
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/assistant/generate-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: session.id })
+      })
+
+      const data = await response.json()
+      
+      if (data.title && data.content) {
+        setSession(prev => prev ? {
+          ...prev,
+          draftTitle: data.title,
+          draftBody: data.content,
+          phase: data.phase
+        } : null)
+        
+        setShowDraft(true)
+        
+        // Add a message about the draft being ready
+        const draftMessage: Message = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: `I've generated a draft of your document: "${data.title}". You can review it in the sidebar and make any edits before publishing.`,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, draftMessage])
+      }
+    } catch (error) {
+      console.error('Error generating draft:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const publishDraft = async () => {
+    if (!session || !session.draftTitle || !session.draftBody) return
+
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/assistant/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          sessionId: session.id,
+          settings: draftSettings
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success && data.url) {
+        setSession(prev => prev ? {
+          ...prev,
+          wikiUrl: data.url,
+          phase: 'published'
+        } : null)
+        
+        setShowPublishSheet(false)
+        
+        // Add a success message
+        const successMessage: Message = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: `✅ Your document has been published successfully! You can view it here: [${session.draftTitle}](${data.url})`,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, successMessage])
+      }
+    } catch (error) {
+      console.error('Error publishing draft:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDraftUpdate = async (newContent: string) => {
+    if (!session) return
+
+    try {
+      setSession(prev => prev ? {
+        ...prev,
+        draftBody: newContent
+      } : null)
+
+      await fetch('/api/assistant/session', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: session.id,
+          draftBody: newContent
+        })
+      })
+    } catch (error) {
+      console.error('Error updating draft:', error)
+    }
+  }
+
+  const getPhaseBadge = (phase: string) => {
+    const phaseMap: Record<string, { label: string; color: string }> = {
+      'idle': { label: 'Getting Started', color: 'bg-gray-100 text-gray-800' },
+      'intake': { label: 'Gathering Info', color: 'bg-blue-100 text-blue-800' },
+      'gathering_requirements': { label: 'Requirements', color: 'bg-yellow-100 text-yellow-800' },
+      'ready_to_draft': { label: 'Ready to Draft', color: 'bg-green-100 text-green-800' },
+      'drafting': { label: 'Creating Draft', color: 'bg-purple-100 text-purple-800' },
+      'draft_ready': { label: 'Draft Ready', color: 'bg-emerald-100 text-emerald-800' },
+      'editing': { label: 'Editing', color: 'bg-orange-100 text-orange-800' },
+      'publishing': { label: 'Publishing', color: 'bg-indigo-100 text-indigo-800' },
+      'published': { label: 'Published', color: 'bg-green-100 text-green-800' }
+    }
+    
+    return phaseMap[phase] || { label: phase, color: 'bg-gray-100 text-gray-800' }
+  }
+
+  const handleQuickAction = (action: string) => {
+    setSelectedQuickActions(prev => 
+      prev.includes(action) 
+        ? prev.filter(a => a !== action)
+        : [...prev, action]
+    )
+  }
+
+  const quickActions = [
+    "What are our remote work policies?",
+    "Create a product requirements document for Lumi",
+    "How do I set up my development environment?",
+    "Draft an onboarding checklist for new employees"
+  ]
+
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-80' : 'w-0'} transition-all duration-300 overflow-hidden border-r bg-gray-50`}>
-        <div className="p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">Chat History</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarOpen(false)}
+    <div className="flex h-screen bg-gray-50">
+      {/* Chat History Sidebar */}
+      {showHistory && (
+        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Chat History</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHistory(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button 
+              className="w-full bg-blue-600 hover:bg-blue-700"
+              onClick={startNewChat}
             >
-              <X className="h-4 w-4" />
+              <Plus className="h-4 w-4 mr-2" />
+              New Chat
             </Button>
           </div>
           
-          <Button
-            onClick={createNewChat}
-            className="w-full bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Chat
-          </Button>
-
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {isLoadingSessions ? (
-              <div className="space-y-2">
-                {[...Array(3)].map((_, index) => (
-                  <div key={index} className="p-3 bg-gray-200 rounded-lg animate-pulse">
-                    <div className="h-4 bg-gray-300 rounded mb-2"></div>
-                    <div className="h-3 bg-gray-300 rounded w-2/3"></div>
+          <div className="flex-1 overflow-y-auto p-6">
+            {chatHistory.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-8">No chat sessions yet</p>
+            ) : (
+              <div className="space-y-3">
+                {chatHistory.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
+                    onClick={() => loadSession(item.id)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {item.draftTitle || item.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {item.intent === 'doc_gen' ? 'Document' : 'Assist'}
+                          </Badge>
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Clock className="h-3 w-3" />
+                            {new Date(item.updatedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        {item.wikiUrl && (
+                          <div className="mt-1">
+                            <a
+                              href={item.wikiUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              View Published
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteSession(item.id)
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <>
-                {console.log('🎨 Rendering sessions:', chatSessions.length, 'sessions')}
-                {chatSessions.length === 0 ? (
-                  <div className="text-center text-gray-500 text-sm py-4">
-                    No chat sessions yet
-                  </div>
-                ) : (
-                  chatSessions.map((session) => (
-                <div
-                  key={session.id}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                    currentSessionId === session.id
-                      ? 'bg-blue-100 border border-blue-200'
-                      : 'bg-white hover:bg-gray-100 border border-gray-200'
-                  }`}
-                  onClick={() => loadChatSession(session.id)}
+            )}
+          </div>
+
+          {/* Session Actions */}
+          {session && (
+            <div className="p-6 border-t border-gray-200 space-y-4">
+              {session.phase === 'ready_to_draft' && session.intent === 'doc_gen' && !session.draftTitle && (
+                <Button 
+                  className="w-full"
+                  onClick={generateDraft}
+                  disabled={isLoading}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm text-gray-900 truncate">
-                        {session.title}
-                      </h4>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {session._count.messages} messages
+                  <FileText className="h-4 w-4 mr-2" />
+                  {isLoading ? 'Generating...' : 'Generate Draft'}
+                </Button>
+              )}
+
+              {session && session.draftTitle && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-gray-700">Draft Ready</h4>
+                  <p className="text-xs text-gray-500 truncate">{session.draftTitle}</p>
+                  
+                  <div className="space-y-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setShowDraft(!showDraft)}
+                    >
+                      {showDraft ? 'Hide' : 'View'} Draft
+                    </Button>
+                    
+                    {session.phase === 'draft_ready' && (
+                      <Button 
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setShowPublishSheet(true)}
+                      >
+                        Publish to Wiki
+                      </Button>
+                    )}
+                    
+                    {session.wikiUrl && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="w-full"
+                        onClick={() => window.open(session.wikiUrl, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        View Published
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <Bot className="h-5 w-5 text-white" />
+                </div>
+                <h1 className="text-2xl font-semibold text-gray-900">Ask Wiki</h1>
+              </div>
+              <p className="text-sm text-gray-600">AI-powered search and Q&A over your company's knowledge base.</p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHistory(!showHistory)}
+              >
+                <History className="h-4 w-4 mr-2" />
+                {showHistory ? 'Hide' : 'Show'} History
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col">
+          {showWelcome ? (
+            // Welcome Screen
+            <div className="flex-1 flex flex-col items-center justify-center p-8">
+              <div className="w-full max-w-4xl">
+                {/* AI Greeting */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Bot className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-gray-900 font-medium mb-2">
+                        Hello! I'm Lumi AI, your intelligent documentation assistant. What can I help you with today?
                       </p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(session.updatedAt).toLocaleDateString()}
-                      </p>
+                      <p className="text-gray-700">Please choose from the following options:</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main Options */}
+                <div className="grid md:grid-cols-2 gap-6 mb-8">
+                  <Card 
+                    className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-200"
+                    onClick={() => startSession('doc_gen')}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-start space-x-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <FileText className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Creating a Wiki</h3>
+                          <p className="text-gray-600 text-sm">
+                            I'll help you create comprehensive wiki pages, documents, policies, or procedures. 
+                            I'll ask relevant questions to gather all necessary information and then generate 
+                            a complete wiki page for you.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card 
+                    className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-200"
+                    onClick={() => startSession('assist')}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-start space-x-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Search className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">General Info</h3>
+                          <p className="text-gray-600 text-sm">
+                            I'll help you find information from existing wiki content and provide 
+                            general guidance on various topics.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Input Area */}
+                <div className="space-y-4">
+                  <p className="text-center text-gray-600 text-sm">
+                    Simply click your choice or describe what you need help with!
+                  </p>
+                  
+                  <form onSubmit={async (e) => {
+                    e.preventDefault()
+                    if (input.trim()) {
+                      // Start a general assistance session
+                      await startSession('assist')
+                    }
+                  }} className="flex space-x-3">
+                    <Input
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="Ask me anything about your wiki or request document creation..."
+                      className="flex-1 h-12 text-base"
+                      disabled={isLoading}
+                    />
+                    <Button 
+                      type="submit" 
+                      disabled={!input.trim() || isLoading} 
+                      className="h-12 px-6"
+                    >
+                      <Send className="h-5 w-5" />
+                    </Button>
+                  </form>
+
+                  {/* Quick Actions */}
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {quickActions.map((action, index) => (
+                        <label
+                          key={index}
+                          className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedQuickActions.includes(action)}
+                            onChange={() => handleQuickAction(action)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{action}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Chat Interface
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* Session Header */}
+              {session && (
+                <div className="bg-white border-b border-gray-200 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-600">Mode:</span>
+                        <Badge variant="outline">
+                          {session.intent === 'doc_gen' ? 'Document Generation' : 'General Assistance'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-600">Phase:</span>
+                        <Badge className={getPhaseBadge(session.phase).color}>
+                          {getPhaseBadge(session.phase).label}
+                        </Badge>
+                      </div>
                     </div>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        deleteChatSession(session.id)
-                      }}
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
+                      onClick={startNewChat}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <FileText className="h-4 w-4 mr-2" />
+                      New Chat
                     </Button>
                   </div>
                 </div>
-                  ))
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+              )}
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-    <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-3xl font-bold flex items-center space-x-2">
-          <MessageSquare className="h-8 w-8 text-primary" />
-          <span>Ask Wiki</span>
-        </h1>
-        <p className="text-muted-foreground">
-          AI-powered search and Q&A over your company's knowledge base
-        </p>
-            </div>
-            <div className="flex space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden"
-              >
-                <Menu className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="hidden lg:flex"
-              >
-                <Menu className="h-4 w-4 mr-2" />
-                {sidebarOpen ? 'Hide' : 'Show'} History
-              </Button>
-            </div>
-      </div>
-
-      {/* Chat Interface */}
-      <div className="flex flex-col h-[600px]">
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-          {/* Initial Greeting */}
-          {showInitialGreeting && messages.length === 0 && (
-            <div className="flex justify-start">
-              <div className="max-w-[80%] rounded-lg p-4 bg-muted">
-                <div className="flex items-start space-x-2">
-                  <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                      <Sparkles className="h-4 w-4 text-primary-foreground" />
+              {/* Messages */}
+              <div id="messages-container" className="flex-1 overflow-y-auto p-6 space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-4xl px-6 py-4 rounded-lg ${
+                        message.role === 'user'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white border border-gray-200 text-gray-900'
+                      }`}
+                    >
+                      {message.role === 'assistant' ? (
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                              em: ({ children }) => <em className="italic">{children}</em>,
+                              ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+                              li: ({ children }) => <li className="mb-1">{children}</li>,
+                              a: ({ href, children }) => (
+                                <a href={href} className="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">
+                                  {children}
+                                </a>
+                              ),
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-base">{message.content}</p>
+                      )}
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm mb-4">
-                      Hello! I&apos;m Lumi AI, your intelligent documentation assistant. What can I help you with today?
-                    </p>
-                    <p className="text-sm mb-4">Please choose from the following options:</p>
-                    
-                    <div className="space-y-3">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left h-auto p-4"
-                        onClick={() => handleOptionSelect('Creating a Wiki')}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <FileText className="h-5 w-5 text-blue-600" />
-                          <div>
-                            <div className="font-semibold">📝 Creating a Wiki</div>
-                            <div className="text-sm text-muted-foreground">
-                              I&apos;ll help you create comprehensive wiki pages, documents, policies, or procedures. I&apos;ll ask relevant questions to gather all necessary information and then generate a complete wiki page for you.
-                            </div>
-                          </div>
-                        </div>
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left h-auto p-4"
-                        onClick={() => handleOptionSelect('General Info')}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Search className="h-5 w-5 text-green-600" />
-                          <div>
-                            <div className="font-semibold">💡 General Info</div>
-                            <div className="text-sm text-muted-foreground">
-                              I&apos;ll help you find information from existing wiki content and provide general guidance on various topics.
-                            </div>
-                          </div>
-                        </div>
-                      </Button>
-                    </div>
-                    
-                    <p className="text-sm text-muted-foreground mt-4">
-                      Simply click your choice or describe what you need help with!
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg p-4 ${
-                  message.type === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
-                }`}
-              >
-                <div className="flex items-start space-x-2">
-                  {message.type === 'ai' && (
-                    <div className="flex-shrink-0">
-                      <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                        {message.isTyping ? (
-                          <Loader2 className="h-4 w-4 text-primary-foreground animate-spin" />
-                        ) : (
-                        <Sparkles className="h-4 w-4 text-primary-foreground" />
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    {message.isTyping ? (
+                ))}
+                
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
                       <div className="flex items-center space-x-2">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                        </div>
-                        <span className="text-sm text-gray-500">Lumi AI is thinking...</span>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm text-gray-500">Thinking...</span>
                       </div>
-                    ) : (
-                      <>
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        
-                        {/* Document Creation Confirmation */}
-                        {message.type === 'ai' && !message.documentPlan && !message.wikiPage && 
-                         (message.content.toLowerCase().includes('would you like me to create') ||
-                          message.content.toLowerCase().includes('should i create') ||
-                          message.content.toLowerCase().includes('would you like me to generate') ||
-                          message.content.toLowerCase().includes('would you like me to draft')) && (
-                          <div className="mt-4">
-                            <DocumentCreationConfirmation
-                              onConfirm={() => handleConfirmDocumentCreation('Yes, create the wiki page')}
-                              onCancel={() => handleConfirmDocumentCreation('No, thanks')}
-                              documentType="document"
-                            />
-                          </div>
-                        )}
-                        
-                        {/* Document Plan */}
-                        {message.documentPlan && (
-                          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                            <div className="flex items-center space-x-2 mb-3">
-                              <FileEdit className="h-4 w-4 text-blue-600" />
-                              <h4 className="font-medium text-blue-900">Document Plan: {message.documentPlan.title}</h4>
-                            </div>
-                            <div className="space-y-2">
-                              <div>
-                                <p className="text-sm font-medium text-blue-800 mb-1">Structure:</p>
-                                <ul className="text-sm text-blue-700 space-y-1">
-                                  {message.documentPlan.structure && message.documentPlan.structure.map((item, index) => (
-                                    <li key={index} className="flex items-center space-x-2">
-                                      <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
-                                      <span>{item}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                              {message.documentPlan.questions && message.documentPlan.questions.length > 0 && (
-                                <div>
-                                  <p className="text-sm font-medium text-blue-800 mb-1">Questions to clarify:</p>
-                                  <ul className="text-sm text-blue-700 space-y-1">
-                                    {message.documentPlan.questions.map((question, index) => (
-                                      <li key={index} className="flex items-center space-x-2">
-                                        <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
-                                        <span>{question}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Wiki Page Link */}
-                        {message.wikiPage && (
-                          <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                              <h4 className="font-medium text-green-900">Wiki Page Created!</h4>
-                            </div>
-                            <div className="space-y-2">
-                              <p className="text-sm text-green-700">
-                                <strong>Title:</strong> {message.wikiPage.title}
-                              </p>
-                              <p className="text-sm text-green-700">
-                                <strong>URL:</strong> {message.wikiPage.url}
-                              </p>
-                              <Link href={message.wikiPage.url}>
-                                <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                                  <ExternalLink className="h-3 w-3 mr-1" />
-                                  View Page
-                                </Button>
-                              </Link>
-                            </div>
-                          </div>
-                        )}
-                    
-                    {/* Sources */}
-                    {message.sources && message.sources.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        <p className="text-xs font-medium opacity-70">Sources:</p>
-                        {message.sources.map((source, index) => (
-                              <div key={index} className="text-xs bg-background/50 rounded p-2 hover:bg-background/70 transition-colors">
-                            <div className="flex items-center space-x-1 mb-1">
-                              <BookOpen className="h-3 w-3" />
-                                  <Link 
-                                    href={source.url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="font-medium hover:text-blue-600 transition-colors cursor-pointer"
-                                  >
-                                    {source.title}
-                                  </Link>
-                                  <ExternalLink className="h-2 w-2 text-gray-400" />
-                            </div>
-                                <p className="opacity-70 text-xs leading-relaxed overflow-hidden" style={{
-                                  display: '-webkit-box',
-                                  WebkitLineClamp: 2,
-                                  WebkitBoxOrient: 'vertical'
-                                }}>{source.excerpt}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Action Buttons for AI messages */}
-                        {message.type === 'ai' && !message.isTyping && (
-                      <div className="flex items-center space-x-2 mt-3">
-                        <Button variant="ghost" size="sm" className="h-6 px-2">
-                          <Copy className="h-3 w-3 mr-1" />
-                          Copy
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-6 px-2">
-                          <ThumbsUp className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-6 px-2">
-                          <ThumbsDown className="h-3 w-3" />
-                        </Button>
-                      </div>
-                        )}
-                      </>
-                    )}
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Input Form */}
-        <form onSubmit={handleSubmit} className="flex space-x-2">
-          <div className="flex-1 relative">
-            <Textarea
-              placeholder="Ask me anything about your wiki or request document creation..."
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value)
-                // Auto-resize textarea
-                e.target.style.height = 'auto'
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  if (query.trim() && !isLoading) {
-                    handleSubmit(e)
-                  }
-                }
-              }}
-              className="pr-10 min-h-[40px] max-h-[120px] resize-none"
-              disabled={isLoading}
-              rows={1}
-            />
-            <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-          </div>
-          <Button type="submit" disabled={!query.trim() || isLoading}>
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-            <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </form>
-      </div>
-
-      {/* Document Creation Interface */}
-      {documentCreationMode && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-blue-900">
-              <FileEdit className="h-5 w-5" />
-              <span>Create Wiki Page</span>
-            </CardTitle>
-            <CardDescription className="text-blue-700">
-              Configure the parameters for your new wiki page
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select value={wikiParameters.category} onValueChange={(value) => setWikiParameters(prev => ({ ...prev, category: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">General</SelectItem>
-                    <SelectItem value="engineering">Engineering</SelectItem>
-                    <SelectItem value="sales">Sales</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="hr">Human Resources</SelectItem>
-                    <SelectItem value="product">Product</SelectItem>
-                  </SelectContent>
-                </Select>
+                )}
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="visibility">Visibility</Label>
-                <Select value={wikiParameters.visibility} onValueChange={(value) => setWikiParameters(prev => ({ ...prev, visibility: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select visibility" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="public">Public</SelectItem>
-                    <SelectItem value="private">Private</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+              {/* Scroll to Bottom Button */}
+              {showScrollToBottom && (
+                <Button
+                  onClick={scrollToBottom}
+                  className="absolute bottom-4 right-4 rounded-full shadow-lg"
+                  size="sm"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              )}
 
-            <div className="space-y-2">
-              <Label htmlFor="title">Page Title</Label>
-              <Input
-                id="title"
-                value={wikiParameters.title}
-                onChange={(e) => setWikiParameters(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Enter page title"
+              {/* Input */}
+              {session && (
+                <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
+                  <form onSubmit={handleSubmit} className="flex space-x-3">
+                    <Input
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="Type your message..."
+                      className="flex-1 h-12 text-base"
+                      disabled={isLoading}
+                    />
+                    <Button 
+                      type="submit" 
+                      disabled={!input.trim() || isLoading} 
+                      className="h-12 px-6"
+                    >
+                      <Send className="h-5 w-5" />
+                    </Button>
+                  </form>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Draft Viewer */}
+      {showDraft && session?.draftBody && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-6xl max-h-[90vh] w-full mx-4 overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b">
+              <h3 className="text-lg font-semibold">{session.draftTitle}</h3>
+              <Button variant="outline" onClick={() => setShowDraft(false)}>
+                Close
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <MarkdownViewer 
+                content={session.draftBody}
+                title=""
+                onSave={handleDraftUpdate}
+                editable={true}
               />
             </div>
-
-            {wikiParameters.content && (
-              <div className="space-y-2">
-                <Label>Content Preview</Label>
-                <div className="max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-lg border text-sm">
-                  <div className="whitespace-pre-wrap font-sans">{cleanHtmlForPreview(wikiParameters.content)}</div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex space-x-2">
-              <Button 
-                onClick={handleCreateWikiPage}
-                disabled={!wikiParameters.title || !wikiParameters.content || isLoading}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4 mr-2" />
-                )}
-                Create Wiki Page
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setDocumentCreationMode(false)}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
-      {/* Quick Questions */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Quick Actions</h3>
-        <div className="grid gap-2 md:grid-cols-2">
-          {[
-            "What are our remote work policies?",
-            "How do I set up my development environment?",
-            "Create a product requirements document for Lumi",
-            "Draft an onboarding checklist for new employees"
-          ].map((question) => (
-            <Button
-              key={question}
-              variant="outline"
-              className="justify-start text-left h-auto p-3"
-              onClick={() => setQuery(question)}
-              disabled={isLoading}
-            >
-              <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="text-sm">{question}</span>
-            </Button>
-          ))}
+      {/* Publish Sheet */}
+      {showPublishSheet && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Publish to Wiki</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category
+                </label>
+                <select
+                  value={draftSettings.category}
+                  onChange={(e) => setDraftSettings(prev => ({ ...prev, category: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                >
+                  <option value="general">General</option>
+                  <option value="policy">Policy</option>
+                  <option value="procedure">Procedure</option>
+                  <option value="guide">Guide</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Visibility
+                </label>
+                <select
+                  value={draftSettings.visibility}
+                  onChange={(e) => setDraftSettings(prev => ({ ...prev, visibility: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                >
+                  <option value="public">Public</option>
+                  <option value="team">Team</option>
+                  <option value="private">Private</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tags (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={draftSettings.tags.join(', ')}
+                  onChange={(e) => setDraftSettings(prev => ({ 
+                    ...prev, 
+                    tags: e.target.value.split(',').map(t => t.trim()).filter(t => t)
+                  }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  placeholder="policy, devices, security"
+                />
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="reviewRequired"
+                  checked={draftSettings.reviewRequired}
+                  onChange={(e) => setDraftSettings(prev => ({ ...prev, reviewRequired: e.target.checked }))}
+                  className="mr-2"
+                />
+                <label htmlFor="reviewRequired" className="text-sm text-gray-700">
+                  Require review before publishing
+                </label>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <Button variant="outline" onClick={() => setShowPublishSheet(false)}>
+                Cancel
+              </Button>
+              <Button onClick={publishDraft} disabled={isLoading}>
+                {isLoading ? 'Publishing...' : 'Publish'}
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
-        </div>
-      </div>
+      )}
     </div>
   )
 }
