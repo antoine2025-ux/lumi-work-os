@@ -37,6 +37,24 @@ export async function GET(
             }
           }
         },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
         tasks: {
           select: {
             id: true,
@@ -44,12 +62,16 @@ export async function GET(
             status: true,
             priority: true,
             dueDate: true,
+            createdAt: true,
             assignee: {
               select: {
                 id: true,
                 name: true
               }
             }
+          },
+          orderBy: {
+            createdAt: 'asc'
           }
         },
         _count: {
@@ -78,7 +100,7 @@ export async function GET(
     console.error('Error fetching project:', error)
     return NextResponse.json({ 
       error: 'Failed to fetch project',
-      details: error.message 
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }
@@ -101,7 +123,9 @@ export async function PUT(
       startDate,
       endDate,
       color,
-      wikiPageId
+      wikiPageId,
+      ownerId,
+      assigneeIds
     } = body
 
     if (!projectId) {
@@ -117,6 +141,24 @@ export async function PUT(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
+    // Handle assignee updates if provided
+    if (assigneeIds !== undefined) {
+      // Remove existing assignees
+      await prisma.projectAssignee.deleteMany({
+        where: { projectId }
+      })
+      
+      // Add new assignees
+      if (assigneeIds.length > 0) {
+        await prisma.projectAssignee.createMany({
+          data: assigneeIds.map((userId: string) => ({
+            projectId,
+            userId
+          }))
+        })
+      }
+    }
+
     // Update the project
     const project = await prisma.project.update({
       where: { id: projectId },
@@ -128,7 +170,8 @@ export async function PUT(
         ...(startDate && { startDate: new Date(startDate) }),
         ...(endDate && { endDate: new Date(endDate) }),
         ...(color && { color }),
-        ...(wikiPageId !== undefined && { wikiPageId: wikiPageId || null })
+        ...(wikiPageId !== undefined && { wikiPageId: wikiPageId || null }),
+        ...(ownerId !== undefined && { ownerId: ownerId || null })
       },
       include: {
         createdBy: {
@@ -149,6 +192,24 @@ export async function PUT(
             }
           }
         },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
         tasks: {
           select: {
             id: true,
@@ -156,12 +217,16 @@ export async function PUT(
             status: true,
             priority: true,
             dueDate: true,
+            createdAt: true,
             assignee: {
               select: {
                 id: true,
                 name: true
               }
             }
+          },
+          orderBy: {
+            createdAt: 'asc'
           }
         },
         _count: {
@@ -186,7 +251,7 @@ export async function PUT(
     console.error('Error updating project:', error)
     return NextResponse.json({ 
       error: 'Failed to update project',
-      details: error.message 
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }
@@ -223,7 +288,7 @@ export async function DELETE(
     console.error('Error deleting project:', error)
     return NextResponse.json({ 
       error: 'Failed to delete project',
-      details: error.message 
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }

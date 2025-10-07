@@ -140,6 +140,7 @@ model WikiPage {
   chunks          WikiChunk[]
   comments        WikiComment[]
   permissions     WikiPagePermission[]
+  embeds          WikiEmbed[]
   createdBy       User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
   parent          WikiPage?            @relation("WikiPageHierarchy", fields: [parentId], references: [id])
   children        WikiPage[]           @relation("WikiPageHierarchy")
@@ -217,6 +218,24 @@ model WikiPagePermission {
 
   @@unique([pageId, userId, permission])
   @@map("wiki_page_permissions")
+}
+
+model WikiEmbed {
+  id          String   @id @default(cuid())
+  pageId      String
+  provider    String   // figma, github, airtable, etc.
+  url         String?
+  resourceId  String?  // Provider-specific resource ID
+  title       String?
+  description String?
+  thumbnail   String?
+  metadata    Json?    // Provider-specific metadata
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  page        WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@map("wiki_embeds")
 }
 
 model OnboardingTemplate {
@@ -390,15 +409,25 @@ model Migration {
 }
 
 model ChatSession {
-  id          String        @id @default(cuid())
-  workspaceId String
-  userId      String
-  title       String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  messages    ChatMessage[]
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id                String        @id @default(cuid())
+  workspaceId       String
+  userId            String
+  title             String
+  intent            String        @default("assist") // "doc_gen" | "assist" | "project_creation"
+  target            String        @default("wiki_page") // "wiki_page" | "project"
+  phase             String        @default("idle") // idle | intake | gathering_requirements | ready_to_draft | drafting | draft_ready | editing | publishing | published | ready_to_create | creating | project_created
+  requirementNotes  Json?         // Store structured requirements
+  draftTitle        String?
+  draftBody         String?
+  draftFormat       String        @default("markdown") // "markdown" | "html"
+  pageSettings      Json?         // Store wiki page settings
+  wikiUrl           String?
+  projectUrl        String?       // Store project URL when project is created
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  messages          ChatMessage[]
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace         Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("chat_sessions")
 }

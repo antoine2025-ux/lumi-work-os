@@ -12,6 +12,7 @@ import { RichTextEditor } from "@/components/wiki/rich-text-editor"
 import { PermissionBadge } from "@/components/permissions/permission-badge"
 import { PermissionManager } from "@/components/permissions/permission-manager"
 import { VersionHistory } from "@/components/wiki/version-history"
+import { EmbedContentRenderer } from "@/components/wiki/embed-content-renderer"
 import { PermissionLevel, PermissionService } from "@/lib/permissions"
 import { 
   ArrowLeft,
@@ -503,9 +504,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
                     placeholder="Start writing your page content..."
                   />
                 ) : (
-                  <div className="prose prose-slate max-w-none">
-                    <div dangerouslySetInnerHTML={{ __html: content }} />
-                  </div>
+                  <EmbedContentRenderer content={content} pageId={pageData?.id} />
                 )}
               </CardContent>
             </Card>

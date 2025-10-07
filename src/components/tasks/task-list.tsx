@@ -19,9 +19,13 @@ import {
   Plus,
   Filter,
   Search,
-  ChevronDown
+  ChevronDown,
+  Edit,
+  Maximize2,
+  Minimize2
 } from "lucide-react"
 import Link from "next/link"
+import { TaskEditDialog } from "./task-edit-dialog"
 
 interface Task {
   id: string
@@ -29,6 +33,7 @@ interface Task {
   description: string
   status: 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED'
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+  assigneeId?: string
   assignee?: {
     id: string
     name: string
@@ -37,6 +42,17 @@ interface Task {
   dueDate?: string
   tags: string[]
   createdAt: string
+  updatedAt: string
+  createdBy: {
+    id: string
+    name: string
+    email: string
+  }
+  project: {
+    id: string
+    name: string
+    color: string
+  }
   _count: {
     subtasks: number
     comments: number
@@ -46,6 +62,8 @@ interface Task {
 interface TaskListProps {
   projectId: string
   workspaceId?: string
+  isFullscreen?: boolean
+  onToggleFullscreen?: () => void
 }
 
 const statusOptions = [
@@ -63,12 +81,14 @@ const priorityOptions = [
   { value: 'URGENT', label: 'Urgent', color: 'bg-red-100 text-red-800' }
 ]
 
-export default function TaskList({ projectId, workspaceId = 'workspace-1' }: TaskListProps) {
+export default function TaskList({ projectId, workspaceId = 'workspace-1', isFullscreen = false, onToggleFullscreen }: TaskListProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [updatingTasks, setUpdatingTasks] = useState<Set<string>>(new Set())
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   useEffect(() => {
     loadTasks()
@@ -134,6 +154,26 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1' }: Tas
     }
   }
 
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleTaskUpdate = (updatedTask: Task) => {
+    setTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === updatedTask.id ? updatedTask : task
+      )
+    )
+    setEditingTask(null)
+    setIsEditDialogOpen(false)
+  }
+
+  const handleCloseEditDialog = () => {
+    setEditingTask(null)
+    setIsEditDialogOpen(false)
+  }
+
   const getStatusOption = (status: string) => {
     return statusOptions.find(option => option.value === status) || statusOptions[0]
   }
@@ -188,7 +228,7 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1' }: Tas
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -197,12 +237,29 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1' }: Tas
             {tasks.length} task{tasks.length !== 1 ? 's' : ''} total
           </p>
         </div>
-        <Button asChild>
-          <Link href={`/projects/${projectId}/tasks/new`}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Task
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          {onToggleFullscreen && (
+            <Button variant="outline" onClick={onToggleFullscreen}>
+              {isFullscreen ? (
+                <>
+                  <Minimize2 className="h-4 w-4 mr-2" />
+                  Exit Fullscreen
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="h-4 w-4 mr-2" />
+                  Fullscreen
+                </>
+              )}
+            </Button>
+          )}
+          <Button asChild>
+            <Link href={`/projects/${projectId}/tasks/new`}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Task
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Filters and Search */}
@@ -236,12 +293,12 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1' }: Tas
       </div>
 
       {/* Task Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className={`grid gap-4 ${isFullscreen ? 'grid-cols-5 min-w-max' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-5'}`}>
         {statusOptions.map((statusOption) => {
           const statusTasks = groupedTasks[statusOption.value] || []
           return (
-            <div key={statusOption.value} className="space-y-3">
-              <div className="flex items-center justify-between">
+            <div key={statusOption.value} className={`space-y-3 ${isFullscreen ? 'min-w-[280px]' : ''}`}>
+              <div className="flex items-center gap-2">
                 <h3 className="font-medium text-sm text-muted-foreground">
                   {statusOption.label}
                 </h3>
@@ -254,7 +311,7 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1' }: Tas
                   <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow">
                     <Link href={`/projects/${projectId}/tasks/${task.id}`}>
                       <CardContent className="p-4">
-                      <div className="space-y-3">
+                      <div className="space-y-3 min-h-[120px]">
                         <div className="flex items-start justify-between">
                           <h4 className="font-medium text-sm line-clamp-2">
                             {task.title}
@@ -276,6 +333,17 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1' }: Tas
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  handleEditTask(task)
+                                }}
+                                className="flex items-center space-x-2"
+                              >
+                                <Edit className="h-4 w-4" />
+                                <span>Edit Task</span>
+                              </DropdownMenuItem>
                               <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
                                 Change Status
                               </div>
@@ -308,20 +376,22 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1' }: Tas
                           </p>
                         )}
 
-                        <div className="flex items-center justify-between">
-                          <Badge className={getPriorityOption(task.priority).color}>
-                            {getPriorityOption(task.priority).label}
-                          </Badge>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Badge className={getPriorityOption(task.priority).color}>
+                              {getPriorityOption(task.priority).label}
+                            </Badge>
+                          </div>
                           {task.tags.length > 0 && (
-                            <div className="flex gap-1">
-                              {task.tags.slice(0, 2).map((tag, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
+                            <div className="flex flex-wrap gap-1">
+                              {task.tags.slice(0, 3).map((tag, index) => (
+                                <Badge key={index} variant="outline" className="text-xs px-2 py-1">
                                   {tag}
                                 </Badge>
                               ))}
-                              {task.tags.length > 2 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{task.tags.length - 2}
+                              {task.tags.length > 3 && (
+                                <Badge variant="outline" className="text-xs px-2 py-1">
+                                  +{task.tags.length - 3}
                                 </Badge>
                               )}
                             </div>
@@ -374,6 +444,14 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1' }: Tas
           )
         })}
       </div>
+
+      {/* Task Edit Dialog */}
+      <TaskEditDialog
+        isOpen={isEditDialogOpen}
+        onClose={handleCloseEditDialog}
+        task={editingTask}
+        onSave={handleTaskUpdate}
+      />
     </div>
   )
 }

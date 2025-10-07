@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { 
@@ -19,7 +20,6 @@ import {
   MoreHorizontal,
   TrendingUp,
   User,
-  BarChart3,
   Link as LinkIcon,
   FileText,
   ExternalLink,
@@ -27,8 +27,11 @@ import {
   X
 } from "lucide-react"
 import Link from "next/link"
+import ReactMarkdown from "react-markdown"
 import TaskList from "@/components/tasks/task-list"
 import { InlineWikiViewer } from "@/components/projects/inline-wiki-viewer"
+import { EmbedContentRenderer } from "@/components/wiki/embed-content-renderer"
+import { ProjectEditDialog } from "@/components/projects/project-edit-dialog"
 
 interface Project {
   id: string
@@ -39,6 +42,7 @@ interface Project {
   startDate?: string
   endDate?: string
   color?: string
+  ownerId?: string
   createdAt: string
   updatedAt: string
   createdBy: {
@@ -55,6 +59,19 @@ interface Project {
       email: string
     }
   }>
+  assignees: Array<{
+    id: string
+    user: {
+      id: string
+      name: string
+      email: string
+    }
+  }>
+  owner?: {
+    id: string
+    name: string
+    email: string
+  }
   tasks: Array<{
     id: string
     title: string
@@ -87,6 +104,11 @@ export default function ProjectDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isUpdatingWiki, setIsUpdatingWiki] = useState(false)
+  const [isWikiDialogOpen, setIsWikiDialogOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isCreatingSampleTasks, setIsCreatingSampleTasks] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isTaskListFullscreen, setIsTaskListFullscreen] = useState(false)
 
   const loadProject = async () => {
     try {
@@ -133,6 +155,30 @@ export default function ProjectDetailPage() {
     }
   }
 
+  const createSampleTasks = async () => {
+    try {
+      setIsCreatingSampleTasks(true)
+      const response = await fetch(`/api/test-projects?projectId=${projectId}`, {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        // Reload project to get updated tasks
+        await loadProject()
+      } else {
+        console.error('Failed to create sample tasks')
+      }
+    } catch (error) {
+      console.error('Error creating sample tasks:', error)
+    } finally {
+      setIsCreatingSampleTasks(false)
+    }
+  }
+
+  const handleProjectUpdate = (updatedProject: any) => {
+    setProject(updatedProject)
+  }
+
   useEffect(() => {
     if (projectId) {
       loadProject()
@@ -172,6 +218,23 @@ export default function ProjectDetailPage() {
     })
   }
 
+  // Clean content by removing HTML tags and fixing formatting
+  const cleanContent = (content: string) => {
+    if (!content) return ''
+    
+    // Remove HTML tags but preserve line breaks
+    let cleaned = content
+      .replace(/<div><br><\/div>/g, '\n\n') // Convert div breaks to double line breaks
+      .replace(/<br\s*\/?>/g, '\n') // Convert br tags to line breaks
+      .replace(/<div>/g, '\n') // Convert div opening to line break
+      .replace(/<\/div>/g, '\n') // Convert div closing to line break
+      .replace(/<[^>]*>/g, '') // Remove all other HTML tags
+      .replace(/\n{3,}/g, '\n\n') // Replace multiple line breaks with double
+      .trim()
+    
+    return cleaned
+  }
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -208,7 +271,9 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <>
+      {/* Main Content - Hidden when fullscreen */}
+      <div className={`p-6 space-y-6 ${isTaskListFullscreen ? 'hidden' : ''}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
@@ -231,7 +296,7 @@ export default function ProjectDetailPage() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
@@ -246,53 +311,13 @@ export default function ProjectDetailPage() {
         {/* Main Content - Takes up 2/3 of the width */}
         <div className="lg:col-span-2 space-y-6">
           {/* Tasks */}
-          <TaskList projectId={projectId} workspaceId="workspace-1" />
+          <TaskList 
+            projectId={projectId} 
+            workspaceId="workspace-1" 
+            isFullscreen={isTaskListFullscreen}
+            onToggleFullscreen={() => setIsTaskListFullscreen(!isTaskListFullscreen)}
+          />
           
-          {/* Project Timeline - Full Width */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Project Timeline
-              </CardTitle>
-              <CardDescription>
-                Visualize project progress with a Gantt chart
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {project.startDate && project.endDate ? (
-                      <>
-                        {formatDate(project.startDate)} - {formatDate(project.endDate)}
-                      </>
-                    ) : (
-                      "No timeline set"
-                    )}
-                  </div>
-                  <Button variant="outline" size="sm">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Create Gantt Chart
-                  </Button>
-                </div>
-                
-                {/* Placeholder for Gantt Chart */}
-                <div className="h-48 bg-gray-50 dark:bg-gray-800 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600">
-                  <div className="text-center">
-                    <BarChart3 className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-lg font-medium text-gray-500 dark:text-gray-400 mb-2">
-                      Project Timeline
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Gantt chart will appear here
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Project Documentation - Full Width */}
           <Card>
             <CardHeader>
@@ -306,48 +331,73 @@ export default function ProjectDetailPage() {
                     Project documentation and wiki pages
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {/* Add open dialog logic */}}
-                    className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                  >
-                    <LinkIcon className="h-3 w-3 mr-1" />
-                    Change Page
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {/* Add fullscreen logic */}}
-                    className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                  >
-                    <Maximize2 className="h-3 w-3 mr-1" />
-                    Fullscreen
-                  </Button>
-                  <Button asChild variant="outline" size="sm" className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-                    <Link href={`/wiki/some-slug`}>
-                      <Edit className="h-3 w-3 mr-1" />
-                      Edit
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {/* Add close logic */}}
-                    className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
+                {project.wikiPage && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsWikiDialogOpen(true)}
+                      className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                    >
+                      <LinkIcon className="h-3 w-3 mr-1" />
+                      Change Page
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsFullscreen(true)}
+                      className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                    >
+                      <Maximize2 className="h-3 w-3 mr-1" />
+                      Fullscreen
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
+                      <Link href={`/wiki/${project.wikiPage.slug}`}>
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleWikiPageUpdate(null)}
+                      className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-4">
-              <InlineWikiViewer
-                currentWikiPageId={project.wikiPage?.id}
-                onWikiPageSelect={handleWikiPageUpdate}
-                isLoading={isUpdatingWiki}
-              />
+              {project.wikiPage ? (
+                <InlineWikiViewer
+                  currentWikiPageId={project.wikiPage.id}
+                  onWikiPageSelect={handleWikiPageUpdate}
+                  isLoading={isUpdatingWiki}
+                />
+              ) : (
+                <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                  <div className="flex flex-col items-center">
+                    <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-full mb-3">
+                      <FileText className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      No Page Selected
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 mb-4 max-w-md text-sm">
+                      Select a wiki page to display project documentation inline.
+                    </p>
+                    <Button
+                      onClick={() => setIsWikiDialogOpen(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <LinkIcon className="h-4 w-4 mr-2" />
+                      Select Page
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -453,6 +503,55 @@ export default function ProjectDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Project Assignees */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Assignees</span>
+                <Badge variant="outline">{project.assignees?.length || 0}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {project.assignees && project.assignees.length > 0 ? (
+                <div className="space-y-3">
+                  {project.assignees.map((assignee) => (
+                    <div key={assignee.id} className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-purple-200 rounded-full flex items-center justify-center">
+                        <User className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{assignee.user.name}</p>
+                        <p className="text-xs text-muted-foreground">{assignee.user.email}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No assignees yet</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Project Owner */}
+          {project.owner && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Owner</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{project.owner.name}</p>
+                    <p className="text-xs text-muted-foreground">{project.owner.email}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Project Information */}
           <Card>
             <CardHeader>
@@ -475,6 +574,90 @@ export default function ProjectDetailPage() {
           </Card>
         </div>
       </div>
-    </div>
+
+      {/* Wiki Page Selection Dialog */}
+      <Dialog open={isWikiDialogOpen} onOpenChange={setIsWikiDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Select Wiki Page</DialogTitle>
+            <DialogDescription>
+              Choose a wiki page to display as project documentation
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-4">
+            <InlineWikiViewer
+              currentWikiPageId={project?.wikiPage?.id}
+              onWikiPageSelect={(wikiPageId) => {
+                handleWikiPageUpdate(wikiPageId)
+                setIsWikiDialogOpen(false)
+              }}
+              isLoading={isUpdatingWiki}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fullscreen Wiki Modal */}
+      {isFullscreen && project?.wikiPage && (
+        <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle>{project.wikiPage.title}</DialogTitle>
+              <DialogDescription>
+                Last updated: {new Date(project.wikiPage.updatedAt).toLocaleDateString()}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="prose prose-lg max-w-none">
+                <div style={{ color: '#111827 !important' }}>
+                  <ReactMarkdown 
+                    components={{
+                      // Custom components to handle HTML tags properly
+                      p: ({ children }) => <p className="mb-4 leading-relaxed text-base" style={{ color: '#111827 !important' }}>{children}</p>,
+                      ul: ({ children }) => <ul className="mb-6 pl-6 space-y-2">{children}</ul>,
+                      ol: ({ children }) => <ol className="mb-6 pl-6 space-y-2">{children}</ol>,
+                      li: ({ children }) => <li className="leading-relaxed text-base" style={{ color: '#111827 !important' }}>{children}</li>,
+                      h1: ({ children }) => <h1 className="text-2xl font-bold mb-6 mt-8 border-b-2 border-gray-300 pb-3" style={{ color: '#111827 !important' }}>{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-xl font-bold mb-4 mt-8" style={{ color: '#111827 !important' }}>{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-lg font-bold mb-3 mt-6" style={{ color: '#374151 !important' }}>{children}</h3>,
+                      strong: ({ children }) => <strong className="font-bold" style={{ color: '#111827 !important' }}>{children}</strong>,
+                      em: ({ children }) => <em className="italic" style={{ color: '#374151 !important' }}>{children}</em>,
+                      code: ({ children }) => <code className="bg-blue-50 px-2 py-1 rounded text-sm font-mono font-semibold" style={{ color: '#1d4ed8 !important' }}>{children}</code>,
+                      pre: ({ children }) => <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 my-6 overflow-x-auto">{children}</pre>,
+                      blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-300 pl-4 italic my-6" style={{ color: '#374151 !important' }}>{children}</blockquote>,
+                      hr: () => <hr className="my-8 border-gray-300" />
+                    }}
+                  >
+                    {cleanContent(project.wikiPage.content || '')}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Project Edit Dialog */}
+      <ProjectEditDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        project={project}
+        onSave={handleProjectUpdate}
+      />
+
+      </div>
+
+      {/* Fullscreen Task List */}
+      {isTaskListFullscreen && (
+        <div className="fixed inset-0 z-50 bg-white overflow-auto p-4">
+          <TaskList 
+            projectId={projectId} 
+            workspaceId="workspace-1" 
+            isFullscreen={isTaskListFullscreen}
+            onToggleFullscreen={() => setIsTaskListFullscreen(!isTaskListFullscreen)}
+          />
+        </div>
+      )}
+    </>
   )
 }

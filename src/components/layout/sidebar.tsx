@@ -11,13 +11,15 @@ import {
   MessageSquare, 
   Settings,
   Download,
-  Target
+  Target,
+  Shield
 } from "lucide-react"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Projects", href: "/projects", icon: Target },
   { name: "Org Chart", href: "/org", icon: Users },
+  { name: "Admin", href: "/admin", icon: Shield },
   { name: "Clario Onboarding", href: "/onboarding", icon: GraduationCap },
   { name: "Wiki", href: "/wiki", icon: BookOpen },
   { name: "Ask Wiki", href: "/ask", icon: MessageSquare },

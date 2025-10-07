@@ -36,8 +36,29 @@ function getMockResponse(session: any, message: string, messageCount: number): s
       default:
         return "I'm here to help you create your document. What would you like to know?"
     }
+  } else if (session.intent === 'project_creation') {
+    switch (session.phase) {
+      case 'idle':
+        return "Great! I'd love to help you create a new project. To get started, I need to gather some information from you.\n\nCould you tell me:\n1. What's the name of this project?\n2. What's the main purpose or goal?\n3. What department or team will be working on this?\n4. What's the expected timeline (start and end dates)?\n5. What's the priority level (Low, Medium, High, Urgent)?\n6. Who should be the project owner?"
+      case 'intake':
+        if (messageCount <= 2) {
+          return "Thanks for that information! Let me ask a few more questions to make sure I understand your project needs:\n\n- What are the main deliverables or milestones?\n- Are there any dependencies on other projects?\n- What's the budget or resource constraints?\n- Do you need to link this to any existing wiki documentation?\n- Who else should be involved in this project?"
+        } else {
+          return "Perfect! I have enough information to create your project. I'll set up everything we discussed. Click 'Create Project' in the sidebar when you're ready!"
+        }
+      case 'gathering_requirements':
+        return "I have enough information to create your project. Click 'Create Project' in the sidebar when you're ready!"
+      case 'ready_to_create':
+        return "I have enough information to create your project. Click 'Create Project' in the sidebar when you're ready!"
+      case 'creating':
+        return "Creating your project now... This will just take a moment!"
+      case 'project_created':
+        return "Your project has been successfully created! You can view it in the sidebar. Is there anything else you'd like help with?"
+      default:
+        return "I'm here to help you create your project. What would you like to know?"
+    }
   } else {
-    return "Hello! I'm here to help. You can ask me anything or say 'I want to create a document' to start the document generation process."
+    return "Hello! I'm here to help. You can ask me anything, say 'I want to create a document' to start document generation, or 'I want to create a project' to start project creation."
   }
 }
 
@@ -73,11 +94,16 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Build conversation context
+    // Build conversation context with better formatting
     const conversationHistory = session.messages.map(msg => ({
       role: msg.type === 'USER' ? 'user' : 'assistant',
       content: msg.content
     }))
+
+    // Add conversation summary for better context
+    const recentMessages = session.messages.slice(-10) // Last 10 messages for context
+    const conversationSummary = recentMessages.length > 5 ? 
+      `\n\nCONVERSATION CONTEXT: This is an ongoing conversation with ${recentMessages.length} recent exchanges. The user is working on ${session.intent === 'doc_gen' ? 'document creation' : session.intent === 'project_creation' ? 'project creation' : 'general assistance'}.` : ''
 
     // Search for relevant wiki knowledge first (with timeout)
     let wikiResults = []
@@ -153,21 +179,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Create system prompt based on phase and intent
-    let systemPrompt = `You are Lumi AI, an intelligent assistant for document creation and general assistance.
+    let systemPrompt = `You are Lumi AI, an advanced organizational intelligence assistant for Lumi Work OS. You are designed to be exceptionally helpful, knowledgeable, and responsive.
 
-IMPORTANT FORMATTING RULES:
-- Use clear, conversational language with proper spacing
-- Break up long responses into readable paragraphs
-- Use bullet points and numbered lists when appropriate
-- Add line breaks between sections for better readability
-- Be helpful and engaging, not robotic
+CORE CAPABILITIES:
+- Document creation and wiki management
+- Project planning and management
+- Organizational knowledge and guidance
+- General assistance with business processes
 
-CRITICAL INSTRUCTIONS:
+RESPONSE QUALITY STANDARDS:
+- Be conversational, engaging, and professional
+- Provide detailed, actionable responses
+- Use clear formatting with bullet points, numbered lists, and proper spacing
+- Break up long responses into readable sections
+- Always be helpful and solution-oriented
+- Ask clarifying questions when needed
+- Provide specific examples and recommendations
+
+KNOWLEDGE INTEGRATION:
 - You have access to the organization's wiki knowledge base
 - If you see "RELEVANT WIKI CONTENT" in the conversation, you MUST use that specific information
 - Always cite the exact page titles and URLs provided in the wiki context
-- Do not ask for URLs or context - use what is provided in the conversation
-- Base your response on the specific wiki content, not generic information`
+- Base your responses on the specific wiki content when available
+- Combine wiki knowledge with your general expertise for comprehensive answers
+
+CONVERSATION FLOW:
+- Maintain context throughout the conversation
+- Remember previous exchanges in the same session
+- Build upon previous responses naturally
+- Guide users through complex processes step by step${conversationSummary}`
 
     if (session.intent === 'doc_gen') {
       systemPrompt += `\n\nYou are helping the user create a document. The current phase is: ${session.phase || 'idle'}
@@ -196,8 +236,32 @@ Be conversational, helpful, and guide them through the document creation process
       if (session.phase === 'published' && session.wikiUrl) {
         systemPrompt += `\n\nCURRENT SESSION STATUS: The document has been successfully published! Wiki URL: ${session.wikiUrl}`
       }
+    } else if (session.intent === 'project_creation') {
+      systemPrompt += `\n\nYou are helping the user create a new project. The current phase is: ${session.phase || 'idle'}
+
+IMPORTANT: You are part of an automated project creation system. Follow these exact phase guidelines:
+
+Phase Guide:
+- idle: Welcome the user and ask what type of project they want to create. Be enthusiastic and helpful.
+- intake: Ask 4-6 specific questions about the project (name, purpose, department, timeline, priority, owner). Ask them one at a time or all together.
+- gathering_requirements: Continue gathering requirements until you have enough information. Ask follow-up questions about deliverables, dependencies, budget, team members, etc.
+- ready_to_create: When you have sufficient information, say "I have enough information to create your project. Click 'Create Project' in the sidebar when you're ready!"
+- creating: This phase is handled by the system - you don't need to respond here.
+- project_created: The project has been successfully created! Provide the project link and ask if they need help with anything else.
+
+CRITICAL: 
+- When the user says "create project", "yes", "ready to create", or "go ahead" during ready_to_create phase, the system will automatically create the project.
+- If the session is already in 'project_created' phase, acknowledge the successful creation and provide the project link.
+- Do NOT ask users to click buttons that don't exist for their current phase.
+
+Be conversational, helpful, and guide them through the project creation process step by step.`
+
+      // Add session context if project is created
+      if (session.phase === 'project_created' && session.projectUrl) {
+        systemPrompt += `\n\nCURRENT SESSION STATUS: The project has been successfully created! Project URL: ${session.projectUrl}`
+      }
     } else {
-      systemPrompt += `\n\nYou are providing general assistance. Be helpful, informative, and conversational.`
+      systemPrompt += `\n\nYou are providing general assistance. Be helpful, informative, and conversational. You can help with document creation, project creation, or answer questions about the organization.`
     }
 
     // Get AI response from OpenAI with fallback to mock responses
@@ -212,20 +276,45 @@ Be conversational, helpful, and guide them through the document creation process
       console.log('📝 System prompt preview:', systemPrompt.substring(0, 500) + '...')
       console.log('💬 Conversation history length:', conversationHistory.length)
       
-      // Create timeout promise for OpenAI call
+      // Create timeout promise for OpenAI call - increased to 30 seconds
       const openaiTimeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('OpenAI API timeout')), 15000)
+        setTimeout(() => reject(new Error('OpenAI API timeout')), 30000)
       )
       
       const completion = await Promise.race([
         openai.chat.completions.create({
-          model: "gpt-4",
+          model: "gpt-4-turbo-preview", // Use GPT-4 Turbo for better performance
           messages: [
             { role: "system", content: systemPrompt },
             ...conversationHistory
           ],
           temperature: 0.7,
-          max_tokens: 1000,
+          max_tokens: 2000, // Increased token limit for longer responses
+          top_p: 0.9,
+          frequency_penalty: 0.1,
+          presence_penalty: 0.1,
+          // Optional: Add function calling for more capabilities
+          functions: [
+            {
+              name: "search_wiki",
+              description: "Search the company wiki for specific information",
+              parameters: {
+                type: "object",
+                properties: {
+                  query: { 
+                    type: "string", 
+                    description: "Search query for wiki content" 
+                  },
+                  category: { 
+                    type: "string", 
+                    description: "Optional category filter" 
+                  }
+                },
+                required: ["query"]
+              }
+            }
+          ],
+          function_call: "auto"
         }),
         openaiTimeout
       ]) as any
@@ -235,9 +324,16 @@ Be conversational, helpful, and guide them through the document creation process
     } catch (error: any) {
       console.error('❌ OpenAI API error:', error.message || error)
       console.error('❌ Error details:', error.response?.data || error)
-      console.log('⚠️ Falling back to mock response due to API error')
-      // Fall back to mock responses when API fails
-      aiResponse = getMockResponse(session, message, conversationHistory.length)
+      
+      // Try to provide a more helpful fallback response
+      if (error.message?.includes('timeout')) {
+        aiResponse = "I apologize, but I'm experiencing a delay in processing your request. This might be due to high demand. Please try rephrasing your question or ask me something more specific, and I'll do my best to help you quickly."
+      } else if (error.message?.includes('rate limit')) {
+        aiResponse = "I'm currently experiencing high demand. Please wait a moment and try again, or feel free to ask a simpler question in the meantime."
+      } else {
+        console.log('⚠️ Falling back to mock response due to API error')
+        aiResponse = getMockResponse(session, message, conversationHistory.length)
+      }
     }
 
     // Save AI message
@@ -253,6 +349,7 @@ Be conversational, helpful, and guide them through the document creation process
     // Determine next phase based on conversation
     let nextPhase = session.phase
     let shouldAutoPublish = false
+    let shouldAutoCreateProject = false
 
     if (session.intent === 'doc_gen') {
       if (session.phase === 'idle' && (message.toLowerCase().includes('document') || message.toLowerCase().includes('handbook') || message.toLowerCase().includes('policy'))) {
@@ -273,6 +370,23 @@ Be conversational, helpful, and guide them through the document creation process
         shouldAutoPublish = true
         nextPhase = 'publishing'
       }
+    } else if (session.intent === 'project_creation') {
+      if (session.phase === 'idle' && (message.toLowerCase().includes('project') || message.toLowerCase().includes('create project'))) {
+        nextPhase = 'intake'
+      } else if (session.phase === 'intake' && conversationHistory.length >= 4) {
+        nextPhase = 'gathering_requirements'
+      } else if (session.phase === 'gathering_requirements' && conversationHistory.length >= 6) {
+        nextPhase = 'ready_to_create'
+      } else if (session.phase === 'ready_to_create' && (
+        message.toLowerCase().includes('create project') || 
+        message.toLowerCase().includes('yes') ||
+        message.toLowerCase().includes('ready to create') ||
+        message.toLowerCase().includes('go ahead') ||
+        message.toLowerCase().includes('create it')
+      )) {
+        shouldAutoCreateProject = true
+        nextPhase = 'creating'
+      }
     }
 
 
@@ -289,7 +403,8 @@ Be conversational, helpful, and guide them through the document creation process
       message: aiResponse,
       phase: nextPhase,
       sessionId: sessionId,
-      shouldAutoPublish: shouldAutoPublish
+      shouldAutoPublish: shouldAutoPublish,
+      shouldAutoCreateProject: shouldAutoCreateProject
     })
 
   } catch (error) {

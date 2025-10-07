@@ -17,8 +17,11 @@ import {
   Heading3,
   AlignLeft,
   AlignCenter,
-  AlignRight
+  AlignRight,
+  Plus
 } from "lucide-react"
+import { EmbedCommandPalette } from "@/components/embeds/embed-command-palette"
+import { EmbedData } from "@/types/embeds"
 
 interface RichTextEditorProps {
   content: string
@@ -37,30 +40,66 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const [isFocused, setIsFocused] = useState(false)
+  const [showEmbedPalette, setShowEmbedPalette] = useState(false)
+  const [embedPalettePosition, setEmbedPalettePosition] = useState({ top: 0, left: 0 })
+  const [embeds, setEmbeds] = useState<EmbedData[]>([])
+  const [isInsertingEmbed, setIsInsertingEmbed] = useState(false)
 
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== content) {
+    if (editorRef.current && editorRef.current.innerHTML !== content && !isInsertingEmbed) {
       editorRef.current.innerHTML = content
     }
-  }, [content])
+  }, [content, isInsertingEmbed])
 
   const execCommand = (command: string, value?: string) => {
-    document.execCommand(command, false, value)
-    if (editorRef.current) {
-      onChange(editorRef.current.innerHTML)
+    if (typeof document !== 'undefined') {
+      document.execCommand(command, false, value)
+      if (editorRef.current) {
+        onChange(editorRef.current.innerHTML)
+      }
     }
   }
 
   const handleInput = () => {
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML)
+      const html = editorRef.current.innerHTML
+      onChange(html)
+      
+      // Check for slash command (only on client side)
+      if (typeof window !== 'undefined') {
+        const selection = window.getSelection()
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0)
+          const textNode = range.startContainer
+          if (textNode.nodeType === Node.TEXT_NODE) {
+            const text = textNode.textContent || ""
+            const cursorPos = range.startOffset
+            const beforeCursor = text.substring(0, cursorPos)
+            
+            // Check if user typed "/" - simplified detection
+            if (beforeCursor.endsWith('/')) {
+              console.log('Slash command detected:', beforeCursor)
+              const rect = range.getBoundingClientRect()
+              setEmbedPalettePosition({
+                top: rect.bottom + window.scrollY,
+                left: rect.left + window.scrollX
+              })
+              setShowEmbedPalette(true)
+            } else if (showEmbedPalette && !beforeCursor.includes('/')) {
+              setShowEmbedPalette(false)
+            }
+          }
+        }
+      }
     }
   }
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault()
     const text = e.clipboardData.getData('text/plain')
-    document.execCommand('insertText', false, text)
+    if (typeof document !== 'undefined') {
+      document.execCommand('insertText', false, text)
+    }
   }
 
   const insertLink = () => {
@@ -77,6 +116,65 @@ export function RichTextEditor({
     }
   }
 
+  const handleEmbed = (embedData: Partial<EmbedData>) => {
+    console.log('Creating embed with data:', embedData)
+    
+    const newEmbed: EmbedData = {
+      id: `embed-${Date.now()}`,
+      provider: embedData.provider || 'generic',
+      url: embedData.url || '',
+      title: embedData.title || '',
+      description: embedData.description || '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...embedData
+    }
+    
+    console.log('New embed created:', newEmbed)
+    setEmbeds(prev => [...prev, newEmbed])
+    
+    // Create embed HTML string
+    const embedHtml = `
+      <div class="embed-placeholder my-4" data-embed-id="${newEmbed.id}" style="display: block !important; margin: 16px 0 !important; border: 1px solid #e5e7eb !important; border-radius: 8px !important; padding: 16px !important; background: white !important;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="font-size: 18px;">${embedData.provider === 'github' ? '🐙' : '🔗'}</span>
+          <span style="font-weight: 600; font-size: 14px;">${newEmbed.title}</span>
+        </div>
+        <p style="color: #666; margin-bottom: 8px; font-size: 14px;">${newEmbed.description}</p>
+        <a 
+          href="${newEmbed.url}" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          style="color: #0066cc; text-decoration: none; font-size: 12px;"
+        >
+          Open Link →
+        </a>
+      </div>
+    `
+    
+    // Get current content and append embed
+    const currentContent = editorRef.current?.innerHTML || ''
+    const newContent = currentContent + embedHtml
+    
+    console.log('Current content length:', currentContent.length)
+    console.log('New content length:', newContent.length)
+    
+    // Update the content directly
+    onChange(newContent)
+    
+    setShowEmbedPalette(false)
+  }
+
+  const testEmbed = () => {
+    console.log('Test embed button clicked')
+    handleEmbed({
+      provider: 'github',
+      url: 'https://github.com/antoine2025-ux/lumi-work-os',
+      title: 'antoine2025-ux/lumi-work-os',
+      description: 'GitHub repository'
+    })
+  }
+
   const toolbarButtons = [
     { icon: Bold, command: 'bold', title: 'Bold' },
     { icon: Italic, command: 'italic', title: 'Italic' },
@@ -91,6 +189,8 @@ export function RichTextEditor({
     { icon: AlignLeft, command: 'justifyLeft', title: 'Align Left' },
     { icon: AlignCenter, command: 'justifyCenter', title: 'Align Center' },
     { icon: AlignRight, command: 'justifyRight', title: 'Align Right' },
+    { icon: Plus, action: () => setShowEmbedPalette(true), title: 'Embed' },
+    { icon: Plus, action: testEmbed, title: 'Test GitHub Embed' }
   ]
 
   if (!editable) {
@@ -137,6 +237,16 @@ export function RichTextEditor({
           <Image className="h-4 w-4 mr-1" />
           Image
         </Button>
+        <div className="w-px h-6 bg-border mx-1" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2"
+          onClick={() => setShowEmbedPalette(true)}
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Embed
+        </Button>
       </div>
 
       {/* Editor */}
@@ -175,6 +285,14 @@ export function RichTextEditor({
           {placeholder}
         </div>
       )}
+
+      {/* Embed Command Palette */}
+      <EmbedCommandPalette
+        isOpen={showEmbedPalette}
+        onClose={() => setShowEmbedPalette(false)}
+        onEmbed={handleEmbed}
+        position={embedPalettePosition}
+      />
     </div>
   )
 }

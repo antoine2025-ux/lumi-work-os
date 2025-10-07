@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
             data: {
               title: 'New Chat',
               workspaceId: workspaceId || 'workspace-1',
-              userId: 'user-1' // TODO: Get from session
+              userId: 'dev-user-1' // TODO: Get from session
             }
           })
           newSessionId = newSession.id
@@ -214,7 +214,7 @@ Once I have these details, I'll ask some follow-up questions to gather all the n
             data: {
               title: 'New Chat',
               workspaceId: workspaceId || 'workspace-1',
-              userId: 'user-1' // TODO: Get from session
+              userId: 'dev-user-1' // TODO: Get from session
             }
           })
           newSessionId = newSession.id
@@ -269,7 +269,7 @@ Just let me know what you're looking for, and I'll do my best to help!`
             data: {
               title: 'New Chat',
               workspaceId: workspaceId || 'workspace-1',
-              userId: 'user-1' // TODO: Get from session
+              userId: 'dev-user-1' // TODO: Get from session
             }
           })
           newSessionId = newSession.id
@@ -328,6 +328,7 @@ CONVERSATION CONTEXT AWARENESS:
 - Pay attention to ALL details the user has provided in previous messages
 - If a user answers your questions with specific details, use that information immediately
 - Don't ask for information the user has already provided
+- Always reference previous conversation context when responding
 
 MODE-SPECIFIC BEHAVIOR:
 
@@ -643,7 +644,7 @@ Once I have these details, I'll ask some follow-up questions to gather all the n
             content: wikiContent,
             slug: slug,
             workspaceId: workspaceId || 'workspace-1',
-            createdById: 'user-1', // TODO: Get from session
+            createdById: 'dev-user-1', // TODO: Get from session
             category: section.toLowerCase(),
             permissionLevel: visibility.toLowerCase(),
             tags: tags,

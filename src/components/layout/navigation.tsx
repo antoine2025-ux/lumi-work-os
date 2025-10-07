@@ -10,7 +10,8 @@ import {
   Bot,
   Users,
   Building2,
-  Settings
+  Settings,
+  Shield
 } from "lucide-react"
 
 const navigationItems = [
@@ -30,7 +31,7 @@ const navigationItems = [
     name: "Ask AI",
     href: "/ask",
     icon: Bot,
-    description: "AI-powered assistance"
+    description: "AI-powered document generation, project creation, and assistance"
   },
   {
     name: "Onboarding",
@@ -43,6 +44,12 @@ const navigationItems = [
     href: "/org",
     icon: Building2,
     description: "Organization chart and structure"
+  },
+  {
+    name: "Admin",
+    href: "/admin",
+    icon: Shield,
+    description: "User management and administration"
   },
   {
     name: "Settings",

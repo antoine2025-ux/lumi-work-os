@@ -25,6 +25,7 @@ interface Session {
   draftTitle?: string
   draftBody?: string
   wikiUrl?: string
+  projectUrl?: string
 }
 
 interface DraftSettings {
@@ -187,7 +188,7 @@ export default function AskPage() {
     setShowWelcome(true)
   }
 
-  const startSession = async (intent: 'doc_gen' | 'assist') => {
+  const startSession = async (intent: 'doc_gen' | 'assist' | 'project_creation') => {
     setIsLoading(true)
     try {
       const response = await fetch('/api/assistant', {
@@ -206,14 +207,17 @@ export default function AskPage() {
         requirementNotes: undefined,
         draftTitle: undefined,
         draftBody: undefined,
-        wikiUrl: undefined
+        wikiUrl: undefined,
+        projectUrl: undefined
       })
 
       setShowWelcome(false)
       
-      // Send initial message for both intents
+      // Send initial message for all intents
       const initialMessage = intent === 'doc_gen' 
         ? "I want to create a document. Please help me get started."
+        : intent === 'project_creation'
+        ? "I want to create a project. Please help me get started."
         : "I need help with general questions about our wiki and knowledge base."
       
       await sendMessage(initialMessage, data.sessionId)
@@ -289,6 +293,55 @@ export default function AskPage() {
         setMessages(prev => [...prev, draftButtonMessage])
       }
 
+      // Check if we should show the create project button
+      if (data.phase === 'ready_to_create' && session?.intent === 'project_creation') {
+        const projectButtonMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          role: 'assistant',
+          content: "I have enough information to create your project. Click 'Create Project' in the sidebar when you're ready!",
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, projectButtonMessage])
+      }
+
+      // Check if we should auto-create project
+      if (data.shouldAutoCreateProject && session?.intent === 'project_creation') {
+        try {
+          // Extract project data from conversation
+          const projectData = extractProjectData(messages)
+
+          const createResponse = await fetch('/api/assistant/create-project', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              sessionId: session.id,
+              projectData
+            })
+          })
+
+          const createData = await createResponse.json()
+          
+          if (createData.success && createData.projectUrl) {
+            setSession(prev => prev ? {
+              ...prev,
+              projectUrl: createData.projectUrl,
+              phase: 'project_created'
+            } : null)
+            
+            // Add success message with direct link
+            const successMessage: Message = {
+              id: (Date.now() + 2).toString(),
+              role: 'assistant',
+              content: `🎉 **Project Created Successfully!**\n\nYour project "${createData.project.name}" has been created.\n\n[📋 View Project](${createData.projectUrl})`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, successMessage])
+          }
+        } catch (error) {
+          console.error('Error creating project:', error)
+        }
+      }
+
     } catch (error) {
       console.error('Error sending message:', error)
       const errorMessage: Message = {
@@ -349,6 +402,139 @@ export default function AskPage() {
       }
     } catch (error) {
       console.error('Error generating draft:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const extractProjectData = (messages: Message[]) => {
+    const conversationText = messages
+      .filter(msg => msg.role === 'user')
+      .map(msg => msg.content)
+      .join(' ')
+
+    console.log('Extracting project data from conversation:', conversationText)
+
+    // Extract project name - more comprehensive patterns
+    const namePatterns = [
+      /(?:project is called|project name is|name is|called)\s+([^,.\n]+)/i,
+      /(?:create|build|develop)\s+(?:a\s+)?(?:project\s+)?(?:called\s+)?([^,.\n]+?)(?:\s+(?:for|to|that|which))/i,
+      /(?:the\s+)?(?:project\s+)?([^,.\n]+?)(?:\s+(?:project|feature|system))/i,
+      /(?:project\s+)?([^,.\n]+?)(?:\s+(?:ai|feature|automation|management|system))/i,
+      /(?:build|create|develop)\s+([^,.\n]+?)(?:\s+(?:system|tool|platform|app))/i
+    ]
+    
+    let name = 'New Project'
+    for (const pattern of namePatterns) {
+      const match = conversationText.match(pattern)
+      if (match && match[1].trim().length > 2) {
+        name = match[1].trim()
+        break
+      }
+    }
+
+    // Extract description/purpose
+    const descriptionPatterns = [
+      /(?:purpose is|goal is|description is|about|to)\s+([^,.\n]+)/i,
+      /(?:automate|create|build|develop|implement)\s+([^,.\n]+)/i,
+      /(?:for|that)\s+([^,.\n]+)/i
+    ]
+    
+    let description = ''
+    for (const pattern of descriptionPatterns) {
+      const match = conversationText.match(pattern)
+      if (match && match[1].trim().length > 5) {
+        description = match[1].trim()
+        break
+      }
+    }
+
+    // Extract department
+    const departmentPatterns = [
+      /(?:department|team)\s+is\s+([^,.\n]+)/i,
+      /(?:engineering|marketing|sales|hr|finance|operations)\s+(?:department|team)/i,
+      /(?:in\s+the\s+)?(engineering|marketing|sales|hr|finance|operations)/i
+    ]
+    
+    let department = ''
+    for (const pattern of departmentPatterns) {
+      const match = conversationText.match(pattern)
+      if (match && match[1]) {
+        department = match[1].trim()
+        break
+      }
+    }
+
+    // Extract priority
+    const priorityMatch = conversationText.match(/(?:priority is|priority)\s+(high|medium|low|urgent)/i)
+    const priority = priorityMatch ? priorityMatch[1].toUpperCase() : 'MEDIUM'
+
+    // Extract timeline
+    const timelineMatch = conversationText.match(/(?:starting|start)\s+(today|tomorrow|\d+ days?|\d+ weeks?)/i)
+    const startDate = timelineMatch ? new Date().toISOString() : null
+
+    const durationMatch = conversationText.match(/(?:for|duration)\s+(\d+)\s+(days?|weeks?|months?)/i)
+    let endDate = null
+    if (durationMatch && startDate) {
+      const duration = parseInt(durationMatch[1])
+      const unit = durationMatch[2].toLowerCase()
+      const days = unit.includes('week') ? duration * 7 : 
+                   unit.includes('month') ? duration * 30 : duration
+      endDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+    }
+
+    const extractedData = {
+      name: name || 'New Project',
+      description: description || 'Project created via AI assistant',
+      department: department || 'General',
+      team: department || 'General', // Use department as team for now
+      priority,
+      startDate,
+      endDate,
+      ownerId: 'dev-user-1'
+    }
+
+    console.log('Extracted project data:', extractedData)
+    return extractedData
+  }
+
+  const createProject = async () => {
+    if (!session) return
+
+    setIsLoading(true)
+    try {
+      // Extract project data from conversation
+      const projectData = extractProjectData(messages)
+
+      const response = await fetch('/api/assistant/create-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          sessionId: session.id,
+          projectData
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        setSession(prev => prev ? {
+          ...prev,
+          projectUrl: data.projectUrl,
+          phase: 'project_created'
+        } : null)
+        
+        // Add success message
+        const successMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `🎉 **Project Created Successfully!**\n\nYour project "${data.project.name}" has been created.\n\n[📋 View Project](${data.projectUrl})`,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, successMessage])
+      }
+    } catch (error) {
+      console.error('Error creating project:', error)
     } finally {
       setIsLoading(false)
     }
@@ -545,6 +731,17 @@ export default function AskPage() {
                 </Button>
               )}
 
+              {session.phase === 'ready_to_create' && session.intent === 'project_creation' && !session.projectUrl && (
+                <Button 
+                  className="w-full"
+                  onClick={createProject}
+                  disabled={isLoading}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  {isLoading ? 'Creating...' : 'Create Project'}
+                </Button>
+              )}
+
               {session && session.draftTitle && (
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-gray-700">Draft Ready</h4>
@@ -638,7 +835,7 @@ export default function AskPage() {
                 </div>
 
                 {/* Main Options */}
-                <div className="grid md:grid-cols-2 gap-6 mb-8">
+                <div className="grid md:grid-cols-3 gap-6 mb-8">
                   <Card 
                     className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-200"
                     onClick={() => startSession('doc_gen')}
@@ -674,6 +871,27 @@ export default function AskPage() {
                           <p className="text-gray-600 text-sm">
                             I'll help you find information from existing wiki content and provide 
                             general guidance on various topics.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card 
+                    className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-200"
+                    onClick={() => startSession('project_creation')}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-start space-x-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <FileText className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Creating a Project</h3>
+                          <p className="text-gray-600 text-sm">
+                            I'll help you create a new project with all the necessary details. 
+                            I'll ask about the project name, purpose, team, timeline, and other 
+                            important information to set up your project properly.
                           </p>
                         </div>
                       </div>

@@ -196,10 +196,18 @@ export default function WikiPage() {
             Your company's knowledge base and documentation
           </p>
         </div>
-        <Button onClick={handleNewPage}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Page
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link href="/wiki/embed-demo">
+            <Button variant="outline" className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              Embed Demo
+            </Button>
+          </Link>
+          <Button onClick={handleNewPage}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Page
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -308,7 +316,7 @@ export default function WikiPage() {
           </div>
         </div>
       ) : (
-        <>
+        <div>
           {/* Bulk Actions */}
           {selectedPages.size > 0 && (
             <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
@@ -500,7 +508,7 @@ export default function WikiPage() {
           </CardContent>
         </Card>
       )}
-        </>
+        </div>
       )}
 
       {/* Delete Confirmation Dialog */}
