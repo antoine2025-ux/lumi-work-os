@@ -24,6 +24,7 @@ import {
   TrendingUp
 } from "lucide-react"
 import Link from "next/link"
+import { ContextMenu, contextMenuItems } from "@/components/ui/context-menu"
 
 interface Project {
   id: string
@@ -160,6 +161,9 @@ export default function ProjectsPage() {
           </h1>
           <p className="text-muted-foreground">
             Manage your team's projects and tasks
+            <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
+              Press ⌘K for commands, right-click for actions
+            </span>
           </p>
         </div>
         <Button asChild>
@@ -224,10 +228,16 @@ export default function ProjectsPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search projects..."
+            placeholder="Search projects... (try: #project status:active)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                // Trigger unified search
+                console.log('Searching with unified search:', searchQuery)
+              }
+            }}
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -264,7 +274,8 @@ export default function ProjectsPage() {
       {viewMode === "grid" ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredProjects.map((project) => (
-            <Card key={project.id} className="hover:shadow-md transition-shadow group">
+            <ContextMenu key={project.id} items={contextMenuItems.project(project)}>
+              <Card className="hover:shadow-md transition-shadow group cursor-pointer">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -336,13 +347,15 @@ export default function ProjectsPage() {
                   </Button>
                 </div>
               </CardContent>
-            </Card>
+              </Card>
+            </ContextMenu>
           ))}
         </div>
       ) : (
         <div className="space-y-4">
           {filteredProjects.map((project) => (
-            <Card key={project.id} className="hover:shadow-md transition-shadow">
+            <ContextMenu key={project.id} items={contextMenuItems.project(project)}>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
@@ -380,7 +393,8 @@ export default function ProjectsPage() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+              </Card>
+            </ContextMenu>
           ))}
         </div>
       )}

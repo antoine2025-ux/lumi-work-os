@@ -1,6 +1,6 @@
 import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
-import { PrismaAdapter } from "@next-auth/prisma-adapter"
+import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/db"
 
 export const authOptions: NextAuthOptions = {
@@ -12,24 +12,14 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    session: async ({ session, token }) => {
-      if (session?.user && token?.sub) {
-        session.user.id = token.sub
+    session: ({ session, user }) => {
+      if (session?.user && user?.id) {
+        session.user.id = user.id
       }
       return session
     },
-    jwt: async ({ user, token }) => {
-      if (user) {
-        token.uid = user.id
-      }
-      return token
-    },
   },
   session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: "/login",
-    error: "/auth/error",
+    strategy: "database",
   },
 }

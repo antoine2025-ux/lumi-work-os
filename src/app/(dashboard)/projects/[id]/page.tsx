@@ -32,6 +32,9 @@ import TaskList from "@/components/tasks/task-list"
 import { InlineWikiViewer } from "@/components/projects/inline-wiki-viewer"
 import { EmbedContentRenderer } from "@/components/wiki/embed-content-renderer"
 import { ProjectEditDialog } from "@/components/projects/project-edit-dialog"
+import { LiveTaskList } from "@/components/realtime/live-task-list"
+import { PresenceIndicator } from "@/components/realtime/presence-indicator"
+import { NotificationToast, NotificationBell } from "@/components/realtime/notification-toast"
 
 interface Project {
   id: string
@@ -98,7 +101,7 @@ interface Project {
 export default function ProjectDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.id as string
+  const projectId = params?.id as string
   
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -109,6 +112,7 @@ export default function ProjectDetailPage() {
   const [isCreatingSampleTasks, setIsCreatingSampleTasks] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isTaskListFullscreen, setIsTaskListFullscreen] = useState(false)
+  const [taskViewMode, setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
 
   const loadProject = async () => {
     try {
@@ -296,6 +300,8 @@ export default function ProjectDetailPage() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
+          <PresenceIndicator projectId={projectId} />
+          <NotificationBell />
           <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
             <Edit className="mr-2 h-4 w-4" />
             Edit
@@ -310,13 +316,59 @@ export default function ProjectDetailPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content - Takes up 2/3 of the width */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Tasks */}
-          <TaskList 
-            projectId={projectId} 
-            workspaceId="workspace-1" 
-            isFullscreen={isTaskListFullscreen}
-            onToggleFullscreen={() => setIsTaskListFullscreen(!isTaskListFullscreen)}
-          />
+          {/* Tasks - Kanban Board or Live Updates */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">
+                  {taskViewMode === 'kanban' ? 'Project Tasks' : 'Live Project Updates'}
+                </CardTitle>
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                    <Button
+                      variant={taskViewMode === 'kanban' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setTaskViewMode('kanban')}
+                      className="h-7 px-3 text-xs"
+                    >
+                      Board
+                    </Button>
+                    <Button
+                      variant={taskViewMode === 'live' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setTaskViewMode('live')}
+                      className="h-7 px-3 text-xs"
+                    >
+                      Live
+                    </Button>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsTaskListFullscreen(true)}
+                    className="h-8 px-3 text-xs"
+                  >
+                    <Maximize2 className="h-3 w-3 mr-1" />
+                    Fullscreen
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {taskViewMode === 'kanban' ? (
+                <TaskList 
+                  projectId={projectId} 
+                  workspaceId="workspace-1" 
+                  isFullscreen={false}
+                />
+              ) : (
+                <LiveTaskList 
+                  projectId={projectId}
+                  className="min-h-[400px]"
+                />
+              )}
+            </CardContent>
+          </Card>
           
           {/* Project Documentation - Full Width */}
           <Card>
@@ -658,6 +710,9 @@ export default function ProjectDetailPage() {
           />
         </div>
       )}
+
+      {/* Real-time Notifications */}
+      <NotificationToast />
     </>
   )
 }

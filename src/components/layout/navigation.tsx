@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
+import { useWorkspace } from "@/lib/workspace-context"
 import {
   Home,
   BookOpen,
@@ -11,51 +12,118 @@ import {
   Users,
   Building2,
   Settings,
-  Shield
+  Shield,
+  Zap,
+  BarChart3,
+  Calendar,
+  Clock,
+  Workflow
 } from "lucide-react"
 
-const navigationItems = [
+// Core navigation items (always visible)
+const coreNavigationItems = [
   {
     name: "Dashboard",
     href: "/",
     icon: Home,
-    description: "Overview and quick actions"
+    description: "Overview and quick actions",
+    roles: ['OWNER', 'ADMIN', 'MEMBER']
+  },
+  {
+    name: "Projects",
+    href: "/projects",
+    icon: Building2,
+    description: "Project management and tasks",
+    roles: ['OWNER', 'ADMIN', 'MEMBER']
   },
   {
     name: "Wiki",
     href: "/wiki",
     icon: BookOpen,
-    description: "Knowledge base and documentation"
-  },
+    description: "Knowledge base and documentation",
+    roles: ['OWNER', 'ADMIN', 'MEMBER']
+  }
+]
+
+// Feature-gated navigation items
+const featureNavigationItems = [
   {
     name: "Ask AI",
     href: "/ask",
     icon: Bot,
-    description: "AI-powered document generation, project creation, and assistance"
+    description: "AI-powered document generation, project creation, and assistance",
+    roles: ['OWNER', 'ADMIN', 'MEMBER'],
+    featureFlag: "ai_assistant"
   },
   {
-    name: "Onboarding",
-    href: "/onboarding",
-    icon: Users,
-    description: "Team onboarding and training"
+    name: "Analytics",
+    href: "/analytics",
+    icon: BarChart3,
+    description: "Project analytics and insights",
+    roles: ['OWNER', 'ADMIN'],
+    featureFlag: "analytics"
   },
   {
-    name: "Org",
-    href: "/org",
-    icon: Building2,
-    description: "Organization chart and structure"
+    name: "Calendar",
+    href: "/calendar",
+    icon: Calendar,
+    description: "Project timeline and scheduling",
+    roles: ['OWNER', 'ADMIN', 'MEMBER'],
+    featureFlag: "calendar"
   },
+  {
+    name: "Time Tracking",
+    href: "/time-tracking",
+    icon: Clock,
+    description: "Track time spent on projects and tasks",
+    roles: ['OWNER', 'ADMIN', 'MEMBER'],
+    featureFlag: "time_tracking"
+  },
+  {
+    name: "Automations",
+    href: "/automations",
+    icon: Workflow,
+    description: "Automate workflows and notifications",
+    roles: ['OWNER', 'ADMIN'],
+    featureFlag: "automations"
+  }
+]
+
+// Admin-only navigation items
+const adminNavigationItems = [
   {
     name: "Admin",
     href: "/admin",
     icon: Shield,
-    description: "User management and administration"
+    description: "User management and administration",
+    roles: ['OWNER', 'ADMIN']
   },
   {
     name: "Settings",
     href: "/settings",
     icon: Settings,
-    description: "Workspace configuration"
+    description: "Workspace configuration",
+    roles: ['OWNER', 'ADMIN']
+  }
+]
+
+// Demo/Development items (only in development)
+const devNavigationItems = [
+  {
+    name: "Real-time Demo",
+    href: "/realtime-demo",
+    icon: Zap,
+    description: "Live collaboration features demonstration",
+    roles: ['OWNER', 'ADMIN', 'MEMBER'],
+    devOnly: true
+  },
+  {
+    name: "Clean UI Demo",
+    href: "/clean-ui-demo",
+    icon: Zap,
+    description: "Clean, functional UI design demonstration",
+    roles: ['OWNER', 'ADMIN', 'MEMBER'],
+    devOnly: true
   }
 ]
 
@@ -63,6 +131,31 @@ export function Navigation() {
   const pathname = usePathname()
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const { userRole, canManageWorkspace, canViewAnalytics } = useWorkspace()
+  
+  // Filter navigation items based on user role and feature flags
+  const getVisibleNavigationItems = () => {
+    const isDev = process.env.NODE_ENV === 'development'
+    
+    return [
+      ...coreNavigationItems.filter(item => 
+        userRole && item.roles.includes(userRole)
+      ),
+      ...featureNavigationItems.filter(item => {
+        if (!userRole || !item.roles.includes(userRole)) return false
+        // TODO: Check feature flags when implemented
+        return true
+      }),
+      ...adminNavigationItems.filter(item => 
+        userRole && item.roles.includes(userRole)
+      ),
+      ...(isDev ? devNavigationItems.filter(item => 
+        userRole && item.roles.includes(userRole)
+      ) : [])
+    ]
+  }
+  
+  const navigationItems = getVisibleNavigationItems()
 
   useEffect(() => {
     const handleScroll = () => {

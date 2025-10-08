@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useState, useEffect } from "react"
+import { useWorkspace } from "@/lib/workspace-context"
 import {
   Plus,
   BookOpen,
@@ -19,8 +20,12 @@ import {
   Sparkles,
   Zap,
   Lightbulb,
-  Calendar
+  Calendar,
+  Building2,
+  Target,
+  Activity
 } from "lucide-react"
+import { ContextMenu, contextMenuItems } from "@/components/ui/context-menu"
 
 interface RecentPage {
   id: string
@@ -30,9 +35,22 @@ interface RecentPage {
   category: string
 }
 
+interface Project {
+  id: string
+  name: string
+  description?: string
+  status: string
+  createdAt: string
+  updatedAt: string
+  taskCount?: number
+}
+
 export default function HomePage() {
+  const { currentWorkspace, userRole, canCreateProjects, canViewAnalytics } = useWorkspace()
   const [recentPages, setRecentPages] = useState<RecentPage[]>([])
+  const [recentProjects, setRecentProjects] = useState<Project[]>([])
   const [isLoadingRecentPages, setIsLoadingRecentPages] = useState(true)
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true)
 
   // Load recent pages from API
   useEffect(() => {
@@ -63,6 +81,29 @@ export default function HomePage() {
     }
 
     loadRecentPages()
+  }, [])
+
+  // Load recent projects from API
+  useEffect(() => {
+    const loadRecentProjects = async () => {
+      try {
+        const response = await fetch('/api/projects?workspaceId=workspace-1')
+        if (response.ok) {
+          const data = await response.json()
+          // Sort by updatedAt and take the 6 most recent
+          const sortedProjects = data
+            .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+            .slice(0, 6)
+          setRecentProjects(sortedProjects)
+        }
+      } catch (error) {
+        console.error('Error loading recent projects:', error)
+      } finally {
+        setIsLoadingProjects(false)
+      }
+    }
+
+    loadRecentProjects()
   }, [])
 
   // Quick actions with proper redirects
@@ -102,8 +143,25 @@ export default function HomePage() {
     <div className="p-8">
       {/* Welcome Section */}
       <div className="mb-8">
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Good morning! 👋</h2>
-        <p className="text-gray-600">Here's what's happening in your workspace today.</p>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+          Good morning! 👋
+          {currentWorkspace && (
+            <span className="text-lg font-normal text-gray-600 ml-2">
+              Welcome to {currentWorkspace.name}
+            </span>
+          )}
+        </h2>
+        <p className="text-gray-600">
+          Here's what's happening in your workspace today.
+          {userRole && (
+            <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+              {userRole}
+            </span>
+          )}
+          <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
+            Press ⌘K for commands, right-click for actions
+          </span>
+        </p>
       </div>
 
       {/* Quick Actions */}
@@ -151,6 +209,110 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Recent Projects */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Recent Projects</h3>
+          <div className="flex items-center space-x-2">
+            <Link href="/projects">
+              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
+                View all
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </Link>
+            {canCreateProjects && (
+              <Link href="/projects/new">
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                  <Plus className="h-4 w-4 mr-1" />
+                  New Project
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {isLoadingProjects ? (
+            [...Array(6)].map((_, index) => (
+              <Card key={index}>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-gray-200 rounded-lg animate-pulse"></div>
+                      <div className="flex-1">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded animate-pulse w-20"></div>
+                      </div>
+                    </div>
+                    <div className="h-3 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : recentProjects.length > 0 ? (
+            recentProjects.map((project) => (
+              <ContextMenu key={project.id} items={contextMenuItems.project(project)}>
+                <Card className="hover:shadow-md transition-all duration-200 cursor-pointer group">
+                  <CardContent className="p-4">
+                    <Link href={`/projects/${project.id}`} className="block">
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                            <Building2 className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+                              {project.name}
+                            </h4>
+                            <p className="text-sm text-gray-500">{getTimeAgo(project.updatedAt)}</p>
+                          </div>
+                        </div>
+                        {project.description && (
+                          <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            project.status === 'active' 
+                              ? 'bg-green-100 text-green-800' 
+                              : project.status === 'completed'
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {project.status}
+                          </span>
+                          {project.taskCount !== undefined && (
+                            <span className="text-xs text-gray-500">
+                              {project.taskCount} tasks
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  </CardContent>
+                </Card>
+              </ContextMenu>
+            ))
+          ) : (
+            <div className="col-span-full">
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+                  <p className="text-gray-500 mb-4">Get started by creating your first project</p>
+                  {canCreateProjects && (
+                    <Link href="/projects/new">
+                      <Button className="bg-blue-600 hover:bg-blue-700">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Project
+                      </Button>
+                    </Link>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Recent Pages */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
@@ -182,23 +344,26 @@ export default function HomePage() {
           ) : recentPages.length > 0 ? (
             recentPages.map((page) => {
               const IconComponent = getCategoryIcon(page.category)
+              const wikiPage = { id: page.id, title: page.title, slug: page.slug }
               return (
-                <Link key={page.id} href={`/wiki/${page.slug}`}>
+                <ContextMenu key={page.id} items={contextMenuItems.wiki(wikiPage)}>
                   <Card className="hover:shadow-sm transition-all duration-200 cursor-pointer group">
                     <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                          <IconComponent className="h-4 w-4 text-gray-600" />
+                      <Link href={`/wiki/${page.slug}`} className="block">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+                            <IconComponent className="h-4 w-4 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{page.title}</h4>
+                            <p className="text-sm text-gray-500">{getTimeAgo(page.updatedAt)}</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
                         </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{page.title}</h4>
-                          <p className="text-sm text-gray-500">{getTimeAgo(page.updatedAt)}</p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-                      </div>
+                      </Link>
                     </CardContent>
                   </Card>
-                </Link>
+                </ContextMenu>
               )
             })
           ) : (

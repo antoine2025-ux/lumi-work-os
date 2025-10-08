@@ -66,7 +66,9 @@ model User {
   workflowInstances    WorkflowInstance[]
   workspaceMemberships WorkspaceMember[]
   createdWorkspaces    Workspace[]
+  ownedWorkspaces      Workspace[]           @relation("WorkspaceOwner")
   onboardingTasks      OnboardingTask[]     @relation("OnboardingTaskToUser")
+  activities           Activity[]
 
   @@map("users")
 }
@@ -103,6 +105,7 @@ model Workspace {
   workflows           Workflow[]
   members             WorkspaceMember[]
   owner               User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  featureFlags        FeatureFlag[]
 
   @@map("workspaces")
 }
@@ -572,6 +575,33 @@ model ProjectAssignee {
 
   @@unique([projectId, userId])
   @@map("project_assignees")
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  workspaceId String
+  key         String
+  enabled     Boolean  @default(false)
+  audience    Json?    // JSON object defining audience rules
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, key])
+  @@map("feature_flags")
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  actorId   String
+  entity    String   // "task" | "project" | "wiki"
+  entityId  String
+  action    String   // "created" | "updated" | "deleted" | "moved" | etc.
+  meta      Json?    // Additional metadata
+  createdAt DateTime @default(now())
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@map("activities")
 }
 
 enum WorkspaceRole {
