@@ -24,17 +24,23 @@ import {
   FileText,
   ExternalLink,
   Maximize2,
+  Search,
   X
 } from "lucide-react"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import TaskList from "@/components/tasks/task-list"
+import { KanbanBoard } from "@/components/kanban/kanban-board"
 import { InlineWikiViewer } from "@/components/projects/inline-wiki-viewer"
 import { EmbedContentRenderer } from "@/components/wiki/embed-content-renderer"
 import { ProjectEditDialog } from "@/components/projects/project-edit-dialog"
 import { LiveTaskList } from "@/components/realtime/live-task-list"
 import { PresenceIndicator } from "@/components/realtime/presence-indicator"
 import { NotificationToast, NotificationBell } from "@/components/realtime/notification-toast"
+import { ConnectionStatus } from "@/components/realtime/connection-status"
+import { useTheme } from "@/components/theme-provider"
+import { Celebration } from "@/components/ui/celebration"
+import { TaskSearchFilter } from "@/components/search/task-search-filter"
 
 interface Project {
   id: string
@@ -102,6 +108,7 @@ export default function ProjectDetailPage() {
   const params = useParams()
   const router = useRouter()
   const projectId = params?.id as string
+  const { themeConfig } = useTheme()
   
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -113,6 +120,30 @@ export default function ProjectDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isTaskListFullscreen, setIsTaskListFullscreen] = useState(false)
   const [taskViewMode, setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
+  const [showCelebration, setShowCelebration] = useState(false)
+  const [wasCompleted, setWasCompleted] = useState(false)
+  const [filteredTasks, setFilteredTasks] = useState<any[]>([])
+  const [isFiltered, setIsFiltered] = useState(false)
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
+
+  // Use theme-based colors
+  const colors = {
+    primary: themeConfig.primary,
+    primaryLight: themeConfig.accent,
+    primaryDark: themeConfig.secondary,
+    success: '#059669',
+    successLight: '#d1fae5',
+    warning: '#d97706',
+    warningLight: '#fef3c7',
+    error: themeConfig.destructive,
+    errorLight: '#fee2e2',
+    background: themeConfig.background,
+    surface: themeConfig.card,
+    text: themeConfig.foreground,
+    textSecondary: themeConfig.mutedForeground,
+    border: themeConfig.border,
+    borderLight: themeConfig.muted
+  }
 
   const loadProject = async () => {
     try {
@@ -183,11 +214,25 @@ export default function ProjectDetailPage() {
     setProject(updatedProject)
   }
 
+  const handleFilterChange = (filteredTasks: any[]) => {
+    setFilteredTasks(filteredTasks)
+    setIsFiltered(true)
+  }
+
+  const handleFilterReset = () => {
+    setFilteredTasks([])
+    setIsFiltered(false)
+  }
+
   useEffect(() => {
     if (projectId) {
       loadProject()
     }
   }, [projectId])
+
+  useEffect(() => {
+    checkProjectCompletion()
+  }, [project])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -212,6 +257,21 @@ export default function ProjectDetailPage() {
   const getTaskStatusCount = (status: string) => {
     if (!project) return 0
     return project.tasks.filter(task => task.status === status).length
+  }
+
+  const checkProjectCompletion = () => {
+    if (!project) return
+    
+    const isCompleted = project._count.tasks > 0 && 
+      (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100
+    
+    // Trigger celebration if project just became completed
+    if (isCompleted && !wasCompleted) {
+      setShowCelebration(true)
+      setWasCompleted(true)
+    } else if (!isCompleted) {
+      setWasCompleted(false)
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -241,12 +301,10 @@ export default function ProjectDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading project...</p>
-          </div>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" style={{ color: colors.primary }} />
+          <p style={{ color: colors.textSecondary }}>Loading project...</p>
         </div>
       </div>
     )
@@ -254,82 +312,152 @@ export default function ProjectDetailPage() {
 
   if (error || !project) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Project Not Found</h3>
-            <p className="text-muted-foreground mb-4">
-              {error || 'The project you are looking for does not exist.'}
-            </p>
-            <Button asChild>
-              <Link href="/projects">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Projects
-              </Link>
-            </Button>
-          </div>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 mx-auto mb-4" style={{ color: colors.error }} />
+          <h3 className="text-lg font-semibold mb-2" style={{ color: colors.text }}>Project Not Found</h3>
+          <p className="mb-4" style={{ color: colors.textSecondary }}>
+            {error || 'The project you are looking for does not exist.'}
+          </p>
+          <Button asChild style={{ backgroundColor: colors.primary }}>
+            <Link href="/projects">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Projects
+            </Link>
+          </Button>
         </div>
       </div>
     )
   }
 
   return (
-    <>
-      {/* Main Content - Hidden when fullscreen */}
-      <div className={`p-6 space-y-6 ${isTaskListFullscreen ? 'hidden' : ''}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/projects">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <div className="flex items-center space-x-3">
+    <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+      <Celebration 
+        isVisible={showCelebration} 
+        onComplete={() => setShowCelebration(false)}
+      />
+      {/* Professional Header Layout */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="flex items-start justify-between">
+          {/* Left Side - Project Title & Description */}
+          <div className="flex-1 pr-8">
+            <div className="flex items-center space-x-3 mb-3">
               <div 
-                className="w-4 h-4 rounded-full" 
-                style={{ backgroundColor: project.color || '#3b82f6' }}
+                className="w-3 h-3 rounded-full" 
+                style={{ backgroundColor: project.color || colors.primary }}
               />
-              <h1 className="text-3xl font-bold">{project.name}</h1>
+              <h1 className="text-3xl font-semibold" style={{ color: colors.text }}>{project.name}</h1>
             </div>
-            <p className="text-muted-foreground mt-1">
-              {project.description || 'No description'}
+            <p className="text-base leading-relaxed" style={{ color: colors.textSecondary }}>
+              {project.description || 'No description available'}
             </p>
           </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <PresenceIndicator projectId={projectId} />
-          <NotificationBell />
-          <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-          <Button variant="outline" size="icon">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
+          
+          {/* Right Side - Project Details */}
+          <div className="flex-shrink-0">
+            <div className="grid grid-cols-3 gap-4">
+              {/* Team */}
+              <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <h3 className="text-sm font-medium mb-3" style={{ color: colors.text }}>Team</h3>
+                    <div className="space-y-2">
+                      {project.members.slice(0, 3).map((member) => (
+                        <div key={member.id} className="flex items-center space-x-2">
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.borderLight }}>
+                            <User className="h-3 w-3" style={{ color: colors.textSecondary }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate" style={{ color: colors.text }}>{member.user.name}</p>
+                            <p className="text-xs truncate" style={{ color: colors.textSecondary }}>{member.role}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {project.members.length > 3 && (
+                        <p className="text-xs" style={{ color: colors.textSecondary }}>
+                          +{project.members.length - 3} more
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Progress */}
+              <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <h3 className="text-sm font-medium mb-3" style={{ color: colors.text }}>Progress</h3>
+                    <div className="w-full rounded-full h-2 mb-2" style={{ backgroundColor: colors.border }}>
+                      <div 
+                        className="h-2 rounded-full" 
+                        style={{ 
+                          backgroundColor: project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
+                            ? colors.success 
+                            : colors.primary, 
+                          width: `${project._count.tasks > 0 ? (getTaskStatusCount('DONE') / project._count.tasks) * 100 : 0}%` 
+                        }}
+                      ></div>
+                    </div>
+                    <p className="text-xs" style={{ color: colors.textSecondary }}>
+                      {getTaskStatusCount('DONE')} of {project._count.tasks}
+                    </p>
+                    <p className="text-xs font-medium mt-1" style={{ 
+                      color: project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
+                        ? colors.success 
+                        : colors.primary 
+                    }}>
+                      {project._count.tasks > 0 ? Math.round((getTaskStatusCount('DONE') / project._count.tasks) * 100) : 0}%
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Status */}
+              <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <h3 className="text-sm font-medium mb-3" style={{ color: colors.text }}>Status</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs" style={{ color: colors.textSecondary }}>To Do</span>
+                        <span className="text-sm font-medium" style={{ color: colors.text }}>{getTaskStatusCount('TODO')}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs" style={{ color: colors.textSecondary }}>In Progress</span>
+                        <span className="text-sm font-medium" style={{ color: colors.text }}>{getTaskStatusCount('IN_PROGRESS')}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs" style={{ color: colors.textSecondary }}>Done</span>
+                        <span className="text-sm font-medium" style={{ color: colors.text }}>{getTaskStatusCount('DONE')}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Main Content Layout */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Content - Takes up 2/3 of the width */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Tasks - Kanban Board or Live Updates */}
-          <Card>
-            <CardHeader className="pb-3">
+      {/* Main Content - Option B Layout */}
+      <div className="max-w-7xl mx-auto px-6 pb-8">
+        {/* Primary Focus: Kanban Board (70% width) */}
+        <div className="mb-6">
+          <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
+            <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">
-                  {taskViewMode === 'kanban' ? 'Project Tasks' : 'Live Project Updates'}
+                <CardTitle className="text-lg font-medium" style={{ color: colors.text }}>
+                  Tasks
                 </CardTitle>
                 <div className="flex items-center space-x-2">
-                  <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                  <div className="flex items-center space-x-1 rounded-lg p-1" style={{ backgroundColor: colors.borderLight }}>
                     <Button
                       variant={taskViewMode === 'kanban' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setTaskViewMode('kanban')}
                       className="h-7 px-3 text-xs"
+                      style={{ backgroundColor: taskViewMode === 'kanban' ? colors.primary : 'transparent' }}
                     >
                       Board
                     </Button>
@@ -338,6 +466,7 @@ export default function ProjectDetailPage() {
                       size="sm"
                       onClick={() => setTaskViewMode('live')}
                       className="h-7 px-3 text-xs"
+                      style={{ backgroundColor: taskViewMode === 'live' ? colors.primary : 'transparent' }}
                     >
                       Live
                     </Button>
@@ -347,19 +476,43 @@ export default function ProjectDetailPage() {
                     size="sm"
                     onClick={() => setIsTaskListFullscreen(true)}
                     className="h-8 px-3 text-xs"
+                    style={{ borderColor: colors.border }}
                   >
                     <Maximize2 className="h-3 w-3 mr-1" />
                     Fullscreen
+                  </Button>
+                  {/* Collapsible Search Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+                    className="h-8 px-3 text-xs"
+                    style={{ borderColor: colors.border }}
+                  >
+                    <Search className="h-3 w-3 mr-1" />
+                    Search
                   </Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              {/* Collapsible Search Bar */}
+              {isSearchExpanded && (
+                <div className="p-4 border-b" style={{ borderColor: colors.border }}>
+                  <TaskSearchFilter
+                    tasks={project?.tasks || []}
+                    onFilterChange={handleFilterChange}
+                    onFilterReset={handleFilterReset}
+                  />
+                </div>
+              )}
+              
               {taskViewMode === 'kanban' ? (
-                <TaskList 
+                <KanbanBoard 
                   projectId={projectId} 
-                  workspaceId="workspace-1" 
-                  isFullscreen={false}
+                  workspaceId="workspace-1"
+                  onTasksUpdated={loadProject}
+                  filteredTasks={isFiltered ? filteredTasks : undefined}
                 />
               ) : (
                 <LiveTaskList 
@@ -369,259 +522,102 @@ export default function ProjectDetailPage() {
               )}
             </CardContent>
           </Card>
-          
-          {/* Project Documentation - Full Width */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Documentation
-                  </CardTitle>
-                  <CardDescription>
-                    Project documentation and wiki pages
-                  </CardDescription>
-                </div>
-                {project.wikiPage && (
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsWikiDialogOpen(true)}
-                      className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                    >
-                      <LinkIcon className="h-3 w-3 mr-1" />
-                      Change Page
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsFullscreen(true)}
-                      className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                    >
-                      <Maximize2 className="h-3 w-3 mr-1" />
-                      Fullscreen
-                    </Button>
-                    <Button asChild variant="outline" size="sm" className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-                      <Link href={`/wiki/${project.wikiPage.slug}`}>
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleWikiPageUpdate(null)}
-                      className="h-8 px-3 text-xs border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-4">
-              {project.wikiPage ? (
-                <InlineWikiViewer
-                  currentWikiPageId={project.wikiPage.id}
-                  onWikiPageSelect={handleWikiPageUpdate}
-                  isLoading={isUpdatingWiki}
-                />
-              ) : (
-                <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                  <div className="flex flex-col items-center">
-                    <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-full mb-3">
-                      <FileText className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      No Page Selected
-                    </h3>
-                    <p className="text-gray-500 dark:text-gray-400 mb-4 max-w-md text-sm">
-                      Select a wiki page to display project documentation inline.
-                    </p>
-                    <Button
-                      onClick={() => setIsWikiDialogOpen(true)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <LinkIcon className="h-4 w-4 mr-2" />
-                      Select Page
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Project Info Sidebar - Takes up 1/3 of the width */}
-        <div className="space-y-6">
-          {/* Project Status & Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Status</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        {/* Documentation Section - Full Width */}
+        <div className="mb-6">
+          <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
+            <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Status</span>
-                <Badge className={getStatusColor(project.status)}>
-                  {project.status}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Priority</span>
-                <Badge className={getPriorityColor(project.priority)}>
-                  {project.priority}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Timeline</span>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Calendar className="mr-1 h-4 w-4" />
-                  {project.startDate && formatDate(project.startDate)}
-                  {project.startDate && project.endDate && ' - '}
-                  {project.endDate && formatDate(project.endDate)}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Task Statistics */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Task Statistics</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-medium" style={{ color: colors.text }}>
+                  Documentation
+                </CardTitle>
                 <div className="flex items-center space-x-2">
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Total Tasks</span>
+                  {project.wikiPage ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsWikiDialogOpen(true)}
+                        className="h-8 px-3 text-xs"
+                        style={{ borderColor: colors.border }}
+                      >
+                        <LinkIcon className="h-3 w-3 mr-1" />
+                        Change Page
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsFullscreen(true)}
+                        className="h-8 px-3 text-xs"
+                        style={{ borderColor: colors.border }}
+                      >
+                        <Maximize2 className="h-3 w-3 mr-1" />
+                        Fullscreen
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsWikiDialogOpen(true)}
+                      className="h-8 px-3 text-xs"
+                      style={{ borderColor: colors.border }}
+                    >
+                      <LinkIcon className="h-3 w-3 mr-1" />
+                      Add Documentation
+                    </Button>
+                  )}
                 </div>
-                <span className="text-2xl font-bold">{project._count.tasks}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium">Completed</span>
-                </div>
-                <span className="text-2xl font-bold text-green-600">{getTaskStatusCount('DONE')}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <TrendingUp className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium">In Progress</span>
-                </div>
-                <span className="text-2xl font-bold text-blue-600">{getTaskStatusCount('IN_PROGRESS')}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Clock className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm font-medium">To Do</span>
-                </div>
-                <span className="text-2xl font-bold text-yellow-600">{getTaskStatusCount('TODO')}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Team Members */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Team Members</span>
-                <Badge variant="outline">{project.members.length}</Badge>
-              </CardTitle>
             </CardHeader>
-            <CardContent>
-              {project.members.length > 0 ? (
-                <div className="space-y-3">
-                  {project.members.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                          <User className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{member.user.name}</p>
-                          <p className="text-xs text-muted-foreground">{member.user.email}</p>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="text-xs">{member.role}</Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">No team members yet</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Project Assignees */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Assignees</span>
-                <Badge variant="outline">{project.assignees?.length || 0}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {project.assignees && project.assignees.length > 0 ? (
-                <div className="space-y-3">
-                  {project.assignees.map((assignee) => (
-                    <div key={assignee.id} className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-purple-200 rounded-full flex items-center justify-center">
-                        <User className="h-4 w-4 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{assignee.user.name}</p>
-                        <p className="text-xs text-muted-foreground">{assignee.user.email}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">No assignees yet</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Project Owner */}
-          {project.owner && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Owner</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
-                    <User className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">{project.owner.name}</p>
-                    <p className="text-xs text-muted-foreground">{project.owner.email}</p>
+            <CardContent className="p-6">
+              {project.wikiPage ? (
+                <div className="prose prose-lg max-w-none">
+                  <div style={{ color: colors.text }}>
+                    <ReactMarkdown 
+                      components={{
+                        // Custom components to handle HTML tags properly
+                        p: ({ children }) => <p className="mb-4 leading-relaxed text-base" style={{ color: colors.text }}>{children}</p>,
+                        ul: ({ children }) => <ul className="mb-6 pl-6 space-y-2">{children}</ul>,
+                        ol: ({ children }) => <ol className="mb-6 pl-6 space-y-2">{children}</ol>,
+                        li: ({ children }) => <li className="leading-relaxed text-base" style={{ color: colors.text }}>{children}</li>,
+                        h1: ({ children }) => <h1 className="text-2xl font-bold mb-6 mt-8 border-b-2 pb-3" style={{ color: colors.text, borderColor: colors.border }}>{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-xl font-bold mb-4 mt-8" style={{ color: colors.text }}>{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-lg font-bold mb-3 mt-6" style={{ color: colors.textSecondary }}>{children}</h3>,
+                        strong: ({ children }) => <strong className="font-bold" style={{ color: colors.text }}>{children}</strong>,
+                        em: ({ children }) => <em className="italic" style={{ color: colors.textSecondary }}>{children}</em>,
+                        code: ({ children }) => <code className="px-2 py-1 rounded text-sm font-mono font-semibold" style={{ backgroundColor: colors.borderLight, color: colors.primary }}>{children}</code>,
+                        pre: ({ children }) => <pre className="border rounded-lg p-4 my-6 overflow-x-auto" style={{ backgroundColor: colors.borderLight, borderColor: colors.border }}>{children}</pre>,
+                        blockquote: ({ children }) => <blockquote className="border-l-4 pl-4 italic my-6" style={{ borderColor: colors.primary, color: colors.textSecondary }}>{children}</blockquote>,
+                        hr: () => <hr className="my-8" style={{ borderColor: colors.border }} />
+                      }}
+                    >
+                      {cleanContent(project.wikiPage.content || '')}
+                    </ReactMarkdown>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Project Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Created by</label>
-                <p className="text-sm">{project.createdBy.name}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Created on</label>
-                <p className="text-sm">{formatDate(project.createdAt)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Last updated</label>
-                <p className="text-sm">{formatDate(project.updatedAt)}</p>
-              </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 border-2 border-dashed rounded-lg mx-auto flex items-center justify-center mb-4" style={{ borderColor: colors.border }}>
+                    <FileText className="h-8 w-8" style={{ color: colors.textSecondary }} />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2" style={{ color: colors.text }}>No Documentation Yet</h3>
+                  <p className="text-sm mb-6" style={{ color: colors.textSecondary }}>
+                    Add a wiki page to provide project documentation, guidelines, and important information for your team.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsWikiDialogOpen(true)}
+                    className="h-8 px-4 text-sm"
+                    style={{ borderColor: colors.border }}
+                  >
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    Add Documentation
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -629,10 +625,10 @@ export default function ProjectDetailPage() {
 
       {/* Wiki Page Selection Dialog */}
       <Dialog open={isWikiDialogOpen} onOpenChange={setIsWikiDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col" style={{ backgroundColor: colors.surface }}>
           <DialogHeader>
-            <DialogTitle>Select Wiki Page</DialogTitle>
-            <DialogDescription>
+            <DialogTitle style={{ color: colors.text }}>Select Wiki Page</DialogTitle>
+            <DialogDescription style={{ color: colors.textSecondary }}>
               Choose a wiki page to display as project documentation
             </DialogDescription>
           </DialogHeader>
@@ -652,32 +648,32 @@ export default function ProjectDetailPage() {
       {/* Fullscreen Wiki Modal */}
       {isFullscreen && project?.wikiPage && (
         <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col" style={{ backgroundColor: colors.surface }}>
             <DialogHeader>
-              <DialogTitle>{project.wikiPage.title}</DialogTitle>
-              <DialogDescription>
+              <DialogTitle style={{ color: colors.text }}>{project.wikiPage.title}</DialogTitle>
+              <DialogDescription style={{ color: colors.textSecondary }}>
                 Last updated: {new Date(project.wikiPage.updatedAt).toLocaleDateString()}
               </DialogDescription>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto p-4">
               <div className="prose prose-lg max-w-none">
-                <div style={{ color: '#111827 !important' }}>
+                <div style={{ color: colors.text }}>
                   <ReactMarkdown 
                     components={{
                       // Custom components to handle HTML tags properly
-                      p: ({ children }) => <p className="mb-4 leading-relaxed text-base" style={{ color: '#111827 !important' }}>{children}</p>,
+                      p: ({ children }) => <p className="mb-4 leading-relaxed text-base" style={{ color: colors.text }}>{children}</p>,
                       ul: ({ children }) => <ul className="mb-6 pl-6 space-y-2">{children}</ul>,
                       ol: ({ children }) => <ol className="mb-6 pl-6 space-y-2">{children}</ol>,
-                      li: ({ children }) => <li className="leading-relaxed text-base" style={{ color: '#111827 !important' }}>{children}</li>,
-                      h1: ({ children }) => <h1 className="text-2xl font-bold mb-6 mt-8 border-b-2 border-gray-300 pb-3" style={{ color: '#111827 !important' }}>{children}</h1>,
-                      h2: ({ children }) => <h2 className="text-xl font-bold mb-4 mt-8" style={{ color: '#111827 !important' }}>{children}</h2>,
-                      h3: ({ children }) => <h3 className="text-lg font-bold mb-3 mt-6" style={{ color: '#374151 !important' }}>{children}</h3>,
-                      strong: ({ children }) => <strong className="font-bold" style={{ color: '#111827 !important' }}>{children}</strong>,
-                      em: ({ children }) => <em className="italic" style={{ color: '#374151 !important' }}>{children}</em>,
-                      code: ({ children }) => <code className="bg-blue-50 px-2 py-1 rounded text-sm font-mono font-semibold" style={{ color: '#1d4ed8 !important' }}>{children}</code>,
-                      pre: ({ children }) => <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 my-6 overflow-x-auto">{children}</pre>,
-                      blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-300 pl-4 italic my-6" style={{ color: '#374151 !important' }}>{children}</blockquote>,
-                      hr: () => <hr className="my-8 border-gray-300" />
+                      li: ({ children }) => <li className="leading-relaxed text-base" style={{ color: colors.text }}>{children}</li>,
+                      h1: ({ children }) => <h1 className="text-2xl font-bold mb-6 mt-8 border-b-2 pb-3" style={{ color: colors.text, borderColor: colors.border }}>{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-xl font-bold mb-4 mt-8" style={{ color: colors.text }}>{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-lg font-bold mb-3 mt-6" style={{ color: colors.textSecondary }}>{children}</h3>,
+                      strong: ({ children }) => <strong className="font-bold" style={{ color: colors.text }}>{children}</strong>,
+                      em: ({ children }) => <em className="italic" style={{ color: colors.textSecondary }}>{children}</em>,
+                      code: ({ children }) => <code className="px-2 py-1 rounded text-sm font-mono font-semibold" style={{ backgroundColor: colors.borderLight, color: colors.primary }}>{children}</code>,
+                      pre: ({ children }) => <pre className="border rounded-lg p-4 my-6 overflow-x-auto" style={{ backgroundColor: colors.borderLight, borderColor: colors.border }}>{children}</pre>,
+                      blockquote: ({ children }) => <blockquote className="border-l-4 pl-4 italic my-6" style={{ borderColor: colors.primary, color: colors.textSecondary }}>{children}</blockquote>,
+                      hr: () => <hr className="my-8" style={{ borderColor: colors.border }} />
                     }}
                   >
                     {cleanContent(project.wikiPage.content || '')}
@@ -697,11 +693,9 @@ export default function ProjectDetailPage() {
         onSave={handleProjectUpdate}
       />
 
-      </div>
-
       {/* Fullscreen Task List */}
       {isTaskListFullscreen && (
-        <div className="fixed inset-0 z-50 bg-white overflow-auto p-4">
+        <div className="fixed inset-0 z-50 overflow-auto p-4" style={{ backgroundColor: colors.background }}>
           <TaskList 
             projectId={projectId} 
             workspaceId="workspace-1" 
@@ -713,6 +707,6 @@ export default function ProjectDetailPage() {
 
       {/* Real-time Notifications */}
       <NotificationToast />
-    </>
+    </div>
   )
 }

@@ -44,11 +44,14 @@ export function ContextMenu({ children, items, className }: ContextMenuProps) {
     e.preventDefault()
     e.stopPropagation()
     
-    console.log("Context menu triggered!", e.target)
+    console.log("Context menu triggered!", {
+      target: e.target,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      pageX: e.pageX,
+      pageY: e.pageY
+    })
     
-    const rect = triggerRef.current?.getBoundingClientRect()
-    if (!rect) return
-
     const x = e.clientX
     const y = e.clientY
     
@@ -63,6 +66,7 @@ export function ContextMenu({ children, items, className }: ContextMenuProps) {
       ? y - menuHeight 
       : y
 
+    console.log("Menu position:", { x: adjustedX, y: adjustedY })
     setPosition({ x: adjustedX, y: adjustedY })
     setIsOpen(true)
   }

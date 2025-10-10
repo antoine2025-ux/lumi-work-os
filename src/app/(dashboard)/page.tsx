@@ -26,6 +26,7 @@ import {
   Activity
 } from "lucide-react"
 import { ContextMenu, contextMenuItems } from "@/components/ui/context-menu"
+import { useTheme } from "@/components/theme-provider"
 
 interface RecentPage {
   id: string
@@ -47,6 +48,7 @@ interface Project {
 
 export default function HomePage() {
   const { currentWorkspace, userRole, canCreateProjects, canViewAnalytics } = useWorkspace()
+  const { themeConfig } = useTheme()
   const [recentPages, setRecentPages] = useState<RecentPage[]>([])
   const [recentProjects, setRecentProjects] = useState<Project[]>([])
   const [isLoadingRecentPages, setIsLoadingRecentPages] = useState(true)
@@ -143,22 +145,22 @@ export default function HomePage() {
     <div className="p-8">
       {/* Welcome Section */}
       <div className="mb-8">
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+        <h2 className="text-2xl font-semibold mb-2" style={{ color: themeConfig.foreground }}>
           Good morning! 👋
           {currentWorkspace && (
-            <span className="text-lg font-normal text-gray-600 ml-2">
+            <span className="text-lg font-normal ml-2" style={{ color: themeConfig.mutedForeground }}>
               Welcome to {currentWorkspace.name}
             </span>
           )}
         </h2>
-        <p className="text-gray-600">
+        <p style={{ color: themeConfig.mutedForeground }}>
           Here's what's happening in your workspace today.
           {userRole && (
-            <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+            <span className="ml-2 text-xs px-2 py-1 rounded" style={{ backgroundColor: themeConfig.accent, color: themeConfig.accentForeground }}>
               {userRole}
             </span>
           )}
-          <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
+          <span className="ml-2 text-xs px-2 py-1 rounded" style={{ backgroundColor: themeConfig.muted, color: themeConfig.mutedForeground }}>
             Press ⌘K for commands, right-click for actions
           </span>
         </p>
@@ -166,7 +168,7 @@ export default function HomePage() {
 
       {/* Quick Actions */}
       <div className="mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: themeConfig.foreground }}>Quick Actions</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action, index) => (
             <div key={index}>
@@ -179,9 +181,9 @@ export default function HomePage() {
                           <action.icon className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900">{action.title}</h4>
-                          <p className="text-sm text-gray-500">{action.description}</p>
-                          <p className="text-xs text-gray-400 mt-1">Coming Soon</p>
+                          <h4 className="font-medium" style={{ color: themeConfig.foreground }}>{action.title}</h4>
+                          <p className="text-sm" style={{ color: themeConfig.mutedForeground }}>{action.description}</p>
+                          <p className="text-xs mt-1" style={{ color: themeConfig.mutedForeground }}>Coming Soon</p>
                         </div>
                       </div>
                     </CardContent>
@@ -196,8 +198,8 @@ export default function HomePage() {
                           <action.icon className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{action.title}</h4>
-                          <p className="text-sm text-gray-500">{action.description}</p>
+                          <h4 className="font-medium group-hover:opacity-80 transition-colors" style={{ color: themeConfig.foreground }}>{action.title}</h4>
+                          <p className="text-sm" style={{ color: themeConfig.mutedForeground }}>{action.description}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -212,7 +214,7 @@ export default function HomePage() {
       {/* Recent Projects */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Recent Projects</h3>
+          <h3 className="text-lg font-semibold" style={{ color: themeConfig.foreground }}>Recent Projects</h3>
           <div className="flex items-center space-x-2">
             <Link href="/projects">
               <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
@@ -260,14 +262,14 @@ export default function HomePage() {
                             <Building2 className="h-4 w-4 text-blue-600" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+                            <h4 className="font-medium group-hover:opacity-80 transition-colors truncate" style={{ color: themeConfig.foreground }}>
                               {project.name}
                             </h4>
-                            <p className="text-sm text-gray-500">{getTimeAgo(project.updatedAt)}</p>
+                            <p className="text-sm" style={{ color: themeConfig.mutedForeground }}>{getTimeAgo(project.updatedAt)}</p>
                           </div>
                         </div>
                         {project.description && (
-                          <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
+                          <p className="text-sm line-clamp-2" style={{ color: themeConfig.mutedForeground }}>{project.description}</p>
                         )}
                         <div className="flex items-center justify-between">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -316,7 +318,7 @@ export default function HomePage() {
       {/* Recent Pages */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Recent Pages</h3>
+          <h3 className="text-lg font-semibold" style={{ color: themeConfig.foreground }}>Recent Pages</h3>
           <Link href="/wiki">
             <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
               View all
@@ -355,8 +357,8 @@ export default function HomePage() {
                             <IconComponent className="h-4 w-4 text-gray-600" />
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{page.title}</h4>
-                            <p className="text-sm text-gray-500">{getTimeAgo(page.updatedAt)}</p>
+                            <h4 className="font-medium group-hover:opacity-80 transition-colors" style={{ color: themeConfig.foreground }}>{page.title}</h4>
+                            <p className="text-sm" style={{ color: themeConfig.mutedForeground }}>{getTimeAgo(page.updatedAt)}</p>
                           </div>
                           <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
                         </div>
@@ -370,8 +372,8 @@ export default function HomePage() {
             <Card>
               <CardContent className="p-6 text-center">
                 <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h4 className="font-medium text-gray-900 mb-2">No pages yet</h4>
-                <p className="text-sm text-gray-500 mb-4">Create your first wiki page to get started</p>
+                <h4 className="font-medium mb-2" style={{ color: themeConfig.foreground }}>No pages yet</h4>
+                <p className="text-sm mb-4" style={{ color: themeConfig.mutedForeground }}>Create your first wiki page to get started</p>
                 <Link href="/wiki/new">
                   <Button className="bg-blue-600 hover:bg-blue-700">
                     <Plus className="h-4 w-4 mr-2" />
@@ -386,7 +388,7 @@ export default function HomePage() {
 
       {/* AI Suggestions */}
       <div className="mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Suggestions</h3>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: themeConfig.foreground }}>AI Suggestions</h3>
         <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
           <CardContent className="p-6">
             <div className="flex items-start space-x-4">
@@ -394,8 +396,8 @@ export default function HomePage() {
                 <Lightbulb className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1">
-                <h4 className="font-medium text-gray-900 mb-2">Create a Remote Work Policy</h4>
-                <p className="text-sm text-gray-600 mb-3">Based on your recent activity, you might want to create a comprehensive remote work policy for your team.</p>
+                <h4 className="font-medium mb-2" style={{ color: themeConfig.foreground }}>Create a Remote Work Policy</h4>
+                <p className="text-sm mb-3" style={{ color: themeConfig.mutedForeground }}>Based on your recent activity, you might want to create a comprehensive remote work policy for your team.</p>
                 <div className="flex space-x-2">
                   <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
                     <Zap className="h-4 w-4 mr-2" />

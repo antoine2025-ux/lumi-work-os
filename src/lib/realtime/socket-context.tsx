@@ -8,9 +8,11 @@ interface SocketContextType {
   socket: SocketType | MockSocket | null
   isConnected: boolean
   isConnecting: boolean
+  isRetrying: boolean
   error: string | null
   connect: (userId: string, userName: string, workspaceId: string) => Promise<void>
   disconnect: () => void
+  checkConnectionHealth: () => Promise<boolean>
   actions: typeof socketActions
 }
 
@@ -36,49 +38,74 @@ export function SocketProvider({ children, userId, userName, workspaceId }: Sock
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
+  const [isRetrying, setIsRetrying] = useState(false)
 
-  const connect = useCallback(async (userId: string, userName: string, workspaceId: string) => {
+  const connect = useCallback(async (userId: string, userName: string, workspaceId: string, attempt: number = 0) => {
     if (socket?.connected) return
     
     setIsConnecting(true)
     setError(null)
     
     try {
-      // Try real socket first, fallback to mock
-      let newSocket: SocketType | MockSocket
-      try {
-        newSocket = await connectSocket(userId, userName, workspaceId)
-      } catch (err) {
-        console.log('Real socket failed, using mock socket:', err)
-        newSocket = await connectMockSocket(userId, userName, workspaceId)
+      // Check if Socket.IO is enabled via environment variable
+      const socketIOEnabled = process.env.NEXT_PUBLIC_ENABLE_SOCKET_IO === 'true'
+      
+      if (socketIOEnabled) {
+        // Try real socket first, fallback to mock
+        let newSocket: SocketType | MockSocket
+        try {
+          console.log(`Socket connection attempt ${attempt + 1} for user ${userId}`)
+          newSocket = await connectSocket(userId, userName, workspaceId)
+          setRetryCount(0) // Reset retry count on successful connection
+          console.log('Real socket connected successfully')
+        } catch (err) {
+          console.log('Real socket failed, using mock socket:', err)
+          console.log('Error details:', {
+            message: err instanceof Error ? err.message : 'Unknown error',
+            attempt: attempt + 1,
+            userId,
+            workspaceId
+          })
+          newSocket = await connectMockSocket(userId, userName, workspaceId)
+        }
+      } else {
+        // Skip real socket connection - use mock socket directly
+        console.log('Using mock socket (Socket.IO disabled via NEXT_PUBLIC_ENABLE_SOCKET_IO)')
+        const newSocket = await connectMockSocket(userId, userName, workspaceId)
+        setSocket(newSocket)
+        setIsConnected(true)
+        setError(null)
+        setIsRetrying(false)
+        setRetryCount(0)
+        return
       }
       
       setSocket(newSocket)
       setIsConnected(true)
-      
-      // Set up event listeners
-      newSocket.on('disconnect', () => {
-        setIsConnected(false)
-      })
-      
-      newSocket.on('connect', () => {
-        setIsConnected(true)
-        setError(null)
-      })
-      
-      if ('on' in newSocket && typeof newSocket.on === 'function') {
-        newSocket.on('connect_error', (err: any) => {
-          setError(err.message)
-          setIsConnecting(false)
-        })
-      }
+      setError(null)
+      setIsRetrying(false)
+      setRetryCount(0)
       
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connection failed')
-      setIsConnecting(false)
+      const errorMessage = err instanceof Error ? err.message : 'Connection failed'
+      setError(errorMessage)
+      console.error('Socket connection failed:', err)
     } finally {
       setIsConnecting(false)
     }
+  }, [socket, retryCount])
+
+  const checkConnectionHealth = useCallback(async (): Promise<boolean> => {
+    if (!socket) return false
+    
+    // For real sockets, check if they're actually connected
+    if ('connected' in socket && typeof socket.connected === 'boolean') {
+      return socket.connected
+    }
+    
+    // For mock sockets, assume they're always healthy
+    return true
   }, [socket])
 
   const disconnect = useCallback(() => {
@@ -87,6 +114,8 @@ export function SocketProvider({ children, userId, userName, workspaceId }: Sock
     setSocket(null)
     setIsConnected(false)
     setError(null)
+    setRetryCount(0)
+    setIsRetrying(false)
   }, [])
 
   // Auto-connect if user data is provided
@@ -107,9 +136,11 @@ export function SocketProvider({ children, userId, userName, workspaceId }: Sock
     socket,
     isConnected,
     isConnecting,
+    isRetrying,
     error,
     connect,
     disconnect,
+    checkConnectionHealth,
     actions: socketActions
   }
 

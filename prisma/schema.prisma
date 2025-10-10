@@ -42,6 +42,7 @@ model User {
   email                String               @unique
   emailVerified        DateTime?
   image                String?
+  themePreference      String?              @default("default")
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   accounts             Account[]
@@ -65,10 +66,10 @@ model User {
   workflowAssignments  WorkflowAssignment[]
   workflowInstances    WorkflowInstance[]
   workspaceMemberships WorkspaceMember[]
-  createdWorkspaces    Workspace[]
   ownedWorkspaces      Workspace[]           @relation("WorkspaceOwner")
   onboardingTasks      OnboardingTask[]     @relation("OnboardingTaskToUser")
   activities           Activity[]
+  projectTemplates     ProjectTemplate[]
 
   @@map("users")
 }
@@ -104,8 +105,9 @@ model Workspace {
   workflowInstances   WorkflowInstance[]
   workflows           Workflow[]
   members             WorkspaceMember[]
-  owner               User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner               User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   featureFlags        FeatureFlag[]
+  projectTemplates    ProjectTemplate[]
 
   @@map("workspaces")
 }
@@ -495,6 +497,8 @@ model Task {
   completedAt DateTime?
   order       Int               @default(0)
   tags        String[]
+  dependsOn   String[]          // Array of task IDs this task depends on
+  blocks      String[]          // Array of task IDs this task blocks
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   createdById String
@@ -589,6 +593,24 @@ model FeatureFlag {
 
   @@unique([workspaceId, key])
   @@map("feature_flags")
+}
+
+model ProjectTemplate {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  category    String   // "Software Development", "Marketing", "HR", etc.
+  isDefault   Boolean  @default(false)
+  isPublic    Boolean  @default(true) // Can be used by other workspaces
+  templateData Json    // Store project structure, tasks, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@map("project_templates")
 }
 
 model Activity {

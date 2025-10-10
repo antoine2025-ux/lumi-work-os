@@ -49,6 +49,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await request.json()
     const { 
       name, 
@@ -66,7 +67,7 @@ export async function PUT(
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!existingUser) {
@@ -75,7 +76,7 @@ export async function PUT(
 
     // Update user basic info
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         email
@@ -86,7 +87,7 @@ export async function PUT(
     if (role && workspaceId) {
       await prisma.workspaceMember.updateMany({
         where: {
-          userId: params.id,
+          userId: id,
           workspaceId
         },
         data: {
@@ -114,7 +115,7 @@ export async function PUT(
           department,
           level: orgPositionLevel,
           parentId: orgPositionParentId || null,
-          userId: params.id,
+          userId: id,
           order: 0
         }
       })
@@ -131,7 +132,7 @@ export async function PUT(
       // Assign to new position
       await prisma.orgPosition.update({
         where: { id: positionId },
-        data: { userId: params.id }
+        data: { userId: id }
       })
     } else if (positionId === 'none' && workspaceId) {
       // Remove user from any position
@@ -157,7 +158,7 @@ export async function PUT(
 // DELETE /api/admin/users/[id] - Delete a user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -165,6 +166,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const workspaceId = searchParams.get('workspaceId')
 
@@ -174,7 +176,7 @@ export async function DELETE(
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!existingUser) {
@@ -184,7 +186,7 @@ export async function DELETE(
     // Remove user from workspace (soft delete)
     await prisma.workspaceMember.deleteMany({
       where: {
-        userId: params.id,
+        userId: id,
         workspaceId
       }
     })

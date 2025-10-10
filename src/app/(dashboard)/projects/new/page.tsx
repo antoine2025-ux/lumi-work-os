@@ -24,6 +24,7 @@ import {
   Checkbox
 } from "lucide-react"
 import Link from "next/link"
+import { TemplateSelector } from "@/components/projects/template-selector"
 
 interface ProjectFormData {
   name: string
@@ -94,6 +95,8 @@ export default function NewProjectPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [users, setUsers] = useState<Array<{id: string, name: string, email: string}>>([])
   const [wikiPages, setWikiPages] = useState<Array<{id: string, title: string, category: string}>>([])
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
     description: '',
@@ -151,6 +154,46 @@ export default function NewProjectPage() {
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
+  }
+
+  const handleTemplateSelect = async (template: any) => {
+    try {
+      setIsLoading(true)
+      
+      const response = await fetch(`/api/project-templates/${template.id}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          workspaceId: 'workspace-1',
+          projectName: formData.name || template.name,
+          projectDescription: formData.description || template.description,
+          customizations: {
+            status: formData.status,
+            priority: formData.priority,
+            startDate: formData.startDate,
+            endDate: formData.endDate,
+            color: formData.color,
+            department: formData.department,
+            team: formData.team
+          }
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        router.push(`/projects/${result.project.id}`)
+      } else {
+        const error = await response.json()
+        setErrors({ submit: error.error || 'Failed to create project from template' })
+      }
+    } catch (error) {
+      console.error('Error creating project from template:', error)
+      setErrors({ submit: 'Failed to create project from template' })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -600,6 +643,14 @@ export default function NewProjectPage() {
           <Button variant="outline" asChild>
             <Link href="/projects">Cancel</Link>
           </Button>
+          <Button 
+            type="button" 
+            variant="secondary" 
+            onClick={() => setShowTemplateSelector(true)}
+            disabled={isLoading}
+          >
+            Use Template
+          </Button>
           <Button type="submit" disabled={isLoading}>
             {isLoading ? (
               <>
@@ -615,6 +666,13 @@ export default function NewProjectPage() {
           </Button>
         </div>
       </form>
+
+      {/* Template Selector */}
+      <TemplateSelector
+        isOpen={showTemplateSelector}
+        onClose={() => setShowTemplateSelector(false)}
+        onSelectTemplate={handleTemplateSelect}
+      />
     </div>
   )
 }

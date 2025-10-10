@@ -22,10 +22,12 @@ import {
   ChevronDown,
   Edit,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Link as LinkIcon
 } from "lucide-react"
 import Link from "next/link"
 import { TaskEditDialog } from "./task-edit-dialog"
+import { DependencyManager } from "./dependency-manager"
 
 interface Task {
   id: string
@@ -41,6 +43,8 @@ interface Task {
   }
   dueDate?: string
   tags: string[]
+  dependsOn: string[]
+  blocks: string[]
   createdAt: string
   updatedAt: string
   createdBy: {
@@ -89,6 +93,8 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1', isFul
   const [updatingTasks, setUpdatingTasks] = useState<Set<string>>(new Set())
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [dependencyTaskId, setDependencyTaskId] = useState<string | null>(null)
+  const [isDependencyManagerOpen, setIsDependencyManagerOpen] = useState(false)
 
   useEffect(() => {
     loadTasks()
@@ -121,6 +127,20 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1', isFul
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
     try {
       setUpdatingTasks(prev => new Set(prev).add(taskId))
+      
+      // Check if task has unmet dependencies before allowing status change
+      const task = tasks.find(t => t.id === taskId)
+      if (task && task.dependsOn.length > 0 && newStatus !== 'TODO') {
+        // Check if all dependencies are completed
+        const dependencyTasks = tasks.filter(t => task.dependsOn.includes(t.id))
+        const unmetDependencies = dependencyTasks.filter(dep => dep.status !== 'DONE')
+        
+        if (unmetDependencies.length > 0) {
+          alert(`Cannot move task to ${newStatus.toLowerCase()}. The following dependencies must be completed first:\n${unmetDependencies.map(dep => `• ${dep.title}`).join('\n')}`)
+          return
+        }
+      }
+      
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PUT',
         headers: {
@@ -197,6 +217,20 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1', isFul
     } else {
       return `Due in ${diffDays} days`
     }
+  }
+
+  const openDependencyManager = (taskId: string) => {
+    setDependencyTaskId(taskId)
+    setIsDependencyManagerOpen(true)
+  }
+
+  const closeDependencyManager = () => {
+    setIsDependencyManagerOpen(false)
+    setDependencyTaskId(null)
+  }
+
+  const handleDependenciesUpdated = () => {
+    loadTasks() // Reload tasks to get updated dependency info
   }
 
   const filteredTasks = tasks.filter(task => {
@@ -344,6 +378,17 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1', isFul
                                 <Edit className="h-4 w-4" />
                                 <span>Edit Task</span>
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  openDependencyManager(task.id)
+                                }}
+                                className="flex items-center space-x-2"
+                              >
+                                <LinkIcon className="h-4 w-4" />
+                                <span>Manage Dependencies</span>
+                              </DropdownMenuItem>
                               <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
                                 Change Status
                               </div>
@@ -452,6 +497,17 @@ export default function TaskList({ projectId, workspaceId = 'workspace-1', isFul
         task={editingTask}
         onSave={handleTaskUpdate}
       />
+
+      {/* Dependency Manager */}
+      {dependencyTaskId && (
+        <DependencyManager
+          taskId={dependencyTaskId}
+          projectId={projectId}
+          isOpen={isDependencyManagerOpen}
+          onClose={closeDependencyManager}
+          onDependenciesUpdated={handleDependenciesUpdated}
+        />
+      )}
     </div>
   )
 }

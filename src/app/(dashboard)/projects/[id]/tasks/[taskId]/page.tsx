@@ -20,9 +20,12 @@ import {
   MoreHorizontal,
   Plus,
   Tag,
-  Clock
+  Clock,
+  LinkIcon
 } from "lucide-react"
 import Link from "next/link"
+import { TaskEditDialog } from "@/components/tasks/task-edit-dialog"
+import { DependencyManager } from "@/components/tasks/dependency-manager"
 
 interface Task {
   id: string
@@ -95,14 +98,33 @@ const priorityOptions = [
 export default function TaskDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.id as string
-  const taskId = params.taskId as string
+  const projectId = params?.id as string
+  const taskId = params?.taskId as string
+  
+  if (!projectId || !taskId) {
+    return (
+      <div className="p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600">Error</h1>
+          <p className="text-muted-foreground mb-4">Invalid project or task ID</p>
+          <Button asChild>
+            <Link href="/projects">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Projects
+            </Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
   
   const [task, setTask] = useState<Task | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [newComment, setNewComment] = useState('')
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDependencyManagerOpen, setIsDependencyManagerOpen] = useState(false)
 
   useEffect(() => {
     loadTask()
@@ -127,6 +149,27 @@ export default function TaskDetailPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleTaskUpdate = (updatedTask: any) => {
+    // Convert the updated task back to our full Task interface
+    if (task) {
+      const fullUpdatedTask: Task = {
+        ...task,
+        ...updatedTask,
+        subtasks: task.subtasks,
+        comments: task.comments,
+        _count: task._count,
+        dependsOn: task.dependsOn || [],
+        blocks: task.blocks || []
+      }
+      setTask(fullUpdatedTask)
+    }
+    setIsEditDialogOpen(false)
+  }
+
+  const handleDependenciesUpdated = () => {
+    loadTask() // Reload task to get updated dependency info
   }
 
   const updateTask = async (field: string, value: any) => {
@@ -236,9 +279,13 @@ export default function TaskDetailPage() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
             <Edit className="mr-2 h-4 w-4" />
             Edit
+          </Button>
+          <Button variant="outline" onClick={() => setIsDependencyManagerOpen(true)}>
+            <LinkIcon className="mr-2 h-4 w-4" />
+            Manage Dependencies
           </Button>
           <Button variant="outline" size="icon">
             <MoreHorizontal className="h-4 w-4" />
@@ -460,6 +507,27 @@ export default function TaskDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Task Edit Dialog */}
+      {task && (
+        <TaskEditDialog
+          isOpen={isEditDialogOpen}
+          onClose={() => setIsEditDialogOpen(false)}
+          task={task}
+          onSave={handleTaskUpdate}
+        />
+      )}
+
+      {/* Dependency Manager */}
+      {task && (
+        <DependencyManager
+          taskId={task.id}
+          projectId={projectId}
+          isOpen={isDependencyManagerOpen}
+          onClose={() => setIsDependencyManagerOpen(false)}
+          onDependenciesUpdated={handleDependenciesUpdated}
+        />
+      )}
     </div>
   )
 }

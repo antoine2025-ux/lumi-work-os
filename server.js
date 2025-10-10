@@ -31,7 +31,13 @@ app.prepare().then(() => {
         ? process.env.NEXTAUTH_URL 
         : "http://localhost:3000",
       methods: ["GET", "POST"]
-    }
+    },
+    pingTimeout: 120000, // Increased to 2 minutes
+    pingInterval: 30000, // Increased to 30 seconds
+    connectTimeout: 30000, // Increased to 30 seconds
+    transports: ['websocket', 'polling'],
+    allowEIO3: true, // Allow Engine.IO v3 clients
+    serveClient: false // Don't serve client files
   })
 
   // Store active users

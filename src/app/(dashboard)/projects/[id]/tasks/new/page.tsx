@@ -31,6 +31,7 @@ interface TaskFormData {
   assigneeId: string
   dueDate: string
   tags: string[]
+  dependsOn: string[]
   subtasks: Array<{
     title: string
     description: string
@@ -57,21 +58,53 @@ const priorityOptions = [
 export default function NewTaskPage() {
   const router = useRouter()
   const params = useParams()
-  const projectId = params.id as string
+  const projectId = params?.id as string
+  
+  if (!projectId) {
+    return (
+      <div className="p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600">Error</h1>
+          <p className="text-muted-foreground mb-4">Invalid project ID</p>
+          <Button asChild>
+            <Link href="/projects">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Projects
+            </Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
   
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [users, setUsers] = useState<Array<{id: string, name: string, email: string}>>([])
   const [project, setProject] = useState<{id: string, name: string, color: string} | null>(null)
+  const [availableTasks, setAvailableTasks] = useState<Array<{id: string, title: string, status: string}>>([])
   const [newTag, setNewTag] = useState('')
+  
+  // Get status from URL parameters
+  const getInitialStatus = () => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const status = urlParams.get('status')
+      if (status && ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED'].includes(status)) {
+        return status as 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED'
+      }
+    }
+    return 'TODO'
+  }
+  
   const [formData, setFormData] = useState<TaskFormData>({
     title: '',
     description: '',
-    status: 'TODO',
+    status: getInitialStatus(),
     priority: 'MEDIUM',
     assigneeId: '',
     dueDate: '',
     tags: [],
+    dependsOn: [],
     subtasks: []
   })
 
@@ -92,6 +125,17 @@ export default function NewTaskPage() {
         if (projectResponse.ok) {
           const projectData = await projectResponse.json()
           setProject(projectData)
+        }
+
+        // Load available tasks for dependencies
+        const tasksResponse = await fetch(`/api/tasks?projectId=${projectId}&workspaceId=workspace-1`)
+        if (tasksResponse.ok) {
+          const tasksData = await tasksResponse.json()
+          setAvailableTasks(tasksData.map((task: any) => ({
+            id: task.id,
+            title: task.title,
+            status: task.status
+          })))
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -396,6 +440,74 @@ export default function NewTaskPage() {
                     <span>{errors.dueDate}</span>
                   </p>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Dependencies</Label>
+                <div className="space-y-2">
+                  {formData.dependsOn.map((taskId, index) => {
+                    const task = availableTasks.find(t => t.id === taskId)
+                    return (
+                      <div key={taskId} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full" />
+                          <span className="text-sm">{task?.title || 'Unknown Task'}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {task?.status || 'Unknown'}
+                          </Badge>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newDependsOn = formData.dependsOn.filter(id => id !== taskId)
+                            setFormData(prev => ({ ...prev, dependsOn: newDependsOn }))
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )
+                  })}
+                  
+                  {availableTasks.length > 0 && (
+                    <Select
+                      value=""
+                      onValueChange={(taskId) => {
+                        if (taskId && !formData.dependsOn.includes(taskId)) {
+                          setFormData(prev => ({
+                            ...prev,
+                            dependsOn: [...prev.dependsOn, taskId]
+                          }))
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select task to depend on..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableTasks
+                          .filter(task => !formData.dependsOn.includes(task.id))
+                          .map((task) => (
+                            <SelectItem key={task.id} value={task.id}>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full" />
+                                <span>{task.title}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {task.status}
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  
+                  {availableTasks.length === 0 && (
+                    <p className="text-sm text-gray-500">No other tasks available for dependencies</p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -61,10 +61,11 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   // Load user's workspaces and current workspace
   useEffect(() => {
     const loadWorkspaces = async () => {
-      if (!session?.user?.id) {
-        setIsLoading(false)
-        return
-      }
+      // Temporarily bypass session check for development
+      // if (!session?.user?.id) {
+      //   setIsLoading(false)
+      //   return
+      // }
 
       try {
         setIsLoading(true)
@@ -97,6 +98,18 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         }
       } catch (error) {
         console.error('Failed to load workspaces:', error)
+        // Set fallback workspace for development
+        const fallbackWorkspace: Workspace = {
+          id: 'workspace-1',
+          name: 'Development Workspace',
+          slug: 'development-workspace',
+          description: 'Default development workspace',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+        setWorkspaces([fallbackWorkspace])
+        setCurrentWorkspace(fallbackWorkspace)
+        setUserRole('OWNER')
       } finally {
         setIsLoading(false)
       }

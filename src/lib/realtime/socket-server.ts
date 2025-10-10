@@ -33,6 +33,9 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
+  // Authentication
+  authenticate: (data: { userId: string; userName: string; workspaceId: string }) => void
+  
   // Join/leave rooms
   joinProject: (projectId: string) => void
   leaveProject: (projectId: string) => void
@@ -103,7 +106,13 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
         ? process.env.NEXTAUTH_URL 
         : "http://localhost:3000",
       methods: ["GET", "POST"]
-    }
+    },
+    pingTimeout: 120000, // Increased to 2 minutes
+    pingInterval: 30000, // Increased to 30 seconds
+    connectTimeout: 30000, // Increased to 30 seconds
+    transports: ['websocket', 'polling'],
+    allowEIO3: true, // Allow Engine.IO v3 clients
+    serveClient: false // Don't serve client files
   })
 
   io.on('connection', (socket) => {
@@ -365,17 +374,28 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
               content: data.content
             },
             include: {
-              user: true
+              user: true,
+              task: {
+                select: {
+                  projectId: true
+                }
+              }
             }
           })
         }
         
         if (comment) {
-          const room = data.taskId ? `project:${comment.task.projectId}` : `project:${data.projectId}`
+          // For task comments, we need to get the project ID from the task
+          let projectId = data.projectId
+          if (data.taskId && comment.task) {
+            projectId = comment.task.projectId
+          }
+          
+          const room = `project:${projectId}`
           socket.to(room).emit('commentAdded', {
             comment,
             taskId: data.taskId,
-            projectId: data.projectId
+            projectId
           })
         }
       } catch (error) {
