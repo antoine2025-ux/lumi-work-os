@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useWorkspace } from "@/lib/workspace-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +26,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { TemplateSelector } from "@/components/projects/template-selector"
+import { TaskTemplateDialog } from "@/components/templates/task-template-dialog"
 
 interface ProjectFormData {
   name: string
@@ -91,11 +93,14 @@ const teamOptions = [
 
 export default function NewProjectPage() {
   const router = useRouter()
+  const { currentWorkspace } = useWorkspace()
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [users, setUsers] = useState<Array<{id: string, name: string, email: string}>>([])
   const [wikiPages, setWikiPages] = useState<Array<{id: string, title: string, category: string}>>([])
   const [showTemplateSelector, setShowTemplateSelector] = useState(false)
+  const [showTaskTemplateDialog, setShowTaskTemplateDialog] = useState(false)
+  const [createdProject, setCreatedProject] = useState<{id: string, name: string} | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
@@ -126,10 +131,18 @@ export default function NewProjectPage() {
         ])
 
         // Load wiki pages
-        const wikiResponse = await fetch('/api/wiki/pages?workspaceId=workspace-1')
+        const wikiResponse = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace?.id || 'workspace-1'}`)
         if (wikiResponse.ok) {
-          const wikiData = await wikiResponse.json()
-          setWikiPages(wikiData)
+          const result = await wikiResponse.json()
+          // Handle paginated response - data is in result.data
+          const wikiData = result.data || result
+          // Ensure wikiData is an array before setting
+          if (Array.isArray(wikiData)) {
+            setWikiPages(wikiData)
+          } else {
+            console.warn('Expected array but got:', typeof wikiData, wikiData)
+            setWikiPages([])
+          }
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -156,6 +169,16 @@ export default function NewProjectPage() {
     return Object.keys(newErrors).length === 0
   }
 
+  const handleTaskTemplateApplied = (template: any) => {
+    console.log('Task template applied:', template)
+    router.push(`/projects/${createdProject?.id}`)
+  }
+
+  const handleTaskTemplateDialogClose = () => {
+    setShowTaskTemplateDialog(false)
+    router.push(`/projects/${createdProject?.id}`)
+  }
+
   const handleTemplateSelect = async (template: any) => {
     try {
       setIsLoading(true)
@@ -166,7 +189,7 @@ export default function NewProjectPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          workspaceId: 'workspace-1',
+          workspaceId: currentWorkspace?.id || 'workspace-1',
           projectName: formData.name || template.name,
           projectDescription: formData.description || template.description,
           customizations: {
@@ -214,13 +237,14 @@ export default function NewProjectPage() {
         },
         body: JSON.stringify({
           ...formData,
-          workspaceId: 'workspace-1' // You might want to get this from context
+          workspaceId: currentWorkspace?.id || 'workspace-1'
         }),
       })
 
       if (response.ok) {
         const project = await response.json()
-        router.push(`/projects/${project.id}`)
+        setCreatedProject({ id: project.id, name: project.name })
+        setShowTaskTemplateDialog(true)
       } else {
         const errorData = await response.json()
         setErrors({ submit: errorData.message || 'Failed to create project' })
@@ -610,7 +634,7 @@ export default function NewProjectPage() {
                   <SelectValue placeholder="Select a wiki page (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  {wikiPages.map((page) => (
+                  {Array.isArray(wikiPages) ? wikiPages.map((page) => (
                     <SelectItem key={page.id} value={page.id}>
                       <div className="flex items-center space-x-2">
                         <Badge variant="outline" className="text-xs">
@@ -619,7 +643,7 @@ export default function NewProjectPage() {
                         <span>{page.title}</span>
                       </div>
                     </SelectItem>
-                  ))}
+                  )) : []}
                 </SelectContent>
               </Select>
             </div>
@@ -673,6 +697,16 @@ export default function NewProjectPage() {
         onClose={() => setShowTemplateSelector(false)}
         onSelectTemplate={handleTemplateSelect}
       />
+
+      {createdProject && (
+        <TaskTemplateDialog
+          isOpen={showTaskTemplateDialog}
+          onClose={handleTaskTemplateDialogClose}
+          onTemplateApplied={handleTaskTemplateApplied}
+          projectId={createdProject.id}
+          projectName={createdProject.name}
+        />
+      )}
     </div>
   )
 }

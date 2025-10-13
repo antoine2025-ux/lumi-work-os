@@ -1,70 +1,67 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
 import { 
   BookOpen, 
   Plus, 
   Search, 
-  Filter,
-  Grid,
-  List,
-  Edit,
-  Trash2,
-  Eye,
+  Sparkles,
   Clock,
   User,
   Tag,
-  MoreHorizontal,
   FileText,
   Folder,
   Star,
-  Loader2
+  Loader2,
+  ChevronRight,
+  MoreHorizontal,
+  Edit3,
+  Trash2,
+  Eye,
+  Share2
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 export default function WikiPage() {
   const router = useRouter()
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [wikiPages, setWikiPages] = useState<any[]>([])
-  const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set())
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
   // Load pages from API
   useEffect(() => {
     const loadPages = async () => {
       try {
         setIsLoading(true)
-        const response = await fetch('/api/wiki/pages?workspaceId=workspace-1')
+        const response = await fetch('/api/wiki/pages?workspaceId=cmgl0f0wa00038otlodbw5jhn')
         if (response.ok) {
-          const data = await response.json()
-          // Transform API data to match frontend expectations
-          const transformedPages = data.map((page: any) => ({
-            ...page,
-            author: page.createdBy?.name || 'Unknown',
-            lastModified: page.updatedAt,
-            excerpt: stripHtml(page.excerpt || page.content || ''),
-            status: page.isPublished ? 'published' : 'draft',
-            views: 0, // TODO: Add view tracking
-            isStarred: false, // TODO: Add starring functionality
-            category: page.category || 'general' // Use the actual category from API
-          }))
-          setWikiPages(transformedPages)
+          const result = await response.json()
+          const data = result.data || result
+          if (Array.isArray(data)) {
+            const transformedPages = data.map((page: any) => ({
+              ...page,
+              author: page.createdBy?.name || 'Unknown',
+              lastModified: page.updatedAt,
+              excerpt: stripHtml(page.excerpt || page.content || ''),
+              status: page.isPublished ? 'published' : 'draft',
+              views: 0,
+              isStarred: false,
+              category: page.category || 'general'
+            }))
+            setWikiPages(transformedPages)
+          } else {
+            setWikiPages([])
+          }
         } else {
-          // No fallback data - keep empty
           setWikiPages([])
         }
       } catch (error) {
         console.error('Error loading pages:', error)
-        // Keep empty on error
         setWikiPages([])
       } finally {
         setIsLoading(false)
@@ -84,488 +81,270 @@ export default function WikiPage() {
     router.push('/wiki/new')
   }
 
-  // Handle page selection
-  const handlePageSelect = (pageId: string) => {
-    const newSelected = new Set(selectedPages)
-    if (newSelected.has(pageId)) {
-      newSelected.delete(pageId)
-    } else {
-      newSelected.add(pageId)
-    }
-    setSelectedPages(newSelected)
-  }
-
-  // Handle select all
-  const handleSelectAll = () => {
-    if (selectedPages.size === filteredPages.length) {
-      setSelectedPages(new Set())
-    } else {
-      setSelectedPages(new Set(filteredPages.map(page => page.id)))
-    }
-  }
-
-  // Handle delete selected pages
-  const handleDeleteSelected = async () => {
-    if (selectedPages.size === 0) return
-
-    try {
-      setIsDeleting(true)
-      
-      // Delete pages one by one
-      for (const pageId of selectedPages) {
-        const response = await fetch(`/api/wiki/pages/${pageId}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to delete page ${pageId}`)
-        }
-      }
-
-      // Remove deleted pages from state
-      setWikiPages(prev => prev.filter(page => !selectedPages.has(page.id)))
-      setSelectedPages(new Set())
-      setShowDeleteDialog(false)
-    } catch (error) {
-      console.error('Error deleting pages:', error)
-      alert('Failed to delete some pages. Please try again.')
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-
-  const handleViewPage = (page: any) => {
-    router.push(`/wiki/${page.slug}`)
-  }
-
-  const handleEditPage = (page: any) => {
-    router.push(`/wiki/${page.slug}?edit=true`)
-  }
-
-  const categories = ["All", "general", "engineering", "sales", "marketing", "hr", "product"]
-  const [selectedCategory, setSelectedCategory] = useState("All")
-
-  const getCategoryLabel = (category: string) => {
-    const labels: { [key: string]: string } = {
-      "All": "All",
-      "general": "General", 
-      "engineering": "Engineering",
-      "sales": "Sales",
-      "marketing": "Marketing",
-      "hr": "HR",
-      "product": "Product"
-    }
-    return labels[category] || category
-  }
-
+  // Filter pages based on search and category
   const filteredPages = wikiPages.filter(page => {
     const matchesSearch = page.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         page.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         page.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    const matchesCategory = selectedCategory === "All" || page.category === selectedCategory
+                         page.excerpt.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCategory = selectedCategory === "all" || page.category === selectedCategory
     return matchesSearch && matchesCategory
   })
 
+  // Get unique categories
+  const categories = Array.from(new Set(wikiPages.map(page => page.category)))
+
+  // Format date helper
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString() + " at " + date.toLocaleTimeString()
+    const now = new Date()
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+    
+    if (diffInDays === 0) return 'Today'
+    if (diffInDays === 1) return 'Yesterday'
+    if (diffInDays < 7) return `${diffInDays} days ago`
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "published": return "bg-green-100 text-green-800"
-      case "draft": return "bg-yellow-100 text-yellow-800"
-      case "archived": return "bg-gray-100 text-gray-800"
-      default: return "bg-gray-100 text-gray-800"
-    }
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
+          <p className="text-gray-500">Loading your knowledge base...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center space-x-2">
-            <BookOpen className="h-8 w-8 text-primary" />
-            <span>Wiki</span>
-          </h1>
-          <p className="text-muted-foreground">
-            Your company's knowledge base and documentation
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/wiki/embed-demo">
-            <Button variant="outline" className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              Embed Demo
-            </Button>
-          </Link>
-          <Button onClick={handleNewPage}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Page
-          </Button>
-        </div>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search pages, tags, or content..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <div className="flex space-x-2">
-          <div className="flex space-x-1 bg-muted p-1 rounded-lg">
-            <Button
-              variant={viewMode === "grid" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("grid")}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-6 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900 mb-2">Knowledge Base</h1>
+              <p className="text-gray-600">Your team's central hub for documentation and knowledge</p>
+            </div>
+            <Button 
+              onClick={handleNewPage}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
             >
-              <Grid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("list")}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
-          <Button variant="outline" size="sm">
-            <Filter className="mr-2 h-4 w-4" />
-            Filter
-          </Button>
-        </div>
-      </div>
-
-      {/* Category Tabs */}
-      <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
-        {categories.map((category) => (
-          <Button
-            key={category}
-            variant={selectedCategory === category ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setSelectedCategory(category)}
-          >
-            {getCategoryLabel(category)}
-          </Button>
-        ))}
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Pages</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{wikiPages.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Published</CardTitle>
-            <Eye className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {wikiPages.filter(p => p.status === "published").length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Drafts</CardTitle>
-            <Edit className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {wikiPages.filter(p => p.status === "draft").length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Starred</CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {wikiPages.filter(p => p.isStarred).length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading pages...</p>
-          </div>
-        </div>
-      ) : (
-        <div>
-          {/* Bulk Actions */}
-          {selectedPages.size > 0 && (
-            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium">
-                  {selectedPages.size} page{selectedPages.size > 1 ? 's' : ''} selected
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedPages(new Set())}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowDeleteDialog(true)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Selected
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Pages Grid/List */}
-          {viewMode === "grid" ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredPages.map((page) => (
-            <Card key={page.id} className="hover:shadow-md transition-shadow group">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Checkbox
-                        checked={selectedPages.has(page.id)}
-                        onCheckedChange={() => handlePageSelect(page.id)}
-                        className="mt-1"
-                      />
-                      <Link href={`/wiki/${page.slug}`}>
-                        <CardTitle className="text-lg group-hover:text-primary transition-colors cursor-pointer">
-                          {page.title}
-                        </CardTitle>
-                      </Link>
-                      {page.isStarred && (
-                        <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                      )}
-                    </div>
-                    <CardDescription className="line-clamp-2">
-                      {page.excerpt}
-                    </CardDescription>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {page.tags.map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <div className="flex items-center space-x-1">
-                    <User className="h-3 w-3" />
-                    <span>{page.author}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Clock className="h-3 w-3" />
-                    <span>{formatDate(page.lastModified)}</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between mt-3">
-                  <Badge className={getStatusColor(page.status)}>
-                    {page.status}
-                  </Badge>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs text-muted-foreground">
-                      {page.views} views
-                    </span>
-                    <div className="flex space-x-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleViewPage(page)}
-                        title="View page"
-                      >
-                        <Eye className="h-3 w-3" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleEditPage(page)}
-                        title="Edit page"
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filteredPages.map((page) => (
-            <Card key={page.id} className="hover:shadow-sm transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4 flex-1">
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      {page.isStarred && (
-                        <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <Link href={`/wiki/${page.slug}`}>
-                          <h3 className="font-medium hover:text-primary cursor-pointer">{page.title}</h3>
-                        </Link>
-                        <Badge className={getStatusColor(page.status)}>
-                          {page.status}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-1">
-                        {page.excerpt}
-                      </p>
-                      <div className="flex items-center space-x-4 mt-1 text-xs text-muted-foreground">
-                        <span>{page.author}</span>
-                        <span>{formatDate(page.lastModified)}</span>
-                        <span>{page.views} views</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="flex flex-wrap gap-1">
-                      {page.tags.slice(0, 2).map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex space-x-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleViewPage(page)}
-                        title="View page"
-                      >
-                        <Eye className="h-3 w-3" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleEditPage(page)}
-                        title="Edit page"
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {filteredPages.length === 0 && !isLoading && (
-        <Card className="text-center py-12">
-          <CardContent>
-            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No pages found</h3>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery ? "Try adjusting your search terms" : "Create your first wiki page to get started"}
-            </p>
-            <Button onClick={handleNewPage}>
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="h-4 w-4" />
               New Page
             </Button>
-          </CardContent>
-        </Card>
-      )}
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* Delete Confirmation Dialog */}
-      {showDeleteDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="flex-shrink-0">
-                <Trash2 className="h-6 w-6 text-red-500" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Delete Pages
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  This action cannot be undone.
-                </p>
-              </div>
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* Search and Filters */}
+        <div className="mb-8">
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search your knowledge base..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
-            
-            <div className="mb-6">
-              <p className="text-gray-700 dark:text-gray-300">
-                Are you sure you want to delete <strong>{selectedPages.size} page{selectedPages.size > 1 ? 's' : ''}</strong>? 
-                This will permanently remove the page{selectedPages.size > 1 ? 's' : ''} and all their content.
+            <Button 
+              variant="outline" 
+              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Ask AI
+            </Button>
+          </div>
+
+          {/* Category Filters */}
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setSelectedCategory("all")}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                selectedCategory === "all" 
+                  ? "bg-blue-100 text-blue-700" 
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              All
+            </button>
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors capitalize ${
+                  selectedCategory === category 
+                    ? "bg-blue-100 text-blue-700" 
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Welcome Banner */}
+        {filteredPages.length === 0 && !searchQuery && (
+          <div className="bg-white rounded-xl border border-gray-200 p-8 mb-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <BookOpen className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Welcome to your Knowledge Base</h3>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                Start building your team's knowledge by creating your first page. 
+                Share information, document processes, and keep everyone aligned.
               </p>
-            </div>
-            
-            <div className="flex justify-end space-x-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowDeleteDialog(false)}
-                disabled={isDeleting}
+              <Button 
+                onClick={handleNewPage}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDeleteSelected}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Pages
-                  </>
-                )}
+                <Plus className="h-4 w-4 mr-2" />
+                Create Your First Page
               </Button>
             </div>
           </div>
+        )}
+
+        {/* Empty Search State */}
+        {filteredPages.length === 0 && searchQuery && (
+          <div className="bg-white rounded-xl border border-gray-200 p-8 mb-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No pages found</h3>
+              <p className="text-gray-600 mb-6">
+                Try adjusting your search terms or browse all pages.
+              </p>
+              <Button 
+                variant="outline"
+                onClick={() => setSearchQuery("")}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Clear Search
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Pages Grid */}
+        {filteredPages.length > 0 && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredPages.map((page) => (
+              <div
+                key={page.id}
+                className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:shadow-sm group"
+              >
+                <div className="p-6">
+                  {/* Page Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                          <Link href={`/wiki/${page.slug}`} className="hover:underline">
+                            {page.title}
+                          </Link>
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge 
+                            variant="secondary" 
+                            className="text-xs bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          >
+                            {page.category}
+                          </Badge>
+                          {page.status === 'draft' && (
+                            <Badge variant="outline" className="text-xs border-orange-200 text-orange-600">
+                              Draft
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Page Content Preview */}
+                  {page.excerpt && (
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                      {page.excerpt}
+                    </p>
+                  )}
+
+                  {/* Page Footer */}
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        <span>{page.author}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>{formatDate(page.lastModified)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Share2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Quick Actions */}
+        <div className="mt-12 bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex flex-col items-center gap-2 border-gray-300 hover:bg-gray-50"
+              onClick={handleNewPage}
+            >
+              <Plus className="h-6 w-6 text-gray-600" />
+              <span className="text-sm font-medium">New Page</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex flex-col items-center gap-2 border-gray-300 hover:bg-gray-50"
+            >
+              <Folder className="h-6 w-6 text-gray-600" />
+              <span className="text-sm font-medium">Organize</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex flex-col items-center gap-2 border-gray-300 hover:bg-gray-50"
+            >
+              <Star className="h-6 w-6 text-gray-600" />
+              <span className="text-sm font-medium">Favorites</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex flex-col items-center gap-2 border-gray-300 hover:bg-gray-50"
+            >
+              <Sparkles className="h-6 w-6 text-gray-600" />
+              <span className="text-sm font-medium">AI Assistant</span>
+            </Button>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
-

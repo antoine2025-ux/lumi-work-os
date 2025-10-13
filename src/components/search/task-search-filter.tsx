@@ -375,3 +375,4 @@ export function TaskSearchFilter({ tasks, onFilterChange, onFilterReset }: TaskS
     </Card>
   )
 }
+

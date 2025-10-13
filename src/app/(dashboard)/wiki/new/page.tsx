@@ -41,7 +41,7 @@ export default function NewWikiPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          workspaceId: 'workspace-1', // TODO: Get from context/session
+          workspaceId: 'cmgl0f0wa00038otlodbw5jhn', // TODO: Get from context/session
           title: title.trim(),
           content: content.trim(),
           tags: [],

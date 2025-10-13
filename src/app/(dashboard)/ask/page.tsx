@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Send, Bot, FileText, Search, Plus, X, History, Clock, Trash2, ExternalLink, CheckCircle, Loader2, ChevronDown } from "lucide-react"
 import MarkdownViewer from "@/components/assistant/markdown-viewer"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { TemplateSelector } from "@/components/projects/template-selector"
 
 interface Message {
   id: string
@@ -66,6 +68,8 @@ export default function AskPage() {
   })
   const [selectedQuickActions, setSelectedQuickActions] = useState<string[]>([])
   const [showWelcome, setShowWelcome] = useState(true)
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
 
   // Load chat history on mount
   useEffect(() => {
@@ -194,7 +198,7 @@ export default function AskPage() {
       const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intent, workspaceId: 'workspace-1' })
+        body: JSON.stringify({ intent, workspaceId: 'cmgl0f0wa00038otlodbw5jhn' })
       })
 
       const data = await response.json()
@@ -368,6 +372,13 @@ export default function AskPage() {
     }
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit(e as any)
+    }
+  }
+
   const generateDraft = async () => {
     if (!session) return
 
@@ -415,45 +426,60 @@ export default function AskPage() {
 
     console.log('Extracting project data from conversation:', conversationText)
 
-    // Extract project name - more comprehensive patterns
+    // More comprehensive project name extraction
     const namePatterns = [
-      /(?:project is called|project name is|name is|called)\s+([^,.\n]+)/i,
-      /(?:create|build|develop)\s+(?:a\s+)?(?:project\s+)?(?:called\s+)?([^,.\n]+?)(?:\s+(?:for|to|that|which))/i,
-      /(?:the\s+)?(?:project\s+)?([^,.\n]+?)(?:\s+(?:project|feature|system))/i,
-      /(?:project\s+)?([^,.\n]+?)(?:\s+(?:ai|feature|automation|management|system))/i,
-      /(?:build|create|develop)\s+([^,.\n]+?)(?:\s+(?:system|tool|platform|app))/i
+      // Direct statements
+      /(?:project is called|project name is|name is|called)\s+["']?([^"',.\n]+?)["']?(?:\s|$|,|\.)/i,
+      /(?:create|build|develop|start)\s+(?:a\s+)?(?:project\s+)?(?:called\s+)?["']?([^"',.\n]+?)["']?(?:\s+(?:for|to|that|which)|$|,|\.)/i,
+      /(?:the\s+)?(?:project\s+)?["']?([^"',.\n]+?)["']?(?:\s+(?:project|feature|system|app|tool|platform))/i,
+      // More flexible patterns
+      /(?:project\s+)?["']?([^"',.\n]+?)["']?(?:\s+(?:ai|feature|automation|management|system|app|tool))/i,
+      /(?:build|create|develop|start)\s+["']?([^"',.\n]+?)["']?(?:\s+(?:system|tool|platform|app|feature))/i,
+      // Catch phrases like "I want to create X project"
+      /(?:want to create|need to create|create)\s+["']?([^"',.\n]+?)["']?(?:\s+(?:project|system|app|tool|platform))/i,
+      // Catch "X project" patterns
+      /["']?([^"',.\n]+?)["']?(?:\s+(?:project|system|app|tool|platform|feature))/i
     ]
     
-    let name = 'New Project'
+    let name = ''
     for (const pattern of namePatterns) {
       const match = conversationText.match(pattern)
-      if (match && match[1].trim().length > 2) {
+      if (match && match[1] && match[1].trim().length > 2 && match[1].trim().length < 50) {
         name = match[1].trim()
-        break
+        // Clean up common words that shouldn't be in project names
+        name = name.replace(/\b(project|system|app|tool|platform|feature|the|a|an)\b/gi, '').trim()
+        if (name.length > 2) {
+          break
+        }
       }
     }
 
-    // Extract description/purpose
+    // Extract description/purpose with better patterns
     const descriptionPatterns = [
-      /(?:purpose is|goal is|description is|about|to)\s+([^,.\n]+)/i,
-      /(?:automate|create|build|develop|implement)\s+([^,.\n]+)/i,
-      /(?:for|that)\s+([^,.\n]+)/i
+      // Direct purpose statements
+      /(?:purpose is|goal is|description is|about|to)\s+["']?([^"',.\n]+?)["']?(?:\s|$|,|\.)/i,
+      /(?:automate|create|build|develop|implement|manage|handle)\s+["']?([^"',.\n]+?)["']?(?:\s|$|,|\.)/i,
+      /(?:for|that)\s+["']?([^"',.\n]+?)["']?(?:\s|$|,|\.)/i,
+      // More specific patterns
+      /(?:help|assist|support)\s+(?:with|us\s+with)\s+["']?([^"',.\n]+?)["']?(?:\s|$|,|\.)/i,
+      /(?:need|want)\s+(?:to|a)\s+["']?([^"',.\n]+?)["']?(?:\s+(?:system|app|tool|platform|feature))/i
     ]
     
     let description = ''
     for (const pattern of descriptionPatterns) {
       const match = conversationText.match(pattern)
-      if (match && match[1].trim().length > 5) {
+      if (match && match[1] && match[1].trim().length > 5) {
         description = match[1].trim()
         break
       }
     }
 
-    // Extract department
+    // Extract department with better patterns
     const departmentPatterns = [
-      /(?:department|team)\s+is\s+([^,.\n]+)/i,
-      /(?:engineering|marketing|sales|hr|finance|operations)\s+(?:department|team)/i,
-      /(?:in\s+the\s+)?(engineering|marketing|sales|hr|finance|operations)/i
+      /(?:department|team)\s+(?:is|will be)\s+["']?([^"',.\n]+?)["']?(?:\s|$|,|\.)/i,
+      /(?:in\s+the\s+)?(engineering|marketing|sales|hr|finance|operations|product|design|qa|devops|data|security)\s+(?:department|team)/i,
+      /(?:engineering|marketing|sales|hr|finance|operations|product|design|qa|devops|data|security)\s+(?:team|department)/i,
+      /(?:for\s+the\s+)?(engineering|marketing|sales|hr|finance|operations|product|design|qa|devops|data|security)\s+(?:team|department)/i
     ]
     
     let department = ''
@@ -465,29 +491,93 @@ export default function AskPage() {
       }
     }
 
-    // Extract priority
-    const priorityMatch = conversationText.match(/(?:priority is|priority)\s+(high|medium|low|urgent)/i)
-    const priority = priorityMatch ? priorityMatch[1].toUpperCase() : 'MEDIUM'
+    // Extract priority with better patterns
+    const priorityPatterns = [
+      /(?:priority is|priority)\s+(high|medium|low|urgent|critical)/i,
+      /(?:this is|it's|it is)\s+(high|medium|low|urgent|critical)\s+priority/i,
+      /(?:urgent|critical|high|medium|low)\s+priority/i
+    ]
+    
+    let priority = 'MEDIUM'
+    for (const pattern of priorityPatterns) {
+      const match = conversationText.match(pattern)
+      if (match && match[1]) {
+        priority = match[1].toUpperCase()
+        break
+      }
+    }
 
-    // Extract timeline
-    const timelineMatch = conversationText.match(/(?:starting|start)\s+(today|tomorrow|\d+ days?|\d+ weeks?)/i)
-    const startDate = timelineMatch ? new Date().toISOString() : null
-
-    const durationMatch = conversationText.match(/(?:for|duration)\s+(\d+)\s+(days?|weeks?|months?)/i)
+    // Extract timeline with better patterns
+    const timelinePatterns = [
+      /(?:starting|start|begin)\s+(today|tomorrow|\d+\s*(?:days?|weeks?|months?)\s*(?:from\s+now)?)/i,
+      /(?:timeline|duration|deadline)\s+(?:is\s+)?(\d+\s*(?:days?|weeks?|months?))/i,
+      /(?:finish|complete|done)\s+(?:by|in)\s+(\d+\s*(?:days?|weeks?|months?))/i
+    ]
+    
+    let startDate = null
     let endDate = null
-    if (durationMatch && startDate) {
-      const duration = parseInt(durationMatch[1])
-      const unit = durationMatch[2].toLowerCase()
-      const days = unit.includes('week') ? duration * 7 : 
-                   unit.includes('month') ? duration * 30 : duration
-      endDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+    
+    for (const pattern of timelinePatterns) {
+      const match = conversationText.match(pattern)
+      if (match && match[1]) {
+        const timeline = match[1].toLowerCase()
+        if (timeline.includes('today')) {
+          startDate = new Date().toISOString()
+        } else if (timeline.includes('tomorrow')) {
+          startDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        } else {
+          const durationMatch = timeline.match(/(\d+)\s*(days?|weeks?|months?)/)
+          if (durationMatch) {
+            const duration = parseInt(durationMatch[1])
+            const unit = durationMatch[2].toLowerCase()
+            const days = unit.includes('week') ? duration * 7 : 
+                         unit.includes('month') ? duration * 30 : duration
+            
+            startDate = new Date().toISOString()
+            endDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+          }
+        }
+        break
+      }
+    }
+
+    // If we still don't have a name, try to extract from the first meaningful user message
+    if (!name) {
+      const firstUserMessage = messages.find(msg => msg.role === 'user' && msg.content.length > 10)
+      if (firstUserMessage) {
+        const content = firstUserMessage.content.toLowerCase()
+        // Look for common project creation phrases
+        if (content.includes('create') || content.includes('build') || content.includes('develop')) {
+          // Try to extract the main subject
+          const subjectMatch = content.match(/(?:create|build|develop)\s+(?:a\s+)?(?:project\s+)?(?:called\s+)?["']?([^"',.\n]+?)["']?(?:\s+(?:for|to|that|which)|$|,|\.)/i)
+          if (subjectMatch && subjectMatch[1] && subjectMatch[1].trim().length > 2) {
+            name = subjectMatch[1].trim()
+          }
+        }
+      }
+    }
+
+    // Final fallback - if we still don't have a name, use a more descriptive default
+    if (!name || name.length < 3) {
+      // Try to extract any meaningful words from the conversation
+      const allWords = conversationText.toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(word => word.length > 3 && !['project', 'create', 'build', 'develop', 'want', 'need', 'help', 'with', 'this', 'that', 'will', 'should', 'could'].includes(word))
+      
+      if (allWords.length > 0) {
+        // Take the first meaningful word and capitalize it
+        name = allWords[0].charAt(0).toUpperCase() + allWords[0].slice(1)
+      } else {
+        name = 'New Project'
+      }
     }
 
     const extractedData = {
       name: name || 'New Project',
-      description: description || 'Project created via AI assistant',
+      description: description || (name ? `Project: ${name}` : 'Project created via AI assistant'),
       department: department || 'General',
-      team: department || 'General', // Use department as team for now
+      team: department || 'General',
       priority,
       startDate,
       endDate,
@@ -495,6 +585,8 @@ export default function AskPage() {
     }
 
     console.log('Extracted project data:', extractedData)
+    console.log('Original conversation text:', conversationText)
+    console.log('Messages:', messages.map(m => ({ role: m.role, content: m.content })))
     return extractedData
   }
 
@@ -511,7 +603,8 @@ export default function AskPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           sessionId: session.id,
-          projectData
+          projectData,
+          templateId: selectedTemplate?.id
         })
       })
 
@@ -538,6 +631,24 @@ export default function AskPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleTemplateSelect = (template: any) => {
+    setSelectedTemplate(template)
+    setShowTemplateSelector(false)
+    
+    // Add a message about template selection
+    const templateMessage: Message = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: `Great choice! I've selected the "${template.name}" template for your project. This will help structure your project with predefined tasks and milestones.\n\nClick 'Create Project' in the sidebar when you're ready to proceed!`,
+      timestamp: new Date()
+    }
+    setMessages(prev => [...prev, templateMessage])
+  }
+
+  const handleShowTemplates = () => {
+    setShowTemplateSelector(true)
   }
 
   const publishDraft = async () => {
@@ -732,14 +843,33 @@ export default function AskPage() {
               )}
 
               {session.phase === 'ready_to_create' && session.intent === 'project_creation' && !session.projectUrl && (
-                <Button 
-                  className="w-full"
-                  onClick={createProject}
-                  disabled={isLoading}
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  {isLoading ? 'Creating...' : 'Create Project'}
-                </Button>
+                <div className="space-y-2">
+                  <Button 
+                    className="w-full"
+                    onClick={createProject}
+                    disabled={isLoading}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    {isLoading ? 'Creating...' : 'Create Project'}
+                  </Button>
+                  
+                  <Button 
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleShowTemplates}
+                    disabled={isLoading}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Choose Template
+                  </Button>
+                  
+                  {selectedTemplate && (
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <p className="text-xs font-medium text-blue-800">Selected Template:</p>
+                      <p className="text-xs text-blue-600">{selectedTemplate.name}</p>
+                    </div>
+                  )}
+                </div>
               )}
 
               {session && session.draftTitle && (
@@ -912,12 +1042,14 @@ export default function AskPage() {
                       await startSession('assist')
                     }
                   }} className="flex space-x-3">
-                    <Input
+                    <Textarea
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
                       placeholder="Ask me anything about your wiki or request document creation..."
-                      className="flex-1 h-12 text-base"
+                      className="flex-1 min-h-[48px] max-h-32 text-base resize-none"
                       disabled={isLoading}
+                      rows={1}
                     />
                     <Button 
                       type="submit" 
@@ -1053,12 +1185,14 @@ export default function AskPage() {
               {session && (
                 <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
                   <form onSubmit={handleSubmit} className="flex space-x-3">
-                    <Input
+                    <Textarea
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
                       placeholder="Type your message..."
-                      className="flex-1 h-12 text-base"
+                      className="flex-1 min-h-[48px] max-h-32 text-base resize-none"
                       disabled={isLoading}
+                      rows={1}
                     />
                     <Button 
                       type="submit" 
@@ -1176,6 +1310,13 @@ export default function AskPage() {
           </div>
         </div>
       )}
+
+      {/* Template Selector */}
+      <TemplateSelector
+        isOpen={showTemplateSelector}
+        onClose={() => setShowTemplateSelector(false)}
+        onSelectTemplate={handleTemplateSelect}
+      />
     </div>
   )
 }

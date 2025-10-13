@@ -19,7 +19,20 @@ export function NotificationToast({
   position = 'top-right',
   maxNotifications = 5
 }: NotificationToastProps) {
-  const { notifications, clearNotification, clearAllNotifications } = useNotifications()
+  // Check if we're in a socket context before using the hook
+  let notifications, clearNotification, clearAllNotifications
+  
+  try {
+    const notificationHook = useNotifications()
+    notifications = notificationHook.notifications
+    clearNotification = notificationHook.clearNotification
+    clearAllNotifications = notificationHook.clearAllNotifications
+  } catch (error) {
+    // If socket context is not available, use empty state
+    notifications = []
+    clearNotification = () => {}
+    clearAllNotifications = () => {}
+  }
   const [visibleNotifications, setVisibleNotifications] = useState<Set<string>>(new Set())
 
   // Show new notifications
@@ -175,7 +188,17 @@ export function NotificationToast({
 
 // Notification Bell Component
 export function NotificationBell({ className }: { className?: string }) {
-  const { notifications } = useNotifications()
+  // Check if we're in a socket context before using the hook
+  let notifications
+  
+  try {
+    const notificationHook = useNotifications()
+    notifications = notificationHook.notifications
+  } catch (error) {
+    // If socket context is not available, use empty state
+    notifications = []
+  }
+  
   const [isOpen, setIsOpen] = useState(false)
 
   const unreadCount = notifications.length

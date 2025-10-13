@@ -59,7 +59,7 @@ export default function WikiSearchPage() {
     try {
       const params = new URLSearchParams({
         q: searchQuery,
-        workspaceId: 'workspace-1', // TODO: Get from context/session
+        workspaceId: 'cmgl0f0wa00038otlodbw5jhn', // TODO: Get from context/session
         type: filters.type,
         ...(filters.author && { author: filters.author }),
         ...(filters.tags.length > 0 && { tags: filters.tags.join(',') })

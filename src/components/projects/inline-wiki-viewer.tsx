@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useWorkspace } from "@/lib/workspace-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -58,6 +59,7 @@ export function InlineWikiViewer({
   onWikiPageSelect, 
   isLoading = false 
 }: InlineWikiViewerProps) {
+  const { currentWorkspace } = useWorkspace()
   const [wikiPages, setWikiPages] = useState<WikiPage[]>([])
   const [currentWikiPage, setCurrentWikiPage] = useState<WikiPage | null>(null)
   const [isLoadingPages, setIsLoadingPages] = useState(true)
@@ -71,10 +73,18 @@ export function InlineWikiViewer({
     const loadWikiPages = async () => {
       try {
         setIsLoadingPages(true)
-        const response = await fetch('/api/wiki/pages?workspaceId=workspace-1')
+        const response = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace?.id || 'workspace-1'}`)
         if (response.ok) {
-          const data = await response.json()
-          setWikiPages(data || [])
+          const result = await response.json()
+          // Handle paginated response - data is in result.data
+          const data = result.data || result
+          // Ensure data is an array before setting
+          if (Array.isArray(data)) {
+            setWikiPages(data)
+          } else {
+            console.warn('Expected array but got:', typeof data, data)
+            setWikiPages([])
+          }
         }
       } catch (error) {
         console.error('Error loading wiki pages:', error)
@@ -110,15 +120,15 @@ export function InlineWikiViewer({
   }, [currentWikiPageId])
 
   // Filter pages based on search and category
-  const filteredPages = wikiPages.filter(page => {
+  const filteredPages = Array.isArray(wikiPages) ? wikiPages.filter(page => {
     const matchesSearch = page.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          page.content.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = selectedCategory === "all" || page.category === selectedCategory
     return matchesSearch && matchesCategory
-  })
+  }) : []
 
   // Get unique categories
-  const categories = Array.from(new Set(wikiPages.map(page => page.category)))
+  const categories = Array.isArray(wikiPages) ? Array.from(new Set(wikiPages.map(page => page.category))) : []
 
   const handleWikiPageSelect = (wikiPageId: string | null) => {
     onWikiPageSelect(wikiPageId)

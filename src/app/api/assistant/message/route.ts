@@ -39,12 +39,12 @@ function getMockResponse(session: any, message: string, messageCount: number): s
   } else if (session.intent === 'project_creation') {
     switch (session.phase) {
       case 'idle':
-        return "Great! I'd love to help you create a new project. To get started, I need to gather some information from you.\n\nCould you tell me:\n1. What's the name of this project?\n2. What's the main purpose or goal?\n3. What department or team will be working on this?\n4. What's the expected timeline (start and end dates)?\n5. What's the priority level (Low, Medium, High, Urgent)?\n6. Who should be the project owner?"
+        return "Great! I'd love to help you create a new project. To get started, I need to gather some specific information from you.\n\n**Please tell me:**\n1. **Project Name**: What would you like to call this project?\n2. **Purpose**: What's the main goal or what problem does this solve?\n3. **Department/Team**: Which team will be working on this?\n4. **Timeline**: When should this start and finish?\n5. **Priority**: How urgent is this (Low, Medium, High, Urgent)?\n6. **Project Owner**: Who should lead this project?\n\nOnce I have these details, I can also show you some project templates that might help structure your project better!"
       case 'intake':
         if (messageCount <= 2) {
-          return "Thanks for that information! Let me ask a few more questions to make sure I understand your project needs:\n\n- What are the main deliverables or milestones?\n- Are there any dependencies on other projects?\n- What's the budget or resource constraints?\n- Do you need to link this to any existing wiki documentation?\n- Who else should be involved in this project?"
+          return "Thanks for that information! Let me ask a few more specific questions to ensure I capture everything correctly:\n\n**Additional Details:**\n- What are the main deliverables or milestones?\n- Are there any dependencies on other projects?\n- What's the budget or resource constraints?\n- Do you need to link this to any existing wiki documentation?\n- Who else should be involved in this project?\n\n**Template Question:** Would you like me to show you some project templates that could help structure your project? I have templates for Software Development, Marketing, Product, HR, Events, and more!"
         } else {
-          return "Perfect! I have enough information to create your project. I'll set up everything we discussed. Click 'Create Project' in the sidebar when you're ready!"
+          return "Perfect! I have enough information to create your project. I'll set up everything we discussed with the details you provided. Click 'Create Project' in the sidebar when you're ready!"
         }
       case 'gathering_requirements':
         return "I have enough information to create your project. Click 'Create Project' in the sidebar when you're ready!"
@@ -242,17 +242,20 @@ Be conversational, helpful, and guide them through the document creation process
 IMPORTANT: You are part of an automated project creation system. Follow these exact phase guidelines:
 
 Phase Guide:
-- idle: Welcome the user and ask what type of project they want to create. Be enthusiastic and helpful.
-- intake: Ask 4-6 specific questions about the project (name, purpose, department, timeline, priority, owner). Ask them one at a time or all together.
+- idle: Welcome the user and ask for specific project details. Be enthusiastic and helpful. Ask for: project name, purpose/goal, department/team, timeline, priority, and project owner.
+- intake: Ask follow-up questions to gather comprehensive project information. Focus on deliverables, dependencies, budget, team members, and wiki documentation links. Also ask if they want to use project templates.
 - gathering_requirements: Continue gathering requirements until you have enough information. Ask follow-up questions about deliverables, dependencies, budget, team members, etc.
 - ready_to_create: When you have sufficient information, say "I have enough information to create your project. Click 'Create Project' in the sidebar when you're ready!"
 - creating: This phase is handled by the system - you don't need to respond here.
 - project_created: The project has been successfully created! Provide the project link and ask if they need help with anything else.
 
 CRITICAL: 
+- ALWAYS ask for specific project details: name, purpose, department, timeline, priority, owner
+- When gathering requirements, ask if they want to use project templates (Software Development, Marketing, Product, HR, Events, etc.)
 - When the user says "create project", "yes", "ready to create", or "go ahead" during ready_to_create phase, the system will automatically create the project.
 - If the session is already in 'project_created' phase, acknowledge the successful creation and provide the project link.
 - Do NOT ask users to click buttons that don't exist for their current phase.
+- Be specific about what information you need - don't accept vague answers.
 
 Be conversational, helpful, and guide them through the project creation process step by step.`
 

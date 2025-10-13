@@ -45,7 +45,7 @@ export function WikiSearch({ placeholder = "Search wiki...", onResultClick, clas
     try {
       const params = new URLSearchParams({
         q: searchQuery,
-        workspaceId: 'workspace-1', // TODO: Get from context/session
+        workspaceId: 'cmgl0f0wa00038otlodbw5jhn', // TODO: Get from context/session
       })
 
       const response = await fetch(`/api/wiki/search?${params}`)

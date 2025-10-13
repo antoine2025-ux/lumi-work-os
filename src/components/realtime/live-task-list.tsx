@@ -18,8 +18,29 @@ interface LiveTaskListProps {
 }
 
 export function LiveTaskList({ projectId, className, onToggleFullscreen }: LiveTaskListProps) {
-  const { socket, actions } = useSocket()
-  const { tasks, activeUsers, isLoading } = useTaskUpdates(projectId)
+  // Check if we're in a socket context before using the hooks
+  let socket, actions, tasks, activeUsers, isLoading
+  
+  try {
+    const socketHook = useSocket()
+    socket = socketHook.socket
+    actions = socketHook.actions
+  } catch (error) {
+    socket = null
+    actions = { updateTask: () => {} }
+  }
+  
+  try {
+    const taskUpdatesHook = useTaskUpdates(projectId)
+    tasks = taskUpdatesHook.tasks
+    activeUsers = taskUpdatesHook.activeUsers
+    isLoading = taskUpdatesHook.isLoading
+  } catch (error) {
+    tasks = []
+    activeUsers = []
+    isLoading = false
+  }
+  
   const [isUpdating, setIsUpdating] = useState<Set<string>>(new Set())
 
   const handleTaskStatusChange = async (taskId: string, newStatus: string) => {

@@ -112,13 +112,20 @@ export default function NewTaskPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load users
-        setUsers([
-          { id: 'dev-user-1', name: 'Development User', email: 'dev@lumi.com' },
-          { id: 'user-2', name: 'John Doe', email: 'john@lumi.com' },
-          { id: 'user-3', name: 'Jane Smith', email: 'jane@lumi.com' },
-          { id: 'user-4', name: 'Mike Johnson', email: 'mike@lumi.com' }
-        ])
+        // Load users from API
+        const usersResponse = await fetch('/api/users')
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json()
+          setUsers(usersData)
+        } else {
+          // Fallback to mock users if API fails
+          setUsers([
+            { id: 'dev-user-1', name: 'Development User', email: 'dev@lumi.com' },
+            { id: 'user-2', name: 'John Doe', email: 'john@lumi.com' },
+            { id: 'user-3', name: 'Jane Smith', email: 'jane@lumi.com' },
+            { id: 'user-4', name: 'Mike Johnson', email: 'mike@lumi.com' }
+          ])
+        }
 
         // Load project data
         const projectResponse = await fetch(`/api/projects/${projectId}`)

@@ -5,6 +5,16 @@ import { DragDropProvider } from './drag-drop-provider'
 import { DroppableColumn } from './droppable-column'
 import { TaskEditDialog } from '../tasks/task-edit-dialog'
 import { DependencyManager } from '../tasks/dependency-manager'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { 
+  LayoutGrid, 
+  List, 
+  Columns3, 
+  Monitor,
+  Tablet,
+  Smartphone
+} from 'lucide-react'
 
 interface Task {
   id: string
@@ -46,6 +56,9 @@ interface KanbanBoardProps {
   filteredTasks?: any[]
 }
 
+type ViewDensity = 'compact' | 'comfortable' | 'spacious'
+type ScreenSize = 'desktop' | 'tablet' | 'mobile'
+
 const columns = [
   { id: 'todo', status: 'TODO' as const, title: 'To Do', color: 'bg-gray-100 text-gray-800' },
   { id: 'in-progress', status: 'IN_PROGRESS' as const, title: 'In Progress', color: 'bg-blue-100 text-blue-800' },
@@ -61,10 +74,30 @@ export function KanbanBoard({ projectId, workspaceId = 'workspace-1', onTasksUpd
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [dependencyTaskId, setDependencyTaskId] = useState<string | null>(null)
   const [isDependencyManagerOpen, setIsDependencyManagerOpen] = useState(false)
+  const [viewDensity, setViewDensity] = useState<ViewDensity>('comfortable')
+  const [screenSize, setScreenSize] = useState<ScreenSize>('desktop')
 
   useEffect(() => {
     loadTasks()
   }, [projectId, workspaceId])
+
+  // Screen size detection
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth
+      if (width >= 1280) {
+        setScreenSize('desktop')
+      } else if (width >= 768) {
+        setScreenSize('tablet')
+      } else {
+        setScreenSize('mobile')
+      }
+    }
+
+    handleResize() // Initial check
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const loadTasks = async () => {
     try {
@@ -190,17 +223,35 @@ export function KanbanBoard({ projectId, workspaceId = 'workspace-1', onTasksUpd
       onTaskMove={handleTaskMove}
       onTaskReorder={handleTaskReorder}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 p-6">
-        {columns.map((column) => (
-          <DroppableColumn
-            key={column.id}
-            column={column}
-            tasks={getTasksForColumn(column.status)}
-            onEditTask={handleEditTask}
-            onManageDependencies={handleManageDependencies}
-            onAddTask={handleAddTask}
-          />
-        ))}
+
+      {/* Responsive Container */}
+      <div className={`p-8 ${
+        screenSize === 'desktop' 
+          ? 'max-w-[1600px] mx-auto' // Appropriate maximum width for 27" and smaller monitors
+          : screenSize === 'tablet' 
+            ? 'max-w-7xl mx-auto' 
+            : 'max-w-full px-4'
+      }`}>
+        <div className={`grid gap-6 ${
+          screenSize === 'desktop' 
+            ? 'grid-cols-5' // Fixed 5 columns for desktop to show all statuses
+            : screenSize === 'tablet' 
+              ? 'grid-cols-3' 
+              : 'grid-cols-1'
+        }`}>
+          {columns.map((column) => (
+            <DroppableColumn
+              key={column.id}
+              column={column}
+              tasks={getTasksForColumn(column.status)}
+              onEditTask={handleEditTask}
+              onManageDependencies={handleManageDependencies}
+              onAddTask={handleAddTask}
+              viewDensity={viewDensity}
+              screenSize={screenSize}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Task Edit Dialog */}

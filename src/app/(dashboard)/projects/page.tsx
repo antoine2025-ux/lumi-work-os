@@ -142,10 +142,18 @@ export default function ProjectsPage() {
     const loadProjects = async () => {
       try {
         setIsLoading(true)
-        const response = await fetch('/api/projects?workspaceId=workspace-1')
+        const response = await fetch('/api/projects?workspaceId=cmgl0f0wa00038otlodbw5jhn')
         if (response.ok) {
-          const data = await response.json()
-          setProjects(data)
+          const result = await response.json()
+          // Handle paginated response - data is in result.data
+          const data = result.data || result
+          // Ensure data is an array before setting
+          if (Array.isArray(data)) {
+            setProjects(data)
+          } else {
+            console.warn('Expected array but got:', typeof data, data)
+            setProjects([])
+          }
         } else {
           setProjects([])
         }

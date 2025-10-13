@@ -6,9 +6,9 @@ services:
     container_name: lumi-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: lumi_work_os
-      POSTGRES_USER: lumi_user
-      POSTGRES_PASSWORD: lumi_password
+      POSTGRES_DB: ${POSTGRES_DB:-lumi_work_os}
+      POSTGRES_USER: ${POSTGRES_USER:-lumi_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lumi_password_change_me}
     ports:
       - "5432:5432"
     volumes:
@@ -22,8 +22,8 @@ services:
     container_name: lumi-pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@lumi.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@lumi.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin_password_change_me}
     ports:
       - "5050:80"
     depends_on:

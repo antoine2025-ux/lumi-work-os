@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Account {
@@ -48,6 +49,7 @@ model User {
   accounts             Account[]
   chatSessions         ChatSession[]
   onboardingPlans      OnboardingPlan[]
+  createdOnboardingTemplates OnboardingTemplate[]
   orgPositions         OrgPosition[]
   projectMemberships   ProjectMember[]
   projectWatchers      ProjectWatcher[] @relation("ProjectWatcher")
@@ -59,6 +61,7 @@ model User {
   taskComments         TaskComment[]
   assignedTasks        Task[]               @relation("TaskAssignee")
   createdTasks         Task[]               @relation("TaskCreator")
+  createdTaskTemplates TaskTemplate[]       @relation("TaskTemplateCreator")
   wikiComments         WikiComment[]
   wikiPagePermissions  WikiPagePermission[]
   wikiPages            WikiPage[]
@@ -67,9 +70,12 @@ model User {
   workflowInstances    WorkflowInstance[]
   workspaceMemberships WorkspaceMember[]
   ownedWorkspaces      Workspace[]           @relation("WorkspaceOwner")
-  onboardingTasks      OnboardingTask[]     @relation("OnboardingTaskToUser")
   activities           Activity[]
   projectTemplates     ProjectTemplate[]
+  uploadedAttachments  TaskAttachment[]
+  savedViews           SavedView[]
+  notifications        Notification[]
+  columnPreferences    ColumnPreference[]
 
   @@map("users")
 }
@@ -100,6 +106,7 @@ model Workspace {
   orgPositions        OrgPosition[]
   projects            Project[]
   tasks               Task[]
+  taskTemplates       TaskTemplate[]
   wikiChunks          WikiChunk[]
   wikiPages           WikiPage[]
   workflowInstances   WorkflowInstance[]
@@ -244,73 +251,70 @@ model WikiEmbed {
 }
 
 model OnboardingTemplate {
-  id          String           @id @default(cuid())
-  workspaceId String
-  name        String
-  description String?
-  role        String?
-  duration    Int
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  plans       OnboardingPlan[]
-  tasks       OnboardingTask[]
-  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id           String               @id @default(cuid())
+  workspaceId  String
+  name         String
+  durationDays Int                  // e.g., 30, 60, 90
+  description  String?
+  visibility   TemplateVisibility   @default(ORG)
+  tasks        TemplateTask[]
+  createdById  String
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  plans        OnboardingPlan[]
+  workspace    Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy    User                @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   @@map("onboarding_templates")
 }
 
+model TemplateTask {
+  id          String             @id @default(cuid())
+  templateId  String
+  title       String
+  description String?
+  order       Int                @default(0)
+  dueDay      Int?               // relative day from plan start (e.g., 3 = due on day 3)
+  template    OnboardingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@map("template_tasks")
+}
+
 model OnboardingTask {
-  id               String                     @id @default(cuid())
-  templateId       String
-  title            String
-  description      String?
-  order            Int
-  isRequired       Boolean                    @default(true)
-  estimatedMinutes Int?
-  createdAt        DateTime                   @default(now())
-  updatedAt        DateTime                   @updatedAt
-  assignments      OnboardingTaskAssignment[]
-  template         OnboardingTemplate         @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  users            User[]                     @relation("OnboardingTaskToUser")
+  id           String   @id @default(cuid())
+  planId       String
+  title        String
+  description  String?
+  status       OnboardingTaskStatus @default(PENDING)
+  dueDate      DateTime?
+  order        Int        @default(0)
+  completedAt  DateTime?
+  plan         OnboardingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@map("onboarding_tasks")
 }
 
 model OnboardingPlan {
-  id          String                     @id @default(cuid())
-  workspaceId String
-  templateId  String?
-  userId      String
-  title       String
-  status      OnboardingStatus           @default(ACTIVE)
-  startDate   DateTime
-  endDate     DateTime?
-  createdAt   DateTime                   @default(now())
-  updatedAt   DateTime                   @updatedAt
-  template    OnboardingTemplate?        @relation(fields: [templateId], references: [id])
-  user        User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace                  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  tasks       OnboardingTaskAssignment[]
+  id            String   @id @default(cuid())
+  workspaceId   String
+  employeeId    String
+  templateId    String?
+  name          String
+  status        PlanStatus @default(ACTIVE)
+  startDate     DateTime
+  endDate       DateTime?
+  progressPct   Int       @default(0)
+  createdById   String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  employee      User      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  template      OnboardingTemplate? @relation(fields: [templateId], references: [id])
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks         OnboardingTask[]
 
   @@map("onboarding_plans")
 }
 
-model OnboardingTaskAssignment {
-  id          String         @id @default(cuid())
-  planId      String
-  taskId      String
-  status      TaskStatus     @default(PENDING)
-  completedAt DateTime?
-  notes       String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  plan        OnboardingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  task        OnboardingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@unique([planId, taskId])
-  @@map("onboarding_task_assignments")
-}
 
 model OrgPosition {
   id          String        @id @default(cuid())
@@ -480,6 +484,8 @@ model Project {
   workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   wikiPage    WikiPage?       @relation(fields: [wikiPageId], references: [id], onDelete: SetNull)
   tasks       Task[]
+  savedViews  SavedView[]
+  columnPreferences ColumnPreference[]
 
   @@map("projects")
 }
@@ -504,6 +510,7 @@ model Task {
   createdById String
   subtasks    Subtask[]
   comments    TaskComment[]
+  attachments TaskAttachment[]
   assignee    User?             @relation("TaskAssignee", fields: [assigneeId], references: [id])
   createdBy   User              @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
   project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -535,6 +542,7 @@ model TaskComment {
   taskId    String
   userId    String
   content   String
+  mentions  String[] // Array of user IDs mentioned in the comment
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -639,11 +647,10 @@ enum OnboardingStatus {
   CANCELLED
 }
 
-enum TaskStatus {
+enum OnboardingTaskStatus {
   PENDING
   IN_PROGRESS
-  COMPLETED
-  SKIPPED
+  DONE
 }
 
 enum WorkflowStatus {
@@ -695,6 +702,49 @@ enum ProjectStatus {
   CANCELLED
 }
 
+model TaskTemplate {
+  id          String            @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  category    TaskTemplateCategory
+  isPublic    Boolean           @default(false)
+  metadata    Json?             // Estimated duration, team size, complexity
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  createdById String
+  tasks       TaskTemplateItem[]
+  createdBy   User              @relation("TaskTemplateCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("task_templates")
+}
+
+model TaskTemplateItem {
+  id               String            @id @default(cuid())
+  templateId       String
+  title            String
+  description      String?
+  status           ProjectTaskStatus @default(TODO)
+  priority         Priority          @default(MEDIUM)
+  estimatedDuration Int?             // In hours
+  assigneeRole     String?           // Role-based assignment
+  tags             String[]
+  dependencies     String[]          // Array of template item IDs this item depends on
+  order            Int               @default(0)
+  template         TaskTemplate      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@map("task_template_items")
+}
+
+enum TaskTemplateCategory {
+  SOFTWARE_DEVELOPMENT
+  MARKETING_CAMPAIGN
+  EVENT_PLANNING
+  PRODUCT_LAUNCH
+  GENERAL
+}
+
 enum ProjectTaskStatus {
   TODO
   IN_PROGRESS
@@ -715,4 +765,77 @@ enum ProjectRole {
   ADMIN
   MEMBER
   VIEWER
+}
+
+enum PlanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum TemplateVisibility {
+  PRIVATE
+  ORG
+}
+
+// Enhanced models for project management features
+model TaskAttachment {
+  id        String   @id @default(cuid())
+  taskId    String
+  url       String
+  filename  String
+  mimeType  String
+  size      Int
+  uploadedBy String
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploader  User     @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@map("task_attachments")
+}
+
+model SavedView {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  name      String
+  queryJson Json     // Serialized filter query
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId, name])
+  @@map("saved_views")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String   // 'mention', 'assignment', 'due_date', etc.
+  payloadJson Json   // Flexible payload for different notification types
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model ColumnPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String
+  columnName String  // 'TODO', 'IN_PROGRESS', etc.
+  isCollapsed Boolean @default(false)
+  wipLimit  Int?
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId, columnName])
+  @@map("column_preferences")
 }

@@ -45,12 +45,14 @@ interface DraggableTaskCardProps {
   task: Task
   onEdit?: (task: Task) => void
   onManageDependencies?: (taskId: string) => void
+  compact?: boolean
 }
 
 export function DraggableTaskCard({ 
   task,
   onEdit,
-  onManageDependencies
+  onManageDependencies,
+  compact = false
 }: DraggableTaskCardProps) {
   const {
     attributes,
@@ -99,10 +101,10 @@ export function DraggableTaskCard({
           isDragging 
             ? 'shadow-lg border border-blue-300' 
             : 'hover:scale-[1.02] hover:border-gray-200'
-        }`}
+        } ${compact ? 'text-xs' : ''}`}
       >
-        <CardContent className="p-3">
-          <div className="space-y-2">
+        <CardContent className={compact ? "p-2" : "p-4"}>
+          <div className={`space-y-${compact ? '1' : '3'}`}>
             {/* Title - Clickable Link */}
             <Link 
               href={`/projects/${task.project.id}/tasks/${task.id}`}
@@ -118,44 +120,51 @@ export function DraggableTaskCard({
                 e.stopPropagation()
               }}
             >
-              <h3 className="font-medium text-sm leading-tight text-gray-900 cursor-pointer">{task.title}</h3>
+              <h3 className={`font-medium leading-tight text-gray-900 cursor-pointer ${
+                compact ? 'text-xs' : 'text-base'
+              }`}>{task.title}</h3>
             </Link>
 
             {/* Description - Minimal */}
-            {task.description && (
+            {task.description && !compact && (
               <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{task.description}</p>
             )}
 
             {/* Essential Info - Horizontal Layout */}
-            <div className="flex items-center justify-between text-xs text-gray-400">
-              <div className="flex items-center space-x-3">
+            <div className={`flex items-center justify-between text-xs text-gray-400 ${
+              compact ? 'space-x-1' : 'space-x-3'
+            }`}>
+              <div className={`flex items-center ${compact ? 'space-x-1' : 'space-x-3'}`}>
                 {/* Priority - Enhanced Dot */}
-                <div className={`w-3 h-3 rounded-full shadow-sm ${
+                <div className={`${compact ? 'w-2 h-2' : 'w-3 h-3'} rounded-full shadow-sm ${
                   task.priority === 'URGENT' ? 'bg-red-500 ring-2 ring-red-200' :
                   task.priority === 'HIGH' ? 'bg-orange-500 ring-2 ring-orange-200' :
                   task.priority === 'MEDIUM' ? 'bg-yellow-500 ring-2 ring-yellow-200' : 'bg-green-500 ring-2 ring-green-200'
                 }`} />
                 
                 {/* Assignee - Enhanced */}
-                {task.assignee && task.assignee.name && (
+                {task.assignee && task.assignee.name && !compact && (
                   <span className="text-gray-600 font-medium">{task.assignee.name}</span>
                 )}
               </div>
 
               {/* Due Date - Enhanced */}
               {task.dueDate && (
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                <span className={`text-xs font-medium ${compact ? 'px-1 py-0.5' : 'px-2 py-1'} rounded-full ${
                   new Date(task.dueDate) < new Date() 
                     ? 'text-red-600 bg-red-50 border border-red-200' 
                     : 'text-gray-500 bg-gray-50 border border-gray-200'
                 }`}>
-                  {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {compact 
+                    ? new Date(task.dueDate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })
+                    : new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  }
                 </span>
               )}
             </div>
 
             {/* Dependencies - Enhanced */}
-            {task.dependsOn && task.dependsOn.length > 0 && (
+            {task.dependsOn && task.dependsOn.length > 0 && !compact && (
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-blue-500 rounded-full ring-1 ring-blue-200" />
                 <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full border border-blue-200">

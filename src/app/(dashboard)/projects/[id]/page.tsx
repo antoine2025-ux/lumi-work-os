@@ -41,6 +41,7 @@ import { ConnectionStatus } from "@/components/realtime/connection-status"
 import { useTheme } from "@/components/theme-provider"
 import { Celebration } from "@/components/ui/celebration"
 import { TaskSearchFilter } from "@/components/search/task-search-filter"
+import { ProjectHeader } from "@/components/projects/project-header"
 
 interface Project {
   id: string
@@ -141,6 +142,7 @@ export default function ProjectDetailPage() {
     surface: themeConfig.card,
     text: themeConfig.foreground,
     textSecondary: themeConfig.mutedForeground,
+    textMuted: themeConfig.mutedForeground,
     border: themeConfig.border,
     borderLight: themeConfig.muted
   }
@@ -212,6 +214,76 @@ export default function ProjectDetailPage() {
 
   const handleProjectUpdate = (updatedProject: any) => {
     setProject(updatedProject)
+  }
+
+  // More menu handlers
+  const handleExportCSV = () => {
+    if (!project) return
+    
+    // Create CSV content
+    const csvContent = [
+      ['Task Title', 'Status', 'Priority', 'Assignee', 'Due Date'],
+      ...(project.tasks || []).map(task => [
+        task.title,
+        task.status,
+        task.priority || '',
+        task.assignee?.name || '',
+        task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ''
+      ])
+    ].map(row => row.map(field => `"${field}"`).join(',')).join('\n')
+    
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${project.name}-tasks.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }
+
+  const handleDuplicateProject = () => {
+    if (!project) return
+    // TODO: Implement project duplication
+    console.log('Duplicate project:', project.name)
+    alert('Project duplication feature coming soon!')
+  }
+
+  const handleShareProject = () => {
+    if (!project) return
+    // TODO: Implement project sharing
+    console.log('Share project:', project.name)
+    alert('Project sharing feature coming soon!')
+  }
+
+  const handleDeleteProject = async () => {
+    if (!project) return
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${project.name}"? This action cannot be undone and will delete all tasks, comments, and project data.`
+    )
+    
+    if (confirmed) {
+      try {
+        const response = await fetch(`/api/projects/${projectId}`, {
+          method: 'DELETE',
+        })
+
+        if (response.ok) {
+          // Successfully deleted, redirect to projects page
+          router.push('/projects')
+        } else {
+          const errorData = await response.json()
+          console.error('Failed to delete project:', errorData)
+          alert(`Failed to delete project: ${errorData.error || 'Unknown error'}`)
+        }
+      } catch (error) {
+        console.error('Error deleting project:', error)
+        alert('Failed to delete project. Please try again.')
+      }
+    }
   }
 
   const handleFilterChange = (filteredTasks: any[]) => {
@@ -336,8 +408,27 @@ export default function ProjectDetailPage() {
         isVisible={showCelebration} 
         onComplete={() => setShowCelebration(false)}
       />
-      {/* Professional Header Layout */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      
+      {/* Conditional Header Layout */}
+      {true ? (
+        <ProjectHeader
+          project={project}
+          tasks={project?.tasks || []}
+          colors={colors}
+          onTaskDrawerOpen={() => {/* TODO: Implement */}}
+          onKanbanOptionsOpen={() => setIsSearchExpanded(!isSearchExpanded)}
+          onNotificationsOpen={() => {/* TODO: Implement */}}
+          onMoreMenuOpen={() => {/* TODO: Implement */}}
+          onCommandPaletteOpen={() => {/* TODO: Implement */}}
+          onProjectSettings={() => setIsEditDialogOpen(true)}
+          onExportCSV={() => handleExportCSV()}
+          onDuplicateProject={() => handleDuplicateProject()}
+          onShareProject={() => handleShareProject()}
+          onDeleteProject={() => handleDeleteProject()}
+        />
+      ) : (
+        /* Original Professional Header Layout */
+        <div className="max-w-[1600px] mx-auto px-6 py-8">
         <div className="flex items-start justify-between">
           {/* Left Side - Project Title & Description */}
           <div className="flex-1 pr-8">
@@ -355,7 +446,7 @@ export default function ProjectDetailPage() {
           
           {/* Right Side - Project Details */}
           <div className="flex-shrink-0">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-6 w-96">
               {/* Team */}
               <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
                 <CardContent className="p-4">
@@ -428,8 +519,16 @@ export default function ProjectDetailPage() {
                         <span className="text-sm font-medium" style={{ color: colors.text }}>{getTaskStatusCount('IN_PROGRESS')}</span>
                       </div>
                       <div className="flex items-center justify-between">
+                        <span className="text-xs" style={{ color: colors.textSecondary }}>In Review</span>
+                        <span className="text-sm font-medium" style={{ color: colors.text }}>{getTaskStatusCount('IN_REVIEW')}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
                         <span className="text-xs" style={{ color: colors.textSecondary }}>Done</span>
                         <span className="text-sm font-medium" style={{ color: colors.text }}>{getTaskStatusCount('DONE')}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs" style={{ color: colors.textSecondary }}>Blocked</span>
+                        <span className="text-sm font-medium" style={{ color: colors.text }}>{getTaskStatusCount('BLOCKED')}</span>
                       </div>
                     </div>
                   </div>
@@ -438,10 +537,11 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Main Content - Option B Layout */}
-      <div className="max-w-7xl mx-auto px-6 pb-8">
+      <div className="max-w-[1600px] mx-auto px-6 pb-8">
         {/* Primary Focus: Kanban Board (70% width) */}
         <div className="mb-6">
           <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
@@ -451,47 +551,52 @@ export default function ProjectDetailPage() {
                   Tasks
                 </CardTitle>
                 <div className="flex items-center space-x-2">
-                  <div className="flex items-center space-x-1 rounded-lg p-1" style={{ backgroundColor: colors.borderLight }}>
-                    <Button
-                      variant={taskViewMode === 'kanban' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setTaskViewMode('kanban')}
-                      className="h-7 px-3 text-xs"
-                      style={{ backgroundColor: taskViewMode === 'kanban' ? colors.primary : 'transparent' }}
-                    >
-                      Board
-                    </Button>
-                    <Button
-                      variant={taskViewMode === 'live' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setTaskViewMode('live')}
-                      className="h-7 px-3 text-xs"
-                      style={{ backgroundColor: taskViewMode === 'live' ? colors.primary : 'transparent' }}
-                    >
-                      Live
-                    </Button>
-                  </div>
+                  {/* View Mode Buttons - Only visible when Kanban button is clicked */}
+                  {isSearchExpanded && (
+                    <div className="flex items-center space-x-1 rounded-lg p-1" style={{ backgroundColor: colors.borderLight }}>
+                      <Button
+                        variant={taskViewMode === 'kanban' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setTaskViewMode('kanban')}
+                        className="h-7 px-3 text-xs"
+                        style={{ backgroundColor: taskViewMode === 'kanban' ? colors.primary : 'transparent' }}
+                      >
+                        Board
+                      </Button>
+                      <Button
+                        variant={taskViewMode === 'live' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setTaskViewMode('live')}
+                        className="h-7 px-3 text-xs"
+                        style={{ backgroundColor: taskViewMode === 'live' ? colors.primary : 'transparent' }}
+                      >
+                        Live
+                      </Button>
+                    </div>
+                  )}
+                  {/* Minimalistic Fullscreen Button - Always visible */}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setIsTaskListFullscreen(true)}
-                    className="h-8 px-3 text-xs"
+                    className="h-8 w-8 p-0"
                     style={{ borderColor: colors.border }}
                   >
-                    <Maximize2 className="h-3 w-3 mr-1" />
-                    Fullscreen
+                    <Maximize2 className="h-3 w-3" />
                   </Button>
-                  {/* Collapsible Search Button */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-                    className="h-8 px-3 text-xs"
-                    style={{ borderColor: colors.border }}
-                  >
-                    <Search className="h-3 w-3 mr-1" />
-                    Search
-                  </Button>
+                  {/* Collapsible Search Button - Only visible when Kanban button is clicked */}
+                  {isSearchExpanded && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+                      className="h-8 px-3 text-xs"
+                      style={{ borderColor: colors.border }}
+                    >
+                      <Search className="h-3 w-3 mr-1" />
+                      Search
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>

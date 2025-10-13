@@ -7,7 +7,27 @@ import { AlertCircle, Wifi, WifiOff, Loader2, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 
 export function ConnectionStatus() {
-  const { isConnected, isConnecting, isRetrying, error, connect, checkConnectionHealth } = useSocket()
+  // Check if we're in a socket context before using the hook
+  let isConnected, isConnecting, isRetrying, error, connect, checkConnectionHealth
+  
+  try {
+    const socketHook = useSocket()
+    isConnected = socketHook.isConnected
+    isConnecting = socketHook.isConnecting
+    isRetrying = socketHook.isRetrying
+    error = socketHook.error
+    connect = socketHook.connect
+    checkConnectionHealth = socketHook.checkConnectionHealth
+  } catch (error) {
+    // If socket context is not available, use default state
+    isConnected = false
+    isConnecting = false
+    isRetrying = false
+    error = 'Socket context not available'
+    connect = async () => {}
+    checkConnectionHealth = async () => false
+  }
+  
   const [isManualRetry, setIsManualRetry] = useState(false)
   const [isHealthy, setIsHealthy] = useState(true)
 

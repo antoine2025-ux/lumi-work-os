@@ -1,28 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 const prisma = new PrismaClient()
 
 // GET /api/projects - Get all projects for a workspace
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const { searchParams } = new URL(request.url)
     const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
     const status = searchParams.get('status')
 
-    // Ensure user and workspace exist for development
-    const createdById = 'dev-user-1'
-    
+    // Get authenticated user
     let user = await prisma.user.findUnique({
-      where: { id: createdById }
+      where: { email: session.user.email! }
     })
     
     if (!user) {
       user = await prisma.user.create({
         data: {
-          id: createdById,
-          email: 'dev@lumi.com',
-          name: 'Development User'
+          email: session.user.email!,
+          name: session.user.name || 'Unknown User'
         }
       })
     }
@@ -38,7 +41,7 @@ export async function GET(request: NextRequest) {
           name: 'Development Workspace',
           slug: 'dev-workspace',
           description: 'Development workspace',
-          ownerId: createdById
+          ownerId: user.id
         }
       })
     }
@@ -107,12 +110,10 @@ export async function GET(request: NextRequest) {
 // POST /api/projects - Create a new project
 export async function POST(request: NextRequest) {
   try {
-    // For development, bypass session check
-    // TODO: Implement proper authentication
-    // const session = await getServerSession(authOptions)
-    // if (!session?.user?.email) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    // }
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const body = await request.json()
     const { 
@@ -138,20 +139,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Use hardcoded user ID for development
-    const createdById = 'dev-user-1'
-
-    // Ensure user and workspace exist for development
+    // Get authenticated user
     let user = await prisma.user.findUnique({
-      where: { id: createdById }
+      where: { email: session.user.email! }
     })
     
     if (!user) {
       user = await prisma.user.create({
         data: {
-          id: createdById,
-          email: 'dev@lumi.com',
-          name: 'Development User'
+          email: session.user.email!,
+          name: session.user.name || 'Unknown User'
         }
       })
     }
@@ -167,7 +164,7 @@ export async function POST(request: NextRequest) {
           name: 'Development Workspace',
           slug: 'dev-workspace',
           description: 'Development workspace',
-          ownerId: createdById
+          ownerId: user.id
         }
       })
     }
@@ -185,9 +182,9 @@ export async function POST(request: NextRequest) {
         color,
         department,
         team,
-        ownerId: ownerId || createdById, // Use provided owner or default to creator
+        ownerId: ownerId || user.id, // Use provided owner or default to creator
         wikiPageId: wikiPageId || null, // Handle empty string as null
-        createdById
+        createdById: user.id
       },
       include: {
         createdBy: {
@@ -220,7 +217,7 @@ export async function POST(request: NextRequest) {
     await prisma.projectMember.create({
       data: {
         projectId: project.id,
-        userId: createdById,
+        userId: user.id,
         role: 'OWNER'
       }
     })

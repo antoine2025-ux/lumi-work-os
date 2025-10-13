@@ -47,7 +47,7 @@ interface Project {
 }
 
 export default function HomePage() {
-  const { currentWorkspace, userRole, canCreateProjects, canViewAnalytics } = useWorkspace()
+  const { currentWorkspace, userRole, canCreateProjects, canViewAnalytics, isLoading: workspaceLoading } = useWorkspace()
   const { themeConfig } = useTheme()
   const [recentPages, setRecentPages] = useState<RecentPage[]>([])
   const [recentProjects, setRecentProjects] = useState<Project[]>([])
@@ -57,15 +57,25 @@ export default function HomePage() {
   // Load recent pages from API
   useEffect(() => {
     const loadRecentPages = async () => {
+      if (!currentWorkspace) return // Wait for workspace to load
+      
       try {
-        const response = await fetch('/api/wiki/pages?workspaceId=workspace-1')
+        const response = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace.id}`)
         if (response.ok) {
-          const data = await response.json()
-          // Sort by updatedAt and take the 4 most recent
-          const sortedPages = data
-            .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-            .slice(0, 4)
-          setRecentPages(sortedPages)
+          const result = await response.json()
+          // Handle paginated response - data is in result.data
+          const data = result.data || result
+          // Ensure data is an array before sorting
+          if (Array.isArray(data)) {
+            // Sort by updatedAt and take the 4 most recent
+            const sortedPages = data
+              .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+              .slice(0, 4)
+            setRecentPages(sortedPages)
+          } else {
+            console.warn('Expected array but got:', typeof data, data)
+            setRecentPages([])
+          }
         } else if (response.status === 401) {
           // User not authenticated, show empty state
           console.log('User not authenticated, showing empty state')
@@ -83,30 +93,43 @@ export default function HomePage() {
     }
 
     loadRecentPages()
-  }, [])
+  }, [currentWorkspace]) // Depend on currentWorkspace instead of empty array
 
   // Load recent projects from API
   useEffect(() => {
     const loadRecentProjects = async () => {
+      if (!currentWorkspace) return // Wait for workspace to load
+      
       try {
-        const response = await fetch('/api/projects?workspaceId=workspace-1')
+        const response = await fetch(`/api/projects?workspaceId=${currentWorkspace.id}`)
         if (response.ok) {
-          const data = await response.json()
-          // Sort by updatedAt and take the 6 most recent
-          const sortedProjects = data
-            .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-            .slice(0, 6)
-          setRecentProjects(sortedProjects)
+          const result = await response.json()
+          // Handle both paginated and direct array responses
+          const data = result.data || result
+          // Ensure data is an array before sorting
+          if (Array.isArray(data)) {
+            // Sort by updatedAt and take the 6 most recent
+            const sortedProjects = data
+              .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+              .slice(0, 6)
+            setRecentProjects(sortedProjects)
+          } else {
+            console.warn('Expected array but got:', typeof data, data)
+            setRecentProjects([])
+          }
+        } else {
+          setRecentProjects([])
         }
       } catch (error) {
         console.error('Error loading recent projects:', error)
+        setRecentProjects([])
       } finally {
         setIsLoadingProjects(false)
       }
     }
 
     loadRecentProjects()
-  }, [])
+  }, [currentWorkspace]) // Depend on currentWorkspace instead of empty array
 
   // Quick actions with proper redirects
   const quickActions = [
@@ -139,6 +162,18 @@ export default function HomePage() {
       case 'product': return Star
       default: return BookOpen
     }
+  }
+
+  // Show loading state if workspace is still loading
+  if (workspaceLoading) {
+    return (
+      <div className="p-8">
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold mb-2" style={{color:'#0f172a'}}>Loading workspace...</h2>
+          <p style={{color:'#475569'}}>Please wait while we load your workspace.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -233,7 +268,7 @@ export default function HomePage() {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {isLoadingProjects ? (
+          {isLoadingProjects || workspaceLoading ? (
             [...Array(6)].map((_, index) => (
               <Card key={index}>
                 <CardContent className="p-4">
@@ -327,7 +362,7 @@ export default function HomePage() {
           </Link>
         </div>
         <div className="space-y-2">
-          {isLoadingRecentPages ? (
+          {isLoadingRecentPages || workspaceLoading ? (
             <div className="space-y-2">
               {[...Array(4)].map((_, index) => (
                 <Card key={index}>

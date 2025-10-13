@@ -54,6 +54,8 @@ interface DroppableColumnProps {
   onEditTask?: (task: Task) => void
   onManageDependencies?: (taskId: string) => void
   onAddTask?: (status: string) => void
+  viewDensity?: 'compact' | 'comfortable' | 'spacious'
+  screenSize?: 'desktop' | 'tablet' | 'mobile'
 }
 
 export function DroppableColumn({ 
@@ -61,7 +63,9 @@ export function DroppableColumn({
   tasks, 
   onEditTask,
   onManageDependencies,
-  onAddTask 
+  onAddTask,
+  viewDensity = 'comfortable',
+  screenSize = 'desktop'
 }: DroppableColumnProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: column.id,
@@ -70,6 +74,40 @@ export function DroppableColumn({
       type: 'column'
     }
   })
+
+  // Determine if we should use multi-column layout
+  const shouldUseMultiColumn = () => {
+    // Disable multi-column layout for now to prevent overlapping
+    return false
+    
+    // Original logic (commented out):
+    // if (screenSize === 'mobile') return false
+    // if (tasks.length < 5) return false
+    // if (viewDensity === 'compact') return true
+    // if (viewDensity === 'comfortable' && tasks.length > 8) return true
+    // if (viewDensity === 'spacious' && tasks.length > 12) return true
+    // return false
+  }
+
+  // Get column width based on view density and screen size
+  const getColumnWidth = () => {
+    // Remove fixed width constraints since we're using CSS Grid auto-fit
+    return 'w-full'
+  }
+
+  // Split tasks into rows for multi-column layout
+  const getTaskRows = () => {
+    if (!shouldUseMultiColumn()) {
+      return [tasks] // Single column
+    }
+    
+    const tasksPerRow = viewDensity === 'compact' ? 2 : 2
+    const rows = []
+    for (let i = 0; i < tasks.length; i += tasksPerRow) {
+      rows.push(tasks.slice(i, i + tasksPerRow))
+    }
+    return rows
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -169,7 +207,7 @@ export function DroppableColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-[400px] drag-transition-slow ${
+      className={`min-h-[600px] drag-transition-slow ${getColumnWidth()} ${
         isOver 
           ? 'bg-gradient-to-b from-blue-50 to-blue-100 border-2 border-blue-400 border-dashed rounded-xl shadow-lg drop-zone-glow' 
           : getColumnBackgroundStyle(column.status)
@@ -209,43 +247,64 @@ export function DroppableColumn({
           </div>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="space-y-2">
-            {tasks.length === 0 ? (
-              <div className={`text-center py-8 transition-all duration-300 ${
-                isOver 
-                  ? 'text-blue-600 bg-blue-50/50 rounded-lg border-2 border-dashed border-blue-300' 
-                  : 'text-gray-400'
+          {tasks.length === 0 ? (
+            <div className={`text-center py-8 transition-all duration-300 ${
+              isOver 
+                ? 'text-blue-600 bg-blue-50/50 rounded-lg border-2 border-dashed border-blue-300' 
+                : 'text-gray-400'
+            }`}>
+              <div className={`mb-3 transition-colors duration-300 ${
+                isOver ? 'text-blue-700 font-medium' : ''
               }`}>
-                <div className={`mb-3 transition-colors duration-300 ${
-                  isOver ? 'text-blue-700 font-medium' : ''
-                }`}>
-                  {isOver ? 'Drop task here' : 'No tasks'}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onAddTask?.(column.status)}
-                  className={`text-xs h-7 px-3 transition-all duration-300 ${
-                    isOver 
-                      ? 'border-blue-400 text-blue-600 hover:bg-blue-100' 
-                      : 'border-gray-200 hover:border-gray-300'
+                {isOver ? 'Drop task here' : 'No tasks'}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onAddTask?.(column.status)}
+                className={`text-xs h-7 px-3 transition-all duration-300 ${
+                  isOver 
+                    ? 'border-blue-400 text-blue-600 hover:bg-blue-100' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                Add Task
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {getTaskRows().map((row, rowIndex) => (
+                <div 
+                  key={rowIndex} 
+                  className={`${
+                    shouldUseMultiColumn() 
+                      ? 'grid grid-cols-2 gap-2' 
+                      : 'space-y-3'
                   }`}
                 >
-                  Add Task
-                </Button>
-              </div>
-            ) : (
-              tasks.map((task, index) => (
-                <div key={task.id} className="task-slide-in" style={{ animationDelay: `${index * 0.1}s` }}>
-                  <DraggableTaskCard
-                    task={task}
-                    onEdit={onEditTask}
-                    onManageDependencies={onManageDependencies}
-                  />
+                  {row.map((task, taskIndex) => (
+                    <div 
+                      key={task.id} 
+                      className="task-slide-in" 
+                      style={{ 
+                        animationDelay: `${(rowIndex * 2 + taskIndex) * 0.1}s`,
+                        ...(shouldUseMultiColumn() && viewDensity === 'compact' ? {
+                          transform: 'scale(0.95)'
+                        } : {})
+                      }}
+                    >
+                      <DraggableTaskCard
+                        task={task}
+                        onEdit={onEditTask}
+                        onManageDependencies={onManageDependencies}
+                        compact={shouldUseMultiColumn() && viewDensity === 'compact'}
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

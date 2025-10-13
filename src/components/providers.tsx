@@ -21,7 +21,7 @@ function SocketWrapper({ children }: { children: React.ReactNode }) {
     <SocketProvider
       userId={session.user.id || 'anonymous'}
       userName={session.user.name || 'Anonymous User'}
-      workspaceId="workspace-1" // TODO: Get from session or context
+      workspaceId="cmgl0f0wa00038otlodbw5jhn" // TODO: Get from session or context
     >
       {children}
     </SocketProvider>

@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { logger } from '@/lib/logger'
+import { parsePaginationParams, createPaginationResult, getSkipValue, getOrderByClause } from '@/lib/pagination'
+import { cache } from '@/lib/cache'
 
 // GET /api/wiki/pages - List all wiki pages for a workspace
 export async function GET(request: NextRequest) {
+  let workspaceId = 'workspace-1' // Default value
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
@@ -12,96 +16,126 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    const pagination = parsePaginationParams(searchParams)
     
-    const pages = await prisma.wikiPage.findMany({
-      where: {
-        workspaceId,
-        isPublished: true
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        parent: {
-          select: {
-            id: true,
-            title: true,
-            slug: true
-          }
-        },
-        children: {
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            order: true
-          },
-          orderBy: {
-            order: 'asc'
-          }
-        },
-        _count: {
-          select: {
-            comments: true,
-            versions: true
-          }
+    // Check cache first
+    const cacheKey = cache.generateKey('wiki_pages', { workspaceId, ...pagination })
+    const cached = cache.get(cacheKey)
+    
+    if (cached) {
+      logger.debug('Returning cached wiki pages', { workspaceId, ...pagination })
+      return NextResponse.json(cached)
+    }
+    
+    const skip = getSkipValue(pagination.page!, pagination.limit!)
+    const orderBy = getOrderByClause(pagination.sortBy, pagination.sortOrder)
+    
+    // Get total count and pages in parallel
+    const [total, pages] = await Promise.all([
+      prisma.wikiPage.count({
+        where: {
+          workspaceId,
+          isPublished: true
         }
-      },
-      orderBy: {
-        order: 'asc'
-      }
-    })
+      }),
+      prisma.wikiPage.findMany({
+        where: {
+          workspaceId,
+          isPublished: true
+        },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          parent: {
+            select: {
+              id: true,
+              title: true,
+              slug: true
+            }
+          },
+          children: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              order: true
+            },
+            orderBy: {
+              order: 'asc'
+            }
+          },
+          _count: {
+            select: {
+              comments: true,
+              versions: true
+            }
+          }
+        },
+        orderBy: orderBy || { order: 'asc' },
+        skip,
+        take: pagination.limit
+      })
+    ])
 
-    return NextResponse.json(pages)
+    const result = createPaginationResult(pages, total, pagination.page!, pagination.limit!)
+    
+    // Cache the result for 5 minutes
+    cache.set(cacheKey, result, 300)
+    
+    logger.info('Wiki pages fetched', { workspaceId, total, page: pagination.page, limit: pagination.limit })
+    return NextResponse.json(result)
   } catch (error) {
-    console.error('Error fetching wiki pages:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    logger.error('Error fetching wiki pages', { workspaceId }, error instanceof Error ? error : undefined)
+    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
   }
 }
 
 // POST /api/wiki/pages - Create a new wiki page
 export async function POST(request: NextRequest) {
+  let workspaceId = 'workspace-1'
+  let title = 'Unknown'
   try {
-    console.log('🔍 API Route called - checking session...')
-    // Temporarily bypass auth for development
-    // const session = await getServerSession(authOptions)
-    // console.log('📋 Session data:', session ? 'Found session' : 'No session')
+    logger.info('Creating new wiki page')
+    const session = await getServerSession(authOptions)
     
-    // if (!session?.user?.email) {
-    //   console.log('❌ Unauthorized - no session or email')
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    // }
+    if (!session?.user?.email) {
+      logger.logAuth('unauthorized', { operation: 'create_wiki_page' })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    // console.log('✅ User authenticated:', session.user.email)
+    logger.info('User authenticated for wiki page creation', { userEmail: session.user.email })
     const body = await request.json()
     console.log('📝 Request body:', { workspaceId: body.workspaceId, title: body.title, contentLength: body.content?.length })
     
-    const { workspaceId, title, content, parentId, tags = [], category = 'general' } = body
+    const { workspaceId: bodyWorkspaceId, title: bodyTitle, content, parentId, tags = [], category = 'general' } = body
+    workspaceId = bodyWorkspaceId
+    title = bodyTitle
 
     if (!workspaceId || !title || !content) {
       console.log('❌ Missing required fields')
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Get user ID - temporarily use dev user for development
+    // Get user ID from session
     let user = await prisma.user.findUnique({
-      where: { email: 'dev@example.com' }
+      where: { email: session.user.email! }
     })
 
     if (!user) {
-      // Create dev user if it doesn't exist
+      // Create user if it doesn't exist (shouldn't happen with Prisma adapter)
       user = await prisma.user.create({
         data: {
-          email: 'dev@example.com',
-          name: 'Dev User'
+          email: session.user.email!,
+          name: session.user.name || 'Unknown User'
         }
       })
-      console.log('👤 Created dev user:', user.email)
+      console.log('👤 Created user:', user.email)
     } else {
       console.log('👤 User found:', user.email)
     }
@@ -173,10 +207,14 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    console.log('📚 Version created successfully')
+    logger.info('Wiki page created successfully', { pageId: page.id, title, workspaceId })
+    
+    // Invalidate cache for this workspace
+    cache.delete(`wiki_pages:workspaceId:${workspaceId}`)
+    
     return NextResponse.json(page, { status: 201 })
   } catch (error) {
-    console.error('💥 Error creating wiki page:', error)
-    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 })
+    logger.error('Error creating wiki page', { workspaceId, title }, error instanceof Error ? error : undefined)
+    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
   }
 }
