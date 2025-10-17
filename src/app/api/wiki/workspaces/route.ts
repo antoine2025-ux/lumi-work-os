@@ -15,6 +15,28 @@ export async function GET(request: NextRequest) {
 
     // If no workspaces exist, create default ones
     if (workspaces.length === 0) {
+      // Get the first available user or create a default one
+      let userId = 'dev-user-1'
+      try {
+        const existingUser = await prisma.user.findFirst()
+        if (existingUser) {
+          userId = existingUser.id
+        } else {
+          // Create a default user if none exists
+          const newUser = await prisma.user.create({
+            data: {
+              name: 'Default User',
+              email: 'dev@lumi.com'
+            }
+          })
+          userId = newUser.id
+        }
+      } catch (error) {
+        console.error('Error getting/creating user:', error)
+        // If we can't get a user, skip creating workspaces
+        return NextResponse.json([])
+      }
+
       const defaultWorkspaces = [
         {
           id: 'personal-space',
@@ -25,7 +47,7 @@ export async function GET(request: NextRequest) {
           icon: 'file-text',
           description: 'Your personal knowledge space',
           is_private: true,
-          created_by_id: 'dev-user-1'
+          created_by_id: userId
         },
         {
           id: 'team-workspace',
@@ -36,7 +58,7 @@ export async function GET(request: NextRequest) {
           icon: 'layers',
           description: 'Collaborative workspace for your team',
           is_private: false,
-          created_by_id: 'dev-user-1'
+          created_by_id: userId
         }
       ]
 
