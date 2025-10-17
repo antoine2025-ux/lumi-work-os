@@ -7,16 +7,9 @@ export async function GET(request: NextRequest) {
     const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
 
     // Get wiki workspaces for the current workspace
-    const workspaces = await prisma.wikiWorkspace.findMany({
+    const workspaces = await prisma.wiki_workspaces.findMany({
       where: {
-        workspaceId: workspaceId
-      },
-      include: {
-        _count: {
-          select: {
-            pages: true
-          }
-        }
+        workspace_id: workspaceId
       }
     })
 
@@ -25,45 +18,38 @@ export async function GET(request: NextRequest) {
       const defaultWorkspaces = [
         {
           id: 'personal-space',
-          workspaceId: workspaceId,
+          workspace_id: workspaceId,
           name: 'Personal Space',
           type: 'personal',
           color: '#10b981',
           icon: 'file-text',
           description: 'Your personal knowledge space',
-          isPrivate: true,
-          createdById: 'dev-user-1'
+          is_private: true,
+          created_by_id: 'dev-user-1'
         },
         {
           id: 'team-workspace',
-          workspaceId: workspaceId,
+          workspace_id: workspaceId,
           name: 'Team Workspace',
           type: 'team',
           color: '#3b82f6',
           icon: 'layers',
           description: 'Collaborative workspace for your team',
-          isPrivate: false,
-          createdById: 'dev-user-1'
+          is_private: false,
+          created_by_id: 'dev-user-1'
         }
       ]
 
       for (const workspace of defaultWorkspaces) {
-        await prisma.wikiWorkspace.create({
+        await prisma.wiki_workspaces.create({
           data: workspace
         })
       }
 
       // Return the created workspaces
-      const createdWorkspaces = await prisma.wikiWorkspace.findMany({
+      const createdWorkspaces = await prisma.wiki_workspaces.findMany({
         where: {
-          workspaceId: workspaceId
-        },
-        include: {
-          _count: {
-            select: {
-              pages: true
-            }
-          }
+          workspace_id: workspaceId
         }
       })
 
