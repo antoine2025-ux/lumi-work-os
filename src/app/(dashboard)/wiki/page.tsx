@@ -33,6 +33,12 @@ export default function WikiPage() {
   const [wikiPages, setWikiPages] = useState<any[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
+  // Helper function to strip HTML tags
+  const stripHtml = (html: string) => {
+    if (!html) return ''
+    return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+  }
+
   // Load pages from API
   useEffect(() => {
     const loadPages = async () => {
@@ -70,12 +76,6 @@ export default function WikiPage() {
 
     loadPages()
   }, [])
-
-  // Helper function to strip HTML tags
-  const stripHtml = (html: string) => {
-    if (!html) return ''
-    return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
-  }
 
   const handleNewPage = () => {
     router.push('/wiki/new')

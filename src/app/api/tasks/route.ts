@@ -21,19 +21,15 @@ export async function GET(request: NextRequest) {
     // Ensure user and workspace exist for development
     const createdById = 'dev-user-1'
     
-    let user = await prisma.user.findUnique({
-      where: { id: createdById }
+    const user = await prisma.user.upsert({
+      where: { id: createdById },
+      update: {},
+      create: {
+        id: createdById,
+        email: 'dev@lumi.com',
+        name: 'Development User'
+      }
     })
-    
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          id: createdById,
-          email: 'dev@lumi.com',
-          name: 'Development User'
-        }
-      })
-    }
 
     let workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId }
@@ -167,19 +163,15 @@ export async function POST(request: NextRequest) {
     const createdById = 'dev-user-1'
 
     // Ensure user and workspace exist for development
-    let user = await prisma.user.findUnique({
-      where: { id: createdById }
+    const user = await prisma.user.upsert({
+      where: { id: createdById },
+      update: {},
+      create: {
+        id: createdById,
+        email: 'dev@lumi.com',
+        name: 'Development User'
+      }
     })
-    
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          id: createdById,
-          email: 'dev@lumi.com',
-          name: 'Development User'
-        }
-      })
-    }
 
     let workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId }
