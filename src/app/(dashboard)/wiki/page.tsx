@@ -33,10 +33,24 @@ export default function WikiPage() {
   const [wikiPages, setWikiPages] = useState<any[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
-  // Helper function to strip HTML tags
-  const stripHtml = (html: string) => {
-    if (!html) return ''
-    return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+  // Helper function to create a safe HTML excerpt
+  const createExcerpt = (content: string) => {
+    if (!content) return ''
+    
+    // First try to strip HTML and create a clean excerpt
+    const stripped = content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+    
+    // If the stripped content is too short or looks like raw HTML, try to extract meaningful text
+    if (stripped.length < 50 || stripped.includes('class=') || stripped.includes('style=')) {
+      // Try to extract text from common HTML patterns
+      const textMatch = content.match(/>([^<]+)</g)
+      if (textMatch) {
+        const textParts = textMatch.map(match => match.slice(1, -1).trim()).filter(part => part.length > 0)
+        return textParts.join(' ').substring(0, 150) + (textParts.join(' ').length > 150 ? '...' : '')
+      }
+    }
+    
+    return stripped.substring(0, 150) + (stripped.length > 150 ? '...' : '')
   }
 
   // Load pages from API
@@ -53,7 +67,7 @@ export default function WikiPage() {
               ...page,
               author: page.createdBy?.name || 'Unknown',
               lastModified: page.updatedAt,
-              excerpt: stripHtml(page.excerpt || page.content || ''),
+              excerpt: createExcerpt(page.excerpt || page.content || ''),
               status: page.isPublished ? 'published' : 'draft',
               views: 0,
               isStarred: false,
