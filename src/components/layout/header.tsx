@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/theme-provider"
 import { useWorkspace } from "@/lib/workspace-context"
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher"
+import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target } from "lucide-react"
 
 const navigationItems = [
@@ -206,6 +207,11 @@ export function Header() {
           </div>
         </div>
       </header>
+      
+      {/* Breadcrumbs */}
+      <div className="border-b bg-gray-50/50 px-6 py-2">
+        <Breadcrumbs />
+      </div>
     </>
   )
 }
