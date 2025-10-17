@@ -74,10 +74,7 @@ export function Breadcrumbs({ className, items }: BreadcrumbsProps) {
               <span>{item.label}</span>
             </Link>
           ) : (
-            <div className={cn(
-              "flex items-center space-x-1",
-              item.current ? "text-foreground font-medium" : "text-muted-foreground"
-            )}>
+            <div className="flex items-center space-x-1 text-muted-foreground">
               {item.icon && <item.icon className="h-4 w-4" />}
               <span>{item.label}</span>
             </div>
