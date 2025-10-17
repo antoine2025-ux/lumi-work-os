@@ -23,8 +23,10 @@ export async function GET(request: NextRequest) {
           userId = existingUser.id
         } else {
           // Create a default user if none exists
-          const newUser = await prisma.user.create({
-            data: {
+          const newUser = await prisma.user.upsert({
+            where: { email: 'dev@lumi.com' },
+            update: {},
+            create: {
               name: 'Default User',
               email: 'dev@lumi.com'
             }
