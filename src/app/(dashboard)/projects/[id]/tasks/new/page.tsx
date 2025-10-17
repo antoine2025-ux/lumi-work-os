@@ -60,23 +60,6 @@ export default function NewTaskPage() {
   const params = useParams()
   const projectId = params?.id as string
   
-  if (!projectId) {
-    return (
-      <div className="p-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600">Error</h1>
-          <p className="text-muted-foreground mb-4">Invalid project ID</p>
-          <Button asChild>
-            <Link href="/projects">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Projects
-            </Link>
-          </Button>
-        </div>
-      </div>
-    )
-  }
-  
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [users, setUsers] = useState<Array<{id: string, name: string, email: string}>>([])
@@ -110,6 +93,8 @@ export default function NewTaskPage() {
 
   // Load users and project data on component mount
   useEffect(() => {
+    if (!projectId) return
+    
     const loadData = async () => {
       try {
         // Load users from API
@@ -151,6 +136,23 @@ export default function NewTaskPage() {
 
     loadData()
   }, [projectId])
+
+  if (!projectId) {
+    return (
+      <div className="p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600">Error</h1>
+          <p className="text-muted-foreground mb-4">Invalid project ID</p>
+          <Button asChild>
+            <Link href="/projects">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Projects
+            </Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -598,7 +600,7 @@ export default function NewTaskPage() {
             ))}
             {formData.subtasks.length === 0 && (
               <p className="text-muted-foreground text-center py-8">
-                No subtasks added yet. Click "Add Subtask" to get started.
+                No subtasks added yet. Click &quot;Add Subtask&quot; to get started.
               </p>
             )}
           </CardContent>
