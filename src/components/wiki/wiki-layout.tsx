@@ -116,22 +116,9 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
         {/* Top Section */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            {!sidebarCollapsed && (
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">L</span>
-                </div>
-                <div className="text-gray-900 text-sm">
-                  <div className="font-semibold">Lumi Workspace</div>
-                  <div className="text-gray-500 text-xs">Knowledge Hub</div>
-                </div>
-              </div>
-            )}
-            {sidebarCollapsed && (
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto">
-                <span className="text-white text-sm font-bold">L</span>
-              </div>
-            )}
+            <div className="flex-1">
+              {/* Empty space where branding was */}
+            </div>
             <Button
               variant="ghost"
               size="sm"

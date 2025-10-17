@@ -3,7 +3,6 @@
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { Header } from "@/components/layout/header"
 
 export default function DashboardLayout({
   children,
@@ -33,7 +32,6 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
       <main className="min-h-screen">
         {children}
       </main>
