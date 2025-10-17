@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getAuthenticatedUser } from '@/lib/auth-utils'
 import { MigrationService } from '@/lib/migrations/migration-service'
 import { SliteAdapter } from '@/lib/migrations/adapters/slite-adapter'
 import { ClickUpAdapter } from '@/lib/migrations/adapters/clickup-adapter'
@@ -8,14 +7,12 @@ import { ClickUpAdapter } from '@/lib/migrations/adapters/clickup-adapter'
 // POST /api/migrations - Start a new migration
 export async function POST(request: NextRequest) {
   try {
-    // Temporarily bypass authentication for testing
     console.log('=== MIGRATION API CALLED ===')
     
-    // const session = await getServerSession(authOptions)
-    // if (!session?.user?.email) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    // }
-
+    // Get authenticated user with development fallback
+    const auth = await getAuthenticatedUser()
+    console.log('🔐 Authenticated user:', auth.user.email, auth.isDevelopment ? '(dev mode)' : '(production)')
+    
     const body = await request.json()
     const { platform, apiKey, workspaceId, additionalConfig } = body
 
@@ -25,20 +22,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get user from database - use a default user for now
-    const { prisma } = await import('@/lib/db')
-    let user = await prisma.user.findFirst()
-    
-    if (!user) {
-      // Create a default user if none exists
-      user = await prisma.user.create({
-        data: {
-          email: 'test@example.com',
-          name: 'Test User',
-          image: null
-        }
-      })
-    }
+    // Use authenticated user instead of creating default user
+    const userId = auth.user.id
 
     // Start migration based on platform
     let migrationItems = []
@@ -79,7 +64,7 @@ export async function POST(request: NextRequest) {
           name: 'Default Workspace',
           slug: 'default-workspace',
           description: 'Default workspace for migrations',
-          ownerId: user.id
+          ownerId: userId
         }
       })
     }

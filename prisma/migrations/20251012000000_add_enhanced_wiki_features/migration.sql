@@ -87,7 +87,7 @@ SELECT
   'personal',
   '#10b981',
   'file-text',
-  w.owner_id
+  w."ownerId"
 FROM workspaces w
 WHERE NOT EXISTS (
   SELECT 1 FROM wiki_workspaces ww WHERE ww.workspace_id = w.id AND ww.type = 'personal'
@@ -101,7 +101,7 @@ SELECT
   'team',
   '#3b82f6',
   'layers',
-  w.owner_id
+  w."ownerId"
 FROM workspaces w
 WHERE NOT EXISTS (
   SELECT 1 FROM wiki_workspaces ww WHERE ww.workspace_id = w.id AND ww.type = 'team'

@@ -38,7 +38,7 @@ CREATE INDEX IF NOT EXISTS "idx_activities_actor_entity" ON "activities"("actorI
 CREATE INDEX IF NOT EXISTS "idx_activities_created" ON "activities"("createdAt" DESC);
 
 -- Index for onboarding plans by employee and status
-CREATE INDEX IF NOT EXISTS "idx_onboarding_plans_employee_status" ON "onboarding_plans"("employeeId", "status");
+CREATE INDEX IF NOT EXISTS "idx_onboarding_plans_employee_status" ON "onboarding_plans"("userId", "status");
 
 -- Index for task templates by workspace and category
 CREATE INDEX IF NOT EXISTS "idx_task_templates_workspace_category" ON "task_templates"("workspaceId", "category");
