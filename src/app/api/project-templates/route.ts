@@ -7,7 +7,7 @@ const prisma = new PrismaClient()
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     const category = searchParams.get('category')
 
     // Ensure workspace exists for development
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { 
-      workspaceId = 'workspace-1',
+      workspaceId = 'cmgl0f0wa00038otlodbw5jhn',
       name, 
       description,
       category,

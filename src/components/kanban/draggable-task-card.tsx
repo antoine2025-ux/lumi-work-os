@@ -26,6 +26,30 @@ interface Task {
   blocks: string[]
   createdAt: string
   updatedAt: string
+  epicId?: string
+  epic?: {
+    id: string
+    title: string
+    color?: string
+  }
+  milestoneId?: string
+  milestone?: {
+    id: string
+    title: string
+    startDate?: string
+    endDate?: string
+  }
+  points?: number
+  customFields?: {
+    id: string
+    fieldId: string
+    value: any
+    field: {
+      id: string
+      label: string
+      type: string
+    }
+  }[]
   createdBy: {
     id: string
     name: string
@@ -162,6 +186,56 @@ export function DraggableTaskCard({
                 </span>
               )}
             </div>
+
+            {/* Epic, Milestone, and Points Info */}
+            <div className={`flex items-center justify-between text-xs ${
+              compact ? 'space-x-1' : 'space-x-2'
+            }`}>
+              <div className={`flex items-center ${compact ? 'space-x-1' : 'space-x-2'}`}>
+                {/* Epic Tag */}
+                {task.epic && (
+                  <span 
+                    className={`${compact ? 'px-1 py-0.5 text-xs' : 'px-2 py-1 text-xs'} rounded-full text-white font-medium`}
+                    style={{ backgroundColor: task.epic.color || '#3B82F6' }}
+                  >
+                    {task.epic.title}
+                  </span>
+                )}
+
+                {/* Milestone */}
+                {task.milestone && !compact && (
+                  <span className="text-gray-500 bg-gray-100 px-2 py-1 rounded-full border border-gray-200">
+                    {task.milestone.title}
+                  </span>
+                )}
+              </div>
+
+            {/* Points */}
+            {task.points && (
+              <span className="text-gray-600 bg-blue-50 px-2 py-1 rounded-full border border-blue-200 font-medium">
+                {task.points} pts
+              </span>
+            )}
+          </div>
+
+          {/* Custom Fields - Condensed Display */}
+          {task.customFields && task.customFields.length > 0 && !compact && (
+            <div className="flex flex-wrap gap-1">
+              {task.customFields.slice(0, 2).map((cf) => (
+                <span 
+                  key={cf.id}
+                  className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full border border-gray-200"
+                >
+                  {cf.field.label}: {cf.value}
+                </span>
+              ))}
+              {task.customFields.length > 2 && (
+                <span className="text-xs text-gray-400 px-2 py-1">
+                  +{task.customFields.length - 2} more
+                </span>
+              )}
+            </div>
+          )}
 
             {/* Dependencies - Enhanced */}
             {task.dependsOn && task.dependsOn.length > 0 && !compact && (

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   ArrowLeft, 
   Target, 
@@ -25,7 +26,8 @@ import {
   ExternalLink,
   Maximize2,
   Search,
-  X
+  X,
+  BarChart3
 } from "lucide-react"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
@@ -42,6 +44,10 @@ import { useTheme } from "@/components/theme-provider"
 import { Celebration } from "@/components/ui/celebration"
 import { TaskSearchFilter } from "@/components/search/task-search-filter"
 import { ProjectHeader } from "@/components/projects/project-header"
+import { ViewSwitcher, ViewMode } from "@/components/tasks/view-switcher"
+import CalendarView from "@/components/tasks/calendar-view"
+import { ProjectDailySummaries } from "@/components/projects/project-daily-summaries"
+import { ProjectReports } from "@/components/projects/project-reports"
 
 interface Project {
   id: string
@@ -103,6 +109,7 @@ interface Project {
     content?: string
     updatedAt: string
   }
+  dailySummaryEnabled?: boolean
 }
 
 export default function ProjectDetailPage() {
@@ -121,11 +128,14 @@ export default function ProjectDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isTaskListFullscreen, setIsTaskListFullscreen] = useState(false)
   const [taskViewMode, setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
+  const [currentView, setCurrentView] = useState<ViewMode>('board')
   const [showCelebration, setShowCelebration] = useState(false)
   const [wasCompleted, setWasCompleted] = useState(false)
   const [filteredTasks, setFilteredTasks] = useState<any[]>([])
   const [isFiltered, setIsFiltered] = useState(false)
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
+  const [dailySummaryEnabled, setDailySummaryEnabled] = useState(false)
+  const [currentSection, setCurrentSection] = useState<'tasks' | 'reports' | 'documentation'>('tasks')
 
   // Use theme-based colors
   const colors = {
@@ -214,6 +224,14 @@ export default function ProjectDetailPage() {
 
   const handleProjectUpdate = (updatedProject: any) => {
     setProject(updatedProject)
+    setDailySummaryEnabled(updatedProject.dailySummaryEnabled || false)
+  }
+
+  const handleToggleDailySummary = (enabled: boolean) => {
+    setDailySummaryEnabled(enabled)
+    if (project) {
+      setProject({ ...project, dailySummaryEnabled: enabled })
+    }
   }
 
   // More menu handlers
@@ -304,6 +322,9 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     checkProjectCompletion()
+    if (project) {
+      setDailySummaryEnabled(project.dailySummaryEnabled || false)
+    }
   }, [project])
 
   const getStatusColor = (status: string) => {
@@ -435,12 +456,12 @@ export default function ProjectDetailPage() {
             <div className="flex items-center space-x-3 mb-3">
               <div 
                 className="w-3 h-3 rounded-full" 
-                style={{ backgroundColor: project.color || colors.primary }}
+                style={{ backgroundColor: project?.color || colors.primary }}
               />
-              <h1 className="text-3xl font-semibold" style={{ color: colors.text }}>{project.name}</h1>
+              <h1 className="text-3xl font-semibold" style={{ color: colors.text }}>{project?.name}</h1>
             </div>
             <p className="text-base leading-relaxed" style={{ color: colors.textSecondary }}>
-              {project.description || 'No description available'}
+              {project?.description || 'No description available'}
             </p>
           </div>
           
@@ -453,7 +474,7 @@ export default function ProjectDetailPage() {
                   <div className="text-center">
                     <h3 className="text-sm font-medium mb-3" style={{ color: colors.text }}>Team</h3>
                     <div className="space-y-2">
-                      {project.members.slice(0, 3).map((member) => (
+                      {project?.members.slice(0, 3).map((member) => (
                         <div key={member.id} className="flex items-center space-x-2">
                           <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.borderLight }}>
                             <User className="h-3 w-3" style={{ color: colors.textSecondary }} />
@@ -464,7 +485,7 @@ export default function ProjectDetailPage() {
                           </div>
                         </div>
                       ))}
-                      {project.members.length > 3 && (
+                      {project && project.members && project.members.length > 3 && (
                         <p className="text-xs" style={{ color: colors.textSecondary }}>
                           +{project.members.length - 3} more
                         </p>
@@ -483,22 +504,22 @@ export default function ProjectDetailPage() {
                       <div 
                         className="h-2 rounded-full" 
                         style={{ 
-                          backgroundColor: project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
+                          backgroundColor: project && project._count && project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
                             ? colors.success 
                             : colors.primary, 
-                          width: `${project._count.tasks > 0 ? (getTaskStatusCount('DONE') / project._count.tasks) * 100 : 0}%` 
+                          width: `${project && project._count && project._count.tasks > 0 ? (getTaskStatusCount('DONE') / project._count.tasks) * 100 : 0}%` 
                         }}
                       ></div>
                     </div>
                     <p className="text-xs" style={{ color: colors.textSecondary }}>
-                      {getTaskStatusCount('DONE')} of {project._count.tasks}
+                      {getTaskStatusCount('DONE')} of {project?._count.tasks || 0}
                     </p>
                     <p className="text-xs font-medium mt-1" style={{ 
-                      color: project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
+                      color: project && project._count && project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
                         ? colors.success 
                         : colors.primary 
                     }}>
-                      {project._count.tasks > 0 ? Math.round((getTaskStatusCount('DONE') / project._count.tasks) * 100) : 0}%
+                      {project && project._count && project._count.tasks > 0 ? Math.round((getTaskStatusCount('DONE') / project._count.tasks) * 100) : 0}%
                     </p>
                   </div>
                 </CardContent>
@@ -540,52 +561,49 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Main Content - Option B Layout */}
+      {/* Main Content - Tabbed Layout */}
       <div className="max-w-[1600px] mx-auto px-6 pb-8">
-        {/* Primary Focus: Kanban Board (70% width) */}
-        <div className="mb-6">
-          <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-medium" style={{ color: colors.text }}>
-                  Tasks
-                </CardTitle>
-                <div className="flex items-center space-x-2">
-                  {/* View Mode Buttons - Only visible when Kanban button is clicked */}
-                  {isSearchExpanded && (
-                    <div className="flex items-center space-x-1 rounded-lg p-1" style={{ backgroundColor: colors.borderLight }}>
-                      <Button
-                        variant={taskViewMode === 'kanban' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setTaskViewMode('kanban')}
-                        className="h-7 px-3 text-xs"
-                        style={{ backgroundColor: taskViewMode === 'kanban' ? colors.primary : 'transparent' }}
-                      >
-                        Board
-                      </Button>
-                      <Button
-                        variant={taskViewMode === 'live' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setTaskViewMode('live')}
-                        className="h-7 px-3 text-xs"
-                        style={{ backgroundColor: taskViewMode === 'live' ? colors.primary : 'transparent' }}
-                      >
-                        Live
-                      </Button>
-                    </div>
-                  )}
-                  {/* Minimalistic Fullscreen Button - Always visible */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsTaskListFullscreen(true)}
-                    className="h-8 w-8 p-0"
-                    style={{ borderColor: colors.border }}
-                  >
-                    <Maximize2 className="h-3 w-3" />
-                  </Button>
-                  {/* Collapsible Search Button - Only visible when Kanban button is clicked */}
-                  {isSearchExpanded && (
+        <Tabs value={currentSection} onValueChange={(value) => setCurrentSection(value as any)} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="tasks" className="flex items-center space-x-2">
+              <Target className="h-4 w-4" />
+              <span>Tasks</span>
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="flex items-center space-x-2">
+              <BarChart3 className="h-4 w-4" />
+              <span>Reports</span>
+            </TabsTrigger>
+            <TabsTrigger value="documentation" className="flex items-center space-x-2">
+              <FileText className="h-4 w-4" />
+              <span>Documentation</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tasks" className="space-y-6">
+            {/* Tasks Section */}
+            <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-medium" style={{ color: colors.text }}>
+                    Tasks
+                  </CardTitle>
+                  <div className="flex items-center space-x-2">
+                    {/* View Switcher */}
+                    <ViewSwitcher 
+                      currentView={currentView} 
+                      onViewChange={setCurrentView} 
+                    />
+                    {/* Minimalistic Fullscreen Button - Always visible */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsTaskListFullscreen(true)}
+                      className="h-8 w-8 p-0"
+                      style={{ borderColor: colors.border }}
+                    >
+                      <Maximize2 className="h-3 w-3" />
+                    </Button>
+                    {/* Collapsible Search Button */}
                     <Button
                       variant="outline"
                       size="sm"
@@ -596,50 +614,95 @@ export default function ProjectDetailPage() {
                       <Search className="h-3 w-3 mr-1" />
                       Search
                     </Button>
-                  )}
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {/* Collapsible Search Bar */}
-              {isSearchExpanded && (
-                <div className="p-4 border-b" style={{ borderColor: colors.border }}>
-                  <TaskSearchFilter
-                    tasks={project?.tasks || []}
-                    onFilterChange={handleFilterChange}
-                    onFilterReset={handleFilterReset}
+              </CardHeader>
+              <CardContent className="p-0">
+                {/* Collapsible Search Bar */}
+                {isSearchExpanded && (
+                  <div className="p-4 border-b" style={{ borderColor: colors.border }}>
+                    <TaskSearchFilter
+                      tasks={project?.tasks || []}
+                      onFilterChange={handleFilterChange}
+                      onFilterReset={handleFilterReset}
+                    />
+                  </div>
+                )}
+                
+                {/* Render appropriate view based on currentView */}
+                {currentView === 'board' && (
+                  <KanbanBoard 
+                    projectId={projectId} 
+                    workspaceId="workspace-1"
+                    onTasksUpdated={loadProject}
+                    filteredTasks={isFiltered ? filteredTasks : undefined}
                   />
-                </div>
-              )}
-              
-              {taskViewMode === 'kanban' ? (
-                <KanbanBoard 
-                  projectId={projectId} 
-                  workspaceId="workspace-1"
-                  onTasksUpdated={loadProject}
-                  filteredTasks={isFiltered ? filteredTasks : undefined}
-                />
-              ) : (
-                <LiveTaskList 
-                  projectId={projectId}
-                  className="min-h-[400px]"
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                )}
+                
+                {currentView === 'list' && (
+                  <TaskList 
+                    projectId={projectId} 
+                    workspaceId="workspace-1"
+                    isFullscreen={false}
+                    onToggleFullscreen={() => setIsTaskListFullscreen(true)}
+                  />
+                )}
+                
+                {currentView === 'calendar' && (
+                  <CalendarView 
+                    projectId={projectId} 
+                    workspaceId="workspace-1"
+                  />
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Documentation Section - Full Width */}
-        <div className="mb-6">
-          <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-medium" style={{ color: colors.text }}>
-                  Documentation
-                </CardTitle>
-                <div className="flex items-center space-x-2">
-                  {project.wikiPage ? (
-                    <>
+            {/* Daily Summaries Section */}
+            <ProjectDailySummaries
+              projectId={projectId}
+              projectName={project?.name || ''}
+              dailySummaryEnabled={dailySummaryEnabled}
+              onToggleDailySummary={handleToggleDailySummary}
+            />
+          </TabsContent>
+
+          <TabsContent value="reports" className="space-y-6">
+            <ProjectReports projectId={projectId} />
+          </TabsContent>
+
+          <TabsContent value="documentation" className="space-y-6">
+            {/* Documentation Section */}
+            <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-medium" style={{ color: colors.text }}>
+                    Documentation
+                  </CardTitle>
+                  <div className="flex items-center space-x-2">
+                    {project?.wikiPage ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsWikiDialogOpen(true)}
+                          className="h-8 px-3 text-xs"
+                          style={{ borderColor: colors.border }}
+                        >
+                          <LinkIcon className="h-3 w-3 mr-1" />
+                          Change Page
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsFullscreen(true)}
+                          className="h-8 px-3 text-xs"
+                          style={{ borderColor: colors.border }}
+                        >
+                          <Maximize2 className="h-3 w-3 mr-1" />
+                          Fullscreen
+                        </Button>
+                      </>
+                    ) : (
                       <Button
                         variant="outline"
                         size="sm"
@@ -648,84 +711,63 @@ export default function ProjectDetailPage() {
                         style={{ borderColor: colors.border }}
                       >
                         <LinkIcon className="h-3 w-3 mr-1" />
-                        Change Page
+                        Add Documentation
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsFullscreen(true)}
-                        className="h-8 px-3 text-xs"
-                        style={{ borderColor: colors.border }}
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                {project?.wikiPage ? (
+                  <div className="prose prose-lg max-w-none">
+                    <div style={{ color: colors.text }}>
+                      <ReactMarkdown 
+                        components={{
+                          // Custom components to handle HTML tags properly
+                          p: ({ children }) => <p className="mb-4 leading-relaxed text-base" style={{ color: colors.text }}>{children}</p>,
+                          ul: ({ children }) => <ul className="mb-6 pl-6 space-y-2">{children}</ul>,
+                          ol: ({ children }) => <ol className="mb-6 pl-6 space-y-2">{children}</ol>,
+                          li: ({ children }) => <li className="leading-relaxed text-base" style={{ color: colors.text }}>{children}</li>,
+                          h1: ({ children }) => <h1 className="text-2xl font-bold mb-6 mt-8 border-b-2 pb-3" style={{ color: colors.text, borderColor: colors.border }}>{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-xl font-bold mb-4 mt-8" style={{ color: colors.text }}>{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-lg font-bold mb-3 mt-6" style={{ color: colors.textSecondary }}>{children}</h3>,
+                          strong: ({ children }) => <strong className="font-bold" style={{ color: colors.text }}>{children}</strong>,
+                          em: ({ children }) => <em className="italic" style={{ color: colors.textSecondary }}>{children}</em>,
+                          code: ({ children }) => <code className="px-2 py-1 rounded text-sm font-mono font-semibold" style={{ backgroundColor: colors.borderLight, color: colors.primary }}>{children}</code>,
+                          pre: ({ children }) => <pre className="border rounded-lg p-4 my-6 overflow-x-auto" style={{ backgroundColor: colors.borderLight, borderColor: colors.border }}>{children}</pre>,
+                          blockquote: ({ children }) => <blockquote className="border-l-4 pl-4 italic my-6" style={{ borderColor: colors.primary, color: colors.textSecondary }}>{children}</blockquote>,
+                          hr: () => <hr className="my-8" style={{ borderColor: colors.border }} />
+                        }}
                       >
-                        <Maximize2 className="h-3 w-3 mr-1" />
-                        Fullscreen
-                      </Button>
-                    </>
-                  ) : (
+                        {cleanContent(project.wikiPage.content || '')}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 border-2 border-dashed rounded-lg mx-auto flex items-center justify-center mb-4" style={{ borderColor: colors.border }}>
+                      <FileText className="h-8 w-8" style={{ color: colors.textSecondary }} />
+                    </div>
+                    <h3 className="text-lg font-medium mb-2" style={{ color: colors.text }}>No Documentation Yet</h3>
+                    <p className="text-sm mb-6" style={{ color: colors.textSecondary }}>
+                      Add a wiki page to provide project documentation, guidelines, and important information for your team.
+                    </p>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setIsWikiDialogOpen(true)}
-                      className="h-8 px-3 text-xs"
+                      className="h-8 px-4 text-sm"
                       style={{ borderColor: colors.border }}
                     >
-                      <LinkIcon className="h-3 w-3 mr-1" />
+                      <LinkIcon className="h-4 w-4 mr-2" />
                       Add Documentation
                     </Button>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              {project.wikiPage ? (
-                <div className="prose prose-lg max-w-none">
-                  <div style={{ color: colors.text }}>
-                    <ReactMarkdown 
-                      components={{
-                        // Custom components to handle HTML tags properly
-                        p: ({ children }) => <p className="mb-4 leading-relaxed text-base" style={{ color: colors.text }}>{children}</p>,
-                        ul: ({ children }) => <ul className="mb-6 pl-6 space-y-2">{children}</ul>,
-                        ol: ({ children }) => <ol className="mb-6 pl-6 space-y-2">{children}</ol>,
-                        li: ({ children }) => <li className="leading-relaxed text-base" style={{ color: colors.text }}>{children}</li>,
-                        h1: ({ children }) => <h1 className="text-2xl font-bold mb-6 mt-8 border-b-2 pb-3" style={{ color: colors.text, borderColor: colors.border }}>{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-xl font-bold mb-4 mt-8" style={{ color: colors.text }}>{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-lg font-bold mb-3 mt-6" style={{ color: colors.textSecondary }}>{children}</h3>,
-                        strong: ({ children }) => <strong className="font-bold" style={{ color: colors.text }}>{children}</strong>,
-                        em: ({ children }) => <em className="italic" style={{ color: colors.textSecondary }}>{children}</em>,
-                        code: ({ children }) => <code className="px-2 py-1 rounded text-sm font-mono font-semibold" style={{ backgroundColor: colors.borderLight, color: colors.primary }}>{children}</code>,
-                        pre: ({ children }) => <pre className="border rounded-lg p-4 my-6 overflow-x-auto" style={{ backgroundColor: colors.borderLight, borderColor: colors.border }}>{children}</pre>,
-                        blockquote: ({ children }) => <blockquote className="border-l-4 pl-4 italic my-6" style={{ borderColor: colors.primary, color: colors.textSecondary }}>{children}</blockquote>,
-                        hr: () => <hr className="my-8" style={{ borderColor: colors.border }} />
-                      }}
-                    >
-                      {cleanContent(project.wikiPage.content || '')}
-                    </ReactMarkdown>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 border-2 border-dashed rounded-lg mx-auto flex items-center justify-center mb-4" style={{ borderColor: colors.border }}>
-                    <FileText className="h-8 w-8" style={{ color: colors.textSecondary }} />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2" style={{ color: colors.text }}>No Documentation Yet</h3>
-                  <p className="text-sm mb-6" style={{ color: colors.textSecondary }}>
-                    Add a wiki page to provide project documentation, guidelines, and important information for your team.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsWikiDialogOpen(true)}
-                    className="h-8 px-4 text-sm"
-                    style={{ borderColor: colors.border }}
-                  >
-                    <LinkIcon className="h-4 w-4 mr-2" />
-                    Add Documentation
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Wiki Page Selection Dialog */}

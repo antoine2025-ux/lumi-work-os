@@ -118,7 +118,7 @@ export function Header() {
             >
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-semibold text-gray-900">Lumi</span>
+            <span className="text-xl font-semibold text-foreground">Lumi</span>
           </div>
           
           {/* Navigation Items - Centered */}
@@ -136,7 +136,7 @@ export function Header() {
                     "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out group relative overflow-hidden",
                     isActive
                       ? "text-primary-foreground border min-w-[120px]"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 min-w-[44px] hover:min-w-[120px]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted min-w-[44px] hover:min-w-[120px]"
                   )}
                   style={isActive ? {
                     backgroundColor: themeConfig.primary,
@@ -146,7 +146,7 @@ export function Header() {
                 >
                   <item.icon className={cn(
                     "h-4 w-4 transition-colors flex-shrink-0",
-                    isActive ? "text-primary-foreground" : "text-gray-500 group-hover:text-gray-700"
+                    isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
                   )} />
                   
                   {/* Page title with smooth animation */}
@@ -221,7 +221,7 @@ export function Header() {
       </header>
       
       {/* Breadcrumbs */}
-      <div className="border-b bg-gray-50/50 px-6 py-2">
+      <div className="border-b bg-muted/50 px-6 py-2">
         <Breadcrumbs />
       </div>
     </TooltipProvider>

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { ProjectCreateSchema } from '@/lib/pm/schemas'
+import { z } from 'zod'
 
 const prisma = new PrismaClient()
 
@@ -13,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     const status = searchParams.get('status')
 
     // Get authenticated user
@@ -116,6 +118,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    
+    // Validate request body with Zod
+    const validatedData = ProjectCreateSchema.parse(body)
     const { 
       workspaceId, 
       name, 
@@ -128,15 +133,27 @@ export async function POST(request: NextRequest) {
       department,
       team,
       ownerId,
-      watcherIds = [],
-      assigneeIds = [],
-      wikiPageId
-    } = body
+      wikiPageId,
+      dailySummaryEnabled = false
+    } = validatedData
 
-    if (!workspaceId || !name) {
+    // Extract watcher and assignee IDs from the request body
+    const { watcherIds = [], assigneeIds = [] } = body
+
+    // Additional validation for required fields not in schema
+    if (!workspaceId) {
       return NextResponse.json({ 
-        error: 'Missing required fields: workspaceId, name' 
+        error: 'Missing required field: workspaceId' 
       }, { status: 400 })
+    }
+
+    // Handle empty strings as null/undefined
+    const cleanData = {
+      ...validatedData,
+      department: department || undefined,
+      team: team || undefined,
+      ownerId: ownerId || undefined,
+      wikiPageId: wikiPageId || undefined
     }
 
     // Get authenticated user
@@ -158,11 +175,18 @@ export async function POST(request: NextRequest) {
     })
     
     if (!workspace) {
+      // Check if a workspace with the default slug already exists
+      const existingWorkspace = await prisma.workspace.findUnique({
+        where: { slug: 'dev-workspace' }
+      })
+      
+      const slug = existingWorkspace ? `dev-workspace-${Date.now()}` : 'dev-workspace'
+      
       workspace = await prisma.workspace.create({
         data: {
           id: workspaceId,
           name: 'Development Workspace',
-          slug: 'dev-workspace',
+          slug: slug,
           description: 'Development workspace',
           ownerId: user.id
         }
@@ -177,13 +201,14 @@ export async function POST(request: NextRequest) {
         description,
         status: status as any,
         priority: priority as any,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
+        startDate: cleanData.startDate ? new Date(cleanData.startDate) : null,
+        endDate: cleanData.endDate ? new Date(cleanData.endDate) : null,
         color,
-        department,
-        team,
-        ownerId: ownerId || user.id, // Use provided owner or default to creator
-        wikiPageId: wikiPageId || null, // Handle empty string as null
+        department: cleanData.department,
+        team: cleanData.team,
+        ownerId: cleanData.ownerId || user.id, // Use provided owner or default to creator
+        wikiPageId: cleanData.wikiPageId, // Handle empty string as null
+        dailySummaryEnabled,
         createdById: user.id
       },
       include: {
@@ -246,6 +271,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(project)
   } catch (error) {
     console.error('Error creating project:', error)
+    
+    // Handle Zod validation errors
+    if (error instanceof z.ZodError) {
+      console.error('Validation errors:', error.errors)
+      return NextResponse.json({
+        error: 'Validation error',
+        details: error.errors
+      }, { status: 400 })
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to create project',
       details: error.message 

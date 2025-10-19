@@ -56,6 +56,7 @@ interface DroppableColumnProps {
   onAddTask?: (status: string) => void
   viewDensity?: 'compact' | 'comfortable' | 'spacious'
   screenSize?: 'desktop' | 'tablet' | 'mobile'
+  epicId?: string
 }
 
 export function DroppableColumn({ 
@@ -65,7 +66,8 @@ export function DroppableColumn({
   onManageDependencies,
   onAddTask,
   viewDensity = 'comfortable',
-  screenSize = 'desktop'
+  screenSize = 'desktop',
+  epicId
 }: DroppableColumnProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: column.id,
@@ -129,17 +131,17 @@ export function DroppableColumn({
   const getColumnTitleStyle = (status: string) => {
     switch (status) {
       case 'TODO':
-        return 'text-gray-700 font-medium'
+        return 'text-gray-700 dark:text-gray-300 font-medium'
       case 'IN_PROGRESS':
-        return 'text-blue-700 font-medium'
+        return 'text-blue-700 dark:text-blue-300 font-medium'
       case 'IN_REVIEW':
-        return 'text-yellow-700 font-medium'
+        return 'text-yellow-700 dark:text-yellow-300 font-medium'
       case 'DONE':
-        return 'text-green-700 font-medium'
+        return 'text-green-700 dark:text-green-300 font-medium'
       case 'BLOCKED':
-        return 'text-red-700 font-medium'
+        return 'text-red-700 dark:text-red-300 font-medium'
       default:
-        return 'text-gray-600'
+        return 'text-gray-600 dark:text-gray-400'
     }
   }
 
@@ -147,26 +149,26 @@ export function DroppableColumn({
     switch (status) {
       case 'TODO':
         return count > 0 
-          ? 'text-gray-700 bg-gray-200 border border-gray-300' 
-          : 'text-gray-400 bg-gray-100'
+          ? 'text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600' 
+          : 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800'
       case 'IN_PROGRESS':
         return count > 0 
-          ? 'text-blue-700 bg-blue-200 border border-blue-300' 
-          : 'text-blue-400 bg-blue-50'
+          ? 'text-blue-700 dark:text-blue-300 bg-blue-200 dark:bg-blue-900 border border-blue-300 dark:border-blue-700' 
+          : 'text-blue-400 dark:text-blue-500 bg-blue-50 dark:bg-blue-900/50'
       case 'IN_REVIEW':
         return count > 0 
-          ? 'text-yellow-700 bg-yellow-200 border border-yellow-300' 
-          : 'text-yellow-400 bg-yellow-50'
+          ? 'text-yellow-700 dark:text-yellow-300 bg-yellow-200 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700' 
+          : 'text-yellow-400 dark:text-yellow-500 bg-yellow-50 dark:bg-yellow-900/50'
       case 'DONE':
         return count > 0 
-          ? 'text-green-700 bg-green-200 border border-green-300' 
-          : 'text-green-400 bg-green-50'
+          ? 'text-green-700 dark:text-green-300 bg-green-200 dark:bg-green-900 border border-green-300 dark:border-green-700' 
+          : 'text-green-400 dark:text-green-500 bg-green-50 dark:bg-green-900/50'
       case 'BLOCKED':
         return count > 0 
-          ? 'text-red-700 bg-red-200 border border-red-300' 
-          : 'text-red-400 bg-red-50'
+          ? 'text-red-700 dark:text-red-300 bg-red-200 dark:bg-red-900 border border-red-300 dark:border-red-700' 
+          : 'text-red-400 dark:text-red-500 bg-red-50 dark:bg-red-900/50'
       default:
-        return 'text-gray-400 bg-gray-100'
+        return 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800'
     }
   }
 
@@ -190,17 +192,17 @@ export function DroppableColumn({
   const getColumnCardStyle = (status: string) => {
     switch (status) {
       case 'TODO':
-        return 'hover:shadow-md hover:scale-[1.01] bg-white'
+        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800'
       case 'IN_PROGRESS':
-        return 'hover:shadow-md hover:scale-[1.01] bg-white border-l-4 border-l-blue-400'
+        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800 border-l-4 border-l-blue-400'
       case 'IN_REVIEW':
-        return 'hover:shadow-md hover:scale-[1.01] bg-white border-l-4 border-l-yellow-400'
+        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800 border-l-4 border-l-yellow-400'
       case 'DONE':
-        return 'hover:shadow-md hover:scale-[1.01] bg-white border-l-4 border-l-green-400'
+        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800 border-l-4 border-l-green-400'
       case 'BLOCKED':
-        return 'hover:shadow-md hover:scale-[1.01] bg-white border-l-4 border-l-red-400'
+        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800 border-l-4 border-l-red-400'
       default:
-        return 'hover:shadow-md hover:scale-[1.01] bg-white'
+        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800'
     }
   }
 
@@ -250,11 +252,11 @@ export function DroppableColumn({
           {tasks.length === 0 ? (
             <div className={`text-center py-8 transition-all duration-300 ${
               isOver 
-                ? 'text-blue-600 bg-blue-50/50 rounded-lg border-2 border-dashed border-blue-300' 
-                : 'text-gray-400'
+                ? 'text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg border-2 border-dashed border-blue-300 dark:border-blue-600' 
+                : 'text-gray-400 dark:text-gray-500'
             }`}>
               <div className={`mb-3 transition-colors duration-300 ${
-                isOver ? 'text-blue-700 font-medium' : ''
+                isOver ? 'text-blue-700 dark:text-blue-300 font-medium' : ''
               }`}>
                 {isOver ? 'Drop task here' : 'No tasks'}
               </div>

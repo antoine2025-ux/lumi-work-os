@@ -10,7 +10,6 @@ const hasGoogleCredentials = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_
   process.env.GOOGLE_CLIENT_SECRET !== "your-google-client-secret"
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
     // Add credentials provider for development
     CredentialsProvider({
@@ -49,15 +48,42 @@ export const authOptions: NextAuthOptions = {
     ] : [])
   ],
   callbacks: {
-    session: ({ session, token }) => {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "google") {
+        // For Google OAuth, create or find user in database
+        try {
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email! }
+          })
+          
+          if (!existingUser) {
+            await prisma.user.create({
+              data: {
+                email: user.email!,
+                name: user.name || "Google User",
+                image: user.image,
+              },
+            })
+          }
+          return true
+        } catch (error) {
+          console.error("Error creating user:", error)
+          return false
+        }
+      }
+      return true
+    },
+    async session({ session, token }) {
       if (session?.user && token?.sub) {
         session.user.id = token.sub
       }
       return session
     },
-    jwt: ({ token, user }) => {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id
+        token.email = user.email
+        token.name = user.name
       }
       return token
     },

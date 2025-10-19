@@ -2,6 +2,7 @@ const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
 const { Server: SocketIOServer } = require('socket.io')
+const cron = require('node-cron')
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = 'localhost'
@@ -10,6 +11,105 @@ const port = process.env.PORT || 3000
 // Create Next.js app
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
+
+// Global Socket.IO server instance
+let io = null
+
+// Daily summary cron job function
+async function generateDailySummaries() {
+  try {
+    console.log('Starting daily summary generation...')
+    
+    // Import Prisma client dynamically to avoid issues with Next.js
+    const { PrismaClient } = require('@prisma/client')
+    const prisma = new PrismaClient()
+    
+    // Get all projects with daily summary enabled
+    const projects = await prisma.project.findMany({
+      where: {
+        dailySummaryEnabled: true,
+        isArchived: false
+      },
+      select: {
+        id: true,
+        name: true
+      }
+    })
+    
+    console.log(`Found ${projects.length} projects with daily summaries enabled`)
+    
+    // Generate summaries for each project
+    for (const project of projects) {
+      try {
+        const today = new Date().toISOString().split('T')[0]
+        
+        // Check if summary already exists for today
+        const existingSummary = await prisma.projectDailySummary.findUnique({
+          where: {
+            projectId_date: {
+              projectId: project.id,
+              date: new Date(today)
+            }
+          }
+        })
+        
+        if (existingSummary) {
+          console.log(`Summary already exists for project ${project.name} on ${today}`)
+          continue
+        }
+        
+        // Import the daily summary service
+        const { generateDailySummary, saveDailySummary } = require('./src/lib/ai/daily-summary.ts')
+        
+        // Generate the summary
+        const summary = await generateDailySummary(project.id, today)
+        
+        // Save the summary
+        await saveDailySummary(project.id, today, summary)
+        
+        console.log(`Generated daily summary for project: ${project.name}`)
+        
+        // Emit Socket.IO event to project room
+        if (io) {
+          io.to(`project:${project.id}`).emit('projectSummaryCreated', {
+            projectId: project.id,
+            date: today,
+            summary: summary,
+            timestamp: new Date().toISOString()
+          })
+          
+          // Send notification to project members
+          io.to(`project:${project.id}`).emit('notification', {
+            type: 'daily_summary',
+            message: `Daily summary generated for ${project.name}`,
+            data: {
+              projectId: project.id,
+              projectName: project.name,
+              date: today
+            }
+          })
+        }
+        
+      } catch (error) {
+        console.error(`Error generating summary for project ${project.name}:`, error)
+      }
+    }
+    
+    await prisma.$disconnect()
+    console.log('Daily summary generation completed')
+    
+  } catch (error) {
+    console.error('Error in daily summary cron job:', error)
+  }
+}
+
+// Schedule daily summary generation at 8:00 AM local time
+cron.schedule('0 8 * * *', generateDailySummaries, {
+  scheduled: true,
+  timezone: "America/New_York" // Adjust timezone as needed
+})
+
+console.log('Daily summary cron job scheduled for 8:00 AM local time')
 
 app.prepare().then(() => {
   // Create HTTP server
@@ -25,7 +125,7 @@ app.prepare().then(() => {
   })
 
   // Create Socket.io server
-  const io = new SocketIOServer(httpServer, {
+  io = new SocketIOServer(httpServer, {
     cors: {
       origin: process.env.NODE_ENV === 'production' 
         ? process.env.NEXTAUTH_URL 

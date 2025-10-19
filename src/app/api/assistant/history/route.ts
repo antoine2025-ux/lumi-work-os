@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const sessions = await prisma.chatSession.findMany({
       where: {
         userId: 'dev-user-1', // Hardcoded for development
-        workspaceId: 'workspace-1'
+        workspaceId: 'cmgl0f0wa00038otlodbw5jhn'
       },
       orderBy: {
         updatedAt: 'desc'

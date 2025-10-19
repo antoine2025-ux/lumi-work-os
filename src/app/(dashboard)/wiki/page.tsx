@@ -63,10 +63,10 @@ export default function WikiPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading workspace...</p>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading workspace...</p>
         </div>
       </div>
     )
@@ -81,8 +81,8 @@ export default function WikiPage() {
               <Users className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Team Workspace</h1>
-              <p className="text-gray-600">Collaborative workspace for your team's knowledge and documentation</p>
+              <h1 className="text-2xl font-bold text-foreground">Team Workspace</h1>
+              <p className="text-muted-foreground">Collaborative workspace for your team's knowledge and documentation</p>
             </div>
           </div>
         </div>
@@ -100,7 +100,7 @@ export default function WikiPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-gray-700 mb-4">
+                <CardDescription className="text-muted-foreground mb-4">
                   This is your team's shared space for collaboration on documents, knowledge sharing, and project work. 
                   Perfect for documentation, meeting notes, and knowledge management.
                 </CardDescription>
@@ -151,7 +151,7 @@ export default function WikiPage() {
 
         {/* What you can do section */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">What you can do in Team Workspace:</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-6">What you can do in Team Workspace:</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[
               {
@@ -185,13 +185,13 @@ export default function WikiPage() {
                 description: "Use team-approved templates for consistency"
               }
             ].map((feature, index) => (
-              <div key={index} className="flex items-start gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+              <div key={index} className="flex items-start gap-3 p-4 bg-card rounded-lg border border-border hover:border-border transition-colors">
                 <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
                   {feature.icon}
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900 mb-1">{feature.title}</h3>
-                  <p className="text-sm text-gray-600">{feature.description}</p>
+                  <h3 className="font-medium text-foreground mb-1">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground">{feature.description}</p>
                 </div>
               </div>
             ))}

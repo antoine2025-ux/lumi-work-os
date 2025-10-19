@@ -13,6 +13,27 @@ export interface ServerToClientEvents {
   // Project events
   projectUpdated: (data: { projectId: string; updates: any; userId: string }) => void
   
+  // Epic events
+  epicCreated: (data: { epic: any; projectId: string; userId: string }) => void
+  epicUpdated: (data: { epic: any; projectId: string; userId: string }) => void
+  epicDeleted: (data: { epicId: string; projectId: string; userId: string }) => void
+  
+  // Milestone events
+  milestoneCreated: (data: { milestone: any; projectId: string; userId: string }) => void
+  milestoneUpdated: (data: { milestone: any; projectId: string; userId: string }) => void
+  milestoneDeleted: (data: { milestoneId: string; projectId: string; userId: string }) => void
+  
+  // Task assignment events
+  taskEpicAssigned: (data: { taskId: string; epicId: string | null; projectId: string; userId: string }) => void
+  taskMilestoneAssigned: (data: { taskId: string; milestoneId: string | null; projectId: string; userId: string }) => void
+  taskPointsUpdated: (data: { taskId: string; points: number | null; projectId: string; userId: string }) => void
+  
+  // Task comment events
+  taskCommentAdded: (data: { taskId: string; comment: any; userId: string }) => void
+  
+  // Project summary events
+  projectSummaryCreated: (data: { projectId: string; date: string; summary: string; timestamp: string }) => void
+  
   // Presence events
   userJoined: (data: { userId: string; userName: string; projectId?: string }) => void
   userLeft: (data: { userId: string; projectId?: string }) => void

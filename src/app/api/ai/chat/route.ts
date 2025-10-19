@@ -1,708 +1,510 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { prisma } from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { generateAIResponse, AISource } from '@/lib/ai/providers'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Function to analyze AI response and identify relevant sources
+async function identifyRelevantSources(aiResponse: string, availableSources: AISource[]): Promise<AISource[]> {
+  try {
+    const analysisPrompt = `Analyze this AI response and identify which sources from the available list were actually used or referenced. Only return sources that were genuinely utilized in the response.
+
+AI Response: ${aiResponse}
+
+Available Sources:
+${availableSources.map((source, index) => `${index + 1}. ${source.title} (${source.type})`).join('\n')}
+
+Return ONLY the numbers of sources that were actually used (e.g., "1,3,5" or "2,4"). If no sources were used, return "none".`
+
+    const analysisResponse = await generateAIResponse(
+      analysisPrompt,
+      'gpt-4o-mini', // Use fast model for analysis
+      {
+        temperature: 0.1, // Very low temperature for consistent analysis
+        maxTokens: 50
+      }
+    )
+
+    const usedIndices = analysisResponse.content.trim()
+    
+    if (usedIndices === 'none' || !usedIndices) {
+      return []
+    }
+
+    // Parse the indices and return corresponding sources
+    const indices = usedIndices.split(',').map(i => parseInt(i.trim()) - 1).filter(i => i >= 0 && i < availableSources.length)
+    return indices.map(i => availableSources[i]).filter(Boolean)
+    
+  } catch (error) {
+    console.error('Error analyzing AI response for sources:', error)
+    // Fallback: return empty array to be safe
+    return []
+  }
+}
+
+// Function to generate smart chat titles
+async function generateChatTitle(userMessage: string, aiResponse: string): Promise<string> {
+  try {
+    const titlePrompt = `Generate a concise, descriptive title (max 6 words) for a chat conversation based on this exchange:
+
+User: ${userMessage}
+AI: ${aiResponse.substring(0, 200)}...
+
+The title should:
+- Be descriptive and specific to the topic
+- Use title case (capitalize important words)
+- Be 2-6 words maximum
+- Focus on the main subject or question
+- Avoid generic words like "question", "help", "about"
+
+Examples of good titles:
+- "Lumi Product Overview"
+- "Project Management Features"
+- "Wiki Documentation Help"
+- "Team Onboarding Process"
+- "AI Model Comparison"
+
+Generate only the title, nothing else:`
+
+    const titleResponse = await generateAIResponse(
+      titlePrompt,
+      'gpt-4o-mini', // Use a fast, cheap model for title generation
+      {
+        temperature: 0.3, // Low temperature for consistent results
+        maxTokens: 20
+      }
+    )
+
+    // Clean up the response and ensure it's a proper title
+    let title = titleResponse.content.trim()
+    
+    // Remove quotes if present
+    title = title.replace(/^["']|["']$/g, '')
+    
+    // Ensure it's not too long
+    if (title.length > 50) {
+      title = title.substring(0, 47) + '...'
+    }
+    
+    // Fallback to a simple title if AI fails
+    if (!title || title.length < 3) {
+      const words = userMessage.split(' ').slice(0, 4)
+      title = words.join(' ').replace(/[^\w\s]/g, '')
+      if (title.length > 30) {
+        title = title.substring(0, 27) + '...'
+      }
+    }
+    
+    return title
+  } catch (error) {
+    console.error('Error generating chat title:', error)
+    // Fallback to simple title generation
+    const words = userMessage.split(' ').slice(0, 4)
+    let fallbackTitle = words.join(' ').replace(/[^\w\s]/g, '')
+    if (fallbackTitle.length > 30) {
+      fallbackTitle = fallbackTitle.substring(0, 27) + '...'
+    }
+    return fallbackTitle || 'New Chat'
+  }
+}
 
 // POST /api/ai/chat - Chat with AI assistant
 export async function POST(request: NextRequest) {
   try {
-    // For development, bypass session check
-    // TODO: Implement proper authentication
-    // const session = await getServerSession(authOptions)
-    // if (!session?.user?.email) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    // }
-
-    const { message, context, workspaceId, sessionId, isSystemMessage, wikiPageData } = await request.json()
+    const { message, sessionId, model = 'gpt-4-turbo', context } = await request.json()
 
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
-    console.log('📨 Received request:')
-    console.log('  - Message:', message)
-    console.log('  - Session ID:', sessionId)
-    console.log('  - Workspace ID:', workspaceId)
-    console.log('  - Context:', context)
-    console.log('  - Is System Message:', isSystemMessage)
-    console.log('  - Wiki Page Data:', wikiPageData)
-
-    // Handle system messages (like wiki page creation success)
-    if (isSystemMessage && wikiPageData && sessionId) {
-      try {
-        // Save the system message with wiki page data
-        await prisma.chatMessage.create({
-          data: {
-            sessionId,
-            type: 'AI',
-            content: `Perfect! I've created your wiki page "${wikiPageData.title}". You can view and edit it using the link below.`,
-            metadata: {
-              wikiPage: wikiPageData
-            }
-          }
-        })
-
-        // Update session timestamp
-        await prisma.chatSession.update({
-          where: { id: sessionId },
-          data: { updatedAt: new Date() }
-        })
-
-        console.log('✅ System message with wiki page data saved successfully')
-        
-        return NextResponse.json({
-          content: `Perfect! I've created your wiki page "${wikiPageData.title}". You can view and edit it using the link below.`,
-          wikiPage: wikiPageData
-        })
-      } catch (error) {
-        console.error('💥 Error saving system message:', error)
-        return NextResponse.json({ error: 'Failed to save system message' }, { status: 500 })
-      }
+    if (!sessionId) {
+      return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
     }
 
-    // Get existing wiki pages for context
+    console.log('📨 Received chat request:')
+    console.log('  - Message:', message)
+    console.log('  - Session ID:', sessionId)
+    console.log('  - Model:', model)
+
+    // Get chat session
+    const chatSession = await prisma.chatSession.findUnique({
+      where: { id: sessionId }
+    })
+
+    if (!chatSession) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    }
+
+    // Get conversation history
+    const chatMessages = await prisma.chatMessage.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: 'asc' },
+      take: 20 // Limit to last 20 messages for context
+    })
+
+        // Get comprehensive context from all Lumi data sources
+        const workspaceId = 'cmgl0f0wa00038otlodbw5jhn' // Development Workspace
+
+    // 1. Wiki Pages (Knowledge Base)
     const wikiPages = await prisma.wikiPage.findMany({
       where: {
-        workspaceId: workspaceId || 'workspace-1',
+        workspaceId,
         isPublished: true
       },
       select: {
+        id: true,
         title: true,
         content: true,
         excerpt: true,
         slug: true,
-        tags: true
+        tags: true,
+        category: true,
+        view_count: true,
+        updatedAt: true
       },
-      take: 10 // Limit for context
+      take: 15,
+      orderBy: { updatedAt: 'desc' }
     })
 
-    // Get chat session and messages for conversation context
-    let chatSession = null
-    let chatMessages: any[] = []
-    
-    if (sessionId) {
-      try {
-        chatSession = await prisma.chatSession.findUnique({
-          where: { id: sessionId }
-        })
-        
-        if (chatSession) {
-          chatMessages = await prisma.chatMessage.findMany({
-            where: { sessionId },
-            orderBy: { createdAt: 'asc' }
-          })
+    // 2. Projects & Tasks
+    const projects = await prisma.project.findMany({
+      where: { workspaceId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        status: true,
+        priority: true,
+        startDate: true,
+        endDate: true,
+        department: true,
+        team: true,
+        createdAt: true,
+        tasks: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            status: true,
+            priority: true,
+            dueDate: true,
+            assignee: {
+              select: { name: true, email: true }
+            }
+          },
+          take: 5
         }
-      } catch (error) {
-        console.error('Error fetching chat session:', error)
-        // Continue without conversation context
-      }
-    }
+      },
+      take: 10,
+      orderBy: { updatedAt: 'desc' }
+    })
 
-    // Create context from existing wiki pages
+    // 3. Organization Structure
+    const orgPositions = await prisma.orgPosition.findMany({
+      where: { 
+        workspaceId,
+        isActive: true 
+      },
+      select: {
+        id: true,
+        title: true,
+        department: true,
+        level: true,
+        user: {
+          select: { name: true, email: true }
+        },
+        parent: {
+          select: { title: true, department: true }
+        }
+      },
+      take: 20
+    })
+
+    // 4. Recent Activities
+    const recentActivities = await prisma.activity.findMany({
+      where: { actorId: chatSession.userId },
+      select: {
+        entity: true,
+        action: true,
+        meta: true,
+        createdAt: true
+      },
+      take: 10,
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // 5. Onboarding Plans
+    const onboardingPlans = await prisma.onboardingPlan.findMany({
+      where: { workspaceId },
+      select: {
+        title: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        users: {
+          select: { name: true, email: true }
+        }
+      },
+      take: 5,
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // 6. Workspace Members
+    const workspaceMembers = await prisma.workspaceMember.findMany({
+      where: { workspaceId },
+      select: {
+        role: true,
+        user: {
+          select: { name: true, email: true }
+        }
+      },
+      take: 10
+    })
+
+    // Build comprehensive context including static documentation
     const wikiContext = wikiPages.map(page => 
-      `Title: ${page.title}\nContent: ${page.excerpt || page.content.substring(0, 500)}...\n`
+      `📚 WIKI: ${page.title} (${page.category})\nContent: ${page.excerpt || page.content.substring(0, 300)}...\nTags: ${page.tags.join(', ')}\nViews: ${page.view_count}\n`
     ).join('\n')
 
-    // Check if this is a new conversation (first message or no session)
-    const isNewConversation = !sessionId || chatMessages.length === 0
-    
-    // Check if this is a response to the initial greeting or if conversation is already in progress
-    const isResponseToGreeting = chatMessages.length === 1 && 
-      chatMessages[0]?.content?.includes('Hello! I\'m Lumi AI, your intelligent documentation assistant')
-    
-    // Check if conversation is already in progress (has more than 1 message)
-    const isConversationInProgress = chatMessages.length > 1
+    // Add static documentation context
+    const staticDocsContext = `
+📖 LUMI PRODUCT DOCUMENTATION:
+# Lumi Work OS - Product Documentation
 
-    // Determine conversation mode based on user input
-    const isWikiCreationMode = message.toLowerCase().includes('creating a wiki') || 
-                              message.toLowerCase().includes('create wiki') ||
-                              message.toLowerCase().includes('wiki creation') ||
-                              message.toLowerCase().includes('📝 creating a wiki')
-    
-    const isGeneralKnowledgeMode = message.toLowerCase().includes('general info') || 
-                                  message.toLowerCase().includes('general knowledge') ||
-                                  message.toLowerCase().includes('general guidance') ||
-                                  message.toLowerCase().includes('💡 general info')
+## Overview
+Lumi Work OS is a comprehensive workplace operating system designed to streamline company operations through integrated knowledge management, project management, and workflow automation. Built as a calm, minimal platform, Lumi empowers teams to manage knowledge, onboard new members, and execute workflows efficiently.
 
-    // Determine if this is a document creation request
-    const isDocumentCreation = message.toLowerCase().includes('create') || 
-                              message.toLowerCase().includes('draft') || 
-                              message.toLowerCase().includes('write') ||
-                              message.toLowerCase().includes('document') ||
-                              message.toLowerCase().includes('policy') ||
-                              message.toLowerCase().includes('procedure') ||
-                              message.toLowerCase().includes('guide') ||
-                              message.toLowerCase().includes('template') ||
-                              message.toLowerCase().includes('manual') ||
-                              message.toLowerCase().includes('handbook') ||
-                              message.toLowerCase().includes('standard') ||
-                              message.toLowerCase().includes('protocol')
+## Product Vision
+To create the most intuitive and powerful workplace operating system that brings together all essential business functions in one cohesive platform, enabling teams to focus on what matters most - building great products and delivering exceptional value.
 
-    console.log('🔍 Conversation analysis:')
-    console.log('  - Message:', message)
-    console.log('  - Is new conversation:', isNewConversation)
-    console.log('  - Is response to greeting:', isResponseToGreeting)
-    console.log('  - Is wiki creation mode:', isWikiCreationMode)
-    console.log('  - Is general knowledge mode:', isGeneralKnowledgeMode)
-    console.log('  - Is document creation:', isDocumentCreation)
+## Core Features
 
-    // Handle specific option selections
-    if (isWikiCreationMode) {
-      // Create session if it doesn't exist
-      let newSessionId = sessionId
-      if (!sessionId) {
-        try {
-          const newSession = await prisma.chatSession.create({
-            data: {
-              title: 'New Chat',
-              workspaceId: workspaceId || 'workspace-1',
-              userId: 'dev-user-1' // TODO: Get from session
-            }
-          })
-          newSessionId = newSession.id
-        } catch (error) {
-          console.error('Error creating chat session:', error)
-        }
-      }
+### 1. Project Management
+- **Kanban Board Interface**: Visual task management with drag-and-drop functionality
+- **Task Status Tracking**: To Do, In Progress, In Review, Done, Blocked
+- **Priority Management**: Low, Medium, High, Urgent priority levels
+- **Team Collaboration**: Assign tasks, track progress, and manage deadlines
+- **Project Documentation**: Integrated wiki pages for project-specific documentation
 
-      const wikiContent = `Perfect! I'd be happy to help you create a comprehensive wiki page. 
+### 2. Knowledge Management (Wiki)
+- **Hierarchical Documentation**: Organized wiki pages with categories and tags
+- **Rich Text Editing**: Markdown support with live preview
+- **Version Control**: Track changes and maintain document history
+- **Search & Discovery**: Powerful search across all documentation
+- **Permission Management**: Control access to sensitive information
 
-To get started, could you tell me:
+### 3. AI-Powered Assistance
+- **Intelligent Chat**: AI assistant for quick information retrieval
+- **Document Generation**: Automated creation of policies, procedures, and documentation
+- **Smart Suggestions**: Context-aware recommendations for tasks and content
+- **Workflow Automation**: AI-driven process optimization
 
-1. **What type of document** do you want to create? (e.g., policy, procedure, guide, manual, handbook, etc.)
-2. **What should the document be about?** Please give me a brief description of the topic or subject.
-3. **Who is the intended audience?** (e.g., all employees, specific departments, new hires, etc.)
+### 4. Team Onboarding
+- **Structured Onboarding**: Step-by-step process for new team members
+- **Resource Library**: Centralized access to training materials
+- **Progress Tracking**: Monitor onboarding completion and effectiveness
 
-Once I have these details, I'll ask some follow-up questions to gather all the necessary information and then create a complete wiki page for you!`
+### 5. Multi-tenant Workspaces
+- **Secure Workspace Isolation**: Each organization has its own secure environment
+- **Role-based Access Control**: Owner, Admin, Member roles with appropriate permissions
+- **Team Management**: Invite and manage team members
+- **Custom Branding**: Workspace-specific customization
 
-      // Save the wiki response to the database
-      if (newSessionId) {
-        try {
-          await prisma.chatMessage.create({
-            data: {
-              sessionId: newSessionId,
-              type: 'AI',
-              content: wikiContent
-            }
-          })
-        } catch (error) {
-          console.error('Error saving wiki response message:', error)
-        }
-      }
+### 6. Integrations
+- **Slack Integration**: Real-time notifications and workflow triggers
+- **Google Drive Sync**: Seamless document synchronization
+- **Microsoft Teams**: Enterprise collaboration features
+- **API Access**: RESTful APIs for custom integrations
 
-      const wikiResponse = {
-        content: wikiContent,
-        sources: [],
-        documentPlan: null,
-        sessionId: newSessionId
-      }
-      
-      return NextResponse.json(wikiResponse)
-    }
+## Technical Architecture
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript for type safety
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: NextAuth.js with OAuth support
+- **AI Integration**: OpenAI GPT-4 and Anthropic Claude
+- **Styling**: TailwindCSS with shadcn/ui components
+- **State Management**: TanStack Query for server state
 
-    if (isGeneralKnowledgeMode) {
-      // Create session if it doesn't exist
-      let newSessionId = sessionId
-      if (!sessionId) {
-        try {
-          const newSession = await prisma.chatSession.create({
-            data: {
-              title: 'New Chat',
-              workspaceId: workspaceId || 'workspace-1',
-              userId: 'dev-user-1' // TODO: Get from session
-            }
-          })
-          newSessionId = newSession.id
-        } catch (error) {
-          console.error('Error creating chat session:', error)
-        }
-      }
+## Key Benefits
+- **Centralized Knowledge**: All company information in one place
+- **Improved Collaboration**: Streamlined team communication and task management
+- **AI-Powered Efficiency**: Intelligent assistance for common tasks
+- **Scalable Architecture**: Grows with your organization
+- **Security First**: Enterprise-grade security and compliance
+`
 
-      const generalContent = `Great! I'm here to help you find information and provide guidance.
+    const projectsContext = projects.map(project => 
+      `🎯 PROJECT: ${project.name} (${project.status})\nDescription: ${project.description || 'No description'}\nPriority: ${project.priority}\nTeam: ${project.team || 'Unassigned'}\nDepartment: ${project.department || 'General'}\nTasks: ${project.tasks.length} tasks\n${project.tasks.map(task => `  - ${task.title} (${task.status}) - ${task.assignee?.name || 'Unassigned'}`).join('\n')}\n`
+    ).join('\n')
 
-What do you need help with? I can:
+    const orgContext = orgPositions.map(position => 
+      `👤 ORG: ${position.title} (${position.department})\nLevel: ${position.level}\nUser: ${position.user?.name || 'Vacant'}\nReports to: ${position.parent?.title || 'Top Level'}\n`
+    ).join('\n')
 
-• **Search existing wiki content** for specific information
-• **Answer questions** about your company's policies, procedures, or documentation
-• **Provide guidance** on various topics
-• **Help you navigate** your knowledge base
+    const activitiesContext = recentActivities.map(activity => 
+      `📈 ACTIVITY: ${activity.action} on ${activity.entity}\nTime: ${activity.createdAt.toISOString()}\n`
+    ).join('\n')
 
-Just let me know what you're looking for, and I'll do my best to help!`
+    const onboardingContext = onboardingPlans.map(plan => 
+      `🎓 ONBOARDING: ${plan.title} (${plan.status})\nUser: ${plan.users.name}\nPeriod: ${plan.startDate.toISOString()} - ${plan.endDate?.toISOString() || 'Ongoing'}\n`
+    ).join('\n')
 
-      // Save the general response to the database
-      if (newSessionId) {
-        try {
-          await prisma.chatMessage.create({
-            data: {
-              sessionId: newSessionId,
-              type: 'AI',
-              content: generalContent
-            }
-          })
-        } catch (error) {
-          console.error('Error saving general response message:', error)
-        }
-      }
+    const teamContext = workspaceMembers.map(member => 
+      `👥 TEAM: ${member.user.name} (${member.role})\nEmail: ${member.user.email}\n`
+    ).join('\n')
 
-      const generalResponse = {
-        content: generalContent,
-        sources: [],
-        documentPlan: null,
-        sessionId: newSessionId
-      }
-      
-      return NextResponse.json(generalResponse)
-    }
+    // Build conversation history for AI
+    const conversationHistory = chatMessages.map(msg => ({
+      role: msg.type === 'USER' ? 'user' : 'assistant',
+      content: msg.content
+    }))
 
-    // Handle new conversation greeting (for any first message, but not responses to greeting or ongoing conversations)
-    if (isNewConversation && !isResponseToGreeting && !isConversationInProgress) {
-      // Create a new chat session if one doesn't exist
-      let newSessionId = sessionId
-      if (!sessionId) {
-        try {
-          const newSession = await prisma.chatSession.create({
-            data: {
-              title: 'New Chat',
-              workspaceId: workspaceId || 'workspace-1',
-              userId: 'dev-user-1' // TODO: Get from session
-            }
-          })
-          newSessionId = newSession.id
-        } catch (error) {
-          console.error('Error creating chat session:', error)
-        }
-      }
+    // Create comprehensive system prompt
+    const systemPrompt = `You are Lumi AI, an intelligent organizational assistant for Lumi Work OS. You have comprehensive access to all organizational data and can help with any aspect of the business.
 
-      const greetingContent = `Hello! I'm Lumi AI, your intelligent documentation assistant. What can I help you with today?
+## 📖 LUMI PRODUCT REFERENCE
+${staticDocsContext}
 
-Please choose from the following options:
+## 🏢 ORGANIZATIONAL CONTEXT
 
-**📝 Creating a Wiki** - I'll help you create comprehensive wiki pages, documents, policies, or procedures. I'll ask relevant questions to gather all necessary information and then generate a complete wiki page for you.
-
-**💡 General Info** - I'll help you find information from existing wiki content and provide general guidance on various topics.
-
-Simply type your choice or describe what you need help with!`
-
-      // Save the greeting message to the database
-      if (newSessionId) {
-        try {
-          await prisma.chatMessage.create({
-            data: {
-              sessionId: newSessionId,
-              type: 'AI',
-              content: greetingContent
-            }
-          })
-        } catch (error) {
-          console.error('Error saving greeting message:', error)
-        }
-      }
-
-      const greetingResponse = {
-        content: greetingContent,
-        sources: [],
-        documentPlan: null,
-        sessionId: newSessionId
-      }
-      
-      return NextResponse.json(greetingResponse)
-    }
-
-    let systemPrompt = `You are Lumi AI, an intelligent documentation assistant for Lumi Work OS. You help users find information and create comprehensive wiki pages.
-
-Available wiki pages for context:
+### 📚 KNOWLEDGE BASE (Wiki Pages):
 ${wikiContext}
 
-Your capabilities:
-1. Answer questions about existing wiki content
-2. Create structured documents based on user requirements
-3. Provide insights and suggestions
+### 🎯 ACTIVE PROJECTS & TASKS:
+${projectsContext}
 
-CONVERSATION CONTEXT AWARENESS:
-- You have access to the full conversation history
-- Pay attention to ALL details the user has provided in previous messages
-- If a user answers your questions with specific details, use that information immediately
-- Don't ask for information the user has already provided
-- Always reference previous conversation context when responding
+### 👥 ORGANIZATION STRUCTURE:
+${orgContext}
 
-MODE-SPECIFIC BEHAVIOR:
+### 📈 RECENT ACTIVITIES:
+${activitiesContext}
 
-**WIKI CREATION MODE** (when user selects "Creating a Wiki" or similar):
-1. Ask what type of document they want to create (policy, procedure, guide, etc.)
-2. Ask specific, relevant questions to gather comprehensive information
-3. Once you have enough details, present the document structure in this EXACT JSON format:
-\`\`\`json
-{
-  "title": "Document Title",
-  "content": {
-    "Section Name": {
-      "text": "Section content here",
-      "order": 1
-    }
-  }
-}
-\`\`\`
-4. When user confirms (says "looks good", "yes", "create", "generate", etc.), ask for wiki creation parameters (section, visibility, tags)
-5. When user provides parameters, create the actual wiki page
+### 🎓 ONBOARDING STATUS:
+${onboardingContext}
 
-**GENERAL KNOWLEDGE MODE** (when user selects "General Info" or similar):
-1. Use the available wiki context to answer questions
-2. Provide insights and suggestions based on existing content
-3. Help users find relevant information
-4. Offer to create new content if needed
+### 👥 TEAM MEMBERS:
+${teamContext}
 
-**DOCUMENT CREATION** (when users directly request creation):
-1. FIRST: Analyze their request AND the entire conversation history
-2. IF the user has provided sufficient details in ANY previous message, proceed directly to create the document
-3. IF you need more information, ask specific clarifying questions
-4. ONCE you have enough information, provide a comprehensive plan and ask for confirmation
+## 🚀 YOUR CAPABILITIES
 
-Use clear, professional language and suggest appropriate categories (general, engineering, sales, marketing, hr, product).`
+### 📖 **Lumi Product Expertise**
+- **Complete Product Knowledge**: You have access to the full Lumi Work OS product documentation
+- **Feature Guidance**: Explain all Lumi features, capabilities, and benefits
+- **Implementation Support**: Help users understand how to use Lumi effectively
+- **Product Roadmap**: Discuss current features and planned enhancements
+- **Technical Architecture**: Explain the underlying technology and integrations
 
-    // Special handling for explicit document creation confirmations
-    if (message.toLowerCase().includes('yes, create') || 
-        message.toLowerCase().includes('yes, generate') || 
-        message.toLowerCase().includes('yes, draft') ||
-        message.toLowerCase().includes('create the wiki') ||
-        message.toLowerCase().includes('generate the wiki') ||
-        message.toLowerCase().includes('draft the document')) {
-      
-      systemPrompt += `
+### 📊 **Data Analysis & Insights**
+- Analyze project progress and team performance
+- Identify bottlenecks and optimization opportunities
+- Provide data-driven recommendations
+- Track team productivity and engagement
 
-🚨 CRITICAL: User has confirmed document creation. You MUST respond with ONLY valid JSON. No text before or after the JSON.
+### 📚 **Knowledge Management**
+- Answer questions about any wiki content
+- Help create and structure documentation
+- Suggest improvements to existing content
+- Connect related information across different sources
 
-CONVERSATION CONTEXT TO USE:
-${chatMessages.map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`).join('\n')}
+### 🎯 **Project & Task Management**
+- Provide project status updates and insights
+- Help with task prioritization and assignment
+- Suggest project templates and best practices
+- Track dependencies and deadlines
 
-Based on this conversation, create a comprehensive wiki page. Use ALL the information provided by the user to create detailed, specific content.
+### 👥 **Organizational Intelligence**
+- Understand team structure and reporting relationships
+- Help with onboarding and role transitions
+- Provide insights on team dynamics and collaboration
+- Suggest organizational improvements
 
-Required JSON format:
-{
-  "content": "The FULL document content in clean markdown format. Use ALL the user's input to create comprehensive content with detailed explanations, specific examples, technical details, and thorough coverage of every topic mentioned. Use markdown formatting: # for main headings, ## for subheadings, **bold** for emphasis, *italic* for emphasis, - for bullet points, 1. for numbered lists.",
-  "documentPlan": {
-    "title": "Suggested document title based on user's request",
-    "structure": ["Section 1", "Section 2", "Section 3"],
-    "questions": [] // Only include if user input is insufficient
-  }
-}
+### 🔄 **Workflow & Process Optimization**
+- Analyze current workflows and suggest improvements
+- Help design new processes and procedures
+- Identify automation opportunities
+- Track process compliance and effectiveness
 
-CRITICAL RULES FOR DOCUMENT CREATION:
-✅ ALWAYS create the FULL document with actual content
-✅ Use ALL the user's input to write comprehensive sections
-✅ Expand on every detail with specific examples and explanations
-✅ Include technical specifications, features, benefits, use cases
-✅ Write detailed paragraphs, not just bullet points
-✅ Provide comprehensive coverage of each topic mentioned
-✅ The "content" field should contain the actual document text
-✅ Structure with proper headings and detailed information
-✅ Use clean markdown formatting: # for headings, **bold**, *italic*, - for lists
-✅ Make the document comprehensive and detailed
+## 💬 **CONVERSATION GUIDELINES**
 
-🚨 REMEMBER: Your response must be ONLY the JSON object above - no additional text, explanations, or formatting outside the JSON.`
-    }
+### **Context Awareness**
+- **Prioritize Lumi Product Knowledge**: Always reference the Lumi Work OS product documentation when answering questions about features, capabilities, or functionality
+- Always reference specific data from the organizational context
+- Use exact names, titles, and details from the data
+- Connect information across different data sources
+- Provide specific examples and evidence from the product documentation
 
+### **Response Quality**
+- Be conversational, engaging, and professional
+- Use clear formatting with bullet points, numbered lists, and proper spacing
+- Break up long responses into readable sections
+- Always be helpful and solution-oriented
+- Ask clarifying questions when needed
+- Provide specific examples and recommendations
 
-    // Build conversation history for context
-    const messages: Array<{role: "system" | "user" | "assistant", content: string}> = [
+### **Data Integration**
+- When discussing projects, reference specific tasks and team members
+- When talking about people, mention their roles and departments
+- When suggesting improvements, reference existing wiki content
+- Always provide actionable next steps
+
+### **Professional Tone**
+- Use appropriate business language
+- Be respectful of organizational hierarchy
+- Maintain confidentiality and professionalism
+- Focus on constructive, helpful responses
+
+Remember: You have access to the full conversation history, so maintain context throughout the conversation and build upon previous exchanges naturally.`
+
+    // Generate AI response first
+    const aiResponse = await generateAIResponse(
+      message,
+      model,
       {
-        role: "system" as const,
-        content: systemPrompt
+        systemPrompt,
+        conversationHistory,
+        temperature: 0.7,
+        maxTokens: 2000
+      }
+    )
+
+    // Build all available sources for analysis
+    const allAvailableSources: AISource[] = [
+      // Wiki sources
+      ...wikiPages.map(page => ({
+        type: 'wiki' as const,
+        id: page.id,
+          title: page.title,
+          url: `/wiki/${page.slug}`,
+        excerpt: page.excerpt || page.content.substring(0, 100) + '...'
+      })),
+      // Project sources
+      ...projects.map(project => ({
+        type: 'project' as const,
+        id: project.id,
+        title: project.name,
+        url: `/projects/${project.id}`,
+        excerpt: project.description || 'Project details'
+      })),
+      // Organization sources
+      ...orgPositions.map(position => ({
+        type: 'org' as const,
+        id: position.id || `org-${position.title}`,
+        title: `${position.title} (${position.department})`,
+        url: `/org`,
+        excerpt: `Organization position: ${position.title}`
+      })),
+      // Documentation source
+      {
+        type: 'documentation' as const,
+        id: 'lumi-product-docs',
+        title: 'Lumi Product Documentation',
+        url: '/wiki/product-reference',
+        excerpt: 'Complete Lumi Work OS product documentation'
       }
     ]
 
-    // Add conversation history if available
-    if (chatSession && chatMessages.length > 0) {
-      console.log('📚 Found conversation history:', chatMessages.length, 'messages')
-      // Add recent conversation history (last 10 messages to avoid token limits)
-      const recentMessages = chatMessages.slice(-10)
-      recentMessages.forEach((msg: any) => {
-        messages.push({
-          role: msg.type === 'USER' ? "user" : "assistant",
-          content: msg.content
-        })
-      })
-      console.log('📝 Added', recentMessages.length, 'messages to context')
-    } else {
-      console.log('⚠️ No conversation history available')
-    }
-
-    // Add current message
-    messages.push({
-      role: "user" as const,
-      content: message
-    })
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: messages,
-      temperature: 0.7,
-      max_tokens: 2000
-    })
-
-    const aiResponse = completion.choices[0]?.message?.content || "I apologize, but I couldn't generate a response."
-
-    // Check if this is a confirmed document creation request
-    const isConfirmedDocumentCreation = message.toLowerCase().includes('yes, create') || 
-                                       message.toLowerCase().includes('yes, generate') || 
-                                       message.toLowerCase().includes('yes, draft') ||
-                                       message.toLowerCase().includes('create the wiki') ||
-                                       message.toLowerCase().includes('generate the wiki') ||
-                                       message.toLowerCase().includes('draft the document') ||
-                                       message.toLowerCase().includes('looks good') ||
-                                       message.toLowerCase().includes('looks great') ||
-                                       message.toLowerCase().includes('perfect') ||
-                                       message.toLowerCase().includes('yes') ||
-                                       message.toLowerCase().includes('create') ||
-                                       message.toLowerCase().includes('generate') ||
-                                       message.toLowerCase().includes('proceed')
-
-    // Check if this is a wiki creation parameters request (section, visibility, etc.)
-    const isWikiCreationParams = message.toLowerCase().includes('section:') ||
-                                message.toLowerCase().includes('visibility:') ||
-                                message.toLowerCase().includes('category:') ||
-                                message.toLowerCase().includes('tags:') ||
-                                message.toLowerCase().includes('public') ||
-                                message.toLowerCase().includes('private') ||
-                                message.toLowerCase().includes('policies') ||
-                                message.toLowerCase().includes('procedures') ||
-                                message.toLowerCase().includes('guides')
-
-    console.log('🤖 Raw AI response:', aiResponse)
-    console.log('📏 Response length:', aiResponse.length)
-    console.log('🔍 Is document creation request:', isDocumentCreation)
-    console.log('🔍 Is confirmed document creation:', isConfirmedDocumentCreation)
-    console.log('🔍 Is wiki creation params:', isWikiCreationParams)
-    console.log('🔍 Message contains section:', message.toLowerCase().includes('section:'))
-    console.log('🔍 Message contains visibility:', message.toLowerCase().includes('visibility:'))
-    console.log('🔍 Message contains tags:', message.toLowerCase().includes('tags:'))
-
-    // Try to parse JSON response only for confirmed document creation
-    let parsedResponse
-    try {
-      // Clean the response to extract JSON if it's wrapped in other text
-      let cleanResponse = aiResponse.trim()
-      
-      // If it's a confirmed document creation request, try to extract JSON from the response
-      if (isConfirmedDocumentCreation) {
-        console.log('🔍 Looking for JSON in response:', cleanResponse.substring(0, 200) + '...')
-        // Look for JSON object in the response (including code blocks)
-        const jsonMatch = cleanResponse.match(/```json\s*(\{[\s\S]*?\})\s*```/) || cleanResponse.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          cleanResponse = jsonMatch[1] || jsonMatch[0]
-          console.log('✅ Found JSON match:', cleanResponse.substring(0, 100) + '...')
-        } else {
-          console.log('❌ No JSON match found')
-        }
-      }
-      
-      parsedResponse = JSON.parse(cleanResponse)
-      console.log('✅ Successfully parsed JSON response:', parsedResponse)
-    } catch (error) {
-      console.log('❌ Failed to parse JSON, treating as text:', error instanceof Error ? error.message : 'Unknown error')
-      console.log('📝 Raw response that failed to parse:', aiResponse)
-      parsedResponse = { content: aiResponse }
-    }
-
-    // Helper function to clean HTML and create clean excerpts
-    const cleanHtml = (html: string) => {
-      if (!html) return ''
-      return html
-        .replace(/<[^>]*>/g, '') // Remove HTML tags
-        .replace(/&nbsp;/g, ' ') // Replace &nbsp; with spaces
-        .replace(/&amp;/g, '&') // Replace &amp; with &
-        .replace(/&lt;/g, '<') // Replace &lt; with <
-        .replace(/&gt;/g, '>') // Replace &gt; with >
-        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-        .trim()
-    }
-
-    // Handle wiki creation flow
-    let wikiPage = null
-    let finalContent = aiResponse
-    
-    // Check if we have JSON structure in conversation history
-    let jsonFromHistory = null
-    if ((isConfirmedDocumentCreation && !parsedResponse.title) || isWikiCreationParams) {
-      console.log('🔍 Looking for JSON in conversation history, messages count:', chatMessages.length)
-      // Look for JSON in the conversation history
-      for (let i = chatMessages.length - 1; i >= 0; i--) {
-        const msg = chatMessages[i]
-        console.log(`📝 Checking message ${i}:`, msg.type, msg.content.substring(0, 100) + '...')
-        if (msg.type === 'AI' && msg.content.includes('```json')) {
-          console.log('🎯 Found message with JSON code block')
-          const jsonMatch = msg.content.match(/```json\s*(\{[\s\S]*?\})\s*```/)
-          if (jsonMatch) {
-            console.log('📋 JSON match found:', jsonMatch[1].substring(0, 100) + '...')
-            try {
-              jsonFromHistory = JSON.parse(jsonMatch[1])
-              console.log('✅ Found JSON in conversation history:', jsonFromHistory.title)
-              break
-            } catch (error) {
-              console.log('❌ Failed to parse JSON from history:', error)
-            }
-          } else {
-            console.log('❌ No JSON match in message')
-          }
-        }
-      }
-    }
-    
-    if (isConfirmedDocumentCreation && (parsedResponse.title || jsonFromHistory?.title) && (parsedResponse.content || parsedResponse.structure || jsonFromHistory?.content)) {
-      // User confirmed the document structure, ask for creation parameters
-      const docTitle = parsedResponse.title || jsonFromHistory?.title
-      finalContent = `Perfect! I have the structure for your "${docTitle}" document. 
-
-Before I create the wiki page, I need a few more details:
-
-**1. Which section should this fall under?**
-- Policies & Procedures
-- Company Guidelines  
-- Technical Documentation
-- Training Materials
-- Other (please specify)
-
-**2. What should be the visibility level?**
-- Public (visible to all employees)
-- Private (restricted access)
-- Department-specific (specify which department)
-
-**3. Any specific tags or categories?** (optional)
-- e.g., "IT", "Security", "HR", "Compliance"
-
-Please provide these details in the format:
-\`\`\`
-Section: [your choice]
-Visibility: [your choice]  
-Tags: [optional tags]
-\`\`\`
-
-Once you provide these details, I'll create the wiki page for you!`
-    } else if (isConfirmedDocumentCreation && !parsedResponse.title) {
-      // User confirmed but we don't have the JSON structure yet, ask them to provide more details
-      finalContent = `I'd be happy to help you create a wiki page! However, I need a bit more information first.
-
-Could you please tell me:
-
-1. **What type of document** do you want to create? (e.g., policy, procedure, guide, manual, handbook, etc.)
-2. **What should the document be about?** Please give me a brief description of the topic or subject.
-3. **Who is the intended audience?** (e.g., all employees, specific departments, new hires, etc.)
-
-Once I have these details, I'll ask some follow-up questions to gather all the necessary information and then create a complete wiki page for you!`
-    } else if (isWikiCreationParams && jsonFromHistory?.title && jsonFromHistory?.content) {
-      // User provided creation parameters, create the wiki page
-      try {
-        // Use JSON from history
-        const docData = jsonFromHistory
-        
-        // Extract parameters from the message
-        const sectionMatch = message.match(/section:\s*([^\n]+)/i)
-        const visibilityMatch = message.match(/visibility:\s*([^\n]+)/i)
-        const tagsMatch = message.match(/tags:\s*([^\n]+)/i)
-        
-        const section = sectionMatch ? sectionMatch[1].trim() : 'Policies & Procedures'
-        const visibility = visibilityMatch ? visibilityMatch[1].trim() : 'Public'
-        const tags = tagsMatch ? tagsMatch[1].trim().split(',').map((t: string) => t.trim()) : []
-        
-        // Create slug from title
-        const slug = docData.title
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '')
-          .replace(/\s+/g, '-')
-          .trim()
-        
-        // Build the wiki content from the structured data
-        let wikiContent = `# ${docData.title}\n\n`
-        
-        if (docData.content && typeof docData.content === 'object') {
-          // Sort by order if available
-          const sortedSections = Object.entries(docData.content)
-            .sort(([,a], [,b]) => ((a as any).order || 0) - ((b as any).order || 0))
-          
-          for (const [sectionTitle, sectionData] of sortedSections) {
-            wikiContent += `## ${sectionTitle}\n\n${(sectionData as any).text}\n\n`
-          }
-        } else if (docData.structure && Array.isArray(docData.structure)) {
-          // Handle the structure array format
-          for (const section of docData.structure) {
-            if (typeof section === 'string') {
-              wikiContent += `## ${section}\n\n[Content to be added]\n\n`
-            } else if (section.sectionTitle && section.content) {
-              wikiContent += `## ${section.sectionTitle}\n\n${section.content}\n\n`
-            }
-          }
-        }
-        
-        // Create the wiki page
-        const newWikiPage = await prisma.wikiPage.create({
-          data: {
-            title: docData.title,
-            content: wikiContent,
-            slug: slug,
-            workspaceId: workspaceId || 'workspace-1',
-            createdById: 'dev-user-1', // TODO: Get from session
-            category: section.toLowerCase(),
-            permissionLevel: visibility.toLowerCase(),
-            tags: tags,
-            excerpt: (docData.content as any)?.Introduction?.text || (docData.content as any)?.introduction?.text || 'No excerpt available'
-          }
-        })
-        
-        wikiPage = {
-          id: newWikiPage.id,
-          title: newWikiPage.title,
-          slug: newWikiPage.slug,
-          url: `/wiki/${newWikiPage.slug}`
-        }
-        
-        finalContent = `🎉 **Wiki page created successfully!**
-
-**Title:** ${docData.title}
-**Section:** ${section}
-**Visibility:** ${visibility}
-**Tags:** ${tags.join(', ') || 'None'}
-**URL:** /wiki/${slug}
-
-Your wiki page is now live and accessible to your team. You can view it by clicking the link above or navigating to the Wiki section in your dashboard.
-
-Is there anything else you'd like me to help you with?`
-        
-        console.log('✅ Wiki page created:', newWikiPage.id)
-      } catch (error) {
-        console.error('❌ Error creating wiki page:', error)
-        finalContent = `I encountered an error while creating your wiki page. Please try again or contact support if the issue persists.
-
-Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-      }
-    }
-
-    // Find relevant sources from wiki pages
-    const sources = wikiPages
-      .filter(page => 
-        message.toLowerCase().includes(page.title.toLowerCase()) ||
-        page.content.toLowerCase().includes(message.toLowerCase().split(' ')[0])
-      )
-      .slice(0, 3)
-      .map(page => {
-        const cleanExcerpt = cleanHtml(page.excerpt || page.content)
-        return {
-          title: page.title,
-          url: `/wiki/${page.slug}`,
-          excerpt: cleanExcerpt.substring(0, 150) + (cleanExcerpt.length > 150 ? '...' : '')
-        }
-      })
-
-    // Save messages to database if sessionId is provided
-    if (sessionId) {
-      try {
-        console.log('💾 Saving messages to database for session:', sessionId)
-        console.log('📝 User message:', message)
-        console.log('🤖 AI response:', parsedResponse.content || aiResponse)
-        console.log('📋 Document plan:', parsedResponse.documentPlan)
+    // Analyze AI response to identify which sources were actually used
+    console.log('🔍 Analyzing AI response for relevant sources...')
+    const relevantSources = await identifyRelevantSources(aiResponse.content, allAvailableSources)
+    console.log('📚 Relevant sources identified:', relevantSources.length, 'out of', allAvailableSources.length)
         
         // Save user message
         await prisma.chatMessage.create({
@@ -718,27 +520,26 @@ Error: ${error instanceof Error ? error.message : 'Unknown error'}`
           data: {
             sessionId,
             type: 'AI',
-            content: parsedResponse.content || aiResponse,
+            content: aiResponse.content,
             metadata: {
-              sources,
-              documentPlan: parsedResponse.documentPlan || null
-            }
+              model: aiResponse.model,
+              usage: aiResponse.usage,
+              sources: relevantSources
+            } as any
           }
         })
 
         // Update session timestamp and generate title if it's still "New Chat"
-        const session = await prisma.chatSession.findUnique({
-          where: { id: sessionId }
-        })
-        
-        if (session && session.title === 'New Chat') {
-          // Generate a title from the first message (truncate to 50 chars)
-          const title = message.length > 50 ? message.substring(0, 50) + '...' : message
+        if (chatSession.title === 'New Chat') {
+          console.log('🎯 Generating smart title for new chat...')
+          const smartTitle = await generateChatTitle(message, aiResponse.content)
+          console.log('📝 Generated title:', smartTitle)
+          
           await prisma.chatSession.update({
             where: { id: sessionId },
             data: { 
               updatedAt: new Date(),
-              title: title
+              title: smartTitle
             }
           })
         } else {
@@ -748,32 +549,19 @@ Error: ${error instanceof Error ? error.message : 'Unknown error'}`
           })
         }
         
-        console.log('✅ Messages saved to database successfully')
-      } catch (dbError) {
-        console.error('💥 Error saving messages to database:', dbError)
-        // Continue with response even if DB save fails
-      }
-    } else {
-      console.log('⚠️ No sessionId provided, skipping message saving')
+    console.log('✅ AI response generated successfully')
+    console.log('  - Model used:', aiResponse.model)
+    console.log('  - Response length:', aiResponse.content.length)
+    if (aiResponse.usage) {
+      console.log('  - Tokens used:', aiResponse.usage.totalTokens)
     }
 
-    const response = {
-      content: finalContent,
-      sources,
-      documentPlan: parsedResponse.documentPlan || null,
-      wikiPage: wikiPage,
-      sessionId: sessionId
-    }
-    
-    console.log('📤 Final API response:')
-    console.log('  - Content length:', response.content.length)
-    console.log('  - Sources count:', response.sources.length)
-    console.log('  - Document plan:', !!response.documentPlan)
-    if (response.documentPlan) {
-      console.log('  - Document plan details:', response.documentPlan)
-    }
-    
-    return NextResponse.json(response)
+    return NextResponse.json({
+      content: aiResponse.content,
+      model: aiResponse.model,
+      usage: aiResponse.usage,
+      sources: relevantSources
+    })
 
   } catch (error) {
     console.error('Error in AI chat:', error)

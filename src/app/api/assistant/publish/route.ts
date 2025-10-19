@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         title: session.draftTitle,
         content: session.draftBody,
         slug: slug,
-        workspaceId: 'workspace-1',
+        workspaceId: 'cmgl0f0wa00038otlodbw5jhn',
         createdById: user.id,
         category: settings.category || 'general',
         permissionLevel: settings.visibility || 'public',

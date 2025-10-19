@@ -80,23 +80,23 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  // Zen Focus color palette - clean and minimal
+  // Use CSS variables for consistent theming
   const colors = {
-    primary: '#3b82f6',
-    primaryLight: '#dbeafe',
-    primaryDark: '#1d4ed8',
+    primary: 'var(--primary)',
+    primaryLight: 'var(--accent)',
+    primaryDark: 'var(--secondary)',
     success: '#10b981',
     successLight: '#d1fae5',
     warning: '#f59e0b',
     warningLight: '#fef3c7',
-    error: '#ef4444',
+    error: 'var(--destructive)',
     errorLight: '#fee2e2',
-    background: '#f9fafb',
-    surface: '#ffffff',
-    text: '#111827',
-    textSecondary: '#6b7280',
-    border: '#e5e7eb',
-    borderLight: '#f3f4f6'
+    background: 'var(--background)',
+    surface: 'var(--card)',
+    text: 'var(--foreground)',
+    textSecondary: 'var(--muted-foreground)',
+    border: 'var(--border)',
+    borderLight: 'var(--muted)'
   }
 
   const handleDeleteProject = async (projectId: string, projectName: string) => {
@@ -182,7 +182,7 @@ export default function ProjectsPage() {
       case "ON_HOLD": return "bg-yellow-100 text-yellow-800"
       case "COMPLETED": return "bg-blue-100 text-blue-800"
       case "CANCELLED": return "bg-red-100 text-red-800"
-      default: return "bg-gray-100 text-gray-800"
+      default: return "bg-muted text-foreground"
     }
   }
 
@@ -192,7 +192,7 @@ export default function ProjectsPage() {
       case "HIGH": return "bg-orange-100 text-orange-800"
       case "MEDIUM": return "bg-yellow-100 text-yellow-800"
       case "LOW": return "bg-green-100 text-green-800"
-      default: return "bg-gray-100 text-gray-800"
+      default: return "bg-muted text-foreground"
     }
   }
 

@@ -7,18 +7,15 @@ const prisma = new PrismaClient()
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     const category = searchParams.get('category')
     const isPublic = searchParams.get('isPublic')
 
     // Ensure user and workspace exist for development
-    const createdById = 'dev-user-1'
-    
     const user = await prisma.user.upsert({
-      where: { id: createdById },
+      where: { email: 'dev@lumi.com' },
       update: {},
       create: {
-        id: createdById,
         email: 'dev@lumi.com',
         name: 'Development User'
       }
@@ -35,7 +32,7 @@ export async function GET(request: NextRequest) {
           name: 'Development Workspace',
           slug: 'dev-workspace',
           description: 'Development workspace',
-          ownerId: createdById
+          ownerId: user.id
         }
       })
     }
@@ -81,7 +78,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { 
-      workspaceId = 'workspace-1',
+      workspaceId = 'cmgl0f0wa00038otlodbw5jhn',
       name,
       description,
       category,
@@ -91,13 +88,10 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Ensure user and workspace exist for development
-    const createdById = 'dev-user-1'
-    
     const user = await prisma.user.upsert({
-      where: { id: createdById },
+      where: { email: 'dev@lumi.com' },
       update: {},
       create: {
-        id: createdById,
         email: 'dev@lumi.com',
         name: 'Development User'
       }
@@ -114,7 +108,7 @@ export async function POST(request: NextRequest) {
           name: 'Development Workspace',
           slug: 'dev-workspace',
           description: 'Development workspace',
-          ownerId: createdById
+          ownerId: user.id
         }
       })
     }
@@ -128,7 +122,7 @@ export async function POST(request: NextRequest) {
         category: category as any,
         isPublic,
         metadata: metadata || {},
-        createdById,
+        createdById: user.id,
         tasks: {
           create: tasks.map((task: any, index: number) => ({
             title: task.title,

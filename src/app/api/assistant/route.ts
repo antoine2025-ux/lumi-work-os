@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       data: {
         title: intent === 'doc_gen' ? 'Document Generation' : 
                intent === 'project_creation' ? 'Project Creation' : 'General Assistance',
-        workspaceId: workspaceId || 'workspace-1',
+        workspaceId: workspaceId || 'cmgl0f0wa00038otlodbw5jhn',
         userId: 'dev-user-1', // Temporary for development
         intent: intent || 'assist',
         target: intent === 'project_creation' ? 'project' : 'wiki_page',

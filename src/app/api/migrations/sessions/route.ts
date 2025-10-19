@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     // Create migration session
     const migrationSession = await prisma.integration.create({
       data: {
-        workspaceId: 'workspace-1',
+        workspaceId: 'cmgl0f0wa00038otlodbw5jhn',
         type: platform.toUpperCase() as any,
         name: `${platform} Migration Session`,
         config: {

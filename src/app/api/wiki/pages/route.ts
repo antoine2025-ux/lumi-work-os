@@ -8,7 +8,7 @@ import { cache } from '@/lib/cache'
 
 // GET /api/wiki/pages - List all wiki pages for a workspace
 export async function GET(request: NextRequest) {
-  let workspaceId = 'workspace-1' // Default value
+  let workspaceId = 'cmgl0f0wa00038otlodbw5jhn' // Development Workspace
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     const pagination = parsePaginationParams(searchParams)
     
     // Check cache first
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/wiki/pages - Create a new wiki page
 export async function POST(request: NextRequest) {
-  let workspaceId = 'workspace-1'
+  let workspaceId = 'cmgl0f0wa00038otlodbw5jhn'
   let title = 'Unknown'
   try {
     logger.info('Creating new wiki page')

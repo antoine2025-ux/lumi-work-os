@@ -12,7 +12,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeColor>('light-blue')
+  const [theme, setThemeState] = useState<ThemeColor>('light')
 
   // Load theme from localStorage on mount
   useEffect(() => {
@@ -55,6 +55,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Apply background color to body
     body.style.backgroundColor = config.background
     body.style.color = config.foreground
+    
+    // Apply dark class for CSS selectors
+    if (newTheme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
   }
 
   // Apply theme on mount and when theme changes

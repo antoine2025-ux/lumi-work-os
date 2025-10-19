@@ -73,7 +73,7 @@ export function InlineWikiViewer({
     const loadWikiPages = async () => {
       try {
         setIsLoadingPages(true)
-        const response = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace?.id || 'workspace-1'}`)
+        const response = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace?.id || 'cmgl0f0wa00038otlodbw5jhn'}`)
         if (response.ok) {
           const result = await response.json()
           // Handle paginated response - data is in result.data
@@ -143,18 +143,54 @@ export function InlineWikiViewer({
     })
   }
 
-  // Clean content by removing HTML tags and fixing formatting
+  // Clean content by converting HTML to Markdown-like format while preserving formatting
   const cleanContent = (content: string) => {
     if (!content) return ''
     
-    // Remove HTML tags but preserve line breaks
     let cleaned = content
-      .replace(/<div><br><\/div>/g, '\n\n') // Convert div breaks to double line breaks
-      .replace(/<br\s*\/?>/g, '\n') // Convert br tags to line breaks
-      .replace(/<div>/g, '\n') // Convert div opening to line break
-      .replace(/<\/div>/g, '\n') // Convert div closing to line break
-      .replace(/<[^>]*>/g, '') // Remove all other HTML tags
-      .replace(/\n{3,}/g, '\n\n') // Replace multiple line breaks with double
+      // Convert HTML headings to Markdown
+      .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
+      .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
+      .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
+      .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n')
+      .replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n')
+      .replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n')
+      
+      // Convert bold and italic
+      .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+      .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+      .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+      .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
+      
+      // Convert lists
+      .replace(/<ul[^>]*>/gi, '')
+      .replace(/<\/ul>/gi, '\n')
+      .replace(/<ol[^>]*>/gi, '')
+      .replace(/<\/ol>/gi, '\n')
+      .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+      
+      // Convert line breaks and paragraphs
+      .replace(/<div><br><\/div>/g, '\n\n')
+      .replace(/<br\s*\/?>/g, '\n')
+      .replace(/<div[^>]*>/g, '\n')
+      .replace(/<\/div>/g, '\n')
+      .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+      
+      // Convert blockquotes
+      .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1\n\n')
+      
+      // Convert code blocks
+      .replace(/<pre[^>]*>(.*?)<\/pre>/gi, '```\n$1\n```\n\n')
+      .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
+      
+      // Convert horizontal rules
+      .replace(/<hr[^>]*>/gi, '---\n\n')
+      
+      // Remove remaining HTML tags
+      .replace(/<[^>]*>/g, '')
+      
+      // Clean up excessive line breaks
+      .replace(/\n{3,}/g, '\n\n')
       .trim()
     
     return cleaned
@@ -255,9 +291,9 @@ export function InlineWikiViewer({
                                   {page.category}
                                 </Badge>
                               </div>
-                              {page.excerpt && (
+                              {page.content && (
                                 <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                                  {page.excerpt}
+                                  {cleanContent(page.content).substring(0, 150)}...
                                 </p>
                               )}
                               <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -292,28 +328,28 @@ export function InlineWikiViewer({
       {currentWikiPage ? (
         <div>
           
-          {/* Wiki Content - Modern Card Design */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+          {/* Wiki Content - Modern Card Design with Dark Mode Support */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
             <div className="max-h-96 overflow-y-auto">
               <div className="p-6">
-                <div className="max-w-none prose prose-gray">
-                  <div style={{ color: '#111827 !important' }}>
+                <div className="max-w-none prose prose-gray dark:prose-invert">
+                  <div className="text-gray-900 dark:text-gray-100">
                     <ReactMarkdown 
                       components={{
-                        // Custom components to handle HTML tags properly
-                        p: ({ children }) => <p className="mb-4 leading-relaxed text-base" style={{ color: '#111827 !important' }}>{children}</p>,
+                        // Custom components to handle HTML tags properly with dark mode support
+                        p: ({ children }) => <p className="mb-4 leading-relaxed text-base text-gray-900 dark:text-gray-100">{children}</p>,
                         ul: ({ children }) => <ul className="mb-6 pl-6 space-y-2">{children}</ul>,
                         ol: ({ children }) => <ol className="mb-6 pl-6 space-y-2">{children}</ol>,
-                        li: ({ children }) => <li className="leading-relaxed text-base" style={{ color: '#111827 !important' }}>{children}</li>,
-                        h1: ({ children }) => <h1 className="text-2xl font-bold mb-6 mt-8 border-b-2 border-gray-300 pb-3" style={{ color: '#111827 !important' }}>{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-xl font-bold mb-4 mt-8" style={{ color: '#111827 !important' }}>{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-lg font-bold mb-3 mt-6" style={{ color: '#374151 !important' }}>{children}</h3>,
-                        strong: ({ children }) => <strong className="font-bold" style={{ color: '#111827 !important' }}>{children}</strong>,
-                        em: ({ children }) => <em className="italic" style={{ color: '#374151 !important' }}>{children}</em>,
-                        code: ({ children }) => <code className="bg-blue-50 px-2 py-1 rounded text-sm font-mono font-semibold" style={{ color: '#1d4ed8 !important' }}>{children}</code>,
-                        pre: ({ children }) => <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 my-6 overflow-x-auto">{children}</pre>,
-                        blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-300 pl-4 italic my-6" style={{ color: '#374151 !important' }}>{children}</blockquote>,
-                        hr: () => <hr className="my-8 border-gray-300" />
+                        li: ({ children }) => <li className="leading-relaxed text-base text-gray-900 dark:text-gray-100">{children}</li>,
+                        h1: ({ children }) => <h1 className="text-2xl font-bold mb-6 mt-8 border-b-2 border-gray-300 dark:border-gray-600 pb-3 text-gray-900 dark:text-gray-100">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-xl font-bold mb-4 mt-8 text-gray-900 dark:text-gray-100">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-lg font-bold mb-3 mt-6 text-gray-800 dark:text-gray-200">{children}</h3>,
+                        strong: ({ children }) => <strong className="font-bold text-gray-900 dark:text-gray-100">{children}</strong>,
+                        em: ({ children }) => <em className="italic text-gray-800 dark:text-gray-200">{children}</em>,
+                        code: ({ children }) => <code className="bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded text-sm font-mono font-semibold text-blue-800 dark:text-blue-200">{children}</code>,
+                        pre: ({ children }) => <pre className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 my-6 overflow-x-auto">{children}</pre>,
+                        blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-300 dark:border-blue-400 pl-4 italic my-6 text-gray-800 dark:text-gray-200">{children}</blockquote>,
+                        hr: () => <hr className="my-8 border-gray-300 dark:border-gray-600" />
                       }}
                     >
                       {cleanContent(currentWikiPage.content)}
@@ -352,22 +388,22 @@ export function InlineWikiViewer({
             </DialogHeader>
             <div className="flex-1 overflow-y-auto p-4">
               <div className="max-w-none">
-                <div className="text-gray-900 dark:text-gray-100" style={{ color: '#111827 !important' }}>
+                <div className="text-gray-900 dark:text-gray-100">
                   <ReactMarkdown 
                     components={{
-                      // Custom components to handle HTML tags properly
-                      p: ({ children }) => <p className="mb-4 leading-relaxed text-base" style={{ color: '#111827' }}>{children}</p>,
+                      // Custom components to handle HTML tags properly with dark mode support
+                      p: ({ children }) => <p className="mb-4 leading-relaxed text-base text-gray-900 dark:text-gray-100">{children}</p>,
                       ul: ({ children }) => <ul className="mb-6 pl-6 space-y-2">{children}</ul>,
                       ol: ({ children }) => <ol className="mb-6 pl-6 space-y-2">{children}</ol>,
-                      li: ({ children }) => <li className="leading-relaxed text-base" style={{ color: '#111827' }}>{children}</li>,
-                      h1: ({ children }) => <h1 className="text-3xl font-bold mb-6 mt-8 border-b-2 border-gray-300 dark:border-gray-600 pb-3" style={{ color: '#111827' }}>{children}</h1>,
-                      h2: ({ children }) => <h2 className="text-2xl font-bold mb-4 mt-8" style={{ color: '#111827' }}>{children}</h2>,
-                      h3: ({ children }) => <h3 className="text-xl font-bold mb-3 mt-6" style={{ color: '#374151' }}>{children}</h3>,
-                      strong: ({ children }) => <strong className="font-bold" style={{ color: '#111827' }}>{children}</strong>,
-                      em: ({ children }) => <em className="italic" style={{ color: '#374151' }}>{children}</em>,
-                      code: ({ children }) => <code className="bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded text-sm font-mono font-semibold" style={{ color: '#1d4ed8' }}>{children}</code>,
+                      li: ({ children }) => <li className="leading-relaxed text-base text-gray-900 dark:text-gray-100">{children}</li>,
+                      h1: ({ children }) => <h1 className="text-3xl font-bold mb-6 mt-8 border-b-2 border-gray-300 dark:border-gray-600 pb-3 text-gray-900 dark:text-gray-100">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-2xl font-bold mb-4 mt-8 text-gray-900 dark:text-gray-100">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-xl font-bold mb-3 mt-6 text-gray-800 dark:text-gray-200">{children}</h3>,
+                      strong: ({ children }) => <strong className="font-bold text-gray-900 dark:text-gray-100">{children}</strong>,
+                      em: ({ children }) => <em className="italic text-gray-800 dark:text-gray-200">{children}</em>,
+                      code: ({ children }) => <code className="bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded text-sm font-mono font-semibold text-blue-800 dark:text-blue-200">{children}</code>,
                       pre: ({ children }) => <pre className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 my-6 overflow-x-auto">{children}</pre>,
-                      blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-300 dark:border-blue-400 pl-4 italic my-6" style={{ color: '#374151' }}>{children}</blockquote>,
+                      blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-300 dark:border-blue-400 pl-4 italic my-6 text-gray-800 dark:text-gray-200">{children}</blockquote>,
                       hr: () => <hr className="my-8 border-gray-300 dark:border-gray-600" />
                     }}
                   >

@@ -85,7 +85,7 @@ const priorityOptions = [
   { value: 'URGENT', label: 'Urgent', color: 'bg-red-100 text-red-800' }
 ]
 
-export default function TaskList({ projectId, workspaceId = 'workspace-1', isFullscreen = false, onToggleFullscreen }: TaskListProps) {
+export default function TaskList({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jhn', isFullscreen = false, onToggleFullscreen }: TaskListProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState('all')

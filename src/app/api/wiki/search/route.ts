@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('q')
-    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     const type = searchParams.get('type') || 'all'
     const author = searchParams.get('author')
     const tags = searchParams.get('tags')?.split(',').filter(Boolean) || []

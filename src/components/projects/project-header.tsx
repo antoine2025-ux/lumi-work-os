@@ -65,7 +65,7 @@ export function ProjectHeader({
 
   const getDescriptionDisplay = () => {
     const description = project.description || 'No description available'
-    const maxLength = 300
+    const maxLength = 350
     
     if (description.length <= maxLength || descriptionExpanded) {
       return description
@@ -76,7 +76,7 @@ export function ProjectHeader({
 
   const shouldShowExpandButton = () => {
     const description = project.description || 'No description available'
-    return description.length > 300
+    return description.length > 350
   }
 
   const handleTeamClick = () => {
@@ -93,10 +93,10 @@ export function ProjectHeader({
     <div className="max-w-6xl mx-auto px-6 py-2">
       {/* Combined header with progress bar and metrics */}
       <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          {/* Left side - Project info */}
-          <div className="flex-1">
-            <div className="flex items-center space-x-3">
+        <div className="flex items-start justify-between mb-2">
+          {/* Left side - Project info with description */}
+          <div className="flex-1 pr-12 max-w-4xl">
+            <div className="flex items-center space-x-3 mb-3">
               <div 
                 className="w-3 h-3 rounded-full" 
                 style={{ backgroundColor: project.color || colors.primary }}
@@ -105,10 +105,25 @@ export function ProjectHeader({
                 {project.name}
               </h1>
             </div>
+            {/* Description moved here */}
+            <div className="mb-3">
+              <p className="text-sm leading-relaxed" style={{ color: colors.textMuted }}>
+                {getDescriptionDisplay()}
+              </p>
+              {shouldShowExpandButton() && (
+                <button
+                  onClick={() => setDescriptionExpanded(!descriptionExpanded)}
+                  className="text-xs mt-1 hover:underline font-medium"
+                  style={{ color: colors.primary }}
+                >
+                  {descriptionExpanded ? 'Show less' : 'Show more'}
+                </button>
+              )}
+            </div>
           </div>
           
           {/* Right side - All circular buttons aligned with title */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 flex-shrink-0">
             {/* Team Members - Expandable */}
             <CircularActionButton
               icon={Users}
@@ -249,43 +264,24 @@ export function ProjectHeader({
           </div>
         </div>
         
-
-        {/* Project description and progress bar */}
-        <div className="mt-0.5">
-          <div className="mb-2">
-            <p className="text-sm leading-relaxed" style={{ color: colors.textMuted }}>
-              {getDescriptionDisplay()}
-            </p>
-            {shouldShowExpandButton() && (
-              <button
-                onClick={() => setDescriptionExpanded(!descriptionExpanded)}
-                className="text-xs mt-1 hover:underline font-medium"
-                style={{ color: colors.primary }}
-              >
-                {descriptionExpanded ? 'Show less' : 'Show more'}
-              </button>
-            )}
+        {/* Progress bar */}
+        <div className="mt-4 max-w-md">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium" style={{ color: colors.textSecondary }}>
+              Progress
+            </span>
+            <span className="text-sm" style={{ color: colors.textSecondary }}>
+              {getTaskStatusCount('DONE')} of {project._count.tasks} tasks
+            </span>
           </div>
-          
-          {/* Progress bar */}
-          <div className="max-w-md">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium" style={{ color: colors.textSecondary }}>
-                Progress
-              </span>
-              <span className="text-sm" style={{ color: colors.textSecondary }}>
-                {getTaskStatusCount('DONE')} of {project._count.tasks} tasks
-              </span>
-            </div>
-            <div className="w-full rounded-full h-2" style={{ backgroundColor: colors.border }}>
-              <div 
-                className="h-2 rounded-full" 
-                style={{ 
-                  width: `${(getTaskStatusCount('DONE') / project._count.tasks) * 100}%`, 
-                  backgroundColor: colors.success 
-                }} 
-              />
-            </div>
+          <div className="w-full rounded-full h-2" style={{ backgroundColor: colors.border }}>
+            <div 
+              className="h-2 rounded-full" 
+              style={{ 
+                width: `${(getTaskStatusCount('DONE') / project._count.tasks) * 100}%`, 
+                backgroundColor: colors.success 
+              }} 
+            />
           </div>
         </div>
       </div>

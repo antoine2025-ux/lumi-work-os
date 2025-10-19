@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const workspaceId = request.nextUrl.searchParams.get("workspaceId") || "workspace-1"
+    const workspaceId = request.nextUrl.searchParams.get("workspaceId") || "cmgl0f0wa00038otlodbw5jhn"
     const flags = await FeatureFlagService.getFlags(workspaceId, session.user.id)
 
     return NextResponse.json({ flags })

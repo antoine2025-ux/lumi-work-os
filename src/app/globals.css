@@ -2,9 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom mention styling */
+.mention {
+  @apply bg-blue-100 text-blue-800 px-1 py-0.5 rounded text-sm font-medium;
+}
+
 :root {
-  /* Default theme - will be overridden by theme provider */
-  --background: #f8fafc;
+  /* Default light theme - will be overridden by theme provider */
+  --background: #ffffff;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
@@ -14,14 +19,14 @@
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
+  --muted: #f8fafc;
   --muted-foreground: #64748b;
   --accent: #f1f5f9;
   --accent-foreground: #0f172a;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --border: #e2e8f0;
-  --input: #e2e8f0;
+  --input: #ffffff;
   --ring: #3b82f6;
   --radius: 0.5rem;
 }
@@ -35,6 +40,41 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   font-feature-settings: "rlig" 1, "calt" 1;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode specific styles */
+.dark {
+  color-scheme: dark;
+}
+
+/* Ensure proper contrast in dark mode */
+.dark .ProseMirror {
+  color: var(--foreground);
+}
+
+.dark .ProseMirror blockquote {
+  border-left-color: var(--border);
+  color: var(--muted-foreground);
+}
+
+.dark .ProseMirror code {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
+
+.dark .ProseMirror pre {
+  background-color: var(--muted);
+  border-color: var(--border);
+}
+
+.dark .ProseMirror a {
+  color: var(--primary);
+  text-decoration-color: var(--primary);
+}
+
+.dark .ProseMirror a:hover {
+  text-decoration-color: var(--muted-foreground);
 }
 
 /* Custom scrollbar */

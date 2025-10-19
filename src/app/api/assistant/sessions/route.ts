@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 // POST /api/assistant/sessions - Create a new assistant session
 export async function POST(request: NextRequest) {
   try {
-    const { intent, target = 'wiki_page', workspaceId = 'workspace-1' } = await request.json()
+    const { intent, target = 'wiki_page', workspaceId = 'cmgl0f0wa00038otlodbw5jhn' } = await request.json()
     
     if (!intent || !['doc_gen', 'assist'].includes(intent)) {
       return NextResponse.json({ error: 'Invalid intent. Must be "doc_gen" or "assist"' }, { status: 400 })
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     
     const sessions = await prisma.chatSession.findMany({
       where: {

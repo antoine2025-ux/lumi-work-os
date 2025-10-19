@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useWorkspace } from "@/lib/workspace-context"
+import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -94,6 +95,7 @@ const teamOptions = [
 export default function NewProjectPage() {
   const router = useRouter()
   const { currentWorkspace } = useWorkspace()
+  const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [users, setUsers] = useState<Array<{id: string, name: string, email: string}>>([])
@@ -122,13 +124,31 @@ export default function NewProjectPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load users (we'll create some sample users for now)
-        setUsers([
-          { id: 'dev-user-1', name: 'Development User', email: 'dev@lumi.com' },
-          { id: 'user-2', name: 'John Doe', email: 'john@lumi.com' },
-          { id: 'user-3', name: 'Jane Smith', email: 'jane@lumi.com' },
-          { id: 'user-4', name: 'Mike Johnson', email: 'mike@lumi.com' }
-        ])
+        // Load users from API
+        const usersResponse = await fetch('/api/users')
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json()
+          setUsers(usersData)
+          
+          // Pre-select current user as project owner if they exist in the users list
+          if (session?.user?.email && usersData.length > 0) {
+            const currentUser = usersData.find((user: any) => user.email === session.user.email)
+            if (currentUser) {
+              setFormData(prev => ({
+                ...prev,
+                ownerId: currentUser.id
+              }))
+            }
+          }
+        } else {
+          // Fallback to mock users if API fails
+          setUsers([
+            { id: 'dev-user-1', name: 'Development User', email: 'dev@lumi.com' },
+            { id: 'user-2', name: 'John Doe', email: 'john@lumi.com' },
+            { id: 'user-3', name: 'Jane Smith', email: 'jane@lumi.com' },
+            { id: 'user-4', name: 'Mike Johnson', email: 'mike@lumi.com' }
+          ])
+        }
 
         // Load wiki pages
         const wikiResponse = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace?.id || 'workspace-1'}`)
@@ -150,7 +170,7 @@ export default function NewProjectPage() {
     }
 
     loadData()
-  }, [])
+  }, [session?.user?.email, currentWorkspace?.id])
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}

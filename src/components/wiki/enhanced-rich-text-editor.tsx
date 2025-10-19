@@ -38,7 +38,7 @@ interface RichTextEditorProps {
   showToolbar?: boolean
 }
 
-export function RichTextEditor({ 
+export function EnhancedRichTextEditor({ 
   content, 
   onChange, 
   placeholder = "Start writing...", 

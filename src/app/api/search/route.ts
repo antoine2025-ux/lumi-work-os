@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ results: [] })
     }
 
-    const workspaceId = request.nextUrl.searchParams.get("workspaceId") || "workspace-1"
+    const workspaceId = request.nextUrl.searchParams.get("workspaceId") || "cmgl0f0wa00038otlodbw5jhn"
     const searchTerm = query.toLowerCase()
 
     // Parse search operators

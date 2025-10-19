@@ -289,21 +289,21 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
           background: #9ca3af;
         }
       `}</style>
-      <div className="h-screen bg-gray-50 flex">
+      <div className="h-screen bg-background flex">
       {/* Left Sidebar */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-72'} bg-white transition-all duration-300 flex flex-col border-r border-gray-200 shadow-sm h-screen overflow-hidden`}>
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-72'} bg-card transition-all duration-300 flex flex-col border-r border-border shadow-sm h-screen overflow-hidden`}>
         {/* Top Section - Search and AI Button */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-border">
           {!sidebarCollapsed && (
             <>
               {/* Search */}
               <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Explore knowledge..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="pl-10 bg-muted border-border text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
 
@@ -511,12 +511,12 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 bg-white overflow-y-auto h-screen">
+      <div className="flex-1 bg-background overflow-y-auto h-screen">
         {isCreatingPage ? (
           /* Minimalistic Page Editor */
-          <div className="h-full bg-white min-h-screen">
+          <div className="h-full bg-background min-h-screen">
             {/* Main Editor Area - Clean Document */}
-            <div className="flex-1 p-8 bg-white min-h-screen">
+            <div className="flex-1 p-8 bg-background min-h-screen">
               <div className="max-w-4xl mx-auto">
                 {/* Page Info and Actions */}
                 <div className="flex items-center justify-between mb-6">

@@ -115,7 +115,7 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave }: ProjectE
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/org/users?workspaceId=workspace-1')
+      const response = await fetch('/api/org/users?workspaceId=cmgl0f0wa00038otlodbw5jhn')
       if (response.ok) {
         const userData = await response.json()
         setUsers(userData)

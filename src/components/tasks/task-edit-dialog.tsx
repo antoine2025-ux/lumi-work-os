@@ -9,7 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, User, Calendar, Tag, X } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Loader2, User, Calendar, Tag, X, Settings, MessageSquare, History } from "lucide-react"
+import { TaskComments } from "./task-comments"
 
 interface User {
   id: string
@@ -43,6 +45,26 @@ interface Task {
     name: string
     color: string
   }
+  customFields?: CustomFieldValue[]
+}
+
+interface CustomFieldDef {
+  id: string
+  projectId: string
+  key: string
+  label: string
+  type: 'text' | 'number' | 'select' | 'date' | 'boolean'
+  options?: any
+  uniqueKey: string
+  createdAt: string
+}
+
+interface CustomFieldValue {
+  id: string
+  taskId: string
+  fieldId: string
+  value: any
+  field: CustomFieldDef
 }
 
 interface TaskEditDialogProps {
@@ -70,6 +92,8 @@ const priorityOptions = [
 export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
+  const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDef[]>([])
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({})
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -81,12 +105,13 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
   })
   const [newTag, setNewTag] = useState('')
 
-  // Load users when dialog opens
+  // Load users and custom fields when dialog opens
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && task) {
       loadUsers()
+      loadCustomFields()
     }
-  }, [isOpen])
+  }, [isOpen, task])
 
   // Update form data when task changes
   useEffect(() => {
@@ -100,12 +125,21 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
         dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
         tags: task.tags || []
       })
+
+      // Initialize custom field values
+      const initialValues: Record<string, any> = {}
+      if (task.customFields) {
+        task.customFields.forEach(cf => {
+          initialValues[cf.fieldId] = cf.value
+        })
+      }
+      setCustomFieldValues(initialValues)
     }
   }, [task])
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/org/users?workspaceId=workspace-1')
+      const response = await fetch('/api/org/users?workspaceId=cmgl0f0wa00038otlodbw5jhn')
       if (response.ok) {
         const userData = await response.json()
         setUsers(userData)
@@ -115,10 +149,31 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
     }
   }
 
+  const loadCustomFields = async () => {
+    if (!task) return
+    
+    try {
+      const response = await fetch(`/api/projects/${task.project.id}/custom-fields`)
+      if (response.ok) {
+        const customFieldsData = await response.json()
+        setCustomFieldDefs(customFieldsData)
+      }
+    } catch (error) {
+      console.error('Error loading custom fields:', error)
+    }
+  }
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
+    }))
+  }
+
+  const handleCustomFieldChange = (fieldId: string, value: any) => {
+    setCustomFieldValues(prev => ({
+      ...prev,
+      [fieldId]: value
     }))
   }
 
@@ -152,6 +207,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
     try {
       setIsLoading(true)
       
+      // Update basic task fields
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: {
@@ -170,6 +226,25 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
 
       if (response.ok) {
         const updatedTask = await response.json()
+        
+        // Update custom fields if there are any
+        if (customFieldDefs.length > 0) {
+          const customFieldsData = customFieldDefs.map(fieldDef => ({
+            fieldId: fieldDef.id,
+            value: customFieldValues[fieldDef.id] || null
+          }))
+
+          await fetch(`/api/tasks/${task.id}/custom-fields`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              customFields: customFieldsData
+            }),
+          })
+        }
+
         onSave(updatedTask)
         onClose()
       } else {
@@ -194,193 +269,299 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Basic Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Basic Information</h3>
-            
-            <div className="space-y-2">
-              <Label htmlFor="title">Task Title</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => handleInputChange('title', e.target.value)}
-                placeholder="Enter task title"
-              />
-            </div>
+        <Tabs defaultValue="details" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="details" className="flex items-center space-x-2">
+              <Settings className="h-4 w-4" />
+              <span>Details</span>
+            </TabsTrigger>
+            <TabsTrigger value="comments" className="flex items-center space-x-2">
+              <MessageSquare className="h-4 w-4" />
+              <span>Comments</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center space-x-2">
+              <History className="h-4 w-4" />
+              <span>History</span>
+            </TabsTrigger>
+          </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Enter task description"
-                rows={3}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select 
-                  value={formData.status} 
-                  onValueChange={(value) => handleInputChange('status', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex items-center space-x-2">
-                          <Badge className={option.color}>
-                            {option.label}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Priority</Label>
-                <Select 
-                  value={formData.priority} 
-                  onValueChange={(value) => handleInputChange('priority', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {priorityOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex items-center space-x-2">
-                          <Badge className={option.color}>
-                            {option.label}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          {/* Assignment */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Assignment
-            </h3>
-            
-            <div className="space-y-2">
-              <Label>Assignee</Label>
-              <Select 
-                value={formData.assigneeId} 
-                onValueChange={(value) => handleInputChange('assigneeId', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select assignee" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No assignee</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span>{user.name}</span>
-                        <span className="text-sm text-muted-foreground">({user.email})</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Timeline */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Timeline
-            </h3>
-            
-            <div className="space-y-2">
-              <Label htmlFor="dueDate">Due Date</Label>
-              <Input
-                id="dueDate"
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => handleInputChange('dueDate', e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium flex items-center gap-2">
-              <Tag className="h-5 w-5" />
-              Tags
-            </h3>
-            
-            <div className="space-y-2">
-              <Label>Add Tags</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Enter tag name"
-                />
-                <Button type="button" onClick={handleAddTag} variant="outline">
-                  Add
-                </Button>
-              </div>
+          <TabsContent value="details" className="space-y-6">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Basic Information</h3>
               
-              {formData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(tag)}
-                        className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
+              <div className="space-y-2">
+                <Label htmlFor="title">Task Title</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange('title', e.target.value)}
+                  placeholder="Enter task title"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Enter task description"
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select 
+                    value={formData.status} 
+                    onValueChange={(value) => handleInputChange('status', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <div className="flex items-center space-x-2">
+                            <Badge className={option.color}>
+                              {option.label}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  <Select 
+                    value={formData.priority} 
+                    onValueChange={(value) => handleInputChange('priority', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {priorityOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <div className="flex items-center space-x-2">
+                            <Badge className={option.color}>
+                              {option.label}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Assignment */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Assignment
+              </h3>
+              
+              <div className="space-y-2">
+                <Label>Assignee</Label>
+                <Select 
+                  value={formData.assigneeId} 
+                  onValueChange={(value) => handleInputChange('assigneeId', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select assignee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No assignee</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <span>{user.name}</span>
+                          <span className="text-sm text-muted-foreground">({user.email})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Timeline
+              </h3>
+              
+              <div className="space-y-2">
+                <Label htmlFor="dueDate">Due Date</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => handleInputChange('dueDate', e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Tags
+              </h3>
+              
+              <div className="space-y-2">
+                <Label>Add Tags</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Enter tag name"
+                  />
+                  <Button type="button" onClick={handleAddTag} variant="outline">
+                    Add
+                  </Button>
+                </div>
+                
+                {formData.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.tags.map((tag, index) => (
+                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Custom Fields */}
+            {customFieldDefs.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Custom Fields
+                </h3>
+                
+                <div className="grid gap-4">
+                  {customFieldDefs.map((fieldDef) => (
+                    <div key={fieldDef.id} className="space-y-2">
+                      <Label htmlFor={`custom-${fieldDef.id}`}>{fieldDef.label}</Label>
+                      
+                      {fieldDef.type === 'text' && (
+                        <Input
+                          id={`custom-${fieldDef.id}`}
+                          value={customFieldValues[fieldDef.id] || ''}
+                          onChange={(e) => handleCustomFieldChange(fieldDef.id, e.target.value)}
+                          placeholder={`Enter ${fieldDef.label.toLowerCase()}`}
+                        />
+                      )}
+                      
+                      {fieldDef.type === 'number' && (
+                        <Input
+                          id={`custom-${fieldDef.id}`}
+                          type="number"
+                          value={customFieldValues[fieldDef.id] || ''}
+                          onChange={(e) => handleCustomFieldChange(fieldDef.id, e.target.value ? Number(e.target.value) : null)}
+                          placeholder={`Enter ${fieldDef.label.toLowerCase()}`}
+                        />
+                      )}
+                      
+                      {fieldDef.type === 'select' && (
+                        <Select
+                          value={customFieldValues[fieldDef.id] || ''}
+                          onValueChange={(value) => handleCustomFieldChange(fieldDef.id, value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={`Select ${fieldDef.label.toLowerCase()}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">No selection</SelectItem>
+                            {fieldDef.options && Array.isArray(fieldDef.options) && fieldDef.options.map((option) => (
+                              <SelectItem key={option} value={option}>
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      
+                      {fieldDef.type === 'date' && (
+                        <Input
+                          id={`custom-${fieldDef.id}`}
+                          type="date"
+                          value={customFieldValues[fieldDef.id] ? customFieldValues[fieldDef.id].split('T')[0] : ''}
+                          onChange={(e) => handleCustomFieldChange(fieldDef.id, e.target.value ? new Date(e.target.value).toISOString() : null)}
+                        />
+                      )}
+                      
+                      {fieldDef.type === 'boolean' && (
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`custom-${fieldDef.id}`}
+                            checked={customFieldValues[fieldDef.id] || false}
+                            onCheckedChange={(checked) => handleCustomFieldChange(fieldDef.id, checked)}
+                          />
+                          <Label htmlFor={`custom-${fieldDef.id}`} className="text-sm">
+                            {customFieldValues[fieldDef.id] ? 'Yes' : 'No'}
+                          </Label>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Task Info */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Task Information</h3>
-            
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <Label className="text-muted-foreground">Created by</Label>
-                <p className="font-medium">{task.createdBy.name}</p>
               </div>
-              <div>
-                <Label className="text-muted-foreground">Project</Label>
-                <div className="flex items-center space-x-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: task.project.color }}
-                  />
-                  <span className="font-medium">{task.project.name}</span>
+            )}
+
+            {/* Task Info */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Task Information</h3>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <Label className="text-muted-foreground">Created by</Label>
+                  <p className="font-medium">{task.createdBy.name}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Project</Label>
+                  <div className="flex items-center space-x-2">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: task.project.color }}
+                    />
+                    <span className="font-medium">{task.project.name}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="comments">
+            <TaskComments taskId={task.id} projectId={task.project.id} />
+          </TabsContent>
+
+          <TabsContent value="history">
+            <div className="text-center text-gray-500 py-8">
+              <History className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+              <p>Task history will be displayed here</p>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         <div className="flex justify-end space-x-2 pt-4 border-t">
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
