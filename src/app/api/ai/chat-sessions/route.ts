@@ -1,0 +1,84 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+
+// GET /api/ai/chat-sessions - Get all chat sessions for a user
+export async function GET(request: NextRequest) {
+  try {
+    console.log('🔍 GET /api/ai/chat-sessions - Starting request')
+    
+    // Temporarily bypass authentication for development
+    // const session = await getServerSession(authOptions)
+    // if (!session?.user?.email) {
+    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // }
+
+    const { searchParams } = new URL(request.url)
+    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    
+    console.log('📋 Workspace ID:', workspaceId)
+    
+    const chatSessions = await prisma.chatSession.findMany({
+      where: {
+        workspaceId,
+        userId: 'dev-user-1' // Temporary hardcoded user ID for development
+      },
+      include: {
+        messages: {
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1 // Get the last message for preview
+        },
+        _count: {
+          select: {
+            messages: true
+          }
+        }
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      }
+    })
+
+    console.log('✅ Found chat sessions:', chatSessions.length)
+    console.log('📊 Sessions data:', chatSessions)
+
+    return NextResponse.json(chatSessions)
+  } catch (error) {
+    console.error('💥 Error in GET /api/ai/chat-sessions:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// POST /api/ai/chat-sessions - Create a new chat session
+export async function POST(request: NextRequest) {
+  try {
+    console.log('🆕 POST /api/ai/chat-sessions - Starting request')
+    
+    // Temporarily bypass authentication for development
+    // const session = await getServerSession(authOptions)
+    // if (!session?.user?.email) {
+    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // }
+
+    const { title, workspaceId } = await request.json()
+    console.log('📝 Creating session with title:', title, 'workspaceId:', workspaceId)
+
+    const chatSession = await prisma.chatSession.create({
+      data: {
+        title: title || 'New Chat',
+        workspaceId: workspaceId || 'workspace-1',
+        userId: 'dev-user-1' // Temporary hardcoded user ID for development
+      }
+    })
+
+    console.log('✅ Created session:', chatSession)
+
+    return NextResponse.json(chatSession)
+  } catch (error) {
+    console.error('💥 Error in POST /api/ai/chat-sessions:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
