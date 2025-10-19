@@ -29,6 +29,7 @@ interface RichTextEditorProps {
   placeholder?: string
   editable?: boolean
   className?: string
+  showToolbar?: boolean
 }
 
 export function RichTextEditor({ 
@@ -36,7 +37,8 @@ export function RichTextEditor({
   onChange, 
   placeholder = "Start writing...", 
   editable = true,
-  className = ""
+  className = "",
+  showToolbar = true
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const [isFocused, setIsFocused] = useState(false)
@@ -203,9 +205,10 @@ export function RichTextEditor({
   }
 
   return (
-    <div className={`border rounded-lg ${isFocused ? 'ring-2 ring-ring' : ''} ${className}`}>
+    <div className={`${showToolbar ? 'border rounded-lg' : ''} ${className}`}>
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/50">
+      {showToolbar && (
+        <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/50">
         {toolbarButtons.map((button, index) => (
           <Button
             key={index}
@@ -247,13 +250,14 @@ export function RichTextEditor({
           <Plus className="h-4 w-4 mr-1" />
           Embed
         </Button>
-      </div>
+        </div>
+      )}
 
       {/* Editor */}
       <div
         ref={editorRef}
         contentEditable={editable}
-        className="min-h-[400px] p-4 focus:outline-none"
+        className="min-h-[400px] p-4 focus:outline-none focus:ring-0 focus:border-0"
         onInput={handleInput}
         onPaste={handlePaste}
         onFocus={() => setIsFocused(true)}

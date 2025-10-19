@@ -71,10 +71,9 @@ async function main() {
     data: {
       workspaceId: workspace.id,
       name: 'Software Engineer - 30 Day Plan',
-      durationDays: 30,
+      duration: 30,
       description: 'Comprehensive onboarding plan for new software engineers',
-      visibility: 'ORG',
-      createdById: johnDoe.id,
+      isActive: true,
       tasks: {
         create: [
           {
@@ -134,9 +133,9 @@ async function main() {
     data: {
       workspaceId: workspace.id,
       name: 'Marketing Manager - 60 Day Plan',
-      durationDays: 60,
+      duration: 60,
       description: 'Comprehensive onboarding plan for new marketing managers',
-      visibility: 'ORG',
+      isActive: true,
       createdById: janeSmith.id,
       tasks: {
         create: [
@@ -197,14 +196,11 @@ async function main() {
   const johnPlan = await prisma.onboardingPlan.create({
     data: {
       workspaceId: workspace.id,
-      employeeId: johnDoe.id,
+      userId: johnDoe.id,
       templateId: softwareEngineerTemplate.id,
-      name: 'Software Engineer - 30 Day Plan',
+      title: 'Software Engineer - 30 Day Plan',
       status: 'ACTIVE',
       startDate: new Date('2024-01-15'),
-      progressPct: 65,
-      createdById: johnDoe.id,
-      tasks: {
         create: [
           {
             title: 'Complete HR paperwork',
@@ -274,14 +270,12 @@ async function main() {
   const janePlan = await prisma.onboardingPlan.create({
     data: {
       workspaceId: workspace.id,
-      employeeId: janeSmith.id,
+      userId: janeSmith.id,
       templateId: marketingManagerTemplate.id,
-      name: 'Marketing Manager - 60 Day Plan',
+      title: 'Marketing Manager - 60 Day Plan',
       status: 'COMPLETED',
       startDate: new Date('2023-12-01'),
       endDate: new Date('2024-01-30'),
-      progressPct: 100,
-      createdById: janeSmith.id,
       tasks: {
         create: [
           {
@@ -357,7 +351,7 @@ async function main() {
   console.log(`Created workspace: ${workspace.name}`)
   console.log(`Created users: ${johnDoe.name}, ${janeSmith.name}`)
   console.log(`Created templates: ${softwareEngineerTemplate.name}, ${marketingManagerTemplate.name}`)
-  console.log(`Created plans: ${johnPlan.name}, ${janePlan.name}`)
+  console.log(`Created plans: ${johnPlan.title}, ${janePlan.title}`)
 }
 
 main()

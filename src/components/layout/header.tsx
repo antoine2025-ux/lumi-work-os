@@ -17,9 +17,9 @@ import {
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/theme-provider"
 import { useWorkspace } from "@/lib/workspace-context"
-import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
-import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target } from "lucide-react"
+import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target, Network } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const navigationItems = [
   {
@@ -63,6 +63,12 @@ const navigationItems = [
     href: "/settings",
     icon: Settings,
     description: "Workspace configuration"
+  },
+  {
+    name: "Architecture",
+    href: "/architecture",
+    icon: Network,
+    description: "System architecture and documentation"
   }
 ]
 
@@ -94,34 +100,30 @@ export function Header() {
   }, [lastScrollY])
 
   return (
-    <>
+    <TooltipProvider>
       <header className={cn(
         "h-16 border-b transition-transform duration-300 ease-in-out sticky top-0 z-50",
         isVisible ? "translate-y-0" : "-translate-y-full"
       )}
       style={{ backgroundColor: themeConfig.background }}
       >
-        <div className="flex h-full items-center justify-between px-6">
-          {/* Logo and Workspace */}
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div 
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ 
-                  background: `linear-gradient(135deg, ${themeConfig.primary}, ${themeConfig.accent})` 
-                }}
-              >
-                <Sparkles className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-semibold text-gray-900">Lumi</span>
+        <div className="flex h-full items-center px-6">
+          {/* Logo */}
+          <div className="flex items-center space-x-2">
+            <div 
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ 
+                background: `linear-gradient(135deg, ${themeConfig.primary}, ${themeConfig.accent})` 
+              }}
+            >
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
-            
-            {/* Workspace Switcher */}
-            <WorkspaceSwitcher />
+            <span className="text-xl font-semibold text-gray-900">Lumi</span>
           </div>
           
-          {/* Navigation Items */}
-          <div className="flex items-center space-x-1">
+          {/* Navigation Items - Centered */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center space-x-1">
             {navigationItems.map((item) => {
               const isActive = pathname === item.href || 
                 (item.href !== "/" && pathname?.startsWith(item.href))
@@ -131,10 +133,10 @@ export function Header() {
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative",
+                    "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out group relative overflow-hidden",
                     isActive
-                      ? "text-primary-foreground border"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                      ? "text-primary-foreground border min-w-[120px]"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 min-w-[44px] hover:min-w-[120px]"
                   )}
                   style={isActive ? {
                     backgroundColor: themeConfig.primary,
@@ -143,10 +145,19 @@ export function Header() {
                   title={item.description}
                 >
                   <item.icon className={cn(
-                    "h-4 w-4 transition-colors",
+                    "h-4 w-4 transition-colors flex-shrink-0",
                     isActive ? "text-primary-foreground" : "text-gray-500 group-hover:text-gray-700"
                   )} />
-                  <span className="hidden sm:inline">{item.name}</span>
+                  
+                  {/* Page title with smooth animation */}
+                  <span className={cn(
+                    "text-sm font-medium transition-all duration-300 ease-in-out whitespace-nowrap",
+                    isActive 
+                      ? "opacity-100 translate-x-0 w-auto" 
+                      : "opacity-0 -translate-x-2 w-0 group-hover:opacity-100 group-hover:translate-x-0 group-hover:w-auto"
+                  )}>
+                    {item.name}
+                  </span>
                   
                   {/* Active indicator */}
                   {isActive && (
@@ -158,6 +169,7 @@ export function Header() {
                 </Link>
               )
             })}
+            </div>
           </div>
           
           {/* User Controls */}
@@ -212,6 +224,6 @@ export function Header() {
       <div className="border-b bg-gray-50/50 px-6 py-2">
         <Breadcrumbs />
       </div>
-    </>
+    </TooltipProvider>
   )
 }

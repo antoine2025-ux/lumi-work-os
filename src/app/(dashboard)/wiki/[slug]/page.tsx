@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, use, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -40,26 +40,69 @@ interface WikiPageProps {
 }
 
 export default function WikiPageDetail({ params }: WikiPageProps) {
-  const resolvedParams = use(params) as { slug: string }
+  const [resolvedParams, setResolvedParams] = useState<{ slug: string } | null>(null)
   const searchParams = useSearchParams()
   const [isEditing, setIsEditing] = useState(searchParams?.get('edit') === 'true')
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [pageData, setPageData] = useState<any>(null)
   const [relatedPages, setRelatedPages] = useState<any[]>([])
   const [isStarred, setIsStarred] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
 
+  const toggleFavorite = async () => {
+    if (!pageData) return
+    
+    try {
+      if (isStarred) {
+        // Remove from favorites
+        await fetch(`/api/wiki/pages/${pageData.id}/favorite`, {
+          method: 'DELETE'
+        })
+        setIsStarred(false)
+      } else {
+        // Add to favorites
+        await fetch(`/api/wiki/pages/${pageData.id}/favorite`, {
+          method: 'POST'
+        })
+        setIsStarred(true)
+      }
+      
+      // Trigger a custom event to refresh favorites in the sidebar
+      window.dispatchEvent(new CustomEvent('favoritesChanged'))
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+    }
+  }
+
+  // Resolve params
+  useEffect(() => {
+    const resolveParams = async () => {
+      const resolved = await params
+      console.log('Resolved params:', resolved)
+      setResolvedParams(resolved)
+    }
+    resolveParams()
+  }, [params])
+
   // Load page data
   useEffect(() => {
+    if (!resolvedParams?.slug) return
+
     const loadPage = async () => {
       try {
         setIsLoading(true)
+        console.log('Loading page with slug:', resolvedParams.slug)
         const response = await fetch(`/api/wiki/pages/${resolvedParams.slug}`)
+        console.log('Response status:', response.status)
         if (response.ok) {
           const page = await response.json()
+          console.log('Page data loaded:', page)
           setPageData(page)
+          setIsStarred(page.is_featured || false)
           loadRelatedPages(page)
+        } else {
+          console.error('Failed to load page:', response.status, response.statusText)
         }
       } catch (error) {
         console.error('Error loading page:', error)
@@ -69,7 +112,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
     }
 
     loadPage()
-  }, [resolvedParams.slug])
+  }, [resolvedParams?.slug])
 
   const loadRelatedPages = async (currentPage: any) => {
     try {
@@ -152,6 +195,8 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
     })
   }
 
+  console.log('Render state:', { isLoading, pageData, resolvedParams })
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -182,190 +227,136 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+    <div className="h-full bg-white min-h-screen">
+      {/* Main Editor Area - Clean Document */}
+      <div className="flex-1 p-8 bg-white min-h-screen">
+        <div className="max-w-4xl mx-auto">
+          {/* Page Info and Actions */}
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <Link href="/wiki">
-                <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-              </Link>
-              <div className="h-6 w-px bg-gray-300" />
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <FileText className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  {isEditing ? (
-                    <Input
-                      value={pageData.title}
-                      onChange={(e) => setPageData({...pageData, title: e.target.value})}
-                      className="text-lg font-semibold border-none p-0 h-auto focus:ring-0"
-                      placeholder="Page title..."
-                    />
-                  ) : (
-                    <h1 className="text-lg font-semibold text-gray-900">{pageData.title}</h1>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <Button 
+                onClick={toggleFavorite}
+                variant="ghost" 
+                size="sm" 
+                className={`p-2 h-auto ${isStarred ? 'text-yellow-500' : 'text-gray-400'} hover:text-yellow-500`}
+              >
+                <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+                <Settings className="h-4 w-4" />
+              </Button>
               {isEditing ? (
                 <>
                   <Button 
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-400 hover:text-gray-600 p-2 h-auto"
                   >
                     {isSaving ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Save className="h-4 w-4 mr-2" />
+                      <Save className="h-4 w-4" />
                     )}
-                    Save
-                  </Button>
-                  <Button 
-                    onClick={handleCancel}
-                    variant="outline"
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
                   </Button>
                 </>
               ) : (
-                <>
-                  <Button 
-                    onClick={() => setIsStarred(!isStarred)}
-                    variant="ghost"
-                    size="sm"
-                    className={`${isStarred ? 'text-yellow-500' : 'text-gray-400'} hover:text-yellow-500`}
-                  >
-                    <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} />
-                  </Button>
-                  <Button 
-                    onClick={() => setIsBookmarked(!isBookmarked)}
-                    variant="ghost"
-                    size="sm"
-                    className={`${isBookmarked ? 'text-blue-500' : 'text-gray-400'} hover:text-blue-500`}
-                  >
-                    <Bookmark className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600">
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600">
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    onClick={() => setIsEditing(true)}
-                    variant="outline"
-                    size="sm"
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </>
+                <Button 
+                  onClick={() => setIsEditing(true)}
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-400 hover:text-gray-600 p-2 h-auto"
+                >
+                  <Edit3 className="h-4 w-4" />
+                </Button>
               )}
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="text-sm text-gray-500">
+              Last updated {formatDate(pageData.updatedAt)}
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="grid gap-8 lg:grid-cols-4">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24">
-              {/* Page Info */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">Page Info</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <User className="h-4 w-4" />
-                    <span>{pageData.createdBy?.name || 'Unknown'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="h-4 w-4" />
-                    <span>{formatDate(pageData.updatedAt)}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Tag className="h-4 w-4" />
-                    <span className="capitalize">{pageData.category || 'general'}</span>
-                  </div>
-                  {pageData.tags && pageData.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {pageData.tags.map((tag: string, index: number) => (
-                        <Badge key={index} variant="secondary" className="text-xs bg-gray-100 text-gray-600">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
+          {/* Title - Like Slite */}
+          <div className="mb-8">
+            {isEditing ? (
+              <Input
+                value={pageData.title}
+                onChange={(e) => setPageData({...pageData, title: e.target.value})}
+                className="text-4xl font-bold border-none p-0 h-auto focus:ring-0 focus:outline-none focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder-gray-400 bg-transparent"
+                placeholder="Give your doc a title"
+              />
+            ) : (
+              <h1 className="text-4xl font-bold text-gray-900">{pageData.title}</h1>
+            )}
+          </div>
+
+          {/* Content Editor - No Border */}
+          <div className="min-h-[400px]">
+            {isEditing ? (
+              <div>
+                <RichTextEditor
+                  content={pageData.content}
+                  onChange={(content) => setPageData({...pageData, content})}
+                  placeholder="Click here to start writing"
+                  className="min-h-[400px] border-none shadow-none bg-transparent focus:ring-0 focus:outline-none"
+                  showToolbar={false}
+                />
+                {/* Action Suggestions - Only show when editing */}
+                <div className="flex items-center gap-6 text-sm text-gray-500 mt-8">
+                  <button className="flex items-center gap-2 hover:text-gray-700">
+                    <Settings className="h-4 w-4" />
+                    Use a template
+                  </button>
+                  <button className="flex items-center gap-2 hover:text-gray-700">
+                    <Download className="h-4 w-4" />
+                    Import
+                  </button>
+                  <button className="flex items-center gap-2 hover:text-gray-700">
+                    <FileText className="h-4 w-4" />
+                    New subdoc
+                  </button>
+                  <button className="flex items-center gap-2 hover:text-gray-700">
+                    <MoreHorizontal className="h-4 w-4" />
+                    Convert to collection
+                  </button>
                 </div>
               </div>
-
-              {/* Related Pages */}
-              {relatedPages.length > 0 && (
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Related Pages</h3>
-                  <div className="space-y-3">
-                    {relatedPages.map((page) => (
-                      <Link 
-                        key={page.id} 
-                        href={`/wiki/${page.slug}`}
-                        className="block p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
-                            <FileText className="h-3 w-3 text-blue-600" />
-                          </div>
-                          <span className="text-sm font-medium text-gray-900">{page.title}</span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            ) : (
+              <div className="prose prose-gray max-w-none min-h-[400px]">
+                <div 
+                  dangerouslySetInnerHTML={{ __html: pageData.content || '<p>No content available.</p>' }}
+                  className="text-gray-700 leading-relaxed"
+                />
+              </div>
+            )}
           </div>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-xl border border-gray-200 p-8">
-              {isEditing ? (
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Content
-                    </label>
-                    <RichTextEditor
-                      content={pageData.content}
-                      onChange={(content) => setPageData({...pageData, content})}
-                      placeholder="Start writing your page content..."
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="prose prose-gray max-w-none">
-                  <div 
-                    dangerouslySetInnerHTML={{ __html: pageData.content || '<p>No content available.</p>' }}
-                    className="text-gray-700 leading-relaxed"
-                  />
-                </div>
-              )}
+          {/* Cancel button when editing */}
+          {isEditing && (
+            <div className="fixed bottom-6 right-6">
+              <Button 
+                onClick={handleCancel}
+                variant="outline"
+                className="border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

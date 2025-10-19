@@ -35,7 +35,6 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { WikiLayout } from "@/components/wiki/wiki-layout"
 
 export default function WikiPage() {
   const router = useRouter()
@@ -74,8 +73,7 @@ export default function WikiPage() {
   }
 
   return (
-    <WikiLayout>
-      <div className="flex-1 p-8">
+    <div className="flex-1 p-8">
         {/* Team Workspace Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
@@ -199,7 +197,6 @@ export default function WikiPage() {
             ))}
           </div>
         </div>
-      </div>
-    </WikiLayout>
+    </div>
   )
 }
