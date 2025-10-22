@@ -175,34 +175,34 @@ export function DroppableColumn({
   const getColumnBackgroundStyle = (status: string) => {
     switch (status) {
       case 'TODO':
-        return 'hover:bg-gray-50/50'
+        return 'hover:bg-muted/50'
       case 'IN_PROGRESS':
-        return 'hover:bg-blue-50/30'
+        return 'hover:bg-accent/30'
       case 'IN_REVIEW':
-        return 'hover:bg-yellow-50/30'
+        return 'hover:bg-accent/30'
       case 'DONE':
-        return 'hover:bg-green-50/30'
+        return 'hover:bg-accent/30'
       case 'BLOCKED':
-        return 'hover:bg-red-50/30'
+        return 'hover:bg-accent/30'
       default:
-        return 'hover:bg-gray-50/50'
+        return 'hover:bg-muted/50'
     }
   }
 
   const getColumnCardStyle = (status: string) => {
     switch (status) {
       case 'TODO':
-        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800'
+        return 'hover:shadow-md hover:scale-[1.01] bg-card'
       case 'IN_PROGRESS':
-        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800 border-l-4 border-l-blue-400'
+        return 'hover:shadow-md hover:scale-[1.01] bg-card border-l-4 border-l-blue-400'
       case 'IN_REVIEW':
-        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800 border-l-4 border-l-yellow-400'
+        return 'hover:shadow-md hover:scale-[1.01] bg-card border-l-4 border-l-yellow-400'
       case 'DONE':
-        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800 border-l-4 border-l-green-400'
+        return 'hover:shadow-md hover:scale-[1.01] bg-card border-l-4 border-l-green-400'
       case 'BLOCKED':
-        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800 border-l-4 border-l-red-400'
+        return 'hover:shadow-md hover:scale-[1.01] bg-card border-l-4 border-l-red-400'
       default:
-        return 'hover:shadow-md hover:scale-[1.01] bg-white dark:bg-gray-800'
+        return 'hover:shadow-md hover:scale-[1.01] bg-card'
     }
   }
 
@@ -211,13 +211,13 @@ export function DroppableColumn({
       ref={setNodeRef}
       className={`min-h-[600px] drag-transition-slow ${getColumnWidth()} ${
         isOver 
-          ? 'bg-gradient-to-b from-blue-50 to-blue-100 border-2 border-blue-400 border-dashed rounded-xl shadow-lg drop-zone-glow' 
+          ? 'bg-gradient-to-b from-accent to-accent/60 border-2 border-accent border-dashed rounded-xl shadow-lg drop-zone-glow' 
           : getColumnBackgroundStyle(column.status)
       }`}
     >
       <Card className={`h-full drag-transition-slow border-0 shadow-sm ${
         isOver 
-          ? 'ring-4 ring-blue-500/30 shadow-xl scale-[1.02] bg-white/95 column-highlight' 
+          ? 'ring-4 ring-accent/30 shadow-xl scale-[1.02] bg-card/95 column-highlight' 
           : getColumnCardStyle(column.status)
       }`}>
         <CardHeader className="pb-2">

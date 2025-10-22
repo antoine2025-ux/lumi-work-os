@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   ArrowLeft, 
   Target, 
@@ -30,6 +30,7 @@ import {
   BarChart3
 } from "lucide-react"
 import Link from "next/link"
+import { useWorkspace } from "@/lib/workspace-context"
 import ReactMarkdown from "react-markdown"
 import TaskList from "@/components/tasks/task-list"
 import { KanbanBoard } from "@/components/kanban/kanban-board"
@@ -47,7 +48,7 @@ import { ProjectHeader } from "@/components/projects/project-header"
 import { ViewSwitcher, ViewMode } from "@/components/tasks/view-switcher"
 import CalendarView from "@/components/tasks/calendar-view"
 import { ProjectDailySummaries } from "@/components/projects/project-daily-summaries"
-import { ProjectReports } from "@/components/projects/project-reports"
+import ProjectLayout from "@/components/projects/project-layout"
 
 interface Project {
   id: string
@@ -117,6 +118,7 @@ export default function ProjectDetailPage() {
   const router = useRouter()
   const projectId = params?.id as string
   const { themeConfig } = useTheme()
+  const { currentWorkspace } = useWorkspace()
   
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -135,7 +137,8 @@ export default function ProjectDetailPage() {
   const [isFiltered, setIsFiltered] = useState(false)
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [dailySummaryEnabled, setDailySummaryEnabled] = useState(false)
-  const [currentSection, setCurrentSection] = useState<'tasks' | 'reports' | 'documentation'>('tasks')
+  const [selectedEpicId, setSelectedEpicId] = useState<string | undefined>(undefined)
+  const [epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
 
   // Use theme-based colors
   const colors = {
@@ -175,6 +178,18 @@ export default function ProjectDetailPage() {
       setError('Failed to load project')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadEpics = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/epics`)
+      if (response.ok) {
+        const data = await response.json()
+        setEpics(data)
+      }
+    } catch (error) {
+      console.error('Error loading epics:', error)
     }
   }
 
@@ -317,6 +332,7 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     if (projectId) {
       loadProject()
+      loadEpics()
     }
   }, [projectId])
 
@@ -424,11 +440,12 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
-      <Celebration 
-        isVisible={showCelebration} 
-        onComplete={() => setShowCelebration(false)}
-      />
+    <ProjectLayout projectId={projectId} projectName={project?.name || 'Project'}>
+      <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+        <Celebration 
+          isVisible={showCelebration} 
+          onComplete={() => setShowCelebration(false)}
+        />
       
       {/* Conditional Header Layout */}
       {true ? (
@@ -561,213 +578,113 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Main Content - Tabbed Layout */}
+      {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-6 pb-8">
-        <Tabs value={currentSection} onValueChange={(value) => setCurrentSection(value as any)} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="tasks" className="flex items-center space-x-2">
-              <Target className="h-4 w-4" />
-              <span>Tasks</span>
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="flex items-center space-x-2">
-              <BarChart3 className="h-4 w-4" />
-              <span>Reports</span>
-            </TabsTrigger>
-            <TabsTrigger value="documentation" className="flex items-center space-x-2">
-              <FileText className="h-4 w-4" />
-              <span>Documentation</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="tasks" className="space-y-6">
-            {/* Tasks Section */}
+        <div className="space-y-6">
+          {/* Tasks Section */}
+          <>
             <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-medium" style={{ color: colors.text }}>
-                    Tasks
-                  </CardTitle>
-                  <div className="flex items-center space-x-2">
-                    {/* View Switcher */}
-                    <ViewSwitcher 
-                      currentView={currentView} 
-                      onViewChange={setCurrentView} 
-                    />
-                    {/* Minimalistic Fullscreen Button - Always visible */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsTaskListFullscreen(true)}
-                      className="h-8 w-8 p-0"
-                      style={{ borderColor: colors.border }}
-                    >
-                      <Maximize2 className="h-3 w-3" />
-                    </Button>
-                    {/* Collapsible Search Button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-                      className="h-8 px-3 text-xs"
-                      style={{ borderColor: colors.border }}
-                    >
-                      <Search className="h-3 w-3 mr-1" />
-                      Search
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {/* Collapsible Search Bar */}
-                {isSearchExpanded && (
-                  <div className="p-4 border-b" style={{ borderColor: colors.border }}>
-                    <TaskSearchFilter
-                      tasks={project?.tasks || []}
-                      onFilterChange={handleFilterChange}
-                      onFilterReset={handleFilterReset}
-                    />
-                  </div>
-                )}
-                
-                {/* Render appropriate view based on currentView */}
-                {currentView === 'board' && (
-                  <KanbanBoard 
-                    projectId={projectId} 
-                    workspaceId="workspace-1"
-                    onTasksUpdated={loadProject}
-                    filteredTasks={isFiltered ? filteredTasks : undefined}
-                  />
-                )}
-                
-                {currentView === 'list' && (
-                  <TaskList 
-                    projectId={projectId} 
-                    workspaceId="workspace-1"
-                    isFullscreen={false}
-                    onToggleFullscreen={() => setIsTaskListFullscreen(true)}
-                  />
-                )}
-                
-                {currentView === 'calendar' && (
-                  <CalendarView 
-                    projectId={projectId} 
-                    workspaceId="workspace-1"
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Daily Summaries Section */}
-            <ProjectDailySummaries
-              projectId={projectId}
-              projectName={project?.name || ''}
-              dailySummaryEnabled={dailySummaryEnabled}
-              onToggleDailySummary={handleToggleDailySummary}
-            />
-          </TabsContent>
-
-          <TabsContent value="reports" className="space-y-6">
-            <ProjectReports projectId={projectId} />
-          </TabsContent>
-
-          <TabsContent value="documentation" className="space-y-6">
-            {/* Documentation Section */}
-            <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-medium" style={{ color: colors.text }}>
-                    Documentation
-                  </CardTitle>
-                  <div className="flex items-center space-x-2">
-                    {project?.wikiPage ? (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsWikiDialogOpen(true)}
-                          className="h-8 px-3 text-xs"
-                          style={{ borderColor: colors.border }}
-                        >
-                          <LinkIcon className="h-3 w-3 mr-1" />
-                          Change Page
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsFullscreen(true)}
-                          className="h-8 px-3 text-xs"
-                          style={{ borderColor: colors.border }}
-                        >
-                          <Maximize2 className="h-3 w-3 mr-1" />
-                          Fullscreen
-                        </Button>
-                      </>
-                    ) : (
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {/* Epic Filter */}
+                      <Select value={selectedEpicId || 'all'} onValueChange={(value) => setSelectedEpicId(value === 'all' ? undefined : value)}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Filter by Epic" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">
+                            <span className="text-muted-foreground">All Epics</span>
+                          </SelectItem>
+                          {epics.map((epic) => (
+                            <SelectItem key={epic.id} value={epic.id}>
+                              <div className="flex items-center space-x-2">
+                                <div 
+                                  className="w-3 h-3 rounded-full" 
+                                  style={{ backgroundColor: epic.color || '#3B82F6' }}
+                                ></div>
+                                <span>{epic.title}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {/* Minimalistic Fullscreen Button - Always visible */}
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setIsWikiDialogOpen(true)}
+                        onClick={() => setIsTaskListFullscreen(true)}
+                        className="h-8 w-8 p-0"
+                        style={{ borderColor: colors.border }}
+                      >
+                        <Maximize2 className="h-3 w-3" />
+                      </Button>
+                      {/* Collapsible Search Button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsSearchExpanded(!isSearchExpanded)}
                         className="h-8 px-3 text-xs"
                         style={{ borderColor: colors.border }}
                       >
-                        <LinkIcon className="h-3 w-3 mr-1" />
-                        Add Documentation
+                        <Search className="h-3 w-3 mr-1" />
+                        Search
                       </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                {project?.wikiPage ? (
-                  <div className="prose prose-lg max-w-none">
-                    <div style={{ color: colors.text }}>
-                      <ReactMarkdown 
-                        components={{
-                          // Custom components to handle HTML tags properly
-                          p: ({ children }) => <p className="mb-4 leading-relaxed text-base" style={{ color: colors.text }}>{children}</p>,
-                          ul: ({ children }) => <ul className="mb-6 pl-6 space-y-2">{children}</ul>,
-                          ol: ({ children }) => <ol className="mb-6 pl-6 space-y-2">{children}</ol>,
-                          li: ({ children }) => <li className="leading-relaxed text-base" style={{ color: colors.text }}>{children}</li>,
-                          h1: ({ children }) => <h1 className="text-2xl font-bold mb-6 mt-8 border-b-2 pb-3" style={{ color: colors.text, borderColor: colors.border }}>{children}</h1>,
-                          h2: ({ children }) => <h2 className="text-xl font-bold mb-4 mt-8" style={{ color: colors.text }}>{children}</h2>,
-                          h3: ({ children }) => <h3 className="text-lg font-bold mb-3 mt-6" style={{ color: colors.textSecondary }}>{children}</h3>,
-                          strong: ({ children }) => <strong className="font-bold" style={{ color: colors.text }}>{children}</strong>,
-                          em: ({ children }) => <em className="italic" style={{ color: colors.textSecondary }}>{children}</em>,
-                          code: ({ children }) => <code className="px-2 py-1 rounded text-sm font-mono font-semibold" style={{ backgroundColor: colors.borderLight, color: colors.primary }}>{children}</code>,
-                          pre: ({ children }) => <pre className="border rounded-lg p-4 my-6 overflow-x-auto" style={{ backgroundColor: colors.borderLight, borderColor: colors.border }}>{children}</pre>,
-                          blockquote: ({ children }) => <blockquote className="border-l-4 pl-4 italic my-6" style={{ borderColor: colors.primary, color: colors.textSecondary }}>{children}</blockquote>,
-                          hr: () => <hr className="my-8" style={{ borderColor: colors.border }} />
-                        }}
-                      >
-                        {cleanContent(project.wikiPage.content || '')}
-                      </ReactMarkdown>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 border-2 border-dashed rounded-lg mx-auto flex items-center justify-center mb-4" style={{ borderColor: colors.border }}>
-                      <FileText className="h-8 w-8" style={{ color: colors.textSecondary }} />
+                </CardHeader>
+                <CardContent className="p-0">
+                  {/* Collapsible Search Bar */}
+                  {isSearchExpanded && (
+                    <div className="p-4 border-b" style={{ borderColor: colors.border }}>
+                      <TaskSearchFilter
+                        tasks={project?.tasks || []}
+                        onFilterChange={handleFilterChange}
+                        onFilterReset={handleFilterReset}
+                      />
                     </div>
-                    <h3 className="text-lg font-medium mb-2" style={{ color: colors.text }}>No Documentation Yet</h3>
-                    <p className="text-sm mb-6" style={{ color: colors.textSecondary }}>
-                      Add a wiki page to provide project documentation, guidelines, and important information for your team.
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsWikiDialogOpen(true)}
-                      className="h-8 px-4 text-sm"
-                      style={{ borderColor: colors.border }}
-                    >
-                      <LinkIcon className="h-4 w-4 mr-2" />
-                      Add Documentation
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                  )}
+                  
+                  {/* Render appropriate view based on currentView */}
+                  {currentView === 'board' && (
+                    <KanbanBoard 
+                      projectId={projectId} 
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                      onTasksUpdated={loadProject}
+                      filteredTasks={isFiltered ? filteredTasks : undefined}
+                      epicId={selectedEpicId}
+                    />
+                  )}
+                  
+                  {currentView === 'list' && (
+                    <TaskList 
+                      projectId={projectId} 
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                      isFullscreen={false}
+                      onToggleFullscreen={() => setIsTaskListFullscreen(true)}
+                    />
+                  )}
+                  
+                  {currentView === 'calendar' && (
+                    <CalendarView 
+                      projectId={projectId} 
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Daily Summaries Section */}
+              <ProjectDailySummaries
+                projectId={projectId}
+                projectName={project?.name || ''}
+                dailySummaryEnabled={dailySummaryEnabled}
+                onToggleDailySummary={handleToggleDailySummary}
+              />
+            </>
+
+
+        </div>
       </div>
 
       {/* Wiki Page Selection Dialog */}
@@ -845,15 +762,16 @@ export default function ProjectDetailPage() {
         <div className="fixed inset-0 z-50 overflow-auto p-4" style={{ backgroundColor: colors.background }}>
           <TaskList 
             projectId={projectId} 
-            workspaceId="workspace-1" 
+            workspaceId={currentWorkspace?.id || 'workspace-1'} 
             isFullscreen={isTaskListFullscreen}
             onToggleFullscreen={() => setIsTaskListFullscreen(!isTaskListFullscreen)}
           />
         </div>
       )}
 
-      {/* Real-time Notifications */}
-      <NotificationToast />
-    </div>
+        {/* Real-time Notifications */}
+        <NotificationToast />
+      </div>
+    </ProjectLayout>
   )
 }

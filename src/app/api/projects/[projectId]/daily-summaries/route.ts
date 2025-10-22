@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { generateDailySummary, saveDailySummary, getDailySummaries } from '@/lib/ai/daily-summary'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/db'
 
 // GET /api/projects/[projectId]/daily-summaries - Get daily summaries for a project
 export async function GET(

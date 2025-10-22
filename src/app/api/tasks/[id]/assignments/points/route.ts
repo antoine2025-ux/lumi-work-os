@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { UpdateTaskPointsSchema } from '@/lib/pm/schemas'
 import { assertProjectWriteAccess } from '@/lib/pm/guards'
 import { logTaskHistory } from '@/lib/pm/history'
 import { emitProjectEvent } from '@/lib/pm/events'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 // PATCH /api/tasks/[id]/assignments/points - Update task story points
 export async function PATCH(

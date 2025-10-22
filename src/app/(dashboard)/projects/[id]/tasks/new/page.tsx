@@ -32,6 +32,9 @@ interface TaskFormData {
   dueDate: string
   tags: string[]
   dependsOn: string[]
+  epicId?: string // Add epicId field
+  milestoneId?: string // Add milestoneId field
+  points?: number // Add points field
   subtasks: Array<{
     title: string
     description: string
@@ -65,9 +68,11 @@ export default function NewTaskPage() {
   const [users, setUsers] = useState<Array<{id: string, name: string, email: string}>>([])
   const [project, setProject] = useState<{id: string, name: string, color: string} | null>(null)
   const [availableTasks, setAvailableTasks] = useState<Array<{id: string, title: string, status: string}>>([])
+  const [epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
+  const [milestones, setMilestones] = useState<Array<{id: string, title: string, startDate?: string, endDate?: string}>>([])
   const [newTag, setNewTag] = useState('')
   
-  // Get status from URL parameters
+  // Get initial values from URL parameters
   const getInitialStatus = () => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search)
@@ -79,6 +84,22 @@ export default function NewTaskPage() {
     return 'TODO'
   }
   
+  const getInitialEpicId = () => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      return urlParams.get('epicId') || undefined
+    }
+    return undefined
+  }
+  
+  const getInitialMilestoneId = () => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      return urlParams.get('milestoneId') || undefined
+    }
+    return undefined
+  }
+  
   const [formData, setFormData] = useState<TaskFormData>({
     title: '',
     description: '',
@@ -88,6 +109,9 @@ export default function NewTaskPage() {
     dueDate: '',
     tags: [],
     dependsOn: [],
+    epicId: getInitialEpicId(),
+    milestoneId: getInitialMilestoneId(),
+    points: undefined,
     subtasks: []
   })
 
@@ -128,6 +152,20 @@ export default function NewTaskPage() {
             title: task.title,
             status: task.status
           })))
+        }
+
+        // Load epics
+        const epicsResponse = await fetch(`/api/projects/${projectId}/epics`)
+        if (epicsResponse.ok) {
+          const epicsData = await epicsResponse.json()
+          setEpics(epicsData)
+        }
+
+        // Load milestones
+        const milestonesResponse = await fetch(`/api/projects/${projectId}/milestones`)
+        if (milestonesResponse.ok) {
+          const milestonesData = await milestonesResponse.json()
+          setMilestones(milestonesData)
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -207,7 +245,7 @@ export default function NewTaskPage() {
     }
   }
 
-  const handleInputChange = (field: keyof TaskFormData, value: string | string[]) => {
+  const handleInputChange = (field: keyof TaskFormData, value: string | string[] | number | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // Clear error when user starts typing
     if (errors[field]) {
@@ -451,8 +489,75 @@ export default function NewTaskPage() {
                 )}
               </div>
 
+              {/* Epic and Milestone Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="epic">Epic</Label>
+                  <Select 
+                    value={formData.epicId || 'none'} 
+                    onValueChange={(value) => handleInputChange('epicId', value === 'none' ? undefined : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select epic (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <span className="text-muted-foreground">No Epic</span>
+                      </SelectItem>
+                      {epics.map((epic) => (
+                        <SelectItem key={epic.id} value={epic.id}>
+                          <div className="flex items-center space-x-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: epic.color || '#3B82F6' }}
+                            ></div>
+                            <span>{epic.title}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="milestone">Milestone</Label>
+                  <Select 
+                    value={formData.milestoneId || 'none'} 
+                    onValueChange={(value) => handleInputChange('milestoneId', value === 'none' ? undefined : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select milestone (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <span className="text-muted-foreground">No Milestone</span>
+                      </SelectItem>
+                      {milestones.map((milestone) => (
+                        <SelectItem key={milestone.id} value={milestone.id}>
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <span>{milestone.title}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Story Points */}
               <div className="space-y-2">
-                <Label>Dependencies</Label>
+                <Label htmlFor="points">Story Points</Label>
+                <Input
+                  id="points"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.points || ''}
+                  onChange={(e) => handleInputChange('points', e.target.value ? parseInt(e.target.value) : undefined)}
+                  placeholder="Enter story points (optional)"
+                />
+              </div>
                 <div className="space-y-2">
                   {formData.dependsOn.map((taskId, index) => {
                     const task = availableTasks.find(t => t.id === taskId)
@@ -517,7 +622,6 @@ export default function NewTaskPage() {
                     <p className="text-sm text-gray-500">No other tasks available for dependencies</p>
                   )}
                 </div>
-              </div>
             </CardContent>
           </Card>
         </div>

@@ -220,10 +220,12 @@ export function Header() {
         </div>
       </header>
       
-      {/* Breadcrumbs */}
-      <div className="border-b bg-muted/50 px-6 py-2">
-        <Breadcrumbs />
-      </div>
+      {/* Breadcrumbs - Hide for project pages */}
+      {!pathname?.startsWith('/projects') && (
+        <div className="border-b bg-muted/50 px-6 py-2">
+          <Breadcrumbs />
+        </div>
+      )}
     </TooltipProvider>
   )
 }

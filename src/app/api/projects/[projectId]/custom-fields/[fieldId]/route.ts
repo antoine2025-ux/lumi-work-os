@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { z } from 'zod'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 const updateCustomFieldSchema = z.object({
   key: z.string().min(1, 'Key is required').regex(/^[a-zA-Z0-9_]+$/, 'Key must contain only letters, numbers, and underscores').optional(),

@@ -23,7 +23,9 @@ import {
   Plus,
   Layers,
   Filter,
-  X
+  X,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 
 interface Task {
@@ -98,6 +100,7 @@ interface KanbanBoardProps {
   workspaceId?: string
   onTasksUpdated?: () => void
   filteredTasks?: any[]
+  epicId?: string // Add epicId prop for Epic-specific filtering
 }
 
 type ViewDensity = 'compact' | 'comfortable' | 'spacious'
@@ -112,7 +115,7 @@ const columns = [
   { id: 'blocked', status: 'BLOCKED' as const, title: 'Blocked', color: 'bg-red-100 text-red-800' },
 ]
 
-export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jhn', onTasksUpdated, filteredTasks }: KanbanBoardProps) {
+export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jhn', onTasksUpdated, filteredTasks, epicId }: KanbanBoardProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [epics, setEpics] = useState<Epic[]>([])
   const [milestones, setMilestones] = useState<Milestone[]>([])
@@ -129,12 +132,13 @@ export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jh
   const [newEpicTitle, setNewEpicTitle] = useState('')
   const [newEpicDescription, setNewEpicDescription] = useState('')
   const [newEpicColor, setNewEpicColor] = useState('#3B82F6')
+  const [collapsedEpics, setCollapsedEpics] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadTasks()
     loadEpics()
     loadMilestones()
-  }, [projectId, workspaceId])
+  }, [projectId, workspaceId, epicId]) // Add epicId to dependencies
 
   // Screen size detection
   useEffect(() => {
@@ -157,7 +161,9 @@ export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jh
   const loadTasks = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(`/api/tasks?projectId=${projectId}&workspaceId=${workspaceId}`)
+      // Add epicId filter to the API call if provided
+      const epicFilter = epicId ? `&epicId=${epicId}` : ''
+      const response = await fetch(`/api/tasks?projectId=${projectId}&workspaceId=${workspaceId}${epicFilter}`)
       if (response.ok) {
         const data = await response.json()
         setTasks(data)
@@ -177,6 +183,22 @@ export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jh
       if (response.ok) {
         const data = await response.json()
         setEpics(data)
+        
+        // Load saved collapse state or default to all collapsed for new users
+        const savedCollapseState = loadCollapseStateFromStorage()
+        if (savedCollapseState.size === 0) {
+          // First time user - collapse all epics by default
+          const allEpicIds = new Set<string>(data.map((epic: Epic) => epic.id))
+          setCollapsedEpics(allEpicIds)
+          saveCollapseStateToStorage(allEpicIds)
+        } else {
+          // Use saved state, but filter out epics that no longer exist
+          const validEpicIds = new Set<string>(data.map((epic: Epic) => epic.id))
+          const filteredCollapseState = new Set<string>(
+            Array.from(savedCollapseState).filter(id => validEpicIds.has(id))
+          )
+          setCollapsedEpics(filteredCollapseState)
+        }
       } else {
         console.error('Failed to load epics:', response.status, response.statusText)
       }
@@ -305,8 +327,9 @@ export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jh
   }
 
   const handleAddTask = (status: string) => {
-    // Navigate to the new task page with the status pre-filled
-    window.location.href = `/projects/${projectId}/tasks/new?status=${status}`
+    // Navigate to the new task page with the status pre-filled and epicId if available
+    const epicParam = epicId ? `&epicId=${epicId}` : ''
+    window.location.href = `/projects/${projectId}/tasks/new?status=${status}${epicParam}`
   }
 
   // Helper functions for grouping and filtering
@@ -335,6 +358,42 @@ export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jh
 
   const clearMilestoneFilters = () => {
     setSelectedMilestones([])
+  }
+
+  const toggleEpicCollapse = (epicId: string) => {
+    setCollapsedEpics(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(epicId)) {
+        newSet.delete(epicId)
+      } else {
+        newSet.add(epicId)
+      }
+      // Persist to localStorage
+      saveCollapseStateToStorage(newSet)
+      return newSet
+    })
+  }
+
+  const saveCollapseStateToStorage = (collapsedSet: Set<string>) => {
+    try {
+      const collapsedArray = Array.from(collapsedSet)
+      localStorage.setItem(`epic-collapse-${projectId}`, JSON.stringify(collapsedArray))
+    } catch (error) {
+      console.error('Failed to save collapse state to localStorage:', error)
+    }
+  }
+
+  const loadCollapseStateFromStorage = (): Set<string> => {
+    try {
+      const saved = localStorage.getItem(`epic-collapse-${projectId}`)
+      if (saved) {
+        const collapsedArray = JSON.parse(saved)
+        return new Set(collapsedArray)
+      }
+    } catch (error) {
+      console.error('Failed to load collapse state from localStorage:', error)
+    }
+    return new Set()
   }
 
   // Use filtered tasks if provided, otherwise use loaded tasks
@@ -368,7 +427,7 @@ export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jh
       onTaskReorder={handleTaskReorder}
     >
       {/* Controls Header */}
-      <div className="p-4 border-b bg-white">
+      <div className="p-4 border-b bg-card">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             {/* Group By Toggle */}
@@ -473,7 +532,7 @@ export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jh
       </div>
 
       {/* Responsive Container */}
-      <div className={`p-8 ${
+      <div className={`p-8 bg-background ${
         screenSize === 'desktop' 
           ? 'max-w-[1600px] mx-auto' // Appropriate maximum width for 27" and smaller monitors
           : screenSize === 'tablet' 
@@ -516,6 +575,18 @@ export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jh
                   <div className="p-4 border-b bg-gray-50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleEpicCollapse(epic.id)}
+                          className="h-6 w-6 p-0 hover:bg-gray-200"
+                        >
+                          {collapsedEpics.has(epic.id) ? (
+                            <ChevronRight className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </Button>
                         <div 
                           className="w-4 h-4 rounded-full"
                           style={{ backgroundColor: epic.color || '#3B82F6' }}
@@ -536,32 +607,34 @@ export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jh
                   </div>
 
                   {/* Epic Tasks Grid */}
-                  <div className="p-4">
-                    <div className={`grid gap-4 ${
-                      screenSize === 'desktop' 
-                        ? 'grid-cols-5' 
-                        : screenSize === 'tablet' 
-                          ? 'grid-cols-3' 
-                          : 'grid-cols-1'
-                    }`}>
-                      {columns.map((column) => {
-                        const columnTasks = epicTasks.filter(task => task.status === column.status)
-                        return (
-                          <DroppableColumn
-                            key={`${epic.id}-${column.id}`}
-                            column={column}
-                            tasks={columnTasks}
-                            onEditTask={handleEditTask}
-                            onManageDependencies={handleManageDependencies}
-                            onAddTask={handleAddTask}
-                            viewDensity={viewDensity}
-                            screenSize={screenSize}
-                            epicId={epic.id}
-                          />
-                        )
-                      })}
+                  {!collapsedEpics.has(epic.id) && (
+                    <div className="p-4">
+                      <div className={`grid gap-4 ${
+                        screenSize === 'desktop' 
+                          ? 'grid-cols-5' 
+                          : screenSize === 'tablet' 
+                            ? 'grid-cols-3' 
+                            : 'grid-cols-1'
+                      }`}>
+                        {columns.map((column) => {
+                          const columnTasks = epicTasks.filter(task => task.status === column.status)
+                          return (
+                            <DroppableColumn
+                              key={`${epic.id}-${column.id}`}
+                              column={column}
+                              tasks={columnTasks}
+                              onEditTask={handleEditTask}
+                              onManageDependencies={handleManageDependencies}
+                              onAddTask={handleAddTask}
+                              viewDensity={viewDensity}
+                              screenSize={screenSize}
+                              epicId={epic.id}
+                            />
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )
             })}

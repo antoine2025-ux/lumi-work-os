@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 // GET /api/task-templates - Get all task templates for a workspace
 export async function GET(request: NextRequest) {

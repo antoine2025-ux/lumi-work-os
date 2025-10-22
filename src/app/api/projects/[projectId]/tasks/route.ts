@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 // GET /api/projects/[projectId]/tasks - Get tasks for a project with filtering
 export async function GET(

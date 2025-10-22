@@ -9,11 +9,17 @@ declare module "next-auth" {
       email?: string | null
       image?: string | null
     }
+    accessToken?: string
+    refreshToken?: string
+    expiresAt?: number
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     uid: string
+    accessToken?: string
+    refreshToken?: string
+    expiresAt?: number
   }
 }

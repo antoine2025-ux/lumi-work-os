@@ -30,6 +30,9 @@ interface Task {
   tags: string[]
   createdAt: string
   updatedAt: string
+  epicId?: string
+  milestoneId?: string
+  points?: number
   assignee?: {
     id: string
     name: string
@@ -44,6 +47,17 @@ interface Task {
     id: string
     name: string
     color: string
+  }
+  epic?: {
+    id: string
+    title: string
+    color: string
+  }
+  milestone?: {
+    id: string
+    title: string
+    startDate: string
+    endDate: string
   }
   customFields?: CustomFieldValue[]
 }
@@ -92,6 +106,8 @@ const priorityOptions = [
 export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
+  const [epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
+  const [milestones, setMilestones] = useState<Array<{id: string, title: string, startDate?: string, endDate?: string}>>([])
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDef[]>([])
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({})
   const [formData, setFormData] = useState({
@@ -101,7 +117,10 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
     priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
     assigneeId: '',
     dueDate: '',
-    tags: [] as string[]
+    tags: [] as string[],
+    epicId: '',
+    milestoneId: '',
+    points: undefined as number | undefined
   })
   const [newTag, setNewTag] = useState('')
 
@@ -110,6 +129,8 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
     if (isOpen && task) {
       loadUsers()
       loadCustomFields()
+      loadEpics()
+      loadMilestones()
     }
   }, [isOpen, task])
 
@@ -123,7 +144,10 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
         priority: task.priority,
         assigneeId: task.assigneeId || 'none',
         dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
-        tags: task.tags || []
+        tags: task.tags || [],
+        epicId: task.epicId || 'none',
+        milestoneId: task.milestoneId || 'none',
+        points: task.points || undefined
       })
 
       // Initialize custom field values
@@ -160,6 +184,34 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
       }
     } catch (error) {
       console.error('Error loading custom fields:', error)
+    }
+  }
+
+  const loadEpics = async () => {
+    if (!task) return
+    
+    try {
+      const response = await fetch(`/api/projects/${task.project.id}/epics`)
+      if (response.ok) {
+        const epicsData = await response.json()
+        setEpics(epicsData)
+      }
+    } catch (error) {
+      console.error('Error loading epics:', error)
+    }
+  }
+
+  const loadMilestones = async () => {
+    if (!task) return
+    
+    try {
+      const response = await fetch(`/api/projects/${task.project.id}/milestones`)
+      if (response.ok) {
+        const milestonesData = await response.json()
+        setMilestones(milestonesData)
+      }
+    } catch (error) {
+      console.error('Error loading milestones:', error)
     }
   }
 
@@ -220,7 +272,10 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
           priority: formData.priority,
           assigneeId: formData.assigneeId === 'none' ? null : formData.assigneeId || null,
           dueDate: formData.dueDate || null,
-          tags: formData.tags
+          tags: formData.tags,
+          epicId: formData.epicId === 'none' ? null : formData.epicId || null,
+          milestoneId: formData.milestoneId === 'none' ? null : formData.milestoneId || null,
+          points: formData.points || null
         }),
       })
 
@@ -410,6 +465,79 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
               </div>
             </div>
 
+            {/* Epic and Milestone */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Epic & Milestone</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="epic">Epic</Label>
+                  <Select 
+                    value={formData.epicId} 
+                    onValueChange={(value) => handleInputChange('epicId', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select epic (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <span className="text-muted-foreground">No Epic</span>
+                      </SelectItem>
+                      {epics.map((epic) => (
+                        <SelectItem key={epic.id} value={epic.id}>
+                          <div className="flex items-center space-x-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: epic.color || '#3B82F6' }}
+                            ></div>
+                            <span>{epic.title}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="milestone">Milestone</Label>
+                  <Select 
+                    value={formData.milestoneId} 
+                    onValueChange={(value) => handleInputChange('milestoneId', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select milestone (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <span className="text-muted-foreground">No Milestone</span>
+                      </SelectItem>
+                      {milestones.map((milestone) => (
+                        <SelectItem key={milestone.id} value={milestone.id}>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span>{milestone.title}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="points">Story Points</Label>
+                <Input
+                  id="points"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.points || ''}
+                  onChange={(e) => handleInputChange('points', e.target.value ? parseInt(e.target.value) : undefined)}
+                  placeholder="Enter story points (optional)"
+                />
+              </div>
+            </div>
+
             {/* Tags */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium flex items-center gap-2">
@@ -547,6 +675,27 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
                     <span className="font-medium">{task.project.name}</span>
                   </div>
                 </div>
+                {task.epic && (
+                  <div>
+                    <Label className="text-muted-foreground">Current Epic</Label>
+                    <div className="flex items-center space-x-2">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: task.epic.color }}
+                      />
+                      <span className="font-medium">{task.epic.title}</span>
+                    </div>
+                  </div>
+                )}
+                {task.milestone && (
+                  <div>
+                    <Label className="text-muted-foreground">Current Milestone</Label>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <span className="font-medium">{task.milestone.title}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </TabsContent>

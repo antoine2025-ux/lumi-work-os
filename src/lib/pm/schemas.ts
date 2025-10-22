@@ -156,18 +156,18 @@ export const TaskPatchSchema = z.object({
 )
 
 export const TaskPutSchema = z.object({
-  title: z.string().min(1, 'Task title is required').max(255, 'Task title too long'),
+  title: z.string().min(1, 'Task title is required').max(255, 'Task title too long').optional(),
   description: z.string().optional(),
-  status: z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED']),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
+  status: z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED']).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   assigneeId: z.string().optional(),
   dueDate: z.string().datetime().optional(),
-  tags: z.array(z.string().max(50)),
+  tags: z.array(z.string().max(50)).optional(),
   epicId: z.string().optional(),
   milestoneId: z.string().optional(),
   points: z.number().int().min(0).max(100).optional(),
-  dependsOn: z.array(z.string()),
-  blocks: z.array(z.string()),
+  dependsOn: z.array(z.string()).optional(),
+  blocks: z.array(z.string()).optional(),
   completedAt: z.string().datetime().optional()
 })
 

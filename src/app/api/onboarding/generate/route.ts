@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import OpenAI from 'openai'
 import { getWikiContext } from '@/lib/wiki'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })

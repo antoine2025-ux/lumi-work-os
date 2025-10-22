@@ -90,12 +90,12 @@ export function ProjectHeader({
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-2">
+    <div className="max-w-[1600px] mx-auto px-6 py-2">
       {/* Combined header with progress bar and metrics */}
       <div className="mb-4">
         <div className="flex items-start justify-between mb-2">
           {/* Left side - Project info with description */}
-          <div className="flex-1 pr-12 max-w-4xl">
+          <div className="flex-1 pr-12 max-w-[900px]">
             <div className="flex items-center space-x-3 mb-3">
               <div 
                 className="w-3 h-3 rounded-full" 
@@ -265,7 +265,7 @@ export function ProjectHeader({
         </div>
         
         {/* Progress bar */}
-        <div className="mt-4 max-w-md">
+        <div className="mt-4 max-w-[420px]">
           <div className="flex items-center justify-between mb-1">
             <span className="text-sm font-medium" style={{ color: colors.textSecondary }}>
               Progress

@@ -40,6 +40,7 @@ import {
 } from "lucide-react"
 import { ContextMenu, contextMenuItems } from "@/components/ui/context-menu"
 import { useTheme } from "@/components/theme-provider"
+import { MeetingsCard } from "@/components/dashboard/meetings-card"
 
 interface RecentPage {
   id: string
@@ -60,38 +61,6 @@ interface Project {
 }
 
 // Mock data for disconnected systems
-const mockMeetings = [
-  {
-    id: "1",
-    title: "Sprint Planning",
-    time: "9:00 AM",
-    duration: "1h",
-    attendees: 3,
-    team: "Engineering Team",
-    priority: "HIGH",
-    type: "video"
-  },
-  {
-    id: "2", 
-    title: "Client Review",
-    time: "2:00 PM",
-    duration: "45m",
-    attendees: 2,
-    team: "Client Relations",
-    priority: "HIGH",
-    type: "video"
-  },
-  {
-    id: "3",
-    title: "1:1 with Manager",
-    time: "4:30 PM", 
-    duration: "30m",
-    attendees: 1,
-    team: "Direct Report",
-    priority: "MEDIUM",
-    type: "phone"
-  }
-]
 
 const mockTasks = [
   {
@@ -345,49 +314,8 @@ export default function HomePage() {
 
         {/* Dashboard Grid */}
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {/* Today's Meetings - Placeholder */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center justify-between">
-                <span>Today's Meetings</span>
-                <Badge variant="outline" className="text-xs">{mockMeetings.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {mockMeetings.map((meeting) => (
-                <div key={meeting.id} className="flex items-center space-x-3 p-3 rounded-lg" style={{ backgroundColor: themeConfig.muted }}>
-                  <div className="flex-shrink-0">
-                    {meeting.type === 'video' ? (
-                      <Video className="h-4 w-4 text-blue-600" />
-                    ) : (
-                      <Phone className="h-4 w-4 text-green-600" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: themeConfig.foreground }}>
-                      {meeting.title}
-                    </p>
-                    <div className="flex items-center space-x-2 text-xs" style={{ color: themeConfig.mutedForeground }}>
-                      <span>{meeting.time}</span>
-                      <span>•</span>
-                      <span>{meeting.attendees} people</span>
-                      <span>•</span>
-                      <span>{meeting.team}</span>
-                    </div>
-                  </div>
-                  <Badge 
-                    variant={meeting.priority === 'HIGH' ? 'destructive' : 'secondary'}
-                    className="text-xs"
-                  >
-                    {meeting.priority}
-                  </Badge>
-                </div>
-              ))}
-              <div className="text-center py-4">
-                <p className="text-xs text-gray-500">Calendar integration coming soon</p>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Today's Meetings - Google Calendar Integration */}
+          <MeetingsCard className="lg:col-span-1" />
 
 
           {/* Today's Tasks - Placeholder */}

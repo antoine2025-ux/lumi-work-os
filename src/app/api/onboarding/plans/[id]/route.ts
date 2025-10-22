@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { updatePlanProgress } from '@/lib/progress'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 const updatePlanSchema = z.object({
   name: z.string().min(1).max(80).optional(),

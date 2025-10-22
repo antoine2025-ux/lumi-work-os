@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { UpdateEpicSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
 import { emitProjectEvent } from '@/lib/pm/events'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 // GET /api/projects/[projectId]/epics/[epicId] - Get a specific epic
 export async function GET(

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { updatePlanProgress } from '@/lib/progress'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 const updateTaskSchema = z.object({
   status: z.enum(['PENDING', 'IN_PROGRESS', 'DONE']).optional(),

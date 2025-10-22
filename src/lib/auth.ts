@@ -10,6 +10,34 @@ const hasGoogleCredentials = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_
   process.env.GOOGLE_CLIENT_SECRET !== "your-google-client-secret"
 
 export const authOptions: NextAuthOptions = {
+  callbacks: {
+    async signIn({ user, account, profile }) {
+      // Allow all sign-ins for now
+      return true
+    },
+    async session({ session, token }) {
+      if (session?.user && token?.sub) {
+        session.user.id = token.sub
+        session.accessToken = token.accessToken
+        session.refreshToken = token.refreshToken
+        session.expiresAt = token.expiresAt
+      }
+      return session
+    },
+    async jwt({ token, user, account }) {
+      if (user) {
+        token.id = user.id
+        token.email = user.email
+        token.name = user.name
+      }
+      if (account) {
+        token.accessToken = account.access_token
+        token.refreshToken = account.refresh_token
+        token.expiresAt = account.expires_at
+      }
+      return token
+    },
+  },
   providers: [
     // Add credentials provider for development
     CredentialsProvider({
@@ -44,50 +72,14 @@ export const authOptions: NextAuthOptions = {
       GoogleProvider({
         clientId: process.env.GOOGLE_CLIENT_ID!,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+        authorization: {
+          params: {
+            scope: "openid email profile https://www.googleapis.com/auth/calendar.readonly"
+          }
+        }
       })
     ] : [])
   ],
-  callbacks: {
-    async signIn({ user, account, profile }) {
-      if (account?.provider === "google") {
-        // For Google OAuth, create or find user in database
-        try {
-          const existingUser = await prisma.user.findUnique({
-            where: { email: user.email! }
-          })
-          
-          if (!existingUser) {
-            await prisma.user.create({
-              data: {
-                email: user.email!,
-                name: user.name || "Google User",
-                image: user.image,
-              },
-            })
-          }
-          return true
-        } catch (error) {
-          console.error("Error creating user:", error)
-          return false
-        }
-      }
-      return true
-    },
-    async session({ session, token }) {
-      if (session?.user && token?.sub) {
-        session.user.id = token.sub
-      }
-      return session
-    },
-    async jwt({ token, user, account }) {
-      if (user) {
-        token.id = user.id
-        token.email = user.email
-        token.name = user.name
-      }
-      return token
-    },
-  },
   session: {
     strategy: "jwt",
   },

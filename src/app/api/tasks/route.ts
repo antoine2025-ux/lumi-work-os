@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { TaskCreateSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { z } from 'zod'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 // GET /api/tasks - Get all tasks for a project
 export async function GET(request: NextRequest) {
@@ -21,6 +20,7 @@ export async function GET(request: NextRequest) {
     const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     const status = searchParams.get('status')
     const assigneeId = searchParams.get('assigneeId')
+    const epicId = searchParams.get('epicId') // Add epicId filter
 
     if (!projectId) {
       return NextResponse.json({ 
@@ -67,6 +67,10 @@ export async function GET(request: NextRequest) {
     
     if (assigneeId) {
       where.assigneeId = assigneeId
+    }
+    
+    if (epicId) {
+      where.epicId = epicId
     }
 
     const tasks = await prisma.task.findMany({

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { ProjectCreateSchema } from '@/lib/pm/schemas'
 import { z } from 'zod'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 // GET /api/projects - Get all projects for a workspace
 export async function GET(request: NextRequest) {

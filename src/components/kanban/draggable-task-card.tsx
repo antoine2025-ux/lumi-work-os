@@ -121,7 +121,7 @@ export function DraggableTaskCard({
       <Card
         ref={setNodeRef}
         style={style}
-        className={`hover-lift drag-transition border-0 shadow-sm ${
+        className={`hover-lift drag-transition border-0 shadow-sm bg-card ${
           isDragging 
             ? 'shadow-lg border border-blue-300' 
             : 'hover:scale-[1.02] hover:border-gray-200'
@@ -132,7 +132,7 @@ export function DraggableTaskCard({
             {/* Title - Clickable Link */}
             <Link 
               href={`/projects/${task.project.id}/tasks/${task.id}`}
-              className="block hover:bg-gray-50 rounded p-1 -m-1 transition-colors"
+              className="block hover:bg-muted rounded p-1 -m-1 transition-colors"
               onClick={(e) => {
                 // Prevent navigation if dragging
                 if (isDragging) {
@@ -151,11 +151,11 @@ export function DraggableTaskCard({
 
             {/* Description - Minimal */}
             {task.description && !compact && (
-              <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{task.description}</p>
+              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{task.description}</p>
             )}
 
             {/* Essential Info - Horizontal Layout */}
-            <div className={`flex items-center justify-between text-xs text-gray-400 ${
+            <div className={`flex items-center justify-between text-xs text-muted-foreground ${
               compact ? 'space-x-1' : 'space-x-3'
             }`}>
               <div className={`flex items-center ${compact ? 'space-x-1' : 'space-x-3'}`}>
@@ -168,7 +168,7 @@ export function DraggableTaskCard({
                 
                 {/* Assignee - Enhanced */}
                 {task.assignee && task.assignee.name && !compact && (
-                  <span className="text-gray-600 font-medium">{task.assignee.name}</span>
+                  <span className="text-foreground font-medium">{task.assignee.name}</span>
                 )}
               </div>
 

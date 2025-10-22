@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { logTaskHistory } from '@/lib/pm/history'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { z } from 'zod'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 const createCommentSchema = z.object({
   content: z.string().min(1, 'Comment content is required'),

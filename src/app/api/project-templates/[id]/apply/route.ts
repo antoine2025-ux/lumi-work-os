@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 // POST /api/project-templates/[id]/apply - Apply a template to create a project
 export async function POST(

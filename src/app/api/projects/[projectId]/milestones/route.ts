@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { CreateMilestoneSchema, UpdateMilestoneSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
 import { emitProjectEvent } from '@/lib/pm/events'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/db'
 
 // GET /api/projects/[projectId]/milestones - Get all milestones for a project
 export async function GET(
