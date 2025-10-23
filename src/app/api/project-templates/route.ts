@@ -1,36 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 
 // GET /api/project-templates - Get all project templates
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
-    const category = searchParams.get('category')
-
-    // Ensure workspace exists for development
-    const ownerId = 'dev-user-1'
+    const auth = await getUnifiedAuth(request)
     
-    let workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
     })
-    
-    if (!workspace) {
-      workspace = await prisma.workspace.create({
-        data: {
-          id: workspaceId,
-          name: 'Development Workspace',
-          slug: 'dev-workspace',
-          description: 'Development workspace',
-          ownerId: ownerId
-        }
-      })
-    }
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
+    const { searchParams } = new URL(request.url)
+    const category = searchParams.get('category')
 
     const where: any = { 
       OR: [
-        { workspaceId },
+        { workspaceId: auth.workspaceId },
         { isPublic: true }
       ]
     }

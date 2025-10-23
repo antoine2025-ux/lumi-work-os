@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { CreateEpicSchema, UpdateEpicSchema } from '@/lib/pm/schemas'
-import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
+import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { emitProjectEvent } from '@/lib/pm/events'
+import { z } from 'zod'
 import { prisma } from '@/lib/db'
 
 // GET /api/projects/[projectId]/epics - Get all epics for a project
@@ -15,80 +16,34 @@ export async function GET(
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
 
-    // Get session and verify access (development bypass)
-    const session = await getServerSession(authOptions)
+    // 1. Get authenticated user with workspace context
+    const { userId, activeWorkspaceId } = await getAuthenticatedUser(request)
     
-    // Check if project exists first
-    const project = await prisma.project.findUnique({
-      where: { id: projectId }
+    // 2. Assert workspace access
+    await assertAccess({ 
+      userId, 
+      workspaceId: activeWorkspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
     })
-    
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    // Development bypass - if no session OR if user doesn't have project access
-    if (!session?.user?.id) {
-      // Return epics without authentication for development
-      const epics = await prisma.epic.findMany({
-        where: { projectId },
-        include: {
-          tasks: {
-            select: {
-              id: true,
-              title: true,
-              status: true,
-              priority: true,
-              points: true
-            }
-          },
-          _count: {
-            select: {
-              tasks: true
-            }
-          }
-        },
-        orderBy: { order: 'asc' }
-      })
 
-      return NextResponse.json(epics)
-    }
+    // 3. Set workspace context for Prisma middleware
+    setWorkspaceContext(activeWorkspaceId)
 
-    // Check project access for authenticated users
-    try {
-      const accessResult = await assertProjectAccess(session.user, projectId)
-      if (!accessResult) {
-        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-      }
-    } catch (error) {
-      // If access check fails, use development bypass
-      console.log('Access check failed, using development bypass:', error.message)
-      const epics = await prisma.epic.findMany({
-        where: { projectId },
-        include: {
-          tasks: {
-            select: {
-              id: true,
-              title: true,
-              status: true,
-              priority: true,
-              points: true
-            }
-          },
-          _count: {
-            select: {
-              tasks: true
-            }
-          }
-        },
-        orderBy: { order: 'asc' }
-      })
-
-      return NextResponse.json(epics)
-    }
+    // 4. Assert project access (project must be in active workspace)
+    await assertAccess({ 
+      userId, 
+      workspaceId: activeWorkspaceId, 
+      projectId, 
+      scope: 'project', 
+      requireRole: ['MEMBER'] 
+    })
 
     const epics = await prisma.epic.findMany({
-      where: { projectId },
+      where: { 
+        projectId,
+        workspaceId: activeWorkspaceId // 5. Ensure cross-tenant safety
+      },
       include: {
         tasks: {
           select: {
@@ -111,6 +66,20 @@ export async function GET(
     return NextResponse.json(epics)
   } catch (error) {
     console.error('Error fetching epics:', error)
+    
+    // Handle auth errors
+    if (error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
+    if (error.message.includes('Project not found')) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to fetch epics',
       details: error.message 
@@ -127,37 +96,52 @@ export async function POST(
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
 
-    // Get session and verify access
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // 1. Get authenticated user with workspace context
+    const { userId, activeWorkspaceId } = await getAuthenticatedUser(request)
+    
+    // 2. Assert workspace access
+    await assertAccess({ 
+      userId, 
+      workspaceId: activeWorkspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
 
-    // Check write access (development bypass)
-    let accessResult: any
-    try {
-      accessResult = await assertProjectWriteAccess(session.user, projectId)
-      if (!accessResult) {
-        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-      }
-    } catch (err: any) {
-      // Fallback for local/dev when user isn't a project member
-      const project = await prisma.project.findUnique({ where: { id: projectId } })
-      if (!project) {
-        return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-      }
-      accessResult = { project, user: { id: session.user.id } }
-      console.log('Write access check failed, using development bypass:', err?.message)
-    }
+    // 3. Set workspace context for Prisma middleware
+    setWorkspaceContext(activeWorkspaceId)
+
+    // 4. Assert project write access (require ADMIN or OWNER to create epics)
+    await assertAccess({ 
+      userId, 
+      workspaceId: activeWorkspaceId, 
+      projectId, 
+      scope: 'project', 
+      requireRole: ['ADMIN', 'OWNER'] 
+    })
 
     const body = await request.json()
     
     // Validate input
     const validatedData = CreateEpicSchema.parse(body)
 
+    // Verify project exists and is in the correct workspace
+    const project = await prisma.project.findUnique({
+      where: { 
+        id: projectId,
+        workspaceId: activeWorkspaceId // 5. Ensure cross-tenant safety
+      }
+    })
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
     // Get the next order value
     const lastEpic = await prisma.epic.findFirst({
-      where: { projectId },
+      where: { 
+        projectId,
+        workspaceId: activeWorkspaceId
+      },
       orderBy: { order: 'desc' }
     })
     const nextOrder = lastEpic ? lastEpic.order + 1 : 0
@@ -166,7 +150,7 @@ export async function POST(
     const epic = await prisma.epic.create({
       data: {
         projectId,
-        workspaceId: accessResult.project!.workspaceId,
+        workspaceId: activeWorkspaceId, // 5. Use activeWorkspaceId
         title: validatedData.title,
         description: validatedData.description,
         color: validatedData.color,
@@ -197,20 +181,35 @@ export async function POST(
       {
         epic,
         projectId,
-        userId: accessResult.user!.id
+        userId: userId // 3. Use userId from auth
       }
     )
 
     return NextResponse.json(epic, { status: 201 })
   } catch (error) {
-    if (error.name === 'ZodError') {
+    console.error('Error creating epic:', error)
+    
+    // Handle Zod validation errors
+    if (error instanceof z.ZodError) {
       return NextResponse.json({ 
         error: 'Validation error',
         details: error.errors 
       }, { status: 400 })
     }
-
-    console.error('Error creating epic:', error)
+    
+    // Handle auth errors
+    if (error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
+    if (error.message.includes('Project not found')) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to create epic' 
     }, { status: 500 })

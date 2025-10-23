@@ -1,24 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 // GET /api/org/users - Get all users available for org position assignment
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
 
     const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     const search = searchParams.get('search')
 
     // Get workspace members
     const workspaceMembers = await prisma.workspaceMember.findMany({
       where: {
-        workspaceId
+        workspaceId: auth.workspaceId
       },
       include: {
         user: {
@@ -35,7 +43,7 @@ export async function GET(request: NextRequest) {
     // Get users who are already assigned to positions
     const assignedUserIds = await prisma.orgPosition.findMany({
       where: {
-        workspaceId,
+        workspaceId: auth.workspaceId,
         isActive: true,
         userId: {
           not: null

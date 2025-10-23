@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requireDevAuth } from '@/lib/dev-auth'
+import { logAuditEvent } from '@/lib/audit'
+import { getPermissionContext, calculateOrgPermissions } from '@/lib/permissions'
 
 // GET /api/org/positions/[id] - Get a specific org position
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const resolvedParams = await params
+    await requireDevAuth(request)
 
     const position = await prisma.orgPosition.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       include: {
         user: {
           select: {
@@ -73,12 +72,16 @@ export async function GET(
 // PUT /api/org/positions/[id] - Update an org position
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const resolvedParams = await params
+    const context = await getPermissionContext(request)
+    const permissions = calculateOrgPermissions(context)
+    
+    // Check permissions
+    if (!permissions.canEditRoles) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -94,7 +97,7 @@ export async function PUT(
 
     // Check if position exists
     const existingPosition = await prisma.orgPosition.findUnique({
-      where: { id: params.id }
+      where: { id: resolvedParams.id }
     })
 
     if (!existingPosition) {
@@ -103,7 +106,7 @@ export async function PUT(
 
     // Update the org position
     const position = await prisma.orgPosition.update({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       data: {
         title,
         department,
@@ -156,6 +159,33 @@ export async function PUT(
       }
     })
 
+    // Log audit event
+    await logAuditEvent({
+      workspaceId: context.workspaceId,
+      userId: context.userId,
+      action: 'UPDATE',
+      entityType: 'POSITION',
+      entityId: resolvedParams.id,
+      oldValues: {
+        title: existingPosition.title,
+        department: existingPosition.department,
+        level: existingPosition.level,
+        userId: existingPosition.userId,
+        isActive: existingPosition.isActive,
+      },
+      newValues: {
+        title: position.title,
+        department: position.department,
+        level: position.level,
+        userId: position.userId,
+        isActive: position.isActive,
+      },
+      metadata: {
+        reason: 'Role updated',
+        department: position.department,
+      },
+    })
+
     return NextResponse.json(position)
   } catch (error) {
     console.error('Error updating org position:', error)
@@ -166,10 +196,11 @@ export async function PUT(
 // DELETE /api/org/positions/[id] - Delete an org position
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('DELETE request for position:', params.id)
+    const resolvedParams = await params
+    console.log('DELETE request for position:', resolvedParams.id)
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
       console.log('Unauthorized: No session or email')
@@ -178,7 +209,7 @@ export async function DELETE(
 
     // Check if position exists
     const existingPosition = await prisma.orgPosition.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       include: {
         children: true
       }
@@ -203,7 +234,7 @@ export async function DELETE(
     // Soft delete by setting isActive to false
     console.log('Performing soft delete...')
     await prisma.orgPosition.update({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       data: { isActive: false }
     })
 

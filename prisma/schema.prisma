@@ -46,17 +46,30 @@ model User {
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   themePreference      String?                @default("default")
+  // Contextual AI fields
+  bio                  String?                // Personal bio/description
+  skills               String[]               @default([]) // Array of skills
+  currentGoals         String[]               @default([]) // Current professional goals
+  interests            String[]               @default([]) // Professional interests
+  timezone             String?                // User's timezone
+  location             String?                // User's location
+  phone                String?                // Phone number
+  linkedinUrl          String?                // LinkedIn profile URL
+  githubUrl            String?                // GitHub profile URL
+  personalWebsite      String?                // Personal website URL
   accounts             Account[]
   activities           Activity[]
   chatSessions         ChatSession[]
   onboarding_plans     OnboardingPlan[]
   orgPositions         OrgPosition[]
+  orgAuditLogs         OrgAuditLog[]
   projectAssignees     ProjectAssignee[]      @relation("ProjectAssignee")
   projectMemberships   ProjectMember[]
   projectTemplates     ProjectTemplate[]
   projectWatchers      ProjectWatcher[]       @relation("ProjectWatcher")
   createdProjects      Project[]
   ownedProjects        Project[]              @relation("ProjectOwner")
+  roleCards            RoleCard[]
   sessions             Session[]
   assignedSubtasks     Subtask[]
   taskComments         TaskComment[]
@@ -108,6 +121,7 @@ model Workspace {
   orgPositions        OrgPosition[]
   projectTemplates    ProjectTemplate[]
   projects            Project[]
+  roleCards           RoleCard[]
   taskTemplates       TaskTemplate[]
   tasks               Task[]
   wikiChunks          WikiChunk[]
@@ -116,6 +130,7 @@ model Workspace {
   workflowInstances   WorkflowInstance[]
   workflows           Workflow[]
   members             WorkspaceMember[]
+  orgAuditLogs        OrgAuditLog[]
   owner               User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@map("workspaces")
@@ -338,6 +353,29 @@ model OnboardingPlan {
   @@map("onboarding_plans")
 }
 
+model RoleCard {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  roleName        String
+  department      String
+  jobFamily       String
+  level           String
+  roleDescription String   // Rich text HTML content
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdById     String
+  
+  // Relations
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  
+  @@index([workspaceId])
+  @@index([department])
+  @@index([jobFamily])
+  @@index([level])
+  @@map("role_cards")
+}
+
 model OrgPosition {
   id          String        @id @default(cuid())
   workspaceId String
@@ -350,12 +388,41 @@ model OrgPosition {
   isActive    Boolean       @default(true)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  // Contextual AI fields for role cards
+  roleDescription String?   // Detailed role description
+  responsibilities String[] @default([]) // Key responsibilities
+  requiredSkills   String[] @default([]) // Required skills for this role
+  preferredSkills  String[] @default([]) // Preferred skills
+  keyMetrics       String[] @default([]) // Key performance metrics
+  teamSize         Int?     // Size of team managed (if applicable)
+  budget           String?  // Budget responsibility
+  reportingStructure String? // Who this role reports to
   parent      OrgPosition?  @relation("OrgHierarchy", fields: [parentId], references: [id])
   children    OrgPosition[] @relation("OrgHierarchy")
   user        User?         @relation(fields: [userId], references: [id])
   workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("org_positions")
+}
+
+// Audit trail for all org changes
+model OrgAuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String   // Who made the change
+  action      String   // CREATE, UPDATE, DELETE, ASSIGN, UNASSIGN, MOVE, PROMOTE
+  entityType  String   // USER, ROLE, POSITION, ASSIGNMENT
+  entityId    String   // ID of the affected entity
+  oldValues   Json?    // Previous state (for updates)
+  newValues   Json?    // New state
+  metadata    Json?    // Additional context (reason, effective date, etc.)
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id])
+  
+  @@map("org_audit_log")
 }
 
 model Workflow {
@@ -459,6 +526,7 @@ model ChatSession {
   target           String        @default("wiki_page")
   wikiUrl          String?
   projectUrl       String?
+  model            String?       @default("gpt-4-turbo")
   messages         ChatMessage[]
   user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace        Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -481,35 +549,35 @@ model ChatMessage {
 }
 
 model Project {
-  id                  String            @id @default(cuid())
+  id                  String                @id @default(cuid())
   workspaceId         String
   name                String
   description         String?
-  status              ProjectStatus     @default(ACTIVE)
-  priority            Priority          @default(MEDIUM)
+  status              ProjectStatus         @default(ACTIVE)
+  priority            Priority              @default(MEDIUM)
   startDate           DateTime?
   endDate             DateTime?
   color               String?
-  isArchived          Boolean           @default(false)
+  isArchived          Boolean               @default(false)
   department          String?
   team                String?
   wikiPageId          String?
   ownerId             String?
-  dailySummaryEnabled Boolean           @default(false)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
   createdById         String
-  assignees           ProjectAssignee[]
-  members             ProjectMember[]
-  watchers            ProjectWatcher[]
+  dailySummaryEnabled Boolean               @default(false)
+  customFields        CustomFieldDef[]
   epics               Epic[]
   milestones          Milestone[]
-  customFields        CustomFieldDef[]
+  assignees           ProjectAssignee[]
   dailySummaries      ProjectDailySummary[]
-  createdBy           User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  owner               User?              @relation("ProjectOwner", fields: [ownerId], references: [id])
-  wikiPage            WikiPage?          @relation(fields: [wikiPageId], references: [id])
-  workspace           Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members             ProjectMember[]
+  watchers            ProjectWatcher[]
+  createdBy           User                  @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  owner               User?                 @relation("ProjectOwner", fields: [ownerId], references: [id])
+  wikiPage            WikiPage?             @relation(fields: [wikiPageId], references: [id])
+  workspace           Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tasks               Task[]
 
   @@index([workspaceId, status], map: "idx_projects_workspace_status")
@@ -517,36 +585,36 @@ model Project {
 }
 
 model Task {
-  id          String            @id @default(cuid())
-  projectId   String
-  workspaceId String
-  title       String
-  description String?
-  status      ProjectTaskStatus @default(TODO)
-  priority    Priority          @default(MEDIUM)
-  assigneeId  String?
-  dueDate     DateTime?
-  completedAt DateTime?
-  order       Int               @default(0)
-  tags        String[]
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  createdById String
-  blocks      String[]
-  dependsOn   String[]
-  epicId      String?
-  milestoneId String?
-  points      Int?
-  subtasks    Subtask[]
-  comments    TaskComment[]
+  id                String            @id @default(cuid())
+  projectId         String
+  workspaceId       String
+  title             String
+  description       String?
+  status            ProjectTaskStatus @default(TODO)
+  priority          Priority          @default(MEDIUM)
+  assigneeId        String?
+  dueDate           DateTime?
+  completedAt       DateTime?
+  order             Int               @default(0)
+  tags              String[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  createdById       String
+  blocks            String[]
+  dependsOn         String[]
+  epicId            String?
+  milestoneId       String?
+  points            Int?
   customFieldValues CustomFieldVal[]
-  history     TaskHistory[]
-  assignee    User?             @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  createdBy   User              @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  epic        Epic?             @relation(fields: [epicId], references: [id], onDelete: SetNull)
-  milestone   Milestone?        @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  subtasks          Subtask[]
+  comments          TaskComment[]
+  history           TaskHistory[]
+  assignee          User?             @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdBy         User              @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  epic              Epic?             @relation(fields: [epicId], references: [id])
+  milestone         Milestone?        @relation(fields: [milestoneId], references: [id])
+  project           Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId, status], map: "idx_tasks_project_status")
   @@index([workspaceId, assigneeId], map: "idx_tasks_workspace_assignee")
@@ -579,9 +647,9 @@ model TaskComment {
   taskId    String
   userId    String
   content   String
-  mentions  String[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  mentions  String[]
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -784,10 +852,103 @@ model wiki_workspaces {
   @@index([workspace_id], map: "idx_wiki_workspaces_workspace_id")
 }
 
+model Epic {
+  id          String   @id @default(cuid())
+  workspaceId String
+  projectId   String
+  title       String
+  description String?
+  color       String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@index([projectId, order], map: "idx_epics_project_order")
+  @@map("epics")
+}
+
+model Milestone {
+  id          String    @id @default(cuid())
+  workspaceId String
+  projectId   String
+  title       String
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@index([projectId, startDate], map: "idx_milestones_project_start")
+  @@map("milestones")
+}
+
+model CustomFieldDef {
+  id        String           @id @default(cuid())
+  projectId String
+  key       String
+  label     String
+  type      String
+  options   Json?
+  uniqueKey String           @unique
+  createdAt DateTime         @default(now())
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  values    CustomFieldVal[]
+
+  @@index([projectId, key], map: "idx_custom_field_defs_project_key")
+  @@map("custom_field_defs")
+}
+
+model CustomFieldVal {
+  id      String         @id @default(cuid())
+  taskId  String
+  fieldId String
+  value   Json
+  field   CustomFieldDef @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  task    Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, fieldId])
+  @@index([taskId], map: "idx_custom_field_vals_task")
+  @@index([fieldId], map: "idx_custom_field_vals_field")
+  @@map("custom_field_vals")
+}
+
+model TaskHistory {
+  id      String   @id @default(cuid())
+  taskId  String
+  actorId String
+  field   String
+  from    Json?
+  to      Json?
+  at      DateTime @default(now())
+  actor   User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  task    Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, at(sort: Desc)], map: "idx_task_history_task_at")
+  @@map("task_history")
+}
+
+model ProjectDailySummary {
+  id        String   @id @default(cuid())
+  projectId String
+  date      DateTime @db.Date
+  text      String
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, date])
+  @@index([projectId, date(sort: Desc)], map: "idx_project_daily_summary_project_date")
+  @@map("project_daily_summaries")
+}
+
 enum WorkspaceRole {
   OWNER
   ADMIN
   MEMBER
+  VIEWER
 }
 
 enum OnboardingStatus {
@@ -881,97 +1042,4 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   SKIPPED
-}
-
-// PM System Models
-model Epic {
-  id          String   @id @default(cuid())
-  workspaceId String
-  projectId   String
-  title       String
-  description String?
-  color       String?
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  tasks       Task[]
-
-  @@index([projectId, order], map: "idx_epics_project_order")
-  @@map("epics")
-}
-
-model Milestone {
-  id          String    @id @default(cuid())
-  workspaceId String
-  projectId   String
-  title       String
-  description String?
-  startDate   DateTime?
-  endDate     DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  tasks       Task[]
-
-  @@index([projectId, startDate], map: "idx_milestones_project_start")
-  @@map("milestones")
-}
-
-model CustomFieldDef {
-  id        String   @id @default(cuid())
-  projectId String
-  key        String
-  label      String
-  type       String
-  options    Json?
-  uniqueKey  String   @unique
-  createdAt  DateTime @default(now())
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  values     CustomFieldVal[]
-
-  @@index([projectId, key], map: "idx_custom_field_defs_project_key")
-  @@map("custom_field_defs")
-}
-
-model CustomFieldVal {
-  id     String         @id @default(cuid())
-  taskId String
-  fieldId String
-  value  Json
-  task   Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  field  CustomFieldDef @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-
-  @@unique([taskId, fieldId])
-  @@index([taskId], map: "idx_custom_field_vals_task")
-  @@index([fieldId], map: "idx_custom_field_vals_field")
-  @@map("custom_field_vals")
-}
-
-model TaskHistory {
-  id      String   @id @default(cuid())
-  taskId  String
-  actorId String
-  field   String
-  from    Json?
-  to      Json?
-  at      DateTime @default(now())
-  task    Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  actor   User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
-
-  @@index([taskId, at(sort: Desc)], map: "idx_task_history_task_at")
-  @@map("task_history")
-}
-
-model ProjectDailySummary {
-  id        String   @id @default(cuid())
-  projectId String
-  date      DateTime @db.Date
-  text      String
-  createdAt DateTime @default(now())
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@unique([projectId, date])
-  @@index([projectId, date(sort: Desc)], map: "idx_project_daily_summary_project_date")
-  @@map("project_daily_summaries")
 }

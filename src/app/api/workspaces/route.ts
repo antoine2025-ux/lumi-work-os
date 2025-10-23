@@ -1,35 +1,40 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getUnifiedAuth } from '@/lib/unified-auth'
 import { prisma } from "@/lib/db"
 import { WorkspaceRole } from "@prisma/client"
 
 export async function GET(request: NextRequest) {
   try {
-    // Temporarily bypass auth for development
-    // const session = await getServerSession(authOptions)
-    // if (!session?.user?.id) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    // }
-
-    // For development, get all workspaces (bypass user-specific filtering)
-    const userWorkspaces = await prisma.workspaceMember.findMany({
+    const auth = await getUnifiedAuth(request)
+    
+    // Get the workspace details
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: auth.workspaceId },
       include: {
-        workspace: true
+        members: {
+          where: { userId: auth.user.userId },
+          select: { role: true }
+        }
       }
     })
 
-    const workspaces = userWorkspaces.map(membership => ({
-      id: membership.workspace.id,
-      name: membership.workspace.name,
-      slug: membership.workspace.slug,
-      description: membership.workspace.description,
-      createdAt: membership.workspace.createdAt,
-      updatedAt: membership.workspace.updatedAt,
-      userRole: membership.role
-    }))
+    if (!workspace) {
+      return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
+    }
 
-    return NextResponse.json({ workspaces })
+    const userRole = workspace.members[0]?.role || 'MEMBER'
+
+    const workspaceData = {
+      id: workspace.id,
+      name: workspace.name,
+      slug: workspace.slug,
+      description: workspace.description,
+      createdAt: workspace.createdAt,
+      updatedAt: workspace.updatedAt,
+      userRole
+    }
+
+    return NextResponse.json({ workspaces: [workspaceData] })
   } catch (error) {
     console.error("Error fetching workspaces:", error)
     return NextResponse.json(
@@ -42,14 +47,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     console.log("Starting workspace creation...")
-    const session = await getServerSession(authOptions)
+    const auth = await getUnifiedAuth(request)
     
-    if (!session?.user?.id) {
-      console.log("No session found")
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    console.log("Session found for user:", session.user.id)
+    console.log("Auth context:", auth)
     
     let body
     try {
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         name,
         slug: finalSlug,
         description,
-        ownerId: session.user.id
+        ownerId: auth.user.userId
       }
     })
 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     await prisma.workspaceMember.create({
       data: {
         workspaceId: workspace.id,
-        userId: session.user.id,
+        userId: auth.user.userId,
         role: WorkspaceRole.OWNER
       }
     })

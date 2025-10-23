@@ -47,6 +47,12 @@ const navigationItems = [
     description: "AI-powered assistance"
   },
   {
+    name: "AI Context Test",
+    href: "/ai-context-test",
+    icon: Sparkles,
+    description: "Test AI contextual functionality"
+  },
+  {
     name: "Onboarding",
     href: "/onboarding",
     icon: Users,

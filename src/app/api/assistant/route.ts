@@ -1,17 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 export async function POST(request: NextRequest) {
   try {
-    const { intent, workspaceId } = await request.json()
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
+    const { intent } = await request.json()
 
     // Create a new assistant session
     const session = await prisma.chatSession.create({
       data: {
         title: intent === 'doc_gen' ? 'Document Generation' : 
                intent === 'project_creation' ? 'Project Creation' : 'General Assistance',
-        workspaceId: workspaceId || 'cmgl0f0wa00038otlodbw5jhn',
-        userId: 'dev-user-1', // Temporary for development
+        workspaceId: auth.workspaceId,
+        userId: auth.user.userId,
         intent: intent || 'assist',
         target: intent === 'project_creation' ? 'project' : 'wiki_page',
         phase: 'idle',

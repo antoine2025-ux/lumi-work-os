@@ -14,11 +14,12 @@ const updatePlanSchema = z.object({
 // GET /api/onboarding/plans/[id]
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const plan = await prisma.onboardingPlan.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       include: {
         employee: {
           select: { name: true, email: true },
@@ -52,15 +53,16 @@ export async function GET(
 // PATCH /api/onboarding/plans/[id]
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const body = await request.json()
     const validatedData = updatePlanSchema.parse(body)
 
     // Check if plan exists
     const existingPlan = await prisma.onboardingPlan.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
     })
 
     if (!existingPlan) {
@@ -79,7 +81,7 @@ export async function PATCH(
     }
 
     const plan = await prisma.onboardingPlan.update({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       data: updateData,
       include: {
         employee: {
@@ -96,7 +98,7 @@ export async function PATCH(
 
     // Update progress if status changed
     if (validatedData.status) {
-      await updatePlanProgress(params.id)
+      await updatePlanProgress(resolvedParams.id)
     }
 
     return NextResponse.json(plan)
@@ -119,12 +121,13 @@ export async function PATCH(
 // DELETE /api/onboarding/plans/[id]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     // Check if plan exists
     const existingPlan = await prisma.onboardingPlan.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
     })
 
     if (!existingPlan) {
@@ -136,7 +139,7 @@ export async function DELETE(
 
     // Delete plan (tasks will be cascade deleted)
     await prisma.onboardingPlan.delete({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
     })
 
     return NextResponse.json({ success: true })

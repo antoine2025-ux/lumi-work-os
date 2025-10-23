@@ -7,6 +7,7 @@ import { SocketProvider } from "@/lib/realtime/socket-context"
 import { WorkspaceProvider } from "@/lib/workspace-context"
 import { CommandPalette } from "@/components/ui/command-palette"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
+import { AuthWrapper } from "@/components/auth-wrapper"
 import { useState } from "react"
 import { useSession } from "next-auth/react"
 
@@ -47,14 +48,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <WorkspaceProvider>
-            <SocketWrapper>
-              <KeyboardShortcutsWrapper>
-                {children}
-                <CommandPalette />
-              </KeyboardShortcutsWrapper>
-            </SocketWrapper>
-          </WorkspaceProvider>
+          <AuthWrapper>
+            <WorkspaceProvider>
+              <SocketWrapper>
+                <KeyboardShortcutsWrapper>
+                  {children}
+                  <CommandPalette />
+                </KeyboardShortcutsWrapper>
+              </SocketWrapper>
+            </WorkspaceProvider>
+          </AuthWrapper>
         </ThemeProvider>
       </QueryClientProvider>
     </SessionProvider>

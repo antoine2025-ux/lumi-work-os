@@ -13,15 +13,16 @@ const updateTaskSchema = z.object({
 // PATCH /api/onboarding/tasks/[id]
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const body = await request.json()
     const validatedData = updateTaskSchema.parse(body)
 
     // Check if task exists
     const existingTask = await prisma.onboardingTask.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       include: { plan: true },
     })
 
@@ -50,7 +51,7 @@ export async function PATCH(
     }
 
     const task = await prisma.onboardingTask.update({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       data: updateData,
       include: {
         plan: {

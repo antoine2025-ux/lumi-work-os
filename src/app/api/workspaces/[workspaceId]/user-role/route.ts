@@ -1,42 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { requireAuth } from '@/lib/simple-auth'
 
+// GET /api/workspaces/[workspaceId]/user-role - Get user's role in a workspace
 export async function GET(
   request: NextRequest,
   { params }: { params: { workspaceId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const user = await requireAuth()
+    const { workspaceId } = await params
 
-    const { workspaceId } = params
-
-    // Get user's role in the workspace
-    const workspaceMember = await prisma.workspaceMember.findUnique({
+    const membership = await prisma.workspaceMember.findFirst({
       where: {
-        workspaceId_userId: {
-          workspaceId,
-          userId: session.user.id
-        }
+        userId: user.id,
+        workspaceId
+      },
+      select: {
+        role: true,
+        joinedAt: true
       }
     })
 
-    if (!workspaceMember) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (!membership) {
+      return NextResponse.json({ error: 'User not found in workspace' }, { status: 404 })
     }
 
-    return NextResponse.json({ 
-      role: workspaceMember.role,
-      workspaceId,
-      userId: session.user.id
+    return NextResponse.json({
+      role: membership.role,
+      joinedAt: membership.joinedAt
     })
   } catch (error) {
     console.error('Error fetching user role:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch user role' }, { status: 500 })
   }
 }

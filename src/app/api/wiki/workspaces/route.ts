@@ -1,10 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Ensure user exists in our database
+    const user = await prisma.user.upsert({
+      where: { email: session.user.email },
+      update: {},
+      create: {
+        email: session.user.email,
+        name: session.user.name || 'User',
+        image: session.user.image,
+        emailVerified: new Date(),
+      }
+    })
+
+    // Get user's workspace
+    const workspace = await prisma.workspace.findFirst({
+      where: {
+        members: {
+          some: { userId: user.id }
+        }
+      }
+    })
+
+    if (!workspace) {
+      return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
+    }
+
+    const workspaceId = workspace.id
 
     // Get wiki workspaces for the current workspace
     const workspaces = await prisma.wiki_workspaces.findMany({
@@ -15,30 +46,6 @@ export async function GET(request: NextRequest) {
 
     // If no workspaces exist, create default ones
     if (workspaces.length === 0) {
-      // Get the first available user or create a default one
-      let userId = 'dev-user-1'
-      try {
-        const existingUser = await prisma.user.findFirst()
-        if (existingUser) {
-          userId = existingUser.id
-        } else {
-          // Create a default user if none exists
-          const newUser = await prisma.user.upsert({
-            where: { email: 'dev@lumi.com' },
-            update: {},
-            create: {
-              name: 'Default User',
-              email: 'dev@lumi.com'
-            }
-          })
-          userId = newUser.id
-        }
-      } catch (error) {
-        console.error('Error getting/creating user:', error)
-        // If we can't get a user, skip creating workspaces
-        return NextResponse.json([])
-      }
-
       const defaultWorkspaces = [
         {
           id: 'personal-space',
@@ -49,7 +56,7 @@ export async function GET(request: NextRequest) {
           icon: 'file-text',
           description: 'Your personal knowledge space',
           is_private: true,
-          created_by_id: userId
+          created_by_id: user.id
         },
         {
           id: 'team-workspace',
@@ -60,7 +67,7 @@ export async function GET(request: NextRequest) {
           icon: 'layers',
           description: 'Collaborative workspace for your team',
           is_private: false,
-          created_by_id: userId
+          created_by_id: user.id
         }
       ]
 

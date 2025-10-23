@@ -1,22 +1,30 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from "@/lib/db"
 import { FileText, Users, BookOpen, Hash, AtSign } from "lucide-react"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
 
     const query = request.nextUrl.searchParams.get("q")
     if (!query || query.length < 2) {
       return NextResponse.json({ results: [] })
     }
 
-    const workspaceId = request.nextUrl.searchParams.get("workspaceId") || "cmgl0f0wa00038otlodbw5jhn"
     const searchTerm = query.toLowerCase()
 
     // Parse search operators
@@ -34,7 +42,7 @@ export async function GET(request: NextRequest) {
     if (operators.in.length === 0 || operators.in.includes("project")) {
       const projects = await prisma.project.findMany({
         where: {
-          workspaceId,
+          workspaceId: auth.workspaceId,
           OR: [
             { name: { contains: searchTerm, mode: "insensitive" } },
             { description: { contains: searchTerm, mode: "insensitive" } }
@@ -68,7 +76,7 @@ export async function GET(request: NextRequest) {
     if (operators.in.length === 0 || operators.in.includes("task")) {
       const tasks = await prisma.task.findMany({
         where: {
-          workspaceId,
+          workspaceId: auth.workspaceId,
           OR: [
             { title: { contains: searchTerm, mode: "insensitive" } },
             { description: { contains: searchTerm, mode: "insensitive" } }
@@ -108,7 +116,7 @@ export async function GET(request: NextRequest) {
     if (operators.in.length === 0 || operators.in.includes("wiki")) {
       const wikiPages = await prisma.wikiPage.findMany({
         where: {
-          workspaceId,
+          workspaceId: auth.workspaceId,
           OR: [
             { title: { contains: searchTerm, mode: "insensitive" } },
             { content: { contains: searchTerm, mode: "insensitive" } },
@@ -139,7 +147,7 @@ export async function GET(request: NextRequest) {
       const users = await prisma.user.findMany({
         where: {
           workspaceMemberships: {
-            some: { workspaceId }
+            some: { workspaceId: auth.workspaceId }
           },
           OR: [
             { name: { contains: searchTerm, mode: "insensitive" } },

@@ -1,30 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { logger } from '@/lib/logger'
 import { parsePaginationParams, createPaginationResult, getSkipValue, getOrderByClause } from '@/lib/pagination'
 import { cache } from '@/lib/cache'
 
 // GET /api/wiki/pages - List all wiki pages for a workspace
 export async function GET(request: NextRequest) {
-  let workspaceId = 'cmgl0f0wa00038otlodbw5jhn' // Development Workspace
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
 
     const { searchParams } = new URL(request.url)
-    workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     const pagination = parsePaginationParams(searchParams)
     
     // Check cache first
-    const cacheKey = cache.generateKey('wiki_pages', { workspaceId, ...pagination })
+    const cacheKey = cache.generateKey('wiki_pages', { workspaceId: auth.workspaceId, ...pagination })
     const cached = cache.get(cacheKey)
     
     if (cached) {
-      logger.debug('Returning cached wiki pages', { workspaceId, ...pagination })
+      logger.debug('Returning cached wiki pages', { workspaceId: auth.workspaceId, ...pagination })
       return NextResponse.json(cached)
     }
     
@@ -35,13 +42,13 @@ export async function GET(request: NextRequest) {
     const [total, pages] = await Promise.all([
       prisma.wikiPage.count({
         where: {
-          workspaceId,
+          workspaceId: auth.workspaceId,
           isPublished: true
         }
       }),
       prisma.wikiPage.findMany({
         where: {
-          workspaceId,
+          workspaceId: auth.workspaceId,
           isPublished: true
         },
         include: {
@@ -88,56 +95,49 @@ export async function GET(request: NextRequest) {
     // Cache the result for 5 minutes
     cache.set(cacheKey, result, 300)
     
-    logger.info('Wiki pages fetched', { workspaceId, total, page: pagination.page, limit: pagination.limit })
+    logger.info('Wiki pages fetched', { workspaceId: auth.workspaceId, total, page: pagination.page, limit: pagination.limit })
     return NextResponse.json(result)
   } catch (error) {
-    logger.error('Error fetching wiki pages', { workspaceId }, error instanceof Error ? error : undefined)
+    logger.error('Error fetching wiki pages', { workspaceId: auth.workspaceId }, error instanceof Error ? error : undefined)
+    
+    // Handle auth errors
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error instanceof Error && error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
     return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
   }
 }
 
 // POST /api/wiki/pages - Create a new wiki page
 export async function POST(request: NextRequest) {
-  let workspaceId = 'cmgl0f0wa00038otlodbw5jhn'
-  let title = 'Unknown'
   try {
-    logger.info('Creating new wiki page')
-    const session = await getServerSession(authOptions)
+    const auth = await getUnifiedAuth(request)
     
-    if (!session?.user?.email) {
-      logger.logAuth('unauthorized', { operation: 'create_wiki_page' })
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    logger.info('User authenticated for wiki page creation', { userEmail: session.user.email })
-    const body = await request.json()
-    console.log('📝 Request body:', { workspaceId: body.workspaceId, title: body.title, contentLength: body.content?.length })
-    
-    const { workspaceId: bodyWorkspaceId, title: bodyTitle, content, parentId, tags = [], category = 'general' } = body
-    workspaceId = bodyWorkspaceId
-    title = bodyTitle
-
-    if (!workspaceId || !title || !content) {
-      console.log('❌ Missing required fields')
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
-    // Get user ID from session
-    let user = await prisma.user.findUnique({
-      where: { email: session.user.email! }
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
     })
 
-    if (!user) {
-      // Create user if it doesn't exist (shouldn't happen with Prisma adapter)
-      user = await prisma.user.create({
-        data: {
-          email: session.user.email!,
-          name: session.user.name || 'Unknown User'
-        }
-      })
-      console.log('👤 Created user:', user.email)
-    } else {
-      console.log('👤 User found:', user.email)
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
+    logger.info('Creating new wiki page')
+    const body = await request.json()
+    console.log('📝 Request body:', { workspaceId: auth.workspaceId, title: body.title, contentLength: body.content?.length })
+    
+    const { title, content, parentId, tags = [], category = 'general' } = body
+
+    if (!title || !content) {
+      console.log('❌ Missing required fields')
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     // Generate slug from title
@@ -152,22 +152,22 @@ export async function POST(request: NextRequest) {
     const existingPage = await prisma.wikiPage.findUnique({
       where: {
         workspaceId_slug: {
-          workspaceId,
+          workspaceId: auth.workspaceId,
           slug
         }
       }
     })
 
     if (existingPage) {
-      console.log('❌ Page with this title already exists')
-      return NextResponse.json({ error: 'Page with this title already exists' }, { status: 409 })
+      return NextResponse.json({ 
+        error: 'A page with this title already exists' 
+      }, { status: 409 })
     }
 
-    console.log('💾 Creating page in database...')
-    // Create the page
+    // Create the wiki page
     const page = await prisma.wikiPage.create({
       data: {
-        workspaceId,
+        workspaceId: auth.workspaceId,
         title,
         slug,
         content,
@@ -175,7 +175,8 @@ export async function POST(request: NextRequest) {
         parentId: parentId || null,
         tags,
         category,
-        createdById: user.id
+        permissionLevel: 'team',
+        createdById: auth.user.userId
       },
       include: {
         createdBy: {
@@ -184,37 +185,24 @@ export async function POST(request: NextRequest) {
             name: true,
             email: true
           }
-        },
-        parent: {
-          select: {
-            id: true,
-            title: true,
-            slug: true
-          }
         }
       }
     })
 
-    console.log('✅ Page created successfully:', page.id)
-
-    // Create initial version
-    await prisma.wikiVersion.create({
-      data: {
-        pageId: page.id,
-        content,
-        version: 1,
-        createdById: user.id
-      }
-    })
-
-    logger.info('Wiki page created successfully', { pageId: page.id, title, workspaceId })
-    
-    // Invalidate cache for this workspace
-    cache.delete(`wiki_pages:workspaceId:${workspaceId}`)
-    
+    logger.info('Wiki page created successfully', { pageId: page.id, title, workspaceId: auth.workspaceId })
     return NextResponse.json(page, { status: 201 })
   } catch (error) {
-    logger.error('Error creating wiki page', { workspaceId, title }, error instanceof Error ? error : undefined)
-    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
+    logger.error('Error creating wiki page', { workspaceId: auth.workspaceId }, error instanceof Error ? error : undefined)
+    
+    // Handle auth errors
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error instanceof Error && error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

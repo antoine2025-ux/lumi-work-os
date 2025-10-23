@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 
 const createPlanSchema = z.object({
@@ -20,27 +23,26 @@ const updatePlanSchema = z.object({
 // GET /api/onboarding/plans
 export async function GET(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    // Get the default workspace ID
-    const workspace = await prisma.workspace.findFirst({
-      where: { slug: 'default' },
-    })
-
-    if (!workspace) {
-      return NextResponse.json(
-        { error: { code: 'WORKSPACE_NOT_FOUND', message: 'Default workspace not found' } },
-        { status: 404 }
-      )
-    }
-
-    const workspaceId = workspace.id
-
     const where = {
-      workspaceId,
+      workspaceId: auth.workspaceId,
       ...(status && { status: status as any }),
     }
 
@@ -76,6 +78,16 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching plans:', error)
+    
+    // Handle auth errors
+    if (error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
     return NextResponse.json(
       { error: { code: 'FETCH_ERROR', message: 'Failed to fetch plans' } },
       { status: 500 }
@@ -86,34 +98,21 @@ export async function GET(request: NextRequest) {
 // POST /api/onboarding/plans
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
     const body = await request.json()
     const validatedData = createPlanSchema.parse(body)
-
-    // Get the default workspace and user
-    const workspace = await prisma.workspace.findFirst({
-      where: { slug: 'default' },
-    })
-
-    if (!workspace) {
-      return NextResponse.json(
-        { error: { code: 'WORKSPACE_NOT_FOUND', message: 'Default workspace not found' } },
-        { status: 404 }
-      )
-    }
-
-    const user = await prisma.user.findFirst({
-      where: { id: workspace.ownerId },
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { error: { code: 'USER_NOT_FOUND', message: 'No valid user found' } },
-        { status: 404 }
-      )
-    }
-
-    const userId = user.id
-    const workspaceId = workspace.id
 
     // If templateId is provided, create tasks from template
     let tasksData = []
@@ -142,12 +141,12 @@ export async function POST(request: NextRequest) {
 
     const plan = await prisma.onboardingPlan.create({
       data: {
-        workspaceId,
+        workspaceId: auth.workspaceId,
         employeeId: validatedData.employeeId,
         templateId: validatedData.templateId,
         name: validatedData.name,
         startDate: new Date(validatedData.startDate),
-        createdById: userId,
+        createdById: auth.user.userId,
         tasks: {
           create: tasksData,
         },
@@ -175,6 +174,16 @@ export async function POST(request: NextRequest) {
     }
 
     console.error('Error creating plan:', error)
+    
+    // Handle auth errors
+    if (error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
     return NextResponse.json(
       { error: { code: 'CREATE_ERROR', message: 'Failed to create plan' } },
       { status: 500 }

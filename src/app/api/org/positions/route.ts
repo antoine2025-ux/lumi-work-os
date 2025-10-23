@@ -1,25 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 // GET /api/org/positions - Get all org positions for a workspace
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
 
-    const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
     
     const positions = await prisma.orgPosition.findMany({
       where: {
-        workspaceId,
+        workspaceId: auth.workspaceId,
         isActive: true
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        department: true,
+        level: true,
+        parentId: true,
+        userId: true,
+        order: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        // Contextual role fields
+        roleDescription: true,
+        responsibilities: true,
+        requiredSkills: true,
+        preferredSkills: true,
+        keyMetrics: true,
+        teamSize: true,
+        budget: true,
+        reportingStructure: true,
+        // User fields (basic first)
         user: {
           select: {
             id: true,
@@ -28,6 +54,7 @@ export async function GET(request: NextRequest) {
             image: true
           }
         },
+        // Parent and children (basic)
         parent: {
           select: {
             id: true,
@@ -76,47 +103,61 @@ export async function GET(request: NextRequest) {
 // POST /api/org/positions - Create a new org position
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['ADMIN', 'OWNER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
 
     const body = await request.json()
     const { 
-      workspaceId, 
       title, 
       department, 
       level = 1,
       parentId,
       userId,
-      order = 0
+      order = 0,
+      roleDescription,
+      responsibilities = [],
+      requiredSkills = [],
+      preferredSkills = [],
+      keyMetrics = [],
+      teamSize,
+      budget,
+      reportingStructure
     } = body
 
-    if (!workspaceId || !title) {
+    if (!title) {
       return NextResponse.json({ 
-        error: 'Missing required fields: workspaceId, title' 
+        error: 'Missing required field: title' 
       }, { status: 400 })
-    }
-
-    // Get user ID
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     // Create the org position
     const position = await prisma.orgPosition.create({
       data: {
-        workspaceId,
+        workspaceId: auth.workspaceId,
         title,
         department,
         level,
         parentId: parentId || null,
         userId: userId || null,
-        order
+        order,
+        roleDescription,
+        responsibilities,
+        requiredSkills,
+        preferredSkills,
+        keyMetrics,
+        teamSize,
+        budget,
+        reportingStructure
       },
       include: {
         user: {
@@ -124,7 +165,17 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             email: true,
-            image: true
+            image: true,
+            bio: true,
+            skills: true,
+            currentGoals: true,
+            interests: true,
+            timezone: true,
+            location: true,
+            phone: true,
+            linkedinUrl: true,
+            githubUrl: true,
+            personalWebsite: true
           }
         },
         parent: {

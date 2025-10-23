@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     })
 
         // Get comprehensive context from all Lumi data sources
-        const workspaceId = 'cmgl0f0wa00038otlodbw5jhn' // Development Workspace
+        const workspaceId = chatSession.workspaceId
 
     // 1. Wiki Pages (Knowledge Base)
     const wikiPages = await prisma.wikiPage.findMany({

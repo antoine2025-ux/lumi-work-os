@@ -1,17 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getAuthenticatedUser, getCurrentWorkspace } from '@/lib/auth-helpers'
 
 // GET /api/ai/chat-sessions - Get chat sessions
 export async function GET(request: NextRequest) {
   try {
+    const user = await getAuthenticatedUser(request)
+    if (!user) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'Authentication required' 
+      }, { status: 401 })
+    }
+
+    const workspace = await getCurrentWorkspace(user)
+    if (!workspace) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'No workspace found' 
+      }, { status: 404 })
+    }
+
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-        const sessions = await prisma.chatSession.findMany({
-          where: {
-            workspaceId: 'cmgl0f0wa00038otlodbw5jhn' // Development Workspace
-          },
+    const sessions = await prisma.chatSession.findMany({
+      where: {
+        workspaceId: workspace.id,
+        userId: user.id
+      },
       orderBy: { updatedAt: 'desc' },
       take: limit,
       skip: offset,
@@ -55,7 +73,22 @@ export async function GET(request: NextRequest) {
 // POST /api/ai/chat-sessions - Create new chat session
 export async function POST(request: NextRequest) {
   try {
-    console.log('DATABASE_URL:', process.env.DATABASE_URL)
+    const user = await getAuthenticatedUser(request)
+    if (!user) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'Authentication required' 
+      }, { status: 401 })
+    }
+
+    const workspace = await getCurrentWorkspace(user)
+    if (!workspace) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'No workspace found' 
+      }, { status: 404 })
+    }
+
     const { model, title } = await request.json()
 
     if (!model) {
@@ -65,14 +98,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-        const session = await prisma.chatSession.create({
-          data: {
-            title: title || 'New Chat',
-            model: model,
-            workspaceId: 'cmgl0f0wa00038otlodbw5jhn', // Development Workspace
-            userId: 'cmgutbhvl00008oiiw0ymcjqy' // John Doe
-          }
-        })
+    const session = await prisma.chatSession.create({
+      data: {
+        title: title || 'New Chat',
+        model: model,
+        workspaceId: workspace.id,
+        userId: user.id
+      }
+    })
 
     return NextResponse.json({
       success: true,

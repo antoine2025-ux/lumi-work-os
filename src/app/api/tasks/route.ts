@@ -1,26 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { TaskCreateSchema } from '@/lib/pm/schemas'
-import { assertProjectAccess } from '@/lib/pm/guards'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
-
 
 // GET /api/tasks - Get all tasks for a project
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // 1. Get authenticated user with workspace context
+    const auth = await getUnifiedAuth(request)
+    
+    // 2. Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // 3. Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
 
     const { searchParams } = new URL(request.url)
     const projectId = searchParams.get('projectId')
-    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     const status = searchParams.get('status')
     const assigneeId = searchParams.get('assigneeId')
-    const epicId = searchParams.get('epicId') // Add epicId filter
+    const epicId = searchParams.get('epicId')
 
     if (!projectId) {
       return NextResponse.json({ 
@@ -28,37 +35,18 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get authenticated user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email! }
+    // 4. Assert project access (project must be in active workspace)
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      projectId, 
+      scope: 'project', 
+      requireRole: ['MEMBER'] 
     })
-    
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 401 })
-    }
-
-    // Check project access
-    await assertProjectAccess(user, projectId)
-
-    let workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
-    })
-    
-    if (!workspace) {
-      workspace = await prisma.workspace.create({
-        data: {
-          id: workspaceId,
-          name: 'Development Workspace',
-          slug: 'dev-workspace',
-          description: 'Development workspace',
-          ownerId: user.id
-        }
-      })
-    }
 
     const where: any = { 
       projectId,
-      workspaceId 
+      workspaceId: auth.workspaceId // 5. Use activeWorkspaceId, no hardcoded values
     }
     
     if (status) {
@@ -143,6 +131,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(tasks)
   } catch (error) {
     console.error('Error fetching tasks:', error)
+    
+    // Handle auth errors
+    if (error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to fetch tasks' 
     }, { status: 500 })
@@ -152,30 +150,19 @@ export async function GET(request: NextRequest) {
 // POST /api/tasks - Create a new task
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    // 1. Get authenticated user with workspace context
+    const auth = await getUnifiedAuth(request)
     
-    // Development bypass - if no session, create a mock user
-    let user
-    if (!session?.user?.email) {
-      // Create or find a development user
-      user = await prisma.user.upsert({
-        where: { email: 'dev@lumi.com' },
-        update: {},
-        create: {
-          email: 'dev@lumi.com',
-          name: 'Dev User',
-        }
-      })
-    } else {
-      // Get authenticated user
-      user = await prisma.user.findUnique({
-        where: { email: session.user.email! }
-      })
-      
-      if (!user) {
-        return NextResponse.json({ error: 'User not found' }, { status: 401 })
-      }
-    }
+    // 2. Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // 3. Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
 
     const body = await request.json()
     
@@ -183,7 +170,6 @@ export async function POST(request: NextRequest) {
     const validatedData = TaskCreateSchema.parse(body)
     const { 
       projectId,
-      workspaceId = 'cmgl0f0wa00038otlodbw5jhn',
       title, 
       description,
       status = 'TODO',
@@ -206,34 +192,21 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check project access (require member access for creating tasks)
-    try {
-      await assertProjectAccess(user, projectId, 'MEMBER')
-    } catch (error) {
-      // If access check fails, use development bypass
-      console.log('Access check failed for task creation, using development bypass:', error.message)
-      // Continue with task creation for development
-    }
-
-    let workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
+    // 4. Assert project access (project must be in active workspace)
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      projectId, 
+      scope: 'project', 
+      requireRole: ['MEMBER'] 
     })
-    
-    if (!workspace) {
-      workspace = await prisma.workspace.create({
-        data: {
-          id: workspaceId,
-          name: 'Development Workspace',
-          slug: 'dev-workspace',
-          description: 'Development workspace',
-          ownerId: user.id
-        }
-      })
-    }
 
-    // Verify project exists
+    // Verify project exists and is in the correct workspace
     const project = await prisma.project.findUnique({
-      where: { id: projectId }
+      where: { 
+        id: projectId,
+        workspaceId: auth.workspaceId // 5. Ensure cross-tenant safety
+      }
     })
 
     if (!project) {
@@ -246,7 +219,7 @@ export async function POST(request: NextRequest) {
     const task = await prisma.task.create({
       data: {
         projectId,
-        workspaceId,
+        workspaceId: auth.workspaceId, // 5. Use activeWorkspaceId
         title,
         description,
         status: status as any,
@@ -259,7 +232,7 @@ export async function POST(request: NextRequest) {
         points: points || null,
         dependsOn,
         blocks,
-        createdById: user.id
+        createdById: auth.user.userId // 3. Use userId from auth
       },
       include: {
         assignee: {
@@ -320,18 +293,17 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Handle RBAC errors
-    if (error.message === 'Unauthorized: User not authenticated.' || 
-        error.message === 'User not found.') {
+    // Handle auth errors
+    if (error.message.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message === 'Project not found.') {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    if (error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     
-    if (error.message === 'Forbidden: Insufficient project permissions.') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (error.message.includes('Project not found')) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
     
     return NextResponse.json({ 

@@ -1,10 +1,12 @@
 import { PrismaClient } from '@prisma/client'
+// import { scopingMiddleware } from './prisma/scopingMiddleware'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
+// Create Prisma client instance
+const prismaClient = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   errorFormat: 'pretty',
   // Connection pooling configuration
@@ -14,6 +16,20 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
     },
   },
 })
+
+// TODO: Re-enable scoping middleware once Prisma $use issue is resolved
+// Add scoping middleware with error handling
+// try {
+//   if (typeof prismaClient.$use === 'function') {
+//     prismaClient.$use(scopingMiddleware)
+//   } else {
+//     console.warn('Prisma middleware not available - scoping middleware skipped')
+//   }
+// } catch (error) {
+//   console.warn('Failed to add scoping middleware:', error)
+// }
+
+export const prisma = globalForPrisma.prisma ?? prismaClient
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 

@@ -1,12 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 // GET /api/wiki/search - Search wiki pages
 export async function GET(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('q')
-    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     const type = searchParams.get('type') || 'all'
     const author = searchParams.get('author')
     const tags = searchParams.get('tags')?.split(',').filter(Boolean) || []
@@ -17,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     // Build search conditions
     const whereConditions: any = {
-      workspaceId,
+      workspaceId: auth.workspaceId,
       isPublished: true,
       OR: [
         {

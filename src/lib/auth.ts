@@ -1,7 +1,5 @@
 import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
-import CredentialsProvider from "next-auth/providers/credentials"
-import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/db"
 
 // Check if we have Google OAuth credentials
@@ -12,7 +10,29 @@ const hasGoogleCredentials = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_
 export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }) {
-      // Allow all sign-ins for now
+      if (account?.provider === 'google') {
+        // For Google OAuth, ensure user exists in our database
+        try {
+          await prisma.user.upsert({
+            where: { email: user.email! },
+            update: {
+              name: user.name,
+              image: user.image,
+              emailVerified: new Date(),
+            },
+            create: {
+              email: user.email!,
+              name: user.name || 'User',
+              image: user.image,
+              emailVerified: new Date(),
+            }
+          })
+          return true
+        } catch (error) {
+          console.error('Error creating/updating user:', error)
+          return false
+        }
+      }
       return true
     },
     async session({ session, token }) {
@@ -39,34 +59,6 @@ export const authOptions: NextAuthOptions = {
     },
   },
   providers: [
-    // Add credentials provider for development
-    CredentialsProvider({
-      id: "dev",
-      name: "Development Login",
-      credentials: {
-        email: { label: "Email", type: "email", placeholder: "dev@lumi.com" },
-        name: { label: "Name", type: "text", placeholder: "Dev User" }
-      },
-      async authorize(credentials) {
-        if (!credentials?.email) return null
-        
-        // Create or find the dev user
-        const user = await prisma.user.upsert({
-          where: { email: credentials.email },
-          update: {},
-          create: {
-            email: credentials.email,
-            name: credentials.name || "Dev User",
-          },
-        })
-        
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        }
-      }
-    }),
     // Only add Google provider if credentials are available
     ...(hasGoogleCredentials ? [
       GoogleProvider({

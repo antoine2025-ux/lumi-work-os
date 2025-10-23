@@ -69,9 +69,10 @@ Generate only the title, nothing else:`
 }
 
 // POST /api/ai/chat-sessions/[id]/regenerate-title - Regenerate title for existing chat
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const sessionId = params.id
+    const resolvedParams = await params
+    const sessionId = resolvedParams.id
 
     // Get the chat session
     const chatSession = await prisma.chatSession.findUnique({

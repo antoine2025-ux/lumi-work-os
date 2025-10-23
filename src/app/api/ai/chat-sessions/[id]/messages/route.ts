@@ -4,11 +4,12 @@ import { prisma } from '@/lib/db'
 // GET /api/ai/chat-sessions/[id]/messages - Get messages for a session
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const messages = await prisma.chatMessage.findMany({
-      where: { sessionId: params.id },
+      where: { sessionId: resolvedParams.id },
       orderBy: { createdAt: 'asc' },
       select: {
         id: true,

@@ -65,7 +65,14 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         setIsLoading(true)
         
         // Load user's workspaces
-        const workspacesResponse = await fetch('/api/workspaces')
+        const fetchOptions = {
+          credentials: 'include' as RequestCredentials,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+        
+        const workspacesResponse = await fetch('/api/workspaces', fetchOptions)
         if (workspacesResponse.ok) {
           const workspacesData = await workspacesResponse.json()
           const workspacesList = workspacesData.workspaces || []
@@ -83,7 +90,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
             
             // Load user's role in the workspace
             try {
-              const roleResponse = await fetch(`/api/workspaces/${workspace.id}/user-role`)
+              const roleResponse = await fetch(`/api/workspaces/${workspace.id}/user-role`, fetchOptions)
               if (roleResponse.ok) {
                 const roleData = await roleResponse.json()
                 setUserRole(roleData.role)
@@ -135,7 +142,14 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
       
       // Load user's role in the new workspace
       try {
-        const roleResponse = await fetch(`/api/workspaces/${workspaceId}/user-role`)
+        const fetchOptions = {
+          credentials: 'include' as RequestCredentials,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+        
+        const roleResponse = await fetch(`/api/workspaces/${workspaceId}/user-role`, fetchOptions)
         if (roleResponse.ok) {
           const roleData = await roleResponse.json()
           setUserRole(roleData.role)

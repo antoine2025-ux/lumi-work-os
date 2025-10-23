@@ -1,43 +1,72 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { FeatureFlagService } from "@/lib/feature-flags"
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { getFeatureFlags, setFeatureFlag } from "@/lib/feature-flags"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
 
-    const workspaceId = request.nextUrl.searchParams.get("workspaceId") || "cmgl0f0wa00038otlodbw5jhn"
-    const flags = await FeatureFlagService.getFlags(workspaceId, session.user.id)
+    const flags = await getFeatureFlags(auth.workspaceId)
 
     return NextResponse.json({ flags })
   } catch (error) {
     console.error("Error fetching feature flags:", error)
+    
+    // Handle auth errors
+    if (error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access (admin only)
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['ADMIN', 'OWNER'] 
+    })
 
-    const { workspaceId, key, enabled, audience } = await request.json()
+    const { key, enabled } = await request.json()
 
-    if (!workspaceId || !key || typeof enabled !== "boolean") {
+    if (!key || typeof enabled !== "boolean") {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 })
     }
 
-    await FeatureFlagService.setFlag(workspaceId, key, enabled, audience)
+    await setFeatureFlag(auth.workspaceId, key, enabled)
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error setting feature flag:", error)
+    
+    // Handle auth errors
+    if (error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -1,12 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { PositionForm } from "@/components/org/position-form"
 import { UserProfileForm } from "@/components/admin/user-profile-form"
 import { UserManagementTable } from "@/components/admin/user-management-table"
+import { UserProfileCard } from "@/components/org/user-profile-card"
+import { RoleCard } from "@/components/org/role-card"
+import { UserProfileForm as EnhancedUserProfileForm } from "@/components/org/user-profile-form"
+import { RoleForm } from "@/components/org/role-form"
+import { UserAssignmentModal } from "@/components/org/user-assignment-modal"
 import { 
   Users, 
   Plus, 
@@ -28,6 +34,17 @@ interface User {
   name: string | null
   email: string | null
   image: string | null
+  // Contextual AI fields (optional for backward compatibility)
+  bio?: string | null
+  skills?: string[]
+  currentGoals?: string[]
+  interests?: string[]
+  timezone?: string | null
+  location?: string | null
+  phone?: string | null
+  linkedinUrl?: string | null
+  githubUrl?: string | null
+  personalWebsite?: string | null
 }
 
 interface OrgPosition {
@@ -39,6 +56,15 @@ interface OrgPosition {
   userId: string | null
   order: number
   isActive: boolean
+  // Contextual AI fields (optional for backward compatibility)
+  roleDescription?: string | null
+  responsibilities?: string[]
+  requiredSkills?: string[]
+  preferredSkills?: string[]
+  keyMetrics?: string[]
+  teamSize?: number | null
+  budget?: string | null
+  reportingStructure?: string | null
   user?: User | null
   parent?: {
     id: string
@@ -51,15 +77,20 @@ interface OrgPosition {
 }
 
 export default function OrgChartPage() {
+  const router = useRouter()
   const [orgData, setOrgData] = useState<OrgPosition[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [showUserForm, setShowUserForm] = useState(false)
   const [showUserManagement, setShowUserManagement] = useState(false)
+  const [showEnhancedUserForm, setShowEnhancedUserForm] = useState(false)
+  const [showEnhancedRoleForm, setShowEnhancedRoleForm] = useState(false)
+  const [showUserAssignmentModal, setShowUserAssignmentModal] = useState(false)
   const [editingPosition, setEditingPosition] = useState<OrgPosition | null>(null)
   const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [workspaceId] = useState('workspace-1') // In a real app, this would come from context
+  const [assigningToRole, setAssigningToRole] = useState<OrgPosition | null>(null)
+  const [workspaceId] = useState('cmgl0f0wa00038otlodbw5jhn') // Use the actual workspace ID from seed
   const [userRole] = useState('ADMIN') // In a real app, this would come from session/context
 
   // Load org data on component mount
@@ -70,21 +101,32 @@ export default function OrgChartPage() {
   const loadOrgData = async () => {
     try {
       setLoading(true)
+      
+      // Include credentials for authentication
+      const fetchOptions = {
+        credentials: 'include' as RequestCredentials,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
+      
       const [orgResponse, usersResponse] = await Promise.all([
-        fetch(`/api/org/positions?workspaceId=${workspaceId}`),
-        userRole === 'ADMIN' || userRole === 'OWNER' ? fetch(`/api/admin/users?workspaceId=${workspaceId}`) : Promise.resolve(null)
+        fetch(`/api/org/positions?workspaceId=${workspaceId}`, fetchOptions),
+        userRole === 'ADMIN' || userRole === 'OWNER' ? fetch(`/api/admin/users?workspaceId=${workspaceId}`, fetchOptions) : Promise.resolve(null)
       ])
       
       if (orgResponse.ok) {
         const data = await orgResponse.json()
         setOrgData(data)
       } else {
-        console.error('Failed to load org data')
+        console.error('Failed to load org data:', orgResponse.status, orgResponse.statusText)
       }
 
       if (usersResponse && usersResponse.ok) {
         const usersData = await usersResponse.json()
         setUsers(usersData)
+      } else if (usersResponse) {
+        console.error('Failed to load users:', usersResponse.status, usersResponse.statusText)
       }
     } catch (error) {
       console.error('Error loading org data:', error)
@@ -236,6 +278,146 @@ export default function OrgChartPage() {
     setShowUserForm(true)
   }
 
+  const handleSaveEnhancedUser = async (userData: Partial<User>) => {
+    try {
+      const url = editingUser 
+        ? `/api/admin/users/${editingUser.id}`
+        : '/api/admin/users'
+      
+      const method = editingUser ? 'PUT' : 'POST'
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...userData,
+          workspaceId
+        }),
+      })
+
+      if (response.ok) {
+        await loadOrgData() // Reload data
+        setShowEnhancedUserForm(false)
+        setEditingUser(null)
+      } else {
+        const errorData = await response.json()
+        console.error('Error saving enhanced user:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        })
+        alert('Failed to save user: ' + (errorData.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error saving enhanced user:', error)
+      alert('Failed to save user: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    }
+  }
+
+  const handleEditEnhancedUser = (user: User) => {
+    setEditingUser(user)
+    setShowEnhancedUserForm(true)
+  }
+
+  const handleAddEnhancedUser = () => {
+    setEditingUser(null)
+    setShowEnhancedUserForm(true)
+  }
+
+  const handleCreateDepartment = () => {
+    // TODO: Implement department creation functionality
+    alert('Department creation functionality will be implemented next!')
+  }
+
+  const handleOpenRoleCards = () => {
+    router.push('/org/role-cards')
+  }
+
+  const handleSaveEnhancedRole = async (roleData: Partial<OrgPosition>) => {
+    try {
+      const url = editingPosition 
+        ? `/api/org/positions/${editingPosition.id}`
+        : '/api/org/positions'
+      
+      const method = editingPosition ? 'PUT' : 'POST'
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...roleData,
+          workspaceId
+        }),
+      })
+
+      if (response.ok) {
+        await loadOrgData() // Reload data
+        setShowEnhancedRoleForm(false)
+        setEditingPosition(null)
+      } else {
+        const errorData = await response.json()
+        console.error('Error saving enhanced role:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        })
+        alert('Failed to save role: ' + (errorData.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error saving enhanced role:', error)
+      alert('Failed to save role: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    }
+  }
+
+  const handleEditEnhancedRole = (position: OrgPosition) => {
+    setEditingPosition(position)
+    setShowEnhancedRoleForm(true)
+  }
+
+  const handleAddEnhancedRole = () => {
+    setEditingPosition(null)
+    setShowEnhancedRoleForm(true)
+  }
+
+  const handleAssignUserToRole = async (role: OrgPosition) => {
+    setAssigningToRole(role)
+    setShowUserAssignmentModal(true)
+  }
+
+  const handleUserAssignment = async (userId: string) => {
+    if (!assigningToRole) return
+
+    try {
+      // Update the position with the user assignment
+      const response = await fetch(`/api/org/positions/${assigningToRole.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          workspaceId
+        }),
+      })
+
+      if (response.ok) {
+        await loadOrgData() // Reload data
+        setShowUserAssignmentModal(false)
+        setAssigningToRole(null)
+      } else {
+        const errorData = await response.json()
+        alert('Failed to assign user: ' + (errorData.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error assigning user:', error)
+      alert('Failed to assign user: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    }
+  }
+
   const isAdmin = userRole === 'ADMIN' || userRole === 'OWNER'
 
   const getLevelColor = (level: number) => {
@@ -313,6 +495,18 @@ export default function OrgChartPage() {
               <Button onClick={handleAddUser}>
                 <User className="mr-2 h-4 w-4" />
                 Add User
+              </Button>
+              <Button onClick={handleOpenRoleCards} variant="secondary">
+                <Building className="mr-2 h-4 w-4" />
+                Role Cards
+              </Button>
+              <Button onClick={handleAddEnhancedUser} variant="secondary">
+                <User className="mr-2 h-4 w-4" />
+                Add User with Profile
+              </Button>
+              <Button onClick={handleCreateDepartment} variant="secondary">
+                <Building className="mr-2 h-4 w-4" />
+                Create Department
               </Button>
             </>
           )}
@@ -420,77 +614,29 @@ export default function OrgChartPage() {
                   </h3>
                   <div className={`flex ${level === 1 ? 'justify-center' : level === 2 ? 'justify-center space-x-8' : 'justify-center space-x-4'} flex-wrap gap-4`}>
                     {positionsAtLevel.map((position) => (
-                      <Card key={position.id} className={`${level === 1 ? 'w-80' : level === 2 ? 'w-72' : 'w-64'} hover:shadow-md transition-shadow group relative`}>
-                        <CardHeader className="text-center">
-                          <div className="flex justify-center mb-2">
-                            <div className={`h-${level === 1 ? '16' : level === 2 ? '12' : '10'} w-${level === 1 ? '16' : level === 2 ? '12' : '10'} rounded-full ${getLevelColor(position.level)} flex items-center justify-center text-white font-bold ${level === 1 ? 'text-xl' : level === 2 ? 'text-lg' : 'text-sm'}`}>
-                              {position.user?.image ? (
-                                <img 
-                                  src={position.user.image} 
-                                  alt={position.user.name || ''} 
-                                  className={`h-${level === 1 ? '16' : level === 2 ? '12' : '10'} w-${level === 1 ? '16' : level === 2 ? '12' : '10'} rounded-full object-cover`}
-                                />
-                              ) : (
-                                getInitials(position.user?.name || position.title)
-                              )}
-                            </div>
-                          </div>
-                          <CardTitle className={`${level === 1 ? 'text-lg' : level === 2 ? 'text-base' : 'text-sm'}`}>
-                            {position.user?.name || position.title}
-                          </CardTitle>
-                          <CardDescription className={`${level === 1 ? 'text-sm' : level === 2 ? 'text-sm' : 'text-xs'}`}>
-                            {position.user ? position.title : 'Open Position'}
-                          </CardDescription>
-                          {position.department && (
-                            <Badge className={`${getDepartmentColor(position.department)} text-xs`}>
-                              {position.department}
-                            </Badge>
-                          )}
-                        </CardHeader>
-                        <CardContent className="text-center space-y-2">
-                          {position.user?.email && (
-                            <div className="flex items-center justify-center space-x-1 text-sm text-muted-foreground">
-                              <Mail className="h-3 w-3" />
-                              <span className="truncate">{position.user.email}</span>
-                            </div>
-                          )}
-                          {position.parent && (
-                            <div className="text-xs text-muted-foreground">
-                              Reports to: {position.parent.title}
-                              {position.parent.user && ` (${position.parent.user.name})`}
-                            </div>
-                          )}
-                          {position.children && position.children.length > 0 && (
-                            <div className="text-xs text-muted-foreground">
-                              {position.children.length} direct report{position.children.length !== 1 ? 's' : ''}
-                            </div>
-                          )}
-                        </CardContent>
-                        
-                        {/* Action buttons - Only visible in admin mode */}
-                        {isAdmin && showUserManagement && (
-                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <div className="flex space-x-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleEditPosition(position)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDeletePosition(position.id)}
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
+                      <div key={position.id} className={`${level === 1 ? 'w-80' : level === 2 ? 'w-72' : 'w-64'}`}>
+                        {position.user ? (
+                          <UserProfileCard
+                            user={position.user}
+                            position={{
+                              title: position.title,
+                              department: position.department,
+                              level: position.level
+                            }}
+                            onEdit={isAdmin && showUserManagement ? handleEditEnhancedUser : undefined}
+                            showActions={isAdmin && showUserManagement}
+                            compact={false}
+                          />
+                        ) : (
+                          <RoleCard
+                            role={position}
+                            onEdit={isAdmin && showUserManagement ? handleEditEnhancedRole : undefined}
+                            onAssignUser={isAdmin && showUserManagement ? handleAssignUserToRole : undefined}
+                            showActions={isAdmin && showUserManagement}
+                            compact={false}
+                          />
                         )}
-                      </Card>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -546,17 +692,31 @@ export default function OrgChartPage() {
         workspaceId={workspaceId}
       />
 
-      {/* User Profile Form Modal - Only for admins */}
+      {/* Enhanced User Profile Form Modal */}
       {isAdmin && (
-        <UserProfileForm
-          isOpen={showUserForm}
+        <EnhancedUserProfileForm
+          isOpen={showEnhancedUserForm}
           onClose={() => {
-            setShowUserForm(false)
+            setShowEnhancedUserForm(false)
             setEditingUser(null)
           }}
-          onSave={handleSaveUser}
+          onSave={handleSaveEnhancedUser}
           user={editingUser}
-          existingPositions={orgData}
+          workspaceId={workspaceId}
+        />
+      )}
+
+      {/* User Assignment Modal */}
+      {isAdmin && (
+        <UserAssignmentModal
+          isOpen={showUserAssignmentModal}
+          onClose={() => {
+            setShowUserAssignmentModal(false)
+            setAssigningToRole(null)
+          }}
+          onAssign={handleUserAssignment}
+          role={assigningToRole}
+          availableUsers={users}
           workspaceId={workspaceId}
         />
       )}

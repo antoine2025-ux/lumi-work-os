@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getAuthenticatedUser, getCurrentWorkspace } from '@/lib/auth-helpers'
 
 export async function GET(request: NextRequest) {
   try {
-    // Temporarily bypass authentication for development
-    // const session = await getServerSession(authOptions)
-    // if (!session?.user?.email) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    // }
+    const user = await getAuthenticatedUser(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const workspace = await getCurrentWorkspace(user)
+    if (!workspace) {
+      return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
+    }
 
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
@@ -15,8 +20,8 @@ export async function GET(request: NextRequest) {
 
     const sessions = await prisma.chatSession.findMany({
       where: {
-        userId: 'dev-user-1', // Hardcoded for development
-        workspaceId: 'cmgl0f0wa00038otlodbw5jhn'
+        userId: user.id,
+        workspaceId: workspace.id
       },
       orderBy: {
         updatedAt: 'desc'

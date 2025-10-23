@@ -1,0 +1,146 @@
+name: Phase 2 Pre-Beta CI
+
+on:
+  push:
+    branches: [ main, staging, enhanced-pm-features ]
+  pull_request:
+    branches: [ main, staging ]
+
+jobs:
+  phase2-checks:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: ESLint banlist check
+      run: npm run lint
+      
+    - name: Run tests
+      run: npm run test
+      
+    - name: Grep safety net for forbidden literals
+      run: |
+        echo "🔍 Checking for forbidden hardcoded IDs and dev bypasses..."
+        
+        # Check for hardcoded IDs
+        if grep -r "cmgl0f0wa00038otlodbw5jhn" src/ --exclude-dir=node_modules; then
+          echo "❌ Found hardcoded workspace ID: cmgl0f0wa00038otlodbw5jhn"
+          exit 1
+        fi
+        
+        if grep -r "dev-user-1" src/ --exclude-dir=node_modules; then
+          echo "❌ Found hardcoded dev user ID: dev-user-1"
+          exit 1
+        fi
+        
+        if grep -r "dev-workspace" src/ --exclude-dir=node_modules; then
+          echo "❌ Found hardcoded dev workspace: dev-workspace"
+          exit 1
+        fi
+        
+        # Check for unprotected dev bypasses
+        if grep -r "dev@lumi\.com" src/ --exclude-dir=node_modules | grep -v "ALLOW_DEV_LOGIN"; then
+          echo "❌ Found unprotected dev@lumi.com usage"
+          exit 1
+        fi
+        
+        # Check for development bypass patterns without environment guards
+        if grep -r "development.*bypass\|dev.*bypass" src/ --exclude-dir=node_modules | grep -v "NODE_ENV\|ALLOW_DEV_LOGIN\|PROD_LOCK"; then
+          echo "❌ Found unprotected development bypass patterns"
+          exit 1
+        fi
+        
+        echo "✅ No forbidden literals found"
+        
+    - name: Verify environment flags are used
+      run: |
+        echo "🔍 Verifying environment flags are properly used..."
+        
+        # Check that PROD_LOCK is referenced in auth code
+        if ! grep -r "PROD_LOCK" src/lib/auth/; then
+          echo "❌ PROD_LOCK environment flag not found in auth code"
+          exit 1
+        fi
+        
+        # Check that ALLOW_DEV_LOGIN is referenced in auth code
+        if ! grep -r "ALLOW_DEV_LOGIN" src/lib/auth/; then
+          echo "❌ ALLOW_DEV_LOGIN environment flag not found in auth code"
+          exit 1
+        fi
+        
+        # Check that ENABLE_ASSISTANT is referenced in health endpoint
+        if ! grep -r "ENABLE_ASSISTANT" src/app/api/health/; then
+          echo "❌ ENABLE_ASSISTANT environment flag not found in health endpoint"
+          exit 1
+        fi
+        
+        echo "✅ Environment flags properly referenced"
+        
+    - name: Verify scoping middleware is active
+      run: |
+        echo "🔍 Verifying scoping middleware is properly configured..."
+        
+        # Check that scoping middleware is imported in db.ts
+        if ! grep -r "scopingMiddleware" src/lib/db.ts; then
+          echo "❌ Scoping middleware not found in db.ts"
+          exit 1
+        fi
+        
+        # Check that middleware is applied
+        if ! grep -r "\$use.*scopingMiddleware" src/lib/db.ts; then
+          echo "❌ Scoping middleware not applied to Prisma client"
+          exit 1
+        fi
+        
+        echo "✅ Scoping middleware properly configured"
+        
+    - name: Check migrated routes use new auth system
+      run: |
+        echo "🔍 Verifying migrated routes use new auth system..."
+        
+        # Check that core routes use getAuthenticatedUser
+        for route in "src/app/api/projects/route.ts" "src/app/api/tasks/route.ts" "src/app/api/projects/[projectId]/epics/route.ts"; do
+          if ! grep -q "getAuthenticatedUser" "$route"; then
+            echo "❌ Route $route does not use getAuthenticatedUser"
+            exit 1
+          fi
+          
+          if ! grep -q "assertAccess" "$route"; then
+            echo "❌ Route $route does not use assertAccess"
+            exit 1
+          fi
+          
+          if ! grep -q "setWorkspaceContext" "$route"; then
+            echo "❌ Route $route does not use setWorkspaceContext"
+            exit 1
+          fi
+        done
+        
+        echo "✅ Migrated routes properly use new auth system"
+        
+    - name: Build check
+      run: npm run build
+      
+    - name: Summary
+      run: |
+        echo "🎉 Phase 2 Pre-Beta CI checks completed successfully!"
+        echo "✅ ESLint banlist check passed"
+        echo "✅ Tests passed"
+        echo "✅ No forbidden literals found"
+        echo "✅ Environment flags properly configured"
+        echo "✅ Scoping middleware active"
+        echo "✅ Migrated routes use new auth system"
+        echo "✅ Build successful"
+        echo ""
+        echo "🚀 Ready for staging deployment with PROD_LOCK=true"

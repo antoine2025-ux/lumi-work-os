@@ -22,7 +22,7 @@ interface User {
 interface Task {
   id: string
   title: string
-  description?: string
+  description: string
   status: 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED'
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
   assigneeId?: string
@@ -56,10 +56,12 @@ interface Task {
   milestone?: {
     id: string
     title: string
-    startDate: string
-    endDate: string
   }
   customFields?: CustomFieldValue[]
+  _count: {
+    comments: number
+    subtasks: number
+  }
 }
 
 interface CustomFieldDef {
@@ -75,10 +77,12 @@ interface CustomFieldDef {
 
 interface CustomFieldValue {
   id: string
-  taskId: string
-  fieldId: string
   value: any
-  field: CustomFieldDef
+  field: {
+    id: string
+    label: string
+    type: string
+  }
 }
 
 interface TaskEditDialogProps {

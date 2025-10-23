@@ -49,7 +49,14 @@ export async function GET(request: NextRequest) {
         }
       },
       version: process.env.npm_package_version || '1.0.0',
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      // Phase 2: Add environment flags for staging hardening
+      flags: {
+        mode: process.env.NODE_ENV || 'development',
+        prodLock: !!process.env.PROD_LOCK,
+        enableAssistant: !!process.env.ENABLE_ASSISTANT,
+        allowDevLogin: !!process.env.ALLOW_DEV_LOGIN
+      }
     }
     
     const statusCode = overallStatus === 'healthy' ? 200 : 503
