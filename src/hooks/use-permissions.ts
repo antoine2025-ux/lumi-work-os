@@ -26,19 +26,38 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     async function loadPermissions() {
       try {
-        // In development mode, we'll use mock data
-        const mockContext: PermissionContext = {
-          userId: 'dev-user-1',
-          workspaceId: 'cmgl0f0wa00038otlodbw5jhn',
-          userRole: 'OWNER', // Dev user is owner
-          isOwner: true,
-          isAdmin: true,
-          isMember: false,
+        // Get user status to get workspace ID and user info
+        const response = await fetch('/api/auth/user-status')
+        if (!response.ok) {
+          throw new Error('Failed to get user status')
         }
         
-        const calculatedPermissions = calculateOrgPermissions(mockContext)
+        const userStatus = await response.json()
+        if (!userStatus.workspaceId) {
+          throw new Error('No workspace found')
+        }
+
+        // Get user role in workspace
+        const roleResponse = await fetch(`/api/workspaces/${userStatus.workspaceId}/user-role`)
+        if (!roleResponse.ok) {
+          throw new Error('Failed to get user role')
+        }
         
-        setContext(mockContext)
+        const roleData = await roleResponse.json()
+        const userRole = roleData.role || 'MEMBER'
+        
+        const context: PermissionContext = {
+          userId: userStatus.userId || 'unknown',
+          workspaceId: userStatus.workspaceId,
+          userRole: userRole,
+          isOwner: userRole === 'OWNER',
+          isAdmin: userRole === 'ADMIN' || userRole === 'OWNER',
+          isMember: userRole === 'MEMBER' || userRole === 'ADMIN' || userRole === 'OWNER',
+        }
+        
+        const calculatedPermissions = calculateOrgPermissions(context)
+        
+        setContext(context)
         setPermissions(calculatedPermissions)
         setError(null)
       } catch (err) {

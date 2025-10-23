@@ -188,23 +188,11 @@ export async function PUT(
       })
     }
     
-    let userToUse = user
     if (!user) {
-      // Development bypass: create/find a mock user if none exists
-      if (process.env.NODE_ENV === 'development') {
-        userToUse = await prisma.user.upsert({
-          where: { email: 'dev@lumi.com' },
-          update: {},
-          create: {
-            email: 'dev@lumi.com',
-            name: 'Development User',
-            emailVerified: new Date()
-          }
-        })
-      } else {
-        return NextResponse.json({ error: 'User not found' }, { status: 401 })
-      }
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
+
+    const userToUse = user
 
     // Get current task to track changes and check access
     const currentTask = await prisma.task.findUnique({

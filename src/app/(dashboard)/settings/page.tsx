@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,14 +18,172 @@ import {
   Save,
   Edit,
   Trash2,
-  UserPlus,
   Crown,
   Plug,
-  Download
+  Download,
+  Loader2,
+  AlertTriangle
 } from "lucide-react"
+
+interface WorkspaceData {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  logo: string | null
+  createdAt: string
+  updatedAt: string
+  userRole: string
+  stats: {
+    members: number
+    projects: number
+    wikiPages: number
+    tasks: number
+  }
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("workspace")
+  const [workspaceData, setWorkspaceData] = useState<WorkspaceData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    slug: ""
+  })
+
+  // Fetch workspace data
+  useEffect(() => {
+    const fetchWorkspaceData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        // Get current workspace ID from user status
+        const userStatusResponse = await fetch('/api/auth/user-status')
+        if (!userStatusResponse.ok) {
+          throw new Error('Failed to get user status')
+        }
+        
+        const userStatus = await userStatusResponse.json()
+        if (!userStatus.workspaceId) {
+          throw new Error('No workspace found')
+        }
+        
+        // Fetch workspace details
+        const workspaceResponse = await fetch(`/api/workspaces/${userStatus.workspaceId}`)
+        if (!workspaceResponse.ok) {
+          throw new Error('Failed to fetch workspace data')
+        }
+        
+        const workspace = await workspaceResponse.json()
+        setWorkspaceData(workspace)
+        setFormData({
+          name: workspace.name,
+          description: workspace.description || "",
+          slug: workspace.slug
+        })
+      } catch (err) {
+        console.error('Error fetching workspace:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load workspace data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchWorkspaceData()
+  }, [])
+
+  // Save workspace changes
+  const handleSave = async () => {
+    if (!workspaceData) return
+    
+    try {
+      setSaving(true)
+      setError(null)
+      
+      const response = await fetch(`/api/workspaces/${workspaceData.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update workspace')
+      }
+      
+      const updatedWorkspace = await response.json()
+      setWorkspaceData(updatedWorkspace)
+      setEditMode(false)
+      
+      // Show success message (you could add a toast notification here)
+      console.log('Workspace updated successfully')
+      
+    } catch (err) {
+      console.error('Error updating workspace:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update workspace')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Delete workspace
+  const handleDeleteWorkspace = async () => {
+    if (!workspaceData) return
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${workspaceData.name}"? This action cannot be undone and will permanently delete all workspace data including:\n\n` +
+      `• ${workspaceData.stats.members} members\n` +
+      `• ${workspaceData.stats.projects} projects\n` +
+      `• ${workspaceData.stats.wikiPages} wiki pages\n` +
+      `• ${workspaceData.stats.tasks} tasks\n\n` +
+      `This will log you out and you'll need to create a new workspace.`
+    )
+    
+    if (!confirmed) return
+    
+    const workspaceName = window.prompt(`Type "${workspaceData.name}" to confirm deletion:`)
+    if (workspaceName !== workspaceData.name) {
+      alert('Workspace name does not match. Deletion cancelled.')
+      return
+    }
+    
+    try {
+      setSaving(true)
+      setError(null)
+      
+      const response = await fetch(`/api/workspaces/${workspaceData.id}`, {
+        method: 'DELETE'
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete workspace')
+      }
+      
+      // Clear any cached data
+      localStorage.removeItem('workspace-data')
+      sessionStorage.clear()
+      
+      // Sign out the user to clear session
+      await fetch('/api/auth/signout', { method: 'POST' })
+      
+      // Redirect to login page for a clean start
+      window.location.href = '/login'
+      
+    } catch (err) {
+      console.error('Error deleting workspace:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete workspace')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const handleMigration = async (platform: string, apiKey: string, workspaceId: string, additionalConfig?: any) => {
     const response = await fetch('/api/migrations', {
@@ -50,54 +208,6 @@ export default function SettingsPage() {
     return result
   }
 
-  const workspaceMembers = [
-    {
-      id: "1",
-      name: "John Doe",
-      email: "john.doe@company.com",
-      role: "Owner",
-      avatar: null,
-      lastActive: "2024-01-15T10:30:00Z"
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      email: "jane.smith@company.com",
-      role: "Admin",
-      avatar: null,
-      lastActive: "2024-01-15T09:15:00Z"
-    },
-    {
-      id: "3",
-      name: "Mike Johnson",
-      email: "mike.johnson@company.com",
-      role: "Member",
-      avatar: null,
-      lastActive: "2024-01-14T16:45:00Z"
-    }
-  ]
-
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case "Owner":
-        return <Crown className="h-4 w-4 text-yellow-500" />
-      case "Admin":
-        return <Shield className="h-4 w-4 text-blue-500" />
-      default:
-        return <User className="h-4 w-4 text-gray-500" />
-    }
-  }
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case "Owner":
-        return "bg-yellow-500"
-      case "Admin":
-        return "bg-blue-500"
-      default:
-        return "bg-gray-500"
-    }
-  }
 
   return (
     <div className="p-6 space-y-6">
@@ -120,14 +230,6 @@ export default function SettingsPage() {
         >
           <Building className="mr-2 h-4 w-4" />
           Workspace
-        </Button>
-        <Button
-          variant={activeTab === "members" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => setActiveTab("members")}
-        >
-          <User className="mr-2 h-4 w-4" />
-          Members
         </Button>
         <Button
           variant={activeTab === "notifications" ? "default" : "ghost"}
@@ -174,128 +276,195 @@ export default function SettingsPage() {
       {/* Workspace Settings */}
       {activeTab === "workspace" && (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Workspace Information</CardTitle>
-              <CardDescription>
-                Basic information about your workspace
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Workspace Name</label>
-                  <Input defaultValue="Acme Corporation" />
+          {loading ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center space-x-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading workspace data...</span>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Workspace URL</label>
-                  <div className="flex">
-                    <span className="inline-flex items-center px-3 text-sm text-muted-foreground bg-muted border border-r-0 border-input rounded-l-md">
-                      lumi.app/
-                    </span>
-                    <Input defaultValue="acme-corp" className="rounded-l-none" />
-                  </div>
+              </CardContent>
+            </Card>
+          ) : error ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-2 text-destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>{error}</span>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
-                <Input defaultValue="A modern company focused on innovation and growth" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Industry</label>
-                <Input defaultValue="Technology" />
-              </div>
-              <Button>
-                <Save className="mr-2 h-4 w-4" />
-                Save Changes
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Danger Zone</CardTitle>
-              <CardDescription>
-                Irreversible and destructive actions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between p-4 border border-destructive rounded-lg">
-                <div>
-                  <h4 className="font-medium text-destructive">Delete Workspace</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Permanently delete this workspace and all its data
-                  </p>
-                </div>
-                <Button variant="destructive">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Members Settings */}
-      {activeTab === "members" && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold">Team Members</h2>
-              <p className="text-muted-foreground">
-                Manage who has access to your workspace
-              </p>
-            </div>
-            <Button>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Invite Member
-            </Button>
-          </div>
-
-          <div className="space-y-4">
-            {workspaceMembers.map((member) => (
-              <Card key={member.id}>
-                <CardContent className="p-4">
+              </CardContent>
+            </Card>
+          ) : workspaceData ? (
+            <>
+              <Card>
+                <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
-                        {member.name.split(' ').map(n => n[0]).join('')}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="font-medium">{member.name}</h3>
-                          {getRoleIcon(member.role)}
-                          <Badge 
-                            variant="secondary"
-                            className={getRoleColor(member.role)}
-                          >
-                            {member.role}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{member.email}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Last active: {new Date(member.lastActive).toLocaleDateString()}
-                        </p>
-                      </div>
+                    <div>
+                      <CardTitle>Workspace Information</CardTitle>
+                      <CardDescription>
+                        Basic information about your workspace
+                      </CardDescription>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="mr-2 h-3 w-3" />
+                    {!editMode && (workspaceData.userRole === 'ADMIN' || workspaceData.userRole === 'OWNER') && (
+                      <Button variant="outline" onClick={() => setEditMode(true)}>
+                        <Edit className="mr-2 h-4 w-4" />
                         Edit
                       </Button>
-                      {member.role !== "Owner" && (
-                        <Button variant="outline" size="sm">
-                          <Trash2 className="mr-2 h-3 w-3" />
-                          Remove
-                        </Button>
-                      )}
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {error && (
+                    <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                      <div className="flex items-center space-x-2 text-destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span className="text-sm">{error}</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Workspace Name</label>
+                      <Input 
+                        value={formData.name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        disabled={!editMode}
+                        placeholder="Enter workspace name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Workspace URL</label>
+                      <div className="flex">
+                        <span className="inline-flex items-center px-3 text-sm text-muted-foreground bg-muted border border-r-0 border-input rounded-l-md">
+                          lumi.app/
+                        </span>
+                        <Input 
+                          value={formData.slug}
+                          onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+                          disabled={!editMode}
+                          className="rounded-l-none"
+                          placeholder="workspace-url"
+                        />
+                      </div>
                     </div>
                   </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Description</label>
+                    <Input 
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                      disabled={!editMode}
+                      placeholder="Enter workspace description"
+                    />
+                  </div>
+                  
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Created</label>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(workspaceData.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Last Updated</label>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(workspaceData.updatedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <div className="text-center p-3 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold">{workspaceData.stats.members}</div>
+                      <div className="text-sm text-muted-foreground">Members</div>
+                    </div>
+                    <div className="text-center p-3 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold">{workspaceData.stats.projects}</div>
+                      <div className="text-sm text-muted-foreground">Projects</div>
+                    </div>
+                    <div className="text-center p-3 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold">{workspaceData.stats.wikiPages}</div>
+                      <div className="text-sm text-muted-foreground">Wiki Pages</div>
+                    </div>
+                    <div className="text-center p-3 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold">{workspaceData.stats.tasks}</div>
+                      <div className="text-sm text-muted-foreground">Tasks</div>
+                    </div>
+                  </div>
+                  
+                  {editMode && (
+                    <div className="flex space-x-2">
+                      <Button onClick={handleSave} disabled={saving}>
+                        {saving ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="mr-2 h-4 w-4" />
+                        )}
+                        {saving ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setEditMode(false)
+                          setFormData({
+                            name: workspaceData.name,
+                            description: workspaceData.description || "",
+                            slug: workspaceData.slug
+                          })
+                          setError(null)
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
-            ))}
-          </div>
+
+              {workspaceData.userRole === 'OWNER' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Danger Zone</CardTitle>
+                    <CardDescription>
+                      Irreversible and destructive actions
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between p-4 border border-destructive rounded-lg">
+                      <div>
+                        <h4 className="font-medium text-destructive">Delete Workspace</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Permanently delete this workspace and all its data
+                        </p>
+                      </div>
+                      <Button 
+                        variant="destructive" 
+                        onClick={handleDeleteWorkspace}
+                        disabled={saving}
+                      >
+                        {saving ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          ) : (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center text-muted-foreground">
+                  No workspace data available
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 

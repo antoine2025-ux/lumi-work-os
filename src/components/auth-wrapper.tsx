@@ -35,17 +35,18 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
         fetch('/api/auth/user-status')
           .then(res => res.json())
           .then(status => {
-            if (status.isFirstTime) {
-              // First-time user, redirect to welcome
+            if (status.isFirstTime || !status.workspaceId) {
+              // First-time user or no workspace, redirect to welcome
               router.push('/welcome')
             } else {
-              // Existing user, allow access
+              // Existing user with workspace, allow access
               setIsLoading(false)
             }
           })
-          .catch(() => {
-            // If status check fails, assume existing user
-            setIsLoading(false)
+          .catch((error) => {
+            console.error('Auth status check failed:', error)
+            // If status check fails, redirect to welcome to be safe
+            router.push('/welcome')
           })
       })
       .catch(() => {

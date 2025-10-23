@@ -116,29 +116,27 @@ async function getDevAuthContext(request?: NextRequest): Promise<AuthContext> {
     })
   }
 
-  // Get or create development workspace
-  let workspace = await prisma.workspace.findFirst({
+  // Get development workspace (don't auto-create)
+  const workspace = await prisma.workspace.findFirst({
     where: { ownerId: devUser.id }
   })
 
   if (!workspace) {
-    workspace = await prisma.workspace.create({
-      data: {
-        name: 'Development Workspace',
-        slug: `dev-workspace-${devUser.id.slice(-8)}`,
-        description: 'Development workspace',
-        ownerId: devUser.id
-      }
-    })
-
-    // Add user as workspace member
-    await prisma.workspaceMember.create({
-      data: {
-        workspaceId: workspace.id,
+    // No workspace found - user needs to create one
+    return {
+      user: {
         userId: devUser.id,
-        role: 'OWNER'
-      }
-    })
+        activeWorkspaceId: '',
+        roles: [],
+        isDev: true,
+        email: devUser.email,
+        name: devUser.name || undefined,
+        isFirstTime: true
+      },
+      workspaceId: '',
+      isAuthenticated: false,
+      isDevelopment: true
+    }
   }
 
   return {
@@ -240,8 +238,9 @@ async function resolveActiveWorkspaceId(
     return userWorkspace.workspaceId
   }
 
-  // Fallback: Create default workspace for user
-  return await createDefaultWorkspaceForUser(userId)
+  // No workspace found - user needs to create one
+  // Don't auto-create workspace, let the frontend handle this
+  throw new Error('No workspace found - user needs to create a workspace')
 }
 
 /**

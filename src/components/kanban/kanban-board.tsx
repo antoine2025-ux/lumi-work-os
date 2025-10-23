@@ -115,7 +115,7 @@ const columns = [
   { id: 'blocked', status: 'BLOCKED' as const, title: 'Blocked', color: 'bg-red-100 text-red-800' },
 ]
 
-export function KanbanBoard({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jhn', onTasksUpdated, filteredTasks, epicId }: KanbanBoardProps) {
+export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTasks, epicId }: KanbanBoardProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [epics, setEpics] = useState<Epic[]>([])
   const [milestones, setMilestones] = useState<Milestone[]>([])

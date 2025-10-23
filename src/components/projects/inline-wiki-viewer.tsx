@@ -52,12 +52,14 @@ interface InlineWikiViewerProps {
   currentWikiPageId?: string
   onWikiPageSelect: (wikiPageId: string | null) => void
   isLoading?: boolean
+  workspaceId?: string
 }
 
 export function InlineWikiViewer({ 
   currentWikiPageId, 
   onWikiPageSelect, 
-  isLoading = false 
+  isLoading = false,
+  workspaceId
 }: InlineWikiViewerProps) {
   const { currentWorkspace } = useWorkspace()
   const [wikiPages, setWikiPages] = useState<WikiPage[]>([])
@@ -73,7 +75,7 @@ export function InlineWikiViewer({
     const loadWikiPages = async () => {
       try {
         setIsLoadingPages(true)
-        const response = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace?.id || 'cmgl0f0wa00038otlodbw5jhn'}`)
+        const response = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace?.id || workspaceId}`)
         if (response.ok) {
           const result = await response.json()
           // Handle paginated response - data is in result.data

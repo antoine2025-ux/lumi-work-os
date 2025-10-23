@@ -47,6 +47,7 @@ interface ProjectEditDialogProps {
   onClose: () => void
   project: Project | null
   onSave: (updatedProject: Project) => void
+  workspaceId: string
 }
 
 const statusOptions = [
@@ -74,7 +75,7 @@ const colorOptions = [
   { value: '#84cc16', label: 'Lime', color: '#84cc16' }
 ]
 
-export function ProjectEditDialog({ isOpen, onClose, project, onSave }: ProjectEditDialogProps) {
+export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceId }: ProjectEditDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [formData, setFormData] = useState({
@@ -91,10 +92,10 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave }: ProjectE
 
   // Load users when dialog opens
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && workspaceId) {
       loadUsers()
     }
-  }, [isOpen])
+  }, [isOpen, workspaceId])
 
   // Update form data when project changes
   useEffect(() => {
@@ -115,7 +116,7 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave }: ProjectE
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/org/users?workspaceId=cmgl0f0wa00038otlodbw5jhn')
+      const response = await fetch(`/api/org/users?workspaceId=${workspaceId}`)
       if (response.ok) {
         const userData = await response.json()
         setUsers(userData)

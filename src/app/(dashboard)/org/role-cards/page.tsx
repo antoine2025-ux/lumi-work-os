@@ -43,10 +43,29 @@ export default function RoleCardsPage() {
   const [loading, setLoading] = useState(false)
   const [roleCards, setRoleCards] = useState<RoleCard[]>([])
   const [loadingCards, setLoadingCards] = useState(true)
+  const [workspaceId, setWorkspaceId] = useState<string>('')
 
-  const workspaceId = 'cmgl0f0wa00038otlodbw5jhn' // Use the actual workspace ID
+  // Get workspace ID from user status
+  useEffect(() => {
+    const fetchWorkspaceId = async () => {
+      try {
+        const response = await fetch('/api/auth/user-status')
+        if (response.ok) {
+          const userStatus = await response.json()
+          if (userStatus.workspaceId) {
+            setWorkspaceId(userStatus.workspaceId)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching workspace ID:', error)
+      }
+    }
+    fetchWorkspaceId()
+  }, [])
 
   const loadRoleCards = async () => {
+    if (!workspaceId) return
+    
     try {
       setLoadingCards(true)
       const response = await fetch(`/api/role-cards?workspaceId=${workspaceId}`)
@@ -66,8 +85,10 @@ export default function RoleCardsPage() {
   }
 
   useEffect(() => {
-    loadRoleCards()
-  }, [])
+    if (workspaceId) {
+      loadRoleCards()
+    }
+  }, [workspaceId])
 
   const handleCreateRoleCard = async (data: { roleName: string; department: string; roleDescription: string; jobFamily: string; level: string }) => {
     setLoading(true)

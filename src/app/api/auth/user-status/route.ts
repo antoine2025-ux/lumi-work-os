@@ -19,6 +19,17 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error checking user status:', error)
+    
+    // If user has no workspace, return appropriate status
+    if (error instanceof Error && error.message.includes('No workspace found')) {
+      return NextResponse.json({
+        isAuthenticated: true,
+        isFirstTime: true,
+        workspaceId: null,
+        error: 'No workspace found'
+      })
+    }
+    
     return NextResponse.json({ 
       isAuthenticated: false,
       isFirstTime: false,

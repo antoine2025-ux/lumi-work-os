@@ -23,6 +23,7 @@ import {
 
 interface WikiNavigationProps {
   currentPath: string
+  workspaceId?: string
 }
 
 interface WikiPage {
@@ -37,7 +38,7 @@ interface WikiPage {
   }
 }
 
-export function WikiNavigation({ currentPath }: WikiNavigationProps) {
+export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [wikiPages, setWikiPages] = useState<WikiPage[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -48,7 +49,9 @@ export function WikiNavigation({ currentPath }: WikiNavigationProps) {
   useEffect(() => {
     const fetchPages = async () => {
       try {
-        const response = await fetch('/api/wiki/pages?workspaceId=cmgl0f0wa00038otlodbw5jhn')
+        if (!workspaceId) return
+        
+        const response = await fetch(`/api/wiki/pages?workspaceId=${workspaceId}`)
         if (response.ok) {
           const result = await response.json()
           const data = result.data || result
@@ -66,7 +69,7 @@ export function WikiNavigation({ currentPath }: WikiNavigationProps) {
     }
 
     fetchPages()
-  }, [])
+  }, [workspaceId])
 
   const createNavigationStructure = () => {
     const homePage = {

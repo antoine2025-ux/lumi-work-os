@@ -51,6 +51,7 @@ interface WikiLayoutProps {
     viewCount?: number
     tags?: string[]
   }
+  workspaceId?: string
 }
 
 interface WikiWorkspace {
@@ -70,7 +71,7 @@ interface RecentPage {
   author: string
 }
 
-export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
+export function WikiLayout({ children, currentPage, workspaceId }: WikiLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [workspaces, setWorkspaces] = useState<WikiWorkspace[]>([])
@@ -138,6 +139,11 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
       return
     }
 
+    if (!workspaceId) {
+      setError("Workspace not found")
+      return
+    }
+
     try {
       setIsSaving(true)
       setError(null)
@@ -147,7 +153,7 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          workspaceId: 'cmgl0f0wa00038otlodbw5jhn',
+          workspaceId: workspaceId,
           title: newPageTitle.trim(),
           content: newPageContent.trim(),
           tags: [],

@@ -127,13 +127,9 @@ export default function NewTaskPage() {
           const usersData = await usersResponse.json()
           setUsers(usersData)
         } else {
-          // Fallback to mock users if API fails
-          setUsers([
-            { id: 'dev-user-1', name: 'Development User', email: 'dev@lumi.com' },
-            { id: 'user-2', name: 'John Doe', email: 'john@lumi.com' },
-            { id: 'user-3', name: 'Jane Smith', email: 'jane@lumi.com' },
-            { id: 'user-4', name: 'Mike Johnson', email: 'mike@lumi.com' }
-          ])
+          // Fallback to empty users if API fails
+          setUsers([])
+          console.warn('Failed to load users from API')
         }
 
         // Load project data

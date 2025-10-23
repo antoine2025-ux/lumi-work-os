@@ -76,7 +76,7 @@ const priorityOptions = [
   { value: 'URGENT', label: 'Urgent', color: 'bg-red-100 text-red-800' }
 ]
 
-export default function CalendarView({ projectId, workspaceId = 'cmgl0f0wa00038otlodbw5jhn' }: CalendarViewProps) {
+export default function CalendarView({ projectId, workspaceId }: CalendarViewProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(new Date())

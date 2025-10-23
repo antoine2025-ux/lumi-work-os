@@ -49,6 +49,25 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
   const [relatedPages, setRelatedPages] = useState<any[]>([])
   const [isStarred, setIsStarred] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
+  const [workspaceId, setWorkspaceId] = useState<string>('')
+
+  // Get workspace ID from user status
+  useEffect(() => {
+    const fetchWorkspaceId = async () => {
+      try {
+        const response = await fetch('/api/auth/user-status')
+        if (response.ok) {
+          const userStatus = await response.json()
+          if (userStatus.workspaceId) {
+            setWorkspaceId(userStatus.workspaceId)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching workspace ID:', error)
+      }
+    }
+    fetchWorkspaceId()
+  }, [])
 
   const toggleFavorite = async () => {
     if (!pageData) return
@@ -116,12 +135,12 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
 
   const loadRelatedPages = async (currentPage: any) => {
     try {
-      if (!currentPage.tags || currentPage.tags.length === 0) {
+      if (!currentPage.tags || currentPage.tags.length === 0 || !workspaceId) {
         setRelatedPages([])
         return
       }
 
-      const response = await fetch('/api/wiki/pages?workspaceId=cmgl0f0wa00038otlodbw5jhn')
+      const response = await fetch(`/api/wiki/pages?workspaceId=${workspaceId}`)
       if (response.ok) {
         const result = await response.json()
         const allPages = result.data || result

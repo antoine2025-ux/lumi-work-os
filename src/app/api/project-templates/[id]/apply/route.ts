@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 
 
@@ -8,25 +11,40 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
     const resolvedParams = await params
     const templateId = resolvedParams.id
     const body = await request.json()
     const { 
-      workspaceId = 'workspace-1',
       projectName,
       projectDescription,
       customizations = {}
     } = body
 
-    if (!templateId || !projectName) {
+    if (!projectName) {
       return NextResponse.json({ 
-        error: 'Missing required fields: templateId, projectName' 
+        error: 'Project name is required' 
       }, { status: 400 })
     }
 
     // Get the template
     const template = await prisma.projectTemplate.findUnique({
-      where: { id: templateId }
+      where: { id: templateId },
+      include: {
+        templateData: true
+      }
     })
 
     if (!template) {
@@ -35,85 +53,30 @@ export async function POST(
       }, { status: 404 })
     }
 
-    // Use hardcoded user ID for development
-    const createdById = 'dev-user-1'
-
-    // Ensure user and workspace exist for development
-    let user = await prisma.user.findUnique({
-      where: { id: createdById }
-    })
-    
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          id: createdById,
-          email: 'dev@lumi.com',
-          name: 'Development User'
-        }
-      })
+    // Check if template is accessible (public or belongs to workspace)
+    if (!template.isPublic && template.workspaceId !== auth.workspaceId) {
+      return NextResponse.json({ 
+        error: 'Template not accessible' 
+      }, { status: 403 })
     }
 
-    let workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
-    })
-    
-    if (!workspace) {
-      workspace = await prisma.workspace.create({
-        data: {
-          id: workspaceId,
-          name: 'Development Workspace',
-          slug: 'dev-workspace',
-          description: 'Development workspace',
-          ownerId: createdById
-        }
-      })
-    }
+    // Use authenticated user ID
+    const createdById = auth.user.userId
 
-    // Extract template data
-    const templateData = template.templateData as any
-    const projectData = templateData.project || {}
-    const tasksData = templateData.tasks || []
-
-    // Create the project
+    // Create the project from template
     const project = await prisma.project.create({
       data: {
-        workspaceId,
         name: projectName,
-        description: projectDescription || projectData.description || template.description,
-        status: projectData.status || 'ACTIVE',
-        priority: projectData.priority || 'MEDIUM',
-        startDate: projectData.startDate ? new Date(projectData.startDate) : null,
-        endDate: projectData.endDate ? new Date(projectData.endDate) : null,
-        color: projectData.color,
-        department: projectData.department || template.category,
-        team: projectData.team,
-        ownerId: projectData.ownerId || createdById,
-        createdById
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        _count: {
-          select: {
-            tasks: true
-          }
-        }
+        description: projectDescription || template.description || '',
+        status: 'ACTIVE',
+        priority: 'MEDIUM',
+        workspaceId: auth.workspaceId,
+        createdById: createdById,
+        ownerId: createdById
       }
     })
 
-    // Add the creator as a project member with OWNER role
+    // Add creator as project member
     await prisma.projectMember.create({
       data: {
         projectId: project.id,
@@ -122,110 +85,88 @@ export async function POST(
       }
     })
 
-    // Create tasks from template
-    const createdTasks = []
-    const taskIdMap = new Map() // Map template task references to actual task IDs
-    
-    // First pass: Create all tasks without dependencies
-    for (const taskTemplate of tasksData) {
-      const task = await prisma.task.create({
-        data: {
-          projectId: project.id,
-          workspaceId,
-          title: taskTemplate.title,
-          description: taskTemplate.description,
-          status: taskTemplate.status || 'TODO',
-          priority: taskTemplate.priority || 'MEDIUM',
-          assigneeId: taskTemplate.assigneeId || null,
-          dueDate: taskTemplate.dueDate ? new Date(taskTemplate.dueDate) : null,
-          tags: taskTemplate.tags || [],
-          dependsOn: [], // Will be updated in second pass
-          blocks: [], // Will be updated in second pass
-          createdById
-        },
-        include: {
-          assignee: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
-        }
-      })
-      createdTasks.push(task)
+    // Apply template data if available
+    if (template.templateData) {
+      const templateData = template.templateData as any
       
-      // Map template task title to actual task ID for dependency resolution
-      taskIdMap.set(taskTemplate.title, task.id)
-    }
-    
-    // Second pass: Update dependencies
-    for (let i = 0; i < tasksData.length; i++) {
-      const taskTemplate = tasksData[i]
-      const actualTask = createdTasks[i]
-      
-      if (taskTemplate.dependsOn && taskTemplate.dependsOn.length > 0) {
-        // Resolve dependency IDs from template references
-        const resolvedDependsOn = taskTemplate.dependsOn
-          .map(depRef => taskIdMap.get(depRef))
-          .filter(Boolean) // Remove any unresolved dependencies
-        
-        if (resolvedDependsOn.length > 0) {
-          await prisma.task.update({
-            where: { id: actualTask.id },
-            data: { dependsOn: resolvedDependsOn }
-          })
-          
-          // Update reverse dependencies
-          for (const depId of resolvedDependsOn) {
-            await prisma.task.update({
-              where: { id: depId },
+      // Create tasks from template
+      if (templateData.tasks && Array.isArray(templateData.tasks)) {
+        for (const taskTemplate of templateData.tasks) {
+          try {
+            await prisma.task.create({
               data: {
-                blocks: {
-                  push: actualTask.id
-                }
+                projectId: project.id,
+                title: taskTemplate.title || 'Untitled Task',
+                description: taskTemplate.description || '',
+                status: taskTemplate.status || 'TODO',
+                priority: taskTemplate.priority || 'MEDIUM',
+                tags: taskTemplate.tags || [],
+                createdById: createdById,
+                assigneeId: createdById
               }
             })
+          } catch (error) {
+            console.error('Error creating task from template:', error)
+          }
+        }
+      }
+
+      // Create epics from template
+      if (templateData.epics && Array.isArray(templateData.epics)) {
+        for (const epicTemplate of templateData.epics) {
+          try {
+            await prisma.epic.create({
+              data: {
+                projectId: project.id,
+                title: epicTemplate.title || 'Untitled Epic',
+                description: epicTemplate.description || '',
+                status: epicTemplate.status || 'ACTIVE',
+                priority: epicTemplate.priority || 'MEDIUM',
+                createdById: createdById
+              }
+            })
+          } catch (error) {
+            console.error('Error creating epic from template:', error)
+          }
+        }
+      }
+
+      // Create milestones from template
+      if (templateData.milestones && Array.isArray(templateData.milestones)) {
+        for (const milestoneTemplate of templateData.milestones) {
+          try {
+            await prisma.milestone.create({
+              data: {
+                projectId: project.id,
+                title: milestoneTemplate.title || 'Untitled Milestone',
+                description: milestoneTemplate.description || '',
+                targetDate: milestoneTemplate.targetDate ? new Date(milestoneTemplate.targetDate) : null,
+                status: milestoneTemplate.status || 'PENDING',
+                createdById: createdById
+              }
+            })
+          } catch (error) {
+            console.error('Error creating milestone from template:', error)
           }
         }
       }
     }
 
-    // Create activity log
-    await prisma.activity.create({
-      data: {
-        actorId: createdById,
-        entity: 'project',
-        entityId: project.id,
-        action: 'created_from_template',
-        meta: {
-          templateId: template.id,
-          templateName: template.name,
-          tasksCreated: createdTasks.length
-        }
+    return NextResponse.json({
+      success: true,
+      project: {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        createdAt: project.createdAt
       }
     })
 
-    return NextResponse.json({
-      project,
-      tasks: createdTasks,
-      template: {
-        id: template.id,
-        name: template.name
-      }
-    })
   } catch (error) {
-    console.error('Error applying project template:', error)
+    console.error('Error applying template:', error)
     return NextResponse.json({ 
-      error: 'Failed to apply project template',
-      details: error.message 
+      error: 'Failed to apply template' 
     }, { status: 500 })
   }
 }

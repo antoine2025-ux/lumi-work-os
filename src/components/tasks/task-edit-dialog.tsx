@@ -90,6 +90,7 @@ interface TaskEditDialogProps {
   onClose: () => void
   task: Task | null
   onSave: (updatedTask: Task) => void
+  workspaceId: string
 }
 
 const statusOptions = [
@@ -107,7 +108,7 @@ const priorityOptions = [
   { value: 'URGENT', label: 'Urgent', color: 'bg-red-100 text-red-800' }
 ]
 
-export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialogProps) {
+export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: TaskEditDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
@@ -130,13 +131,13 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
 
   // Load users and custom fields when dialog opens
   useEffect(() => {
-    if (isOpen && task) {
+    if (isOpen && task && workspaceId) {
       loadUsers()
       loadCustomFields()
       loadEpics()
       loadMilestones()
     }
-  }, [isOpen, task])
+  }, [isOpen, task, workspaceId])
 
   // Update form data when task changes
   useEffect(() => {
@@ -167,7 +168,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave }: TaskEditDialog
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/org/users?workspaceId=cmgl0f0wa00038otlodbw5jhn')
+      const response = await fetch(`/api/org/users?workspaceId=${workspaceId}`)
       if (response.ok) {
         const userData = await response.json()
         setUsers(userData)

@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 
 // GET /api/assistant/sessions/[id] - Get a specific session
@@ -7,11 +10,24 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
     const resolvedParams = await params
     const session = await prisma.chatSession.findUnique({
       where: {
         id: resolvedParams.id,
-        userId: 'dev-user-1' // TODO: Get from session
+        userId: auth.user.userId
       },
       include: {
         messages: {
@@ -39,6 +55,19 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
     const resolvedParams = await params
     const body = await request.json()
     
@@ -47,7 +76,7 @@ export async function PUT(
     const session = await prisma.chatSession.update({
       where: {
         id: resolvedParams.id,
-        userId: 'dev-user-1' // TODO: Get from session
+        userId: auth.user.userId
       },
       data: {
         ...(phase && { phase }),
@@ -74,12 +103,25 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
     const resolvedParams = await params
     
     await prisma.chatSession.delete({
       where: {
         id: resolvedParams.id,
-        userId: 'dev-user-1' // TODO: Get from session
+        userId: auth.user.userId
       }
     })
 

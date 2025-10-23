@@ -114,18 +114,10 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         }
       } catch (error) {
         console.error('Failed to load workspaces:', error)
-        // Set fallback workspace for development
-        const fallbackWorkspace: Workspace = {
-          id: 'cmgl0f0wa00038otlodbw5jhn',
-          name: 'Default Workspace',
-          slug: 'default',
-          description: 'Default development workspace',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-        setWorkspaces([fallbackWorkspace])
-        setCurrentWorkspace(fallbackWorkspace)
-        setUserRole('OWNER')
+        // Don't set fallback workspace - let the error propagate
+        setWorkspaces([])
+        setCurrentWorkspace(null)
+        setUserRole(null)
       } finally {
         setIsLoading(false)
       }

@@ -90,12 +90,32 @@ export default function OrgChartPage() {
   const [editingPosition, setEditingPosition] = useState<OrgPosition | null>(null)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [assigningToRole, setAssigningToRole] = useState<OrgPosition | null>(null)
-  const [workspaceId] = useState('cmgl0f0wa00038otlodbw5jhn') // Use the actual workspace ID from seed
+  const [workspaceId, setWorkspaceId] = useState<string>('')
   const [userRole] = useState('ADMIN') // In a real app, this would come from session/context
+
+  // Get workspace ID from user status
+  useEffect(() => {
+    const fetchWorkspaceId = async () => {
+      try {
+        const response = await fetch('/api/auth/user-status')
+        if (response.ok) {
+          const userStatus = await response.json()
+          if (userStatus.workspaceId) {
+            setWorkspaceId(userStatus.workspaceId)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching workspace ID:', error)
+      }
+    }
+    fetchWorkspaceId()
+  }, [])
 
   // Load org data on component mount
   useEffect(() => {
-    loadOrgData()
+    if (workspaceId) {
+      loadOrgData()
+    }
   }, [workspaceId])
 
   const loadOrgData = async () => {

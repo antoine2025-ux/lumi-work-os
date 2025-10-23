@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
     const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'cmgl0f0wa00038otlodbw5jhn'
     const limit = parseInt(searchParams.get('limit') || '10')
 
     // Get recent pages
     const recentPages = await prisma.wikiPage.findMany({
       where: {
-        workspaceId: workspaceId,
+        workspaceId: auth.workspaceId,
         isPublished: true
       },
       include: {

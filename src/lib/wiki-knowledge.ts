@@ -23,7 +23,7 @@ export interface WikiSearchResult {
  */
 export async function searchWikiKnowledge(
   query: string, 
-  workspaceId: string = 'cmgl0f0wa00038otlodbw5jhn',
+  workspaceId: string,
   limit: number = 5
 ): Promise<WikiSearchResult[]> {
   try {
@@ -125,7 +125,7 @@ export async function searchWikiKnowledge(
  * Get recent wiki pages for context
  */
 export async function getRecentWikiPages(
-  workspaceId: string = 'cmgl0f0wa00038otlodbw5jhn',
+  workspaceId: string,
   limit: number = 3
 ): Promise<WikiPage[]> {
   try {
@@ -163,7 +163,7 @@ export async function getRecentWikiPages(
  */
 export async function getWikiPagesByCategory(
   category: string,
-  workspaceId: string = 'cmgl0f0wa00038otlodbw5jhn',
+  workspaceId: string,
   limit: number = 5
 ): Promise<WikiPage[]> {
   try {
