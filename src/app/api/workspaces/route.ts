@@ -7,6 +7,11 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
     
+    // If no workspace ID, user needs to create a workspace
+    if (!auth.workspaceId) {
+      return NextResponse.json({ workspaces: [] })
+    }
+    
     // Get the workspace details
     const workspace = await prisma.workspace.findUnique({
       where: { id: auth.workspaceId },
@@ -19,7 +24,7 @@ export async function GET(request: NextRequest) {
     })
 
     if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
+      return NextResponse.json({ workspaces: [] })
     }
 
     const userRole = workspace.members[0]?.role || 'MEMBER'
@@ -37,6 +42,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ workspaces: [workspaceData] })
   } catch (error) {
     console.error("Error fetching workspaces:", error)
+    // If it's a "no workspace found" error, return empty array
+    if (error instanceof Error && error.message.includes('No workspace found')) {
+      return NextResponse.json({ workspaces: [] })
+    }
     return NextResponse.json(
       { error: "Failed to fetch workspaces" },
       { status: 500 }
