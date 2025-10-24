@@ -49,3 +49,4 @@ echo "  • Uses mock dev user for all API calls"
 echo "  • Eliminates 'Unauthorized' errors in development"
 echo ""
 echo "🚀 You can now develop without authentication friction!"
+

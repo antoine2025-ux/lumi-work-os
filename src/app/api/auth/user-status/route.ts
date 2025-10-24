@@ -30,10 +30,21 @@ export async function GET(request: NextRequest) {
       })
     }
     
+    // If user is not authenticated, return appropriate status
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
+      return NextResponse.json({
+        isAuthenticated: false,
+        isFirstTime: true,
+        workspaceId: null,
+        error: 'Not authenticated'
+      })
+    }
+    
     return NextResponse.json({ 
       isAuthenticated: false,
-      isFirstTime: false,
+      isFirstTime: true,
+      workspaceId: null,
       error: 'Failed to check user status'
-    }, { status: 500 })
+    })
   }
 }

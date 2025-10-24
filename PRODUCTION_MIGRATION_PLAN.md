@@ -170,3 +170,4 @@ NEXTAUTH_SECRET="your-production-secret"
 5. **Deploy to production** with confidence
 
 This approach eliminates the "back and forth" problem and ensures a smooth transition to production.
+

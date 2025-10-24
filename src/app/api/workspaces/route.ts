@@ -46,10 +46,11 @@ export async function GET(request: NextRequest) {
     if (error instanceof Error && error.message.includes('No workspace found')) {
       return NextResponse.json({ workspaces: [] })
     }
-    return NextResponse.json(
-      { error: "Failed to fetch workspaces" },
-      { status: 500 }
-    )
+    // If user is not authenticated, return empty array
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
+      return NextResponse.json({ workspaces: [] })
+    }
+    return NextResponse.json({ workspaces: [] })
   }
 }
 

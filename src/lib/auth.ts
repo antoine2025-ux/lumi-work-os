@@ -1,5 +1,6 @@
 import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
+import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import { prisma } from "@/lib/db"
 
 // Check if we have Google OAuth credentials
@@ -8,6 +9,7 @@ const hasGoogleCredentials = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_
   process.env.GOOGLE_CLIENT_SECRET !== "your-google-client-secret"
 
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === 'google') {
@@ -73,7 +75,7 @@ export const authOptions: NextAuthOptions = {
     ] : [])
   ],
   session: {
-    strategy: "jwt",
+    strategy: "database",
   },
   pages: {
     signIn: '/login',

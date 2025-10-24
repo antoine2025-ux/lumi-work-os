@@ -26,3 +26,4 @@ for file in "${files[@]}"; do
 done
 
 echo "All route files fixed!"
+

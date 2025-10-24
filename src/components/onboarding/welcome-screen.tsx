@@ -229,3 +229,4 @@ export function WelcomeScreen({ user, onCreateWorkspace, isLoading = false }: We
     </div>
   )
 }
+

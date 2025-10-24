@@ -254,3 +254,4 @@ describe('Auth Utilities', () => {
     expect(user.isDev).toBe(true)
   })
 })
+

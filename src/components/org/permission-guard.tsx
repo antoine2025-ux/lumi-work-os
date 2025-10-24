@@ -34,3 +34,4 @@ export function RoleGuard({ children, allowedRoles, fallback = null }: RoleGuard
   
   return <>{children}</>
 }
+

@@ -21,36 +21,27 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
       return
     }
 
-    // Check if user is authenticated and if they're a first-time user
-    fetch('/api/auth/session')
+    // Check user status directly using unified auth endpoint
+    fetch('/api/auth/user-status')
       .then(res => res.json())
-      .then(data => {
-        if (!data.user) {
-          // No session, redirect to login
+      .then(status => {
+        if (!status.isAuthenticated) {
+          // Not authenticated, redirect to login
           router.push('/login')
           return
         }
-
-        // Check user status using unified auth endpoint
-        fetch('/api/auth/user-status')
-          .then(res => res.json())
-          .then(status => {
-            if (status.isFirstTime || !status.workspaceId) {
-              // First-time user or no workspace, redirect to welcome
-              router.push('/welcome')
-            } else {
-              // Existing user with workspace, allow access
-              setIsLoading(false)
-            }
-          })
-          .catch((error) => {
-            console.error('Auth status check failed:', error)
-            // If status check fails, redirect to welcome to be safe
-            router.push('/welcome')
-          })
+        
+        if (status.isFirstTime || !status.workspaceId) {
+          // First-time user or no workspace, redirect to welcome
+          router.push('/welcome')
+        } else {
+          // Existing user with workspace, allow access
+          setIsLoading(false)
+        }
       })
-      .catch(() => {
-        // If session check fails, redirect to login
+      .catch((error) => {
+        console.error('Auth status check failed:', error)
+        // If status check fails, redirect to login
         router.push('/login')
       })
   }, [router, pathname])

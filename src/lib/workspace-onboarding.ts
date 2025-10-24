@@ -516,3 +516,4 @@ function generateExcerpt(content: string): string {
   const excerpt = firstParagraph.replace(/^#+\s*/, '').substring(0, 150)
   return excerpt + (excerpt.length === 150 ? '...' : '')
 }
+

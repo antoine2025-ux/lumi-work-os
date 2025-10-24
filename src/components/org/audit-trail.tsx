@@ -224,3 +224,4 @@ export function AuditTrail({ workspaceId, entityType, entityId, userId }: AuditT
     </Card>
   )
 }
+

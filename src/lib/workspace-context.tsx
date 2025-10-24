@@ -64,6 +64,28 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
       try {
         setIsLoading(true)
         
+        // First check if user is a first-time user
+        const userStatusResponse = await fetch('/api/auth/user-status', {
+          credentials: 'include' as RequestCredentials,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+        
+        if (userStatusResponse.ok) {
+          const userStatus = await userStatusResponse.json()
+          
+          // If user is first-time or has no workspace, don't load workspaces
+          if (userStatus.isFirstTime || !userStatus.workspaceId) {
+            console.log('First-time user or no workspace, skipping workspace load')
+            setWorkspaces([])
+            setCurrentWorkspace(null)
+            setUserRole(null)
+            setIsLoading(false)
+            return
+          }
+        }
+        
         // Load user's workspaces
         const fetchOptions = {
           credentials: 'include' as RequestCredentials,
