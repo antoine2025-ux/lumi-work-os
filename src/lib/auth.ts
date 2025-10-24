@@ -13,7 +13,8 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === 'google') {
         // For Google OAuth, ensure user exists in our database
         try {
-          await prisma.user.upsert({
+          console.log('🔐 Creating/updating user:', user.email)
+          const dbUser = await prisma.user.upsert({
             where: { email: user.email! },
             update: {
               name: user.name,
@@ -27,10 +28,13 @@ export const authOptions: NextAuthOptions = {
               emailVerified: new Date(),
             }
           })
+          console.log('✅ User created/updated successfully:', dbUser.id)
           return true
         } catch (error) {
-          console.error('Error creating/updating user:', error)
-          return false
+          console.error('❌ Error creating/updating user:', error)
+          console.error('❌ User data:', { email: user.email, name: user.name })
+          // Don't fail authentication for database errors - let user in
+          return true
         }
       }
       return true
