@@ -26,13 +26,13 @@ if grep -r "dev@lumi.com" src/ --exclude-dir=node_modules --exclude="**/seed*.ts
   exit 1
 fi
 
-# Check for development bypass patterns
-if grep -r "ALLOW_DEV_LOGIN.*true" src/ --exclude-dir=node_modules; then
+# Check for development bypass patterns (only flag actual hardcoded assignments, not environment variable checks)
+if grep -r "ALLOW_DEV_LOGIN.*=.*true[^']" src/ --exclude-dir=node_modules; then
   echo "❌ Found hardcoded ALLOW_DEV_LOGIN=true"
   exit 1
 fi
 
-if grep -r "PROD_LOCK.*false" src/ --exclude-dir=node_modules; then
+if grep -r "PROD_LOCK.*=.*false[^']" src/ --exclude-dir=node_modules; then
   echo "❌ Found hardcoded PROD_LOCK=false"
   exit 1
 fi

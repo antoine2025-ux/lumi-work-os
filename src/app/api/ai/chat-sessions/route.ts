@@ -1,24 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getAuthenticatedUser, getCurrentWorkspace } from '@/lib/auth-helpers'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 
 // GET /api/ai/chat-sessions - Get chat sessions
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request)
-    if (!user) {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated) {
       return NextResponse.json({ 
         success: false,
         error: 'Authentication required' 
       }, { status: 401 })
-    }
-
-    const workspace = await getCurrentWorkspace(user)
-    if (!workspace) {
-      return NextResponse.json({ 
-        success: false,
-        error: 'No workspace found' 
-      }, { status: 404 })
     }
 
     const { searchParams } = new URL(request.url)
@@ -27,8 +19,8 @@ export async function GET(request: NextRequest) {
 
     const sessions = await prisma.chatSession.findMany({
       where: {
-        workspaceId: workspace.id,
-        userId: user.id
+        workspaceId: auth.workspaceId,
+        userId: auth.user.userId
       },
       orderBy: { updatedAt: 'desc' },
       take: limit,
@@ -73,15 +65,15 @@ export async function GET(request: NextRequest) {
 // POST /api/ai/chat-sessions - Create new chat session
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request)
-    if (!user) {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated) {
       return NextResponse.json({ 
         success: false,
         error: 'Authentication required' 
       }, { status: 401 })
     }
 
-    const workspace = await getCurrentWorkspace(user)
+    const workspace = await getCurrentWorkspace(auth.user)
     if (!workspace) {
       return NextResponse.json({ 
         success: false,
@@ -103,7 +95,7 @@ export async function POST(request: NextRequest) {
         title: title || 'New Chat',
         model: model,
         workspaceId: workspace.id,
-        userId: user.id
+        userId: auth.user.userId
       }
     })
 

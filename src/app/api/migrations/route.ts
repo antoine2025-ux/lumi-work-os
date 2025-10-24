@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthenticatedUser } from '@/lib/auth-utils'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 import { MigrationService } from '@/lib/migrations/migration-service'
 import { SliteAdapter } from '@/lib/migrations/adapters/slite-adapter'
 import { ClickUpAdapter } from '@/lib/migrations/adapters/clickup-adapter'
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     console.log('=== MIGRATION API CALLED ===')
     
     // Get authenticated user with development fallback
-    const auth = await getAuthenticatedUser()
+    const auth = await getUnifiedAuth(request)
     console.log('🔐 Authenticated user:', auth.user.email, auth.isDevelopment ? '(dev mode)' : '(production)')
     
     const body = await request.json()

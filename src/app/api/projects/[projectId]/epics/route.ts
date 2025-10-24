@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { CreateEpicSchema, UpdateEpicSchema } from '@/lib/pm/schemas'
-import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { emitProjectEvent } from '@/lib/pm/events'
@@ -17,12 +17,12 @@ export async function GET(
     const projectId = resolvedParams.projectId
 
     // 1. Get authenticated user with workspace context
-    const { userId, activeWorkspaceId } = await getAuthenticatedUser(request)
+    const auth = await getUnifiedAuth(request)
     
     // 2. Assert workspace access
     await assertAccess({ 
-      userId, 
-      workspaceId: activeWorkspaceId, 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
       scope: 'workspace', 
       requireRole: ['MEMBER'] 
     })
@@ -32,8 +32,8 @@ export async function GET(
 
     // 4. Assert project access (project must be in active workspace)
     await assertAccess({ 
-      userId, 
-      workspaceId: activeWorkspaceId, 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
       projectId, 
       scope: 'project', 
       requireRole: ['MEMBER'] 
@@ -97,12 +97,12 @@ export async function POST(
     const projectId = resolvedParams.projectId
 
     // 1. Get authenticated user with workspace context
-    const { userId, activeWorkspaceId } = await getAuthenticatedUser(request)
+    const auth = await getUnifiedAuth(request)
     
     // 2. Assert workspace access
     await assertAccess({ 
-      userId, 
-      workspaceId: activeWorkspaceId, 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
       scope: 'workspace', 
       requireRole: ['MEMBER'] 
     })
@@ -112,8 +112,8 @@ export async function POST(
 
     // 4. Assert project write access (require ADMIN or OWNER to create epics)
     await assertAccess({ 
-      userId, 
-      workspaceId: activeWorkspaceId, 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
       projectId, 
       scope: 'project', 
       requireRole: ['ADMIN', 'OWNER'] 
@@ -150,7 +150,7 @@ export async function POST(
     const epic = await prisma.epic.create({
       data: {
         projectId,
-        workspaceId: activeWorkspaceId, // 5. Use activeWorkspaceId
+        workspaceId: auth.workspaceId, // 5. Use activeWorkspaceId
         title: validatedData.title,
         description: validatedData.description,
         color: validatedData.color,

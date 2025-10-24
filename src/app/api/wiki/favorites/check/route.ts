@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getAuthenticatedUser } from '@/lib/auth-utils'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 
 // GET /api/wiki/favorites/check - Check if a page is favorited
 export async function GET(request: NextRequest) {
   try {
-    const auth = await getAuthenticatedUser()
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    
     const { searchParams } = new URL(request.url)
     const pageId = searchParams.get('pageId')
 
@@ -16,7 +20,7 @@ export async function GET(request: NextRequest) {
     const favorite = await prisma.wikiFavorite.findUnique({
       where: {
         page_id_user_id: {
-          user_id: auth.user.id,
+          user_id: auth.user.userId,
           page_id: pageId
         }
       }

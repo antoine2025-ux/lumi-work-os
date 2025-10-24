@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getAuthenticatedUser, getCurrentWorkspace } from '@/lib/auth-helpers'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 
 // POST /api/assistant/sessions - Create a new assistant session
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request)
-    if (!user) {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-
-    const workspace = await getCurrentWorkspace(user)
-    if (!workspace) {
-      return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
     }
 
     const { intent, target = 'wiki_page' } = await request.json()
@@ -27,8 +22,8 @@ export async function POST(request: NextRequest) {
         intent,
         target,
         phase: 'idle',
-        workspaceId: workspace.id,
-        userId: user.id
+        workspaceId: auth.workspaceId,
+        userId: auth.user.userId
       }
     })
 
@@ -42,20 +37,15 @@ export async function POST(request: NextRequest) {
 // GET /api/assistant/sessions - Get all assistant sessions
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request)
-    if (!user) {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-
-    const workspace = await getCurrentWorkspace(user)
-    if (!workspace) {
-      return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
     }
     
     const sessions = await prisma.chatSession.findMany({
       where: {
-        workspaceId: workspace.id,
-        userId: user.id
+        workspaceId: auth.workspaceId,
+        userId: auth.user.userId
       },
       orderBy: {
         updatedAt: 'desc'
