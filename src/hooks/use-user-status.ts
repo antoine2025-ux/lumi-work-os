@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface UserStatus {
   isAuthenticated: boolean
@@ -37,6 +37,7 @@ export function useUserStatus(): UseUserStatusReturn {
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const hasInitialized = useRef(false)
 
   const fetchUserStatus = async (): Promise<UserStatus> => {
     // Check cache first
@@ -98,6 +99,13 @@ export function useUserStatus(): UseUserStatusReturn {
   }
 
   useEffect(() => {
+    // Prevent multiple initializations
+    if (hasInitialized.current) {
+      return
+    }
+    
+    hasInitialized.current = true
+    
     const loadUserStatus = async () => {
       try {
         setLoading(true)
@@ -115,7 +123,7 @@ export function useUserStatus(): UseUserStatusReturn {
     }
 
     loadUserStatus()
-  }, [])
+  }, []) // Empty dependency array to run only once
 
   return {
     userStatus,

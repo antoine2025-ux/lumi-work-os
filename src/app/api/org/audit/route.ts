@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthContext, hasPermission } from '@/lib/unified-auth'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 import { getAuditHistory, getUserRoleHistory } from '@/lib/audit'
 
 // GET /api/org/audit - Get audit trail
 export async function GET(request: NextRequest) {
   try {
-    const authContext = await getAuthContext(request)
+    const auth = await getUnifiedAuth(request)
     
     if (!authContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 // GET /api/org/audit/user-history - Get user's role history
 export async function POST(request: NextRequest) {
   try {
-    const authContext = await getAuthContext(request)
+    const auth = await getUnifiedAuth(request)
     
     if (!authContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

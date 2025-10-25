@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { DEV_CONFIG, isDevMode, getDevUser } from '@/lib/dev-config'
+import { DEV_CONFIG, isDevMode } from '@/lib/dev-config'
 
 export interface DevSession {
   user: {
