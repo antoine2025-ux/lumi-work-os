@@ -5,6 +5,8 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
+import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
+import { getTasksOptimized } from '@/lib/db-optimization'
 
 // GET /api/tasks - Get all tasks for a project
 export async function GET(request: NextRequest) {

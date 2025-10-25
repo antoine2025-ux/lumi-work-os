@@ -1,119 +1,144 @@
-interface CacheItem<T> {
-  data: T
-  timestamp: number
-  ttl: number
+import { createClient } from 'redis'
+
+// Redis client configuration
+const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://localhost:6379',
+  socket: {
+    connectTimeout: 10000,
+    lazyConnect: true
+  }
+})
+
+// Connection handling
+redisClient.on('error', (err) => {
+  console.error('Redis Client Error:', err)
+})
+
+redisClient.on('connect', () => {
+  console.log('✅ Redis connected')
+})
+
+// Initialize connection
+if (!redisClient.isOpen) {
+  redisClient.connect().catch(console.error)
 }
 
-class MemoryCache {
-  private cache = new Map<string, CacheItem<any>>()
-  private maxSize = 1000 // Maximum number of items in cache
+/**
+ * Cache utility functions
+ */
+export class CacheService {
+  private static instance: CacheService
+  private client = redisClient
 
-  set<T>(key: string, data: T, ttlSeconds: number = 300): void {
-    // Remove oldest items if cache is full
-    if (this.cache.size >= this.maxSize) {
-      const oldestKey = this.cache.keys().next().value
-      this.cache.delete(oldestKey)
+  static getInstance(): CacheService {
+    if (!CacheService.instance) {
+      CacheService.instance = new CacheService()
     }
-
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl: ttlSeconds * 1000
-    })
+    return CacheService.instance
   }
 
-  get<T>(key: string): T | null {
-    const item = this.cache.get(key)
-    
-    if (!item) {
+  /**
+   * Set cache with TTL
+   */
+  async set(key: string, value: any, ttlSeconds: number = 300): Promise<void> {
+    try {
+      const serialized = JSON.stringify(value)
+      await this.client.setEx(key, ttlSeconds, serialized)
+    } catch (error) {
+      console.error('Cache set error:', error)
+    }
+  }
+
+  /**
+   * Get cached value
+   */
+  async get<T>(key: string): Promise<T | null> {
+    try {
+      const cached = await this.client.get(key)
+      return cached ? JSON.parse(cached) : null
+    } catch (error) {
+      console.error('Cache get error:', error)
       return null
     }
+  }
 
-    // Check if item has expired
-    if (Date.now() - item.timestamp > item.ttl) {
-      this.cache.delete(key)
-      return null
+  /**
+   * Delete cache key
+   */
+  async del(key: string): Promise<void> {
+    try {
+      await this.client.del(key)
+    } catch (error) {
+      console.error('Cache delete error:', error)
     }
-
-    return item.data as T
   }
 
-  delete(key: string): boolean {
-    return this.cache.delete(key)
+  /**
+   * Generate cache key for workspace-scoped data
+   */
+  generateKey(prefix: string, workspaceId: string, ...params: string[]): string {
+    return `${prefix}:${workspaceId}:${params.join(':')}`
   }
 
-  clear(): void {
-    this.cache.clear()
-  }
-
-  size(): number {
-    return this.cache.size
-  }
-
-  // Generate cache key from parameters
-  generateKey(prefix: string, params: Record<string, any>): string {
-    const sortedParams = Object.keys(params)
-      .sort()
-      .map(key => `${key}:${params[key]}`)
-      .join('|')
-    
-    return `${prefix}:${sortedParams}`
-  }
-
-  // Cache with automatic key generation
-  setWithParams<T>(prefix: string, params: Record<string, any>, data: T, ttlSeconds: number = 300): void {
-    const key = this.generateKey(prefix, params)
-    this.set(key, data, ttlSeconds)
-  }
-
-  getWithParams<T>(prefix: string, params: Record<string, any>): T | null {
-    const key = this.generateKey(prefix, params)
-    return this.get<T>(key)
-  }
-}
-
-export const cache = new MemoryCache()
-
-// Cache decorator for functions
-export function cached<T extends (...args: any[]) => Promise<any>>(
-  fn: T,
-  ttlSeconds: number = 300,
-  keyGenerator?: (...args: Parameters<T>) => string
-): T {
-  return (async (...args: Parameters<T>) => {
-    const key = keyGenerator ? keyGenerator(...args) : `fn:${fn.name}:${JSON.stringify(args)}`
+  /**
+   * Cache workspace data with automatic invalidation
+   */
+  async cacheWorkspaceData<T>(
+    key: string,
+    workspaceId: string,
+    fetcher: () => Promise<T>,
+    ttlSeconds: number = 300
+  ): Promise<T> {
+    const cacheKey = this.generateKey(key, workspaceId)
     
     // Try to get from cache first
-    const cached = cache.get(key)
-    if (cached !== null) {
+    const cached = await this.get<T>(cacheKey)
+    if (cached) {
       return cached
     }
 
-    // Execute function and cache result
-    const result = await fn(...args)
-    cache.set(key, result, ttlSeconds)
+    // Fetch fresh data
+    const data = await fetcher()
     
-    return result
-  }) as T
-}
+    // Cache the result
+    await this.set(cacheKey, data, ttlSeconds)
+    
+    return data
+  }
 
-// Cache invalidation helpers
-export function invalidateCache(pattern: string): void {
-  // Simple pattern matching - in production, use Redis with pattern matching
-  for (const key of cache['cache'].keys()) {
-    if (key.includes(pattern)) {
-      cache.delete(key)
+  /**
+   * Invalidate workspace cache
+   */
+  async invalidateWorkspace(workspaceId: string): Promise<void> {
+    try {
+      const pattern = `*:${workspaceId}:*`
+      const keys = await this.client.keys(pattern)
+      if (keys.length > 0) {
+        await this.client.del(keys)
+      }
+    } catch (error) {
+      console.error('Cache invalidation error:', error)
     }
   }
 }
 
-export function invalidateUserCache(userId: string): void {
-  invalidateCache(`user:${userId}`)
-}
+// Export singleton instance
+export const cache = CacheService.getInstance()
 
-export function invalidateWorkspaceCache(workspaceId: string): void {
-  invalidateCache(`workspace:${workspaceId}`)
-}
+// Cache key constants
+export const CACHE_KEYS = {
+  TASKS: 'tasks',
+  PROJECTS: 'projects',
+  WIKI_PAGES: 'wiki_pages',
+  AI_CONTEXT: 'ai_context',
+  USER_PROFILE: 'user_profile',
+  WORKSPACE_MEMBERS: 'workspace_members'
+} as const
 
-
-
+// Cache TTL constants (in seconds)
+export const CACHE_TTL = {
+  SHORT: 60,      // 1 minute
+  MEDIUM: 300,    // 5 minutes
+  LONG: 1800,     // 30 minutes
+  VERY_LONG: 3600 // 1 hour
+} as const
