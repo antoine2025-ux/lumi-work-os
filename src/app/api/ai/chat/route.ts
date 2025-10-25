@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { generateAIResponse, AISource } from '@/lib/ai/providers'
+import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 
 // Function to analyze AI response and identify relevant sources
 async function identifyRelevantSources(aiResponse: string, availableSources: AISource[]): Promise<AISource[]> {
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
       workspaceId,
       async () => {
         // Use Promise.all for parallel queries
-        const [wikiPages, projects, tasks] = await Promise.all([
+        const [wikiPages, projects, tasks, orgPositions] = await Promise.all([
           // 1. Wiki Pages (Knowledge Base) - Optimized
           prisma.wikiPage.findMany({
             where: {
@@ -176,8 +177,8 @@ export async function POST(request: NextRequest) {
             orderBy: { updatedAt: 'desc' }
           }),
 
-    // 2. Projects & Tasks
-    const projects = await prisma.project.findMany({
+          // 2. Projects & Tasks
+          prisma.project.findMany({
       where: { workspaceId },
       select: {
         id: true,
@@ -207,10 +208,27 @@ export async function POST(request: NextRequest) {
       },
       take: 10,
       orderBy: { updatedAt: 'desc' }
-    })
+    }),
 
-    // 3. Organization Structure
-    const orgPositions = await prisma.orgPosition.findMany({
+    // 3. Tasks
+    prisma.task.findMany({
+      where: { workspaceId },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        priority: true,
+        dueDate: true,
+        assignee: {
+          select: { name: true, email: true }
+        }
+      },
+      take: 20,
+      orderBy: { createdAt: 'desc' }
+    }),
+
+    // 4. Organization Structure
+    prisma.orgPosition.findMany({
       where: { 
         workspaceId,
         isActive: true 
@@ -229,6 +247,13 @@ export async function POST(request: NextRequest) {
       },
       take: 20
     })
+  ])
+
+  return { wikiPages, projects, tasks, orgPositions }
+})
+
+    // Extract variables from cached data
+    const { wikiPages, projects, tasks, orgPositions } = contextData
 
     // 4. Recent Activities
     const recentActivities = await prisma.activity.findMany({
