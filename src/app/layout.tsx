@@ -9,6 +9,8 @@ const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-montserrat",
+  display: 'swap', // Add font-display: swap for better LCP
+  preload: true,   // Preload critical font
 });
 
 export const metadata: Metadata = {
