@@ -14,8 +14,8 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Lumi Work OS",
-  description: "A calm, minimal platform for companies to manage knowledge, onboarding, and workflows",
+  title: "Loopwell - Intelligent Workplace Platform",
+  description: "A calm, minimal platform for companies to manage knowledge, onboarding, and workflows with AI-powered intelligence",
 };
 
 export default function RootLayout({

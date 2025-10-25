@@ -11,7 +11,6 @@ import {
   Shield, 
   BarChart3, 
   Clock,
-  Star,
   ChevronRight,
   Play,
   Sparkles,
@@ -30,17 +29,27 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
+              {/* Option 1: Use your own logo file */}
+              {/* <Image 
+                src="/loopwell-logo.svg" 
+                alt="Loopwell Logo" 
+                width={32} 
+                height={32} 
+                className="w-8 h-8"
+              /> */}
+              
+              {/* Option 2: Keep the current gradient icon (fallback) */}
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-slate-900">Lumi</span>
+              
+              <span className="text-xl font-bold text-slate-900">Loopwell</span>
             </div>
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors">Features</a>
               <a href="#benefits" className="text-slate-600 hover:text-slate-900 transition-colors">Benefits</a>
-              <a href="#testimonials" className="text-slate-600 hover:text-slate-900 transition-colors">Testimonials</a>
-              <Button variant="outline" size="sm">Sign In</Button>
-              <Button size="sm">Get Started</Button>
+              <Button variant="outline" size="sm">About</Button>
+              <Button size="sm">Join Waitlist</Button>
             </div>
           </div>
         </div>
@@ -52,45 +61,45 @@ export default function LandingPage() {
           <div className="text-center">
             <Badge variant="secondary" className="mb-6 px-4 py-2 text-sm">
               <Sparkles className="w-4 h-4 mr-2" />
-              The Future of Workplace Productivity
+              Coming Soon - Join the Waitlist
             </Badge>
             
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-slate-900 mb-6 leading-tight">
-              Your Team's
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Intelligence</span>
+              The Future of
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Team</span>
               <br />
-              Operating System
+              Productivity
             </h1>
             
             <p className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Lumi Work OS combines AI-powered knowledge management, seamless project collaboration, 
-              and intelligent automation in one beautiful, minimal platform. Transform how your team 
-              works, learns, and grows together.
+              Loopwell is building the next generation of workplace intelligence. 
+              Join our waitlist to be the first to experience AI-powered knowledge management, 
+              seamless collaboration, and intelligent automation.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
               <Button size="lg" className="px-8 py-4 text-lg">
-                Start Free Trial
+                Join Waitlist
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
               <Button variant="outline" size="lg" className="px-8 py-4 text-lg">
                 <Play className="mr-2 w-5 h-5" />
-                Watch Demo
+                Learn More
               </Button>
             </div>
             
             <div className="flex items-center justify-center space-x-8 text-sm text-slate-500">
               <div className="flex items-center">
                 <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                No credit card required
+                Early access
               </div>
               <div className="flex items-center">
                 <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                Setup in 2 minutes
+                No spam, ever
               </div>
               <div className="flex items-center">
                 <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                Cancel anytime
+                Updates on progress
               </div>
             </div>
           </div>
@@ -102,7 +111,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-slate-900 mb-4">
-              Everything Your Team Needs
+              What We're Building
             </h2>
             <p className="text-xl text-slate-600 max-w-2xl mx-auto">
               Powerful features designed to streamline workflows, enhance collaboration, 
@@ -197,17 +206,17 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-slate-900 mb-4">
-              Measurable Results
+              Our Vision
             </h2>
             <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              Join thousands of teams who've transformed their productivity with Lumi Work OS.
+              Join us in building the future of workplace productivity.
             </p>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
             <div className="text-center">
               <div className="text-4xl font-bold text-blue-600 mb-2">25%</div>
-              <div className="text-slate-600">Increase in Team Productivity</div>
+              <div className="text-slate-600">Target Productivity Increase</div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-green-600 mb-2">10+</div>
@@ -226,7 +235,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <h3 className="text-3xl font-bold text-slate-900 mb-6">
-                Why Teams Choose Lumi
+                Why Join Our Journey
               </h3>
               <div className="space-y-6">
                 <div className="flex items-start">
@@ -253,7 +262,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-slate-900 mb-2">Built for Scale</h4>
-                    <p className="text-slate-600">From startup to enterprise, Lumi grows with you without compromising on performance or security.</p>
+                    <p className="text-slate-600">From startup to enterprise, Loopwell will grow with you without compromising on performance or security.</p>
                   </div>
                 </div>
               </div>
@@ -299,109 +308,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">
-              Loved by Teams Worldwide
-            </h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              See what our customers have to say about their Lumi experience.
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-slate-600 mb-4">
-                  "Lumi transformed how our team manages knowledge. The AI features are incredible—it actually understands our context and provides relevant suggestions."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-blue-600 font-semibold">SM</span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-slate-900">Sarah Mitchell</div>
-                    <div className="text-sm text-slate-500">CTO, TechFlow</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-slate-600 mb-4">
-                  "The project management features are intuitive and powerful. We've seen a 30% improvement in our delivery times since switching to Lumi."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-green-600 font-semibold">DJ</span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-slate-900">David Johnson</div>
-                    <div className="text-sm text-slate-500">Product Manager, InnovateLab</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-slate-600 mb-4">
-                  "Finally, a tool that doesn't overwhelm us with features. Lumi's calm design helps our team focus on what matters most—delivering great work."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-purple-600 font-semibold">EC</span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-slate-900">Emily Chen</div>
-                    <div className="text-sm text-slate-500">Design Lead, CreativeStudio</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
 
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-600 to-purple-600">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold text-white mb-6">
-            Ready to Transform Your Team's Productivity?
+            Ready to Shape the Future?
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of teams who've already made the switch to Lumi Work OS. 
-            Start your free trial today and experience the difference.
+            Join our waitlist and be part of building the next generation 
+            of workplace intelligence. Early access coming soon.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button size="lg" variant="secondary" className="px-8 py-4 text-lg">
-              Start Free Trial
+              Join Waitlist
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
             <Button size="lg" variant="outline" className="px-8 py-4 text-lg border-white text-white hover:bg-white hover:text-blue-600">
-              Schedule Demo
+              Follow Progress
             </Button>
           </div>
           <p className="text-blue-100 text-sm mt-6">
-            No credit card required • 14-day free trial • Cancel anytime
+            No spam • Early access • Updates on development
           </p>
         </div>
       </section>
@@ -412,13 +340,24 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
+                {/* Option 1: Use your own logo file */}
+                {/* <Image 
+                  src="/loopwell-logo.svg" 
+                  alt="Loopwell Logo" 
+                  width={32} 
+                  height={32} 
+                  className="w-8 h-8"
+                /> */}
+                
+                {/* Option 2: Keep the current gradient icon (fallback) */}
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xl font-bold">Lumi</span>
+                
+                <span className="text-xl font-bold">Loopwell</span>
               </div>
               <p className="text-slate-400">
-                The intelligent workplace operating system that brings teams together.
+                The intelligent workplace platform that brings teams together.
               </p>
             </div>
             <div>
@@ -450,7 +389,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-slate-800 mt-8 pt-8 text-center text-slate-400">
-            <p>&copy; 2024 Lumi Work OS. All rights reserved.</p>
+            <p>&copy; 2024 Loopwell. All rights reserved.</p>
           </div>
         </div>
       </footer>
