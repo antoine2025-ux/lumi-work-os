@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { useSession } from "next-auth/react"
+import { useUserStatus } from '@/hooks/use-user-status'
 
 export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER'
 export type ProjectRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
@@ -53,6 +54,7 @@ interface WorkspaceProviderProps {
 
 export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   const { data: session } = useSession()
+  const { userStatus, loading: userStatusLoading } = useUserStatus()
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
   const [userRole, setUserRole] = useState<WorkspaceRole | null>(null)
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
@@ -64,26 +66,19 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
       try {
         setIsLoading(true)
         
-        // First check if user is a first-time user
-        const userStatusResponse = await fetch('/api/auth/user-status', {
-          credentials: 'include' as RequestCredentials,
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        })
+        // Wait for user status to be loaded
+        if (userStatusLoading || !userStatus) {
+          return
+        }
         
-        if (userStatusResponse.ok) {
-          const userStatus = await userStatusResponse.json()
-          
-          // If user is first-time or has no workspace, don't load workspaces
-          if (userStatus.isFirstTime || !userStatus.workspaceId) {
-            console.log('First-time user or no workspace, skipping workspace load')
-            setWorkspaces([])
-            setCurrentWorkspace(null)
-            setUserRole(null)
-            setIsLoading(false)
-            return
-          }
+        // If user is first-time or has no workspace, don't load workspaces
+        if (userStatus.isFirstTime || !userStatus.workspaceId) {
+          console.log('First-time user or no workspace, skipping workspace load')
+          setWorkspaces([])
+          setCurrentWorkspace(null)
+          setUserRole(null)
+          setIsLoading(false)
+          return
         }
         
         // Load user's workspaces
@@ -146,7 +141,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
     }
 
     loadWorkspaces()
-  }, []) // Remove session dependency entirely for development
+  }, [session, userStatus, userStatusLoading])
 
   const switchWorkspace = async (workspaceId: string) => {
     const workspace = workspaces.find(w => w.id === workspaceId)

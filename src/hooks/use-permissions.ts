@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { calculateOrgPermissions, PermissionContext } from '@/lib/permissions'
+import { useUserStatus } from './use-user-status'
 
 interface PermissionHookContext {
   context: PermissionContext | null
@@ -18,6 +19,7 @@ const PermissionContext = createContext<PermissionHookContext>({
 })
 
 export function PermissionProvider({ children }: { children: React.ReactNode }) {
+  const { userStatus, loading: userStatusLoading } = useUserStatus()
   const [context, setContext] = useState<PermissionContext | null>(null)
   const [permissions, setPermissions] = useState<ReturnType<typeof calculateOrgPermissions> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -26,13 +28,11 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     async function loadPermissions() {
       try {
-        // Get user status to get workspace ID and user info
-        const response = await fetch('/api/auth/user-status')
-        if (!response.ok) {
-          throw new Error('Failed to get user status')
+        // Wait for user status to be loaded
+        if (userStatusLoading || !userStatus) {
+          return
         }
         
-        const userStatus = await response.json()
         if (!userStatus.workspaceId) {
           throw new Error('No workspace found')
         }
@@ -47,7 +47,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         const userRole = roleData.role || 'MEMBER'
         
         const context: PermissionContext = {
-          userId: userStatus.userId || 'unknown',
+          userId: userStatus.user.id,
           workspaceId: userStatus.workspaceId,
           userRole: userRole,
           isOwner: userRole === 'OWNER',
@@ -68,7 +68,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     }
 
     loadPermissions()
-  }, [])
+  }, [userStatus, userStatusLoading])
 
   return (
     <PermissionContext.Provider value={{ context, permissions, loading, error }}>

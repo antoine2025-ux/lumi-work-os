@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { ThemeSelector } from "@/components/theme-selector"
 import { MigrationModal } from "@/components/migrations/migration-modal"
+import { useUserStatus } from '@/hooks/use-user-status'
 import { 
   Settings, 
   User, 
@@ -43,6 +44,7 @@ interface WorkspaceData {
 }
 
 export default function SettingsPage() {
+  const { userStatus, loading: userStatusLoading } = useUserStatus()
   const [activeTab, setActiveTab] = useState("workspace")
   const [workspaceData, setWorkspaceData] = useState<WorkspaceData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -62,13 +64,11 @@ export default function SettingsPage() {
         setLoading(true)
         setError(null)
         
-        // Get current workspace ID from user status
-        const userStatusResponse = await fetch('/api/auth/user-status')
-        if (!userStatusResponse.ok) {
-          throw new Error('Failed to get user status')
+        // Wait for user status to be loaded
+        if (userStatusLoading || !userStatus) {
+          return
         }
         
-        const userStatus = await userStatusResponse.json()
         if (!userStatus.workspaceId) {
           throw new Error('No workspace found')
         }
@@ -95,7 +95,7 @@ export default function SettingsPage() {
     }
 
     fetchWorkspaceData()
-  }, [])
+  }, [userStatus, userStatusLoading])
 
   // Save workspace changes
   const handleSave = async () => {
