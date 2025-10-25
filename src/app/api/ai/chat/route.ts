@@ -143,26 +143,38 @@ export async function POST(request: NextRequest) {
         // Get comprehensive context from all Lumi data sources
         const workspaceId = chatSession.workspaceId
 
-    // 1. Wiki Pages (Knowledge Base)
-    const wikiPages = await prisma.wikiPage.findMany({
-      where: {
-        workspaceId,
-        isPublished: true
-      },
-      select: {
-        id: true,
-        title: true,
-        content: true,
-        excerpt: true,
-        slug: true,
-        tags: true,
-        category: true,
-        view_count: true,
-        updatedAt: true
-      },
-      take: 15,
-      orderBy: { updatedAt: 'desc' }
-    })
+    // Generate cache key for AI context
+    const contextCacheKey = cache.generateKey(
+      CACHE_KEYS.AI_CONTEXT,
+      workspaceId,
+      'chat'
+    )
+
+    // Try cache first, then fetch fresh data
+    const contextData = await cache.cacheWorkspaceData(
+      contextCacheKey,
+      workspaceId,
+      async () => {
+        // Use Promise.all for parallel queries
+        const [wikiPages, projects, tasks] = await Promise.all([
+          // 1. Wiki Pages (Knowledge Base) - Optimized
+          prisma.wikiPage.findMany({
+            where: {
+              workspaceId,
+              isPublished: true
+            },
+            select: {
+              id: true,
+              title: true,
+              excerpt: true, // Use excerpt instead of full content
+              slug: true,
+              tags: true,
+              category: true,
+              updatedAt: true
+            },
+            take: 10, // Reduced from 15
+            orderBy: { updatedAt: 'desc' }
+          }),
 
     // 2. Projects & Tasks
     const projects = await prisma.project.findMany({

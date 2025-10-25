@@ -3,7 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: ['@prisma/client'],
   images: {
-    domains: ['localhost', 'lh3.googleusercontent.com'], // Add your production domain
+    domains: ['localhost', 'lh3.googleusercontent.com', 'vercel.app'],
+    formats: ['image/webp', 'image/avif'],
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   typescript: {
     // !! WARN !!

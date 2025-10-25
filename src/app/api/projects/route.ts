@@ -5,6 +5,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
+import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 
 // GET /api/projects - Get all projects for a workspace
 export async function GET(request: NextRequest) {
