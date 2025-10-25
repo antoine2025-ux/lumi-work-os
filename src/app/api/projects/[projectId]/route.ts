@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 import { ProjectUpdateSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { z } from 'zod'
@@ -13,11 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    const auth = await getUnifiedAuth(request)
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
 
@@ -25,17 +20,8 @@ export async function GET(
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
     }
 
-    // Get authenticated user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email! }
-    })
-    
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 401 })
-    }
-
     // Check project access
-    await assertProjectAccess(user, projectId)
+    await assertProjectAccess(auth.user, projectId)
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -131,11 +117,7 @@ export async function PUT(
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    const auth = await getUnifiedAuth(request)
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
     const body = await request.json()
@@ -144,17 +126,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
     }
 
-    // Get authenticated user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email! }
-    })
-    
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 401 })
-    }
-
     // Check project access (require admin access for updates)
-    await assertProjectAccess(user, projectId, 'ADMIN')
+    await assertProjectAccess(auth.user, projectId, 'ADMIN')
 
     // Validate request body with Zod
     const validatedData = ProjectUpdateSchema.parse(body)

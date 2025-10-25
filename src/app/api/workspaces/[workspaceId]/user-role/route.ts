@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { requireAuth } from '@/lib/simple-auth'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 
 // GET /api/workspaces/[workspaceId]/user-role - Get user's role in a workspace
 export async function GET(
@@ -8,12 +8,12 @@ export async function GET(
   { params }: { params: { workspaceId: string } }
 ) {
   try {
-    const user = await requireAuth()
+    const auth = await getUnifiedAuth(request)
     const { workspaceId } = await params
 
     const membership = await prisma.workspaceMember.findFirst({
       where: {
-        userId: user.id,
+        userId: auth.user.userId,
         workspaceId
       },
       select: {
