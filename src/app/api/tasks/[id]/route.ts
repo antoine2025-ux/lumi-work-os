@@ -5,6 +5,7 @@ import { logTaskHistory } from '@/lib/pm/history'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { TaskPatchSchema, TaskPutSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { isDevBypassAllowed } from '@/lib/unified-auth'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 
@@ -150,8 +151,8 @@ export async function PUT(
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      // Development bypass: allow updates without session
-      if (process.env.NODE_ENV === 'development') {
+      // Development bypass: allow updates without session (only if dev mode enabled)
+      if (isDevBypassAllowed()) {
         console.log('No session found, using development bypass')
         // Continue with development bypass
       } else {
@@ -224,8 +225,8 @@ export async function PUT(
     try {
       await assertProjectAccess(userToUse, currentTask.projectId, 'MEMBER')
     } catch (error) {
-      // Development bypass: allow updates if project exists
-      if (process.env.NODE_ENV === 'development' && error.message.includes('Insufficient project permissions')) {
+      // Development bypass: allow updates if project exists (only if dev mode enabled)
+      if (isDevBypassAllowed() && error.message.includes('Insufficient project permissions')) {
         console.log('Access check failed, using development bypass:', error.message)
         // Continue with development bypass
       } else {

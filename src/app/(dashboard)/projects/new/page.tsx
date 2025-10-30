@@ -194,6 +194,16 @@ export default function NewProjectPage() {
     setShowTaskTemplateDialog(false)
     router.push(`/projects/${createdProject?.id}`)
   }
+  
+  // If user closes template dialog without selecting, still redirect
+  const handleSkipTemplates = () => {
+    setShowTaskTemplateDialog(false)
+    if (createdProject?.id) {
+      router.push(`/projects/${createdProject.id}`)
+    } else {
+      router.push('/projects')
+    }
+  }
 
   const handleTemplateSelect = async (template: any) => {
     try {

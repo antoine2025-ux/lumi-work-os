@@ -47,7 +47,11 @@ export async function GET(request: NextRequest) {
       title: page.title,
       slug: page.slug,
       updatedAt: page.updatedAt,
-      author: page.createdBy?.name || 'Unknown'
+      author: page.createdBy?.name || 'Unknown',
+      permissionLevel: page.permissionLevel,
+      // Preserve null/undefined - don't default to 'team' as it breaks filtering
+      // The frontend will handle null values for legacy pages
+      workspace_type: page.workspace_type ?? null
     }))
 
     return NextResponse.json(formattedPages)

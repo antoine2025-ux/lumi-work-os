@@ -1,10 +1,11 @@
 "use client"
 
 import { useSession, signOut } from "next-auth/react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { clearUserStatusCache } from "@/hooks/use-user-status"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -17,9 +18,28 @@ import {
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/theme-provider"
 import { useWorkspace } from "@/lib/workspace-context"
-import { Breadcrumbs } from "@/components/layout/breadcrumbs"
-import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target, Network } from "lucide-react"
+import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+// Prefetch common routes on mount for instant navigation
+function prefetchRoutes() {
+  const commonRoutes = [
+    '/wiki/home',
+    '/ask',
+    '/settings',
+    '/org'
+  ]
+  
+  commonRoutes.forEach(route => {
+    // Use dynamic import to prefetch in background
+    if (typeof window !== 'undefined') {
+      const router = require('next/router').default
+      router.prefetch(route).catch(() => {
+        // Silently fail if route doesn't exist yet
+      })
+    }
+  })
+}
 
 const navigationItems = [
   {
@@ -29,34 +49,16 @@ const navigationItems = [
     description: "Overview and quick actions"
   },
   {
-    name: "Projects",
-    href: "/projects",
-    icon: Target,
-    description: "Project management and task tracking"
-  },
-  {
-    name: "Wiki",
-    href: "/wiki",
+    name: "Spaces",
+    href: "/wiki/home",
     icon: BookOpen,
-    description: "Knowledge base and documentation"
+    description: "Workspaces, wikis and projects"
   },
   {
     name: "Ask AI",
     href: "/ask",
     icon: Bot,
     description: "AI-powered assistance"
-  },
-  {
-    name: "AI Context Test",
-    href: "/ai-context-test",
-    icon: Sparkles,
-    description: "Test AI contextual functionality"
-  },
-  {
-    name: "Onboarding",
-    href: "/onboarding",
-    icon: Users,
-    description: "Team onboarding and training"
   },
   {
     name: "Org",
@@ -69,22 +71,25 @@ const navigationItems = [
     href: "/settings",
     icon: Settings,
     description: "Workspace configuration"
-  },
-  {
-    name: "Architecture",
-    href: "/architecture",
-    icon: Network,
-    description: "System architecture and documentation"
   }
 ]
 
 export function Header() {
   const { data: session } = useSession()
   const pathname = usePathname()
+  const router = useRouter()
   const { themeConfig } = useTheme()
   const { currentWorkspace, userRole } = useWorkspace()
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+
+  // Prefetch all common routes on mount for instant navigation
+  useEffect(() => {
+    const commonRoutes = ['/wiki/home', '/ask', '/settings', '/org']
+    commonRoutes.forEach(route => {
+      router.prefetch(route)
+    })
+  }, [router])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -108,7 +113,7 @@ export function Header() {
   return (
     <TooltipProvider>
       <header className={cn(
-        "h-16 border-b transition-transform duration-300 ease-in-out sticky top-0 z-50",
+        "h-16 transition-transform duration-300 ease-in-out sticky top-0 z-50",
         isVisible ? "translate-y-0" : "-translate-y-full"
       )}
       style={{ backgroundColor: themeConfig.background }}
@@ -138,6 +143,7 @@ export function Header() {
                 <Link
                   key={item.name}
                   href={item.href}
+                  prefetch={true}
                   className={cn(
                     "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out group relative overflow-hidden",
                     isActive
@@ -217,7 +223,38 @@ export function Header() {
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut()}>
+                <DropdownMenuItem onClick={async () => {
+                  // STEP 1: Clear user status cache immediately
+                  clearUserStatusCache()
+                  
+                  // STEP 2: Set logout flag BEFORE clearing storage
+                  sessionStorage.setItem('__logout_flag__', 'true')
+                  
+                  // STEP 3: Clear all local storage (except the logout flag)
+                  localStorage.clear()
+                  // Don't clear sessionStorage completely - we need the flag!
+                  // But clear other items
+                  Object.keys(sessionStorage).forEach(key => {
+                    if (key !== '__logout_flag__') {
+                      sessionStorage.removeItem(key)
+                    }
+                  })
+                  
+                  // STEP 4: Try to clear NextAuth cookies manually
+                  document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                  });
+                  
+                  // STEP 5: Force redirect to login immediately
+                  window.location.href = '/login'
+                  
+                  // STEP 6: Sign out in the background (don't wait)
+                  try {
+                    await signOut({ redirect: false })
+                  } catch (e) {
+                    // Ignore errors, we're already redirecting
+                  }
+                }}>
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -225,13 +262,6 @@ export function Header() {
           </div>
         </div>
       </header>
-      
-      {/* Breadcrumbs - Hide for project pages */}
-      {!pathname?.startsWith('/projects') && (
-        <div className="border-b bg-muted/50 px-6 py-2">
-          <Breadcrumbs />
-        </div>
-      )}
     </TooltipProvider>
   )
 }

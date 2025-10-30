@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { WikiNavigation } from "@/components/wiki/wiki-navigation"
 import { RichTextEditor } from "@/components/wiki/rich-text-editor"
+import { WikiAIAssistant } from "@/components/wiki/wiki-ai-assistant"
 import { useUserStatus } from '@/hooks/use-user-status'
 import { 
   ArrowLeft,
@@ -32,7 +33,13 @@ import {
   EyeOff
 } from "lucide-react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface WikiPageProps {
   params: Promise<{
@@ -42,6 +49,7 @@ interface WikiPageProps {
 
 export default function WikiPageDetail({ params }: WikiPageProps) {
   const { userStatus } = useUserStatus()
+  const router = useRouter()
   const [resolvedParams, setResolvedParams] = useState<{ slug: string } | null>(null)
   const searchParams = useSearchParams()
   const [isEditing, setIsEditing] = useState(searchParams?.get('edit') === 'true')
@@ -51,6 +59,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
   const [relatedPages, setRelatedPages] = useState<any[]>([])
   const [isStarred, setIsStarred] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Get workspace ID from user status
   useEffect(() => {
@@ -82,6 +91,64 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
       window.dispatchEvent(new CustomEvent('favoritesChanged'))
     } catch (error) {
       console.error('Error toggling favorite:', error)
+    }
+  }
+
+  const handleDeletePage = async () => {
+    if (!pageData) {
+      console.error('No page data available')
+      return
+    }
+    
+    console.log('Deleting page:', { id: pageData.id, slug: resolvedParams?.slug })
+    
+    if (!confirm('Are you sure you want to delete this page? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      setIsDeleting(true)
+      
+      // Use pageData.id if available, otherwise try by slug
+      const pageIdOrSlug = pageData.id || resolvedParams?.slug
+      
+      console.log('Sending DELETE request to:', `/api/wiki/pages/${pageIdOrSlug}`)
+      
+      const response = await fetch(`/api/wiki/pages/${pageIdOrSlug}`, {
+        method: 'DELETE'
+      })
+
+      console.log('Delete response status:', response.status)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Delete failed:', errorData)
+        throw new Error(errorData.error || 'Failed to delete page')
+      }
+
+      // Trigger custom event to refresh sidebar
+      window.dispatchEvent(new CustomEvent('pageDeleted'))
+      window.dispatchEvent(new CustomEvent('favoritesChanged'))
+      
+      // Determine workspace and redirect accordingly
+      const workspaceType = pageData.workspace_type || pageData.permissionLevel
+      
+      if (workspaceType === 'personal' || workspaceType === 'personal-space') {
+        router.push('/wiki/personal-space')
+      } else if (workspaceType === 'team' || workspaceType === 'team-workspace') {
+        router.push('/wiki/team-workspace')
+      } else if (workspaceType && workspaceType !== 'team' && workspaceType !== 'personal') {
+        // Custom workspace
+        router.push(`/wiki/workspace/${workspaceType}`)
+      } else {
+        // Default to home
+        router.push('/wiki')
+      }
+    } catch (error) {
+      console.error('Error deleting page:', error)
+      alert(`Failed to delete page: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -209,10 +276,10 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-500">Loading page...</p>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+          <p className="text-muted-foreground">Loading page...</p>
         </div>
       </div>
     )
@@ -220,13 +287,13 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
 
   if (!pageData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Page not found</h2>
-          <p className="text-gray-600 mb-6">The page you're looking for doesn't exist.</p>
+          <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">Page not found</h2>
+          <p className="text-muted-foreground mb-6">The page you're looking for doesn't exist.</p>
           <Link href="/wiki">
-            <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+            <Button variant="outline">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Knowledge Base
             </Button>
@@ -237,31 +304,31 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
   }
 
   return (
-    <div className="h-full bg-white min-h-screen">
+    <div className="h-full bg-background min-h-screen">
       {/* Main Editor Area - Clean Document */}
-      <div className="flex-1 p-8 bg-white min-h-screen">
+      <div className="flex-1 p-8 bg-background min-h-screen">
         <div className="max-w-4xl mx-auto">
           {/* Page Info and Actions */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto">
                 <Share2 className="h-4 w-4" />
               </Button>
               <Button 
                 onClick={toggleFavorite}
                 variant="ghost" 
                 size="sm" 
-                className={`p-2 h-auto ${isStarred ? 'text-yellow-500' : 'text-gray-400'} hover:text-yellow-500`}
+                className={`p-2 h-auto ${isStarred ? 'text-yellow-500' : 'text-muted-foreground'} hover:text-yellow-500`}
               >
                 <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} />
               </Button>
-              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto">
                 <Eye className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto">
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto">
                 <Settings className="h-4 w-4" />
               </Button>
               {isEditing ? (
@@ -271,7 +338,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
                     disabled={isSaving}
                     variant="ghost"
                     size="sm"
-                    className="text-gray-400 hover:text-gray-600 p-2 h-auto"
+                    className="text-muted-foreground hover:text-foreground p-2 h-auto"
                   >
                     {isSaving ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -285,16 +352,26 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
                   onClick={() => setIsEditing(true)}
                   variant="ghost"
                   size="sm"
-                  className="text-gray-400 hover:text-gray-600 p-2 h-auto"
+                  className="text-muted-foreground hover:text-foreground p-2 h-auto"
                 >
                   <Edit3 className="h-4 w-4" />
                 </Button>
               )}
-              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleDeletePage} disabled={isDeleting} className="text-red-600 focus:text-red-600">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {isDeleting ? 'Deleting...' : 'Delete page'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-muted-foreground">
               Last updated {formatDate(pageData.updatedAt)}
             </div>
           </div>
@@ -305,11 +382,11 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
               <Input
                 value={pageData.title}
                 onChange={(e) => setPageData({...pageData, title: e.target.value})}
-                className="text-4xl font-bold border-none p-0 h-auto focus:ring-0 focus:outline-none focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder-gray-400 bg-transparent"
+                className="text-4xl font-bold border-none p-0 h-auto focus:ring-0 focus:outline-none focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder-muted-foreground bg-transparent text-foreground"
                 placeholder="Give your doc a title"
               />
             ) : (
-              <h1 className="text-4xl font-bold text-gray-900">{pageData.title}</h1>
+              <h1 className="text-4xl font-bold text-foreground">{pageData.title}</h1>
             )}
           </div>
 
@@ -325,31 +402,89 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
                   showToolbar={false}
                 />
                 {/* Action Suggestions - Only show when editing */}
-                <div className="flex items-center gap-6 text-sm text-gray-500 mt-8">
-                  <button className="flex items-center gap-2 hover:text-gray-700">
+                <div className="flex items-center gap-6 text-sm text-muted-foreground mt-8">
+                  <button className="flex items-center gap-2 hover:text-foreground">
                     <Settings className="h-4 w-4" />
                     Use a template
                   </button>
-                  <button className="flex items-center gap-2 hover:text-gray-700">
+                  <button className="flex items-center gap-2 hover:text-foreground">
                     <Download className="h-4 w-4" />
                     Import
                   </button>
-                  <button className="flex items-center gap-2 hover:text-gray-700">
+                  <button className="flex items-center gap-2 hover:text-foreground">
                     <FileText className="h-4 w-4" />
                     New subdoc
                   </button>
-                  <button className="flex items-center gap-2 hover:text-gray-700">
+                  <button className="flex items-center gap-2 hover:text-foreground">
                     <MoreHorizontal className="h-4 w-4" />
                     Convert to collection
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="prose prose-gray max-w-none min-h-[400px]">
-                <div 
-                  dangerouslySetInnerHTML={{ __html: pageData.content || '<p>No content available.</p>' }}
-                  className="text-gray-700 leading-relaxed"
-                />
+              <div className="prose prose-foreground max-w-none min-h-[400px] dark:prose-invert">
+                {(() => {
+                  // Check if content is HTML or Markdown
+                  const isHtml = pageData.content?.includes('<') && (
+                    pageData.content.includes('<div') || 
+                    pageData.content.includes('<p>') || 
+                    pageData.content.includes('<h1') ||
+                    pageData.content.includes('<ul') ||
+                    pageData.content.includes('<ol')
+                  )
+                  
+                  if (isHtml) {
+                    return (
+                      <div 
+                        dangerouslySetInnerHTML={{ __html: pageData.content || '<p>No content available.</p>' }}
+                        className="text-foreground leading-relaxed"
+                      />
+                    )
+                  } else {
+                    // Render Markdown - basic rendering without external library
+                    const markdownToHtml = (md: string) => {
+                      let html = md
+                      
+                      // Headers
+                      html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mb-3 mt-6">$1</h3>')
+                      html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mb-4 mt-8">$1</h2>')
+                      html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mb-6 mt-8">$1</h1>')
+                      
+                      // Bold
+                      html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold">$1</strong>')
+                      
+                      // Lists
+                      html = html.replace(/^\- (.*$)/gim, '<li class="mb-1">$1</li>')
+                      html = html.replace(/^(\d+)\. (.*$)/gim, '<li class="mb-1">$2</li>')
+                      
+                      // Wrap consecutive list items in ul/ol
+                      html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, (match) => {
+                        if (match.includes('</li>')) {
+                          return '<ul class="list-disc pl-6 mb-4 space-y-1">' + match + '</ul>'
+                        }
+                        return match
+                      })
+                      
+                      // Paragraphs
+                      html = html.replace(/\n\n/g, '</p><p class="mb-4 leading-relaxed">')
+                      html = '<p class="mb-4 leading-relaxed">' + html + '</p>'
+                      
+                      // Clean up empty paragraphs
+                      html = html.replace(/<p class="mb-4 leading-relaxed"><\/p>/g, '')
+                      html = html.replace(/<p class="mb-4 leading-relaxed">(<h[123])/g, '$1')
+                      html = html.replace(/(<\/h[123]>)<\/p>/g, '$1')
+                      
+                      return html
+                    }
+                    
+                    return (
+                      <div 
+                        dangerouslySetInnerHTML={{ __html: markdownToHtml(pageData.content || 'No content available.') }}
+                        className="text-foreground leading-relaxed"
+                      />
+                    )
+                  }
+                })()}
               </div>
             )}
           </div>
@@ -360,7 +495,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
               <Button 
                 onClick={handleCancel}
                 variant="outline"
-                className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                  className="border-border text-foreground hover:bg-accent"
               >
                 <X className="h-4 w-4 mr-2" />
                 Cancel
@@ -369,6 +504,22 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
           )}
         </div>
       </div>
+
+      {/* AI Assistant */}
+      <WikiAIAssistant 
+        currentTitle={pageData?.title || ''}
+        currentContent={pageData?.content || ''}
+        onContentUpdate={(newContent) => {
+          if (pageData) {
+            setPageData({ ...pageData, content: newContent })
+          }
+        }}
+        onTitleUpdate={(newTitle) => {
+          if (pageData) {
+            setPageData({ ...pageData, title: newTitle })
+          }
+        }}
+      />
     </div>
   )
 }

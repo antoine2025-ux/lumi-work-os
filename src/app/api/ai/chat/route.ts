@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { generateAIResponse, AISource } from '@/lib/ai/providers'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 
 // Function to analyze AI response and identify relevant sources
 async function identifyRelevantSources(aiResponse: string, availableSources: AISource[]): Promise<AISource[]> {
@@ -110,6 +111,8 @@ Generate only the title, nothing else:`
 // POST /api/ai/chat - Chat with AI assistant
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
     const { message, sessionId, model = 'gpt-4-turbo', context } = await request.json()
 
     if (!message) {
@@ -394,8 +397,11 @@ To create the most intuitive and powerful workplace operating system that brings
       content: msg.content
     }))
 
+    // Check if this is a page drafting context (when context is provided with title/content)
+    const isDraftingToPage = context && (context.title || context.content !== undefined)
+    
     // Create comprehensive system prompt
-    const systemPrompt = `You are Lumi AI, an intelligent organizational assistant for Lumi Work OS. You have comprehensive access to all organizational data and can help with any aspect of the business.
+    let systemPrompt = `You are Lumi AI, an intelligent organizational assistant for Lumi Work OS. You have comprehensive access to all organizational data and can help with any aspect of the business.
 
 ## 📖 LUMI PRODUCT REFERENCE
 ${staticDocsContext}
@@ -476,7 +482,104 @@ ${teamContext}
 - Ask clarifying questions when needed
 - Provide specific examples and recommendations
 
-### **Data Integration**
+${isDraftingToPage ? `### 📝 DOCUMENT FORMATTING (When Drafting to Page)
+CRITICAL: When the user requests content to be drafted to a wiki page, you MUST create a complete, publication-ready document that requires NO editing or reformatting. The output must be ready for immediate review.
+
+REQUIRED STRUCTURE:
+1. **Title/Header**: ALWAYS start with a main heading (##) that serves as the document title
+   - Example: ## Travel Policy or ## Employee Handbook
+   - This is the FIRST thing in your response
+
+2. **Introduction/Overview**: After the title, include a brief overview section explaining what the document covers
+   - Use a subtitle (### Overview or ### Introduction)
+   - 2-3 sentences that summarize the document's purpose
+
+3. **Main Sections**: Break content into logical sections with clear headers
+   - Use ## for major sections (e.g., ## Approval Process, ## Expense Guidelines)
+   - Use ### for subsections (e.g., ### Pre-Travel Steps, ### Expense Report Submission)
+   - Each section should be self-contained and clearly labeled
+
+4. **Professional Formatting**:
+   - **Bold text** for key terms, important notes, and emphasis (e.g., **Purpose:**, **Required:**, **Note:**)
+   - Bullet points (-) for lists of items or steps
+   - Numbered lists (1., 2., 3.) for sequential processes
+   - Blank lines between all sections for readability
+   - Consistent formatting throughout
+
+5. **Complete Content**: Every section should have:
+   - A clear header
+   - Explanatory content (not just a title)
+   - Proper formatting with bold, lists, etc. as appropriate
+
+CRITICAL RULES:
+- NEVER start with plain text or bullet points without a title
+- ALWAYS begin with ## [Document Title]
+- ALWAYS include section headers for every major topic
+- ALWAYS use bold formatting for important terms and labels
+- ALWAYS include an overview/introduction section
+- NEVER create incomplete sections or placeholder text
+- The document should be ready for review immediately after drafting
+
+Example of properly formatted, ready-to-review content:
+## Travel Policy
+
+### Overview
+
+This policy establishes guidelines for business travel to ensure safety, cost-effectiveness, and compliance with company standards. All employees must follow these procedures when planning and executing business travel.
+
+## Approval Process
+
+**Who Needs Approval:** All business travel exceeding $500 requires pre-approval from your department head.
+
+**How to Request Approval:**
+1. Submit a travel request form at least 14 days before departure
+2. Include estimated costs and itinerary
+3. Await approval confirmation before booking
+
+### Pre-Travel Steps
+
+**Mandatory Requirements:**
+- Complete travel insurance enrollment
+- Register your trip in the travel portal
+- Download the company travel app for emergencies
+
+**Booking Guidelines:**
+- Use approved travel agencies only
+- Book economy class for flights under 4 hours
+- Pre-approval required for business class upgrades
+
+## Expense Guidelines
+
+### Allowable Expenses
+
+**Accommodation:**
+- Maximum $150/night for hotels
+- Include receipts for all lodging expenses
+
+**Meals:**
+- $50/day meal allowance
+- Include detailed receipts for meals over $25
+
+**Transportation:**
+- Economy class flights for domestic travel
+- Rental cars approved for destinations without public transport
+
+### Expense Report Submission
+
+**Timeline:** Submit expense reports within 10 days of trip completion.
+
+**Required Documentation:**
+- All original receipts
+- Completed expense form
+- Brief justification for any exceptions
+
+## Conclusion
+
+**Responsibility:** All employees are responsible for adhering to this travel policy. For questions or clarification, contact the HR department.
+
+This policy ensures all travel adheres to established guidelines and supports our commitment to efficient operations.` : ''}
+
+### Data Integration
 - When discussing projects, reference specific tasks and team members
 - When talking about people, mention their roles and departments
 - When suggesting improvements, reference existing wiki content

@@ -46,23 +46,22 @@ model User {
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   themePreference      String?                @default("default")
-  // Contextual AI fields
-  bio                  String?                // Personal bio/description
-  skills               String[]               @default([]) // Array of skills
-  currentGoals         String[]               @default([]) // Current professional goals
-  interests            String[]               @default([]) // Professional interests
-  timezone             String?                // User's timezone
-  location             String?                // User's location
-  phone                String?                // Phone number
-  linkedinUrl          String?                // LinkedIn profile URL
-  githubUrl            String?                // GitHub profile URL
-  personalWebsite      String?                // Personal website URL
+  bio                  String?
+  skills               String[]               @default([])
+  currentGoals         String[]               @default([])
+  interests            String[]               @default([])
+  timezone             String?
+  location             String?
+  phone                String?
+  linkedinUrl          String?
+  githubUrl            String?
+  personalWebsite      String?
   accounts             Account[]
   activities           Activity[]
   chatSessions         ChatSession[]
   onboarding_plans     OnboardingPlan[]
-  orgPositions         OrgPosition[]
   orgAuditLogs         OrgAuditLog[]
+  orgPositions         OrgPosition[]
   projectAssignees     ProjectAssignee[]      @relation("ProjectAssignee")
   projectMemberships   ProjectMember[]
   projectTemplates     ProjectTemplate[]
@@ -118,6 +117,7 @@ model Workspace {
   migrations          Migration[]
   onboardingPlans     OnboardingPlan[]
   onboardingTemplates OnboardingTemplate[]
+  orgAuditLogs        OrgAuditLog[]
   orgPositions        OrgPosition[]
   projectTemplates    ProjectTemplate[]
   projects            Project[]
@@ -130,7 +130,6 @@ model Workspace {
   workflowInstances   WorkflowInstance[]
   workflows           Workflow[]
   members             WorkspaceMember[]
-  orgAuditLogs        OrgAuditLog[]
   owner               User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@map("workspaces")
@@ -354,21 +353,19 @@ model OnboardingPlan {
 }
 
 model RoleCard {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   workspaceId     String
   roleName        String
   department      String
   jobFamily       String
   level           String
-  roleDescription String   // Rich text HTML content
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  roleDescription String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   createdById     String
-  
-  // Relations
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  
+  createdBy       User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@index([workspaceId])
   @@index([department])
   @@index([jobFamily])
@@ -377,51 +374,47 @@ model RoleCard {
 }
 
 model OrgPosition {
-  id          String        @id @default(cuid())
-  workspaceId String
-  userId      String?
-  title       String
-  department  String?
-  level       Int           @default(1)
-  parentId    String?
-  order       Int           @default(0)
-  isActive    Boolean       @default(true)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  // Contextual AI fields for role cards
-  roleDescription String?   // Detailed role description
-  responsibilities String[] @default([]) // Key responsibilities
-  requiredSkills   String[] @default([]) // Required skills for this role
-  preferredSkills  String[] @default([]) // Preferred skills
-  keyMetrics       String[] @default([]) // Key performance metrics
-  teamSize         Int?     // Size of team managed (if applicable)
-  budget           String?  // Budget responsibility
-  reportingStructure String? // Who this role reports to
-  parent      OrgPosition?  @relation("OrgHierarchy", fields: [parentId], references: [id])
-  children    OrgPosition[] @relation("OrgHierarchy")
-  user        User?         @relation(fields: [userId], references: [id])
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id                 String        @id @default(cuid())
+  workspaceId        String
+  userId             String?
+  title              String
+  department         String?
+  level              Int           @default(1)
+  parentId           String?
+  order              Int           @default(0)
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  roleDescription    String?
+  responsibilities   String[]      @default([])
+  requiredSkills     String[]      @default([])
+  preferredSkills    String[]      @default([])
+  keyMetrics         String[]      @default([])
+  teamSize           Int?
+  budget             String?
+  reportingStructure String?
+  parent             OrgPosition?  @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children           OrgPosition[] @relation("OrgHierarchy")
+  user               User?         @relation(fields: [userId], references: [id])
+  workspace          Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("org_positions")
 }
 
-// Audit trail for all org changes
 model OrgAuditLog {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   workspaceId String
-  userId      String   // Who made the change
-  action      String   // CREATE, UPDATE, DELETE, ASSIGN, UNASSIGN, MOVE, PROMOTE
-  entityType  String   // USER, ROLE, POSITION, ASSIGNMENT
-  entityId    String   // ID of the affected entity
-  oldValues   Json?    // Previous state (for updates)
-  newValues   Json?    // New state
-  metadata    Json?    // Additional context (reason, effective date, etc.)
-  createdAt   DateTime @default(now())
-  
-  // Relations
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  action      String
+  entityType  String
+  entityId    String
+  oldValues   Json?
+  newValues   Json?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
   user        User      @relation(fields: [userId], references: [id])
-  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@map("org_audit_log")
 }
 

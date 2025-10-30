@@ -66,7 +66,7 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, index) => (

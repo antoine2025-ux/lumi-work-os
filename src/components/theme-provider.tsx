@@ -12,13 +12,59 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeColor>('light')
+  // Initialize with saved theme or default to 'light'
+  const [theme, setThemeState] = useState<ThemeColor>(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('lumi-theme') as ThemeColor
+      if (savedTheme && themeConfigs[savedTheme]) {
+        return savedTheme
+      }
+    }
+    return 'light'
+  })
 
-  // Load theme from localStorage on mount
+  // Apply saved theme immediately on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('lumi-theme') as ThemeColor
     if (savedTheme && themeConfigs[savedTheme]) {
       setThemeState(savedTheme)
+      
+      // Apply theme immediately to avoid flash
+      const config = themeConfigs[savedTheme]
+      const root = document.documentElement
+      const body = document.body
+      
+      // Apply all theme variables
+      root.style.setProperty('--primary', config.primary)
+      root.style.setProperty('--primary-foreground', config.primaryForeground)
+      root.style.setProperty('--secondary', config.secondary)
+      root.style.setProperty('--secondary-foreground', config.secondaryForeground)
+      root.style.setProperty('--accent', config.accent)
+      root.style.setProperty('--accent-foreground', config.accentForeground)
+      root.style.setProperty('--background', config.background)
+      root.style.setProperty('--foreground', config.foreground)
+      root.style.setProperty('--muted', config.muted)
+      root.style.setProperty('--muted-foreground', config.mutedForeground)
+      root.style.setProperty('--border', config.border)
+      root.style.setProperty('--input', config.input)
+      root.style.setProperty('--ring', config.ring)
+      root.style.setProperty('--card', config.card)
+      root.style.setProperty('--card-foreground', config.cardForeground)
+      root.style.setProperty('--popover', config.popover)
+      root.style.setProperty('--popover-foreground', config.popoverForeground)
+      root.style.setProperty('--destructive', config.destructive)
+      root.style.setProperty('--destructive-foreground', config.destructiveForeground)
+      
+      // Apply background color to body
+      body.style.backgroundColor = config.background
+      body.style.color = config.foreground
+      
+      // Apply dark class for CSS selectors
+      if (savedTheme === 'dark') {
+        root.classList.add('dark')
+      } else {
+        root.classList.remove('dark')
+      }
     }
   }, [])
 

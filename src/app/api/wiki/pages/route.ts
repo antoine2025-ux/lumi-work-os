@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const pagination = parsePaginationParams(searchParams)
     
     // Check cache first
-    const cacheKey = cache.generateKey('wiki_pages', { workspaceId: auth.workspaceId, ...pagination })
+    const cacheKey = `wiki_pages_${auth.workspaceId}_${pagination.page || 1}_${pagination.limit || 10}_${pagination.sortBy || 'order'}_${pagination.sortOrder || 'asc'}`
     const cached = cache.get(cacheKey)
     
     if (cached) {
@@ -92,13 +92,17 @@ export async function GET(request: NextRequest) {
 
     const result = createPaginationResult(pages, total, pagination.page!, pagination.limit!)
     
+    // Add debug logging for workspace_type
+    console.log('🔍 Pages with workspace_type:', pages.map((p: any) => ({ id: p.id, title: p.title, workspace_type: p.workspace_type })))
+    
     // Cache the result for 5 minutes
     cache.set(cacheKey, result, 300)
     
     logger.info('Wiki pages fetched', { workspaceId: auth.workspaceId, total, page: pagination.page, limit: pagination.limit })
     return NextResponse.json(result)
   } catch (error) {
-    logger.error('Error fetching wiki pages', { workspaceId: auth.workspaceId }, error instanceof Error ? error : undefined)
+    const workspaceId = (error as any)?.workspaceId || 'unknown'
+    logger.error('Error fetching wiki pages', error instanceof Error ? error : undefined)
     
     // Handle auth errors
     if (error instanceof Error && error.message.includes('Unauthorized')) {
@@ -131,9 +135,11 @@ export async function POST(request: NextRequest) {
 
     logger.info('Creating new wiki page')
     const body = await request.json()
-    console.log('📝 Request body:', { workspaceId: auth.workspaceId, title: body.title, contentLength: body.content?.length })
+    console.log('📝 Request body:', { workspaceId: auth.workspaceId, title: body.title, contentLength: body.content?.length, workspace_type: body.workspace_type })
     
-    const { title, content, parentId, tags = [], category = 'general' } = body
+    const { title, content, parentId, tags = [], category = 'general', permissionLevel, workspace_type } = body
+    
+    console.log('🔍 Extracted workspace_type:', workspace_type)
 
     if (!title || !content) {
       console.log('❌ Missing required fields')
@@ -165,6 +171,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the wiki page
+    const finalWorkspaceType = workspace_type || 'team'
+    console.log('💾 Saving page with workspace_type:', finalWorkspaceType)
+    
     const page = await prisma.wikiPage.create({
       data: {
         workspaceId: auth.workspaceId,
@@ -175,7 +184,8 @@ export async function POST(request: NextRequest) {
         parentId: parentId || null,
         tags,
         category,
-        permissionLevel: 'team',
+        permissionLevel: permissionLevel || 'team',
+        workspace_type: finalWorkspaceType,
         createdById: auth.user.userId
       },
       include: {
@@ -189,10 +199,16 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    logger.info('Wiki page created successfully', { pageId: page.id, title, workspaceId: auth.workspaceId })
+    console.log('✅ Page created successfully with workspace_type:', page.workspace_type)
+    logger.info('Wiki page created successfully', { pageId: page.id, title, workspaceId: auth.workspaceId, workspace_type: page.workspace_type })
+    
+    // Invalidate wiki pages cache for this workspace
+    await cache.invalidatePattern(`wiki_pages_${auth.workspaceId}_*`)
+    console.log('🗑️ Cleared wiki pages cache for workspace:', auth.workspaceId)
+    
     return NextResponse.json(page, { status: 201 })
   } catch (error) {
-    logger.error('Error creating wiki page', { workspaceId: auth.workspaceId }, error instanceof Error ? error : undefined)
+    logger.error('Error creating wiki page', error instanceof Error ? error : undefined)
     
     // Handle auth errors
     if (error instanceof Error && error.message.includes('Unauthorized')) {

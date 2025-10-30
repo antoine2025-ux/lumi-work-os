@@ -28,7 +28,7 @@ export async function GET(
     })
 
     // 3. Set workspace context for Prisma middleware
-    setWorkspaceContext(activeWorkspaceId)
+    setWorkspaceContext(auth.workspaceId)
 
     // 4. Assert project access (project must be in active workspace)
     await assertAccess({ 
@@ -42,7 +42,7 @@ export async function GET(
     const epics = await prisma.epic.findMany({
       where: { 
         projectId,
-        workspaceId: activeWorkspaceId // 5. Ensure cross-tenant safety
+        workspaceId: auth.workspaceId // 5. Ensure cross-tenant safety
       },
       include: {
         tasks: {
@@ -108,7 +108,7 @@ export async function POST(
     })
 
     // 3. Set workspace context for Prisma middleware
-    setWorkspaceContext(activeWorkspaceId)
+    setWorkspaceContext(auth.workspaceId)
 
     // 4. Assert project write access (require ADMIN or OWNER to create epics)
     await assertAccess({ 
@@ -128,7 +128,7 @@ export async function POST(
     const project = await prisma.project.findUnique({
       where: { 
         id: projectId,
-        workspaceId: activeWorkspaceId // 5. Ensure cross-tenant safety
+        workspaceId: auth.workspaceId // 5. Ensure cross-tenant safety
       }
     })
 
@@ -140,7 +140,7 @@ export async function POST(
     const lastEpic = await prisma.epic.findFirst({
       where: { 
         projectId,
-        workspaceId: activeWorkspaceId
+        workspaceId: auth.workspaceId
       },
       orderBy: { order: 'desc' }
     })
@@ -150,7 +150,7 @@ export async function POST(
     const epic = await prisma.epic.create({
       data: {
         projectId,
-        workspaceId: auth.workspaceId, // 5. Use activeWorkspaceId
+        workspaceId: auth.workspaceId,
         title: validatedData.title,
         description: validatedData.description,
         color: validatedData.color,
@@ -181,7 +181,7 @@ export async function POST(
       {
         epic,
         projectId,
-        userId: userId // 3. Use userId from auth
+        userId: auth.user.userId
       }
     )
 

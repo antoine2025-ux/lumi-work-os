@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { isDevBypassAllowed } from '@/lib/unified-auth'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 
@@ -34,8 +35,8 @@ export async function GET(
     // Get session and verify project access
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      // Development bypass: allow access without session
-      if (process.env.NODE_ENV === 'development') {
+      // Development bypass: allow access without session (only if dev mode enabled)
+      if (isDevBypassAllowed()) {
         console.log('No session found, using development bypass for custom fields')
         // Continue with development bypass
       } else {
@@ -46,8 +47,8 @@ export async function GET(
     try {
       await assertProjectAccess(session?.user, projectId)
     } catch (error) {
-      // Development bypass: allow access if project exists
-      if (process.env.NODE_ENV === 'development' && error.message.includes('Insufficient project permissions')) {
+      // Development bypass: allow access if project exists (only if dev mode enabled)
+      if (isDevBypassAllowed() && error.message.includes('Insufficient project permissions')) {
         console.log('Access check failed, using development bypass:', error.message)
         // Continue with development bypass
       } else {
@@ -83,8 +84,8 @@ export async function POST(
     // Get session and verify project access
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      // Development bypass: allow access without session
-      if (process.env.NODE_ENV === 'development') {
+      // Development bypass: allow access without session (only if dev mode enabled)
+      if (isDevBypassAllowed()) {
         console.log('No session found, using development bypass for custom fields POST')
         // Continue with development bypass
       } else {
@@ -95,8 +96,8 @@ export async function POST(
     try {
       await assertProjectAccess(session?.user, projectId)
     } catch (error) {
-      // Development bypass: allow access if project exists
-      if (process.env.NODE_ENV === 'development' && error.message.includes('Insufficient project permissions')) {
+      // Development bypass: allow access if project exists (only if dev mode enabled)
+      if (isDevBypassAllowed() && error.message.includes('Insufficient project permissions')) {
         console.log('Access check failed, using development bypass:', error.message)
         // Continue with development bypass
       } else {

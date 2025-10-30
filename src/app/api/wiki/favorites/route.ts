@@ -54,7 +54,9 @@ export async function GET(request: NextRequest) {
       author: page.createdBy?.name || 'Unknown',
       updatedAt: page.updatedAt.toISOString(),
       viewCount: page.view_count || 0,
-      tags: page.tags || []
+      tags: page.tags || [],
+      permissionLevel: page.permissionLevel,
+      workspace_type: page.workspace_type || 'team'
     }))
 
     return NextResponse.json(formattedPages)

@@ -21,7 +21,13 @@ export async function GET(
     }
 
     // Check project access
-    await assertProjectAccess(auth.user, projectId)
+    // Convert UnifiedAuthUser to NextAuth User format
+    const nextAuthUser = {
+      id: auth.user.userId,
+      email: auth.user.email,
+      name: auth.user.name
+    } as any
+    await assertProjectAccess(nextAuthUser, projectId)
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },

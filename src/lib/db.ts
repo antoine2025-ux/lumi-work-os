@@ -7,7 +7,7 @@ const globalForPrisma = globalThis as unknown as {
 
 // Create Prisma client instance
 const prismaClient = new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  log: ['error'], // Only log errors in development for better performance
   errorFormat: 'pretty',
   // Connection pooling configuration
   datasources: {

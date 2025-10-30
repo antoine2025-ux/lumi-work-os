@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { CreateMilestoneSchema, UpdateMilestoneSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
+import { isDevBypassAllowed } from '@/lib/unified-auth'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { prisma } from '@/lib/db'
 

@@ -97,7 +97,7 @@ const mockAnalytics = [
 
 export default function HomePage() {
   const { currentWorkspace, userRole, canCreateProjects, canViewAnalytics, isLoading: workspaceLoading } = useWorkspace()
-  const { themeConfig } = useTheme()
+  const { theme, themeConfig } = useTheme()
   const [recentPages, setRecentPages] = useState<RecentPage[]>([])
   const [recentProjects, setRecentProjects] = useState<Project[]>([])
   const [isLoadingRecentPages, setIsLoadingRecentPages] = useState(true)
@@ -326,7 +326,7 @@ export default function HomePage() {
                 <Badge variant="outline" className="text-xs">{mockTasks.length}</Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
               {mockTasks.map((task) => (
                 <div key={task.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="flex-shrink-0">
@@ -368,7 +368,7 @@ export default function HomePage() {
                 <Badge variant="outline" className="text-xs">{recentProjects.length}</Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 max-h-[340px] overflow-y-auto dashboard-card-scroll">
               {isLoadingProjects ? (
                 <div className="space-y-2">
                   {[...Array(3)].map((_, index) => (
@@ -520,7 +520,12 @@ export default function HomePage() {
 
         {/* AI Suggestions */}
         <div className="mt-8">
-          <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+          <Card style={{ 
+            background: theme === 'dark' 
+              ? 'linear-gradient(to right, rgba(88, 28, 135, 0.3), rgba(37, 99, 235, 0.3))' 
+              : 'linear-gradient(to right, rgba(243, 232, 255, 1), rgba(219, 234, 254, 1))',
+            borderColor: theme === 'dark' ? 'rgba(126, 34, 206, 0.5)' : 'rgba(196, 181, 253, 1)'
+          }}>
             <CardContent className="p-6">
               <div className="flex items-start space-x-4">
                 <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">

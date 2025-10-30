@@ -59,12 +59,24 @@ class OpenAIProvider implements AIProvider {
   ]
 
   constructor() {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      console.warn('OpenAI API key not set. AI features will be disabled.')
+    }
     this.client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: apiKey || 'dummy-key', // Allow initialization even without key
     })
   }
 
   async generateResponse(prompt: string, model: string, options: any = {}): Promise<AIResponse> {
+    // Check if API key is available
+    if (!process.env.OPENAI_API_KEY) {
+      return {
+        content: 'AI features are disabled. Please configure OPENAI_API_KEY environment variable.',
+        tokens: 0
+      }
+    }
+    
     try {
       const completion = await this.client.chat.completions.create({
         model: model,

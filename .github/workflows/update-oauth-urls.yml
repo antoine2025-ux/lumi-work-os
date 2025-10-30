@@ -1,0 +1,98 @@
+name: Update OAuth URLs
+
+on:
+  deployment_status:
+    types: [success]
+
+jobs:
+  update-oauth:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/enhanced-pm-features'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+        
+      - name: Get deployment URL
+        id: get-url
+        run: |
+          DEPLOYMENT_URL=$(vercel ls --json | jq -r '.[0].url')
+          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "Current deployment URL: $DEPLOYMENT_URL"
+          
+      - name: Create OAuth Update Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentUrl = '${{ steps.get-url.outputs.deployment_url }}';
+            
+            const issueBody = `
+            ## 🔧 OAuth URL Update Required
+            
+            **Deployment URL:** \`${deploymentUrl}\`
+            
+            ### 📋 Update Google Cloud Console
+            1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+            2. Edit your OAuth 2.0 Client ID
+            3. Update these URLs:
+            
+            **Authorized JavaScript Origins:**
+            \`\`\`
+            ${deploymentUrl}
+            \`\`\`
+            
+            **Authorized Redirect URIs:**
+            \`\`\`
+            ${deploymentUrl}/api/auth/callback/google
+            \`\`\`
+            
+            ### ⚙️ Update Vercel Environment
+            1. Go to Vercel Dashboard → Settings → Environment Variables
+            2. Update \`NEXTAUTH_URL\`:
+            \`\`\`
+            NEXTAUTH_URL=${deploymentUrl}
+            \`\`\`
+            
+            ### 💡 Permanent Solutions
+            - **Custom Domain**: Set up \`lumi.work\` or similar
+            - **Production Domain**: Use \`lumi-work-os.vercel.app\`
+            - **Automation**: This issue will be created automatically
+            `;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔧 OAuth URL Update Required - ${deploymentUrl}`,
+              body: issueBody,
+              labels: ['oauth', 'deployment', 'urgent']
+            });
+            
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentUrl = '${{ steps.get-url.outputs.deployment_url }}';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🔧 **OAuth URL Update Required**
+              
+              **Current Deployment URL:** \`${deploymentUrl}\`
+              
+              Please update Google Cloud Console OAuth settings:
+              - **JavaScript Origins:** \`${deploymentUrl}\`
+              - **Redirect URIs:** \`${deploymentUrl}/api/auth/callback/google\`
+              
+              Also update Vercel \`NEXTAUTH_URL\` environment variable.`
+            });
+

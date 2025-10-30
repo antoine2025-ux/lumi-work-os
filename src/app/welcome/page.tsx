@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { WelcomeScreen } from '@/components/onboarding/welcome-screen'
 import { Loader2 } from 'lucide-react'
+import { WorkspaceCreationLoader } from '@/components/auth/workspace-creation-loader'
 
 interface User {
   name: string
@@ -38,9 +39,12 @@ export default function OnboardingPage() {
   }, [router])
 
   const handleCreateWorkspace = async (workspaceData: any) => {
+    const startTime = Date.now()
+    const minLoaderDuration = 4500 // 4.5 seconds minimum
     setIsCreatingWorkspace(true)
     
     try {
+      console.log('[welcome] Creating workspace with data:', workspaceData)
       const response = await fetch('/api/workspace/create', {
         method: 'POST',
         headers: {
@@ -49,20 +53,43 @@ export default function OnboardingPage() {
         body: JSON.stringify(workspaceData),
       })
 
+      const data = await response.json()
+      console.log('[welcome] Workspace creation response:', data)
+
       if (response.ok) {
-        // Workspace created successfully, redirect to dashboard
-        router.push('/')
+        // Workspace created successfully - wait for minimum loader duration
+        const elapsed = Date.now() - startTime
+        const remainingTime = Math.max(0, minLoaderDuration - elapsed)
+        
+        setTimeout(() => {
+          console.log('[welcome] Workspace created, redirecting to dashboard...')
+          
+          // Set flag to skip loader and prevent redirect to welcome
+          sessionStorage.setItem('__skip_loader__', 'true')
+          sessionStorage.setItem('__workspace_just_created__', 'true')
+          
+          // DON'T clear user status cache - let it update naturally
+          // The workspace was just created, the API will return it on next fetch
+          
+          // Clear cache
+          if (typeof window !== 'undefined') {
+            localStorage.clear()
+          }
+          
+          // Force hard redirect
+          window.location.href = '/'
+        }, remainingTime)
       } else {
-        const error = await response.json()
-        console.error('Failed to create workspace:', error)
-        alert('Failed to create workspace. Please try again.')
+        console.error('[welcome] Failed to create workspace:', data)
+        setIsCreatingWorkspace(false)
+        alert(`Failed to create workspace: ${data.error || 'Unknown error'}`)
       }
     } catch (error) {
-      console.error('Error creating workspace:', error)
-      alert('Failed to create workspace. Please try again.')
-    } finally {
+      console.error('[welcome] Error creating workspace:', error)
       setIsCreatingWorkspace(false)
+      alert('Failed to create workspace. Please try again.')
     }
+    // Note: Don't reset isCreatingWorkspace in finally - let it stay true until redirect
   }
 
   if (isLoading) {
@@ -74,6 +101,11 @@ export default function OnboardingPage() {
         </div>
       </div>
     )
+  }
+
+  // Show workspace creation loader
+  if (isCreatingWorkspace) {
+    return <WorkspaceCreationLoader />
   }
 
   if (!user) {

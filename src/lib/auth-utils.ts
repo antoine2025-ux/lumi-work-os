@@ -100,8 +100,8 @@ export async function getWorkspaceId(userId: string, requestedWorkspaceId?: stri
     }
   }
 
-  // Get user's first workspace or create default one
-  let workspace = await prisma.workspace.findFirst({
+  // Get user's first workspace
+  const workspace = await prisma.workspace.findFirst({
     where: {
       members: {
         some: { userId }
@@ -110,21 +110,9 @@ export async function getWorkspaceId(userId: string, requestedWorkspaceId?: stri
   })
 
   if (!workspace) {
-    // Create default workspace for user
-    workspace = await prisma.workspace.create({
-      data: {
-        name: 'My Workspace',
-        slug: `workspace-${userId.slice(-8)}`,
-        ownerId: userId,
-        members: {
-          create: {
-            userId,
-            role: 'OWNER'
-          }
-        }
-      }
-    })
-    console.log('✅ Created default workspace:', workspace.id)
+    // No workspace found - user needs to create one
+    // Don't auto-create workspace, let the frontend handle this
+    throw new Error('No workspace found - user needs to create a workspace')
   }
 
   return workspace.id

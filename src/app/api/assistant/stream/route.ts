@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -7,6 +8,8 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
     const { message, sessionId } = await request.json()
 
     if (!message || !sessionId) {

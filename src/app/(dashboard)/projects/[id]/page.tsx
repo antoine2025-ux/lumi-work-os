@@ -7,6 +7,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { 
   ArrowLeft, 
   Target, 
@@ -31,24 +34,32 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useWorkspace } from "@/lib/workspace-context"
+import dynamic from "next/dynamic"
+import { useTheme } from "@/components/theme-provider"
+
+// Keep essential imports at top for faster initial render
 import ReactMarkdown from "react-markdown"
 import TaskList from "@/components/tasks/task-list"
-import { KanbanBoard } from "@/components/kanban/kanban-board"
-import { InlineWikiViewer } from "@/components/projects/inline-wiki-viewer"
-import { EmbedContentRenderer } from "@/components/wiki/embed-content-renderer"
-import { ProjectEditDialog } from "@/components/projects/project-edit-dialog"
-import { LiveTaskList } from "@/components/realtime/live-task-list"
-import { PresenceIndicator } from "@/components/realtime/presence-indicator"
-import { NotificationToast, NotificationBell } from "@/components/realtime/notification-toast"
-import { ConnectionStatus } from "@/components/realtime/connection-status"
-import { useTheme } from "@/components/theme-provider"
-import { Celebration } from "@/components/ui/celebration"
-import { TaskSearchFilter } from "@/components/search/task-search-filter"
-import { ProjectHeader } from "@/components/projects/project-header"
-import { ViewSwitcher, ViewMode } from "@/components/tasks/view-switcher"
-import CalendarView from "@/components/tasks/calendar-view"
-import { ProjectDailySummaries } from "@/components/projects/project-daily-summaries"
-import ProjectLayout from "@/components/projects/project-layout"
+import type { ViewMode } from "@/components/tasks/view-switcher"
+import { ViewSwitcher } from "@/components/tasks/view-switcher"
+
+// Dynamic imports for heavy components to reduce initial bundle size
+const KanbanBoard = dynamic(() => import("@/components/kanban/kanban-board").then(mod => ({ default: mod.KanbanBoard })), { ssr: false })
+const InlineWikiViewer = dynamic(() => import("@/components/projects/inline-wiki-viewer").then(mod => ({ default: mod.InlineWikiViewer })), { ssr: false })
+const EmbedContentRenderer = dynamic(() => import("@/components/wiki/embed-content-renderer").then(mod => ({ default: mod.EmbedContentRenderer })), { ssr: false })
+const ProjectEditDialog = dynamic(() => import("@/components/projects/project-edit-dialog").then(mod => ({ default: mod.ProjectEditDialog })), { ssr: false })
+const LiveTaskList = dynamic(() => import("@/components/realtime/live-task-list").then(mod => ({ default: mod.LiveTaskList })), { ssr: false })
+const PresenceIndicator = dynamic(() => import("@/components/realtime/presence-indicator").then(mod => ({ default: mod.PresenceIndicator })), { ssr: false })
+const NotificationToast = dynamic(() => import("@/components/realtime/notification-toast").then(mod => ({ default: mod.NotificationToast })), { ssr: false })
+const NotificationBell = dynamic(() => import("@/components/realtime/notification-toast").then(mod => ({ default: mod.NotificationBell })), { ssr: false })
+const ConnectionStatus = dynamic(() => import("@/components/realtime/connection-status").then(mod => ({ default: mod.ConnectionStatus })), { ssr: false })
+const Celebration = dynamic(() => import("@/components/ui/celebration").then(mod => ({ default: mod.Celebration })), { ssr: false })
+const TaskSearchFilter = dynamic(() => import("@/components/search/task-search-filter").then(mod => ({ default: mod.TaskSearchFilter })), { ssr: false })
+const ProjectHeader = dynamic(() => import("@/components/projects/project-header").then(mod => ({ default: mod.ProjectHeader })), { ssr: false })
+const CalendarView = dynamic(() => import("@/components/tasks/calendar-view"), { ssr: false })
+const ProjectDailySummaries = dynamic(() => import("@/components/projects/project-daily-summaries").then(mod => ({ default: mod.ProjectDailySummaries })), { ssr: false })
+const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mod => ({ default: mod.WikiLayout })), { ssr: false })
+const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
 
 interface Project {
   id: string
@@ -139,6 +150,11 @@ export default function ProjectDetailPage() {
   const [dailySummaryEnabled, setDailySummaryEnabled] = useState(false)
   const [selectedEpicId, setSelectedEpicId] = useState<string | undefined>(undefined)
   const [epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false)
+  const [newEpicTitle, setNewEpicTitle] = useState('')
+  const [newEpicDescription, setNewEpicDescription] = useState('')
+  const [newEpicColor, setNewEpicColor] = useState('#3B82F6')
 
   // Use theme-based colors
   const colors = {
@@ -324,6 +340,47 @@ export default function ProjectDetailPage() {
     setIsFiltered(true)
   }
 
+  const handleCreateTask = () => {
+    router.push(`/projects/${projectId}/tasks/new`)
+  }
+
+  const handleCreateEpic = () => {
+    setIsCreateEpicOpen(true)
+  }
+
+  const createEpic = async () => {
+    if (!newEpicTitle.trim()) return
+    
+    try {
+      const response = await fetch(`/api/projects/${projectId}/epics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: newEpicTitle,
+          description: newEpicDescription,
+          color: newEpicColor,
+        }),
+      })
+
+      if (response.ok) {
+        const newEpic = await response.json()
+        setEpics(prev => [...prev, newEpic])
+        setNewEpicTitle('')
+        setNewEpicDescription('')
+        setNewEpicColor('#3B82F6')
+        setIsCreateEpicOpen(false)
+        await loadProject()
+        await loadEpics()
+      } else {
+        console.error('Failed to create epic')
+      }
+    } catch (error) {
+      console.error('Error creating epic:', error)
+    }
+  }
+
   const handleFilterReset = () => {
     setFilteredTasks([])
     setIsFiltered(false)
@@ -440,7 +497,7 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <ProjectLayout projectId={projectId} projectName={project?.name || 'Project'}>
+    <WikiLayout>
       <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
         <Celebration 
           isVisible={showCelebration} 
@@ -449,21 +506,35 @@ export default function ProjectDetailPage() {
       
       {/* Conditional Header Layout */}
       {true ? (
-        <ProjectHeader
-          project={project}
-          tasks={project?.tasks || []}
-          colors={colors}
-          onTaskDrawerOpen={() => {/* TODO: Implement */}}
-          onKanbanOptionsOpen={() => setIsSearchExpanded(!isSearchExpanded)}
-          onNotificationsOpen={() => {/* TODO: Implement */}}
-          onMoreMenuOpen={() => {/* TODO: Implement */}}
-          onCommandPaletteOpen={() => {/* TODO: Implement */}}
-          onProjectSettings={() => setIsEditDialogOpen(true)}
-          onExportCSV={() => handleExportCSV()}
-          onDuplicateProject={() => handleDuplicateProject()}
-          onShareProject={() => handleShareProject()}
-          onDeleteProject={() => handleDeleteProject()}
-        />
+        <>
+          <ProjectHeader
+            project={project}
+            tasks={project?.tasks || []}
+            colors={colors}
+            onTaskDrawerOpen={() => {/* TODO: Implement */}}
+            onKanbanOptionsOpen={() => setIsSearchExpanded(!isSearchExpanded)}
+            onNotificationsOpen={() => {/* TODO: Implement */}}
+            onMoreMenuOpen={() => {/* TODO: Implement */}}
+            onCommandPaletteOpen={() => {/* TODO: Implement */}}
+            onProjectSettings={() => setIsEditDialogOpen(true)}
+            onExportCSV={() => handleExportCSV()}
+            onDuplicateProject={() => handleDuplicateProject()}
+            onShareProject={() => handleShareProject()}
+            onDeleteProject={() => handleDeleteProject()}
+          />
+          
+          {/* Create Button - between progress bar and Kanban */}
+          <div className="max-w-[1600px] mx-auto px-6 mt-4">
+            <Button
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="flex items-center space-x-2"
+              style={{ backgroundColor: colors.primary }}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create</span>
+            </Button>
+          </div>
+        </>
       ) : (
         /* Original Professional Header Layout */
         <div className="max-w-[1600px] mx-auto px-6 py-8">
@@ -755,6 +826,7 @@ export default function ProjectDetailPage() {
         onClose={() => setIsEditDialogOpen(false)}
         project={project}
         onSave={handleProjectUpdate}
+        workspaceId={currentWorkspace?.id || 'workspace-1'}
       />
 
       {/* Fullscreen Task List */}
@@ -771,7 +843,61 @@ export default function ProjectDetailPage() {
 
         {/* Real-time Notifications */}
         <NotificationToast />
+        
+        {/* Create Item Dialog */}
+        <CreateItemDialog
+          isOpen={isCreateDialogOpen}
+          onClose={() => setIsCreateDialogOpen(false)}
+          onCreateTask={handleCreateTask}
+          onCreateEpic={handleCreateEpic}
+        />
+        
+        {/* Create Epic Dialog */}
+        <Dialog open={isCreateEpicOpen} onOpenChange={setIsCreateEpicOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Epic</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="epic-title">Title</Label>
+                <Input
+                  id="epic-title"
+                  value={newEpicTitle}
+                  onChange={(e) => setNewEpicTitle(e.target.value)}
+                  placeholder="Epic title"
+                />
+              </div>
+              <div>
+                <Label htmlFor="epic-description">Description</Label>
+                <Textarea
+                  id="epic-description"
+                  value={newEpicDescription}
+                  onChange={(e) => setNewEpicDescription(e.target.value)}
+                  placeholder="Epic description"
+                />
+              </div>
+              <div>
+                <Label htmlFor="epic-color">Color</Label>
+                <Input
+                  id="epic-color"
+                  type="color"
+                  value={newEpicColor}
+                  onChange={(e) => setNewEpicColor(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setIsCreateEpicOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={createEpic} disabled={!newEpicTitle.trim()}>
+                  Create Epic
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-    </ProjectLayout>
+    </WikiLayout>
   )
 }

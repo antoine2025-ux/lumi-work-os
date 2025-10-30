@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
-
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 const createTemplateSchema = z.object({
   name: z.string().min(1).max(80),
@@ -33,13 +35,25 @@ const updateTemplateSchema = z.object({
 // GET /api/onboarding/templates
 export async function GET(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q')
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    // TODO: Get actual workspace ID from auth context
-    const workspaceId = 'default-workspace-id'
+    const workspaceId = auth.workspaceId
 
     const where = {
       workspaceId,
@@ -80,6 +94,20 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching templates:', error)
+    
+    // Handle auth errors
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error instanceof Error && error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
+    if (error instanceof Error && error.message.includes('No workspace found')) {
+      return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
+    }
+    
     return NextResponse.json(
       { error: { code: 'FETCH_ERROR', message: 'Failed to fetch templates' } },
       { status: 500 }
@@ -90,12 +118,24 @@ export async function GET(request: NextRequest) {
 // POST /api/onboarding/templates
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access (admin only for creating templates)
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['ADMIN', 'OWNER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
     const body = await request.json()
     const validatedData = createTemplateSchema.parse(body)
 
-    // TODO: Get actual user ID and workspace ID from auth context
-    const userId = 'default-user-id'
-    const workspaceId = 'default-workspace-id'
+    const userId = auth.user.userId
+    const workspaceId = auth.workspaceId
 
     const template = await prisma.onboardingTemplate.create({
       data: {
@@ -134,12 +174,27 @@ export async function POST(request: NextRequest) {
     }
 
     console.error('Error creating template:', error)
+    
+    // Handle auth errors
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error instanceof Error && error.message.includes('Forbidden')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
+    if (error instanceof Error && error.message.includes('No workspace found')) {
+      return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
+    }
+    
     return NextResponse.json(
       { error: { code: 'CREATE_ERROR', message: 'Failed to create template' } },
       { status: 500 }
     )
   }
 }
+
 
 
 

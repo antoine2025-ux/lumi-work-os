@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils"
 import { 
   LayoutDashboard, 
   Users, 
-  GraduationCap, 
   BookOpen, 
   MessageSquare, 
   Settings,
@@ -20,7 +19,6 @@ const navigation = [
   { name: "Projects", href: "/projects", icon: Target },
   { name: "Org Chart", href: "/org", icon: Users },
   { name: "Admin", href: "/admin", icon: Shield },
-  { name: "Clario Onboarding", href: "/onboarding", icon: GraduationCap },
   { name: "Wiki", href: "/wiki", icon: BookOpen },
   { name: "Ask Wiki", href: "/ask", icon: MessageSquare },
   { name: "Migration Review", href: "/migrations/review", icon: Download },

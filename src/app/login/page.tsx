@@ -13,12 +13,17 @@ export default function LoginPage() {
   const [hasGoogleAuth, setHasGoogleAuth] = useState(true)
 
   useEffect(() => {
-    // Check if user is already logged in
-    getSession().then((session) => {
-      if (session) {
-        router.push('/')
-      }
-    })
+    // Clear logout flag when login page loads
+    // This ensures fresh OAuth attempts don't get blocked
+    const logoutFlag = sessionStorage.getItem('__logout_flag__')
+    if (logoutFlag === 'true') {
+      console.log('🧹 Clearing logout flag on login page load')
+      sessionStorage.removeItem('__logout_flag__')
+    }
+
+    // DON'T check session at all - this causes the redirect loop
+    // Users should explicitly sign in, not be auto-redirected
+    console.log('🔵 Login page loaded - no auto-redirect, user must click sign in')
 
     // Check if Google OAuth is available
     fetch('/api/auth/providers')
@@ -34,11 +39,20 @@ export default function LoginPage() {
   }, [router])
 
   const handleGoogleSignIn = async () => {
+    console.log('🟢 [login] Google sign-in button clicked')
+    
+    // CRITICAL: Clear the logout flag before starting OAuth
+    // This prevents AuthWrapper from blocking the OAuth callback
+    sessionStorage.removeItem('__logout_flag__')
+    console.log('✅ [login] Cleared logout flag before OAuth')
+    
     setIsLoading(true)
     try {
-      await signIn('google', { callbackUrl: '/' })
+      console.log('🟢 [login] Calling signIn("google")')
+      const result = await signIn('google', { callbackUrl: '/' })
+      console.log('🟢 [login] signIn result:', result)
     } catch (error) {
-      console.error('Sign in error:', error)
+      console.error('❌ [login] Sign in error:', error)
     } finally {
       setIsLoading(false)
     }

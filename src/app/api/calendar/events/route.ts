@@ -98,14 +98,18 @@ export async function GET(request: NextRequest) {
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
 
-        // Fetch today's events
+        // Fetch today's events - extend range to show next few days too
         console.log('Fetching calendar events...')
+        const endOfWeek = new Date(today)
+        endOfWeek.setDate(today.getDate() + 7) // Get next 7 days
+        
         const response = await calendar.events.list({
           calendarId: 'primary',
           timeMin: startOfDay.toISOString(),
-          timeMax: endOfDay.toISOString(),
+          timeMax: endOfWeek.toISOString(),
           singleEvents: true,
           orderBy: 'startTime',
+          maxResults: 10
         })
         
         console.log('Calendar API response:', {

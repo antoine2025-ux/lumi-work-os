@@ -201,6 +201,74 @@ body {
   text-decoration: line-through;
 }
 
+/* Wiki Editor Styles */
+.wiki-editor h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  line-height: 1.3;
+  display: block;
+}
+
+.wiki-editor h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+  display: block;
+}
+
+.wiki-editor h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+  display: block;
+}
+
+.wiki-editor p {
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+  display: block;
+}
+
+.wiki-editor ul,
+.wiki-editor ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.wiki-editor blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #6b7280;
+  font-style: italic;
+  display: block;
+}
+
+.wiki-editor code {
+  background-color: #f3f4f6;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: 'Courier New', monospace;
+}
+
+.wiki-editor pre {
+  background-color: #1f2937;
+  color: #f9fafb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+  display: block;
+}
+
 /* Enhanced Drag and Drop Animations */
 @keyframes dragPulse {
   0% {
@@ -286,4 +354,37 @@ body {
 .hover-lift:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Dashboard card scrollbar - hidden by default, visible on hover */
+.dashboard-card-scroll::-webkit-scrollbar {
+  width: 6px;
+  display: none;
+}
+
+.dashboard-card-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dashboard-card-scroll:hover::-webkit-scrollbar {
+  display: block;
+}
+
+.dashboard-card-scroll:hover {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) transparent;
+}
+
+.dashboard-card-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-card-scroll::-webkit-scrollbar-thumb {
+  background: rgb(203 213 225);
+  border-radius: 3px;
+}
+
+.dashboard-card-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184);
 }

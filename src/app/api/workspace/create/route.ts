@@ -5,15 +5,20 @@ import { createUserWorkspace } from '@/lib/simple-auth'
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[workspace/create] Starting workspace creation...')
     // Get authenticated user
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.id || !session?.user?.email) {
+      console.log('[workspace/create] No session found')
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
+    console.log('[workspace/create] User authenticated:', session.user.email)
     const body = await request.json()
     const { name, slug, description, teamSize, industry } = body
+
+    console.log('[workspace/create] Workspace data:', { name, slug })
 
     // Validate required fields
     if (!name || !slug) {
@@ -21,6 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create workspace for the user with session data
+    console.log('[workspace/create] Creating workspace...')
     const authUser = await createUserWorkspace({
       id: session.user.id,
       email: session.user.email,
@@ -34,6 +40,7 @@ export async function POST(request: NextRequest) {
       industry
     })
 
+    console.log('[workspace/create] Workspace created successfully!')
     return NextResponse.json({
       success: true,
       user: authUser,
@@ -41,7 +48,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error creating workspace:', error)
+    console.error('[workspace/create] Error creating workspace:', error)
     return NextResponse.json({ 
       error: 'Failed to create workspace',
       details: error instanceof Error ? error.message : 'Unknown error'

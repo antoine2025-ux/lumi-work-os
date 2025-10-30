@@ -73,8 +73,7 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    const workspace = await getCurrentWorkspace(auth.user)
-    if (!workspace) {
+    if (!auth.workspaceId) {
       return NextResponse.json({ 
         success: false,
         error: 'No workspace found' 
@@ -94,7 +93,7 @@ export async function POST(request: NextRequest) {
       data: {
         title: title || 'New Chat',
         model: model,
-        workspaceId: workspace.id,
+        workspaceId: auth.workspaceId,
         userId: auth.user.userId
       }
     })

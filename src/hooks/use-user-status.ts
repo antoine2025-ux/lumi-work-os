@@ -31,7 +31,7 @@ let userStatusCache: {
   timestamp: 0
 }
 
-const CACHE_DURATION = 30000 // 30 seconds
+const CACHE_DURATION = 5000 // 5 seconds - shorter cache to detect logout faster
 
 export function useUserStatus(): UseUserStatusReturn {
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null)

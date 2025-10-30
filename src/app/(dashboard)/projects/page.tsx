@@ -41,7 +41,7 @@ import {
 import Link from "next/link"
 import { useWorkspace } from "@/lib/workspace-context"
 import { motion, AnimatePresence } from "framer-motion"
-import ProjectLayout from "@/components/projects/project-layout"
+import { WikiLayout } from "@/components/wiki/wiki-layout"
 
 interface Project {
   id: string
@@ -310,7 +310,7 @@ export default function ProjectsDashboard() {
   }
 
   return (
-    <ProjectLayout projectId="dashboard" projectName="Projects Dashboard">
+    <WikiLayout>
       <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
       {/* Zen-style Header */}
       <div className="px-16 py-8 space-y-4">
@@ -764,6 +764,6 @@ export default function ProjectsDashboard() {
         )}
       </div>
       </div>
-    </ProjectLayout>
+    </WikiLayout>
   )
 }
