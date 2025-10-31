@@ -524,8 +524,14 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
           console.error('❌ Failed to fetch workspaces:', workspacesResponse.status, workspacesResponse.statusText)
         }
 
-        // Load recent pages
-        const recentResponse = await fetch('/api/wiki/recent-pages?limit=50')
+        // Load all data in parallel for better performance
+        const [recentResponse, favoritesResponse, projectsResponse] = await Promise.all([
+          fetch('/api/wiki/recent-pages?limit=50'),
+          fetch('/api/wiki/favorites'),
+          fetch(`/api/projects?workspaceId=${workspaceId}`)
+        ])
+
+        // Process responses
         if (recentResponse.ok) {
           const recentData = await recentResponse.json()
           console.log('📄 All recent pages loaded:', recentData.map((p: any) => ({ 
@@ -536,15 +542,11 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
           setRecentPages(recentData)
         }
 
-        // Load favorite pages
-        const favoritesResponse = await fetch('/api/wiki/favorites')
         if (favoritesResponse.ok) {
           const favoritesData = await favoritesResponse.json()
           setFavoritePages(favoritesData)
         }
 
-        // Load projects
-        const projectsResponse = await fetch(`/api/projects?workspaceId=${workspaceId}`)
         if (projectsResponse.ok) {
           const projectsData = await projectsResponse.json()
           setProjects(projectsData)

@@ -87,8 +87,13 @@ export default function PersonalWorkspacePage() {
         return
       }
       
-      // Fetch recent pages - use the same endpoint as sidebar for consistency
-      const pagesResponse = await fetch('/api/wiki/recent-pages?limit=100')
+      // Fetch all data in parallel for better performance
+      const [pagesResponse, projectsResponse] = await Promise.all([
+        fetch('/api/wiki/recent-pages?limit=100'),
+        fetch(`/api/projects?workspaceId=${userStatus.workspaceId}`)
+      ])
+
+      // Process pages response
       if (pagesResponse.ok) {
         const pages = await pagesResponse.json()
         
@@ -115,8 +120,7 @@ export default function PersonalWorkspacePage() {
         }
       }
 
-      // Fetch all projects (they belong to the main workspace)
-      const projectsResponse = await fetch(`/api/projects?workspaceId=${userStatus.workspaceId}`)
+      // Process projects response
       if (projectsResponse.ok) {
         const projectsData = await projectsResponse.json()
         const projectsList = Array.isArray(projectsData) ? projectsData : (projectsData.data || projectsData.projects || [])

@@ -21,7 +21,9 @@ if (isUsingPooler) {
   
   // Add required pooler params
   if (!databaseUrl.includes('pgbouncer=true')) params.push('pgbouncer=true')
-  if (!databaseUrl.includes('connection_limit=')) params.push('connection_limit=1')
+  // Note: connection_limit removed - Supabase pooler handles this automatically
+  // Setting connection_limit=1 was causing severe performance bottlenecks
+  // by forcing all queries to run sequentially instead of in parallel
   if (!databaseUrl.includes('sslmode=')) params.push('sslmode=require')
   
   // CRITICAL: Disable prepared statements for PgBouncer transaction mode

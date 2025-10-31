@@ -58,16 +58,21 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
     try {
       setIsLoading(true)
 
-      // Load workspace details
-      const workspacesResponse = await fetch('/api/wiki/workspaces')
+      // Load all data in parallel for better performance
+      const [workspacesResponse, pagesResponse, projectsResponse] = await Promise.all([
+        fetch('/api/wiki/workspaces'),
+        fetch('/api/wiki/recent-pages?limit=100'),
+        fetch(`/api/projects?workspaceId=${userStatus.workspaceId}`)
+      ])
+
+      // Process workspace response
       if (workspacesResponse.ok) {
         const workspacesData = await workspacesResponse.json()
         const foundWorkspace = workspacesData.find((w: any) => w.id === resolvedParams.id)
         setWorkspace(foundWorkspace)
       }
 
-      // Fetch recent pages - use the same endpoint as sidebar for consistency
-      const pagesResponse = await fetch('/api/wiki/recent-pages?limit=100')
+      // Process pages response
       if (pagesResponse.ok) {
         const pages = await pagesResponse.json()
         
@@ -82,8 +87,7 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
         }
       }
 
-      // Fetch all projects (they belong to the main workspace)
-      const projectsResponse = await fetch(`/api/projects?workspaceId=${userStatus.workspaceId}`)
+      // Process projects response
       if (projectsResponse.ok) {
         const projectsData = await projectsResponse.json()
         const projectsList = Array.isArray(projectsData) ? projectsData : (projectsData.data || projectsData.projects || [])
