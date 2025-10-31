@@ -32,9 +32,18 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
 
+    // Optimized query: Use select instead of include, limit tasks loaded
     const projects = await prisma.project.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        status: true,
+        priority: true,
+        color: true,
+        createdAt: true,
+        updatedAt: true,
         createdBy: {
           select: {
             id: true,
@@ -42,8 +51,11 @@ export async function GET(request: NextRequest) {
             email: true
           }
         },
+        // Limit members to reduce payload size
         members: {
-          include: {
+          take: 10, // Only load first 10 members
+          select: {
+            role: true,
             user: {
               select: {
                 id: true,
@@ -53,7 +65,9 @@ export async function GET(request: NextRequest) {
             }
           }
         },
+        // Limit tasks - only load recent/summary data
         tasks: {
+          take: 5, // Only load 5 most recent tasks
           select: {
             id: true,
             title: true,
@@ -66,11 +80,15 @@ export async function GET(request: NextRequest) {
                 name: true
               }
             }
+          },
+          orderBy: {
+            updatedAt: 'desc'
           }
         },
         _count: {
           select: {
-            tasks: true
+            tasks: true,
+            members: true
           }
         }
       },

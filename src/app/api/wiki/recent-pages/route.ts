@@ -22,13 +22,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
 
-    // Get recent pages
+    // Optimized query: Use select instead of include, don't load full content
     const recentPages = await prisma.wikiPage.findMany({
       where: {
         workspaceId: auth.workspaceId,
         isPublished: true
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        excerpt: true, // Use excerpt instead of full content
+        permissionLevel: true,
+        workspace_type: true,
+        updatedAt: true,
+        createdAt: true,
         createdBy: {
           select: {
             name: true,
@@ -39,7 +47,7 @@ export async function GET(request: NextRequest) {
       orderBy: {
         updatedAt: 'desc'
       },
-      take: limit
+      take: Math.min(limit, 100) // Cap at 100 to prevent huge responses
     })
 
     const formattedPages = recentPages.map(page => ({

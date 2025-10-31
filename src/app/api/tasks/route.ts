@@ -63,9 +63,18 @@ export async function GET(request: NextRequest) {
       where.epicId = epicId
     }
 
+    // Optimized query: Use select and limit nested data to reduce payload
     const tasks = await prisma.task.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        status: true,
+        priority: true,
+        dueDate: true,
+        createdAt: true,
+        updatedAt: true,
         assignee: {
           select: {
             id: true,
@@ -87,13 +96,18 @@ export async function GET(request: NextRequest) {
             color: true
           }
         },
+        // Limit subtasks - only load summary data
         subtasks: {
-          include: {
+          take: 5, // Only load first 5 subtasks
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            order: true,
             assignee: {
               select: {
                 id: true,
-                name: true,
-                email: true
+                name: true
               }
             }
           },
@@ -101,8 +115,13 @@ export async function GET(request: NextRequest) {
             order: 'asc'
           }
         },
+        // Limit comments - only load recent comments
         comments: {
-          include: {
+          take: 5, // Only load 5 most recent comments
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
             user: {
               select: {
                 id: true,
@@ -127,7 +146,8 @@ export async function GET(request: NextRequest) {
         { priority: 'desc' },
         { dueDate: 'asc' },
         { createdAt: 'desc' }
-      ]
+      ],
+      take: 100 // Add limit to prevent loading thousands of tasks
     })
 
     return NextResponse.json(tasks)
