@@ -500,26 +500,37 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
         const workspacesResponse = await fetch('/api/wiki/workspaces')
         if (workspacesResponse.ok) {
           const workspacesData = await workspacesResponse.json()
-          console.log('🎨 Frontend received workspaces:', workspacesData)
-          console.log('📝 Workspace details:', workspacesData.map((w: any) => ({ id: w.id, name: w.name, type: w.type })))
           
-          // Ensure ONLY default workspaces have correct names (identified by ID pattern)
-          const normalizedWorkspaces = workspacesData.map((w: any) => {
-            // Check if this is a default Personal Space
-            if (w.id?.startsWith('personal-space-')) {
-              return { ...w, name: 'Personal Space' }
+          // Ensure workspacesData is an array with valid data
+          if (!Array.isArray(workspacesData)) {
+            console.error('❌ Workspaces response is not an array:', workspacesData)
+            setWorkspaces([])
+          } else {
+            // Filter out empty objects and validate data
+            const validWorkspaces = workspacesData.filter((w: any) => w && (w.id || w.name))
+            
+            if (validWorkspaces.length === 0 && workspacesData.length > 0) {
+              console.error('❌ All workspaces are empty objects:', workspacesData)
             }
-            // Check if this is a default Team Workspace
-            if (w.id?.startsWith('team-workspace-')) {
-              return { ...w, name: 'Team Workspace' }
-            }
-            // For custom workspaces, keep their original names
-            return w
-          })
-          
-          console.log('✨ Normalized workspaces:', normalizedWorkspaces.map((w: any) => ({ id: w.id, name: w.name, type: w.type })))
-          
-          setWorkspaces(normalizedWorkspaces)
+            
+            // Normalize workspace names on the frontend
+            const normalizedWorkspaces = validWorkspaces.map((w: any) => {
+              // Check if this is a default Personal Space
+              if (w.id?.startsWith('personal-space-')) {
+                return { ...w, name: 'Personal Space' }
+              }
+              // Check if this is a default Team Workspace
+              if (w.id?.startsWith('team-workspace-')) {
+                return { ...w, name: 'Team Workspace' }
+              }
+              // For custom workspaces, keep their original names
+              return w
+            })
+            
+            console.log('✨ Normalized workspaces:', normalizedWorkspaces.map((w: any) => ({ id: w.id, name: w.name, type: w.type })))
+            
+            setWorkspaces(normalizedWorkspaces)
+          }
         } else {
           console.error('❌ Failed to fetch workspaces:', workspacesResponse.status, workspacesResponse.statusText)
         }
