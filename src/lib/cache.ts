@@ -1,15 +1,48 @@
 import { createClient } from 'redis'
 
-// Redis client configuration with graceful fallback
+// Redis client configuration with graceful fallback to in-memory cache
 let redisClient: any = null;
 let isRedisAvailable = false;
+
+// In-memory fallback cache when Redis is not available
+const memoryCache = new Map<string, { data: any; expires: number }>();
+const MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes default
+
+function getMemoryCache(key: string): any | null {
+  const cached = memoryCache.get(key);
+  if (!cached) return null;
+  
+  if (Date.now() > cached.expires) {
+    memoryCache.delete(key);
+    return null;
+  }
+  
+  return cached.data;
+}
+
+function setMemoryCache(key: string, data: any, ttl: number = MEMORY_CACHE_TTL): void {
+  memoryCache.set(key, {
+    data,
+    expires: Date.now() + ttl * 1000
+  });
+  
+  // Clean up expired entries periodically
+  if (memoryCache.size > 1000) {
+    const now = Date.now();
+    for (const [k, v] of memoryCache.entries()) {
+      if (now > v.expires) {
+        memoryCache.delete(k);
+      }
+    }
+  }
+}
 
 async function initializeRedis() {
   if (redisClient) return redisClient;
   
   try {
     if (!process.env.REDIS_URL) {
-      console.warn('Redis not configured - caching disabled');
+      // Silent fallback - use memory cache instead
       return null;
     }
     
@@ -22,7 +55,7 @@ async function initializeRedis() {
     });
     
     redisClient.on('error', (err: Error) => {
-      console.warn('Redis Client Error - caching disabled:', err.message);
+      // Silent fallback - use memory cache instead
       isRedisAvailable = false;
     });
     
@@ -34,7 +67,7 @@ async function initializeRedis() {
     await redisClient.connect();
     return redisClient;
   } catch (error) {
-    console.warn('Redis connection failed - caching disabled:', error);
+    // Silent fallback - use memory cache instead
     isRedisAvailable = false;
     return null;
   }
@@ -91,28 +124,31 @@ export const cache = {
   async get<T>(key: string): Promise<T | null> {
     try {
       const client = await connectRedis();
-      if (!client || !isRedisAvailable) {
-        return null;
+      if (client && isRedisAvailable) {
+        const data = await client.get(key);
+        return data ? JSON.parse(data) : null;
       }
       
-      const data = await client.get(key);
-      return data ? JSON.parse(data) : null;
+      // Fallback to in-memory cache
+      return getMemoryCache(key) as T | null;
     } catch (error) {
-      console.warn('Cache get error:', error);
-      return null;
+      // Fallback to in-memory cache on error
+      return getMemoryCache(key) as T | null;
     }
   },
 
   async set<T>(key: string, data: T, ttl: number = CACHE_TTL.MEDIUM): Promise<void> {
     try {
       const client = await connectRedis();
-      if (!client || !isRedisAvailable) {
-        return;
+      if (client && isRedisAvailable) {
+        await client.setEx(key, ttl, JSON.stringify(data));
       }
       
-      await client.setEx(key, ttl, JSON.stringify(data));
+      // Always set in-memory cache as fallback
+      setMemoryCache(key, data, ttl);
     } catch (error) {
-      console.warn('Cache set error:', error);
+      // Fallback to in-memory cache on error
+      setMemoryCache(key, data, ttl);
     }
   },
 
