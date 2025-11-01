@@ -25,6 +25,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name and slug are required' }, { status: 400 })
     }
 
+    // Check if user already has a workspace
+    const { prisma } = await import('@/lib/db')
+    const existingWorkspace = await prisma.workspace.findFirst({
+      where: {
+        members: {
+          some: { userId: session.user.id }
+        }
+      }
+    })
+
+    if (existingWorkspace) {
+      console.log('[workspace/create] User already has workspace:', existingWorkspace.id)
+      return NextResponse.json({
+        success: false,
+        error: 'You already have a workspace',
+        existingWorkspaceId: existingWorkspace.id,
+        existingWorkspaceName: existingWorkspace.name
+      }, { status: 400 })
+    }
+
     // Create workspace for the user with session data
     console.log('[workspace/create] Creating workspace...')
     const authUser = await createUserWorkspace({
