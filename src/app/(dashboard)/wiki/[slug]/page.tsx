@@ -507,6 +507,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
 
       {/* AI Assistant */}
       <WikiAIAssistant 
+        currentPageId={pageData?.id}
         currentTitle={pageData?.title || ''}
         currentContent={pageData?.content || ''}
         onContentUpdate={(newContent) => {

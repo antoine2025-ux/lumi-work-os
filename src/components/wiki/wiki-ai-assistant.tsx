@@ -19,6 +19,9 @@ import {
   Check,
   FileEdit
 } from "lucide-react"
+import { AIPreviewCard } from "./ai-preview-card"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 interface Message {
   id: string
@@ -32,9 +35,32 @@ interface WikiAIAssistantProps {
   onTitleUpdate?: (title: string) => void
   currentContent?: string
   currentTitle?: string
+  currentPageId?: string
+  selectedText?: string
   onOpenChange?: (isOpen: boolean) => void
   onDisplayModeChange?: (mode: 'sidebar' | 'floating') => void
   mode?: 'bottom-bar' | 'floating-button' // 'bottom-bar' for wiki pages, 'floating-button' for other pages
+}
+
+interface LoopwellAIResponse {
+  intent: 'answer' | 'summarize' | 'improve_existing_page' | 'append_to_page' | 'create_new_page' | 'extract_tasks' | 'find_things' | 'tag_pages' | 'do_nothing'
+  confidence: number
+  rationale: string
+  citations: Array<{ title: string; id: string }>
+  preview: {
+    title?: string
+    markdown?: string
+    diff?: string
+    tasks?: Array<{
+      title: string
+      description: string
+      assignee_suggestion?: string
+      due_suggestion?: string
+      labels: string[]
+    }>
+    tags?: string[]
+  }
+  next_steps: Array<'ask_clarifying_question' | 'insert' | 'replace_section' | 'create_page' | 'create_tasks'>
 }
 
 export function WikiAIAssistant({ 
@@ -42,6 +68,8 @@ export function WikiAIAssistant({
   onTitleUpdate,
   currentContent = '', 
   currentTitle = 'New page',
+  currentPageId,
+  selectedText,
   onOpenChange,
   onDisplayModeChange,
   mode = 'bottom-bar' // Default to bottom-bar for wiki pages
@@ -55,6 +83,7 @@ export function WikiAIAssistant({
   const [displayMode, setDisplayMode] = useState<'sidebar' | 'floating'>(mode === 'floating-button' ? 'floating' : 'sidebar')
   const [showDisplayModeDropdown, setShowDisplayModeDropdown] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [pendingPreview, setPendingPreview] = useState<LoopwellAIResponse | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -162,24 +191,21 @@ export function WikiAIAssistant({
         }
       }
 
-      // Call actual AI API
-      // If we're drafting to a page (onContentUpdate exists), enhance the message to request proper formatting
-      const enhancedMessage = onContentUpdate 
-        ? `${currentInput}\n\nPlease format your response in proper Markdown with headers (##, ###), bold text (**text**), and lists (- or numbered) for clear structure and readability.`
-        : currentInput
-      
+      // Call LoopwellAI API with context
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: enhancedMessage,
+          message: currentInput,
           sessionId: currentSessionId,
           model: 'gpt-4-turbo',
           context: {
+            pageId: currentPageId,
             title: currentTitle,
-            content: currentContent
+            content: currentContent,
+            selectedText: selectedText
           }
         })
       })
@@ -188,60 +214,36 @@ export function WikiAIAssistant({
         throw new Error('Failed to get AI response')
       }
 
-      const data = await response.json()
-      const aiContent = data.content || 'Sorry, I could not generate a response.'
+      const data: LoopwellAIResponse = await response.json()
       
-      // If we're drafting to a page, extract title and create summary feedback
-      if (onContentUpdate && aiContent) {
-        // Extract title from the first ## heading
-        const titleMatch = aiContent.match(/^##\s+(.+)$/m)
-        let extractedTitle = ''
-        let contentWithoutTitle = aiContent
+      // Handle structured response based on intent
+      const requiresPreview = [
+        'create_new_page',
+        'append_to_page', 
+        'improve_existing_page',
+        'extract_tasks',
+        'tag_pages'
+      ].includes(data.intent)
+      
+      if (requiresPreview) {
+        // Show preview card for confirmation
+        setPendingPreview(data)
         
-        if (titleMatch) {
-          extractedTitle = titleMatch[1].trim()
-          // Remove the title line from content
-          contentWithoutTitle = aiContent.replace(/^##\s+.+$/m, '').trim()
-        }
-        
-        // Update title if extracted and onTitleUpdate is provided
-        if (extractedTitle && onTitleUpdate) {
-          onTitleUpdate(extractedTitle)
-        }
-        
-        // Update content (without title line)
-        const existingContent = currentContent || ''
-        const newContent = existingContent.trim() 
-          ? `${existingContent}\n\n${contentWithoutTitle}`
-          : contentWithoutTitle
-        onContentUpdate(newContent)
-        
-        // Create a feedback summary message for the chat
-        const sections = contentWithoutTitle.match(/^##?\s+.+$/gm) || []
-        const sectionCount = sections.length
-        
-        let feedbackMessage = `I've drafted a ${extractedTitle ? `"${extractedTitle}"` : 'document'} for you. `
-        
-        if (sectionCount > 0) {
-          const sectionNames = sections.slice(0, 3).map(s => s.replace(/^##?\s+/, '')).join(', ')
-          feedbackMessage += `The document includes ${sectionCount} section${sectionCount > 1 ? 's' : ''}${sectionCount > 3 ? ' (including ' + sectionNames + '...)' : ' (' + sectionNames + ')'}. `
-        }
-        
-        feedbackMessage += `The content has been added to your page${extractedTitle ? ` with the title "${extractedTitle}"` : ''}. You can review and edit it as needed.`
-        
+        // Show a message indicating preview is ready
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: feedbackMessage,
+          content: `I've prepared a ${data.intent.replace('_', ' ')}. Please review the preview below and confirm to proceed.`,
           timestamp: new Date()
         }
         setMessages(prev => [...prev, assistantMessage])
       } else {
-        // Regular chat mode - show full response
+        // For answer, find_things, do_nothing - show response directly
+        const content = data.preview?.markdown || data.rationale
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: aiContent,
+          content: content || 'Sorry, I could not generate a response.',
           timestamp: new Date()
         }
         setMessages(prev => [...prev, assistantMessage])
@@ -401,51 +403,86 @@ export function WikiAIAssistant({
                     className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                      className={`max-w-[80%] rounded-lg px-4 py-3 ${
                         message.role === 'user'
                           ? 'bg-purple-600 text-white'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      {message.role === 'user' ? (
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      ) : (
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 mt-0 text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-2">{children}</h1>,
+                              h2: ({ children }) => <h2 className="text-xl font-bold mb-3 mt-6 text-gray-900 dark:text-gray-100">{children}</h2>,
+                              h3: ({ children }) => <h3 className="text-lg font-semibold mb-2 mt-5 text-gray-900 dark:text-gray-100">{children}</h3>,
+                              h4: ({ children }) => <h4 className="text-base font-medium mb-2 mt-4 text-gray-800 dark:text-gray-200">{children}</h4>,
+                              p: ({ children }) => <p className="text-sm mb-4 leading-relaxed text-gray-900 dark:text-gray-100 last:mb-0">{children}</p>,
+                              ul: ({ children }) => <ul className="list-disc list-outside mb-4 ml-5 space-y-2 text-sm text-gray-900 dark:text-gray-100">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal list-outside mb-4 ml-5 space-y-2 text-sm text-gray-900 dark:text-gray-100">{children}</ol>,
+                              li: ({ children }) => <li className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed">{children}</li>,
+                              strong: ({ children }) => <strong className="font-semibold text-gray-900 dark:text-gray-100">{children}</strong>,
+                              em: ({ children }) => <em className="italic text-gray-800 dark:text-gray-200">{children}</em>,
+                              code: ({ children }) => <code className="bg-gray-200 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs font-mono text-gray-900 dark:text-gray-100">{children}</code>,
+                              pre: ({ children }) => <pre className="bg-gray-200 dark:bg-gray-800 p-3 rounded-lg overflow-x-auto mb-4 text-xs font-mono text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700">{children}</pre>,
+                              blockquote: ({ children }) => <blockquote className="border-l-4 border-purple-400 dark:border-purple-600 pl-4 italic mb-4 text-gray-700 dark:text-gray-300 bg-purple-50 dark:bg-purple-900/10 py-2">{children}</blockquote>,
+                              hr: () => <hr className="my-6 border-gray-300 dark:border-gray-600" />,
+                              a: ({ children, href }) => <a href={href} className="text-purple-600 dark:text-purple-400 hover:underline">{children}</a>,
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      )}
                     </div>
-                    {/* Draft to page button for assistant messages - only show if not auto-drafted (when message content looks like full AI response, not feedback) */}
-                    {message.role === 'assistant' && onContentUpdate && message.content.length > 200 && !message.content.includes("I've drafted") && !message.content.includes("has been added to your page") && (
-                      <button
-                        onClick={() => {
-                          // Extract title if present
-                          const titleMatch = message.content.match(/^##\s+(.+)$/m)
-                          let extractedTitle = ''
-                          let contentToAdd = message.content
-                          
-                          if (titleMatch && onTitleUpdate) {
-                            extractedTitle = titleMatch[1].trim()
-                            contentToAdd = message.content.replace(/^##\s+.+$/m, '').trim()
-                            onTitleUpdate(extractedTitle)
-                          }
-                          
-                          // Get current page content and append AI response
-                          const existingContent = currentContent || ''
-                          const newContent = existingContent.trim() 
-                            ? `${existingContent}\n\n${contentToAdd}`
-                            : contentToAdd
-                          onContentUpdate(newContent)
-                        }}
-                        className="mt-2 text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1.5 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                        title="Insert this content into the page"
-                      >
-                        <FileEdit className="h-3 w-3" />
-                        <span>Draft to page</span>
-                      </button>
-                    )}
+                    {/* Draft to page button - REMOVED: LoopwellAI handles drafts through preview cards based on intent */}
                   </div>
                 ))}
+                
+                {/* Pending Preview Card */}
+                {pendingPreview && (
+                  <div className="mt-4">
+                    <AIPreviewCard
+                      response={pendingPreview}
+                      onConfirm={() => {
+                        // Handle confirmation based on intent
+                        if (pendingPreview.intent === 'create_new_page' || pendingPreview.intent === 'append_to_page') {
+                          if (pendingPreview.preview?.markdown && onContentUpdate) {
+                            const existingContent = currentContent || ''
+                            const newContent = existingContent.trim() 
+                              ? `${existingContent}\n\n${pendingPreview.preview.markdown}`
+                              : pendingPreview.preview.markdown
+                            onContentUpdate(newContent)
+                          }
+                          if (pendingPreview.preview?.title && onTitleUpdate) {
+                            onTitleUpdate(pendingPreview.preview.title)
+                          }
+                        } else if (pendingPreview.intent === 'improve_existing_page') {
+                          if (pendingPreview.preview?.markdown && onContentUpdate) {
+                            onContentUpdate(pendingPreview.preview.markdown)
+                          }
+                        }
+                        // TODO: Handle extract_tasks and tag_pages
+                        setPendingPreview(null)
+                      }}
+                      onReject={() => {
+                        setPendingPreview(null)
+                      }}
+                      onContentUpdate={onContentUpdate}
+                      onTitleUpdate={onTitleUpdate}
+                    />
+                  </div>
+                )}
+                
                 {isLoading && (
                   <div className="flex justify-start">
                     <div className="bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2">
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm text-gray-500">Crafting...</span>
+                        <span className="text-sm text-gray-500">Analyzing intent...</span>
                       </div>
                     </div>
                   </div>

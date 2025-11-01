@@ -4,111 +4,84 @@ import { generateAIResponse, AISource } from '@/lib/ai/providers'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 
-// Function to analyze AI response and identify relevant sources
-async function identifyRelevantSources(aiResponse: string, availableSources: AISource[]): Promise<AISource[]> {
+// Type definitions for LoopwellAI structured response
+export interface LoopwellAIResponse {
+  intent: 'answer' | 'summarize' | 'improve_existing_page' | 'append_to_page' | 'create_new_page' | 'extract_tasks' | 'find_things' | 'tag_pages' | 'do_nothing'
+  confidence: number
+  rationale: string
+  citations: Array<{ title: string; id: string }>
+  preview: {
+    title?: string
+    markdown?: string
+    diff?: string
+    tasks?: Array<{
+      title: string
+      description: string
+      assignee_suggestion?: string
+      due_suggestion?: string
+      labels: string[]
+    }>
+    tags?: string[]
+  }
+  next_steps: Array<'ask_clarifying_question' | 'insert' | 'replace_section' | 'create_page' | 'create_tasks'>
+}
+
+// Function to parse JSON from AI response (handles triple backticks and potential formatting)
+function parseStructuredResponse(responseText: string): LoopwellAIResponse | null {
   try {
-    const analysisPrompt = `Analyze this AI response and identify which sources from the available list were actually used or referenced. Only return sources that were genuinely utilized in the response.
-
-AI Response: ${aiResponse}
-
-Available Sources:
-${availableSources.map((source, index) => `${index + 1}. ${source.title} (${source.type})`).join('\n')}
-
-Return ONLY the numbers of sources that were actually used (e.g., "1,3,5" or "2,4"). If no sources were used, return "none".`
-
-    const analysisResponse = await generateAIResponse(
-      analysisPrompt,
-      'gpt-4o-mini', // Use fast model for analysis
-      {
-        temperature: 0.1, // Very low temperature for consistent analysis
-        maxTokens: 50
-      }
-    )
-
-    const usedIndices = analysisResponse.content.trim()
-    
-    if (usedIndices === 'none' || !usedIndices) {
-      return []
+    // Try to extract JSON from markdown code blocks
+    const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/)
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[1])
     }
 
-    // Parse the indices and return corresponding sources
-    const indices = usedIndices.split(',').map(i => parseInt(i.trim()) - 1).filter(i => i >= 0 && i < availableSources.length)
-    return indices.map(i => availableSources[i]).filter(Boolean)
-    
+    // Try parsing the entire response as JSON
+    const jsonStart = responseText.indexOf('{')
+    const jsonEnd = responseText.lastIndexOf('}') + 1
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      const jsonStr = responseText.substring(jsonStart, jsonEnd)
+      return JSON.parse(jsonStr)
+    }
+
+    // Fallback: return null if parsing fails
+    return null
   } catch (error) {
-    console.error('Error analyzing AI response for sources:', error)
-    // Fallback: return empty array to be safe
-    return []
+    console.error('Error parsing structured response:', error)
+    return null
   }
 }
 
 // Function to generate smart chat titles
-async function generateChatTitle(userMessage: string, aiResponse: string): Promise<string> {
+async function generateChatTitle(userMessage: string, aiResponse: LoopwellAIResponse): Promise<string> {
   try {
-    const titlePrompt = `Generate a concise, descriptive title (max 6 words) for a chat conversation based on this exchange:
-
-User: ${userMessage}
-AI: ${aiResponse.substring(0, 200)}...
-
-The title should:
-- Be descriptive and specific to the topic
-- Use title case (capitalize important words)
-- Be 2-6 words maximum
-- Focus on the main subject or question
-- Avoid generic words like "question", "help", "about"
-
-Examples of good titles:
-- "Lumi Product Overview"
-- "Project Management Features"
-- "Wiki Documentation Help"
-- "Team Onboarding Process"
-- "AI Model Comparison"
-
-Generate only the title, nothing else:`
-
-    const titleResponse = await generateAIResponse(
-      titlePrompt,
-      'gpt-4o-mini', // Use a fast, cheap model for title generation
-      {
-        temperature: 0.3, // Low temperature for consistent results
-        maxTokens: 20
-      }
-    )
-
-    // Clean up the response and ensure it's a proper title
-    let title = titleResponse.content.trim()
-    
-    // Remove quotes if present
-    title = title.replace(/^["']|["']$/g, '')
-    
-    // Ensure it's not too long
-    if (title.length > 50) {
-      title = title.substring(0, 47) + '...'
+    // Use intent and preview title if available
+    if (aiResponse.preview?.title) {
+      return aiResponse.preview.title.substring(0, 50)
     }
-    
-    // Fallback to a simple title if AI fails
-    if (!title || title.length < 3) {
-      const words = userMessage.split(' ').slice(0, 4)
-      title = words.join(' ').replace(/[^\w\s]/g, '')
-      if (title.length > 30) {
-        title = title.substring(0, 27) + '...'
-      }
+
+    // Generate based on intent
+    const intentLabels: Record<string, string> = {
+      answer: 'Chat',
+      summarize: 'Summary',
+      improve_existing_page: 'Page Improvement',
+      append_to_page: 'Page Update',
+      create_new_page: 'New Page',
+      extract_tasks: 'Tasks',
+      find_things: 'Search Results',
+      tag_pages: 'Tag Suggestions',
+      do_nothing: 'Chat'
     }
-    
-    return title
+
+    const words = userMessage.split(' ').slice(0, 4).join(' ')
+    return `${intentLabels[aiResponse.intent] || 'Chat'}: ${words.substring(0, 30)}`
   } catch (error) {
     console.error('Error generating chat title:', error)
-    // Fallback to simple title generation
     const words = userMessage.split(' ').slice(0, 4)
-    let fallbackTitle = words.join(' ').replace(/[^\w\s]/g, '')
-    if (fallbackTitle.length > 30) {
-      fallbackTitle = fallbackTitle.substring(0, 27) + '...'
-    }
-    return fallbackTitle || 'New Chat'
+    return words.join(' ').replace(/[^\w\s]/g, '') || 'New Chat'
   }
 }
 
-// POST /api/ai/chat - Chat with AI assistant
+// POST /api/ai/chat - Chat with LoopwellAI assistant
 export async function POST(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
@@ -127,6 +100,7 @@ export async function POST(request: NextRequest) {
     console.log('  - Message:', message)
     console.log('  - Session ID:', sessionId)
     console.log('  - Model:', model)
+    console.log('  - Context:', context)
 
     // Get chat session
     const chatSession = await prisma.chatSession.findUnique({
@@ -144,7 +118,6 @@ export async function POST(request: NextRequest) {
       take: 20 // Limit to last 20 messages for context
     })
 
-        // Get comprehensive context from all Lumi data sources
         const workspaceId = chatSession.workspaceId
 
     // Generate cache key for AI context
@@ -154,14 +127,13 @@ export async function POST(request: NextRequest) {
       'chat'
     )
 
-    // Try cache first, then fetch fresh data
+    // Get comprehensive context from workspace
     const contextData = await cache.cacheWorkspaceData(
       contextCacheKey,
       workspaceId,
       async () => {
-        // Use Promise.all for parallel queries
         const [wikiPages, projects, tasks, orgPositions] = await Promise.all([
-          // 1. Wiki Pages (Knowledge Base) - Optimized
+          // Wiki Pages
           prisma.wikiPage.findMany({
             where: {
               workspaceId,
@@ -170,17 +142,17 @@ export async function POST(request: NextRequest) {
             select: {
               id: true,
               title: true,
-              excerpt: true, // Use excerpt instead of full content
+              excerpt: true,
               slug: true,
               tags: true,
               category: true,
               updatedAt: true
             },
-            take: 10, // Reduced from 15
+            take: 15,
             orderBy: { updatedAt: 'desc' }
           }),
 
-          // 2. Projects & Tasks
+          // Projects
           prisma.project.findMany({
       where: { workspaceId },
       select: {
@@ -213,7 +185,7 @@ export async function POST(request: NextRequest) {
       orderBy: { updatedAt: 'desc' }
     }),
 
-    // 3. Tasks
+          // Tasks
     prisma.task.findMany({
       where: { workspaceId },
       select: {
@@ -230,7 +202,7 @@ export async function POST(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     }),
 
-    // 4. Organization Structure
+          // Organization Structure
     prisma.orgPosition.findMany({
       where: { 
         workspaceId,
@@ -253,12 +225,36 @@ export async function POST(request: NextRequest) {
   ])
 
   return { wikiPages, projects, tasks, orgPositions }
-})
+      }
+    )
 
-    // Extract variables from cached data
     const { wikiPages, projects, tasks, orgPositions } = contextData
 
-    // 4. Recent Activities
+    // Get active page info if context provided
+    const activePage = context?.pageId 
+      ? await prisma.wikiPage.findUnique({
+          where: { id: context.pageId },
+          select: {
+            id: true,
+            title: true,
+            content: true,
+            slug: true,
+            excerpt: true
+          }
+        })
+      : null
+
+    // Get workspace info
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: {
+        id: true,
+        name: true,
+        description: true
+      }
+    })
+
+    // Recent activities
     const recentActivities = await prisma.activity.findMany({
       where: { actorId: chatSession.userId },
       select: {
@@ -271,380 +267,222 @@ export async function POST(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     })
 
-    // 5. Onboarding Plans
-    const onboardingPlans = await prisma.onboardingPlan.findMany({
-      where: { workspaceId },
-      select: {
-        title: true,
-        status: true,
-        startDate: true,
-        endDate: true,
-        users: {
-          select: { name: true, email: true }
-        }
-      },
-      take: 5,
-      orderBy: { createdAt: 'desc' }
-    })
+    // Build context strings for LoopwellAI
+    const activeSpace = workspace ? {
+      name: workspace.name,
+      purpose: workspace.description || 'Team workspace'
+    } : context?.workspaceName ? {
+      name: context.workspaceName,
+      purpose: context.workspacePurpose || 'Team workspace'
+    } : null
 
-    // 6. Workspace Members
-    const workspaceMembers = await prisma.workspaceMember.findMany({
-      where: { workspaceId },
-      select: {
-        role: true,
-        user: {
-          select: { name: true, email: true }
-        }
-      },
-      take: 10
-    })
+    const activePageInfo = activePage ? {
+      title: activePage.title,
+      is_empty: !activePage.content || activePage.content.trim().length === 0,
+      selected_text: context?.selectedText || null,
+      breadcrumbs: activePage.slug ? activePage.slug.split('/') : []
+    } : context?.title ? {
+      title: context.title,
+      is_empty: !context.content || context.content.trim().length === 0,
+      selected_text: context?.selectedText || null,
+      breadcrumbs: []
+    } : null
 
-    // Build comprehensive context including static documentation
-    const wikiContext = wikiPages.map(page => 
-      `📚 WIKI: ${page.title} (${page.category})\nContent: ${page.excerpt || page.content.substring(0, 300)}...\nTags: ${page.tags.join(', ')}\nViews: ${page.view_count}\n`
-    ).join('\n')
+    const relatedDocs = wikiPages.slice(0, 10).map(page => ({
+      title: page.title,
+      snippet: page.excerpt || 'No excerpt available'
+    }))
 
-    // Add static documentation context
-    const staticDocsContext = `
-📖 LUMI PRODUCT DOCUMENTATION:
-# Lumi Work OS - Product Documentation
+    const projectsEpicsTasks = {
+      projects: projects.slice(0, 5).map(p => ({
+        name: p.name,
+        status: p.status,
+        description: p.description || ''
+      })),
+      tasks: tasks.slice(0, 10).map(t => ({
+        title: t.title,
+        status: t.status,
+        priority: t.priority
+      }))
+    }
 
-## Overview
-Lumi Work OS is a comprehensive workplace operating system designed to streamline company operations through integrated knowledge management, project management, and workflow automation. Built as a calm, minimal platform, Lumi empowers teams to manage knowledge, onboard new members, and execute workflows efficiently.
+    const orgInfo = {
+      teams: orgPositions.map(p => ({
+        name: p.department || 'General',
+        role: p.title
+      })),
+      members: orgPositions.filter(p => p.user).map(p => ({
+        name: p.user?.name || '',
+        role: p.title,
+        department: p.department || ''
+      }))
+    }
 
-## Product Vision
-To create the most intuitive and powerful workplace operating system that brings together all essential business functions in one cohesive platform, enabling teams to focus on what matters most - building great products and delivering exceptional value.
+    const recentActivity = recentActivities.map(a => ({
+      entity: a.entity,
+      action: a.action,
+      time: a.createdAt.toISOString()
+    }))
 
-## Core Features
-
-### 1. Project Management
-- **Kanban Board Interface**: Visual task management with drag-and-drop functionality
-- **Task Status Tracking**: To Do, In Progress, In Review, Done, Blocked
-- **Priority Management**: Low, Medium, High, Urgent priority levels
-- **Team Collaboration**: Assign tasks, track progress, and manage deadlines
-- **Project Documentation**: Integrated wiki pages for project-specific documentation
-
-### 2. Knowledge Management (Wiki)
-- **Hierarchical Documentation**: Organized wiki pages with categories and tags
-- **Rich Text Editing**: Markdown support with live preview
-- **Version Control**: Track changes and maintain document history
-- **Search & Discovery**: Powerful search across all documentation
-- **Permission Management**: Control access to sensitive information
-
-### 3. AI-Powered Assistance
-- **Intelligent Chat**: AI assistant for quick information retrieval
-- **Document Generation**: Automated creation of policies, procedures, and documentation
-- **Smart Suggestions**: Context-aware recommendations for tasks and content
-- **Workflow Automation**: AI-driven process optimization
-
-### 4. Team Onboarding
-- **Structured Onboarding**: Step-by-step process for new team members
-- **Resource Library**: Centralized access to training materials
-- **Progress Tracking**: Monitor onboarding completion and effectiveness
-
-### 5. Multi-tenant Workspaces
-- **Secure Workspace Isolation**: Each organization has its own secure environment
-- **Role-based Access Control**: Owner, Admin, Member roles with appropriate permissions
-- **Team Management**: Invite and manage team members
-- **Custom Branding**: Workspace-specific customization
-
-### 6. Integrations
-- **Slack Integration**: Real-time notifications and workflow triggers
-- **Google Drive Sync**: Seamless document synchronization
-- **Microsoft Teams**: Enterprise collaboration features
-- **API Access**: RESTful APIs for custom integrations
-
-## Technical Architecture
-- **Framework**: Next.js 15 with App Router
-- **Language**: TypeScript for type safety
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: NextAuth.js with OAuth support
-- **AI Integration**: OpenAI GPT-4 and Anthropic Claude
-- **Styling**: TailwindCSS with shadcn/ui components
-- **State Management**: TanStack Query for server state
-
-## Key Benefits
-- **Centralized Knowledge**: All company information in one place
-- **Improved Collaboration**: Streamlined team communication and task management
-- **AI-Powered Efficiency**: Intelligent assistance for common tasks
-- **Scalable Architecture**: Grows with your organization
-- **Security First**: Enterprise-grade security and compliance
-`
-
-    const projectsContext = projects.map(project => 
-      `🎯 PROJECT: ${project.name} (${project.status})\nDescription: ${project.description || 'No description'}\nPriority: ${project.priority}\nTeam: ${project.team || 'Unassigned'}\nDepartment: ${project.department || 'General'}\nTasks: ${project.tasks.length} tasks\n${project.tasks.map(task => `  - ${task.title} (${task.status}) - ${task.assignee?.name || 'Unassigned'}`).join('\n')}\n`
-    ).join('\n')
-
-    const orgContext = orgPositions.map(position => 
-      `👤 ORG: ${position.title} (${position.department})\nLevel: ${position.level}\nUser: ${position.user?.name || 'Vacant'}\nReports to: ${position.parent?.title || 'Top Level'}\n`
-    ).join('\n')
-
-    const activitiesContext = recentActivities.map(activity => 
-      `📈 ACTIVITY: ${activity.action} on ${activity.entity}\nTime: ${activity.createdAt.toISOString()}\n`
-    ).join('\n')
-
-    const onboardingContext = onboardingPlans.map(plan => 
-      `🎓 ONBOARDING: ${plan.title} (${plan.status})\nUser: ${plan.users.name}\nPeriod: ${plan.startDate.toISOString()} - ${plan.endDate?.toISOString() || 'Ongoing'}\n`
-    ).join('\n')
-
-    const teamContext = workspaceMembers.map(member => 
-      `👥 TEAM: ${member.user.name} (${member.role})\nEmail: ${member.user.email}\n`
-    ).join('\n')
-
-    // Build conversation history for AI
+    // Build conversation history
     const conversationHistory = chatMessages.map(msg => ({
       role: msg.type === 'USER' ? 'user' : 'assistant',
       content: msg.content
     }))
 
-    // Check if this is a page drafting context (when context is provided with title/content)
-    const isDraftingToPage = context && (context.title || context.content !== undefined)
-    
-    // Create comprehensive system prompt
-    let systemPrompt = `You are Lumi AI, an intelligent organizational assistant for Lumi Work OS. You have comprehensive access to all organizational data and can help with any aspect of the business.
+    // Build LoopwellAI system prompt
+    const systemPrompt = `You are Loopwell's Contextual Spaces AI. You help teams work inside a Workspace (aka Space) that contains wiki pages, projects, epics, tasks, and org context. Your job is to infer intent, decide the best action, and produce a preview—never write to the wiki unless the user explicitly confirms.
 
-## 📖 LUMI PRODUCT REFERENCE
-${staticDocsContext}
+PRIMARY GOALS
+1. Answer accurately using the active Space's context.
+2. Choose the right action (chat vs. draft vs. improve vs. extract tasks).
+3. Return a concise, insertion-ready preview when drafting is appropriate.
+4. Cite sources when referencing Space content.
+5. Be conservative with writes: default to chat unless the user clearly asks to create/modify content.
 
-## 🏢 ORGANIZATIONAL CONTEXT
+CONTEXT YOU RECEIVE
+${activeSpace ? `active_space: ${JSON.stringify(activeSpace)}` : 'active_space: none'}
+${activePageInfo ? `active_page: ${JSON.stringify(activePageInfo)}` : 'active_page: none'}
+related_docs: ${JSON.stringify(relatedDocs.slice(0, 10))}
+projects/epics/tasks: ${JSON.stringify(projectsEpicsTasks)}
+org info: ${JSON.stringify(orgInfo)}
+recent_activity: ${JSON.stringify(recentActivity.slice(0, 5))}
 
-### 📚 KNOWLEDGE BASE (Wiki Pages):
-${wikiContext}
+INTENTS YOU CAN CHOOSE (exactly one primary per reply)
+• answer — conversational response (no write).
+• summarize — executive digest of selected/related content (preview).
+• improve_existing_page — rewrite/refactor current section or selection (preview).
+• append_to_page — add a new section to the current page (preview).
+• create_new_page — draft a new page when clearly requested (preview).
+• extract_tasks — convert content into actionable tasks (preview list).
+• find_things — semantic search/locate docs with citations (no write).
+• tag_pages — propose tags/categories (preview).
+• do_nothing — if no useful action is possible; ask 1 clarifying question.
 
-### 🎯 ACTIVE PROJECTS & TASKS:
-${projectsContext}
+ROUTING POLICY
+• If the user asks what/why/how/compare/explain → answer.
+• If they say summarize/tl;dr/brief me or highlight text → summarize.
+• If they say rewrite/refactor/clean up/fix tone or provide a selection → improve_existing_page.
+• If they say add/append a section or "document decision/action items" on a non-empty page → append_to_page.
+• If they say create/draft/write/spec/PRD/meeting notes and a new artifact is implied (or page is empty) → create_new_page.
+• If they say turn this into tasks/extract action items/todo → extract_tasks.
+• If they say find/show/list docs about X / where is Y / cite sources → find_things.
+• If they say tag/categorize/organize → tag_pages.
+• If ambiguous → answer with 1 crisp clarifying question, no write.
 
-### 👥 ORGANIZATION STRUCTURE:
-${orgContext}
+SAFETY & QUALITY RULES
+• Never write directly. Always produce a preview for user confirmation.
+• Keep previews < ~2,000 words. Use clear Markdown (H2/H3, bullets, tables when helpful).
+• Use the Space's vocabulary; keep tone concise and professional.
+• Cite sources when quoting/paraphrasing Space content: [Title] or {title, id}.
+• If context is thin, state uncertainty and request the missing piece.
+• Prefer incremental edits (append/improve) over full rewrites unless asked.
 
-### 📈 RECENT ACTIVITIES:
-${activitiesContext}
+OUTPUT FORMAT (JSON inside triple backticks)
+Return exactly this structure every time:
+{
+  "intent": "<one of: answer | summarize | improve_existing_page | append_to_page | create_new_page | extract_tasks | find_things | tag_pages | do_nothing>",
+  "confidence": 0.0-1.0,
+  "rationale": "One-sentence reason for routing choice.",
+  "citations": [{ "title": "Doc Title", "id": "doc-id" }] | [],
+  "preview": {
+    "title": "Suggested title if creating/retitling",
+    "markdown": "Proposed Markdown content (or summary).",
+    "diff": "If improving: short bullet list of key changes or a unified-diff-like explanation.",
+    "tasks": [
+      { "title": "", "description": "", "assignee_suggestion": "", "due_suggestion": "", "labels": [] }
+    ],
+    "tags": ["tag-1", "tag-2"]
+  },
+  "next_steps": ["ask_clarifying_question" | "insert" | "replace_section" | "create_page" | "create_tasks"]
+}
 
-### 🎓 ONBOARDING STATUS:
-${onboardingContext}
+• If intent is answer or find_things, you may leave preview.markdown empty and place the conversational answer in preview.markdown for consistency.
+• If intent is write-like (improve/append/create/extract/tag), always populate preview so the user can confirm.
 
-### 👥 TEAM MEMBERS:
-${teamContext}
+STYLE GUIDE FOR CONTENT DRAFTS
+• Start with a 2–4 line Executive Summary.
+• Then sections like: Goals, Scope, Decisions, Risks, Open Questions, Next Steps.
+• Use action verbs and bullets. Avoid fluff.
+• For specs/PRDs: include Acceptance Criteria and Success Metrics.
+• For meeting notes: include Decisions, Action Items (owner, due).
+• For improvements: preserve meaning, remove redundancy, enhance scannability.
 
-## 🚀 YOUR CAPABILITIES
+TASK EXTRACTION RULES
+• Only create tasks that are specific, doable, and valuable in the current Space.
+• Each task: clear title, 1–2 line description, suggested owner role (not a person unless explicitly provided), optional due date, 2–4 labels.
+• Group tasks by theme if >10 items.
 
-### 📖 **Lumi Product Expertise**
-- **Complete Product Knowledge**: You have access to the full Lumi Work OS product documentation
-- **Feature Guidance**: Explain all Lumi features, capabilities, and benefits
-- **Implementation Support**: Help users understand how to use Lumi effectively
-- **Product Roadmap**: Discuss current features and planned enhancements
-- **Technical Architecture**: Explain the underlying technology and integrations
+SELF-CHECKLIST (run before replying)
+• Did I pick the least invasive intent that still satisfies the user?
+• If I'm drafting: is a preview provided and under length?
+• Are citations included when referencing Space content?
+• If context is missing, did I ask one targeted question instead of guessing?
+• Is the output immediately useful and clean?`
 
-### 📊 **Data Analysis & Insights**
-- Analyze project progress and team performance
-- Identify bottlenecks and optimization opportunities
-- Provide data-driven recommendations
-- Track team productivity and engagement
+    // Generate AI response with structured JSON output
+    const prompt = `${message}
 
-### 📚 **Knowledge Management**
-- Answer questions about any wiki content
-- Help create and structure documentation
-- Suggest improvements to existing content
-- Connect related information across different sources
+Remember to return your response as JSON in triple backticks with the exact structure specified in the system prompt.`
 
-### 🎯 **Project & Task Management**
-- Provide project status updates and insights
-- Help with task prioritization and assignment
-- Suggest project templates and best practices
-- Track dependencies and deadlines
-
-### 👥 **Organizational Intelligence**
-- Understand team structure and reporting relationships
-- Help with onboarding and role transitions
-- Provide insights on team dynamics and collaboration
-- Suggest organizational improvements
-
-### 🔄 **Workflow & Process Optimization**
-- Analyze current workflows and suggest improvements
-- Help design new processes and procedures
-- Identify automation opportunities
-- Track process compliance and effectiveness
-
-## 💬 **CONVERSATION GUIDELINES**
-
-### **Context Awareness**
-- **Prioritize Lumi Product Knowledge**: Always reference the Lumi Work OS product documentation when answering questions about features, capabilities, or functionality
-- Always reference specific data from the organizational context
-- Use exact names, titles, and details from the data
-- Connect information across different data sources
-- Provide specific examples and evidence from the product documentation
-
-### **Response Quality**
-- Be conversational, engaging, and professional
-- Use clear formatting with bullet points, numbered lists, and proper spacing
-- Break up long responses into readable sections
-- Always be helpful and solution-oriented
-- Ask clarifying questions when needed
-- Provide specific examples and recommendations
-
-${isDraftingToPage ? `### 📝 DOCUMENT FORMATTING (When Drafting to Page)
-CRITICAL: When the user requests content to be drafted to a wiki page, you MUST create a complete, publication-ready document that requires NO editing or reformatting. The output must be ready for immediate review.
-
-REQUIRED STRUCTURE:
-1. **Title/Header**: ALWAYS start with a main heading (##) that serves as the document title
-   - Example: ## Travel Policy or ## Employee Handbook
-   - This is the FIRST thing in your response
-
-2. **Introduction/Overview**: After the title, include a brief overview section explaining what the document covers
-   - Use a subtitle (### Overview or ### Introduction)
-   - 2-3 sentences that summarize the document's purpose
-
-3. **Main Sections**: Break content into logical sections with clear headers
-   - Use ## for major sections (e.g., ## Approval Process, ## Expense Guidelines)
-   - Use ### for subsections (e.g., ### Pre-Travel Steps, ### Expense Report Submission)
-   - Each section should be self-contained and clearly labeled
-
-4. **Professional Formatting**:
-   - **Bold text** for key terms, important notes, and emphasis (e.g., **Purpose:**, **Required:**, **Note:**)
-   - Bullet points (-) for lists of items or steps
-   - Numbered lists (1., 2., 3.) for sequential processes
-   - Blank lines between all sections for readability
-   - Consistent formatting throughout
-
-5. **Complete Content**: Every section should have:
-   - A clear header
-   - Explanatory content (not just a title)
-   - Proper formatting with bold, lists, etc. as appropriate
-
-CRITICAL RULES:
-- NEVER start with plain text or bullet points without a title
-- ALWAYS begin with ## [Document Title]
-- ALWAYS include section headers for every major topic
-- ALWAYS use bold formatting for important terms and labels
-- ALWAYS include an overview/introduction section
-- NEVER create incomplete sections or placeholder text
-- The document should be ready for review immediately after drafting
-
-Example of properly formatted, ready-to-review content:
-## Travel Policy
-
-### Overview
-
-This policy establishes guidelines for business travel to ensure safety, cost-effectiveness, and compliance with company standards. All employees must follow these procedures when planning and executing business travel.
-
-## Approval Process
-
-**Who Needs Approval:** All business travel exceeding $500 requires pre-approval from your department head.
-
-**How to Request Approval:**
-1. Submit a travel request form at least 14 days before departure
-2. Include estimated costs and itinerary
-3. Await approval confirmation before booking
-
-### Pre-Travel Steps
-
-**Mandatory Requirements:**
-- Complete travel insurance enrollment
-- Register your trip in the travel portal
-- Download the company travel app for emergencies
-
-**Booking Guidelines:**
-- Use approved travel agencies only
-- Book economy class for flights under 4 hours
-- Pre-approval required for business class upgrades
-
-## Expense Guidelines
-
-### Allowable Expenses
-
-**Accommodation:**
-- Maximum $150/night for hotels
-- Include receipts for all lodging expenses
-
-**Meals:**
-- $50/day meal allowance
-- Include detailed receipts for meals over $25
-
-**Transportation:**
-- Economy class flights for domestic travel
-- Rental cars approved for destinations without public transport
-
-### Expense Report Submission
-
-**Timeline:** Submit expense reports within 10 days of trip completion.
-
-**Required Documentation:**
-- All original receipts
-- Completed expense form
-- Brief justification for any exceptions
-
-## Conclusion
-
-**Responsibility:** All employees are responsible for adhering to this travel policy. For questions or clarification, contact the HR department.
-
-This policy ensures all travel adheres to established guidelines and supports our commitment to efficient operations.` : ''}
-
-### Data Integration
-- When discussing projects, reference specific tasks and team members
-- When talking about people, mention their roles and departments
-- When suggesting improvements, reference existing wiki content
-- Always provide actionable next steps
-
-### **Professional Tone**
-- Use appropriate business language
-- Be respectful of organizational hierarchy
-- Maintain confidentiality and professionalism
-- Focus on constructive, helpful responses
-
-Remember: You have access to the full conversation history, so maintain context throughout the conversation and build upon previous exchanges naturally.`
-
-    // Generate AI response first
+    console.log('🤖 Generating LoopwellAI response...')
     const aiResponse = await generateAIResponse(
-      message,
+      prompt,
       model,
       {
         systemPrompt,
         conversationHistory,
         temperature: 0.7,
-        maxTokens: 2000
+        maxTokens: 3000 // Increased for structured JSON
       }
     )
 
-    // Build all available sources for analysis
-    const allAvailableSources: AISource[] = [
-      // Wiki sources
-      ...wikiPages.map(page => ({
-        type: 'wiki' as const,
-        id: page.id,
-          title: page.title,
-          url: `/wiki/${page.slug}`,
-        excerpt: page.excerpt || page.content.substring(0, 100) + '...'
-      })),
-      // Project sources
-      ...projects.map(project => ({
-        type: 'project' as const,
-        id: project.id,
-        title: project.name,
-        url: `/projects/${project.id}`,
-        excerpt: project.description || 'Project details'
-      })),
-      // Organization sources
-      ...orgPositions.map(position => ({
-        type: 'org' as const,
-        id: position.id || `org-${position.title}`,
-        title: `${position.title} (${position.department})`,
-        url: `/org`,
-        excerpt: `Organization position: ${position.title}`
-      })),
-      // Documentation source
-      {
-        type: 'documentation' as const,
-        id: 'lumi-product-docs',
-        title: 'Lumi Product Documentation',
-        url: '/wiki/product-reference',
-        excerpt: 'Complete Lumi Work OS product documentation'
+    // Parse structured response
+    console.log('🔍 Parsing structured response...')
+    let structuredResponse: LoopwellAIResponse | null = parseStructuredResponse(aiResponse.content)
+
+    // Fallback if parsing fails - create a simple answer response
+    if (!structuredResponse) {
+      console.warn('⚠️ Failed to parse structured response, creating fallback...')
+      structuredResponse = {
+        intent: 'answer',
+        confidence: 0.5,
+        rationale: 'Failed to parse structured response, defaulting to answer intent',
+        citations: [],
+        preview: {
+          markdown: aiResponse.content
+        },
+        next_steps: []
       }
+    }
+
+    // Build available sources for citations
+    const availableSources = [
+      ...wikiPages.map(page => ({
+          title: page.title,
+        id: page.id
+      })),
+      ...projects.map(project => ({
+        title: project.name,
+        id: project.id
+      }))
     ]
 
-    // Analyze AI response to identify which sources were actually used
-    console.log('🔍 Analyzing AI response for relevant sources...')
-    const relevantSources = await identifyRelevantSources(aiResponse.content, allAvailableSources)
-    console.log('📚 Relevant sources identified:', relevantSources.length, 'out of', allAvailableSources.length)
+    // Match citations with actual sources
+    const matchedCitations = structuredResponse.citations.map(citation => {
+      const source = availableSources.find(s => 
+        s.title.toLowerCase().includes(citation.title.toLowerCase()) ||
+        s.id === citation.id
+      )
+      return source || citation
+    })
+
+    structuredResponse.citations = matchedCitations
+
+    console.log('✅ LoopwellAI response generated:')
+    console.log('  - Intent:', structuredResponse.intent)
+    console.log('  - Confidence:', structuredResponse.confidence)
+    console.log('  - Citations:', structuredResponse.citations.length)
         
         // Save user message
         await prisma.chatMessage.create({
@@ -655,24 +493,25 @@ Remember: You have access to the full conversation history, so maintain context 
           }
         })
 
-        // Save AI response
+    // Save AI response (store full response text and structured data)
         await prisma.chatMessage.create({
           data: {
             sessionId,
             type: 'AI',
-            content: aiResponse.content,
+        content: structuredResponse.preview?.markdown || aiResponse.content,
             metadata: {
               model: aiResponse.model,
               usage: aiResponse.usage,
-              sources: relevantSources
+          structuredResponse,
+          rawResponse: aiResponse.content
             } as any
           }
         })
 
-        // Update session timestamp and generate title if it's still "New Chat"
+    // Update session timestamp and generate title if needed
         if (chatSession.title === 'New Chat') {
           console.log('🎯 Generating smart title for new chat...')
-          const smartTitle = await generateChatTitle(message, aiResponse.content)
+      const smartTitle = await generateChatTitle(message, structuredResponse)
           console.log('📝 Generated title:', smartTitle)
           
           await prisma.chatSession.update({
@@ -689,22 +528,15 @@ Remember: You have access to the full conversation history, so maintain context 
           })
         }
         
-    console.log('✅ AI response generated successfully')
-    console.log('  - Model used:', aiResponse.model)
-    console.log('  - Response length:', aiResponse.content.length)
-    if (aiResponse.usage) {
-      console.log('  - Tokens used:', aiResponse.usage.totalTokens)
-    }
-
+    // Return structured response
     return NextResponse.json({
-      content: aiResponse.content,
+      ...structuredResponse,
       model: aiResponse.model,
-      usage: aiResponse.usage,
-      sources: relevantSources
+      usage: aiResponse.usage
     })
 
   } catch (error) {
-    console.error('Error in AI chat:', error)
+    console.error('Error in LoopwellAI chat:', error)
     return NextResponse.json({ 
       error: 'Failed to process request',
       details: error instanceof Error ? error.message : 'Unknown error'

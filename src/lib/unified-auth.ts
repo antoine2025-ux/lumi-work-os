@@ -228,14 +228,22 @@ async function resolveActiveWorkspaceId(
   }
 
   // Priority 3: User's default workspace
-  const userWorkspace = await prisma.workspaceMember.findFirst({
+  // Get all memberships and find the first one with an existing workspace
+  const userMemberships = await prisma.workspaceMember.findMany({
     where: { userId },
     orderBy: { joinedAt: 'asc' },
-    select: { workspaceId: true }
+    include: {
+      workspace: {
+        select: { id: true } // Verify workspace still exists
+      }
+    }
   })
 
-  if (userWorkspace) {
-    return userWorkspace.workspaceId
+  // Find first membership with existing workspace
+  const validMembership = userMemberships.find(m => m.workspace !== null)
+  
+  if (validMembership) {
+    return validMembership.workspaceId
   }
 
   // No workspace found - user needs to create one
