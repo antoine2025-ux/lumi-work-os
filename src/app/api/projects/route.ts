@@ -27,6 +27,19 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
+    // Generate cache key
+    const cacheKey = cache.generateKey(
+      CACHE_KEYS.PROJECTS,
+      auth.workspaceId,
+      status || 'all'
+    )
+
+    // Check cache first
+    const cached = await cache.get(cacheKey)
+    if (cached) {
+      return NextResponse.json(cached)
+    }
+
     const where: any = { workspaceId: auth.workspaceId } // 5. Use activeWorkspaceId, no hardcoded values
     if (status) {
       where.status = status
@@ -96,6 +109,9 @@ export async function GET(request: NextRequest) {
         createdAt: 'desc'
       }
     })
+
+    // Cache the result for 5 minutes
+    await cache.set(cacheKey, projects, CACHE_TTL.SHORT)
 
     return NextResponse.json(projects)
   } catch (error) {

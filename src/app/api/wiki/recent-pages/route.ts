@@ -3,6 +3,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
+import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,6 +23,19 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
     const workspaceType = searchParams.get('workspace_type') // Filter by workspace_type if provided
+
+    // Generate cache key
+    const cacheKey = cache.generateKey(
+      CACHE_KEYS.WIKI_PAGES,
+      auth.workspaceId,
+      `recent_${limit}_${workspaceType || 'all'}`
+    )
+
+    // Check cache first
+    const cached = await cache.get(cacheKey)
+    if (cached) {
+      return NextResponse.json(cached)
+    }
 
     // Build where clause - filter by workspaceId and optionally by workspace_type
     const baseWhere: any = {
@@ -95,6 +109,9 @@ export async function GET(request: NextRequest) {
       // The frontend will handle null values for legacy pages
       workspace_type: page.workspace_type ?? null
     }))
+
+    // Cache the result for 2 minutes
+    await cache.set(cacheKey, formattedPages, CACHE_TTL.SHORT)
 
     return NextResponse.json(formattedPages)
   } catch (error) {
