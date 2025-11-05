@@ -69,7 +69,7 @@ export default function LoginPage() {
                 <BookOpen className="w-8 h-8 text-primary-foreground" />
               </div>
             </div>
-            <CardTitle className="text-2xl font-bold">Welcome to Lumi Work OS</CardTitle>
+            <CardTitle className="text-2xl font-bold">Welcome to Loopwell Work OS</CardTitle>
             <CardDescription className="text-base">
               Your comprehensive workplace operating system
             </CardDescription>

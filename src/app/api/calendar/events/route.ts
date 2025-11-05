@@ -223,6 +223,9 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching calendar events:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('Error details:', { errorMessage, errorStack })
     
     // Handle token refresh if needed
     if (error instanceof Error && error.message.includes('invalid_grant')) {
@@ -233,7 +236,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ 
-      error: 'Failed to fetch calendar events' 
+      error: 'Failed to fetch calendar events',
+      details: errorMessage,
+      ...(process.env.NODE_ENV === 'development' && { stack: errorStack })
     }, { status: 500 })
   }
 }

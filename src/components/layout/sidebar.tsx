@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { 
   LayoutDashboard, 
@@ -31,10 +32,15 @@ export function Sidebar() {
     <div className="flex h-full w-64 flex-col bg-card border-r">
       <div className="flex h-16 items-center px-6 border-b">
         <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg">L</span>
-          </div>
-          <span className="text-xl font-semibold">Lumi</span>
+          <Image 
+            src="/loopwell-logo.png" 
+            alt="Loopwell Logo" 
+            width={32} 
+            height={32} 
+            className="h-8 w-8"
+            priority
+          />
+          <span className="text-xl font-semibold">Loopwell</span>
         </div>
       </div>
       

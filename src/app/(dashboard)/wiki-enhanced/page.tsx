@@ -66,7 +66,7 @@ export default function EnhancedWikiPage() {
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px;">
       <div style="padding: 16px; background-color: #f9fafb; border-radius: 8px;">
         <h3 style="font-weight: 600; color: #111827; margin-bottom: 8px;">Project Tracking</h3>
-        <p style="color: #374151; font-size: 14px;">Use tools like Lumi's project management features to track progress and manage tasks effectively.</p>
+        <p style="color: #374151; font-size: 14px;">Use tools like Loopwell's project management features to track progress and manage tasks effectively.</p>
       </div>
       <div style="padding: 16px; background-color: #f9fafb; border-radius: 8px;">
         <h3 style="font-weight: 600; color: #111827; margin-bottom: 8px;">Collaboration</h3>

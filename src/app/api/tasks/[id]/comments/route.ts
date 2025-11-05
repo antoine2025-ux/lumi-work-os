@@ -23,8 +23,17 @@ export async function GET(
 
     // Get session and verify access
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
 
     // Get task with project info
@@ -38,7 +47,7 @@ export async function GET(
     }
 
     // Check project access
-    await assertProjectAccess(session.user, task.projectId)
+    await assertProjectAccess(user, task.projectId)
 
     // Get comments with user info
     const comments = await prisma.taskComment.findMany({
@@ -58,9 +67,10 @@ export async function GET(
     return NextResponse.json(comments)
   } catch (error) {
     console.error('Error fetching comments:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ 
       error: 'Failed to fetch comments',
-      details: error.message 
+      details: errorMessage
     }, { status: 500 })
   }
 }
@@ -77,8 +87,17 @@ export async function POST(
 
     // Get session and verify access
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
 
     // Get task with project info
@@ -101,7 +120,7 @@ export async function POST(
     }
 
     // Check project access
-    await assertProjectAccess(session.user, task.projectId)
+    await assertProjectAccess(user, task.projectId)
 
     // Validate mentioned users exist and are project members
     if (validatedData.mentions && validatedData.mentions.length > 0) {
@@ -190,7 +209,7 @@ export async function POST(
     console.error('Error creating comment:', error)
     return NextResponse.json({ 
       error: 'Failed to create comment',
-      details: error.message 
+      details: error instanceof Error ? error.message : String(error) 
     }, { status: 500 })
   }
 }

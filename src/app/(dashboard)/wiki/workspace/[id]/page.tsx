@@ -59,9 +59,10 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
       setIsLoading(true)
 
       // Load all data in parallel for better performance
+      // Pass workspace_type to filter pages server-side
       const [workspacesResponse, pagesResponse, projectsResponse] = await Promise.all([
         fetch('/api/wiki/workspaces'),
-        fetch('/api/wiki/recent-pages?limit=100'),
+        fetch(`/api/wiki/recent-pages?limit=100&workspace_type=${encodeURIComponent(resolvedParams.id)}`),
         fetch(`/api/projects?workspaceId=${userStatus.workspaceId}`)
       ])
 
@@ -73,11 +74,12 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
       }
 
       // Process pages response
+      // Pages are already filtered server-side by workspace_type
       if (pagesResponse.ok) {
         const pages = await pagesResponse.json()
         
         if (Array.isArray(pages)) {
-          // Filter for custom workspace pages - match the EXACT same logic as sidebar
+          // Double-check filtering (defensive programming)
           const filtered = pages.filter((page: any) => {
             const pageWorkspaceType = page.workspace_type
             return pageWorkspaceType === resolvedParams.id

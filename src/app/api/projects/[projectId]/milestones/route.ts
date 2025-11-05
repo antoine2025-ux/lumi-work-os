@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { CreateMilestoneSchema, UpdateMilestoneSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
-import { isDevBypassAllowed } from '@/lib/unified-auth'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { prisma } from '@/lib/db'
 
@@ -16,8 +15,21 @@ export async function GET(
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
 
-    // Get session and verify access (development bypass)
+    // Get session and verify access
     const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
     
     // Check if project exists first
     const project = await prisma.project.findUnique({
@@ -28,66 +40,10 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
     
-    // Development bypass - if no session OR if user doesn't have project access
-    if (!session?.user?.id) {
-      // Return milestones without authentication for development
-      const milestones = await prisma.milestone.findMany({
-        where: { projectId },
-        include: {
-          tasks: {
-            select: {
-              id: true,
-              title: true,
-              status: true,
-              priority: true,
-              points: true
-            }
-          },
-          _count: {
-            select: {
-              tasks: true
-            }
-          }
-        },
-        orderBy: { startDate: 'asc' }
-      })
-
-      return NextResponse.json(milestones)
-    }
-
-    // Check project access for authenticated users
-    try {
-      const accessResult = await assertProjectAccess(session.user, projectId)
-      if (!accessResult) {
-        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-      }
-    } catch (error) {
-      // If access check fails, use development bypass
-      console.log('Access check failed, using development bypass:', error.message)
-      const milestones = await prisma.milestone.findMany({
-        where: { projectId },
-        include: {
-          tasks: {
-            select: {
-              id: true,
-              title: true,
-              status: true,
-              priority: true,
-              points: true
-            }
-          },
-          _count: {
-            select: {
-              tasks: true
-            }
-          }
-        },
-        orderBy: { startDate: 'asc' }
-      })
-
-      return NextResponse.json(milestones)
-    }
-
+    // Verify project access
+    await assertProjectAccess(user, projectId)
+    
+    // Get milestones
     const milestones = await prisma.milestone.findMany({
       where: { projectId },
       include: {
@@ -112,8 +68,10 @@ export async function GET(
     return NextResponse.json(milestones)
   } catch (error) {
     console.error('Error fetching milestones:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ 
-      error: 'Failed to fetch milestones' 
+      error: 'Failed to fetch milestones',
+      details: errorMessage
     }, { status: 500 })
   }
 }
@@ -129,12 +87,21 @@ export async function POST(
 
     // Get session and verify access
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+
     // Check write access
-    const accessResult = await assertProjectWriteAccess(session.user, projectId)
+    const accessResult = await assertProjectWriteAccess(user, projectId)
     if (!accessResult) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
@@ -185,16 +152,18 @@ export async function POST(
 
     return NextResponse.json(milestone, { status: 201 })
   } catch (error) {
-    if (error.name === 'ZodError') {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json({ 
         error: 'Validation error',
-        details: error.errors 
+        details: (error as any).errors 
       }, { status: 400 })
     }
 
     console.error('Error creating milestone:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ 
-      error: 'Failed to create milestone' 
+      error: 'Failed to create milestone',
+      details: errorMessage
     }, { status: 500 })
   }
 }

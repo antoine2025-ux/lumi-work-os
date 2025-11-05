@@ -27,8 +27,17 @@ export async function POST(
 
     // Get session for history logging
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
 
     // Get task with project info
@@ -49,7 +58,7 @@ export async function POST(
     }
 
     // Check project access
-    await assertProjectAccess(session.user, task.projectId)
+    await assertProjectAccess(user, task.projectId)
 
     // Get all custom field definitions for this project
     const fieldDefs = await prisma.customFieldDef.findMany({

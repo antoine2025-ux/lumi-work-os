@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth/next'
+import { cookies } from 'next/headers'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { createDefaultWorkspaceForUser } from '@/lib/workspace-onboarding'
-import { getDevUserEmail, getDevUserName } from '@/lib/dev-config'
 
 export interface UnifiedAuthUser {
   userId: string
@@ -27,23 +27,47 @@ export interface AuthContext {
  * Consolidates all authentication logic into a single, consistent interface
  */
 export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext> {
-  const session = await getServerSession(authOptions)
-  const allowDevLogin = process.env.ALLOW_DEV_LOGIN === 'true'
-  const prodLock = process.env.PROD_LOCK === 'true'
-  const isDevelopment = process.env.NODE_ENV === 'development'
+  // In App Router, getServerSession should work automatically
+  // But for API routes, we need to handle it differently
+  let session
+  try {
+    if (request) {
+      // For API routes, extract cookies from request and pass to getServerSession
+      const cookieHeader = request.headers.get('cookie') || ''
+      
+      // Create a request object that getServerSession can use
+      const req = {
+        headers: {
+          cookie: cookieHeader,
+          get: (name: string) => request.headers.get(name),
+        },
+        cookies: {
+          get: (name: string) => {
+            const match = cookieHeader.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+            return match ? { value: decodeURIComponent(match[1]) } : null
+          },
+          getAll: () => {
+            return cookieHeader.split('; ').map(cookie => {
+              const [name, ...values] = cookie.split('=')
+              return { name, value: decodeURIComponent(values.join('=')) }
+            })
+          },
+        },
+      } as any
 
-  // Development mode with bypass enabled
-  if (!session?.user?.email && allowDevLogin && isDevelopment && !prodLock) {
-    return await getDevAuthContext(request)
+      session = await getServerSession(authOptions)
+    } else {
+      // For server components, use getServerSession directly
+      session = await getServerSession(authOptions)
+    }
+  } catch (error) {
+    console.error('Error getting session:', error)
+    session = null
   }
-
-  // Production or session-based auth
+  // Require authentication - no dev bypasses
+  // All users must authenticate through Google OAuth
   if (!session?.user?.email) {
-    throw new Error('Unauthorized: No session found')
-  }
-
-  if (prodLock && !session?.user?.email) {
-    throw new Error('Unauthorized: Production lock enabled')
+    throw new Error('Unauthorized: No session found. Please log in through Google OAuth.')
   }
 
   // Get or create user from session
@@ -90,68 +114,6 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
     workspaceId: activeWorkspaceId,
     isAuthenticated: true,
     isDevelopment: false
-  }
-}
-
-/**
- * Get development authentication context
- */
-async function getDevAuthContext(request?: NextRequest): Promise<AuthContext> {
-  // Create or get development user
-  const devEmail = getDevUserEmail()
-  const devName = getDevUserName()
-  
-  let devUser = await prisma.user.findFirst({
-    where: { email: devEmail }
-  })
-
-  if (!devUser) {
-    devUser = await prisma.user.create({
-      data: {
-        email: devEmail,
-        name: devName,
-        image: null,
-        emailVerified: new Date()
-      }
-    })
-  }
-
-  // Get development workspace (don't auto-create)
-  const workspace = await prisma.workspace.findFirst({
-    where: { ownerId: devUser.id }
-  })
-
-  if (!workspace) {
-    // No workspace found - user needs to create one
-    return {
-      user: {
-        userId: devUser.id,
-        activeWorkspaceId: '',
-        roles: [],
-        isDev: true,
-        email: devUser.email,
-        name: devUser.name || undefined,
-        isFirstTime: true
-      },
-      workspaceId: '',
-      isAuthenticated: false,
-      isDevelopment: true
-    }
-  }
-
-  return {
-    user: {
-      userId: devUser.id,
-      activeWorkspaceId: workspace.id,
-      roles: ['OWNER'],
-      isDev: true,
-      email: devUser.email,
-      name: devUser.name || undefined,
-      isFirstTime: false
-    },
-    workspaceId: workspace.id,
-    isAuthenticated: false,
-    isDevelopment: true
   }
 }
 
@@ -270,17 +232,6 @@ export async function withUnifiedAuthRequest<T>(
 ): Promise<T> {
   const auth = await getUnifiedAuth(request)
   return handler(auth, request)
-}
-
-/**
- * Check if current context allows dev bypasses
- */
-export function isDevBypassAllowed(): boolean {
-  const allowDevLogin = process.env.ALLOW_DEV_LOGIN === 'true'
-  const prodLock = process.env.PROD_LOCK === 'true'
-  const isDevelopment = process.env.NODE_ENV === 'development'
-  
-  return allowDevLogin && isDevelopment && !prodLock
 }
 
 /**

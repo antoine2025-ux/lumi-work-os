@@ -61,7 +61,7 @@ export function WelcomeScreen({ user, onCreateWorkspace, isLoading = false }: We
             </div>
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Welcome to Lumi, {user.name}! 🎉
+            Welcome to Loopwell, {user.name}! 🎉
           </h1>
           <p className="text-xl text-gray-600">
             Let's set up your workspace to get started
@@ -131,7 +131,7 @@ export function WelcomeScreen({ user, onCreateWorkspace, isLoading = false }: We
               <div className="space-y-2">
                 <Label htmlFor="workspace-slug">Workspace URL</Label>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">lumi.app/</span>
+                  <span className="text-sm text-gray-500">loopwell.app/</span>
                   <Input
                     id="workspace-slug"
                     value={workspaceData.slug}

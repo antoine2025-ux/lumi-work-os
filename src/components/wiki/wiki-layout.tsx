@@ -53,6 +53,7 @@ import {
   Target
 } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 
@@ -150,8 +151,9 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
         },
         body: JSON.stringify({
           name: newWorkspaceName.trim(),
-          description: newWorkspaceDescription.trim(),
-          type: 'team'
+          description: newWorkspaceDescription.trim()
+          // Don't specify type - let it be created as a custom workspace (null type)
+          // This ensures each workspace is independent and doesn't duplicate Team Workspace
         })
       })
 
@@ -194,9 +196,9 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     e.preventDefault()
     e.stopPropagation()
     
-    // Prevent deletion of default workspaces (Personal Space and Team Workspace)
-    if (workspaceIdToDelete.startsWith('personal-space-') || workspaceIdToDelete.startsWith('team-workspace-')) {
-      alert('Default workspaces (Personal Space and Team Workspace) cannot be deleted')
+    // Prevent deletion of Personal Space (ONLY default workspace)
+    if (workspaceIdToDelete.startsWith('personal-space-')) {
+      alert('Personal Space is a default workspace and cannot be deleted')
       return
     }
     
@@ -221,9 +223,9 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
         setWorkspaces(workspacesData)
       }
 
-      // Redirect to Team Workspace if we deleted the current workspace
+      // Redirect to Personal Space if we deleted the current workspace
       if (pathname.includes(`/wiki/workspace/${workspaceIdToDelete}`)) {
-        router.push('/wiki/team-workspace')
+        router.push('/wiki/personal-space')
       }
     } catch (error) {
       console.error('Error deleting workspace:', error)
@@ -390,7 +392,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
       // Determine workspace_type based on selected workspace
       let workspaceType = 'team'
       if (selectedWorkspaceForPage) {
-        // Handle special cases like 'personal-space' string
+        // Handle special cases like 'personal-space' or 'team-workspace' strings
         if (selectedWorkspaceForPage === 'personal-space') {
           // Find the personal workspace by type
           const personalWorkspace = workspaces.find(w => w.type === 'personal' || w.id?.startsWith('personal-space-'))
@@ -398,6 +400,10 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
             workspaceType = 'personal'
             console.log('✅ Setting workspace_type to personal (from personal-space string)')
           }
+        } else if (selectedWorkspaceForPage === 'team-workspace') {
+          // Handle team-workspace string - explicitly set to 'team'
+          workspaceType = 'team'
+          console.log('✅ Setting workspace_type to team (from team-workspace string)')
         } else {
           const selectedWorkspace = workspaces.find(w => w.id === selectedWorkspaceForPage)
           console.log('🔍 Selected workspace:', selectedWorkspace)
@@ -410,6 +416,22 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
             // For custom workspaces, use the workspace ID
             workspaceType = selectedWorkspace.id
             console.log('✅ Setting workspace_type to custom workspace ID:', workspaceType)
+          }
+        }
+      } else {
+        // If no workspace selected, determine from current path
+        if (pathname.includes('/wiki/personal-space')) {
+          workspaceType = 'personal'
+          console.log('✅ Setting workspace_type to personal (from pathname)')
+        } else if (pathname.includes('/wiki/team-workspace')) {
+          workspaceType = 'team'
+          console.log('✅ Setting workspace_type to team (from pathname)')
+        } else if (pathname.includes('/wiki/workspace/')) {
+          // Extract workspace ID from pathname for custom workspaces
+          const match = pathname.match(/\/wiki\/workspace\/([^\/]+)/)
+          if (match && match[1]) {
+            workspaceType = match[1]
+            console.log('✅ Setting workspace_type to custom workspace ID from pathname:', workspaceType)
           }
         }
       }
@@ -519,11 +541,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
               if (w.id?.startsWith('personal-space-')) {
                 return { ...w, name: 'Personal Space' }
               }
-              // Check if this is a default Team Workspace
-              if (w.id?.startsWith('team-workspace-')) {
-                return { ...w, name: 'Team Workspace' }
-              }
-              // For custom workspaces, keep their original names
+              // For all other workspaces (including Team Workspace if it exists), keep their original names
               return w
             })
             
@@ -536,8 +554,10 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
         }
 
         // Load all data in parallel for better performance
+        // Note: We fetch all pages here for the sidebar, but each workspace will filter its own pages
+        // The filtering happens client-side based on workspace_type to avoid multiple API calls
         const [recentResponse, favoritesResponse, projectsResponse] = await Promise.all([
-          fetch('/api/wiki/recent-pages?limit=50'),
+          fetch('/api/wiki/recent-pages?limit=100'),
           fetch('/api/wiki/favorites'),
           fetch(`/api/projects?workspaceId=${workspaceId}`)
         ])
@@ -675,8 +695,14 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
 
               {/* AI Assistant Button */}
               <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white mb-3">
-                <Brain className="h-4 w-4 mr-2" />
-                Ask Lumi AI
+                <Image 
+                  src="/loopwell-logo.png" 
+                  alt="Loopwell AI" 
+                  width={16} 
+                  height={16} 
+                  className="w-4 h-4 mr-2"
+                />
+                Ask Loopwell AI
               </Button>
 
               {/* Create New Page Button */}
@@ -739,11 +765,9 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                     <>
                       {workspaces
                         .sort((a, b) => {
-                          // Sort: Personal Space first, Team Workspace second, then custom workspaces alphabetically
+                          // Sort: Personal Space first, then all other workspaces alphabetically
                           if (a.type === 'personal') return -1
                           if (b.type === 'personal') return 1
-                          if (a.type === 'team') return -1
-                          if (b.type === 'team') return 1
                           return a.name.localeCompare(b.name)
                         })
                         .map((workspace) => {
@@ -754,11 +778,12 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                           ? '/wiki/team-workspace'
                           : `/wiki/workspace/${workspace.id}`
                         
-                        // Determine if this is a custom workspace
-                        const isCustomWorkspace = workspace.type !== 'personal' && workspace.type !== 'team'
-                        
+                        // Determine workspace type
+                        // Only Personal Space is a default workspace - everything else (including Team Workspace) is a regular workspace
                         const isPersonalSpace = workspace.type === 'personal'
                         const isTeamWorkspace = workspace.type === 'team'
+                        // Custom workspaces are any that aren't personal (including Team Workspace and null-type workspaces)
+                        const isCustomWorkspace = !isPersonalSpace
                         const personalPages = recentPages.filter(p => p.permissionLevel === 'personal')
                         const teamPages = recentPages.filter(p => p.permissionLevel !== 'personal')
                         
@@ -785,13 +810,24 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                             return false
                           })
                         } else if (isTeamWorkspace) {
-                          // Team Workspace: Show pages marked as 'team' OR unset/null, BUT exclude personal pages
+                          // Team Workspace: Show pages marked as 'team' OR unset/null, BUT exclude personal pages AND custom workspace pages
                           workspacePages = recentPages.filter(p => {
                             const pageWorkspaceType = (p as any).workspace_type
                             const pagePermissionLevel = p.permissionLevel
                             
                             // Exclude personal pages explicitly - highest priority
                             if (pageWorkspaceType === 'personal') {
+                              return false
+                            }
+                            
+                            // Exclude custom workspace pages - they should only show in their own workspace
+                            // Custom workspace IDs don't match 'team' or 'personal' and are not null/empty
+                            if (pageWorkspaceType && 
+                                pageWorkspaceType !== 'team' && 
+                                pageWorkspaceType !== 'personal' &&
+                                pageWorkspaceType !== null &&
+                                pageWorkspaceType !== undefined &&
+                                pageWorkspaceType !== '') {
                               return false
                             }
                             
@@ -810,20 +846,29 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                               return pagePermissionLevel !== 'personal'
                             }
                             
-                            // Don't include custom workspace pages here (they show in their own workspace)
+                            // Don't include anything else
                             return false
                           })
                         } else if (isCustomWorkspace) {
-                          // Custom Workspace: ONLY show pages with workspace_type matching this workspace ID
+                          // Custom Workspace: STRICTLY ONLY show pages with workspace_type matching this workspace ID
+                          // Exclude 'team', 'personal', null, or any other value
                           workspacePages = recentPages.filter(p => {
                             const pageWorkspaceType = (p as any).workspace_type
-                            return pageWorkspaceType === workspace.id
+                            // Only include if workspace_type exactly matches this workspace ID
+                            // This ensures pages from team/personal workspaces don't leak into custom workspaces
+                            return pageWorkspaceType === workspace.id && 
+                                   pageWorkspaceType !== 'team' && 
+                                   pageWorkspaceType !== 'personal' &&
+                                   pageWorkspaceType !== null &&
+                                   pageWorkspaceType !== undefined &&
+                                   pageWorkspaceType !== ''
                           })
                         }
                         
                         const isExpanded = expandedWorkspaces[workspace.id] || false
                         const hasPages = workspacePages.length > 0
-                        const showDeleteButton = !isPersonalSpace && !isTeamWorkspace
+                        // Only Personal Space cannot be deleted - all other workspaces (including Team Workspace) are deletable
+                        const showDeleteButton = !isPersonalSpace
                         
                         if (showDeleteButton) {
                           console.log('🗑️ Show delete button for:', workspace.name, workspace.id)
@@ -1244,13 +1289,14 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
               </div>
             </div>
 
-            {/* AI Assistant */}
+            {/* AI Assistant - Bottom bar mode when creating/editing */}
             <WikiAIAssistant 
               currentTitle={newPageTitle}
               currentContent={newPageContent}
               onContentUpdate={setNewPageContent}
               onOpenChange={setIsAISidebarOpen}
               onDisplayModeChange={setAiDisplayMode}
+              mode="bottom-bar"
             />
           </div>
         ) : (

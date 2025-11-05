@@ -25,10 +25,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email! }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+
     // Check project access (require admin/owner to change settings) - development bypass
     let accessResult: any
     try {
-      accessResult = await assertProjectAccess(session.user, projectId, 'ADMIN')
+      accessResult = await assertProjectAccess(user, projectId, 'ADMIN')
       if (!accessResult) {
         return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
       }

@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/db'
-import { isDevBypassAllowed } from '@/lib/unified-auth'
 
 export type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
 
@@ -29,11 +28,6 @@ export async function assertAccess(opts: AccessOptions): Promise<void> {
   })
 
   if (!workspaceMember) {
-    // Allow dev bypass in development
-    if (isDevBypassAllowed()) {
-      console.warn(`Dev bypass: User ${userId} not found in workspace ${workspaceId}`)
-      return
-    }
     throw new Error('Forbidden: User not member of workspace')
   }
 
@@ -66,12 +60,6 @@ export async function assertAccess(opts: AccessOptions): Promise<void> {
     if (project && (project.createdById === userId || project.ownerId === userId)) {
       return
     }
-  }
-
-  // Allow dev bypass in development
-  if (isDevBypassAllowed()) {
-    console.warn(`Dev bypass: User ${userId} lacks required role ${requireRole.join(', ')} for ${scope} ${projectId || workspaceId}`)
-    return
   }
 
   throw new Error(`Forbidden: Insufficient ${scope} permissions`)

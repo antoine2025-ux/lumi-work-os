@@ -21,13 +21,47 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
+    const workspaceType = searchParams.get('workspace_type') // Filter by workspace_type if provided
+
+    // Build where clause - filter by workspaceId and optionally by workspace_type
+    const baseWhere: any = {
+      workspaceId: auth.workspaceId,
+      isPublished: true
+    }
+
+    // If workspace_type is provided, filter by it
+    // This allows filtering for 'personal', 'team', or custom workspace IDs
+    let whereClause: any = baseWhere
+    
+    if (workspaceType) {
+      if (workspaceType === 'team') {
+        // For team workspace, include pages with workspace_type='team' OR legacy pages (null workspace_type with non-personal permission)
+        whereClause = {
+          ...baseWhere,
+          OR: [
+            { workspace_type: 'team' },
+            {
+              workspace_type: null,
+              permissionLevel: { not: 'personal' }
+            },
+            {
+              workspace_type: '',
+              permissionLevel: { not: 'personal' }
+            }
+          ]
+        }
+      } else {
+        // For personal or custom workspaces, filter strictly by workspace_type
+        whereClause = {
+          ...baseWhere,
+          workspace_type: workspaceType
+        }
+      }
+    }
 
     // Optimized query: Use select instead of include, don't load full content
     const recentPages = await prisma.wikiPage.findMany({
-      where: {
-        workspaceId: auth.workspaceId,
-        isPublished: true
-      },
+      where: whereClause,
       select: {
         id: true,
         title: true,

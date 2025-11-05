@@ -87,8 +87,9 @@ export default function TeamWorkspacePage() {
       }
 
       // Fetch all data in parallel for better performance
+      // Filter for team workspace pages server-side
       const [pagesResponse, projectsResponse] = await Promise.all([
-        fetch('/api/wiki/recent-pages?limit=100'),
+        fetch('/api/wiki/recent-pages?limit=100&workspace_type=team'),
         fetch(`/api/projects?workspaceId=${userStatus.workspaceId}`)
       ])
 

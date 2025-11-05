@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     const wikiContext = getWikiContext()
 
     // Create OpenAI prompt
-    const systemPrompt = `You are Lumi's AI onboarding designer. Given the role, seniority, department, and duration, along with company context, output a concise onboarding plan as strict JSON:
+    const systemPrompt = `You are Loopwell's AI onboarding designer. Given the role, seniority, department, and duration, along with company context, output a concise onboarding plan as strict JSON:
 
 {
   "planName": "Role - Duration Day Plan",

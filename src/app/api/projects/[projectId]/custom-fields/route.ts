@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { assertProjectAccess } from '@/lib/pm/guards'
-import { isDevBypassAllowed } from '@/lib/unified-auth'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 
@@ -35,26 +34,20 @@ export async function GET(
     // Get session and verify project access
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      // Development bypass: allow access without session (only if dev mode enabled)
-      if (isDevBypassAllowed()) {
-        console.log('No session found, using development bypass for custom fields')
-        // Continue with development bypass
-      } else {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    try {
-      await assertProjectAccess(session?.user, projectId)
-    } catch (error) {
-      // Development bypass: allow access if project exists (only if dev mode enabled)
-      if (isDevBypassAllowed() && error.message.includes('Insufficient project permissions')) {
-        console.log('Access check failed, using development bypass:', error.message)
-        // Continue with development bypass
-      } else {
-        throw error
-      }
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
+
+    // Verify project access
+    await assertProjectAccess(user, projectId)
 
     const customFields = await prisma.customFieldDef.findMany({
       where: { projectId },
@@ -64,9 +57,10 @@ export async function GET(
     return NextResponse.json(customFields)
   } catch (error) {
     console.error('Error fetching custom fields:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ 
       error: 'Failed to fetch custom fields',
-      details: error.message 
+      details: errorMessage
     }, { status: 500 })
   }
 }
@@ -84,26 +78,20 @@ export async function POST(
     // Get session and verify project access
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      // Development bypass: allow access without session (only if dev mode enabled)
-      if (isDevBypassAllowed()) {
-        console.log('No session found, using development bypass for custom fields POST')
-        // Continue with development bypass
-      } else {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    try {
-      await assertProjectAccess(session?.user, projectId)
-    } catch (error) {
-      // Development bypass: allow access if project exists (only if dev mode enabled)
-      if (isDevBypassAllowed() && error.message.includes('Insufficient project permissions')) {
-        console.log('Access check failed, using development bypass:', error.message)
-        // Continue with development bypass
-      } else {
-        throw error
-      }
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
+
+    // Verify project access
+    await assertProjectAccess(user, projectId)
 
     // Check if key already exists for this project
     const existingField = await prisma.customFieldDef.findFirst({
@@ -125,24 +113,25 @@ export async function POST(
         key: validatedData.key,
         label: validatedData.label,
         type: validatedData.type,
-        options: validatedData.options ? JSON.stringify(validatedData.options) : null,
+        options: validatedData.options ? JSON.stringify(validatedData.options) : undefined,
         uniqueKey: `${projectId}:${validatedData.key}`
       }
     })
 
     return NextResponse.json(customField)
   } catch (error) {
-    if (error.name === 'ZodError') {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json({ 
         error: 'Validation error',
-        details: error.errors 
+        details: (error as any).errors 
       }, { status: 400 })
     }
 
     console.error('Error creating custom field:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ 
       error: 'Failed to create custom field',
-      details: error.message 
+      details: errorMessage
     }, { status: 500 })
   }
 }

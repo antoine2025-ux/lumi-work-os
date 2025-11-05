@@ -26,11 +26,20 @@ export async function GET(
 
     // Get session and verify project access
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await assertProjectAccess(session.user, projectId)
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+
+    await assertProjectAccess(user, projectId)
 
     const customField = await prisma.customFieldDef.findFirst({
       where: { 
@@ -46,9 +55,10 @@ export async function GET(
     return NextResponse.json(customField)
   } catch (error) {
     console.error('Error fetching custom field:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ 
       error: 'Failed to fetch custom field',
-      details: error.message 
+      details: errorMessage
     }, { status: 500 })
   }
 }
@@ -65,11 +75,20 @@ export async function PATCH(
 
     // Get session and verify project access
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await assertProjectAccess(session.user, projectId)
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+
+    await assertProjectAccess(user, projectId)
 
     // Check if custom field exists
     const existingField = await prisma.customFieldDef.findFirst({
@@ -116,17 +135,18 @@ export async function PATCH(
 
     return NextResponse.json(customField)
   } catch (error) {
-    if (error.name === 'ZodError') {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json({ 
         error: 'Validation error',
-        details: error.errors 
+        details: (error as any).errors 
       }, { status: 400 })
     }
 
     console.error('Error updating custom field:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ 
       error: 'Failed to update custom field',
-      details: error.message 
+      details: errorMessage
     }, { status: 500 })
   }
 }
@@ -141,11 +161,20 @@ export async function DELETE(
 
     // Get session and verify project access
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await assertProjectAccess(session.user, projectId)
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+
+    await assertProjectAccess(user, projectId)
 
     // Check if custom field exists
     const existingField = await prisma.customFieldDef.findFirst({
@@ -167,9 +196,10 @@ export async function DELETE(
     return NextResponse.json({ message: 'Custom field deleted successfully' })
   } catch (error) {
     console.error('Error deleting custom field:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ 
       error: 'Failed to delete custom field',
-      details: error.message 
+      details: errorMessage
     }, { status: 500 })
   }
 }

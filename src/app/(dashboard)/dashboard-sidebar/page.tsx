@@ -188,7 +188,7 @@ export default function DashboardSidebarPage() {
           {/* Logo */}
           <div className="flex items-center justify-between mb-8">
             {!sidebarCollapsed && (
-              <h1 className="text-lg font-semibold" style={{ color: themeConfig.foreground }}>Lumi</h1>
+              <h1 className="text-lg font-semibold" style={{ color: themeConfig.foreground }}>Loopwell</h1>
             )}
             <Button 
               variant="ghost" 

@@ -60,7 +60,7 @@ export default function WikiMockPage() {
                   <span className="text-white text-sm font-bold">L</span>
                 </div>
                 <div className="text-gray-900 text-sm">
-                  <div className="font-semibold">Lumi Workspace</div>
+                  <div className="font-semibold">Loopwell Workspace</div>
                   <div className="text-gray-500 text-xs">Knowledge Hub</div>
                 </div>
               </div>
@@ -95,7 +95,7 @@ export default function WikiMockPage() {
               {/* AI Assistant Button */}
               <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white mb-4">
                 <Brain className="h-4 w-4 mr-2" />
-                Ask Lumi AI
+                Ask Loopwell AI
               </Button>
             </>
           )}
@@ -337,7 +337,7 @@ export default function WikiMockPage() {
                 <div className="grid md:grid-cols-2 gap-4 mb-6">
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <h3 className="font-semibold text-gray-900 mb-2">Project Tracking</h3>
-                    <p className="text-gray-700 text-sm">Use tools like Lumi's project management features to track progress and manage tasks effectively.</p>
+                    <p className="text-gray-700 text-sm">Use tools like Loopwell's project management features to track progress and manage tasks effectively.</p>
                   </div>
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <h3 className="font-semibold text-gray-900 mb-2">Collaboration</h3>

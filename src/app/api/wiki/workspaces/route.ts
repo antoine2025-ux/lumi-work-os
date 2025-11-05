@@ -52,72 +52,44 @@ export async function GET(request: NextRequest) {
     })
 
     console.log('📋 Current workspaces:', workspaces.map(w => ({ id: w.id, name: w.name, type: w.type })))
-    console.log('🔍 Looking for Personal Space and Team Workspace in workspace:', workspaceId)
+    console.log('🔍 Looking for Personal Space in workspace:', workspaceId)
 
-    // Check if Personal Space and Team Workspace exist by type
+    // Check if Personal Space exists (ONLY default workspace)
     const hasPersonalSpace = workspaces.some(w => w.type === 'personal')
-    const hasTeamWorkspace = workspaces.some(w => w.type === 'team')
     
     console.log('📊 Workspace types breakdown:', {
       personal: workspaces.filter(w => w.type === 'personal').length,
-      team: workspaces.filter(w => w.type === 'team').length,
-      custom: workspaces.filter(w => w.type !== 'personal' && w.type !== 'team').length,
+      custom: workspaces.filter(w => w.type !== 'personal').length,
       total: workspaces.length
     })
     
     console.log('✓ Has Personal Space:', hasPersonalSpace)
-    console.log('✓ Has Team Workspace:', hasTeamWorkspace)
     
-    // Create missing default workspaces
-    if (!hasPersonalSpace || !hasTeamWorkspace) {
-      console.log('Creating default workspaces for workspace:', workspaceId)
+    // Create missing Personal Space (ONLY default workspace)
+    // Team Workspace is no longer auto-created - users create custom workspaces as needed
+    if (!hasPersonalSpace) {
+      console.log('Creating Personal Space for workspace:', workspaceId)
       
-      if (!hasPersonalSpace) {
-        try {
-          // Use workspace-specific ID
-          const personalSpaceId = `personal-space-${workspaceId}`
-          await prisma.wiki_workspaces.create({
-            data: {
-              id: personalSpaceId,
-              workspace_id: workspaceId,
-              name: 'Personal Space',
-              type: 'personal',
-              color: '#10b981',
-              icon: 'file-text',
-              description: 'Your personal knowledge space',
-              is_private: true,
-              created_by_id: user.id
-            }
-          })
-          console.log('✅ Created Personal Space')
-        } catch (error: any) {
-          console.error('❌ Error creating Personal Space:', error.message, error.code)
-          // Don't throw, just continue
-        }
-      }
-      
-      if (!hasTeamWorkspace) {
-        try {
-          // Use workspace-specific ID
-          const teamWorkspaceId = `team-workspace-${workspaceId}`
-          await prisma.wiki_workspaces.create({
-            data: {
-              id: teamWorkspaceId,
-              workspace_id: workspaceId,
-              name: 'Team Workspace',
-              type: 'team',
-              color: '#3b82f6',
-              icon: 'layers',
-              description: 'Collaborative workspace for your team',
-              is_private: false,
-              created_by_id: user.id
-            }
-          })
-          console.log('✅ Created Team Workspace')
-        } catch (error: any) {
-          console.error('❌ Error creating Team Workspace:', error.message, error.code)
-          // Don't throw, just continue
-        }
+      try {
+        // Use workspace-specific ID
+        const personalSpaceId = `personal-space-${workspaceId}`
+        await prisma.wiki_workspaces.create({
+          data: {
+            id: personalSpaceId,
+            workspace_id: workspaceId,
+            name: 'Personal Space',
+            type: 'personal',
+            color: '#10b981',
+            icon: 'file-text',
+            description: 'Your personal knowledge space',
+            is_private: true,
+            created_by_id: user.id
+          }
+        })
+        console.log('✅ Created Personal Space')
+      } catch (error: any) {
+        console.error('❌ Error creating Personal Space:', error.message, error.code)
+        // Don't throw, just continue
       }
 
       // Return the updated workspaces list
@@ -132,7 +104,6 @@ export async function GET(request: NextRequest) {
       // Normalize ONLY default workspace names (identified by ID pattern)
       const normalizedUpdated = updatedWorkspaces.map(w => {
         if (w.id?.startsWith('personal-space-')) return { ...w, name: 'Personal Space' }
-        if (w.id?.startsWith('team-workspace-')) return { ...w, name: 'Team Workspace' }
         return w
       })
       
@@ -144,7 +115,6 @@ export async function GET(request: NextRequest) {
     // Normalize ONLY default workspace names (identified by ID pattern)
     const normalized = workspaces.map(w => {
       if (w.id?.startsWith('personal-space-')) return { ...w, name: 'Personal Space' }
-      if (w.id?.startsWith('team-workspace-')) return { ...w, name: 'Team Workspace' }
       return w
     })
     
@@ -172,7 +142,14 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(auth.workspaceId)
 
     const body = await request.json()
-    const { name, description, type = 'team', color = '#3b82f6', icon = 'layers', isPrivate = false } = body
+    // Default to a custom workspace type (not 'team' or 'personal')
+    // Users can specify type if they want, but new workspaces are independent by default
+    const { name, description, type, color = '#3b82f6', icon = 'layers', isPrivate = false } = body
+    
+    // Validate type - don't allow creating 'personal' type workspaces (that's reserved)
+    if (type === 'personal') {
+      return NextResponse.json({ error: 'Personal Space is a reserved workspace type and cannot be created' }, { status: 400 })
+    }
 
     if (!name || name.trim().length === 0) {
       return NextResponse.json({ error: 'Workspace name is required' }, { status: 400 })
@@ -182,13 +159,17 @@ export async function POST(request: NextRequest) {
     const workspaceId = `wiki-${Date.now()}-${Math.random().toString(36).substring(7)}`
 
     // Create the wiki workspace
+    // If no type specified, create as a custom workspace (not 'team' or 'personal')
+    // This ensures new workspaces are independent
+    const workspaceType = type || null // null type means it's a custom workspace
+    
     const newWorkspace = await prisma.wiki_workspaces.create({
       data: {
         id: workspaceId,
         workspace_id: auth.workspaceId,
         name: name.trim(),
         description: description?.trim() || null,
-        type: type || 'team',
+        type: workspaceType, // Can be null for custom workspaces, or 'team' if explicitly specified
         color: color || '#3b82f6',
         icon: icon || 'layers',
         is_private: isPrivate || false,
@@ -226,9 +207,9 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
 
-    // Prevent deletion of default workspaces (Personal Space and Team Workspace)
-    if (workspaceIdToDelete.startsWith('personal-space-') || workspaceIdToDelete.startsWith('team-workspace-')) {
-      return NextResponse.json({ error: 'Default workspaces (Personal Space and Team Workspace) cannot be deleted' }, { status: 403 })
+    // Prevent deletion of Personal Space (ONLY default workspace)
+    if (workspaceIdToDelete.startsWith('personal-space-')) {
+      return NextResponse.json({ error: 'Personal Space is a default workspace and cannot be deleted' }, { status: 403 })
     }
 
     // Delete the workspace

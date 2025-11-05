@@ -52,7 +52,7 @@ export default function WikiDemoPage() {
                   <span className="text-white text-sm font-bold">L</span>
                 </div>
                 <div className="text-gray-900 text-sm">
-                  <div className="font-semibold">Lumi Workspace</div>
+                  <div className="font-semibold">Loopwell Workspace</div>
                   <div className="text-gray-500 text-xs">Knowledge Hub</div>
                 </div>
               </div>
@@ -87,7 +87,7 @@ export default function WikiDemoPage() {
               {/* AI Assistant Button */}
               <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white mb-4">
                 <Brain className="h-4 w-4 mr-2" />
-                Ask Lumi AI
+                Ask Loopwell AI
               </Button>
             </>
           )}
@@ -215,7 +215,7 @@ export default function WikiDemoPage() {
         <div className="p-6">
           {/* Welcome Section */}
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome to Lumi</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome to Loopwell</h2>
             <p className="text-gray-600 mb-6">Your intelligent workspace for knowledge management and team collaboration</p>
 
             {/* Quick Start Guide */}
@@ -242,7 +242,7 @@ export default function WikiDemoPage() {
               <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 shadow-sm">
                 <Brain className="h-5 w-5 text-indigo-600" />
                 <div className="flex-1">
-                  <span className="text-gray-900 font-medium">Activate Lumi AI Assistant</span>
+                  <span className="text-gray-900 font-medium">Activate Loopwell AI Assistant</span>
                   <p className="text-gray-600 text-sm mt-1">Get intelligent insights and answers from your knowledge base.</p>
                 </div>
                 <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white">

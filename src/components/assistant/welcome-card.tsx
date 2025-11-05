@@ -20,7 +20,7 @@ export function WelcomeCard({ onCreateSession }: WelcomeCardProps) {
           </div>
           <div className="flex-1">
             <p className="text-sm mb-4">
-              Hello! I'm Lumi AI, your intelligent assistant. What would you like to work on today?
+              Hello! I'm Loopwell AI, your intelligent assistant. What would you like to work on today?
             </p>
             
             <div className="space-y-3">

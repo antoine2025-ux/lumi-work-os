@@ -1,5 +1,4 @@
 import { Prisma } from '@prisma/client'
-import { isDevBypassAllowed } from '@/lib/unified-auth'
 
 // Models that require workspace scoping
 const WORKSPACE_SCOPED_MODELS = [
@@ -213,11 +212,7 @@ export function validateWorkspaceId(workspaceId: string | null | undefined): str
   ]
 
   if (hardcodedValues.includes(workspaceId)) {
-    if (isDevBypassAllowed()) {
-      console.warn(`Dev bypass: Using hardcoded workspace ID ${workspaceId}`)
-    } else {
-      throw new Error(`Production error: Hardcoded workspace ID not allowed: ${workspaceId}`)
-    }
+    throw new Error(`Hardcoded workspace ID not allowed: ${workspaceId}`)
   }
 
   return workspaceId

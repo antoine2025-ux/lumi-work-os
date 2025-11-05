@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/theme-provider"
 import { useWorkspace } from "@/lib/workspace-context"
 import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target } from "lucide-react"
+import Image from "next/image"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Prefetch common routes on mount for instant navigation
@@ -121,15 +122,15 @@ export function Header() {
         <div className="flex h-full items-center px-6">
           {/* Logo */}
           <div className="flex items-center space-x-2">
-            <div 
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ 
-                background: `linear-gradient(135deg, ${themeConfig.primary}, ${themeConfig.accent})` 
-              }}
-            >
-              <Sparkles className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-semibold text-foreground">Lumi</span>
+            <Image 
+              src="/loopwell-logo.png" 
+              alt="Loopwell Logo" 
+              width={32} 
+              height={32} 
+              className="w-8 h-8"
+              priority
+            />
+            <span className="text-xl font-semibold text-foreground">Loopwell</span>
           </div>
           
           {/* Navigation Items - Centered */}

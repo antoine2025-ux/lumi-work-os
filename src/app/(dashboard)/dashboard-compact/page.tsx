@@ -168,7 +168,7 @@ export default function DashboardCompactPage() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h1 className="text-lg font-semibold" style={{ color: themeConfig.foreground }}>Lumi</h1>
+              <h1 className="text-lg font-semibold" style={{ color: themeConfig.foreground }}>Loopwell</h1>
               <div className="flex items-center space-x-3">
                 <span className="text-sm" style={{ color: themeConfig.mutedForeground }}>Personal Space</span>
                 <Badge variant="outline" className="text-xs">OWNER</Badge>

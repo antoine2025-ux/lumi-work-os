@@ -27,11 +27,20 @@ export async function GET(
 
     // Get session and verify project access
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await assertProjectAccess(session.user, projectId)
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+
+    await assertProjectAccess(user, projectId)
 
     // Build where clause
     const where: any = {

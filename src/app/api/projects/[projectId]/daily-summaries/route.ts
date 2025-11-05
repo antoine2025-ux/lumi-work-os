@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { assertProjectAccess } from '@/lib/pm/guards'
-import { isDevBypassAllowed } from '@/lib/unified-auth'
 import { generateDailySummary, saveDailySummary, getDailySummaries } from '@/lib/ai/daily-summary'
 import { prisma } from '@/lib/db'
 
@@ -16,8 +15,21 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '30')
 
-    // Get session and verify access (development bypass)
+    // Get session and verify access
     const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
     
     // Check if project exists first
     const project = await prisma.project.findUnique({
@@ -27,21 +39,9 @@ export async function GET(
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
-    
-    // Development bypass - if no session OR if user doesn't have project access
-    if (!session?.user?.id) {
-      // Return empty array for development
-      return NextResponse.json([])
-    }
 
-    // Check project access for authenticated users
-    try {
-      await assertProjectAccess(session.user, projectId)
-    } catch (error) {
-      // If access check fails, use development bypass
-      console.log('Access check failed, using development bypass:', error.message)
-      return NextResponse.json([])
-    }
+    // Verify project access
+    await assertProjectAccess(user, projectId)
 
     // Get daily summaries
     try {
@@ -54,9 +54,10 @@ export async function GET(
     }
   } catch (error) {
     console.error('Error fetching daily summaries:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json({
       error: 'Failed to fetch daily summaries',
-      details: error.message
+      details: errorMessage
     }, { status: 500 })
   }
 }
@@ -73,12 +74,21 @@ export async function POST(
 
     // Get session and verify access
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+
     // Check project access (require admin/owner for manual generation)
-    const accessResult = await assertProjectAccess(session.user, projectId, 'ADMIN')
+    const accessResult = await assertProjectAccess(user, projectId, 'ADMIN')
     if (!accessResult) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
@@ -132,9 +142,10 @@ export async function POST(
     })
   } catch (error) {
     console.error('Error generating daily summary:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json({
       error: 'Failed to generate daily summary',
-      details: error.message
+      details: errorMessage
     }, { status: 500 })
   }
 }

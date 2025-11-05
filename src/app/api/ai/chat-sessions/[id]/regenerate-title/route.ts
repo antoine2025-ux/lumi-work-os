@@ -18,7 +18,7 @@ The title should:
 - Avoid generic words like "question", "help", "about"
 
 Examples of good titles:
-- "Lumi Product Overview"
+- "Loopwell Product Overview"
 - "Project Management Features"
 - "Wiki Documentation Help"
 - "Team Onboarding Process"

@@ -178,7 +178,7 @@ export function WorkspaceOnboardingModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <CardHeader>
-          <CardTitle className="text-2xl">Welcome to Lumi Work OS</CardTitle>
+          <CardTitle className="text-2xl">Welcome to Loopwell Work OS</CardTitle>
           <CardDescription>
             Let's set up your workspace. Choose a template that best fits your needs.
           </CardDescription>

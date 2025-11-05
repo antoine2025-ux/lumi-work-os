@@ -88,8 +88,9 @@ export default function PersonalWorkspacePage() {
       }
       
       // Fetch all data in parallel for better performance
+      // Filter for personal space pages server-side
       const [pagesResponse, projectsResponse] = await Promise.all([
-        fetch('/api/wiki/recent-pages?limit=100'),
+        fetch('/api/wiki/recent-pages?limit=100&workspace_type=personal'),
         fetch(`/api/projects?workspaceId=${userStatus.workspaceId}`)
       ])
 

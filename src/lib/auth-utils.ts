@@ -43,38 +43,8 @@ export async function getAuthenticatedUser(): Promise<AuthResult> {
       }
     }
 
-    // Development fallback - create or get default user
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔧 Development mode: Using fallback user')
-      
-      let devUser = await prisma.user.findFirst({
-        where: { email: 'dev@lumi.local' }
-      })
-
-      if (!devUser) {
-        devUser = await prisma.user.create({
-          data: {
-            email: 'dev@lumi.local',
-            name: 'Development User',
-            image: null
-          }
-        })
-        console.log('✅ Created development user:', devUser.id)
-      }
-
-      return {
-        user: {
-          id: devUser.id,
-          email: devUser.email,
-          name: devUser.name || undefined
-        },
-        isAuthenticated: false,
-        isDevelopment: true
-      }
-    }
-
-    // Production - no session, no fallback
-    throw new Error('No authenticated session found')
+    // No session found - require Google OAuth authentication
+    throw new Error('No authenticated session found. Please log in through Google OAuth.')
     
   } catch (error) {
     console.error('❌ Authentication error:', error)

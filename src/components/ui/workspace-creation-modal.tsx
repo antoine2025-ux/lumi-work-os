@@ -165,7 +165,7 @@ export function WorkspaceCreationModal({ children }: WorkspaceCreationModalProps
                 required
               />
               <p className="text-xs text-gray-500">
-                This will be used in your workspace URL: lumi.app/{formData.slug || 'workspace-slug'}
+                This will be used in your workspace URL: loopwell.app/{formData.slug || 'workspace-slug'}
               </p>
             </div>
             <div className="grid gap-2">

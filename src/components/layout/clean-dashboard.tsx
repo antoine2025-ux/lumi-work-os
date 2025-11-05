@@ -139,7 +139,7 @@ export function CleanDashboard({ project, onTaskUpdate, onTaskCreate }: CleanDas
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-6">
-            <h1 className="text-xl font-semibold text-gray-900">🌟 Lumi Work OS</h1>
+            <h1 className="text-xl font-semibold text-gray-900">🌟 Loopwell Work OS</h1>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input

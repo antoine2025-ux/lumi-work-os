@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create system prompt based on phase and intent
-    let systemPrompt = `You are Lumi AI, an advanced organizational intelligence assistant for Lumi Work OS. You are designed to be exceptionally helpful, knowledgeable, and responsive.
+    let systemPrompt = `You are Loopwell AI, an advanced organizational intelligence assistant for Loopwell Work OS. You are designed to be exceptionally helpful, knowledgeable, and responsive.
 
 CORE CAPABILITIES:
 - Document creation and wiki management

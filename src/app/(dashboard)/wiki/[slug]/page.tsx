@@ -510,6 +510,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
         currentPageId={pageData?.id}
         currentTitle={pageData?.title || ''}
         currentContent={pageData?.content || ''}
+        mode={isEditing ? 'bottom-bar' : 'floating-button'}
         onContentUpdate={(newContent) => {
           if (pageData) {
             setPageData({ ...pageData, content: newContent })

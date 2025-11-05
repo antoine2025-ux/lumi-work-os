@@ -524,7 +524,7 @@ export default function SettingsPage() {
           <div>
             <h2 className="text-xl font-semibold">Integrations</h2>
             <p className="text-muted-foreground">
-              Connect Lumi with your favorite tools and services
+              Connect Loopwell with your favorite tools and services
             </p>
           </div>
           
@@ -723,7 +723,7 @@ export default function SettingsPage() {
                       <Download className="h-3 w-3 text-white" />
                     </div>
                   }
-                  description="Import your Slite workspace into Lumi Work OS"
+                  description="Import your Slite workspace into Loopwell Work OS"
                   features={[
                     "All documents and folders",
                     "Comments and version history", 
@@ -761,7 +761,7 @@ export default function SettingsPage() {
                       <Download className="h-3 w-3 text-white" />
                     </div>
                   }
-                  description="Import your ClickUp workspace into Lumi Work OS"
+                  description="Import your ClickUp workspace into Loopwell Work OS"
                   features={[
                     "Tasks and subtasks",
                     "Project documentation",

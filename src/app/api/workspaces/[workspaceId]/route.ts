@@ -69,8 +69,15 @@ export async function GET(
     return NextResponse.json(workspaceData)
   } catch (error) {
     console.error("Error fetching workspace:", error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error("Error details:", { errorMessage, errorStack })
     return NextResponse.json(
-      { error: "Failed to fetch workspace" },
+      { 
+        error: "Failed to fetch workspace",
+        details: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && { stack: errorStack })
+      },
       { status: 500 }
     )
   }
