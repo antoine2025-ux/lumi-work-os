@@ -45,7 +45,7 @@ function prefetchRoutes() {
 const navigationItems = [
   {
     name: "Dashboard",
-    href: "/",
+    href: "/home",
     icon: Home,
     description: "Overview and quick actions"
   },
@@ -137,8 +137,10 @@ export function Header() {
           <div className="flex-1 flex items-center justify-center">
             <div className="flex items-center space-x-1">
             {navigationItems.map((item) => {
+              // Check if current pathname matches the navigation item
+              // For routes other than dashboard, also check if pathname starts with href
               const isActive = pathname === item.href || 
-                (item.href !== "/" && pathname?.startsWith(item.href))
+                (item.href !== "/home" && pathname?.startsWith(item.href))
               
               return (
                 <Link
