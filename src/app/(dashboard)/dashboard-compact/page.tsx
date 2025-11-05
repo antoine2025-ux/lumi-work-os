@@ -188,7 +188,7 @@ export default function DashboardCompactPage() {
           {/* Compact Navigation */}
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center space-x-5">
-              <Link href="/" className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Dashboard</Link>
+              <Link href="/home" className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Dashboard</Link>
               <Link href="/projects" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Projects</Link>
               <Link href="/wiki" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Wiki</Link>
               <Link href="/ask" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Ask AI</Link>

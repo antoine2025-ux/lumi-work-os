@@ -228,10 +228,17 @@ export function Header() {
                   // STEP 1: Clear user status cache immediately
                   clearUserStatusCache()
                   
-                  // STEP 2: Set logout flag BEFORE clearing storage
+                  // STEP 2: Sign out from NextAuth first (this clears server-side session)
+                  try {
+                    await signOut({ redirect: false })
+                  } catch (e) {
+                    console.log('Sign out error (continuing anyway):', e)
+                  }
+                  
+                  // STEP 3: Set logout flag BEFORE clearing storage
                   sessionStorage.setItem('__logout_flag__', 'true')
                   
-                  // STEP 3: Clear all local storage (except the logout flag)
+                  // STEP 4: Clear all local storage (except the logout flag)
                   localStorage.clear()
                   // Don't clear sessionStorage completely - we need the flag!
                   // But clear other items
@@ -241,20 +248,45 @@ export function Header() {
                     }
                   })
                   
-                  // STEP 4: Try to clear NextAuth cookies manually
-                  document.cookie.split(";").forEach(function(c) { 
-                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
-                  });
+                  // STEP 5: Clear all cookies including NextAuth and Google OAuth cookies
+                  const cookies = document.cookie.split(";")
+                  cookies.forEach(function(c) { 
+                    const eqPos = c.indexOf('=')
+                    const name = eqPos > -1 ? c.substr(0, eqPos).trim() : c.trim()
+                    // Clear all cookies
+                    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+                    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`
+                    // Try to clear Google cookies (may not work due to cross-domain, but worth trying)
+                    if (name.includes('google') || name.includes('gid') || name.includes('GA') || name.includes('oauth')) {
+                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.google.com`
+                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.googleapis.com`
+                    }
+                  })
                   
-                  // STEP 5: Force redirect to login immediately
-                  window.location.href = '/login'
-                  
-                  // STEP 6: Sign out in the background (don't wait)
+                  // STEP 6: Clear NextAuth session storage
                   try {
-                    await signOut({ redirect: false })
+                    // Clear any NextAuth session data
+                    if (typeof window !== 'undefined') {
+                      // Clear indexedDB if used by NextAuth
+                      if ('indexedDB' in window) {
+                        indexedDB.databases().then(databases => {
+                          databases.forEach(db => {
+                            if (db.name && db.name.includes('next-auth')) {
+                              indexedDB.deleteDatabase(db.name)
+                            }
+                          })
+                        }).catch(() => {})
+                      }
+                    }
                   } catch (e) {
-                    // Ignore errors, we're already redirecting
+                    console.log('Could not clear indexedDB:', e)
                   }
+                  
+                  // STEP 7: Force redirect to login immediately
+                  // Add a small delay to ensure cookies are cleared
+                  setTimeout(() => {
+                    window.location.href = '/login'
+                  }, 100)
                 }}>
                   Log out
                 </DropdownMenuItem>

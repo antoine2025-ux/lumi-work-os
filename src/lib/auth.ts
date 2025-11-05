@@ -70,10 +70,16 @@ export const authOptions: NextAuthOptions = {
         clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
         authorization: {
           params: {
-            prompt: 'select_account', // Always show account selection
+            // Force account selection - Google will show account picker
+            // Using 'consent' ensures fresh consent and account selection
+            // Using 'select_account' ensures account picker is shown
+            prompt: 'consent select_account', // Show both consent and account selection
+            access_type: 'offline', // Request refresh token
             scope: "openid email profile https://www.googleapis.com/auth/calendar.readonly"
           }
-        }
+        },
+        // Ensure we always get fresh authorization
+        allowDangerousEmailAccountLinking: false, // Don't link accounts automatically
       })
     ] : [])
   ],

@@ -145,7 +145,7 @@ export default function DashboardMinimalPage() {
             <div className="flex items-center space-x-8">
               <h1 className="text-xl font-light" style={{ color: themeConfig.foreground }}>Loopwell</h1>
               <div className="flex items-center space-x-6">
-                <Link href="/" className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Dashboard</Link>
+                <Link href="/home" className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Dashboard</Link>
                 <Link href="/projects" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Projects</Link>
                 <Link href="/wiki" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Wiki</Link>
                 <Link href="/ask" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Ask AI</Link>

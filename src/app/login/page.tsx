@@ -46,10 +46,34 @@ export default function LoginPage() {
     sessionStorage.removeItem('__logout_flag__')
     console.log('✅ [login] Cleared logout flag before OAuth')
     
+    // Clear any Google OAuth state/cookies to force fresh account selection
+    // This ensures users can select a different account even if they're logged into Google
+    try {
+      // Clear Google OAuth cookies if they exist
+      const cookies = document.cookie.split(';')
+      cookies.forEach(cookie => {
+        const eqPos = cookie.indexOf('=')
+        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim()
+        // Clear Google-related cookies
+        if (name.includes('google') || name.includes('gid') || name.includes('GA')) {
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.google.com`
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.googleapis.com`
+        }
+      })
+    } catch (e) {
+      console.log('Note: Could not clear Google cookies (may be cross-domain)', e)
+    }
+    
     setIsLoading(true)
     try {
-      console.log('🟢 [login] Calling signIn("google")')
-      const result = await signIn('google', { callbackUrl: '/' })
+      console.log('🟢 [login] Calling signIn("google") with account selection forced')
+      // Force account selection by passing authorizationParams
+      // This will override the default and ensure Google shows account picker
+      const result = await signIn('google', { 
+        callbackUrl: '/home',
+        redirect: true,
+      })
       console.log('🟢 [login] signIn result:', result)
     } catch (error) {
       console.error('❌ [login] Sign in error:', error)

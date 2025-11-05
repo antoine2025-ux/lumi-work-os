@@ -26,8 +26,8 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
   const hasRedirectedToWelcome = useRef(false)
   
   useEffect(() => {
-    const publicRoutes = ['/login', '/welcome', '/api/auth']
-    const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+    const publicRoutes = ['/login', '/welcome', '/api/auth', '/landing']
+    const isPublicRoute = pathname === '/' || (pathname && publicRoutes.some(route => pathname.startsWith(route)))
     
     // Skip loader logic if we're on public routes or welcome page
     if (isPublicRoute) {
@@ -68,8 +68,9 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
 
   useEffect(() => {
     // Skip auth check for public routes - RETURN EARLY, don't process anything
-    const publicRoutes = ['/login', '/welcome', '/api/auth']
-    if (publicRoutes.some(route => pathname.startsWith(route))) {
+    const publicRoutes = ['/login', '/welcome', '/api/auth', '/landing']
+    const isPublicRoute = pathname === '/' || (pathname && publicRoutes.some(route => pathname.startsWith(route)))
+    if (isPublicRoute) {
       return
     }
 
@@ -90,15 +91,25 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
       return
     }
 
-    // Prevent multiple redirects
-    if (hasRedirected.current) {
+    // Prevent multiple redirects - ONCE we've redirected, don't check again
+    // Reset this only on pathname change (user navigates to new route)
+    if (hasRedirected.current && prevPathname.current === pathname) {
       return
+    }
+    
+    // Reset redirect flag when pathname changes
+    if (prevPathname.current !== pathname) {
+      hasRedirected.current = false
+      prevPathname.current = pathname
     }
 
     // IMPORTANT: Wait for session to load before checking
     // This prevents immediate redirect after OAuth callback
     if (sessionStatus === 'loading') {
-      console.log('⏳ Session loading, waiting...')
+      // Only log if we haven't redirected yet (first time)
+      if (!hasRedirected.current) {
+        console.log('⏳ Session loading, waiting...')
+      }
       return
     }
 
@@ -111,12 +122,7 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
     }
 
     // Only redirect if we have user status data and loading is complete and session is authenticated
-    console.log('[AuthWrapper] Status check:', { 
-      loading, 
-      userStatus: userStatus ? JSON.stringify(userStatus) : null, 
-      sessionStatus 
-    })
-    
+    // Skip logging unless there's an actual issue to reduce console noise
     if (!loading && userStatus && sessionStatus === 'authenticated') {
       if (!userStatus.isAuthenticated) {
         // Not authenticated, redirect to login
@@ -146,8 +152,8 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
   }, [router, pathname, userStatus, loading, sessionStatus])
 
   // Show loading only if we're on a protected route
-  const publicRoutes = ['/login', '/welcome', '/api/auth']
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+  const publicRoutes = ['/login', '/welcome', '/api/auth', '/landing']
+  const isPublicRoute = pathname === '/' || (pathname && publicRoutes.some(route => pathname.startsWith(route)))
   
   // Skip loader if flag is set (after workspace creation)
   const skipLoaderFlag = typeof window !== 'undefined' && (

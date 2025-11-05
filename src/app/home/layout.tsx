@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import { Header } from "@/components/layout/header"
 
-export default function DashboardLayout({
+export default function HomeLayout({
   children,
 }: {
   children: React.ReactNode
@@ -22,11 +22,11 @@ export default function DashboardLayout({
         const response = await fetch('/api/auth/user-status')
         if (response.ok) {
           const data = await response.json()
-          console.log('[DashboardLayout] User status:', data)
+          console.log('[HomeLayout] User status:', data)
           
           // If no workspace, redirect immediately
           if (!data.workspaceId) {
-            console.log('[DashboardLayout] No workspace found, redirecting to welcome immediately')
+            console.log('[HomeLayout] No workspace found, redirecting to welcome immediately')
             window.location.href = '/welcome'
             return
           }
@@ -35,17 +35,17 @@ export default function DashboardLayout({
           setIsFirstTime(data.isFirstTime || false)
         } else {
           const errorData = await response.json()
-          console.log('[DashboardLayout] Error response:', errorData)
+          console.log('[HomeLayout] Error response:', errorData)
           
           // If error indicates no workspace, redirect
           if (errorData.error && errorData.error.includes('No workspace')) {
-            console.log('[DashboardLayout] No workspace in error, redirecting to welcome')
+            console.log('[HomeLayout] No workspace in error, redirecting to welcome')
             window.location.href = '/welcome'
             return
           }
         }
       } catch (error) {
-        console.error('[DashboardLayout] Error checking workspace:', error)
+        console.error('[HomeLayout] Error checking workspace:', error)
       } finally {
         setIsLoadingWorkspace(false)
       }
@@ -79,7 +79,7 @@ export default function DashboardLayout({
     // Only redirect if we're actually unauthenticated (not just refetching)
     if (status === 'unauthenticated' && !session) {
       hasCheckedAuth.current = true
-      router.push("/login")
+      router.push("/")
       return
     }
     
@@ -122,3 +122,4 @@ export default function DashboardLayout({
     </div>
   )
 }
+
