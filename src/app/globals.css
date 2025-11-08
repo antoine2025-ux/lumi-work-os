@@ -297,6 +297,17 @@ body {
   }
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes taskSlideIn {
   from {
     opacity: 0;
@@ -387,4 +398,13 @@ body {
 
 .dashboard-card-scroll::-webkit-scrollbar-thumb:hover {
   background: rgb(148 163 184);
+}
+
+/* Ensure Next.js Image components with transparent backgrounds render correctly */
+span[data-nimg] {
+  background-color: transparent !important;
+}
+
+img[src*="transparent"] {
+  background-color: transparent !important;
 }
