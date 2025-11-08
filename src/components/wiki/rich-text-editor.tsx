@@ -480,7 +480,7 @@ export function RichTextEditor({
       {showFloatingToolbar && (
         <div
           ref={toolbarRef}
-          className="absolute z-50 flex items-center gap-1 bg-white border rounded-lg shadow-lg p-1"
+          className="absolute z-50 flex items-center gap-1 bg-card border border-border rounded-lg shadow-lg p-1"
           style={{
             top: `${toolbarPosition.top}px`,
             left: `${toolbarPosition.left}px`,
@@ -493,7 +493,7 @@ export function RichTextEditor({
               key={index}
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-muted"
+              className="h-8 w-8 p-0 hover:bg-muted text-foreground"
               title={button.title}
               onClick={() => execCommand(button.command, button.value)}
             >
@@ -507,7 +507,7 @@ export function RichTextEditor({
       {showContextMenu && editable && (
         <div
           ref={toolbarRef}
-          className="absolute z-50 bg-white border rounded-lg shadow-xl py-1 min-w-[180px]"
+          className="absolute z-50 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[180px]"
           style={{
             top: `${contextMenuPosition.top}px`,
             left: `${contextMenuPosition.left}px`,
@@ -519,7 +519,7 @@ export function RichTextEditor({
               insertTable(2, 2)
               setShowContextMenu(false)
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"
           >
             <Table className="h-4 w-4" />
             Table (2x2)
@@ -529,7 +529,7 @@ export function RichTextEditor({
               insertTable(3, 3)
               setShowContextMenu(false)
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"
           >
             <Table className="h-4 w-4" />
             Table (3x3)
@@ -539,18 +539,18 @@ export function RichTextEditor({
               insertTable(4, 4)
               setShowContextMenu(false)
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"
           >
             <Table className="h-4 w-4" />
             Table (4x4)
           </button>
-          <div className="border-t border-gray-200 my-1" />
+          <div className="border-t border-border my-1" />
           <button
             onClick={() => {
               execCommand('insertUnorderedList')
               setShowContextMenu(false)
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"
           >
             <List className="h-4 w-4" />
             Bullet List
@@ -560,7 +560,7 @@ export function RichTextEditor({
               execCommand('insertOrderedList')
               setShowContextMenu(false)
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"
           >
             <ListOrdered className="h-4 w-4" />
             Numbered List

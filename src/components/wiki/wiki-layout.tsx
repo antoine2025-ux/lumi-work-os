@@ -24,7 +24,6 @@ import {
   Search, 
   Plus, 
   Home,
-  BookOpen,
   FileText,
   ChevronLeft,
   ChevronRight,
@@ -56,6 +55,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { AILogo } from "@/components/ai-logo"
 
 interface WikiLayoutProps {
   children: React.ReactNode
@@ -512,13 +512,10 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     fetchWorkspaceId()
   }, [workspaceId])
 
-  // Load workspaces and recent pages
+  // Load workspaces - always load regardless of workspaceId
   useEffect(() => {
-    if (!workspaceId) return // Don't load until we have workspaceId
-    
-    const loadData = async () => {
+    const loadWorkspaces = async () => {
       try {
-        // Load workspaces
         const workspacesResponse = await fetch('/api/wiki/workspaces')
         if (workspacesResponse.ok) {
           const workspacesData = await workspacesResponse.json()
@@ -552,7 +549,23 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
         } else {
           console.error('❌ Failed to fetch workspaces:', workspacesResponse.status, workspacesResponse.statusText)
         }
+      } catch (error) {
+        console.error('Error loading workspaces:', error)
+      }
+    }
 
+    loadWorkspaces()
+  }, []) // Load once on mount
+
+  // Load recent pages, favorites, and projects - depends on workspaceId
+  useEffect(() => {
+    if (!workspaceId) {
+      setIsLoading(false)
+      return // Don't load pages until we have workspaceId
+    }
+    
+    const loadData = async () => {
+      try {
         // Load all data in parallel for better performance
         // Note: We fetch all pages here for the sidebar, but each workspace will filter its own pages
         // The filtering happens client-side based on workspace_type to avoid multiple API calls
@@ -675,9 +688,9 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
           background: #9ca3af;
         }
       `}</style>
-      <div className="h-screen bg-background flex">
+      <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Sidebar */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-72'} bg-card transition-all duration-300 flex flex-col border-r border-border shadow-sm h-screen overflow-hidden`}>
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-72'} bg-card transition-all duration-300 flex flex-col border-r border-border shadow-sm h-screen overflow-hidden flex-shrink-0`}>
         {/* Top Section - Search and AI Button */}
         <div className="p-4 border-b border-border">
           {!sidebarCollapsed && (
@@ -694,25 +707,13 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
               </div>
 
               {/* AI Assistant Button */}
-              <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white mb-3">
-                <Image 
-                  src="/loopwell-logo.png" 
-                  alt="Loopwell AI" 
+              <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white mb-4">
+                <AILogo 
                   width={16} 
                   height={16} 
                   className="w-4 h-4 mr-2"
                 />
                 Ask Loopwell AI
-              </Button>
-
-              {/* Create New Page Button */}
-              <Button 
-                variant="outline" 
-                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 mb-4"
-                onClick={handleCreatePage}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create New Page
               </Button>
             </>
           )}
@@ -723,19 +724,6 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
           <div className="p-4">
             {!sidebarCollapsed && (
               <>
-
-                {/* Knowledge Base */}
-                <Link
-                  href="/wiki/knowledge-base"
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg mb-6 transition-colors ${
-                    (pathname || '').startsWith('/wiki/knowledge-base') 
-                      ? 'bg-indigo-50 text-indigo-700' 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                >
-                  <BookOpen className="h-4 w-4" />
-                  <span className="font-medium">Knowledge Base</span>
-                </Link>
 
                 {/* Home Section */}
                 <div className="mb-4">
@@ -1190,22 +1178,22 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
 
       {/* Main Content Area */}
       <div className={cn(
-        "flex-1 bg-background overflow-y-auto h-screen transition-all duration-500",
+        "flex-1 bg-background overflow-y-auto overflow-x-hidden h-screen transition-all duration-500 min-w-0",
         isAISidebarOpen && aiDisplayMode === 'sidebar' ? "mr-[384px]" : ""
       )}>
         {isCreatingPage ? (
           /* Minimalistic Page Editor */
-          <div className="h-full bg-background min-h-screen">
+          <div className="h-full bg-background min-h-screen w-full min-w-0">
             {/* Main Editor Area - Clean Document */}
-            <div className="flex-1 p-8 bg-background min-h-screen">
-              <div className="max-w-4xl mx-auto">
+            <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen w-full min-w-0">
+              <div className="max-w-4xl mx-auto w-full min-w-0">
                 {/* Page Info and Actions */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
+                  <div className="flex items-center gap-2 sm:gap-4 flex-wrap min-w-0 w-full sm:w-auto max-w-full">
                     <Button 
                       onClick={handleSavePage} 
                       disabled={isSaving || !newPageTitle.trim()}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                     >
                       {isSaving ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1214,26 +1202,26 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                       )}
                       {isSaving ? 'Saving...' : 'Save'}
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
                       <Share2 className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
                       <Star className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
                       <MessageSquare className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
                       <Brain className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
+                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 whitespace-nowrap flex-shrink-0">
                     New document
                   </div>
                 </div>
@@ -1267,21 +1255,21 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                 </div>
 
                 {/* Action Suggestions - Only show when editing */}
-                <div className="flex items-center gap-6 text-sm text-gray-500 mt-8">
-                  <button className="flex items-center gap-2 hover:text-gray-700">
-                    <Grid3X3 className="h-4 w-4" />
+                <div className="flex items-center gap-3 sm:gap-6 text-sm text-gray-500 mt-8 flex-wrap overflow-x-auto w-full">
+                  <button className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap">
+                    <Grid3X3 className="h-4 w-4 flex-shrink-0" />
                     <span>Use a template</span>
                   </button>
-                  <button className="flex items-center gap-2 hover:text-gray-700">
-                    <Upload className="h-4 w-4" />
+                  <button className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap">
+                    <Upload className="h-4 w-4 flex-shrink-0" />
                     <span>Import</span>
                   </button>
-                  <button className="flex items-center gap-2 hover:text-gray-700">
-                    <Plus className="h-4 w-4" />
+                  <button className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap">
+                    <Plus className="h-4 w-4 flex-shrink-0" />
                     <span>New subdoc</span>
                   </button>
-                  <button className="flex items-center gap-2 hover:text-gray-700">
-                    <Folder className="h-4 w-4" />
+                  <button className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap">
+                    <Folder className="h-4 w-4 flex-shrink-0" />
                     <span>Convert to collection</span>
                   </button>
                 </div>
@@ -1294,6 +1282,78 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
               currentTitle={newPageTitle}
               currentContent={newPageContent}
               onContentUpdate={setNewPageContent}
+              onTitleUpdate={setNewPageTitle}
+              workspaces={workspaces}
+              recentPages={recentPages}
+              onCreatePage={async (title, content, selectedWorkspaceId) => {
+                // Create page with provided title, content, and workspace
+                if (!selectedWorkspaceId) {
+                  throw new Error("Please select a workspace")
+                }
+                
+                setIsSaving(true)
+                setError(null)
+                
+                // Determine workspace_type based on selected workspace
+                const selectedWorkspace = workspaces.find(w => w.id === selectedWorkspaceId)
+                let workspaceType = 'team'
+                
+                if (selectedWorkspace?.type === 'personal') {
+                  workspaceType = 'personal'
+                } else if (selectedWorkspace?.type === 'team') {
+                  workspaceType = 'team'
+                } else if (selectedWorkspace?.id) {
+                  workspaceType = selectedWorkspace.id
+                }
+                
+                try {
+                  const response = await fetch('/api/wiki/pages', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      title: title.trim(),
+                      content: content || ' ',
+                      tags: [],
+                      category: newPageCategory,
+                      permissionLevel: selectedWorkspace?.type === 'personal' ? 'personal' : 'team',
+                      workspace_type: workspaceType
+                    })
+                  })
+                  
+                  if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+                    throw new Error(errorData.error || 'Failed to create page')
+                  }
+                  
+                  const newPage = await response.json()
+                  
+                  // Refresh recent pages
+                  const recentResponse = await fetch('/api/wiki/recent-pages')
+                  if (recentResponse.ok) {
+                    const recentData = await recentResponse.json()
+                    setRecentPages(recentData)
+                  }
+                  
+                  // Dispatch event to refresh workspace pages
+                  window.dispatchEvent(new CustomEvent('workspacePagesRefreshed'))
+                  
+                  // Keep AI chat open and navigate to the new page
+                  // The AI chat will stay visible because we're not closing it
+                  router.push(`/wiki/${newPage.slug}`)
+                } catch (error) {
+                  console.error('Error creating page:', error)
+                  throw error
+                } finally {
+                  setIsSaving(false)
+                }
+              }}
+              onStartCreatingPage={() => {
+                if (!isCreatingPage) {
+                  setIsCreatingPage(true)
+                }
+              }}
               onOpenChange={setIsAISidebarOpen}
               onDisplayModeChange={setAiDisplayMode}
               mode="bottom-bar"

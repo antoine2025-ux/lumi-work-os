@@ -93,11 +93,12 @@ export async function GET(
       }
     })
 
-    // If not found by ID, try to find by slug
+    // If not found by ID, try to find by slug (must be in the same workspace)
     if (!page) {
       page = await prisma.wikiPage.findFirst({
         where: {
-          slug: resolvedParams.id
+          slug: resolvedParams.id,
+          workspaceId: auth.workspaceId
         },
         include: {
           createdBy: {

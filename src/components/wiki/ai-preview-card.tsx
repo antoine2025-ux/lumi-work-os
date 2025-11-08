@@ -14,7 +14,8 @@ import {
   Tag, 
   Search,
   MessageSquare,
-  TrendingUp
+  TrendingUp,
+  Maximize2
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 
@@ -43,6 +44,7 @@ interface AIPreviewCardProps {
   response: LoopwellAIResponse
   onConfirm?: () => void
   onReject?: () => void
+  onExpand?: () => void // Callback to open expanded preview modal
   onContentUpdate?: (content: string) => void
   onTitleUpdate?: (title: string) => void
 }
@@ -75,6 +77,7 @@ export function AIPreviewCard({
   response, 
   onConfirm, 
   onReject,
+  onExpand,
   onContentUpdate,
   onTitleUpdate
 }: AIPreviewCardProps) {
@@ -248,28 +251,42 @@ export function AIPreviewCard({
 
           {/* Action Buttons */}
           {showPreview && (
-            <div className="flex items-center justify-end gap-2 pt-4 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onReject}
-              >
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleConfirm}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                <Check className="h-4 w-4 mr-2" />
-                {response.intent === 'create_new_page' ? 'Create Page' : 
-                 response.intent === 'append_to_page' ? 'Append to Page' :
-                 response.intent === 'improve_existing_page' ? 'Apply Changes' :
-                 response.intent === 'extract_tasks' ? 'Create Tasks' :
-                 response.intent === 'tag_pages' ? 'Apply Tags' :
-                 'Confirm'}
-              </Button>
+            <div className="flex items-center justify-between gap-2 pt-4 border-t">
+              <div>
+                {response.intent === 'create_new_page' && onExpand && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onExpand}
+                  >
+                    <Maximize2 className="h-4 w-4 mr-2" />
+                    Expand & Edit
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onReject}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleConfirm}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  {response.intent === 'create_new_page' ? 'Create Page' : 
+                   response.intent === 'append_to_page' ? 'Append to Page' :
+                   response.intent === 'improve_existing_page' ? 'Apply Changes' :
+                   response.intent === 'extract_tasks' ? 'Create Tasks' :
+                   response.intent === 'tag_pages' ? 'Apply Tags' :
+                   'Confirm'}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

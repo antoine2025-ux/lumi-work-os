@@ -18,34 +18,112 @@ export default function DashboardLayout({
 
   useEffect(() => {
     const checkWorkspace = async () => {
+      // Check for workspace creation flag - if set, wait a bit for workspace to be available
+      const workspaceJustCreated = sessionStorage.getItem('__workspace_just_created__') === 'true'
+      
       try {
-        const response = await fetch('/api/auth/user-status')
+        // If workspace was just created, add a small delay to ensure it's available
+        if (workspaceJustCreated) {
+          console.log('[DashboardLayout] Workspace just created, waiting a moment before checking...')
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+        
+        const response = await fetch('/api/auth/user-status', {
+          cache: 'no-store', // Force fresh fetch
+          headers: {
+            'Cache-Control': 'no-cache',
+          }
+        })
         if (response.ok) {
           const data = await response.json()
           console.log('[DashboardLayout] User status:', data)
           
-          // If no workspace, redirect immediately
-          if (!data.workspaceId) {
+          // If workspace was just created but still not found, wait a bit more and retry
+          if (workspaceJustCreated && !data.workspaceId) {
+            console.log('[DashboardLayout] Workspace just created but not found yet, retrying...')
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            const retryResponse = await fetch('/api/auth/user-status', {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache',
+              }
+            })
+            if (retryResponse.ok) {
+              const retryData = await retryResponse.json()
+              if (retryData.workspaceId) {
+                setWorkspaceId(retryData.workspaceId)
+                setIsFirstTime(retryData.isFirstTime || false)
+                setIsLoadingWorkspace(false)
+                return
+              }
+            }
+          }
+          
+          // If no workspace and workspace wasn't just created, redirect immediately
+          if (!data.workspaceId && !workspaceJustCreated) {
             console.log('[DashboardLayout] No workspace found, redirecting to welcome immediately')
+            window.location.href = '/welcome'
+            return
+          }
+          
+          // If still no workspace after retry, redirect
+          if (!data.workspaceId) {
+            console.log('[DashboardLayout] No workspace found after retry, redirecting to welcome')
             window.location.href = '/welcome'
             return
           }
           
           setWorkspaceId(data.workspaceId)
           setIsFirstTime(data.isFirstTime || false)
+          
+          // Clear the flag after successful workspace check
+          if (workspaceJustCreated) {
+            sessionStorage.removeItem('__workspace_just_created__')
+            sessionStorage.removeItem('__skip_loader__')
+          }
         } else {
           const errorData = await response.json()
           console.log('[DashboardLayout] Error response:', errorData)
           
-          // If error indicates no workspace, redirect
-          if (errorData.error && errorData.error.includes('No workspace')) {
+          // If error indicates no workspace and workspace wasn't just created, redirect
+          if (errorData.error && errorData.error.includes('No workspace') && !workspaceJustCreated) {
             console.log('[DashboardLayout] No workspace in error, redirecting to welcome')
+            window.location.href = '/welcome'
+            return
+          }
+          
+          // If workspace was just created, give it another moment
+          if (workspaceJustCreated) {
+            console.log('[DashboardLayout] Error but workspace just created, retrying...')
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            const retryResponse = await fetch('/api/auth/user-status', {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache',
+              }
+            })
+            if (retryResponse.ok) {
+              const retryData = await retryResponse.json()
+              if (retryData.workspaceId) {
+                setWorkspaceId(retryData.workspaceId)
+                setIsFirstTime(retryData.isFirstTime || false)
+                sessionStorage.removeItem('__workspace_just_created__')
+                sessionStorage.removeItem('__skip_loader__')
+                setIsLoadingWorkspace(false)
+                return
+              }
+            }
+            // If still failing after retry, redirect to welcome
             window.location.href = '/welcome'
             return
           }
         }
       } catch (error) {
         console.error('[DashboardLayout] Error checking workspace:', error)
+        // If workspace was just created, don't redirect on error - give it time
+        if (!workspaceJustCreated) {
+          window.location.href = '/welcome'
+        }
       } finally {
         setIsLoadingWorkspace(false)
       }

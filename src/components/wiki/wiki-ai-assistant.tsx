@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import Image from "next/image"
+import { AILogo } from "@/components/ai-logo"
 import { 
   Sparkles, 
   Send, 
@@ -16,11 +16,18 @@ import {
   FileText,
   Sidebar,
   Move,
-  ChevronDown,
-  Check,
-  FileEdit
+  FileEdit,
+  Paperclip,
+  Globe,
+  AtSign,
+  Languages,
+  Search,
+  CheckSquare,
+  Lightbulb,
+  Plus
 } from "lucide-react"
 import { AIPreviewCard } from "./ai-preview-card"
+import { AIPagePreviewModal } from "./ai-page-preview-modal"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -31,9 +38,32 @@ interface Message {
   timestamp: Date
 }
 
+interface WikiWorkspace {
+  id: string
+  name: string
+  description?: string
+  type: 'personal' | 'team' | 'project'
+  color?: string
+  icon?: string
+}
+
+interface RecentPage {
+  id: string
+  title: string
+  slug: string
+  updatedAt: string
+  author: string
+  permissionLevel?: string
+  workspace_type?: string
+}
+
 interface WikiAIAssistantProps {
   onContentUpdate?: (content: string) => void
   onTitleUpdate?: (title: string) => void
+  onCreatePage?: (title: string, content: string, workspaceId: string) => Promise<void> // Updated to accept params
+  onStartCreatingPage?: () => void // Callback to show page creation UI
+  workspaces?: WikiWorkspace[] // Workspaces for selection
+  recentPages?: RecentPage[] // Recent pages for parent page suggestions
   currentContent?: string
   currentTitle?: string
   currentPageId?: string
@@ -67,6 +97,10 @@ interface LoopwellAIResponse {
 export function WikiAIAssistant({ 
   onContentUpdate, 
   onTitleUpdate,
+  onCreatePage,
+  onStartCreatingPage,
+  workspaces = [],
+  recentPages = [],
   currentContent = '', 
   currentTitle = 'New page',
   currentPageId,
@@ -76,18 +110,49 @@ export function WikiAIAssistant({
   mode = 'bottom-bar' // Default to bottom-bar for wiki pages
 }: WikiAIAssistantProps) {
   const [isOpen, setIsOpen] = useState(false)
+  
+  // Debug: Log when workspaces change
+  useEffect(() => {
+    console.log('📦 WikiAIAssistant - Workspaces updated:', workspaces.length, workspaces.map(w => w.name))
+    console.log('📦 WikiAIAssistant - Recent pages updated:', recentPages.length, recentPages.map(p => p.title))
+  }, [workspaces, recentPages])
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   // Default display mode based on component mode
   const [displayMode, setDisplayMode] = useState<'sidebar' | 'floating'>(mode === 'floating-button' ? 'floating' : 'sidebar')
-  const [showDisplayModeDropdown, setShowDisplayModeDropdown] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [pendingPreview, setPendingPreview] = useState<LoopwellAIResponse | null>(null)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [previewTitle, setPreviewTitle] = useState("")
+  const [previewContent, setPreviewContent] = useState("")
+  const [isCreatingPage, setIsCreatingPage] = useState(false)
+  // Page creation flow state
+  const [pageCreationState, setPageCreationState] = useState<'idle' | 'waiting_for_title' | 'waiting_for_location'>('idle')
+  const [pendingPageTitle, setPendingPageTitle] = useState<string>("")
+  const [pendingPageLocation, setPendingPageLocation] = useState<{ type: 'workspace' | 'parent', id: string, name: string } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const handleNewChat = () => {
+    // Clear messages
+    setMessages([])
+    // Reset session ID to create a new session
+    setSessionId(null)
+    // Clear pending preview
+    setPendingPreview(null)
+    // Reset page creation flow
+    setPageCreationState('idle')
+    setPendingPageTitle("")
+    setPendingPageLocation(null)
+    // Clear input
+    setInput("")
+    // Focus input if open
+    if (isOpen && !isMinimized) {
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -105,19 +170,6 @@ export function WikiAIAssistant({
     }
   }, [isOpen, isMinimized])
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDisplayModeDropdown(false)
-      }
-    }
-
-    if (showDisplayModeDropdown) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showDisplayModeDropdown])
 
   // Create or get session ID
   useEffect(() => {
@@ -147,18 +199,722 @@ export function WikiAIAssistant({
     }
   }, [isOpen, sessionId, currentTitle])
 
+  // Helper function to extract title from user input
+  const extractTitle = (input: string): string => {
+    let cleaned = input.trim()
+    
+    // First, try to extract text within quotes (most reliable)
+    const quotedMatch = cleaned.match(/['"]([^'"]+)['"]/)
+    if (quotedMatch) {
+      return quotedMatch[1].trim()
+    }
+    
+    // Remove common leading phrases (case insensitive)
+    cleaned = cleaned
+      .replace(/^(it should be called|call it|title is|titled|name it|name is|the title should be|the page should be called|it's called|it is called)\s*/i, '')
+      .trim()
+    
+    // Remove leading/trailing quotes if still present
+    cleaned = cleaned.replace(/^['"]+|['"]+$/g, '')
+    
+    // Remove leading articles
+    cleaned = cleaned.replace(/^(the|a|an)\s+/i, '')
+    
+    // If the cleaned result is empty or too short, return original (minus quotes)
+    if (cleaned.length < 2) {
+      return input.replace(/^['"]+|['"]+$/g, '').trim()
+    }
+    
+    return cleaned.trim()
+  }
+
+  // Helper function to extract entity name from input (removes words like "under", "in", "the", etc.)
+  const extractEntityName = (input: string): string => {
+    let cleaned = input.trim()
+    
+    // Remove quotes first if present
+    cleaned = cleaned.replace(/^['"]+|['"]+$/g, '')
+    
+    // Remove common location phrases at the start
+    cleaned = cleaned
+      .replace(/^(under|in|at|within|inside|into)\s+/i, '')
+      .trim()
+    
+    // Remove "the" after location words (e.g., "under the Loopwell Space" -> "Loopwell Space")
+    cleaned = cleaned.replace(/^(the)\s+/i, '')
+    
+    // Remove location phrases at the end
+    cleaned = cleaned.replace(/\s+(under|in|at|within|inside|into)$/i, '')
+    
+    // Remove remaining articles
+    cleaned = cleaned.replace(/^(the|a|an)\s+/i, '')
+    
+    return cleaned.trim()
+  }
+
+  // Helper function to check if a workspace/page name matches the input (partial matching)
+  const nameMatches = (entityName: string, input: string): boolean => {
+    const entityLower = entityName.toLowerCase().trim()
+    const inputLower = input.toLowerCase().trim()
+    
+    // Exact match
+    if (inputLower === entityLower) return true
+    
+    // Input contains full entity name
+    if (inputLower.includes(entityLower)) return true
+    
+    // Entity name contains input (for partial matches)
+    if (entityLower.includes(inputLower)) return true
+    
+    // Handle typos: check if input is very similar to entity (e.g., "loopwel" vs "loopwell")
+    // Remove common typos: check if removing one character makes them match
+    if (Math.abs(inputLower.length - entityLower.length) <= 1) {
+      // Check if input matches entity when ignoring one character
+      const inputChars = inputLower.split('')
+      const entityChars = entityLower.split('')
+      
+      // If lengths are equal, check if they're very similar (1 char difference)
+      if (inputLower.length === entityLower.length) {
+        let differences = 0
+        for (let i = 0; i < inputChars.length; i++) {
+          if (inputChars[i] !== entityChars[i]) differences++
+        }
+        if (differences <= 1) return true
+      }
+    }
+    
+    // Word-by-word matching - check if all significant words from entity appear in input
+    const entityWords = entityLower.split(/\s+/).filter(w => w.length > 2)
+    const inputWords = inputLower.split(/\s+/).filter(w => w.length > 2)
+    
+    if (entityWords.length > 0) {
+      // Check if all entity words appear in input
+      const allEntityWordsInInput = entityWords.every(word => 
+        inputWords.some(inputWord => inputWord.includes(word) || word.includes(inputWord))
+      )
+      if (allEntityWordsInInput) return true
+      
+      // Check if all input words appear in entity
+      if (inputWords.length > 0) {
+        const allInputWordsInEntity = inputWords.every(inputWord =>
+          entityWords.some(word => word.includes(inputWord) || inputWord.includes(inputWord))
+        )
+        if (allInputWordsInEntity) return true
+      }
+    }
+    
+    return false
+  }
+
+  // Helper function to parse location from user input (with explicit workspaces parameter)
+  const parseLocationWithWorkspaces = (
+    input: string, 
+    workspaceList: WikiWorkspace[], 
+    pageList: RecentPage[]
+  ): { type: 'workspace' | 'parent', id: string, name: string } | null => {
+    const lowerInput = input.toLowerCase().trim()
+    
+    console.log('🔍 Parsing location - Input:', input)
+    console.log('🔍 Available workspaces:', workspaceList.map(w => ({ name: w.name, id: w.id })))
+    console.log('🔍 Available pages:', pageList.map(p => ({ title: p.title, id: p.id })))
+    
+    // Extract the entity name from input (removes "under", "in", "the", etc.)
+    const extractedName = extractEntityName(input)
+    console.log('🔍 Extracted entity name:', extractedName)
+    
+    // FIRST: Check for workspace matches - match against extracted name AND variations
+    // Sort workspaces by relevance (exact matches first, then partial)
+    const workspaceMatches: Array<{ workspace: WikiWorkspace, score: number, matchType: string }> = []
+    
+    // Extract significant words from input (words longer than 3 chars)
+    const extractedWords = extractedName.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+    const inputWords = input.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+    
+    for (const workspace of workspaceList) {
+      const workspaceName = workspace.name
+      const workspaceNameLower = workspaceName.toLowerCase()
+      const workspaceWords = workspaceNameLower.split(/\s+/)
+      const extractedLower = extractedName.toLowerCase()
+      const inputLower = input.toLowerCase()
+      
+      let score = 0
+      let matchType = 'none'
+      
+      // EXACT MATCH (highest priority)
+      if (workspaceNameLower === extractedLower || workspaceNameLower === inputLower) {
+        score = 100
+        matchType = 'exact'
+        console.log('🎯 EXACT match found:', workspace.name, 'with', extractedName)
+      }
+      // Workspace name contains extracted name (e.g., "Loopwell Space" contains "loopwell")
+      else if (workspaceNameLower.includes(extractedLower) && extractedLower.length >= 4) {
+        score = 80
+        matchType = 'workspace-contains-extracted'
+        console.log('✅ Workspace contains extracted:', workspace.name, 'contains', extractedName)
+      }
+      // Extracted name contains workspace name (e.g., "loopwell space" contains "loopwell")
+      else if (extractedLower.includes(workspaceNameLower) && workspaceNameLower.length >= 4) {
+        score = 75
+        matchType = 'extracted-contains-workspace'
+        console.log('✅ Extracted contains workspace:', extractedName, 'contains', workspace.name)
+      }
+      // Check if workspace contains significant words from extracted name
+      else if (extractedWords.length > 0) {
+        const matchingWords = extractedWords.filter(word => 
+          workspaceWords.some(wsWord => wsWord.includes(word) || word.includes(wsWord))
+        )
+        if (matchingWords.length > 0) {
+          // Score based on how many words match and their length
+          const wordMatchScore = matchingWords.reduce((sum, word) => sum + word.length, 0)
+          score = 70 + Math.min(wordMatchScore / 10, 5) // 70-75 range
+          matchType = 'word-match'
+          console.log('✅ Word match:', workspace.name, 'matches words:', matchingWords.join(', '))
+        }
+      }
+      // Input contains workspace name
+      else if (inputLower.includes(workspaceNameLower) && workspaceNameLower.length >= 4) {
+        score = 70
+        matchType = 'input-contains-workspace'
+        console.log('✅ Input contains workspace:', input, 'contains', workspace.name)
+      }
+      // Use nameMatches function for fuzzy matching (lower priority)
+      else if (nameMatches(workspaceName, extractedName)) {
+        score = 60
+        matchType = 'fuzzy-extracted'
+        console.log('🔍 Fuzzy match (extracted):', workspace.name, 'with', extractedName)
+      }
+      else if (nameMatches(workspaceName, input)) {
+        score = 55
+        matchType = 'fuzzy-input'
+        console.log('🔍 Fuzzy match (input):', workspace.name, 'with', input)
+      }
+      
+      if (score > 0) {
+        // Check if it's NOT a page name match (prioritize workspace if both match)
+        const isPageMatch = pageList.some(page => 
+          nameMatches(page.title, extractedName) && 
+          page.title.toLowerCase() !== workspaceNameLower
+        )
+        
+        if (!isPageMatch) {
+          workspaceMatches.push({ workspace, score, matchType })
+          console.log('   Added match candidate:', workspace.name, 'score:', score, 'type:', matchType)
+        } else {
+          console.log('   Skipped (conflicts with page):', workspace.name)
+        }
+      }
+    }
+    
+    // Sort by score (highest first) and return the best match
+    // If scores are equal, prefer the one with more word matches
+    if (workspaceMatches.length > 0) {
+      workspaceMatches.sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score
+        }
+        // Tie-breaker: prefer workspace that contains more words from extracted name
+        const aWords = a.workspace.name.toLowerCase().split(/\s+/)
+        const bWords = b.workspace.name.toLowerCase().split(/\s+/)
+        const extractedWordsLower = extractedName.toLowerCase().split(/\s+/)
+        const aMatches = extractedWordsLower.filter(w => aWords.some(aw => aw.includes(w) || w.includes(aw))).length
+        const bMatches = extractedWordsLower.filter(w => bWords.some(bw => bw.includes(w) || w.includes(bw))).length
+        return bMatches - aMatches
+      })
+      const bestMatch = workspaceMatches[0]
+      console.log('🏆 Best workspace match:', bestMatch.workspace.name, 'score:', bestMatch.score, 'type:', bestMatch.matchType)
+      console.log('   All candidates:', workspaceMatches.map(m => `${m.workspace.name} (${m.score})`).join(', '))
+      return { type: 'workspace', id: bestMatch.workspace.id, name: bestMatch.workspace.name }
+    }
+    
+    // SECOND: Check for parent page matches (only if no workspace was matched)
+    for (const page of pageList) {
+      const pageTitle = page.title
+      // Check if page name matches the extracted name or the full input
+      if (nameMatches(pageTitle, extractedName) || nameMatches(pageTitle, input)) {
+        console.log('✅ Matched parent page:', page.title, 'from input:', input, '(extracted:', extractedName, ')')
+        return { type: 'parent', id: page.id, name: page.title }
+      }
+    }
+    
+    // THIRD: Check for "under" or "subpage" keywords - extract name after these words
+    if (lowerInput.includes('under') || lowerInput.includes('subpage')) {
+      // Try to find text after "under" or "subpage"
+      const underMatch = lowerInput.match(/(?:under|subpage)\s+['"]?([^'"]+)['"]?/i)
+      if (underMatch) {
+        const afterKeyword = extractEntityName(underMatch[1])
+        console.log('🔍 Found text after "under/subpage":', afterKeyword)
+        
+        if (afterKeyword) {
+          // Check if it matches a page
+          for (const page of pageList) {
+            if (nameMatches(page.title, afterKeyword)) {
+              console.log('✅ Matched parent page after keyword:', page.title)
+              return { type: 'parent', id: page.id, name: page.title }
+            }
+          }
+          
+          // Check if it matches a workspace (user might say "under Loopwell Space" meaning workspace)
+          for (const workspace of workspaceList) {
+            if (nameMatches(workspace.name, afterKeyword)) {
+              console.log('✅ Matched workspace after keyword:', workspace.name)
+              return { type: 'workspace', id: workspace.id, name: workspace.name }
+            }
+          }
+        }
+      }
+      
+      // If just "under" without specific name, default to first recent page
+      if (pageList.length > 0 && extractedName.length < 3) {
+        console.log('✅ Defaulting to first recent page (no specific name found)')
+        return { type: 'parent', id: pageList[0].id, name: pageList[0].title }
+      }
+    }
+    
+    // FOURTH: Default fallbacks
+    if (workspaceList.length > 0 && (lowerInput.includes('main') || lowerInput.includes('top'))) {
+      console.log('✅ Matched default workspace (main/top)')
+      return { type: 'workspace', id: workspaceList[0].id, name: workspaceList[0].name }
+    }
+    
+    console.log('❌ No location matched')
+    return null
+  }
+
+  // Wrapper function that uses component's workspaces and recentPages
+  const parseLocation = (input: string): { type: 'workspace' | 'parent', id: string, name: string } | null => {
+    return parseLocationWithWorkspaces(input, workspaces, recentPages)
+  }
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
+
+    // Open panel when first message is sent
+    if (!isOpen) {
+      setIsOpen(true)
+      onOpenChange?.(true)
+    }
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input.trim(),
+      timestamp: new Date()
+    }
+
+    // Add user message to chat immediately
+    setMessages(prev => [...prev, userMessage])
+    const currentInput = input.trim()
+    setInput("")
+    setIsLoading(true) // Set loading immediately
+
+    console.log('📤 handleSend - Current state:', pageCreationState, 'Input:', currentInput)
+    console.log('📤 handleSend - Pending title:', pendingPageTitle)
+    console.log('📤 handleSend - Messages count:', messages.length)
+
+    // FALLBACK: Check conversation context if state doesn't match
+    // If last assistant message asked for location, treat this as location input
+    // Use updated messages array that includes the user message we just added
+    const updatedMessages = [...messages, userMessage]
+    const lastAssistantMessage = updatedMessages.filter(m => m.role === 'assistant').slice(-1)[0]
+    const isLocationQuestion = lastAssistantMessage?.content?.includes('Where should it live') || 
+                               lastAssistantMessage?.content?.includes('Where should') ||
+                               lastAssistantMessage?.content?.toLowerCase().includes('location')
+    
+    console.log('🔍 Context check - Last assistant message:', lastAssistantMessage?.content?.substring(0, 50))
+    console.log('🔍 Context check - Is location question:', isLocationQuestion)
+    console.log('🔍 Context check - Has pending title:', !!pendingPageTitle)
+    
+    // PRIORITY CHECK: If we have pending title and last message asked for location,
+    // we MUST be in location handling mode, regardless of state
+    // This is a critical fallback for when state gets out of sync
+    const isDefinitelyLocationInput = pendingPageTitle && isLocationQuestion
+    
+    if (isDefinitelyLocationInput && pageCreationState !== 'waiting_for_location') {
+      console.warn('⚠️ STATE MISMATCH DETECTED! Forcing location handling...')
+      console.warn('   Pending title:', pendingPageTitle)
+      console.warn('   Current state:', pageCreationState)
+      console.warn('   Last message:', lastAssistantMessage?.content)
+      // Don't set state here - we'll handle it in the location block
+    }
+
+    // Handle page creation flow - MUST be before API call
+    // BUT: Skip title handling if we're definitely in location mode
+    if (pageCreationState === 'waiting_for_title' && !isDefinitelyLocationInput) {
+      // User provided title, extract it properly
+      const title = extractTitle(currentInput)
+      console.log('📝 Extracted title from input:', currentInput, '->', title)
+      
+      if (!title || title.length < 1) {
+        // If we couldn't extract a title, ask again
+        const clarificationMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: 'I didn\'t catch the page title. Could you tell me what the page should be called?',
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, clarificationMessage])
+        setIsLoading(false)
+        return
+      }
+      
+      setPendingPageTitle(title)
+      setPageCreationState('waiting_for_location')
+      
+      // Build location question with available options
+      const workspaceOptions = workspaces.length > 0 
+        ? workspaces.map(w => `"${w.name}"`).join(' or ')
+        : ''
+      const recentPageOptions = recentPages.length > 0
+        ? recentPages.slice(0, 5).map(p => `"${p.title}"`).join(', ')
+        : ''
+      
+      console.log('📍 Available workspaces:', workspaces.map(w => w.name))
+      console.log('📍 Available pages:', recentPages.slice(0, 5).map(p => p.title))
+      
+      let locationQuestion = `Great! I'll call it "${title}".\n\nWhere should it live?`
+      
+      if (workspaces.length > 0) {
+        locationQuestion += `\n\nShould it be a main page under ${workspaceOptions}`
+      }
+      
+      if (recentPages.length > 0) {
+        locationQuestion += workspaces.length > 0 ? ', or' : '\n\nShould it be'
+        locationQuestion += ` a subpage under ${recentPageOptions}${recentPages.length > 5 ? ' (or another page)' : ''}?`
+      } else if (workspaces.length > 0) {
+        locationQuestion += '?'
+      }
+      
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: locationQuestion,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, assistantMessage])
+      setIsLoading(false)
+      return
+    }
+    
+    // Check if we should handle location (either by state OR by context fallback)
+    const shouldHandleLocation = pageCreationState === 'waiting_for_location' || isDefinitelyLocationInput
+    
+    if (shouldHandleLocation) {
+      // User provided location, create the page - don't call API
+      console.log('📍 IN LOCATION HANDLING - State:', pageCreationState, 'Context fallback:', !pageCreationState && isLocationQuestion)
+      console.log('📍 Parsing location from input:', currentInput)
+      console.log('📍 Pending page title:', pendingPageTitle)
+      console.log('🔍 Available workspaces:', workspaces.length, workspaces.map(w => ({ name: w.name, id: w.id })))
+      console.log('🔍 Available pages:', recentPages.length, recentPages.map(p => ({ title: p.title, id: p.id })))
+      
+      // Ensure state is correct
+      if (pageCreationState !== 'waiting_for_location') {
+        setPageCreationState('waiting_for_location')
+      }
+      
+      // CRITICAL: Ensure we don't fall through to API call
+      if (!pendingPageTitle) {
+        console.error('⚠️ No pending page title found! Resetting state.')
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: 'I lost track of the page title. Let\'s start over - what should the page be called?',
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, errorMessage])
+        setPageCreationState('idle')
+        setPendingPageTitle("")
+        setIsLoading(false)
+        return
+      }
+      
+      try {
+        // If workspaces are empty, try to fetch them directly
+        let workspacesToUse = workspaces
+        if (workspaces.length === 0) {
+          console.warn('⚠️ Workspaces array is empty! Attempting to fetch workspaces...')
+          try {
+            const workspacesResponse = await fetch('/api/wiki/workspaces')
+            if (workspacesResponse.ok) {
+              const workspacesData = await workspacesResponse.json()
+              if (Array.isArray(workspacesData) && workspacesData.length > 0) {
+                console.log('✅ Fetched workspaces:', workspacesData.map((w: any) => w.name))
+                workspacesToUse = workspacesData.map((w: any) => ({
+                  id: w.id,
+                  name: w.name,
+                  type: w.type || 'team',
+                  color: w.color,
+                  icon: w.icon
+                }))
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching workspaces:', error)
+          }
+        }
+        
+        // If still no workspaces, show error
+        if (workspacesToUse.length === 0) {
+          const clarificationMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: `I'm having trouble finding your workspaces. Could you try again, or specify the workspace name more explicitly?`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, clarificationMessage])
+          setIsLoading(false)
+          return
+        }
+        
+        // Parse location with available workspaces
+        const location = parseLocationWithWorkspaces(currentInput.trim(), workspacesToUse, recentPages)
+        console.log('🔍 Parsed location result:', location)
+        
+        if (!location) {
+          console.log('❌ Could not parse location from:', currentInput)
+          // Couldn't parse location, ask for clarification
+          const workspaceList = workspacesToUse.length > 0 
+            ? workspacesToUse.map(w => `"${w.name}"`).join(', ')
+            : 'no workspaces available'
+          const pageList = recentPages.length > 0
+            ? recentPages.slice(0, 3).map(p => `"${p.title}"`).join(', ')
+            : 'no recent pages'
+          
+          const clarificationMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: `I'm not sure where you'd like to create "${pendingPageTitle}". Could you specify:\n- A workspace name (${workspaceList})\n- Or a parent page name (${pageList})`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, clarificationMessage])
+          setIsLoading(false)
+          return
+        }
+        
+        setPendingPageLocation(location)
+        
+        // Determine workspace ID based on location
+        let workspaceId = ''
+        if (location.type === 'workspace') {
+          workspaceId = location.id
+          console.log('✅ Using workspace ID from location:', workspaceId, location.name)
+        } else {
+          // For parent pages, find the workspace of the parent page
+          const parentPage = recentPages.find(p => p.id === location.id)
+          if (parentPage?.workspace_type) {
+            // Try to find workspace by type
+            const workspace = workspacesToUse.find(w => w.type === parentPage.workspace_type || w.id === parentPage.workspace_type)
+            workspaceId = workspace?.id || workspacesToUse[0]?.id || ''
+            console.log('✅ Using workspace ID from parent page:', workspaceId)
+          } else {
+            workspaceId = workspacesToUse[0]?.id || ''
+            console.log('✅ Using first available workspace ID:', workspaceId)
+          }
+        }
+        
+        if (!workspaceId) {
+          console.error('❌ No workspace ID determined!')
+          const errorMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: 'I couldn\'t determine the workspace. Please try again.',
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, errorMessage])
+          setPageCreationState('idle')
+          setPendingPageTitle("")
+          setPendingPageLocation(null)
+          setIsLoading(false)
+          return
+        }
+        
+        console.log('🚀 About to create page:', {
+          title: pendingPageTitle,
+          workspaceId: workspaceId,
+          location: location.name,
+          hasOnCreatePage: !!onCreatePage
+        })
+        
+        // Create the page
+        setIsCreatingPage(true)
+        try {
+          if (onCreatePage) {
+            console.log('📝 Calling onCreatePage callback...')
+            await onCreatePage(pendingPageTitle, '', workspaceId)
+            console.log('✅ onCreatePage completed successfully')
+            const successMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: `Done! I created "${pendingPageTitle}" ${location.type === 'workspace' ? `as a main page under ${location.name}` : `as a subpage under ${location.name}`}. Would you like me to add any content or structure to it?`,
+              timestamp: new Date()
+            }
+            console.log('💬 Adding success message to chat')
+            setMessages(prev => [...prev, successMessage])
+          } else {
+            // Fallback: Create page directly via API if onCreatePage is not provided
+            console.log('📝 onCreatePage not provided, creating page directly via API...')
+            try {
+              // Find workspace type
+              // For custom workspaces, workspace_type should be the workspace ID itself
+              // For standard workspaces, it should be 'team' or 'personal'
+              const selectedWorkspace = workspacesToUse.find(w => w.id === workspaceId)
+              let workspaceType: string
+              let permissionLevel: string
+              
+              if (selectedWorkspace) {
+                // We have workspace info
+                if (selectedWorkspace.type === 'personal') {
+                  workspaceType = 'personal'
+                  permissionLevel = 'personal'
+                } else if (selectedWorkspace.type === 'team') {
+                  workspaceType = 'team'
+                  permissionLevel = 'team'
+                } else {
+                  // Custom workspace - use the workspace ID as workspace_type
+                  workspaceType = workspaceId
+                  permissionLevel = 'team'
+                }
+              } else {
+                // No workspace info available - check if workspaceId looks like a custom workspace
+                // Custom workspace IDs typically start with 'wiki-'
+                if (workspaceId.startsWith('wiki-')) {
+                  // Custom workspace - use the ID itself
+                  workspaceType = workspaceId
+                  permissionLevel = 'team'
+                } else {
+                  // Fallback to team
+                  workspaceType = 'team'
+                  permissionLevel = 'team'
+                }
+              }
+              
+              console.log('🔍 Creating page with workspace_type:', workspaceType, 'workspaceId:', workspaceId)
+              
+              const response = await fetch('/api/wiki/pages', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  title: pendingPageTitle.trim(),
+                  content: ' ',
+                  tags: [],
+                  category: 'general',
+                  permissionLevel: permissionLevel,
+                  workspace_type: workspaceType
+                })
+              })
+              
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+                throw new Error(errorData.error || 'Failed to create page')
+              }
+              
+              const newPage = await response.json()
+              console.log('✅ Page created successfully via API:', newPage)
+              
+              // Navigate to the new page
+              if (newPage.slug) {
+                window.location.href = `/wiki/${newPage.slug}`
+              }
+              
+              const successMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: `Done! I created "${pendingPageTitle}" ${location.type === 'workspace' ? `as a main page under ${location.name}` : `as a subpage under ${location.name}`}. Would you like me to add any content or structure to it?`,
+                timestamp: new Date()
+              }
+              console.log('💬 Adding success message to chat')
+              setMessages(prev => [...prev, successMessage])
+            } catch (apiError) {
+              console.error('❌ Error creating page via API:', apiError)
+              throw apiError
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error creating page:', error)
+          const errorMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: `Sorry, there was an error creating the page: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, errorMessage])
+        } finally {
+          console.log('🧹 Cleaning up state...')
+          setIsCreatingPage(false)
+          setPageCreationState('idle')
+          setPendingPageTitle("")
+          setPendingPageLocation(null)
+          setIsLoading(false)
+        }
+      } catch (error) {
+        console.error('Error in location parsing flow:', error)
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: 'Sorry, there was an error processing your request. Please try again.',
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, errorMessage])
+        setIsLoading(false)
+      }
+      return
+    }
+
+    // Check if user is asking to create a page - MUST be before API call
+    // BUT: Don't restart if we're already in a page creation flow
+    const createPagePhrases = ['create a page', 'create page', 'new page', 'make a page', 'can you create']
+    const isCreatePageRequest = createPagePhrases.some(phrase => 
+      currentInput.trim().toLowerCase().includes(phrase.toLowerCase())
+    )
+    
+    // If we're already in a page creation flow and user says "create page" again,
+    // they might be confirming or trying to restart - handle gracefully
+    if (isCreatePageRequest && pageCreationState !== 'idle') {
+      // User is trying to restart while in flow - ask them to complete current step
+      const clarificationMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: pageCreationState === 'waiting_for_title' 
+          ? 'I\'m waiting for the page title. What should the page be called?'
+          : `I'm waiting for the location. Where should "${pendingPageTitle}" be created?`,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, clarificationMessage])
+      setIsLoading(false)
+      return
+    }
+
+    if (isCreatePageRequest && pageCreationState === 'idle') {
+      // Start page creation flow - don't call AI API
+      setPageCreationState('waiting_for_title')
+      setIsLoading(false)
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Sure — I can create a page. Could you tell me:\n\n• What should the page be titled?',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, assistantMessage])
+      return
+    }
 
     // Check if user is confirming a pending preview
     const confirmationPhrases = ['confirm', 'yes', 'apply', 'proceed', 'accept', 'ok', 'okay']
     const isConfirmation = confirmationPhrases.some(phrase => 
-      input.trim().toLowerCase().startsWith(phrase.toLowerCase())
+      currentInput.trim().toLowerCase().startsWith(phrase.toLowerCase())
     )
 
     if (isConfirmation && pendingPreview) {
       // Handle confirmation
-      if (pendingPreview.intent === 'create_new_page' || pendingPreview.intent === 'append_to_page') {
+      if (pendingPreview.intent === 'create_new_page') {
+        // For new page creation - show preview modal for workspace selection
+        if (pendingPreview.preview?.title && pendingPreview.preview?.markdown) {
+          setPreviewTitle(pendingPreview.preview.title)
+          setPreviewContent(pendingPreview.preview.markdown)
+          setShowPreviewModal(true)
+        }
+      } else if (pendingPreview.intent === 'append_to_page') {
         if (pendingPreview.preview?.markdown && onContentUpdate) {
           const existingContent = currentContent || ''
           const newContent = existingContent.trim() 
@@ -175,41 +931,26 @@ export function WikiAIAssistant({
         }
       }
       
-      // Add confirmation message
+      // Add confirmation message (user message already added above)
       const confirmMessage: Message = {
         id: Date.now().toString(),
         role: 'user',
-        content: input.trim(),
+        content: currentInput.trim(),
         timestamp: new Date()
       }
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Changes applied successfully!',
+        content: pendingPreview.intent === 'create_new_page' ? 'Page created successfully!' : 'Changes applied successfully!',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, confirmMessage, assistantMessage])
       setPendingPreview(null)
-      setInput("")
+      setIsLoading(false)
       return
     }
 
-    // Open panel when first message is sent
-    if (!isOpen) {
-      setIsOpen(true)
-      onOpenChange?.(true)
-    }
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input.trim(),
-      timestamp: new Date()
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    const currentInput = input
-    setInput("")
+    // If we get here, proceed with normal AI API call
     setIsLoading(true)
 
     try {
@@ -261,9 +1002,22 @@ export function WikiAIAssistant({
 
       const data: LoopwellAIResponse = await response.json()
       
+      // If AI suggests creating a page, start conversational flow instead of showing preview
+      if (data.intent === 'create_new_page' && pageCreationState === 'idle') {
+        setPageCreationState('waiting_for_title')
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: 'Sure — I can create a page. Could you tell me:\n\n• What should the page be titled?',
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, assistantMessage])
+        setIsLoading(false)
+        return
+      }
+      
       // Handle structured response based on intent
       const requiresPreview = [
-        'create_new_page',
         'append_to_page', 
         'improve_existing_page',
         'extract_tasks',
@@ -276,10 +1030,16 @@ export function WikiAIAssistant({
         setPendingPreview(data)
         
         // Show a message indicating preview is ready
+        const actionText = data.intent === 'append_to_page'
+          ? 'Click "Append to Page" below to add it.'
+          : data.intent === 'improve_existing_page'
+          ? 'Click "Apply Changes" below to apply the improvements.'
+          : 'Please review the preview card below and click the button to confirm.'
+        
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `I've prepared a ${data.intent.replace(/_/g, ' ')}. Please review the preview card below and click "Apply Changes" to confirm, or type "I confirm" / "yes" / "apply".`,
+          content: `I've prepared a ${data.intent.replace(/_/g, ' ')}. ${actionText}`,
           timestamp: new Date()
         }
         setMessages(prev => [...prev, assistantMessage])
@@ -329,9 +1089,7 @@ export function WikiAIAssistant({
       className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 z-50 flex items-center justify-center group overflow-hidden"
       aria-label="Open AI Assistant"
     >
-      <Image 
-        src="/loopwell-logo.png" 
-        alt="Loopwell AI" 
+      <AILogo 
         width={28} 
         height={28} 
         className="w-7 h-7 group-hover:scale-110 transition-transform"
@@ -358,68 +1116,58 @@ export function WikiAIAssistant({
         )}
         style={isOpen ? {} : mode === 'bottom-bar' ? { width: 'calc(100% - 2rem)' } : {}}
       >
-        {/* Header - Only visible when open */}
+        {/* Header - Only visible when open - Notion style */}
         {isOpen && (
-          <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
-            <div className="flex items-center gap-2 relative" ref={dropdownRef}>
-              <Sparkles className="h-4 w-4 text-purple-600" />
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 bg-card">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-foreground">New AI chat</span>
               <button
-                onClick={() => setShowDisplayModeDropdown(!showDisplayModeDropdown)}
-                className="text-sm font-semibold flex items-center gap-1 hover:bg-muted px-2 py-1 rounded"
+                onClick={handleNewChat}
+                className="p-1.5 hover:bg-muted rounded transition-colors"
+                title="Start new chat"
               >
-                New AI chat <ChevronDown className="h-3 w-3" />
+                <Plus className="h-4 w-4 text-muted-foreground" />
               </button>
-              
-              {/* Dropdown Menu */}
-              {showDisplayModeDropdown && (
-                <div className="absolute top-full left-0 mt-2 w-48 bg-popover border border-border rounded-lg shadow-lg z-10">
-                  <button
-                    onClick={() => {
-                      setDisplayMode('sidebar')
-                      setShowDisplayModeDropdown(false)
-                      onDisplayModeChange?.('sidebar')
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm flex items-center justify-between hover:bg-muted first:rounded-t-lg last:rounded-b-lg"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Sidebar className="h-4 w-4" />
-                      <span>Sidebar</span>
-                    </div>
-                    {displayMode === 'sidebar' && <Check className="h-4 w-4" />}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDisplayMode('floating')
-                      setShowDisplayModeDropdown(false)
-                      onDisplayModeChange?.('floating')
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm flex items-center justify-between hover:bg-muted first:rounded-t-lg last:rounded-b-lg"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Move className="h-4 w-4" />
-                      <span>Floating</span>
-                    </div>
-                    {displayMode === 'floating' && <Check className="h-4 w-4" />}
-                  </button>
-                </div>
-              )}
             </div>
             <div className="flex items-center gap-1">
-              <button 
-                onClick={() => setIsMinimized(!isMinimized)}
-                className="p-1.5 hover:bg-muted rounded"
+              {/* Floating/Sidebar Toggle Button */}
+              <button
+                onClick={() => {
+                  const newMode = displayMode === 'sidebar' ? 'floating' : 'sidebar'
+                  setDisplayMode(newMode)
+                  onDisplayModeChange?.(newMode)
+                }}
+                className="p-1.5 hover:bg-muted rounded transition-colors"
+                title={displayMode === 'sidebar' ? 'Switch to floating' : 'Switch to sidebar'}
               >
-                {isMinimized ? (
-                  <Maximize2 className="h-4 w-4 text-gray-500" />
+                {displayMode === 'sidebar' ? (
+                  <Move className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <Minus className="h-4 w-4 text-gray-500" />
+                  <Sidebar className="h-4 w-4 text-muted-foreground" />
                 )}
               </button>
+              {/* Minimize Button */}
               <button 
-                onClick={() => setIsOpen(false)}
-                className="p-1.5 hover:bg-muted rounded"
+                onClick={() => setIsMinimized(!isMinimized)}
+                className="p-1.5 hover:bg-muted rounded transition-colors"
+                title={isMinimized ? 'Restore' : 'Minimize'}
               >
-                <X className="h-4 w-4 text-gray-500" />
+                {isMinimized ? (
+                  <Maximize2 className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Minus className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+              {/* Close Button */}
+              <button 
+                onClick={() => {
+                  setIsOpen(false)
+                  onOpenChange?.(false)
+                }}
+                className="p-1.5 hover:bg-muted rounded transition-colors"
+                title="Close"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
               </button>
             </div>
           </div>
@@ -440,26 +1188,107 @@ export function WikiAIAssistant({
           </div>
         )}
 
-        {/* Chat Messages - Only visible when open */}
+        {/* Chat Messages - Only visible when open - Notion style */}
         {isOpen && !isMinimized && (
-          <div className="flex-1 p-4 overflow-y-auto min-h-0">
+          <div className="flex-1 overflow-y-auto min-h-0 bg-background">
             {messages.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                <Sparkles className="h-8 w-8 mx-auto mb-2 text-purple-600" />
-                <p className="text-sm">Start a conversation with AI</p>
-                <p className="text-xs mt-1">Ask me to create content or edit your page</p>
+              <div className="flex flex-col items-start p-6 max-w-3xl mx-auto">
+                {/* Large Loopwell Logo Avatar */}
+                <div className="mb-6">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                    <AILogo 
+                      width={40} 
+                      height={40} 
+                      className="w-10 h-10"
+                    />
+                  </div>
+                </div>
+                
+                {/* Greeting */}
+                <h2 className="text-lg font-semibold text-foreground mb-6">
+                  How can I help you today?
+                </h2>
+                
+                {/* Suggested Actions */}
+                <div className="space-y-2 w-full">
+                  <button
+                    onClick={() => {
+                      setInput("Personalize your Loopwell AI")
+                      inputRef.current?.focus()
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-left group"
+                  >
+                    <div className="w-8 h-8 rounded bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center flex-shrink-0">
+                      <Lightbulb className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                    </div>
+                    <span className="text-sm text-foreground flex-1">Personalize your Loopwell AI</span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-blue-500 text-white">New</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setInput("Translate this page")
+                      inputRef.current?.focus()
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-left"
+                  >
+                    <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                      <Languages className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm text-foreground">Translate this page</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setInput("Analyze for insights")
+                      inputRef.current?.focus()
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-left"
+                  >
+                    <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm text-foreground flex-1">Analyze for insights</span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-blue-500 text-white">New</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setInput("Create a task tracker")
+                      inputRef.current?.focus()
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-left"
+                  >
+                    <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                      <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm text-foreground flex-1">Create a task tracker</span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-blue-500 text-white">New</span>
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="p-4">
+                <div className="space-y-6 max-w-3xl mx-auto">
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
+                    className={`flex gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                   >
+                    {/* Avatar for assistant messages */}
+                    {message.role === 'assistant' && (
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                        <AILogo 
+                          width={20} 
+                          height={20} 
+                          className="w-5 h-5"
+                        />
+                      </div>
+                    )}
                     <div
-                      className={`max-w-[80%] rounded-lg px-4 py-3 ${
+                      className={`flex-1 rounded-lg px-4 py-3 ${
                         message.role === 'user'
-                          ? 'bg-purple-600 text-white'
+                          ? 'bg-primary text-primary-foreground'
                           : 'bg-muted text-foreground'
                       }`}
                     >
@@ -501,9 +1330,24 @@ export function WikiAIAssistant({
                   <div className="mt-4 mb-4">
                     <AIPreviewCard
                       response={pendingPreview}
+                      onExpand={() => {
+                        // Open expanded preview modal
+                        if (pendingPreview.preview?.title && pendingPreview.preview?.markdown) {
+                          setPreviewTitle(pendingPreview.preview.title)
+                          setPreviewContent(pendingPreview.preview.markdown)
+                          setShowPreviewModal(true)
+                        }
+                      }}
                       onConfirm={() => {
                         // Handle confirmation based on intent
-                        if (pendingPreview.intent === 'create_new_page' || pendingPreview.intent === 'append_to_page') {
+                        if (pendingPreview.intent === 'create_new_page') {
+                          // For new page creation - show preview modal for workspace selection
+                          if (pendingPreview.preview?.title && pendingPreview.preview?.markdown) {
+                            setPreviewTitle(pendingPreview.preview.title)
+                            setPreviewContent(pendingPreview.preview.markdown)
+                            setShowPreviewModal(true)
+                          }
+                        } else if (pendingPreview.intent === 'append_to_page') {
                           if (pendingPreview.preview?.markdown && onContentUpdate) {
                             const existingContent = currentContent || ''
                             const newContent = existingContent.trim() 
@@ -514,13 +1358,32 @@ export function WikiAIAssistant({
                           if (pendingPreview.preview?.title && onTitleUpdate) {
                             onTitleUpdate(pendingPreview.preview.title)
                           }
+                          // Add success message
+                          const successMessage: Message = {
+                            id: (Date.now() + 1).toString(),
+                            role: 'assistant',
+                            content: 'Content appended successfully!',
+                            timestamp: new Date()
+                          }
+                          setMessages(prev => [...prev, successMessage])
+                          setPendingPreview(null)
                         } else if (pendingPreview.intent === 'improve_existing_page') {
                           if (pendingPreview.preview?.markdown && onContentUpdate) {
                             onContentUpdate(pendingPreview.preview.markdown)
                           }
+                          // Add success message
+                          const successMessage: Message = {
+                            id: (Date.now() + 1).toString(),
+                            role: 'assistant',
+                            content: 'Changes applied successfully!',
+                            timestamp: new Date()
+                          }
+                          setMessages(prev => [...prev, successMessage])
+                          setPendingPreview(null)
+                        } else {
+                          // TODO: Handle extract_tasks and tag_pages
+                          setPendingPreview(null)
                         }
-                        // TODO: Handle extract_tasks and tag_pages
-                        setPendingPreview(null)
                       }}
                       onReject={() => {
                         setPendingPreview(null)
@@ -542,16 +1405,45 @@ export function WikiAIAssistant({
                   </div>
                 )}
                 <div ref={messagesEndRef} />
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* Input Section - Always visible */}
+        {/* Input Section - Notion style */}
         <div className={cn(
-          "p-4 border-t border-border shrink-0",
+          "p-4 border-t border-border shrink-0 bg-card",
           !isOpen && "border-t-0 p-2"
         )}>
+          {/* Options Row - Above Input */}
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            {/* @ Button */}
+            <button className="p-2 hover:bg-muted rounded transition-colors">
+              <AtSign className="h-4 w-4 text-muted-foreground" />
+            </button>
+            
+            {/* Getting Started Button - Only when no messages */}
+            {messages.length === 0 && (
+              <button className="px-3 py-1.5 text-xs font-medium rounded-md bg-muted hover:bg-muted/80 text-muted-foreground flex items-center gap-1.5 transition-colors">
+                <FileText className="h-3 w-3" />
+                Getting Started
+              </button>
+            )}
+            
+            {/* All sources button */}
+            <button className="p-1.5 hover:bg-muted rounded transition-colors flex items-center gap-1.5" title="All sources">
+              <Globe className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground hidden sm:inline">All sources</span>
+            </button>
+            
+            {/* Attach file button */}
+            <button className="p-1.5 hover:bg-muted rounded transition-colors" title="Attach file">
+              <Paperclip className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+          
+          {/* Input Field - Full Width */}
           <div className="flex items-center gap-2">
             <Input
               ref={inputRef}
@@ -559,41 +1451,23 @@ export function WikiAIAssistant({
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder="Ask, search, or make anything..."
-              className="flex-1 text-sm border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="flex-1 text-sm border border-border bg-background focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 rounded-md px-3 py-2"
             />
-            <div className="flex items-center gap-1">
-              {!isOpen && (
-                <button className="p-1.5 hover:bg-muted rounded">
-                  <Mic className="h-4 w-4 text-muted-foreground" />
-                </button>
+            
+            {/* Send Button */}
+            <button 
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading}
+              className="p-2 hover:bg-muted rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+              title="Send"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : (
+                <Send className="h-4 w-4 text-muted-foreground" />
               )}
-              <button 
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className="p-1.5 hover:bg-muted rounded disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                ) : (
-                  <Send className="h-4 w-4 text-muted-foreground" />
-                )}
-              </button>
-            </div>
+            </button>
           </div>
-
-          {/* Quick Actions in Panel - Only when open */}
-          {isOpen && !isMinimized && (
-            <div className="flex items-center gap-2 mt-2">
-              {quickActions.map((action) => (
-                <button
-                  key={action.label}
-                  className="px-3 py-1.5 text-xs font-medium rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
-                >
-                  {action.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -607,6 +1481,38 @@ export function WikiAIAssistant({
           }}
         />
       )}
+
+      {/* Expanded Preview Modal */}
+      <AIPagePreviewModal
+        open={showPreviewModal}
+        onOpenChange={setShowPreviewModal}
+        title={previewTitle}
+        content={previewContent}
+        workspaces={workspaces}
+        onSave={async (title, content, workspaceId) => {
+          setIsCreatingPage(true)
+          try {
+            if (onCreatePage) {
+              await onCreatePage(title, content, workspaceId)
+              // Add success message
+              const successMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: `Page "${title}" created successfully in ${workspaces.find(w => w.id === workspaceId)?.name || 'workspace'}!`,
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, successMessage])
+              // Clear preview
+              setPendingPreview(null)
+            }
+          } catch (error) {
+            throw error
+          } finally {
+            setIsCreatingPage(false)
+          }
+        }}
+        isSaving={isCreatingPage}
+      />
     </>
   )
 }

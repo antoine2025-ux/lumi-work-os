@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { Logo } from "@/components/logo"
 import { 
   LayoutDashboard, 
   Users, 
@@ -32,9 +32,7 @@ export function Sidebar() {
     <div className="flex h-full w-64 flex-col bg-card border-r">
       <div className="flex h-16 items-center px-6 border-b">
         <div className="flex items-center space-x-2">
-          <Image 
-            src="/loopwell-logo.png" 
-            alt="Loopwell Logo" 
+          <Logo 
             width={32} 
             height={32} 
             className="h-8 w-8"

@@ -19,8 +19,8 @@ import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/theme-provider"
 import { useWorkspace } from "@/lib/workspace-context"
 import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target } from "lucide-react"
-import Image from "next/image"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Logo } from "@/components/logo"
 
 // Prefetch common routes on mount for instant navigation
 function prefetchRoutes() {
@@ -122,9 +122,7 @@ export function Header() {
         <div className="flex h-full items-center px-6">
           {/* Logo */}
           <div className="flex items-center space-x-2">
-            <Image 
-              src="/loopwell-logo.png" 
-              alt="Loopwell Logo" 
+            <Logo 
               width={32} 
               height={32} 
               className="w-8 h-8"

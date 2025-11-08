@@ -9,7 +9,6 @@ import { RichTextEditor } from "@/components/wiki/rich-text-editor"
 import { WikiAIAssistant } from "@/components/wiki/wiki-ai-assistant"
 import { useUserStatus } from '@/hooks/use-user-status'
 import { 
-  ArrowLeft,
   Edit3,
   Save,
   X,
@@ -179,10 +178,15 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
           setIsStarred(page.is_featured || false)
           loadRelatedPages(page)
         } else {
-          console.error('Failed to load page:', response.status, response.statusText)
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          console.error('Failed to load page:', response.status, response.statusText, errorData)
+          // Set pageData to null to show the "Page not found" UI
+          setPageData(null)
         }
       } catch (error) {
         console.error('Error loading page:', error)
+        // Set pageData to null to show the "Page not found" UI
+        setPageData(null)
       } finally {
         setIsLoading(false)
       }
@@ -291,27 +295,21 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
         <div className="text-center">
           <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-semibold text-foreground mb-2">Page not found</h2>
-          <p className="text-muted-foreground mb-6">The page you're looking for doesn't exist.</p>
-          <Link href="/wiki">
-            <Button variant="outline">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Knowledge Base
-            </Button>
-          </Link>
+          <p className="text-muted-foreground">The page you're looking for doesn't exist.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-full bg-background min-h-screen">
+    <div className="h-full bg-background min-h-screen w-full min-w-0">
       {/* Main Editor Area - Clean Document */}
-      <div className="flex-1 p-8 bg-background min-h-screen">
-        <div className="max-w-4xl mx-auto">
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen overflow-x-hidden w-full min-w-0">
+        <div className="max-w-4xl mx-auto w-full min-w-0">
           {/* Page Info and Actions */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
+            <div className="flex items-center gap-2 sm:gap-4 flex-wrap min-w-0 w-full sm:w-auto max-w-full">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto flex-shrink-0">
                 <Share2 className="h-4 w-4" />
               </Button>
               <Button 
@@ -322,13 +320,13 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
               >
                 <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto flex-shrink-0">
                 <Eye className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto flex-shrink-0">
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto flex-shrink-0">
                 <Settings className="h-4 w-4" />
               </Button>
               {isEditing ? (
@@ -359,7 +357,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto flex-shrink-0">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -402,21 +400,21 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
                   showToolbar={false}
                 />
                 {/* Action Suggestions - Only show when editing */}
-                <div className="flex items-center gap-6 text-sm text-muted-foreground mt-8">
-                  <button className="flex items-center gap-2 hover:text-foreground">
-                    <Settings className="h-4 w-4" />
+                <div className="flex items-center gap-3 sm:gap-6 text-sm text-muted-foreground mt-8 flex-wrap overflow-x-auto w-full">
+                  <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                    <Settings className="h-4 w-4 flex-shrink-0" />
                     Use a template
                   </button>
-                  <button className="flex items-center gap-2 hover:text-foreground">
-                    <Download className="h-4 w-4" />
+                  <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                    <Download className="h-4 w-4 flex-shrink-0" />
                     Import
                   </button>
-                  <button className="flex items-center gap-2 hover:text-foreground">
-                    <FileText className="h-4 w-4" />
+                  <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                    <FileText className="h-4 w-4 flex-shrink-0" />
                     New subdoc
                   </button>
-                  <button className="flex items-center gap-2 hover:text-foreground">
-                    <MoreHorizontal className="h-4 w-4" />
+                  <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                    <MoreHorizontal className="h-4 w-4 flex-shrink-0" />
                     Convert to collection
                   </button>
                 </div>
