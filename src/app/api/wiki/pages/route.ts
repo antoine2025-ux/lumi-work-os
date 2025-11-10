@@ -32,7 +32,10 @@ export async function GET(request: NextRequest) {
     
     if (cached) {
       logger.debug('Returning cached wiki pages', { workspaceId: auth.workspaceId, ...pagination })
-      return NextResponse.json(cached)
+      const response = NextResponse.json(cached)
+      response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120')
+      response.headers.set('X-Cache', 'HIT')
+      return response
     }
     
     const skip = getSkipValue(pagination.page!, pagination.limit!)
@@ -99,7 +102,11 @@ export async function GET(request: NextRequest) {
     cache.set(cacheKey, result, 300)
     
     logger.info('Wiki pages fetched', { workspaceId: auth.workspaceId, total, page: pagination.page, limit: pagination.limit })
-    return NextResponse.json(result)
+    
+    // Add HTTP caching headers for better performance
+    const response = NextResponse.json(result)
+    response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120')
+    return response
   } catch (error) {
     const workspaceId = (error as any)?.workspaceId || 'unknown'
     logger.error('Error fetching wiki pages', error instanceof Error ? error : undefined)

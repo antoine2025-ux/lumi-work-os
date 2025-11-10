@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/theme-provider"
 import { useWorkspace } from "@/lib/workspace-context"
-import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target } from "lucide-react"
+import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target, LayoutDashboard, FolderKanban, Brain, Network, Sliders } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Logo } from "@/components/logo"
 
@@ -46,31 +46,31 @@ const navigationItems = [
   {
     name: "Dashboard",
     href: "/home",
-    icon: Home,
+    icon: LayoutDashboard,
     description: "Overview and quick actions"
   },
   {
     name: "Spaces",
     href: "/wiki/home",
-    icon: BookOpen,
+    icon: FolderKanban,
     description: "Workspaces, wikis and projects"
   },
   {
     name: "Ask AI",
     href: "/ask",
-    icon: Bot,
+    icon: Brain,
     description: "AI-powered assistance"
   },
   {
     name: "Org",
     href: "/org",
-    icon: Building2,
+    icon: Network,
     description: "Organization chart and structure"
   },
   {
     name: "Settings",
     href: "/settings",
-    icon: Settings,
+    icon: Sliders,
     description: "Workspace configuration"
   }
 ]

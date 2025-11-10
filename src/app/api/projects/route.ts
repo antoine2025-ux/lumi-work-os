@@ -37,7 +37,10 @@ export async function GET(request: NextRequest) {
     // Check cache first
     const cached = await cache.get(cacheKey)
     if (cached) {
-      return NextResponse.json(cached)
+      const response = NextResponse.json(cached)
+      response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
+      response.headers.set('X-Cache', 'HIT')
+      return response
     }
 
     const where: any = { workspaceId: auth.workspaceId } // 5. Use activeWorkspaceId, no hardcoded values
@@ -113,7 +116,11 @@ export async function GET(request: NextRequest) {
     // Cache the result for 5 minutes
     await cache.set(cacheKey, projects, CACHE_TTL.SHORT)
 
-    return NextResponse.json(projects)
+    // Add HTTP caching headers for better performance
+    const response = NextResponse.json(projects)
+    response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
+    response.headers.set('X-Cache', 'MISS')
+    return response
   } catch (error) {
     console.error('Error fetching projects:', error)
     

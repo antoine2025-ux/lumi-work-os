@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,6 +40,22 @@ export async function GET(request: NextRequest) {
     }
 
     const workspaceId = workspace.id
+
+    // Generate cache key
+    const cacheKey = cache.generateKey(
+      CACHE_KEYS.WORKSPACE_DATA,
+      workspaceId,
+      'wiki_workspaces'
+    )
+
+    // Check cache first
+    const cached = await cache.get(cacheKey)
+    if (cached) {
+      const response = NextResponse.json(cached)
+      response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
+      response.headers.set('X-Cache', 'HIT')
+      return response
+    }
 
     // Get wiki workspaces for the current workspace
     const workspaces = await prisma.wiki_workspaces.findMany({
@@ -107,7 +124,13 @@ export async function GET(request: NextRequest) {
         return w
       })
       
-      return NextResponse.json(normalizedUpdated)
+      // Cache the result
+      await cache.set(cacheKey, normalizedUpdated, CACHE_TTL.MEDIUM)
+      
+      const response = NextResponse.json(normalizedUpdated)
+      response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
+      response.headers.set('X-Cache', 'MISS')
+      return response
     }
 
     console.log('📤 Returning existing workspaces:', workspaces.map(w => ({ id: w.id, name: w.name, type: w.type })))
@@ -118,7 +141,13 @@ export async function GET(request: NextRequest) {
       return w
     })
     
-    return NextResponse.json(normalized)
+    // Cache the result
+    await cache.set(cacheKey, normalized, CACHE_TTL.MEDIUM)
+    
+    const response = NextResponse.json(normalized)
+    response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
+    response.headers.set('X-Cache', 'MISS')
+    return response
   } catch (error) {
     console.error('Error fetching wiki workspaces:', error)
     return NextResponse.json({ error: 'Failed to fetch workspaces' }, { status: 500 })

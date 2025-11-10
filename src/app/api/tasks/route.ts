@@ -150,7 +150,10 @@ export async function GET(request: NextRequest) {
       take: 100 // Add limit to prevent loading thousands of tasks
     })
 
-    return NextResponse.json(tasks)
+    // Add HTTP caching headers for better performance
+    const response = NextResponse.json(tasks)
+    response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120')
+    return response
   } catch (error) {
     console.error('Error fetching tasks:', error)
     

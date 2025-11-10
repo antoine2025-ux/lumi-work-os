@@ -137,7 +137,12 @@ export default function LoginPage() {
             </div>
 
             <div className="text-center text-xs text-muted-foreground mt-4">
-              By signing in, you agree to our Terms of Service and Privacy Policy
+              By signing in, you agree to our{" "}
+              <a href="/cookie-policy" className="underline hover:text-foreground">Cookie Policy</a>
+              {", "}
+              <a href="#" className="underline hover:text-foreground">Terms of Service</a>
+              {" and "}
+              <a href="#" className="underline hover:text-foreground">Privacy Policy</a>
             </div>
           </CardContent>
         </Card>

@@ -130,20 +130,23 @@ export default function HomePage() {
   const completedTasks = mockTasks.filter(task => task.completed).length
   const totalTasks = mockTasks.length
 
-  // Load recent pages from API
+  // Load recent pages and projects in parallel for better performance
   useEffect(() => {
-    const loadRecentPages = async () => {
+    const loadData = async () => {
       if (!currentWorkspace) return // Wait for workspace to load
       
       try {
-        const response = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace.id}`)
-        if (response.ok) {
-          const result = await response.json()
-          // Handle paginated response - data is in result.data
+        // Load both API calls in parallel
+        const [pagesResponse, projectsResponse] = await Promise.all([
+          fetch(`/api/wiki/pages?workspaceId=${currentWorkspace.id}`),
+          fetch(`/api/projects?workspaceId=${currentWorkspace.id}`)
+        ])
+
+        // Process pages response
+        if (pagesResponse.ok) {
+          const result = await pagesResponse.json()
           const data = result.data || result
-          // Ensure data is an array before sorting
           if (Array.isArray(data)) {
-            // Sort by updatedAt and take the 4 most recent
             const sortedPages = data
               .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
               .slice(0, 4)
@@ -152,39 +155,19 @@ export default function HomePage() {
             console.warn('Expected array but got:', typeof data, data)
             setRecentPages([])
           }
-        } else if (response.status === 401) {
-          // User not authenticated, show empty state
+        } else if (pagesResponse.status === 401) {
           console.log('User not authenticated, showing empty state')
           setRecentPages([])
         } else {
-          console.error('Failed to load recent pages:', response.status)
+          console.error('Failed to load recent pages:', pagesResponse.status)
           setRecentPages([])
         }
-      } catch (error) {
-        console.error('Error loading recent pages:', error)
-        setRecentPages([])
-      } finally {
-        setIsLoadingRecentPages(false)
-      }
-    }
 
-    loadRecentPages()
-  }, [currentWorkspace]) // Depend on currentWorkspace instead of empty array
-
-  // Load recent projects from API
-  useEffect(() => {
-    const loadRecentProjects = async () => {
-      if (!currentWorkspace) return // Wait for workspace to load
-      
-      try {
-        const response = await fetch(`/api/projects?workspaceId=${currentWorkspace.id}`)
-        if (response.ok) {
-          const result = await response.json()
-          // Handle both paginated and direct array responses
+        // Process projects response
+        if (projectsResponse.ok) {
+          const result = await projectsResponse.json()
           const data = result.data || result
-          // Ensure data is an array before sorting
           if (Array.isArray(data)) {
-            // Sort by updatedAt and take the 6 most recent
             const sortedProjects = data
               .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
               .slice(0, 6)
@@ -197,15 +180,17 @@ export default function HomePage() {
           setRecentProjects([])
         }
       } catch (error) {
-        console.error('Error loading recent projects:', error)
+        console.error('Error loading data:', error)
+        setRecentPages([])
         setRecentProjects([])
       } finally {
+        setIsLoadingRecentPages(false)
         setIsLoadingProjects(false)
       }
     }
 
-    loadRecentProjects()
-  }, [currentWorkspace]) // Depend on currentWorkspace instead of empty array
+    loadData()
+  }, [currentWorkspace])
 
   // Helper function to format time ago
   const getTimeAgo = (dateString: string) => {
@@ -239,7 +224,7 @@ export default function HomePage() {
         {/* Welcome Section */}
         <div className="mb-8 flex items-start justify-between">
           <div>
-            <h2 className="text-3xl font-light mb-2" style={{ color: themeConfig.foreground }}>
+            <h2 className="text-2xl font-light mb-2" style={{ color: themeConfig.foreground }}>
               {getGreeting()} 👋
             </h2>
             <p className="text-lg" style={{ color: themeConfig.mutedForeground }}>

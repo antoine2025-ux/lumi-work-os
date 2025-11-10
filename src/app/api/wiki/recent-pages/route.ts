@@ -34,7 +34,10 @@ export async function GET(request: NextRequest) {
     // Check cache first
     const cached = await cache.get(cacheKey)
     if (cached) {
-      return NextResponse.json(cached)
+      const response = NextResponse.json(cached)
+      response.headers.set('Cache-Control', 'private, s-maxage=120, stale-while-revalidate=240')
+      response.headers.set('X-Cache', 'HIT')
+      return response
     }
 
     // Build where clause - filter by workspaceId and optionally by workspace_type
@@ -113,7 +116,11 @@ export async function GET(request: NextRequest) {
     // Cache the result for 2 minutes
     await cache.set(cacheKey, formattedPages, CACHE_TTL.SHORT)
 
-    return NextResponse.json(formattedPages)
+    // Add HTTP caching headers for better performance
+    const response = NextResponse.json(formattedPages)
+    response.headers.set('Cache-Control', 'private, s-maxage=120, stale-while-revalidate=240')
+    response.headers.set('X-Cache', 'MISS')
+    return response
   } catch (error) {
     console.error('Error fetching recent pages:', error)
     return NextResponse.json({ error: 'Failed to fetch recent pages' }, { status: 500 })
