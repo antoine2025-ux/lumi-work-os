@@ -4,7 +4,12 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Header } from "@/components/layout/header"
+import dynamic from "next/dynamic"
+
+// Lazy load Header to reduce initial bundle size and improve LCP
+const Header = dynamic(() => import("@/components/layout/header").then(mod => ({ default: mod.Header })), {
+  ssr: true, // Keep SSR for header since it's above the fold
+})
 
 export default function DashboardLayout({
   children,
@@ -88,12 +93,18 @@ export default function DashboardLayout({
     }
   }, [session, status, router])
 
-  // Show loading while checking session or workspace
-  if (status === "loading" || isLoadingWorkspace) {
+  // Show minimal loading state - don't block entire page render
+  // Render header and skeleton immediately for better perceived performance
+  if (status === "loading") {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <p className="ml-3 text-sm text-muted-foreground">Loading...</p>
+      <div className="min-h-screen bg-background">
+        <div className="h-16 border-b animate-pulse bg-muted" />
+        <main className="min-h-screen p-8">
+          <div className="max-w-7xl mx-auto space-y-4">
+            <div className="h-8 w-64 bg-muted rounded animate-pulse" />
+            <div className="h-32 w-full bg-muted rounded animate-pulse" />
+          </div>
+        </main>
       </div>
     )
   }
@@ -102,12 +113,24 @@ export default function DashboardLayout({
     return null
   }
   
-  // Don't render anything while workspace is being checked
-  if (!workspaceId) {
+  // Render immediately with loading state - don't block on workspace check
+  // This allows LCP to happen much faster
+  if (isLoadingWorkspace || !workspaceId) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <p className="ml-3 text-sm text-muted-foreground">Checking workspace...</p>
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="min-h-screen">
+          <div className="p-8">
+            <div className="max-w-7xl mx-auto space-y-4">
+              <div className="h-8 w-64 bg-muted rounded animate-pulse" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-48 bg-muted rounded animate-pulse" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     )
   }

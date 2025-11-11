@@ -105,25 +105,26 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
             setCurrentWorkspace(workspace)
             localStorage.setItem('currentWorkspaceId', workspace.id)
             
-            // Load user's role in the workspace
-            try {
-              const roleResponse = await fetch(`/api/workspaces/${workspace.id}/user-role`, fetchOptions)
-              if (roleResponse.ok) {
-                const roleData = await roleResponse.json()
-                setUserRole(roleData.role)
-              } else if (roleResponse.status === 401) {
-                // User not authenticated, set default role for development
-                console.log('User not authenticated, using default OWNER role for development')
+            // Load user's role in the workspace - do this in parallel with other data
+            // Don't block workspace loading on role fetch
+            fetch(`/api/workspaces/${workspace.id}/user-role`, fetchOptions)
+              .then(roleResponse => {
+                if (roleResponse.ok) {
+                  return roleResponse.json().then(roleData => {
+                    setUserRole(roleData.role)
+                  })
+                } else if (roleResponse.status === 401) {
+                  console.log('User not authenticated, using default OWNER role')
+                  setUserRole('OWNER')
+                } else {
+                  console.log('Failed to load user role, using default OWNER role')
+                  setUserRole('OWNER')
+                }
+              })
+              .catch(roleError => {
+                console.error('Failed to load user role:', roleError)
                 setUserRole('OWNER')
-              } else {
-                // If role fetch fails, set default role for development
-                console.log('Failed to load user role, using default OWNER role for development')
-                setUserRole('OWNER')
-              }
-            } catch (roleError) {
-              console.error('Failed to load user role:', roleError)
-              setUserRole('OWNER')
-            }
+              })
           }
         } else {
           // If workspaces API fails, use fallback
