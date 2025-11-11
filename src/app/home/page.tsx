@@ -205,13 +205,24 @@ export default function HomePage() {
     return `${Math.floor(diffInSeconds / 604800)} weeks ago`
   }
 
-  // Show loading state if workspace is still loading
+  // Show loading skeleton if workspace is still loading
   if (workspaceLoading) {
     return (
-      <div className="p-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold mb-2" style={{color:'#0f172a'}}>Loading workspace...</h2>
-          <p style={{color:'#475569'}}>Please wait while we load your workspace.</p>
+      <div className="min-h-screen" style={{ backgroundColor: themeConfig.background }}>
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="mb-8">
+            <div className="h-8 w-64 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mb-2"></div>
+            <div className="h-6 w-96 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-lg p-6 animate-pulse">
+                <div className="h-6 w-3/4 bg-slate-200 dark:bg-slate-700 rounded mb-4"></div>
+                <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded mb-2"></div>
+                <div className="h-4 w-2/3 bg-slate-200 dark:bg-slate-700 rounded"></div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )

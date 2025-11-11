@@ -22,31 +22,26 @@ export default function DashboardLayout({
       const workspaceJustCreated = sessionStorage.getItem('__workspace_just_created__') === 'true'
       
       try {
-        // If workspace was just created, add a small delay to ensure it's available
+        // If workspace was just created, add a minimal delay (reduced from 500ms to 200ms)
         if (workspaceJustCreated) {
           console.log('[DashboardLayout] Workspace just created, waiting a moment before checking...')
-          await new Promise(resolve => setTimeout(resolve, 500))
+          await new Promise(resolve => setTimeout(resolve, 200))
         }
         
         const response = await fetch('/api/auth/user-status', {
-          cache: 'no-store', // Force fresh fetch
-          headers: {
-            'Cache-Control': 'no-cache',
-          }
+          // Allow caching - the API route handles cache invalidation
+          next: { revalidate: 30 }
         })
         if (response.ok) {
           const data = await response.json()
           console.log('[DashboardLayout] User status:', data)
           
-          // If workspace was just created but still not found, wait a bit more and retry
+          // If workspace was just created but still not found, wait a bit more and retry (reduced from 1000ms to 500ms)
           if (workspaceJustCreated && !data.workspaceId) {
             console.log('[DashboardLayout] Workspace just created but not found yet, retrying...')
-            await new Promise(resolve => setTimeout(resolve, 1000))
+            await new Promise(resolve => setTimeout(resolve, 500))
             const retryResponse = await fetch('/api/auth/user-status', {
-              cache: 'no-store',
-              headers: {
-                'Cache-Control': 'no-cache',
-              }
+              next: { revalidate: 30 }
             })
             if (retryResponse.ok) {
               const retryData = await retryResponse.json()
@@ -92,15 +87,12 @@ export default function DashboardLayout({
             return
           }
           
-          // If workspace was just created, give it another moment
+          // If workspace was just created, give it another moment (reduced from 1000ms to 500ms)
           if (workspaceJustCreated) {
             console.log('[DashboardLayout] Error but workspace just created, retrying...')
-            await new Promise(resolve => setTimeout(resolve, 1000))
+            await new Promise(resolve => setTimeout(resolve, 500))
             const retryResponse = await fetch('/api/auth/user-status', {
-              cache: 'no-store',
-              headers: {
-                'Cache-Control': 'no-cache',
-              }
+              next: { revalidate: 30 }
             })
             if (retryResponse.ok) {
               const retryData = await retryResponse.json()

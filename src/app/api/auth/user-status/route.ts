@@ -2,14 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[user-status] Calling getUnifiedAuth...')
+    // Generate cache key based on session
+    const cookieHeader = request.headers.get('cookie') || ''
+    const sessionMatch = cookieHeader.match(/next-auth\.session-token=([^;]*)/)
+    const sessionToken = sessionMatch ? sessionMatch[1] : 'no-session'
+    const cacheKey = cache.generateKey(CACHE_KEYS.USER_STATUS, sessionToken)
+
+    // Check cache first (short TTL since user status can change)
+    const cached = await cache.get(cacheKey)
+    if (cached) {
+      const response = NextResponse.json(cached)
+      response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
+      response.headers.set('X-Cache', 'HIT')
+      return response
+    }
+
     const auth = await getUnifiedAuth(request)
-    console.log('[user-status] getUnifiedAuth returned:', { workspaceId: auth.workspaceId, isFirstTime: auth.user.isFirstTime })
     
-    return NextResponse.json({
+    const result = {
       isAuthenticated: auth.isAuthenticated,
       isFirstTime: auth.user.isFirstTime,
       user: {
@@ -19,7 +33,15 @@ export async function GET(request: NextRequest) {
       },
       workspaceId: auth.workspaceId,
       isDevelopment: auth.isDevelopment
-    })
+    }
+
+    // Cache for 30 seconds
+    await cache.set(cacheKey, result, 30)
+
+    const response = NextResponse.json(result)
+    response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
+    response.headers.set('X-Cache', 'MISS')
+    return response
 
   } catch (error) {
     console.error('[user-status] Error checking user status:', error)
