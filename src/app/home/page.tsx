@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useWorkspace } from "@/lib/workspace-context"
+import dynamic from "next/dynamic"
 import {
   Plus,
   BookOpen,
@@ -40,7 +42,11 @@ import {
 } from "lucide-react"
 import { ContextMenu, contextMenuItems } from "@/components/ui/context-menu"
 import { useTheme } from "@/components/theme-provider"
-import { MeetingsCard } from "@/components/dashboard/meetings-card"
+// Lazy load heavy components for better initial page load
+const MeetingsCard = dynamic(() => import("@/components/dashboard/meetings-card").then(mod => ({ default: mod.MeetingsCard })), {
+  loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />,
+  ssr: false
+})
 
 interface RecentPage {
   id: string
@@ -98,10 +104,6 @@ const mockAnalytics = [
 export default function HomePage() {
   const { currentWorkspace, userRole, canCreateProjects, canViewAnalytics, isLoading: workspaceLoading } = useWorkspace()
   const { theme, themeConfig } = useTheme()
-  const [recentPages, setRecentPages] = useState<RecentPage[]>([])
-  const [recentProjects, setRecentProjects] = useState<Project[]>([])
-  const [isLoadingRecentPages, setIsLoadingRecentPages] = useState(true)
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true)
   const [currentTime, setCurrentTime] = useState(new Date())
 
   // Update time every second
@@ -130,67 +132,49 @@ export default function HomePage() {
   const completedTasks = mockTasks.filter(task => task.completed).length
   const totalTasks = mockTasks.length
 
-  // Load recent pages and projects in parallel for better performance
-  useEffect(() => {
-    const loadData = async () => {
-      if (!currentWorkspace) return // Wait for workspace to load
-      
-      try {
-        // Load both API calls in parallel
-        const [pagesResponse, projectsResponse] = await Promise.all([
-          fetch(`/api/wiki/pages?workspaceId=${currentWorkspace.id}`),
-          fetch(`/api/projects?workspaceId=${currentWorkspace.id}`)
-        ])
-
-        // Process pages response
-        if (pagesResponse.ok) {
-          const result = await pagesResponse.json()
-          const data = result.data || result
-          if (Array.isArray(data)) {
-            const sortedPages = data
-              .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-              .slice(0, 4)
-            setRecentPages(sortedPages)
-          } else {
-            console.warn('Expected array but got:', typeof data, data)
-            setRecentPages([])
-          }
-        } else if (pagesResponse.status === 401) {
-          console.log('User not authenticated, showing empty state')
-          setRecentPages([])
-        } else {
-          console.error('Failed to load recent pages:', pagesResponse.status)
-          setRecentPages([])
-        }
-
-        // Process projects response
-        if (projectsResponse.ok) {
-          const result = await projectsResponse.json()
-          const data = result.data || result
-          if (Array.isArray(data)) {
-            const sortedProjects = data
-              .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-              .slice(0, 6)
-            setRecentProjects(sortedProjects)
-          } else {
-            console.warn('Expected array but got:', typeof data, data)
-            setRecentProjects([])
-          }
-        } else {
-          setRecentProjects([])
-        }
-      } catch (error) {
-        console.error('Error loading data:', error)
-        setRecentPages([])
-        setRecentProjects([])
-      } finally {
-        setIsLoadingRecentPages(false)
-        setIsLoadingProjects(false)
+  // Use React Query for automatic caching, deduplication, and better performance
+  const { data: pagesData, isLoading: isLoadingRecentPages } = useQuery({
+    queryKey: ['wiki-pages', currentWorkspace?.id],
+    queryFn: async () => {
+      if (!currentWorkspace) return []
+      const response = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace.id}`)
+      if (!response.ok) return []
+      const result = await response.json()
+      const data = result.data || result
+      if (Array.isArray(data)) {
+        return data
+          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .slice(0, 4)
       }
-    }
+      return []
+    },
+    enabled: !!currentWorkspace,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
+  })
 
-    loadData()
-  }, [currentWorkspace])
+  const { data: projectsData, isLoading: isLoadingProjects } = useQuery({
+    queryKey: ['projects', currentWorkspace?.id],
+    queryFn: async () => {
+      if (!currentWorkspace) return []
+      const response = await fetch(`/api/projects?workspaceId=${currentWorkspace.id}`)
+      if (!response.ok) return []
+      const result = await response.json()
+      const data = result.data || result
+      if (Array.isArray(data)) {
+        return data
+          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .slice(0, 6)
+      }
+      return []
+    },
+    enabled: !!currentWorkspace,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
+  })
+
+  const recentPages = (pagesData || []) as RecentPage[]
+  const recentProjects = (projectsData || []) as Project[]
 
   // Helper function to format time ago
   const getTimeAgo = (dateString: string) => {
