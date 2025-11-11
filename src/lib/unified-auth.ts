@@ -85,18 +85,8 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
     })
   }
 
-  // Resolve active workspace
-  const activeWorkspaceId = await resolveActiveWorkspaceId(user.id, request)
-
-  // Get user roles for the workspace
-  const workspaceMember = await prisma.workspaceMember.findUnique({
-    where: {
-      workspaceId_userId: {
-        userId: user.id,
-        workspaceId: activeWorkspaceId
-      }
-    }
-  })
+  // Resolve active workspace and get member in one optimized call
+  const { workspaceId: activeWorkspaceId, workspaceMember } = await resolveActiveWorkspaceIdWithMember(user.id, request)
 
   const roles = workspaceMember ? [workspaceMember.role] : []
   const isFirstTime = !workspaceMember
@@ -115,6 +105,102 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
     isAuthenticated: true,
     isDevelopment: false
   }
+}
+
+/**
+ * Resolve active workspace ID and member in one optimized call
+ * Returns both workspaceId and workspaceMember to avoid duplicate queries
+ */
+async function resolveActiveWorkspaceIdWithMember(
+  userId: string, 
+  request?: NextRequest
+): Promise<{ workspaceId: string; workspaceMember: any }> {
+  // Priority 1: URL params
+  if (request) {
+    const url = new URL(request.url)
+    const workspaceId = url.searchParams.get('workspaceId')
+    if (workspaceId) {
+      // Validate workspace access and get member in one query
+      const member = await prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            userId,
+            workspaceId
+          }
+        }
+      })
+      if (member) {
+        return { workspaceId, workspaceMember: member }
+      }
+    }
+
+    const projectId = url.searchParams.get('projectId')
+    if (projectId) {
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { workspaceId: true }
+      })
+      if (project) {
+        // Validate workspace access and get member in one query
+        const member = await prisma.workspaceMember.findUnique({
+          where: {
+            workspaceId_userId: {
+              userId,
+              workspaceId: project.workspaceId
+            }
+          }
+        })
+        if (member) {
+          return { workspaceId: project.workspaceId, workspaceMember: member }
+        }
+      }
+    }
+  }
+
+  // Priority 2: Header
+  if (request) {
+    const headerWorkspaceId = request.headers.get('x-workspace-id')
+    if (headerWorkspaceId) {
+      // Validate workspace access and get member in one query
+      const member = await prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            userId,
+            workspaceId: headerWorkspaceId
+          }
+        }
+      })
+      if (member) {
+        return { workspaceId: headerWorkspaceId, workspaceMember: member }
+      }
+    }
+  }
+
+  // Priority 3: User's default workspace
+  // Get first membership with existing workspace - already includes member data
+  const userMemberships = await prisma.workspaceMember.findMany({
+    where: { userId },
+    orderBy: { joinedAt: 'asc' },
+    take: 1, // Only need the first one
+    include: {
+      workspace: {
+        select: { id: true } // Verify workspace still exists
+      }
+    }
+  })
+
+  // Find first membership with existing workspace
+  const validMembership = userMemberships.find(m => m.workspace !== null)
+  
+  if (validMembership) {
+    return { 
+      workspaceId: validMembership.workspaceId, 
+      workspaceMember: validMembership 
+    }
+  }
+
+  // No workspace found - user needs to create one
+  throw new Error('No workspace found - user needs to create a workspace')
 }
 
 /**
