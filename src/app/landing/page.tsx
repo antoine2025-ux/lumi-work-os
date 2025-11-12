@@ -8,6 +8,8 @@ import { DashboardPreview } from "@/components/landing/dashboard-preview";
 import { KanbanPreview } from "@/components/landing/kanban-preview";
 import { WikiPreview } from "@/components/landing/wiki-preview";
 import { AIAssistantPreview } from "@/components/landing/ai-assistant-preview";
+import { NewsletterSignup } from "@/components/landing/newsletter-signup";
+import { EarlyTesterSignup } from "@/components/landing/early-tester-signup";
 import { 
   ArrowRight, 
   CheckCircle, 
@@ -21,7 +23,8 @@ import {
   Menu,
   X,
   Monitor,
-  Smartphone
+  Smartphone,
+  Sparkles
 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -59,6 +62,12 @@ export default function LandingPage() {
               <a href="#features" className="text-slate-300 hover:text-white transition-colors">Features</a>
               <a href="#preview" className="text-slate-300 hover:text-white transition-colors">Preview</a>
               <a href="#benefits" className="text-slate-300 hover:text-white transition-colors">Benefits</a>
+              <a 
+                href="#become-a-tester" 
+                className="text-slate-300 hover:text-white transition-colors"
+              >
+                Become a Tester
+              </a>
               <a 
                 href="/login" 
                 onClick={(e) => {
@@ -118,6 +127,13 @@ export default function LandingPage() {
                   Benefits
                 </a>
                 <a 
+                  href="#become-a-tester" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-slate-300 hover:text-white transition-colors"
+                >
+                  Become a Tester
+                </a>
+                <a 
                   href="/login" 
                   onClick={(e) => {
                     e.preventDefault();
@@ -154,8 +170,7 @@ export default function LandingPage() {
             </h1>
             
             <p className="text-xl text-slate-300 mb-8 leading-relaxed max-w-3xl mx-auto">
-              Loopwell is a shared brain for your company that remembers everything, 
-              connects everyone, and keeps work moving in perfect alignment.
+              Loopwell gives startups the structural intelligence of world-class organizations, without the bureaucracy. It connects projects, knowledge, and people into one system that builds alignment, discipline, and momentum from day one.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
@@ -204,78 +219,84 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4">
-                  <Brain className="w-6 h-6 text-blue-400" />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Brain className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <CardTitle className="text-white">Organizational Intelligence</CardTitle>
                 </div>
-                <CardTitle className="text-white">AI-Powered Intelligence</CardTitle>
                 <CardDescription className="text-slate-400">
-                  Get instant answers from your knowledge base, generate documentation, 
-                  and receive smart suggestions powered by advanced AI.
+                  Forget "AI assistants." Loopwell doesn't guess, it understands. It reads the room, connects the dots across your projects, and gives you answers that feel like they came from inside your team's collective brain.
                 </CardDescription>
               </CardHeader>
             </Card>
             
             <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center mb-4">
-                  <Workflow className="w-6 h-6 text-green-400" />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Workflow className="w-6 h-6 text-green-400" />
+                  </div>
+                  <CardTitle className="text-white">Smart Project Management</CardTitle>
                 </div>
-                <CardTitle className="text-white">Smart Project Management</CardTitle>
                 <CardDescription className="text-slate-400">
-                  Visual kanban boards, intelligent task assignment, and automated 
-                  workflow optimization for maximum productivity.
+                  Less managing, more momentum. Tasks assign themselves, blockers surface before they become problems, and your team always knows what matters most, no stand-ups required.
                 </CardDescription>
               </CardHeader>
             </Card>
             
             <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4">
-                  <BookOpen className="w-6 h-6 text-purple-400" />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <BookOpen className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <CardTitle className="text-white">Living Knowledge Base</CardTitle>
                 </div>
-                <CardTitle className="text-white">Living Knowledge Base</CardTitle>
                 <CardDescription className="text-slate-400">
-                  Create, organize, and discover information with our intuitive wiki system 
-                  that grows smarter with your team.
+                  Your company's memory, finally alive. Every idea, document, and decision stays connected to where it came from. No hunting through folders. No "who wrote this?" moments. Just instant context.
                 </CardDescription>
               </CardHeader>
             </Card>
             
             <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <div className="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center mb-4">
-                  <Users className="w-6 h-6 text-orange-400" />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Users className="w-6 h-6 text-orange-400" />
+                  </div>
+                  <CardTitle className="text-white">Seamless Collaboration</CardTitle>
                 </div>
-                <CardTitle className="text-white">Seamless Collaboration</CardTitle>
                 <CardDescription className="text-slate-400">
-                  Real-time editing, instant notifications, and intelligent team coordination 
-                  that keeps everyone aligned.
+                  Work without friction. Loopwell synchronizes updates, context, and communication automatically, so your team can focus on thinking, not typing status reports.
                 </CardDescription>
               </CardHeader>
             </Card>
             
             <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center mb-4">
-                  <Shield className="w-6 h-6 text-red-400" />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Shield className="w-6 h-6 text-red-400" />
+                  </div>
+                  <CardTitle className="text-white">Enterprise Security</CardTitle>
                 </div>
-                <CardTitle className="text-white">Enterprise Security</CardTitle>
                 <CardDescription className="text-slate-400">
-                  Bank-grade security with role-based permissions, audit trails, 
-                  and compliance-ready data protection.
+                  Freedom without compromise. Every workspace runs in a secure, isolated environment, giving startups the kind of data protection usually reserved for global enterprises.
                 </CardDescription>
               </CardHeader>
             </Card>
             
             <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <div className="w-12 h-12 bg-indigo-500/20 rounded-lg flex items-center justify-center mb-4">
-                  <Zap className="w-6 h-6 text-indigo-400" />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-indigo-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-6 h-6 text-indigo-400" />
+                  </div>
+                  <CardTitle className="text-white">Lightning Fast</CardTitle>
                 </div>
-                <CardTitle className="text-white">Lightning Fast</CardTitle>
                 <CardDescription className="text-slate-400">
-                  Sub-second search, instant sync, and optimized performance 
-                  that scales with your growing team.
+                  Because context loses value in slow motion. Loopwell delivers sub-second search, instant sync, and responses that keep up with how fast your team moves.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -442,6 +463,64 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Become a Tester Section */}
+      <section id="become-a-tester" className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-800">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-4xl font-bold text-white mb-6">
+            Test Loopwell Before the World Sees It
+          </h2>
+          <p className="text-xl text-slate-300 mb-4 max-w-3xl mx-auto">
+            We're inviting a small group of early adopters to test the platform, share feedback, and shape its evolution.
+          </p>
+          <p className="text-xl text-slate-400 mb-12 max-w-3xl mx-auto">
+            Early testers receive lifetime access perks and a permanent spot in our founding community.
+          </p>
+          
+          <EarlyTesterSignup />
+          
+          <div className="mt-12 pt-12 border-t border-slate-700">
+            <div className="grid md:grid-cols-3 gap-8 text-left">
+              <div>
+                <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4 mx-auto md:mx-0">
+                  <CheckCircle className="w-6 h-6 text-blue-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2 text-center md:text-left">
+                  Lifetime Benefits
+                </h3>
+                <p className="text-slate-400 text-sm text-center md:text-left mb-2">
+                  Early testers keep special access and perks tied to their founding membership.
+                </p>
+                <p className="text-slate-500 text-xs text-center md:text-left italic">
+                  *Feature availability and tier structure may change after public launch.
+                </p>
+              </div>
+              <div>
+                <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4 mx-auto md:mx-0">
+                  <Users className="w-6 h-6 text-purple-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2 text-center md:text-left">
+                  Founding Community
+                </h3>
+                <p className="text-slate-400 text-sm text-center md:text-left">
+                  Join an exclusive group of early adopters who helped shape Loopwell.
+                </p>
+              </div>
+              <div>
+                <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center mb-4 mx-auto md:mx-0">
+                  <Sparkles className="w-6 h-6 text-green-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2 text-center md:text-left">
+                  Direct Influence
+                </h3>
+                <p className="text-slate-400 text-sm text-center md:text-left">
+                  Your feedback directly impacts product development and new features.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-600 to-purple-600">
         <div className="max-w-4xl mx-auto text-center">
@@ -477,9 +556,16 @@ export default function LandingPage() {
                 />
                 <span className="text-xl font-bold">Loopwell</span>
               </div>
-              <p className="text-slate-400">
+              <p className="text-slate-400 mb-6">
                 The intelligent workplace platform that brings teams together.
               </p>
+              <div>
+                <h4 className="font-semibold mb-3 text-white">Newsletter</h4>
+                <p className="text-sm text-slate-400 mb-3">
+                  Subscribe to get updates and news.
+                </p>
+                <NewsletterSignup />
+              </div>
             </div>
             <div>
               <h3 className="font-semibold mb-4">Product</h3>
@@ -510,7 +596,7 @@ export default function LandingPage() {
           </div>
           <div className="border-t border-slate-800 mt-8 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <p className="text-slate-400 text-sm">&copy; 2024 Loopwell. All rights reserved.</p>
+              <p className="text-slate-400 text-sm">&copy; 2025 Loopwell. All rights reserved.</p>
               <div className="flex flex-wrap gap-4 text-sm text-slate-400">
                 <a href="/cookie-policy" className="hover:text-white transition-colors">Cookie Policy</a>
                 <span className="text-slate-600">•</span>

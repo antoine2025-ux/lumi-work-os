@@ -125,7 +125,7 @@ export function AIAssistantPreview() {
         </div>
         <div>
           <h3 className="text-lg font-semibold text-white">AI Assistant</h3>
-          <p className="text-xs text-slate-400">Powered by advanced AI</p>
+          <p className="text-xs text-slate-400">powered by Loopwell.</p>
         </div>
         <div className="ml-auto">
           <Badge variant="outline" className="border-green-500/30 text-green-400">
