@@ -1,7 +1,7 @@
--- Migration script to create org_departments and org_teams tables
--- Run this manually on production database if migrations fail
+-- Safe migration script that won't fail if tables/constraints already exist
+-- Run this in Supabase SQL Editor
 
--- Create org_departments table
+-- Create org_departments table (only if it doesn't exist)
 CREATE TABLE IF NOT EXISTS "org_departments" (
     "id" TEXT NOT NULL,
     "workspaceId" TEXT NOT NULL,
@@ -12,11 +12,10 @@ CREATE TABLE IF NOT EXISTS "org_departments" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-
     CONSTRAINT "org_departments_pkey" PRIMARY KEY ("id")
 );
 
--- Create org_teams table
+-- Create org_teams table (only if it doesn't exist)
 CREATE TABLE IF NOT EXISTS "org_teams" (
     "id" TEXT NOT NULL,
     "workspaceId" TEXT NOT NULL,
@@ -28,7 +27,6 @@ CREATE TABLE IF NOT EXISTS "org_teams" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-
     CONSTRAINT "org_teams_pkey" PRIMARY KEY ("id")
 );
 
@@ -77,16 +75,18 @@ BEGIN
     END IF;
 END $$;
 
--- Add unique constraints
+-- Add unique constraint for org_departments (only if it doesn't exist)
 CREATE UNIQUE INDEX IF NOT EXISTS "org_departments_workspaceId_name_key" ON "org_departments"("workspaceId", "name");
+
+-- Add unique constraint for org_teams (only if it doesn't exist)
 CREATE UNIQUE INDEX IF NOT EXISTS "org_teams_workspaceId_departmentId_name_key" ON "org_teams"("workspaceId", "departmentId", "name");
 
--- Add indexes
+-- Add indexes (only if they don't exist)
 CREATE INDEX IF NOT EXISTS "org_departments_workspaceId_idx" ON "org_departments"("workspaceId");
 CREATE INDEX IF NOT EXISTS "org_teams_workspaceId_idx" ON "org_teams"("workspaceId");
 CREATE INDEX IF NOT EXISTS "org_teams_departmentId_idx" ON "org_teams"("departmentId");
 
--- Update org_positions table to add teamId if it doesn't exist
+-- Add teamId column to org_positions if it doesn't exist
 DO $$ 
 BEGIN
     IF NOT EXISTS (
