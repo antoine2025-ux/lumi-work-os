@@ -97,12 +97,12 @@ export async function PUT(
 
     // If name is being changed, check for conflicts
     if (name && name !== existing.name) {
-      const conflict = await prisma.orgDepartment.findUnique({
+      const conflict = await prisma.orgDepartment.findFirst({
         where: {
-          workspaceId_name: {
-            workspaceId: auth.workspaceId,
-            name: name.trim()
-          }
+          workspaceId: auth.workspaceId,
+          name: name.trim(),
+          isActive: true,
+          id: { not: resolvedParams.id }
         }
       })
 

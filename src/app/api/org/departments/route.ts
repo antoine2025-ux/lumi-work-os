@@ -77,12 +77,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if department with same name already exists
-    const existing = await prisma.orgDepartment.findUnique({
+    // Use findFirst instead of findUnique for better compatibility
+    const existing = await prisma.orgDepartment.findFirst({
       where: {
-        workspaceId_name: {
-          workspaceId: auth.workspaceId,
-          name: name.trim()
-        }
+        workspaceId: auth.workspaceId,
+        name: name.trim(),
+        isActive: true
       }
     })
 
