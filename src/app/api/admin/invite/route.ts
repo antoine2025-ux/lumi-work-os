@@ -80,7 +80,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Create redirect URL for the invite
-    const inviteRedirectUrl = redirectTo || `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/auth/callback?workspace=${auth.workspaceId}`
+    // Priority: redirectTo param > NEXT_PUBLIC_APP_URL > VERCEL_URL > NEXTAUTH_URL > localhost
+    let baseUrl: string
+    if (redirectTo) {
+      baseUrl = new URL(redirectTo).origin
+    } else if (process.env.NEXT_PUBLIC_APP_URL) {
+      baseUrl = process.env.NEXT_PUBLIC_APP_URL
+    } else if (process.env.VERCEL_URL) {
+      baseUrl = `https://${process.env.VERCEL_URL}`
+    } else {
+      baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    }
+    
+    const inviteRedirectUrl = redirectTo || `${baseUrl}/auth/callback?workspace=${auth.workspaceId}`
 
     // Verify Supabase client is initialized correctly
     if (!supabaseAdmin) {
