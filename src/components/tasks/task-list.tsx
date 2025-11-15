@@ -427,7 +427,7 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
                               {getPriorityOption(task.priority).label}
                             </Badge>
                           </div>
-                          {task.tags.length > 0 && (
+                          {task.tags && task.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1">
                               {task.tags.slice(0, 3).map((tag, index) => (
                                 <Badge key={index} variant="outline" className="text-xs px-2 py-1">

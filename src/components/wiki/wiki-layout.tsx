@@ -690,13 +690,13 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
       `}</style>
       <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Sidebar */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-72'} bg-card transition-all duration-300 flex flex-col border-r border-border shadow-sm h-screen overflow-hidden flex-shrink-0`}>
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-60'} bg-card transition-all duration-300 flex flex-col border-r border-border shadow-sm h-screen overflow-hidden flex-shrink-0`}>
         {/* Top Section - Search and AI Button */}
-        <div className="p-4 border-b border-border">
+        <div className="p-3 border-b border-border">
           {!sidebarCollapsed && (
             <>
               {/* Search */}
-              <div className="relative mb-4">
+              <div className="relative mb-3">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Explore knowledge..."
@@ -707,13 +707,13 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
               </div>
 
               {/* AI Assistant Button */}
-              <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white mb-4">
+              <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white mb-3">
                 <AILogo 
                   width={16} 
                   height={16} 
                   className="w-4 h-4 mr-2"
                 />
-                Ask Loopwell AI
+                LoopBrain
               </Button>
             </>
           )}
@@ -721,15 +721,15 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
 
         {/* Main Navigation */}
         <div className="flex-1 overflow-y-auto sidebar-scroll">
-          <div className="p-4">
+          <div className="p-3">
             {!sidebarCollapsed && (
               <>
 
                 {/* Home Section */}
-                <div className="mb-4">
+                <div className="mb-3">
                   <Link
                     href="/wiki/home"
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg mb-4 transition-colors ${
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
                       (pathname || '') === '/wiki/home' || (pathname || '') === '/wiki' || (pathname || '') === '/spaces'
                         ? 'bg-indigo-50 text-indigo-700' 
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -741,8 +741,8 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                 </div>
 
                 {/* Workspaces Section */}
-                <div className="mb-4">
-                  <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">WORKSPACES</h3>
+                <div className="mb-3">
+                  <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">WORKSPACES</h3>
                   
                   {isLoading ? (
                     <div className="space-y-2">
@@ -1006,9 +1006,9 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                 </div>
 
                 {/* Projects Section */}
-                <div className="mb-4">
+                <div className="mb-3">
                   <Link href="/projects">
-                    <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3 hover:text-gray-700 cursor-pointer">PROJECTS</h3>
+                    <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2 hover:text-gray-700 cursor-pointer">PROJECTS</h3>
                   </Link>
                   
                   {projects.length > 0 ? (
@@ -1051,8 +1051,8 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
 
                 {/* Recent Pages - Filter out personal pages */}
                 {recentPages.filter(p => p.permissionLevel !== 'personal').length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">RECENT PAGES</h3>
+                  <div className="mb-3">
+                    <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">RECENT PAGES</h3>
                     
                     <div className="space-y-1">
                       {recentPages
@@ -1076,8 +1076,8 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                 )}
 
                 {/* Favorites */}
-                <div className="mb-4">
-                  <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">FAVORITES</h3>
+                  <div className="mb-3">
+                    <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">FAVORITES</h3>
                   
                   {favoritePages.length > 0 ? (
                     <div className="space-y-1">

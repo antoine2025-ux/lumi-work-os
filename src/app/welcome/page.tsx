@@ -76,8 +76,8 @@ export default function OnboardingPage() {
             localStorage.clear()
           }
           
-          // Force hard redirect
-          window.location.href = '/'
+          // Force hard redirect to dashboard
+          window.location.href = '/home'
         }, remainingTime)
       } else {
         console.error('[welcome] Failed to create workspace:', data)

@@ -1070,7 +1070,6 @@ export function WikiAIAssistant({
 
   const quickActions = [
     { label: "AI Meeting Notes", icon: FileText },
-    { label: "Database", icon: FileText },
     { label: "Form", icon: FileText },
     { label: "Templates", icon: Sparkles }
   ]
@@ -1104,20 +1103,38 @@ export function WikiAIAssistant({
       {/* Unified AI Container - Transforms from bottom to right */}
       <div 
         className={cn(
-          "fixed bg-card shadow-lg border border-border flex flex-col",
+          "fixed shadow-lg flex flex-col",
           "transition-all duration-500 ease-in-out z-50",
           isOpen 
-            ? displayMode === 'floating'
-              ? "top-[50%] right-4 -translate-y-1/2 h-[600px] rounded-lg w-[500px]"
-              : "right-0 top-0 h-full rounded-none w-full md:w-96"
+            ? isMinimized
+              ? "bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center cursor-pointer hover:shadow-xl bg-purple-600 hover:bg-purple-700 border-0"
+              : "bg-card border border-border " + (displayMode === 'floating'
+                ? "top-[50%] right-4 -translate-y-1/2 h-[600px] rounded-lg w-[500px]"
+                : "right-0 top-0 h-full rounded-none w-full md:w-96")
             : mode === 'floating-button'
               ? "hidden" // Hidden when closed in floating-button mode (button shown separately)
-              : "bottom-4 left-1/2 -translate-x-1/2 rounded-lg max-w-2xl"
+              : "bg-card border border-border bottom-4 rounded-lg max-w-2xl"
         )}
-        style={isOpen ? {} : mode === 'bottom-bar' ? { width: 'calc(100% - 2rem)' } : {}}
+        style={isOpen ? {} : mode === 'bottom-bar' ? { 
+          width: 'min(calc(100vw - 280px), 768px)',
+          left: 'calc((100vw + 240px) / 2)',
+          transform: 'translateX(-50%)',
+          maxWidth: '768px'
+        } : {}}
+        onClick={isOpen && isMinimized ? () => setIsMinimized(false) : undefined}
       >
-        {/* Header - Only visible when open - Notion style */}
-        {isOpen && (
+        {/* Minimized Logo - Only visible when minimized */}
+        {isOpen && isMinimized && (
+          <AILogo 
+            width={28} 
+            height={28} 
+            className="w-7 h-7"
+            priority
+          />
+        )}
+
+        {/* Header - Only visible when open and not minimized - Notion style */}
+        {isOpen && !isMinimized && (
           <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 bg-card">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-foreground">New AI chat</span>
@@ -1173,20 +1190,6 @@ export function WikiAIAssistant({
           </div>
         )}
 
-        {/* Quick Actions - Only visible when closed */}
-        {!isOpen && (
-          <div className="flex items-center gap-2 mb-2 p-2">
-            {quickActions.map((action) => (
-              <button
-                key={action.label}
-                className="px-3 py-1.5 text-xs font-medium rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors flex items-center gap-1.5"
-              >
-                <action.icon className="h-3 w-3" />
-                {action.label}
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Chat Messages - Only visible when open - Notion style */}
         {isOpen && !isMinimized && (
@@ -1411,34 +1414,46 @@ export function WikiAIAssistant({
           </div>
         )}
 
-        {/* Input Section - Notion style */}
+        {/* Input Section - Notion style - Hidden only when minimized */}
+        {!isMinimized && (
         <div className={cn(
           "p-4 border-t border-border shrink-0 bg-card",
           !isOpen && "border-t-0 p-2"
         )}>
           {/* Options Row - Above Input */}
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <div className="flex items-center gap-1.5 mb-2 overflow-x-auto">
+            {/* Quick Actions */}
+            {quickActions.map((action) => (
+              <button
+                key={action.label}
+                className="px-2 py-1 text-xs font-medium rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors flex items-center gap-1 whitespace-nowrap flex-shrink-0"
+              >
+                <action.icon className="h-3 w-3" />
+                {action.label}
+              </button>
+            ))}
+            
             {/* @ Button */}
-            <button className="p-2 hover:bg-muted rounded transition-colors">
+            <button className="p-1.5 hover:bg-muted rounded transition-colors flex-shrink-0">
               <AtSign className="h-4 w-4 text-muted-foreground" />
             </button>
             
             {/* Getting Started Button - Only when no messages */}
             {messages.length === 0 && (
-              <button className="px-3 py-1.5 text-xs font-medium rounded-md bg-muted hover:bg-muted/80 text-muted-foreground flex items-center gap-1.5 transition-colors">
+              <button className="px-2 py-1 text-xs font-medium rounded-md bg-muted hover:bg-muted/80 text-muted-foreground flex items-center gap-1 transition-colors whitespace-nowrap flex-shrink-0">
                 <FileText className="h-3 w-3" />
                 Getting Started
               </button>
             )}
             
             {/* All sources button */}
-            <button className="p-1.5 hover:bg-muted rounded transition-colors flex items-center gap-1.5" title="All sources">
+            <button className="p-1.5 hover:bg-muted rounded transition-colors flex items-center gap-1 flex-shrink-0" title="All sources">
               <Globe className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground hidden sm:inline">All sources</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">All sources</span>
             </button>
             
             {/* Attach file button */}
-            <button className="p-1.5 hover:bg-muted rounded transition-colors" title="Attach file">
+            <button className="p-1.5 hover:bg-muted rounded transition-colors flex-shrink-0" title="Attach file">
               <Paperclip className="h-4 w-4 text-muted-foreground" />
             </button>
           </div>
@@ -1469,10 +1484,11 @@ export function WikiAIAssistant({
             </button>
           </div>
         </div>
+        )}
       </div>
 
-      {/* Backdrop - Only when open */}
-      {isOpen && (
+      {/* Backdrop - Only when open and not minimized */}
+      {isOpen && !isMinimized && (
         <div 
           className="fixed inset-0 bg-black/20 z-40"
           onClick={() => {

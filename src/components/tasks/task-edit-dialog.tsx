@@ -264,6 +264,18 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
     try {
       setIsLoading(true)
       
+      // Format dueDate to ISO datetime string if provided
+      let formattedDueDate: string | null = null
+      if (formData.dueDate) {
+        // If it's already a datetime string, use it; otherwise convert date to datetime
+        if (formData.dueDate.includes('T')) {
+          formattedDueDate = formData.dueDate
+        } else {
+          // Convert YYYY-MM-DD to ISO datetime (end of day)
+          formattedDueDate = `${formData.dueDate}T23:59:59.999Z`
+        }
+      }
+      
       // Update basic task fields
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
@@ -276,7 +288,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
           status: formData.status,
           priority: formData.priority,
           assigneeId: formData.assigneeId === 'none' ? null : formData.assigneeId || null,
-          dueDate: formData.dueDate || null,
+          dueDate: formattedDueDate,
           tags: formData.tags,
           epicId: formData.epicId === 'none' ? null : formData.epicId || null,
           milestoneId: formData.milestoneId === 'none' ? null : formData.milestoneId || null,
@@ -289,29 +301,60 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
         
         // Update custom fields if there are any
         if (customFieldDefs.length > 0) {
-          const customFieldsData = customFieldDefs.map(fieldDef => ({
-            fieldId: fieldDef.id,
-            value: customFieldValues[fieldDef.id] || null
-          }))
-
-          await fetch(`/api/tasks/${task.id}/custom-fields`, {
+          const customFieldsResponse = await fetch(`/api/tasks/${task.id}/custom-fields`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              customFields: customFieldsData
+              customFields: customFieldDefs.map(fieldDef => ({
+                fieldId: fieldDef.id,
+                value: customFieldValues[fieldDef.id] || null
+              }))
             }),
           })
+
+          if (!customFieldsResponse.ok) {
+            const errorData = await customFieldsResponse.json().catch(() => ({}))
+            console.error('Failed to update custom fields:', errorData.error || 'Unknown error')
+            // Continue anyway - main task update succeeded
+          }
         }
 
         onSave(updatedTask)
         onClose()
       } else {
-        console.error('Failed to update task')
+        // Get error details from response
+        let errorMessage = 'Failed to update task'
+        try {
+          const errorText = await response.text()
+          if (errorText) {
+            try {
+              const errorData = JSON.parse(errorText)
+              errorMessage = errorData.error || errorData.details || errorMessage
+            } catch {
+              // If not JSON, use the text as error message
+              errorMessage = errorText || errorMessage
+            }
+          }
+        } catch (e) {
+          // If we can't read the response, use status text
+          errorMessage = response.statusText || errorMessage
+        }
+        
+        console.error('Failed to update task:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorMessage
+        })
+        
+        // Show error to user
+        alert(`Failed to update task: ${errorMessage}`)
       }
     } catch (error) {
       console.error('Error updating task:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      alert(`Error updating task: ${errorMessage}`)
     } finally {
       setIsLoading(false)
     }

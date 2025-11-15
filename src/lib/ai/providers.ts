@@ -32,6 +32,7 @@ export interface AIProvider {
   name: string
   models: AIModel[]
   generateResponse: (prompt: string, model: string, options?: any) => Promise<AIResponse>
+  generateStream?: (prompt: string, model: string, options?: any) => AsyncGenerator<string, void, unknown>
 }
 
 // OpenAI Provider
@@ -108,6 +109,36 @@ class OpenAIProvider implements AIProvider {
     } catch (error) {
       console.error('OpenAI API error:', error)
       throw new Error(`OpenAI API error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  async *generateStream(prompt: string, model: string, options: any = {}): AsyncGenerator<string, void, unknown> {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OpenAI API key not configured')
+    }
+
+    try {
+      const stream = await this.client.chat.completions.create({
+        model: model,
+        messages: [
+          { role: "system", content: options.systemPrompt || "You are a helpful AI assistant." },
+          ...(options.conversationHistory || []),
+          { role: "user", content: prompt }
+        ],
+        temperature: options.temperature || 0.7,
+        max_tokens: options.maxTokens || 2000,
+        stream: true,
+      })
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content
+        if (content) {
+          yield content
+        }
+      }
+    } catch (error) {
+      console.error('OpenAI streaming error:', error)
+      throw new Error(`OpenAI streaming error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 }
@@ -194,6 +225,106 @@ class GeminiProvider implements AIProvider {
       throw new Error(`Google API error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
+
+  async *generateStream(prompt: string, model: string, options: any = {}): AsyncGenerator<string, void, unknown> {
+    if (!this.apiKey) {
+      throw new Error('Google API key not configured')
+    }
+
+    try {
+      // Build conversation history for Gemini
+      const contents = []
+      
+      // Add conversation history if available
+      if (options.conversationHistory && options.conversationHistory.length > 0) {
+        for (const msg of options.conversationHistory) {
+          contents.push({
+            role: msg.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: msg.content }]
+          })
+        }
+      }
+      
+      // Add current user message
+      contents.push({
+        role: 'user',
+        parts: [{
+          text: prompt
+        }]
+      })
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${this.apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: contents,
+          generationConfig: {
+            temperature: options.temperature || 0.7,
+            maxOutputTokens: options.maxTokens || 2000,
+            topP: options.topP || 0.9,
+            topK: options.topK || 40
+          }
+        })
+      })
+
+      if (!response.ok) {
+        let errorMessage = response.statusText
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error?.message || errorMessage
+        } catch (e) {
+          // If we can't parse error, use status text
+        }
+        throw new Error(`Google API error: ${errorMessage}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('No response body reader available')
+      }
+
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const chunks = buffer.split('\n')
+        buffer = chunks.pop() || ''
+
+        for (const chunk of chunks) {
+          if (chunk.trim() && chunk.startsWith('[')) {
+            try {
+              const data = JSON.parse(chunk)
+              // Handle array of responses
+              if (Array.isArray(data)) {
+                for (const item of data) {
+                  const text = item.candidates?.[0]?.content?.parts?.[0]?.text
+                  if (text) {
+                    yield text
+                  }
+                }
+              } else {
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+                if (text) {
+                  yield text
+                }
+              }
+            } catch (e) {
+              // Skip invalid JSON - might be partial data
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Google streaming error:', error)
+      throw new Error(`Google streaming error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
 }
 
 // Anthropic Provider (Claude)
@@ -270,6 +401,90 @@ class AnthropicProvider implements AIProvider {
       throw new Error(`Anthropic API error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
+
+  async *generateStream(prompt: string, model: string, options: any = {}): AsyncGenerator<string, void, unknown> {
+    if (!this.apiKey) {
+      throw new Error('Anthropic API key not configured')
+    }
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: model,
+          max_tokens: options.maxTokens || 2000,
+          temperature: options.temperature || 0.7,
+          messages: [
+            ...(options.conversationHistory || []),
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          stream: true
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(`Anthropic API error: ${errorData.error?.message || response.statusText}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('No response body reader available')
+      }
+
+      let buffer = ''
+      let currentEvent: { type?: string; data?: any } = {}
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent.type = line.slice(7).trim()
+          } else if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              currentEvent.data = data
+              
+              // Process the event
+              if (currentEvent.type === 'content_block_delta' || 
+                  (data.type === 'content_block_delta' && data.delta?.text)) {
+                const text = data.delta?.text || data.text
+                if (text) {
+                  yield text
+                }
+              }
+              
+              currentEvent = {}
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          } else if (line.trim() === '') {
+            // Empty line indicates end of event, reset
+            currentEvent = {}
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Anthropic streaming error:', error)
+      throw new Error(`Anthropic streaming error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
 }
 
 // Provider registry
@@ -314,4 +529,23 @@ export async function generateAIResponse(
   }
 
   return await provider.generateResponse(prompt, modelId, options)
+}
+
+export async function* generateAIStream(
+  prompt: string,
+  modelId: string,
+  options: any = {}
+): AsyncGenerator<string, void, unknown> {
+  const provider = getProvider(modelId)
+  const model = getModel(modelId)
+  
+  if (!model) {
+    throw new Error(`Model ${modelId} not found`)
+  }
+
+  if (!provider.generateStream) {
+    throw new Error(`Streaming not supported for model ${modelId}`)
+  }
+
+  yield* provider.generateStream(prompt, modelId, options)
 }

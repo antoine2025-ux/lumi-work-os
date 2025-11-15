@@ -136,7 +136,11 @@ export function WorkspaceOnboardingModal({
 
       if (data.success) {
         console.log('Workspace created successfully:', data)
-        router.push('/')
+        // Set flags to prevent redirect loops
+        sessionStorage.setItem('__workspace_just_created__', 'true')
+        sessionStorage.setItem('__skip_loader__', 'true')
+        // Redirect to dashboard
+        router.push('/home')
         onClose()
       } else {
         console.error('Error creating workspace:', data.error)

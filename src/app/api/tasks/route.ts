@@ -75,6 +75,8 @@ export async function GET(request: NextRequest) {
         dueDate: true,
         createdAt: true,
         updatedAt: true,
+        epicId: true,
+        tags: true,
         assignee: {
           select: {
             id: true,

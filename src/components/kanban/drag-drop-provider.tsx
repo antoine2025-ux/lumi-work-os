@@ -54,7 +54,17 @@ export function DragDropProvider({
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event
-    setActiveTask(active.data.current?.task || null)
+    const task = active.data.current?.task
+    if (task) {
+      // Ensure dependsOn is always an array
+      const normalizedTask = {
+        ...task,
+        dependsOn: task.dependsOn || []
+      }
+      setActiveTask(normalizedTask)
+    } else {
+      setActiveTask(null)
+    }
   }, [])
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
@@ -124,7 +134,7 @@ export function DragDropProvider({
                   </span>
                 )}
               </div>
-              {activeTask.dependsOn.length > 0 && (
+              {activeTask.dependsOn && activeTask.dependsOn.length > 0 && (
                 <div className="flex items-center space-x-1 mt-2">
                   <div className="w-1 h-1 bg-blue-500 rounded-full" />
                   <span className="text-xs text-blue-600 font-medium">

@@ -70,10 +70,21 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/users - Create a new user
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth()
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access (admin only)
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['ADMIN', 'OWNER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
     const body = await request.json()
     const { 
-      workspaceId = user.workspaceId,
+      workspaceId = auth.workspaceId,
       email, 
       name, 
       role = 'MEMBER',

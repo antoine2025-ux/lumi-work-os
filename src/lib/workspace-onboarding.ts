@@ -41,7 +41,7 @@ This is your personal space for organizing knowledge, managing tasks, and stayin
 
 - **📝 Create Pages**: Start documenting your thoughts and ideas
 - **✅ Manage Tasks**: Track your personal projects and goals
-- **🤖 Ask AI**: Get help with research, writing, and planning
+- **🤖 LoopBrain**: Get help with research, writing, and planning
 - **📅 Calendar**: Sync your schedule and deadlines
 
 ## Quick Actions

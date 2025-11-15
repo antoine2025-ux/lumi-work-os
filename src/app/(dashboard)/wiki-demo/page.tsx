@@ -87,7 +87,7 @@ export default function WikiDemoPage() {
               {/* AI Assistant Button */}
               <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white mb-4">
                 <Brain className="h-4 w-4 mr-2" />
-                Ask Loopwell AI
+                LoopBrain
               </Button>
             </>
           )}

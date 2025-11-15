@@ -42,10 +42,40 @@ interface UserProfile {
   personalWebsite?: string | null
 }
 
+interface Position {
+  id: string
+  title: string
+  userId?: string | null
+  team?: {
+    id: string
+    name: string
+    departmentId?: string
+    department?: {
+      id: string
+      name: string
+    }
+  }
+  roleCard?: {
+    id: string
+    roleName: string
+    roleDescription: string
+  } | null
+  user?: {
+    id: string
+    name: string | null
+    email: string | null
+  } | null
+}
+
+interface Department {
+  id: string
+  name: string
+}
+
 interface UserProfileFormProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (user: Partial<UserProfile>) => void
+  onSave: (user: Partial<UserProfile & { positionId?: string }>) => void
   user?: UserProfile | null
   workspaceId: string
 }
@@ -69,12 +99,99 @@ export function UserProfileForm({
     phone: '',
     linkedinUrl: '',
     githubUrl: '',
-    personalWebsite: ''
+    personalWebsite: '',
+    positionId: ''
   })
   const [loading, setLoading] = useState(false)
   const [newSkill, setNewSkill] = useState('')
   const [newGoal, setNewGoal] = useState('')
   const [newInterest, setNewInterest] = useState('')
+  const [positions, setPositions] = useState<Position[]>([])
+  const [loadingPositions, setLoadingPositions] = useState(false)
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('')
+
+  // Load departments and positions when modal opens
+  useEffect(() => {
+    if (isOpen && workspaceId) {
+      loadDepartments()
+      loadPositions()
+    }
+  }, [isOpen, workspaceId])
+
+  // Load user's current position if editing
+  useEffect(() => {
+    if (isOpen && user && positions.length > 0) {
+      // Find position assigned to this user (check both userId field and user relation)
+      const userPosition = positions.find(p => 
+        p.userId === user.id || p.user?.id === user.id
+      )
+      if (userPosition) {
+        setFormData(prev => ({ ...prev, positionId: userPosition.id }))
+        // Set department based on user's position
+        const deptId = userPosition.team?.departmentId || userPosition.team?.department?.id
+        if (deptId) {
+          setSelectedDepartmentId(deptId)
+        }
+      } else {
+        // Reset position if user is not assigned to any position
+        setFormData(prev => ({ ...prev, positionId: '' }))
+        setSelectedDepartmentId('')
+      }
+    }
+  }, [isOpen, user, positions])
+
+  const loadDepartments = async () => {
+    try {
+      const response = await fetch('/api/org/departments', {
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setDepartments(data || [])
+      }
+    } catch (error) {
+      console.error('Error loading departments:', error)
+    }
+  }
+
+  const loadPositions = async () => {
+    try {
+      setLoadingPositions(true)
+      const response = await fetch('/api/org/positions', {
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setPositions(data || [])
+      }
+    } catch (error) {
+      console.error('Error loading positions:', error)
+    } finally {
+      setLoadingPositions(false)
+    }
+  }
+
+  // Filter positions by selected department
+  const filteredPositions = selectedDepartmentId
+    ? positions.filter(p => {
+        const deptId = p.team?.departmentId || p.team?.department?.id
+        return deptId === selectedDepartmentId
+      })
+    : []
+
+  const selectedPosition = positions.find(p => p.id === formData.positionId)
+
+  // Reset position when department changes
+  useEffect(() => {
+    if (selectedDepartmentId && formData.positionId) {
+      const currentPosition = positions.find(p => p.id === formData.positionId)
+      const currentDeptId = currentPosition?.team?.departmentId || currentPosition?.team?.department?.id
+      if (currentDeptId !== selectedDepartmentId) {
+        setFormData(prev => ({ ...prev, positionId: '' }))
+      }
+    }
+  }, [selectedDepartmentId, positions])
 
   // Initialize form data when user changes
   useEffect(() => {
@@ -91,7 +208,8 @@ export function UserProfileForm({
         phone: user.phone || '',
         linkedinUrl: user.linkedinUrl || '',
         githubUrl: user.githubUrl || '',
-        personalWebsite: user.personalWebsite || ''
+        personalWebsite: user.personalWebsite || '',
+        positionId: '' // Will be set when positions load
       })
     } else {
       setFormData({
@@ -106,7 +224,8 @@ export function UserProfileForm({
         phone: '',
         linkedinUrl: '',
         githubUrl: '',
-        personalWebsite: ''
+        personalWebsite: '',
+        positionId: ''
       })
     }
   }, [user])
@@ -386,6 +505,104 @@ export function UserProfileForm({
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Role Card Assignment */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center">
+                <Award className="h-5 w-5 mr-2" />
+                Role & Position
+              </CardTitle>
+              <CardDescription>
+                Assign this user to a position with a role card for better AI context
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="departmentId">Department *</Label>
+                  <Select
+                    value={selectedDepartmentId || undefined}
+                    onValueChange={(value) => {
+                      setSelectedDepartmentId(value)
+                      setFormData(prev => ({ ...prev, positionId: '' })) // Reset position when department changes
+                    }}
+                    disabled={loading || loadingPositions}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {departments.length === 0 && !loadingPositions && (
+                    <p className="text-xs text-gray-500">
+                      No departments found. Please create departments first.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="positionId">Position & Role Card</Label>
+                  <Select
+                    value={formData.positionId || undefined}
+                    onValueChange={(value) => setFormData({ ...formData, positionId: value === 'none' ? '' : value })}
+                    disabled={loading || loadingPositions || !selectedDepartmentId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedDepartmentId ? "Select a position (optional)" : "Select a department first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No position assigned</SelectItem>
+                      {filteredPositions.map((position) => (
+                        <SelectItem key={position.id} value={position.id}>
+                          {position.title}
+                          {position.team?.name && ` (${position.team.name})`}
+                          {position.roleCard && ` - ${position.roleCard.roleName}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {loadingPositions && (
+                    <p className="text-xs text-gray-500">Loading positions...</p>
+                  )}
+                  {selectedDepartmentId && filteredPositions.length === 0 && !loadingPositions && (
+                    <p className="text-xs text-gray-500">
+                      No positions found in this department. Create positions first.
+                    </p>
+                  )}
+                  {!selectedDepartmentId && (
+                    <p className="text-xs text-gray-500">
+                      Please select a department first to see available positions.
+                    </p>
+                  )}
+                </div>
+
+                {selectedPosition?.roleCard && (
+                  <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium mb-1">Role Card: {selectedPosition.roleCard.roleName}</h4>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                          {selectedPosition.roleCard.roleDescription}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {formData.positionId && formData.positionId !== 'none' && !selectedPosition?.roleCard && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    This position doesn't have a role card yet. Create one to provide better context for LoopBrain.
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
 

@@ -28,7 +28,19 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         title: true,
-        department: true,
+        teamId: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+            department: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
         level: true,
         parentId: true,
         userId: true,
@@ -45,6 +57,15 @@ export async function GET(request: NextRequest) {
         teamSize: true,
         budget: true,
         reportingStructure: true,
+        // Role card relation
+        roleCard: {
+          select: {
+            id: true,
+            roleName: true,
+            roleDescription: true,
+            jobFamily: true
+          }
+        },
         // User fields (basic first)
         user: {
           select: {
@@ -73,7 +94,19 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             title: true,
-            department: true,
+            teamId: true,
+            team: {
+              select: {
+                id: true,
+                name: true,
+                department: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
+              }
+            },
             level: true,
             user: {
               select: {
@@ -94,9 +127,11 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json(positions)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching org positions:', error)
-    return NextResponse.json({ error: 'Failed to fetch org positions' }, { status: 500 })
+    return NextResponse.json({ 
+      error: error.message || 'Failed to fetch org positions' 
+    }, { status: 500 })
   }
 }
 
@@ -119,7 +154,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { 
       title, 
-      department, 
+      teamId,
       level = 1,
       parentId,
       userId,
@@ -145,7 +180,7 @@ export async function POST(request: NextRequest) {
       data: {
         workspaceId: auth.workspaceId,
         title,
-        department,
+        teamId: teamId || null,
         level,
         parentId: parentId || null,
         userId: userId || null,

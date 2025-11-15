@@ -48,7 +48,7 @@ const coreNavigationItems = [
 // Feature-gated navigation items
 const featureNavigationItems = [
   {
-    name: "Ask AI",
+    name: "LoopBrain",
     href: "/ask",
     icon: Bot,
     description: "AI-powered document generation, project creation, and assistance",

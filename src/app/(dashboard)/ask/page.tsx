@@ -25,9 +25,17 @@ import {
   Search,
   RefreshCw
 } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { SourceCitations } from '@/components/ai/source-citations'
+import { AILogo } from '@/components/ai-logo'
 
 interface Message {
   id: string
@@ -124,8 +132,8 @@ export default function AskPage() {
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [showScrollToBottom, setShowScrollToBottom] = useState(false)
-  const [selectedModel, setSelectedModel] = useState(MODELS[0])
-  const [showModelSelector, setShowModelSelector] = useState(false)
+  // Default to Gemini 2.5 Flash
+  const [selectedModel, setSelectedModel] = useState(MODELS.find(m => m.id === 'gemini-2.5-flash') || MODELS[0])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -192,7 +200,8 @@ export default function AskPage() {
   const startNewChat = () => {
     setCurrentSession(null)
     setMessages([])
-    setShowModelSelector(true)
+    // Use the currently selected model (defaults to Gemini 2.5 Flash)
+    createNewSession(selectedModel.id)
   }
 
   const createNewSession = async (modelId: string) => {
@@ -218,7 +227,6 @@ export default function AskPage() {
           updatedAt: new Date(),
           messageCount: 0
         })
-        setShowModelSelector(false)
         loadChatHistory()
       }
     } catch (error) {
@@ -320,8 +328,20 @@ export default function AskPage() {
     setInput("")
     setIsLoading(true)
 
+    // Create placeholder AI message for streaming
+    const aiMessageId = (Date.now() + 1).toString()
+    const aiMessage: Message = {
+      id: aiMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      model: currentSession.model
+    }
+
+    setMessages(prev => [...prev, aiMessage])
+
     try {
-      const response = await fetch('/api/ai/chat', {
+      const response = await fetch('/api/ai/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -331,30 +351,78 @@ export default function AskPage() {
         })
       })
 
-      const data = await response.json()
-      
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.content || 'I received your message but had trouble processing it. Please try again.',
-        timestamp: new Date(),
-        model: currentSession.model,
-        sources: data.sources
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      setMessages(prev => [...prev, aiMessage])
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('No response body reader available')
+      }
+
+      let buffer = ''
+      let accumulatedContent = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              
+              if (data.error) {
+                throw new Error(data.error)
+              }
+
+              if (data.content) {
+                accumulatedContent += data.content
+                // Update the message content as chunks arrive
+                setMessages(prev => prev.map(msg => 
+                  msg.id === aiMessageId 
+                    ? { ...msg, content: accumulatedContent }
+                    : msg
+                ))
+              }
+
+              if (data.done) {
+                setIsLoading(false)
+                loadChatHistory()
+                return
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+              if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
+                console.error('Error parsing stream data:', e)
+              }
+            }
+          }
+        }
+      }
+
+      setIsLoading(false)
       loadChatHistory()
     } catch (error) {
       console.error('Error sending message:', error)
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: "Sorry, I encountered an error. Please try again.",
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
       setIsLoading(false)
+      
+      // Update the message with error
+      const errorMessage = error instanceof Error 
+        ? `Sorry, I encountered an error: ${error.message}. Please try again or select a different model.`
+        : "Sorry, I encountered an error. Please try again or select a different model."
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { ...msg, content: errorMessage }
+          : msg
+      ))
     }
   }
 
@@ -484,10 +552,12 @@ export default function AskPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Bot className="h-5 w-5 text-white" />
-                </div>
-                <h1 className="text-2xl font-semibold text-foreground">Ask AI</h1>
+                <AILogo 
+                  width={32} 
+                  height={32} 
+                  className="w-8 h-8"
+                />
+                <h1 className="text-2xl font-semibold text-foreground">LoopBrain</h1>
               </div>
               {currentSession && (
                 <div className="flex items-center space-x-2">
@@ -507,14 +577,31 @@ export default function AskPage() {
                 <History className="h-4 w-4 mr-2" />
                 {showHistory ? 'Hide' : 'Show'} History
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowModelSelector(true)}
+              <Select
+                value={currentSession?.model || selectedModel.id}
+                onValueChange={(value) => {
+                  const model = MODELS.find(m => m.id === value)
+                  if (model) {
+                    setSelectedModel(model)
+                    // If there's an active session, update it
+                    if (currentSession) {
+                      // Create a new session with the selected model
+                      createNewSession(value)
+                    }
+                  }
+                }}
               >
-                <Settings className="h-4 w-4 mr-2" />
-                Models
-              </Button>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MODELS.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -524,43 +611,19 @@ export default function AskPage() {
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center">
               <div className="w-full max-w-2xl text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Bot className="h-8 w-8 text-blue-600" />
+                <div className="mx-auto mb-6">
+                  <AILogo 
+                    width={64} 
+                    height={64} 
+                    className="w-16 h-16"
+                  />
                 </div>
                 <h2 className="text-2xl font-semibold text-foreground mb-4">
-                  Welcome to Ask AI
+                  Welcome to LoopBrain
                 </h2>
                 <p className="text-muted-foreground mb-8">
-                  Choose an AI model and start a conversation. Each model has different strengths for different tasks.
+                  Start a conversation with AI. Select your preferred model from the dropdown above.
                 </p>
-                <div className="grid md:grid-cols-3 gap-4">
-                  {MODELS.map((model) => {
-                    const Icon = model.icon
-                    return (
-                      <Card 
-                        key={model.id}
-                        className={`cursor-pointer hover:shadow-md transition-all border-2 hover:${model.borderColor} ${currentSession?.model === model.id ? model.borderColor : 'border-border'}`}
-                        onClick={() => {
-                          if (!currentSession) {
-                            createNewSession(model.id)
-                          }
-                        }}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start space-x-3">
-                            <div className={`w-10 h-10 ${model.bgColor} rounded-lg flex items-center justify-center`}>
-                              <Icon className={`h-5 w-5 ${model.color}`} />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-foreground">{model.name}</h3>
-                              <p className="text-sm text-muted-foreground">{model.description}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
               </div>
             </div>
           ) : (
@@ -610,16 +673,6 @@ export default function AskPage() {
                 </div>
               ))}
               
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-muted rounded-lg px-4 py-3">
-                    <div className="flex items-center space-x-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm text-muted-foreground">Thinking...</span>
-                    </div>
-                  </div>
-                </div>
-              )}
             </>
           )}
           <div ref={messagesEndRef} />
@@ -660,62 +713,6 @@ export default function AskPage() {
         </div>
       </div>
 
-      {/* Model Selector Modal */}
-      {showModelSelector && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-card rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h3 className="text-lg font-semibold">Choose AI Model</h3>
-              <Button variant="outline" onClick={() => setShowModelSelector(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-6 space-y-4">
-              {MODELS.map((model) => {
-                const Icon = model.icon
-                return (
-                  <Card 
-                    key={model.id}
-                    className={`cursor-pointer hover:shadow-md transition-all border-2 hover:${model.borderColor} ${selectedModel.id === model.id ? model.borderColor : 'border-border'}`}
-                    onClick={() => setSelectedModel(model)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start space-x-4">
-                        <div className={`w-12 h-12 ${model.bgColor} rounded-lg flex items-center justify-center`}>
-                          <Icon className={`h-6 w-6 ${model.color}`} />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-foreground mb-1">{model.name}</h3>
-                          <p className="text-sm text-muted-foreground mb-2">{model.description}</p>
-                          <p className="text-xs text-muted-foreground">Provider: {model.provider}</p>
-                        </div>
-                        {selectedModel.id === model.id && (
-                          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                            <div className="w-2 h-2 bg-white rounded-full"></div>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-            <div className="flex justify-end space-x-3 p-6 border-t">
-              <Button variant="outline" onClick={() => setShowModelSelector(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={() => {
-                  createNewSession(selectedModel.id)
-                }}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Creating...' : 'Start Chat'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

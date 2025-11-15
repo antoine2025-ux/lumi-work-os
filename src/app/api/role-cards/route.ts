@@ -76,29 +76,56 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Request body:', body)
     
     const { 
+      positionId,
       roleName, 
-      department, 
       jobFamily, 
-      level, 
-      roleDescription
+      roleDescription,
+      responsibilities = []
     } = body
 
-    console.log('🔍 WorkspaceId being used:', auth.workspaceId)
-
-    if (!roleName || !department || !jobFamily || !level || !roleDescription) {
+    if (!positionId || !roleName || !roleDescription) {
       return NextResponse.json({ 
-        error: 'Missing required fields: roleName, department, jobFamily, level, roleDescription' 
+        error: 'Missing required fields: positionId, roleName, roleDescription' 
       }, { status: 400 })
+    }
+
+    // Verify position exists and belongs to workspace
+    const position = await prisma.orgPosition.findFirst({
+      where: {
+        id: positionId,
+        workspaceId: auth.workspaceId
+      }
+    })
+
+    if (!position) {
+      return NextResponse.json({ 
+        error: 'Position not found' 
+      }, { status: 404 })
+    }
+
+    // Check if role card already exists for this position
+    const existing = await prisma.roleCard.findUnique({
+      where: { positionId }
+    })
+
+    if (existing) {
+      return NextResponse.json({ 
+        error: 'A role card already exists for this position' 
+      }, { status: 409 })
     }
 
     const roleCard = await prisma.roleCard.create({
       data: {
         workspaceId: auth.workspaceId,
-        roleName,
-        department,
-        jobFamily,
-        level,
-        roleDescription,
+        positionId,
+        roleName: roleName.trim(),
+        jobFamily: jobFamily || '', // Optional - empty string if not provided
+        level: '', // Not used in new simplified model but kept for schema compatibility
+        roleDescription: roleDescription.trim(),
+        responsibilities: responsibilities || [],
+        requiredSkills: [], // Not used in new simplified model but kept for schema compatibility
+        preferredSkills: [], // Not used in new simplified model but kept for schema compatibility
+        keyMetrics: [], // Not used in new simplified model but kept for schema compatibility
         createdById: auth.user.userId
       },
       include: {

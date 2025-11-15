@@ -260,7 +260,7 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
           className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
         >
           <Sparkles className="h-4 w-4 mr-2" />
-          Ask AI
+          LoopBrain
         </Button>
       </div>
     </div>

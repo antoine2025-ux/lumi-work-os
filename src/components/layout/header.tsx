@@ -56,7 +56,7 @@ const navigationItems = [
     description: "Workspaces, wikis and projects"
   },
   {
-    name: "Ask AI",
+    name: "LoopBrain",
     href: "/ask",
     icon: Brain,
     description: "AI-powered assistance"

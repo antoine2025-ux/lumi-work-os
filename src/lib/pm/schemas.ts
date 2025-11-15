@@ -160,15 +160,15 @@ export const TaskPutSchema = z.object({
   description: z.string().optional(),
   status: z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
-  assigneeId: z.string().optional(),
-  dueDate: z.string().datetime().optional(),
+  assigneeId: z.string().nullable().optional(),
+  dueDate: z.string().datetime().nullable().optional(),
   tags: z.array(z.string().max(50)).optional(),
-  epicId: z.string().optional(),
-  milestoneId: z.string().optional(),
-  points: z.number().int().min(0).max(100).optional(),
+  epicId: z.string().nullable().optional(),
+  milestoneId: z.string().nullable().optional(),
+  points: z.number().int().min(0).max(100).nullable().optional(),
   dependsOn: z.array(z.string()).optional(),
   blocks: z.array(z.string()).optional(),
-  completedAt: z.string().datetime().optional()
+  completedAt: z.string().datetime().nullable().optional()
 })
 
 // Custom Field schemas

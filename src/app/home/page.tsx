@@ -486,7 +486,7 @@ export default function HomePage() {
                 <Link href="/ask">
                   <Button variant="outline" size="sm" className="h-12 w-full">
                     <Bot className="h-4 w-4 mr-2" />
-                    Ask AI
+                    LoopBrain
                   </Button>
                 </Link>
                 <Button variant="outline" size="sm" className="h-12" disabled>

@@ -426,111 +426,6 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
       onTaskMove={handleTaskMove}
       onTaskReorder={handleTaskReorder}
     >
-      {/* Controls Header */}
-      <div className="p-4 border-b bg-card">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            {/* Group By Toggle */}
-            <div className="flex items-center space-x-2">
-              <Layers className="h-4 w-4 text-gray-500" />
-              <Select value={groupByMode} onValueChange={(value: GroupByMode) => setGroupByMode(value)}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="status">Group by Status</SelectItem>
-                  <SelectItem value="epic">Group by Epic</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Milestone Filters */}
-            {milestones.length > 0 && (
-              <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-500">Milestones:</span>
-                <div className="flex items-center space-x-2">
-                  {milestones.map((milestone) => (
-                    <Badge
-                      key={milestone.id}
-                      variant={selectedMilestones.includes(milestone.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleMilestoneFilter(milestone.id)}
-                    >
-                      {milestone.title}
-                    </Badge>
-                  ))}
-                  {selectedMilestones.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearMilestoneFilters}
-                      className="h-6 px-2 text-xs"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Add Epic Button */}
-          {groupByMode === 'epic' && (
-            <Dialog open={isCreateEpicOpen} onOpenChange={setIsCreateEpicOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="flex items-center space-x-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Add Epic</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create New Epic</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="epic-title">Title</Label>
-                    <Input
-                      id="epic-title"
-                      value={newEpicTitle}
-                      onChange={(e) => setNewEpicTitle(e.target.value)}
-                      placeholder="Epic title"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="epic-description">Description</Label>
-                    <Textarea
-                      id="epic-description"
-                      value={newEpicDescription}
-                      onChange={(e) => setNewEpicDescription(e.target.value)}
-                      placeholder="Epic description"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="epic-color">Color</Label>
-                    <Input
-                      id="epic-color"
-                      type="color"
-                      value={newEpicColor}
-                      onChange={(e) => setNewEpicColor(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setIsCreateEpicOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={createEpic} disabled={!newEpicTitle.trim()}>
-                      Create Epic
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-      </div>
-
       {/* Responsive Container */}
       <div className={`p-8 bg-background ${
         screenSize === 'desktop' 
@@ -540,7 +435,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
             : 'max-w-full px-4'
       }`}>
         {groupByMode === 'status' ? (
-          <div className={`grid gap-6 ${
+          <div className={`grid gap-4 ${
             screenSize === 'desktop' 
               ? 'grid-cols-5' // Fixed 5 columns for desktop to show all statuses
               : screenSize === 'tablet' 

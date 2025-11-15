@@ -86,7 +86,7 @@ export function CommandPalette() {
     },
     {
       id: "nav-ask",
-      title: "Ask AI",
+      title: "LoopBrain",
       description: "AI-powered assistance and document generation",
       icon: Bot,
       action: () => router.push("/ask"),

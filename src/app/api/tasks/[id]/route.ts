@@ -157,7 +157,18 @@ export async function PUT(
     const body = await request.json()
     
     // Validate request body with Zod
-    const validatedData = TaskPutSchema.parse(body)
+    let validatedData
+    try {
+      validatedData = TaskPutSchema.parse(body)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ 
+          error: 'Validation failed',
+          details: error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+        }, { status: 400 })
+      }
+      throw error
+    }
     const { 
       title, 
       description,
@@ -348,9 +359,26 @@ export async function PUT(
     return NextResponse.json(task)
   } catch (error) {
     console.error('Error updating task:', error)
+    
+    // Handle RBAC errors
+    if (error instanceof Error) {
+      if (error.message === 'Unauthorized: User not authenticated.' || 
+          error.message === 'User not found.') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      
+      if (error.message === 'Project not found.') {
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+      }
+      
+      if (error.message === 'Forbidden: Insufficient project permissions.') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to update task',
-      details: error.message 
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }

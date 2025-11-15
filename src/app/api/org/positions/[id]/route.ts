@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { requireDevAuth } from '@/lib/dev-auth'
-import { logAuditEvent } from '@/lib/audit'
-import { getPermissionContext, calculateOrgPermissions } from '@/lib/permissions'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 // GET /api/org/positions/[id] - Get a specific org position
 export async function GET(
@@ -10,11 +10,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
     const resolvedParams = await params
-    await requireDevAuth(request)
+    
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
 
-    const position = await prisma.orgPosition.findUnique({
-      where: { id: resolvedParams.id },
+    setWorkspaceContext(auth.workspaceId)
+
+    const position = await prisma.orgPosition.findFirst({
+      where: { 
+        id: resolvedParams.id,
+        workspaceId: auth.workspaceId
+      },
       include: {
         user: {
           select: {
@@ -22,6 +34,18 @@ export async function GET(
             name: true,
             email: true,
             image: true
+          }
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+            department: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         },
         parent: {
@@ -42,7 +66,7 @@ export async function GET(
           select: {
             id: true,
             title: true,
-            department: true,
+            teamId: true,
             level: true,
             user: {
               select: {
@@ -75,47 +99,55 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
     const resolvedParams = await params
-    const context = await getPermissionContext(request)
-    const permissions = calculateOrgPermissions(context)
     
-    // Check permissions
-    if (!permissions.canEditRoles) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['ADMIN', 'OWNER'] 
+    })
+
+    setWorkspaceContext(auth.workspaceId)
 
     const body = await request.json()
     const { 
       title, 
-      department, 
+      teamId,
       level,
       parentId,
       userId,
       order,
-      isActive = true
+      isActive
     } = body
 
     // Check if position exists
-    const existingPosition = await prisma.orgPosition.findUnique({
-      where: { id: resolvedParams.id }
+    const existingPosition = await prisma.orgPosition.findFirst({
+      where: { 
+        id: resolvedParams.id,
+        workspaceId: auth.workspaceId
+      }
     })
 
     if (!existingPosition) {
       return NextResponse.json({ error: 'Position not found' }, { status: 404 })
     }
 
+    // Build update data - only include fields that are provided
+    const updateData: any = {}
+    if (title !== undefined) updateData.title = title
+    if (teamId !== undefined) updateData.teamId = teamId || null
+    if (level !== undefined) updateData.level = level
+    if (parentId !== undefined) updateData.parentId = parentId || null
+    if (userId !== undefined) updateData.userId = userId || null
+    if (order !== undefined) updateData.order = order
+    if (isActive !== undefined) updateData.isActive = isActive
+
     // Update the org position
     const position = await prisma.orgPosition.update({
       where: { id: resolvedParams.id },
-      data: {
-        title,
-        department,
-        level,
-        parentId: parentId || null,
-        userId: userId || null,
-        order,
-        isActive
-      },
+      data: updateData,
       include: {
         user: {
           select: {
@@ -123,6 +155,18 @@ export async function PUT(
             name: true,
             email: true,
             image: true
+          }
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+            department: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         },
         parent: {
@@ -143,7 +187,7 @@ export async function PUT(
           select: {
             id: true,
             title: true,
-            department: true,
+            teamId: true,
             level: true,
             user: {
               select: {
@@ -159,37 +203,18 @@ export async function PUT(
       }
     })
 
-    // Log audit event
-    await logAuditEvent({
-      workspaceId: context.workspaceId,
-      userId: context.userId,
-      action: 'UPDATE',
-      entityType: 'POSITION',
-      entityId: resolvedParams.id,
-      oldValues: {
-        title: existingPosition.title,
-        department: existingPosition.department,
-        level: existingPosition.level,
-        userId: existingPosition.userId,
-        isActive: existingPosition.isActive,
-      },
-      newValues: {
-        title: position.title,
-        department: position.department,
-        level: position.level,
-        userId: position.userId,
-        isActive: position.isActive,
-      },
-      metadata: {
-        reason: 'Role updated',
-        department: position.department,
-      },
-    })
-
     return NextResponse.json(position)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating org position:', error)
-    return NextResponse.json({ error: 'Failed to update org position' }, { status: 500 })
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    })
+    return NextResponse.json({ 
+      error: error.message || 'Failed to update org position',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 })
   }
 }
 
@@ -199,46 +224,46 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
     const resolvedParams = await params
-    console.log('DELETE request for position:', resolvedParams.id)
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      console.log('Unauthorized: No session or email')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['ADMIN', 'OWNER'] 
+    })
+
+    setWorkspaceContext(auth.workspaceId)
 
     // Check if position exists
-    const existingPosition = await prisma.orgPosition.findUnique({
-      where: { id: resolvedParams.id },
+    const existingPosition = await prisma.orgPosition.findFirst({
+      where: { 
+        id: resolvedParams.id,
+        workspaceId: auth.workspaceId
+      },
       include: {
         children: true
       }
     })
 
-    console.log('Found position:', existingPosition ? 'Yes' : 'No')
-
     if (!existingPosition) {
-      console.log('Position not found, returning 404')
       return NextResponse.json({ error: 'Position not found' }, { status: 404 })
     }
 
     // Check if position has children
-    console.log('Position has children:', existingPosition.children.length)
     if (existingPosition.children.length > 0) {
-      console.log('Cannot delete position with children, returning 400')
       return NextResponse.json({ 
         error: 'Cannot delete position with direct reports. Please reassign or delete direct reports first.' 
       }, { status: 400 })
     }
 
     // Soft delete by setting isActive to false
-    console.log('Performing soft delete...')
     await prisma.orgPosition.update({
       where: { id: resolvedParams.id },
       data: { isActive: false }
     })
 
-    console.log('Position deleted successfully')
     return NextResponse.json({ message: 'Position deleted successfully' })
   } catch (error) {
     console.error('Error deleting org position:', error)

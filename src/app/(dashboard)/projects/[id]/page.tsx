@@ -57,7 +57,7 @@ const Celebration = dynamic(() => import("@/components/ui/celebration").then(mod
 const TaskSearchFilter = dynamic(() => import("@/components/search/task-search-filter").then(mod => ({ default: mod.TaskSearchFilter })), { ssr: false })
 const ProjectHeader = dynamic(() => import("@/components/projects/project-header").then(mod => ({ default: mod.ProjectHeader })), { ssr: false })
 const CalendarView = dynamic(() => import("@/components/tasks/calendar-view"), { ssr: false })
-const ProjectDailySummaries = dynamic(() => import("@/components/projects/project-daily-summaries").then(mod => ({ default: mod.ProjectDailySummaries })), { ssr: false })
+const EpicsView = dynamic(() => import("@/components/projects/epics-view").then(mod => ({ default: mod.EpicsView })), { ssr: false })
 const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mod => ({ default: mod.WikiLayout })), { ssr: false })
 const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
 
@@ -121,7 +121,6 @@ interface Project {
     content?: string
     updatedAt: string
   }
-  dailySummaryEnabled?: boolean
 }
 
 export default function ProjectDetailPage() {
@@ -142,12 +141,12 @@ export default function ProjectDetailPage() {
   const [isTaskListFullscreen, setIsTaskListFullscreen] = useState(false)
   const [taskViewMode, setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
   const [currentView, setCurrentView] = useState<ViewMode>('board')
+  const [headerView, setHeaderView] = useState<'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'>('board')
   const [showCelebration, setShowCelebration] = useState(false)
   const [wasCompleted, setWasCompleted] = useState(false)
   const [filteredTasks, setFilteredTasks] = useState<any[]>([])
   const [isFiltered, setIsFiltered] = useState(false)
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
-  const [dailySummaryEnabled, setDailySummaryEnabled] = useState(false)
   const [selectedEpicId, setSelectedEpicId] = useState<string | undefined>(undefined)
   const [epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -255,14 +254,6 @@ export default function ProjectDetailPage() {
 
   const handleProjectUpdate = (updatedProject: any) => {
     setProject(updatedProject)
-    setDailySummaryEnabled(updatedProject.dailySummaryEnabled || false)
-  }
-
-  const handleToggleDailySummary = (enabled: boolean) => {
-    setDailySummaryEnabled(enabled)
-    if (project) {
-      setProject({ ...project, dailySummaryEnabled: enabled })
-    }
   }
 
   // More menu handlers
@@ -395,10 +386,14 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     checkProjectCompletion()
-    if (project) {
-      setDailySummaryEnabled(project.dailySummaryEnabled || false)
-    }
   }, [project])
+
+  // Sync headerView with currentView
+  useEffect(() => {
+    if (currentView === 'board') setHeaderView('board')
+    else if (currentView === 'calendar') setHeaderView('calendar')
+    else if (currentView === 'list') setHeaderView('tasks')
+  }, [currentView])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -511,29 +506,20 @@ export default function ProjectDetailPage() {
             project={project}
             tasks={project?.tasks || []}
             colors={colors}
-            onTaskDrawerOpen={() => {/* TODO: Implement */}}
-            onKanbanOptionsOpen={() => setIsSearchExpanded(!isSearchExpanded)}
-            onNotificationsOpen={() => {/* TODO: Implement */}}
-            onMoreMenuOpen={() => {/* TODO: Implement */}}
-            onCommandPaletteOpen={() => {/* TODO: Implement */}}
-            onProjectSettings={() => setIsEditDialogOpen(true)}
-            onExportCSV={() => handleExportCSV()}
-            onDuplicateProject={() => handleDuplicateProject()}
-            onShareProject={() => handleShareProject()}
-            onDeleteProject={() => handleDeleteProject()}
+            currentView={headerView}
+            onViewChange={(view) => {
+              setHeaderView(view)
+              // Map header views to ViewMode for compatibility
+              if (view === 'board') setCurrentView('board')
+              else if (view === 'calendar') setCurrentView('calendar')
+              else if (view === 'tasks') setCurrentView('list')
+              // TODO: Handle epics, timeline, files views
+            }}
+            onMoreClick={() => {
+              // TODO: Implement more menu
+            }}
           />
           
-          {/* Create Button - between progress bar and Kanban */}
-          <div className="max-w-[1600px] mx-auto px-6 mt-4">
-            <Button
-              onClick={() => setIsCreateDialogOpen(true)}
-              className="flex items-center space-x-2"
-              style={{ backgroundColor: colors.primary }}
-            >
-              <Plus className="h-4 w-4" />
-              <span>Create</span>
-            </Button>
-          </div>
         </>
       ) : (
         /* Original Professional Header Layout */
@@ -654,56 +640,17 @@ export default function ProjectDetailPage() {
         <div className="space-y-6">
           {/* Tasks Section */}
           <>
-            <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {/* Epic Filter */}
-                      <Select value={selectedEpicId || 'all'} onValueChange={(value) => setSelectedEpicId(value === 'all' ? undefined : value)}>
-                        <SelectTrigger className="w-48">
-                          <SelectValue placeholder="Filter by Epic" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">
-                            <span className="text-muted-foreground">All Epics</span>
-                          </SelectItem>
-                          {epics.map((epic) => (
-                            <SelectItem key={epic.id} value={epic.id}>
-                              <div className="flex items-center space-x-2">
-                                <div 
-                                  className="w-3 h-3 rounded-full" 
-                                  style={{ backgroundColor: epic.color || '#3B82F6' }}
-                                ></div>
-                                <span>{epic.title}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {/* Minimalistic Fullscreen Button - Always visible */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsTaskListFullscreen(true)}
-                        className="h-8 w-8 p-0"
-                        style={{ borderColor: colors.border }}
-                      >
-                        <Maximize2 className="h-3 w-3" />
-                      </Button>
-                      {/* Collapsible Search Button */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-                        className="h-8 px-3 text-xs"
-                        style={{ borderColor: colors.border }}
-                      >
-                        <Search className="h-3 w-3 mr-1" />
-                        Search
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
+            {headerView === 'epics' ? (
+              <div>
+                <EpicsView 
+                  projectId={projectId} 
+                  workspaceId={currentWorkspace?.id || 'workspace-1'}
+                  colors={colors}
+                  onCreateEpic={handleCreateEpic}
+                />
+              </div>
+            ) : (
+              <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
                 <CardContent className="p-0">
                   {/* Collapsible Search Bar */}
                   {isSearchExpanded && (
@@ -716,8 +663,8 @@ export default function ProjectDetailPage() {
                     </div>
                   )}
                   
-                  {/* Render appropriate view based on currentView */}
-                  {currentView === 'board' && (
+                  {/* Render appropriate view based on headerView */}
+                  {headerView === 'board' && (
                     <KanbanBoard 
                       projectId={projectId} 
                       workspaceId={currentWorkspace?.id || 'workspace-1'}
@@ -727,7 +674,7 @@ export default function ProjectDetailPage() {
                     />
                   )}
                   
-                  {currentView === 'list' && (
+                  {headerView === 'tasks' && (
                     <TaskList 
                       projectId={projectId} 
                       workspaceId={currentWorkspace?.id || 'workspace-1'}
@@ -736,22 +683,22 @@ export default function ProjectDetailPage() {
                     />
                   )}
                   
-                  {currentView === 'calendar' && (
+                  {headerView === 'calendar' && (
                     <CalendarView 
                       projectId={projectId} 
                       workspaceId={currentWorkspace?.id || 'workspace-1'}
                     />
                   )}
+                  
+                  {(headerView === 'timeline' || headerView === 'files') && (
+                    <div className="flex items-center justify-center h-64">
+                      <p className="text-muted-foreground">Coming soon</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
+            )}
 
-              {/* Daily Summaries Section */}
-              <ProjectDailySummaries
-                projectId={projectId}
-                projectName={project?.name || ''}
-                dailySummaryEnabled={dailySummaryEnabled}
-                onToggleDailySummary={handleToggleDailySummary}
-              />
             </>
 
 
