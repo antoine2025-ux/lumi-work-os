@@ -121,8 +121,10 @@ export async function POST(request: NextRequest) {
     
     // Handle table doesn't exist error
     if (error.code === 'P2021' || error.message?.includes('does not exist') || error.message?.includes('org_departments')) {
+      console.error('Database table missing. Migration should run automatically on next deployment.')
       return NextResponse.json({ 
-        error: 'Database migration required. Please run: npx prisma migrate dev' 
+        error: 'Database tables are being created. Please try again in a moment, or contact support if the issue persists.',
+        code: 'MIGRATION_REQUIRED'
       }, { status: 500 })
     }
     
