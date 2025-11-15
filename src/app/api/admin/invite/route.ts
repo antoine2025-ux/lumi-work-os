@@ -92,6 +92,8 @@ export async function POST(request: NextRequest) {
       baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
     }
     
+    // Redirect to auth callback with workspace context
+    // The callback will verify membership and redirect to dashboard
     const inviteRedirectUrl = redirectTo || `${baseUrl}/auth/callback?workspace=${auth.workspaceId}`
 
     // Verify Supabase client is initialized correctly
