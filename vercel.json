@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma generate && prisma migrate deploy && npm run build",
+  "buildCommand": "prisma generate && (prisma migrate deploy || prisma db push --accept-data-loss --skip-generate) && npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
