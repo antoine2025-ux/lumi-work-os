@@ -8,6 +8,7 @@
     "dev:realtime": "node server.js",
     "postinstall": "prisma generate",
     "build": "prisma generate && next build",
+    "db:push": "prisma db push --skip-generate",
     "start": "NODE_ENV=production node server.js",
     "lint": "eslint",
     "seed": "ts-node prisma/seed.ts",
