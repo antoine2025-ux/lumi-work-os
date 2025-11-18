@@ -10,6 +10,7 @@ import { WikiPreview } from "@/components/landing/wiki-preview";
 import { AIAssistantPreview } from "@/components/landing/ai-assistant-preview";
 import { NewsletterSignup } from "@/components/landing/newsletter-signup";
 import { EarlyTesterSignup } from "@/components/landing/early-tester-signup";
+import { WaitlistSignupModal } from "@/components/landing/waitlist-signup-modal";
 import { 
   ArrowRight, 
   CheckCircle, 
@@ -32,6 +33,7 @@ import { useRouter } from "next/navigation";
 export default function LandingPage() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
 
   const handleSignIn = () => {
     // Redirect to main app's login page (same domain)
@@ -45,8 +47,30 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Status Banner - Top of Page */}
+      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 border-b border-blue-500/30 sticky top-0 z-[60]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="text-center">
+            <p className="text-base sm:text-lg font-semibold text-white">
+              <span className="inline-block mr-2">🚀</span>
+              <span className="font-bold">Early-stage, high-impact.</span> Loopwell is in private beta.{" "}
+              <button
+                onClick={() => setWaitlistModalOpen(true)}
+                className="underline hover:text-blue-200 transition-colors font-bold cursor-pointer decoration-2 underline-offset-2 hover:decoration-blue-200"
+              >
+                Join the waitlist
+              </button>{" "}
+              to get early access, influence the roadmap, and unlock perks reserved for our first users.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Waitlist Signup Modal */}
+      <WaitlistSignupModal open={waitlistModalOpen} onOpenChange={setWaitlistModalOpen} />
+
       {/* Navigation */}
-      <nav className="border-b border-slate-700 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
+      <nav className="border-b border-slate-700 bg-slate-900/80 backdrop-blur-sm sticky top-[57px] z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
@@ -348,7 +372,7 @@ export default function LandingPage() {
             <div>
               <div className="flex items-center gap-3 mb-6">
                 <Brain className="w-6 h-6 text-blue-400" />
-                <h3 className="text-2xl font-semibold text-white">Loopwell Intelligence</h3>
+                <h3 className="text-2xl font-semibold text-white">LoopBrain</h3>
               </div>
               <AIAssistantPreview />
             </div>
