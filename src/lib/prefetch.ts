@@ -13,14 +13,18 @@ export interface PrefetchOptions {
 /**
  * Prefetch all critical data in parallel
  * This runs immediately when the app loads
+ * 
+ * OPTIMIZED: Only prefetches metadata (lists), not full content
+ * Full content is loaded on-demand when user opens a specific page
  */
 export async function prefetchAllData(options: PrefetchOptions) {
   const { workspaceId, queryClient } = options
   
-  console.log('[Prefetch] Starting aggressive prefetching for workspace:', workspaceId)
+  console.log('[Prefetch] Starting metadata prefetching for workspace:', workspaceId)
   const startTime = Date.now()
 
-  // Prefetch all critical data in parallel - don't await, let them run concurrently
+  // Prefetch all critical METADATA in parallel - lightweight, fast
+  // We don't prefetch full page content - that's loaded on-demand
   const prefetchPromises = [
     // Workspaces - most important, users navigate between them
     queryClient.prefetchQuery({
@@ -31,9 +35,9 @@ export async function prefetchAllData(options: PrefetchOptions) {
         return response.json()
       },
       staleTime: 5 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Workspaces cached')),
+    }).then(() => console.log('[Prefetch] ✓ Workspaces metadata cached')),
 
-    // Recent pages - users often browse recent content
+    // Recent pages METADATA ONLY - no full content
     queryClient.prefetchQuery({
       queryKey: ['wiki-pages', 'recent', workspaceId, 20],
       queryFn: async () => {
@@ -42,9 +46,9 @@ export async function prefetchAllData(options: PrefetchOptions) {
         return response.json()
       },
       staleTime: 2 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Recent pages cached')),
+    }).then(() => console.log('[Prefetch] ✓ Recent pages metadata cached')),
 
-    // Personal space pages
+    // Personal space pages METADATA ONLY
     queryClient.prefetchQuery({
       queryKey: ['wiki-pages', 'recent', workspaceId, 20, 'personal'],
       queryFn: async () => {
@@ -53,9 +57,9 @@ export async function prefetchAllData(options: PrefetchOptions) {
         return response.json()
       },
       staleTime: 2 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Personal pages cached')),
+    }).then(() => console.log('[Prefetch] ✓ Personal pages metadata cached')),
 
-    // Team workspace pages
+    // Team workspace pages METADATA ONLY
     queryClient.prefetchQuery({
       queryKey: ['wiki-pages', 'recent', workspaceId, 20, 'team'],
       queryFn: async () => {
@@ -64,9 +68,9 @@ export async function prefetchAllData(options: PrefetchOptions) {
         return response.json()
       },
       staleTime: 2 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Team pages cached')),
+    }).then(() => console.log('[Prefetch] ✓ Team pages metadata cached')),
 
-    // Projects - critical for project management
+    // Projects METADATA ONLY
     queryClient.prefetchQuery({
       queryKey: ['projects', workspaceId],
       queryFn: async () => {
@@ -76,13 +80,14 @@ export async function prefetchAllData(options: PrefetchOptions) {
         return Array.isArray(data) ? data : (data.data || data.projects || [])
       },
       staleTime: 2 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Projects cached')),
+    }).then(() => console.log('[Prefetch] ✓ Projects metadata cached')),
 
-    // Drafts - users often continue writing
+    // Drafts METADATA ONLY - no full content
     queryClient.prefetchQuery({
       queryKey: ['drafts', workspaceId],
       queryFn: async () => {
         const [unpublishedRes, sessionsRes] = await Promise.all([
+          // Use metadata-only endpoint (no includeContent)
           fetch('/api/wiki/pages?isPublished=false&limit=10').catch(() => null),
           fetch(`/api/assistant/sessions?workspaceId=${workspaceId}&hasDraft=true`).catch(() => null)
         ])
@@ -99,7 +104,7 @@ export async function prefetchAllData(options: PrefetchOptions) {
               type: 'page' as const,
               updatedAt: p.updatedAt,
               url: `/wiki/${p.slug}`,
-              excerpt: p.excerpt || p.content?.substring(0, 100) + '...'
+              excerpt: p.excerpt || '' // Use excerpt, not full content
             }))
           drafts.push(...unpublishedPages)
         }
@@ -113,7 +118,7 @@ export async function prefetchAllData(options: PrefetchOptions) {
               title: s.draftTitle,
               type: 'session' as const,
               updatedAt: s.updatedAt,
-              excerpt: s.draftBody?.substring(0, 100) + '...'
+              excerpt: s.draftBody?.substring(0, 100) + '...' // Only excerpt
             }))
           drafts.push(...draftSessions)
         }
@@ -123,9 +128,9 @@ export async function prefetchAllData(options: PrefetchOptions) {
         ).slice(0, 6)
       },
       staleTime: 1 * 60 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ Drafts cached')),
+    }).then(() => console.log('[Prefetch] ✓ Drafts metadata cached')),
 
-    // User status - already fetched but ensure it's cached
+    // User status
     queryClient.prefetchQuery({
       queryKey: ['user-status'],
       queryFn: async () => {
@@ -141,7 +146,23 @@ export async function prefetchAllData(options: PrefetchOptions) {
   await Promise.allSettled(prefetchPromises)
   
   const duration = Date.now() - startTime
-  console.log(`[Prefetch] ✓ All data prefetched in ${duration}ms`)
+  console.log(`[Prefetch] ✓ All metadata prefetched in ${duration}ms (no full content)`)
+}
+
+/**
+ * Prefetch content for a specific page (the "most likely next" page)
+ * Called when user hovers over a page link or opens a space
+ */
+export async function prefetchPageContent(pageIdOrSlug: string, queryClient: QueryClient) {
+  queryClient.prefetchQuery({
+    queryKey: ['wiki-page', pageIdOrSlug],
+    queryFn: async () => {
+      const response = await fetch(`/api/wiki/pages/${pageIdOrSlug}`)
+      if (!response.ok) throw new Error('Failed to fetch page')
+      return response.json()
+    },
+    staleTime: 2 * 60 * 1000,
+  })
 }
 
 /**
