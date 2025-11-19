@@ -35,6 +35,25 @@ export default function TeamWorkspacePage() {
   const [projects, setProjects] = useState<any[]>([])
   const [workspaceItems, setWorkspaceItems] = useState<WorkspaceItem[]>([])
 
+  // Use CSS variables for consistent theming
+  const colors = {
+    primary: 'var(--primary)',
+    primaryLight: 'var(--accent)',
+    primaryDark: 'var(--secondary)',
+    success: '#10b981',
+    successLight: '#d1fae5',
+    warning: '#f59e0b',
+    warningLight: '#fef3c7',
+    error: 'var(--destructive)',
+    errorLight: '#fee2e2',
+    background: 'var(--background)',
+    surface: 'var(--card)',
+    text: 'var(--foreground)',
+    textSecondary: 'var(--muted-foreground)',
+    border: 'var(--border)',
+    borderLight: 'var(--muted)'
+  }
+
   const formatTimeAgo = (dateString: string): string => {
     const date = new Date(dateString)
     const now = new Date()
@@ -240,128 +259,119 @@ export default function TeamWorkspacePage() {
   }
 
   return (
-    <div className="flex-1 min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-8 py-16">
-        {/* Header */}
-        <div className="mb-12">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <TeamIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-semibold text-foreground">Team Workspace</h1>
-              <p className="text-sm text-muted-foreground mt-1">Your collaborative knowledge hub</p>
-            </div>
+    <>
+      <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+        {/* Zen-style Header */}
+        <div className="px-16 py-8 space-y-4">
+          <div className="flex items-center space-x-3">
+            <h1 className="text-4xl font-light" style={{ color: colors.text }}>Team Workspace</h1>
           </div>
+          <p className="text-lg max-w-2xl" style={{ color: colors.textSecondary }}>
+            Your collaborative knowledge hub
+          </p>
         </div>
 
-        {/* Info Box */}
-        <div className="mb-12 p-4 bg-card border border-border rounded-lg">
-          <div className="flex items-start gap-3">
-            <TeamIcon className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              A shared space where your team can collaborate on documentation, notes, and knowledge. 
-              All team members can view and contribute to pages in this workspace.
-            </p>
+        {/* Stats Overview - Zen Style */}
+        <div className="px-16 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="text-center">
+              <div className="text-3xl font-light mb-2" style={{ color: colors.text }}>{teamPages.length}</div>
+              <div className="text-sm" style={{ color: colors.textSecondary }}>Total Pages</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-light mb-2" style={{ color: colors.success }}>{projects.length}</div>
+              <div className="text-sm" style={{ color: colors.textSecondary }}>Projects</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-light mb-2" style={{ color: colors.primary }}>{workspaceItems.length}</div>
+              <div className="text-sm" style={{ color: colors.textSecondary }}>Total Items</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-light mb-2" style={{ color: colors.text }}>Visibility</div>
+              <div className="text-sm" style={{ color: colors.textSecondary }}>Shared</div>
+            </div>
           </div>
         </div>
 
         {/* Content Area */}
-        {workspaceItems.length === 0 ? (
-          <div className="space-y-8">
-            {/* Empty State */}
-            <div className="space-y-6 text-center">
-              <div className="flex justify-center">
-                <div className="w-16 h-16 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                  <Shield className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+        <div className="px-16">
+          {workspaceItems.length === 0 ? (
+            <div className="space-y-8">
+              {/* Empty State */}
+              <div className="space-y-6 text-center">
+                <div className="flex justify-center">
+                  <div className="w-16 h-16 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <Shield className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-light" style={{ color: colors.text }}>Your team workspace is empty</h2>
+                  <p className="text-sm max-w-md mx-auto" style={{ color: colors.textSecondary }}>
+                    Create collaborative pages for your team's documentation, notes, and shared knowledge. 
+                    All team members can view and contribute to these pages.
+                  </p>
                 </div>
               </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-semibold text-foreground">Your team workspace is empty</h2>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Create collaborative pages for your team's documentation, notes, and shared knowledge. 
-                  All team members can view and contribute to these pages.
-                </p>
+
+              {/* CTA Button */}
+              <div className="flex justify-center pt-4">
+                <Button 
+                  size="lg" 
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8"
+                  onClick={handleCreatePage}
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create Your First Team Page
+                </Button>
               </div>
             </div>
-
-            {/* Feature Cards */}
-            <div className="grid grid-cols-2 gap-3 max-w-lg mx-auto">
-              <Card className="p-4 bg-card border-border">
-                <div className="flex items-center gap-2 mb-1">
-                  <TeamIcon className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-foreground">Team collaboration</span>
+          ) : (
+            <div className="space-y-8">
+              {/* Workspace Items */}
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {workspaceItems.map((item) => (
+                    <Card
+                      key={item.id}
+                      className={cn(
+                        "cursor-pointer transition-all duration-200",
+                        "hover:shadow-lg hover:border-primary/50",
+                        "group"
+                      )}
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                      onClick={() => router.push(item.url)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3 mb-4">
+                          {item.icon}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium truncate mb-1 group-hover:text-primary transition-colors" style={{ color: colors.text }}>
+                              {item.title}
+                            </h3>
+                            <p className="text-xs" style={{ color: colors.textSecondary }}>
+                              {formatTimeAgo(item.updatedAt)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-                <p className="text-xs text-muted-foreground">Work together with your team</p>
-              </Card>
-              <Card className="p-4 bg-card border-border">
-                <div className="flex items-center gap-2 mb-1">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-foreground">Shared knowledge</span>
-                </div>
-                <p className="text-xs text-muted-foreground">Centralize team resources</p>
-              </Card>
-            </div>
+              </div>
 
-            {/* CTA Button */}
-            <div className="flex justify-center pt-4">
+              {/* Create Button */}
               <Button 
-                size="lg" 
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8"
+                variant="outline" 
+                className="w-full"
+                style={{ borderColor: colors.border }}
                 onClick={handleCreatePage}
               >
-                <Plus className="h-5 w-5 mr-2" />
-                Create Your First Team Page
+                <Plus className="h-4 w-4 mr-2" />
+                Create New Team Page
               </Button>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {/* Workspace Items */}
-            <div>
-              <h2 className="text-xl font-semibold text-foreground mb-6">
-                Pages & Projects
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {workspaceItems.map((item) => (
-                  <Card
-                    key={item.id}
-                    className={cn(
-                      "cursor-pointer transition-all duration-200",
-                      "hover:shadow-lg hover:border-primary/50 bg-card border-border",
-                      "group"
-                    )}
-                    onClick={() => router.push(item.url)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3 mb-4">
-                        {item.icon}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-foreground truncate mb-1 group-hover:text-primary transition-colors">
-                            {item.title}
-                          </h3>
-                          <p className="text-xs text-muted-foreground">
-                            {formatTimeAgo(item.updatedAt)}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* Create Button */}
-            <Button 
-              variant="outline" 
-              className="w-full border-border"
-              onClick={handleCreatePage}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Team Page
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       
       {/* AI Assistant - Floating Button Mode */}
@@ -369,6 +379,6 @@ export default function TeamWorkspacePage() {
         currentTitle="Team Workspace"
         mode="floating-button"
       />
-    </div>
+    </>
   )
 }

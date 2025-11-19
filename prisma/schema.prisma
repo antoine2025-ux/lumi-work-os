@@ -148,6 +148,7 @@ model WorkspaceMember {
 
   @@unique([workspaceId, userId])
   @@index([userId], map: "idx_workspace_members_user")
+  @@index([userId, workspaceId], map: "idx_workspace_members_user_workspace")
   @@map("workspace_members")
 }
 
@@ -194,6 +195,9 @@ model WikiPage {
   @@index([view_count(sort: Desc)], map: "idx_wiki_pages_view_count")
   @@index([workspace_type], map: "idx_wiki_pages_workspace_type")
   @@index([workspaceId, updatedAt], map: "idx_wiki_pages_workspace_updated")
+  @@index([workspaceId, isPublished], map: "idx_wiki_pages_workspace_published")
+  @@index([workspaceId, workspace_type], map: "idx_wiki_pages_workspace_type_alt")
+  @@index([updatedAt(sort: Desc)], map: "idx_wiki_pages_updated_at")
   @@map("wiki_pages")
 }
 
@@ -208,6 +212,7 @@ model WikiFavorite {
   @@unique([page_id, user_id])
   @@index([page_id], map: "idx_wiki_favorites_page_id")
   @@index([user_id], map: "idx_wiki_favorites_user_id")
+  @@index([user_id, page_id], map: "idx_wiki_favorites_user_workspace")
   @@map("wiki_favorites")
 }
 
@@ -576,6 +581,8 @@ model ChatSession {
   workspace        Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([userId, workspaceId], map: "idx_chat_sessions_user_workspace")
+  @@index([workspaceId, userId, phase], map: "idx_chat_sessions_workspace_user_draft")
+  @@index([updatedAt(sort: Desc)], map: "idx_chat_sessions_updated_at")
   @@map("chat_sessions")
 }
 
@@ -625,6 +632,7 @@ model Project {
   tasks               Task[]
 
   @@index([workspaceId, status], map: "idx_projects_workspace_status")
+  @@index([updatedAt(sort: Desc)], map: "idx_projects_updated_at")
   @@map("projects")
 }
 
@@ -664,6 +672,7 @@ model Task {
   @@index([workspaceId, assigneeId], map: "idx_tasks_workspace_assignee")
   @@index([epicId], map: "idx_tasks_epic")
   @@index([milestoneId], map: "idx_tasks_milestone")
+  @@index([workspaceId, status], map: "idx_tasks_workspace_status")
   @@map("tasks")
 }
 

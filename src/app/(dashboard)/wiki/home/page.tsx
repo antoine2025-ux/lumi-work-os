@@ -1,18 +1,28 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useUserStatus } from "@/hooks/use-user-status"
+import { useWorkspaces } from "@/hooks/use-workspaces"
+import { useRecentPages } from "@/hooks/use-wiki-pages"
+import { useProjects } from "@/hooks/use-projects"
+import { useDrafts } from "@/hooks/use-drafts"
 import { 
   Clock, 
   FileText, 
   Folder, 
   Target,
-  Home as HomeIcon,
-  ChevronRight,
-  Loader2
+  Plus,
+  Globe,
+  Users,
+  Loader2,
+  Brain,
+  Edit3,
+  Sparkles,
+  ChevronRight
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { WikiAIAssistant } from "@/components/wiki/wiki-ai-assistant"
 
@@ -36,23 +46,59 @@ interface Project {
   createdAt?: string
 }
 
-interface RecentItem {
+interface WikiWorkspace {
+  id: string
+  name: string
+  type: 'personal' | 'team' | 'project' | null
+  color?: string
+  description?: string
+  pageCount?: number
+  lastUpdated?: string
+  memberCount?: number
+}
+
+interface Draft {
   id: string
   title: string
-  type: 'page' | 'project'
+  type: 'page' | 'session'
   updatedAt: string
-  url: string
-  icon: React.ReactNode
-  color?: string
+  url?: string
+  excerpt?: string
+}
+
+interface AISuggestion {
+  id: string
+  type: 'summary' | 'incomplete' | 'outdated' | 'blocked'
+  title: string
+  description: string
+  action?: string
 }
 
 export default function SpacesHomePage() {
   const router = useRouter()
   const { userStatus, loading: userStatusLoading } = useUserStatus()
-  const [recentPages, setRecentPages] = useState<RecentPage[]>([])
-  const [projects, setProjects] = useState<Project[]>([])
-  const [recentItems, setRecentItems] = useState<RecentItem[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  
+  // Use React Query hooks for instant, cached data fetching
+  const { data: workspacesData = [], isLoading: workspacesLoading } = useWorkspaces()
+  const { data: recentPagesData = [], isLoading: pagesLoading } = useRecentPages(20)
+  const { data: projectsData = [], isLoading: projectsLoading } = useProjects()
+  const { data: draftsData = [], isLoading: draftsLoading } = useDrafts()
+  
+  const isLoading = userStatusLoading || workspacesLoading || pagesLoading || projectsLoading || draftsLoading
+
+  // Use CSS variables for consistent theming
+  const colors = {
+    primary: 'var(--primary)',
+    success: '#10b981',
+    warning: '#f59e0b',
+    error: 'var(--destructive)',
+    background: 'var(--background)',
+    surface: 'var(--card)',
+    text: 'var(--foreground)',
+    textSecondary: 'var(--muted-foreground)',
+    border: 'var(--border)',
+    borderLight: 'var(--muted)'
+  }
 
   const formatTimeAgo = (dateString: string): string => {
     const date = new Date(dateString)
@@ -69,7 +115,7 @@ export default function SpacesHomePage() {
     } else if (diffInHours < 24) {
       return `${diffInHours}h ago`
     } else if (diffInDays === 1) {
-      return '1d ago'
+      return 'yesterday'
     } else if (diffInDays < 7) {
       return `${diffInDays}d ago`
     } else {
@@ -77,101 +123,115 @@ export default function SpacesHomePage() {
     }
   }
 
-  const getIcon = (type: 'page' | 'project', color?: string) => {
-    if (type === 'project') {
-      return (
-        <div 
-          className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: color ? `${color}20` : '#3B82F620' }}
-        >
-          <Target 
-            className="h-4 w-4" 
-            style={{ color: color || '#3B82F6' }}
-          />
-        </div>
-      )
+  const getWorkspaceIcon = (workspace: WikiWorkspace) => {
+    if (workspace.type === 'personal') {
+      return <FileText className="h-5 w-5 text-indigo-600" />
+    } else if (workspace.type === 'team') {
+      return <Users className="h-5 w-5 text-blue-600" />
+    } else {
+      return <Globe className="h-5 w-5 text-blue-600" />
     }
-    return (
-      <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-        <FileText className="h-4 w-4 text-indigo-600" />
-      </div>
-    )
   }
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!userStatus?.workspaceId) return
+  const getWorkspaceRoute = (workspace: WikiWorkspace): string => {
+    if (workspace.type === 'personal') {
+      return '/wiki/personal-space'
+    } else if (workspace.type === 'team') {
+      return '/wiki/team-workspace'
+    } else {
+      return `/wiki/workspace/${workspace.id}`
+    }
+  }
 
-      try {
-        setIsLoading(true)
+  // Enrich workspaces with page counts and last updated (memoized)
+  const workspaces = useMemo(() => {
+    return workspacesData.map(ws => {
+      // Count pages for this workspace from recent pages
+      const workspacePages = recentPagesData.filter(p => 
+        p.workspace_type === ws.type || 
+        p.workspace_type === ws.id ||
+        (ws.type === 'personal' && p.workspace_type === 'personal') ||
+        (ws.type === 'team' && p.workspace_type === 'team')
+      )
+      
+      const lastUpdated = workspacePages.length > 0
+        ? workspacePages.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]?.updatedAt
+        : null
 
-        // Fetch recent pages
-        const pagesResponse = await fetch('/api/wiki/recent-pages?limit=10')
-        if (pagesResponse.ok) {
-          const pagesData = await pagesResponse.json()
-          setRecentPages(pagesData)
-        }
-
-        // Fetch projects
-        const projectsResponse = await fetch(`/api/projects?workspaceId=${userStatus.workspaceId}`)
-        if (projectsResponse.ok) {
-          const projectsData = await projectsResponse.json()
-          // Handle both array and object responses
-          const projectsList = Array.isArray(projectsData) ? projectsData : (projectsData.data || projectsData.projects || [])
-          setProjects(projectsList)
-        }
-      } catch (error) {
-        console.error('Error loading home data:', error)
-      } finally {
-        setIsLoading(false)
+      return {
+        ...ws,
+        pageCount: workspacePages.length,
+        lastUpdated: lastUpdated || undefined
       }
+    })
+  }, [workspacesData, recentPagesData])
+
+  // Generate AI suggestions based on actual data (memoized)
+  const aiSuggestions = useMemo(() => {
+    const suggestions: AISuggestion[] = []
+    
+    // Check for workspace activity - suggest summaries for active workspaces
+    if (workspaces.length > 0) {
+      const activeWorkspaces = workspaces.filter(ws => ws.pageCount && ws.pageCount >= 5)
+      activeWorkspaces.forEach((ws, index) => {
+        if (index < 2) { // Limit to 2 suggestions
+          suggestions.push({
+            id: `summary-${ws.id}`,
+            type: 'summary',
+            title: `Weekly summary for ${ws.name}`,
+            description: `You have ${ws.pageCount} pages in ${ws.name} — want a summary?`,
+            action: 'Generate summary'
+          })
+        }
+      })
     }
 
-    if (!userStatusLoading && userStatus) {
-      loadData()
+    // Check for drafts - suggest continuing work
+    if (draftsData.length > 0) {
+      suggestions.push({
+        id: 'drafts-1',
+        type: 'incomplete',
+        title: `${draftsData.length} ${draftsData.length === 1 ? 'draft' : 'drafts'} waiting`,
+        description: 'You have unfinished work that might need attention.',
+        action: 'View drafts'
+      })
     }
-  }, [userStatus, userStatusLoading])
 
-  // Combine and sort recent items
-  useEffect(() => {
-    const items: RecentItem[] = []
+    // Check for recent activity - suggest organization
+    if (recentPagesData.length > 10) {
+      suggestions.push({
+        id: 'organize-1',
+        type: 'outdated',
+        title: 'Organize your content',
+        description: `You have ${recentPagesData.length} pages. Consider organizing them into workspaces.`,
+        action: 'Organize'
+      })
+    }
 
-    // Add recent pages
-    recentPages.forEach(page => {
-      items.push({
+    return suggestions.slice(0, 3) // Limit to 3 suggestions
+  }, [workspaces, draftsData, recentPagesData])
+
+  // Get recent work items (pages + projects) - memoized
+  const recentWork = useMemo(() => {
+    return [
+      ...recentPagesData.slice(0, 6).map(page => ({
         id: page.id,
         title: page.title,
-        type: 'page',
+        type: 'page' as const,
         updatedAt: page.updatedAt,
         url: `/wiki/${page.slug}`,
-        icon: getIcon('page'),
-        color: undefined
-      })
-    })
-
-    // Add projects (using updatedAt or createdAt)
-    projects.forEach(project => {
-      items.push({
+        icon: <FileText className="h-4 w-4" />
+      })),
+      ...projectsData.slice(0, 3).map(project => ({
         id: project.id,
         title: project.name,
-        type: 'project',
+        type: 'project' as const,
         updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
         url: `/projects/${project.id}`,
-        icon: getIcon('project', project.color),
-        color: project.color
-      })
-    })
-
-    // Sort by updatedAt descending
-    items.sort((a, b) => {
-      const dateA = new Date(a.updatedAt).getTime()
-      const dateB = new Date(b.updatedAt).getTime()
-      return dateB - dateA
-    })
-
-    // Take only the most recent 6-8 items
-    setRecentItems(items.slice(0, 8))
-  }, [recentPages, projects])
+        icon: <Target className="h-4 w-4" />
+      }))
+    ].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 8)
+  }, [recentPagesData, projectsData])
 
   if (userStatusLoading || isLoading) {
     return (
@@ -181,79 +241,311 @@ export default function SpacesHomePage() {
     )
   }
 
+  const handleCreatePage = () => {
+    if (typeof window !== 'undefined' && (window as any).triggerCreatePage) {
+      (window as any).triggerCreatePage()
+    }
+  }
+
+  const handleCreateWorkspace = () => {
+    router.push('/wiki')
+  }
+
+  const handleCreateProject = () => {
+    router.push('/projects/new')
+  }
+
   return (
     <>
-      <style>{`
-        .recent-items-scroll::-webkit-scrollbar {
-          height: 8px;
-        }
-        .recent-items-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .recent-items-scroll::-webkit-scrollbar-thumb {
-          background: transparent;
-          border-radius: 4px;
-        }
-        .recent-items-scroll:hover::-webkit-scrollbar-thumb {
-          background: rgba(0, 0, 0, 0.2);
-        }
-        @media (prefers-color-scheme: dark) {
-          .recent-items-scroll:hover::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-          }
-        }
-      `}</style>
-    <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-8 py-12">
-        {/* Welcome Message */}
-        <div className="mb-12">
-          <h1 className="text-5xl font-bold text-foreground mb-2">
-            Welcome to your Space
-          </h1>
+      <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+        {/* Header */}
+        <div className="px-16 py-8 space-y-2">
+          <h1 className="text-4xl font-light" style={{ color: colors.text }}>Home</h1>
+          <p className="text-lg font-light" style={{ color: colors.textSecondary }}>
+            Welcome back{userStatus?.user?.name ? `, ${userStatus.user.name.split(' ')[0]}` : ''}.
+          </p>
         </div>
 
-        {/* Recently Visited Section */}
-        <div className="mb-12">
-          <div className="flex items-center gap-3 mb-6">
-            <Clock className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-xl font-semibold text-foreground">Recently visited</h2>
-          </div>
-
-          {recentItems.length > 0 ? (
-            <div className="recent-items-scroll flex gap-3 overflow-x-auto pb-4 -mx-2 px-2">
-              {recentItems.map((item) => (
+        {/* Content Area */}
+        <div className="px-16 pb-16 space-y-12">
+          {/* Section 1: Your Spaces */}
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-light" style={{ color: colors.text }}>Your Spaces</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCreateWorkspace}
+                className="font-light text-sm h-8 px-3"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                New Space
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {workspaces.map((workspace) => (
                 <Card
-                  key={item.id}
+                  key={workspace.id}
                   className={cn(
-                    "min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer transition-all duration-200",
-                    "hover:shadow-lg hover:border-primary/50 bg-card border-border",
+                    "cursor-pointer transition-all duration-200",
+                    "hover:shadow-lg hover:border-primary/50",
                     "group"
                   )}
-                  onClick={() => router.push(item.url)}
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                  onClick={() => router.push(getWorkspaceRoute(workspace))}
                 >
                   <CardContent className="p-4">
-                    <div className="flex items-start gap-3 mb-4">
-                      {item.icon}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-foreground truncate mb-1 group-hover:text-primary transition-colors">
-                          {item.title}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                          {formatTimeAgo(item.updatedAt)}
-                        </p>
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" 
+                        style={{ backgroundColor: workspace.color ? `${workspace.color}20` : '#3B82F620' }}>
+                        {getWorkspaceIcon(workspace)}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-light truncate mb-1 group-hover:text-primary transition-colors" style={{ color: colors.text }}>
+                          {workspace.name}
+                        </h3>
+                        <div className="flex items-center gap-3 text-xs" style={{ color: colors.textSecondary }}>
+                          {workspace.pageCount !== undefined && (
+                            <span>{workspace.pageCount} {workspace.pageCount === 1 ? 'page' : 'pages'}</span>
+                          )}
+                          {workspace.memberCount !== undefined && workspace.memberCount > 0 && (
+                            <span>{workspace.memberCount} {workspace.memberCount === 1 ? 'member' : 'members'}</span>
+                          )}
+                        </div>
+                        {workspace.lastUpdated && (
+                          <p className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                            Updated {formatTimeAgo(workspace.lastUpdated)}
+                          </p>
+                        )}
+                      </div>
+                      <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: colors.textSecondary }} />
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-12 border border-dashed border-border rounded-lg">
-              <p className="text-muted-foreground">
-                No recent activity. Start by creating a page or project!
-              </p>
+          </div>
+
+          {/* Section 2: Your Work / Recent */}
+          {recentWork.length > 0 && (
+            <div>
+              <h2 className="text-xl font-light mb-6" style={{ color: colors.text }}>Recent</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recentWork.map((item) => (
+                  <Card
+                    key={item.id}
+                    className={cn(
+                      "cursor-pointer transition-all duration-200",
+                      "hover:shadow-lg hover:border-primary/50",
+                      "group"
+                    )}
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                    onClick={() => router.push(item.url)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: colors.borderLight }}>
+                          {item.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-light truncate mb-1 group-hover:text-primary transition-colors" style={{ color: colors.text }}>
+                            {item.title}
+                          </h3>
+                          <p className="text-xs" style={{ color: colors.textSecondary }}>
+                            {formatTimeAgo(item.updatedAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
           )}
+
+          {/* Section 3: Drafts */}
+          {draftsData.length > 0 && (
+            <div>
+              <h2 className="text-xl font-light mb-6" style={{ color: colors.text }}>Continue Writing</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {draftsData.map((draft) => (
+                  <Card
+                    key={draft.id}
+                    className={cn(
+                      "cursor-pointer transition-all duration-200",
+                      "hover:shadow-lg hover:border-primary/50",
+                      "group border-dashed"
+                    )}
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                    onClick={() => {
+                      if (draft.type === 'session') {
+                        router.push(`/assistant?session=${draft.id}`)
+                      } else if (draft.url) {
+                        router.push(draft.url)
+                      }
+                    }}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Edit3 className="h-4 w-4 mt-1" style={{ color: colors.textSecondary }} />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-light truncate mb-1 group-hover:text-primary transition-colors" style={{ color: colors.text }}>
+                            {draft.title}
+                          </h3>
+                          {draft.excerpt && (
+                            <p className="text-xs mt-1 line-clamp-2" style={{ color: colors.textSecondary }}>
+                              {draft.excerpt}
+                            </p>
+                          )}
+                          <p className="text-xs mt-2" style={{ color: colors.textSecondary }}>
+                            {formatTimeAgo(draft.updatedAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section 4: LoopBrain Suggestions */}
+          {aiSuggestions.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-6">
+                <Brain className="h-5 w-5" style={{ color: colors.primary }} />
+                <h2 className="text-xl font-light" style={{ color: colors.text }}>LoopBrain Suggestions</h2>
+              </div>
+              <div className="space-y-3">
+                {aiSuggestions.map((suggestion) => (
+                  <Card
+                    key={suggestion.id}
+                    className={cn(
+                      "transition-all duration-200",
+                      "hover:shadow-md hover:border-primary/30",
+                      "border-l-4"
+                    )}
+                    style={{ 
+                      backgroundColor: colors.surface, 
+                      borderColor: colors.primary,
+                      borderLeftWidth: '4px'
+                    }}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Sparkles className="h-4 w-4 mt-1 flex-shrink-0" style={{ color: colors.primary }} />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-light mb-1" style={{ color: colors.text }}>
+                            {suggestion.title}
+                          </h3>
+                          <p className="text-sm" style={{ color: colors.textSecondary }}>
+                            {suggestion.description}
+                          </p>
+                          {suggestion.action && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="mt-2 font-light text-xs h-7"
+                              onClick={() => {
+                                // Handle suggestion action
+                                console.log('Suggestion action:', suggestion.action)
+                              }}
+                            >
+                              {suggestion.action}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section 5: Create New (Bottom) */}
+          <div>
+            <h2 className="text-xl font-light mb-6" style={{ color: colors.text }}>Create New</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Create Page */}
+              <Card
+                className={cn(
+                  "cursor-pointer transition-all duration-200 border-2 border-dashed",
+                  "hover:border-primary hover:bg-accent/50",
+                  "group"
+                )}
+                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                onClick={handleCreatePage}
+              >
+                <CardContent className="p-6 flex flex-col items-center justify-center min-h-[100px]">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-2 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/50 transition-colors">
+                    <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <h3 className="font-light text-center text-sm" style={{ color: colors.text }}>
+                    New Page
+                  </h3>
+                </CardContent>
+              </Card>
+
+              {/* Create Workspace */}
+              <Card
+                className={cn(
+                  "cursor-pointer transition-all duration-200 border-2 border-dashed",
+                  "hover:border-primary hover:bg-accent/50",
+                  "group"
+                )}
+                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                onClick={handleCreateWorkspace}
+              >
+                <CardContent className="p-6 flex flex-col items-center justify-center min-h-[100px]">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-2 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 transition-colors">
+                    <Globe className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <h3 className="font-light text-center text-sm" style={{ color: colors.text }}>
+                    New Space
+                  </h3>
+                </CardContent>
+              </Card>
+
+              {/* Create Project */}
+              <Card
+                className={cn(
+                  "cursor-pointer transition-all duration-200 border-2 border-dashed",
+                  "hover:border-primary hover:bg-accent/50",
+                  "group"
+                )}
+                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                onClick={handleCreateProject}
+              >
+                <CardContent className="p-6 flex flex-col items-center justify-center min-h-[100px]">
+                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-2 group-hover:bg-green-200 dark:group-hover:bg-green-800/50 transition-colors">
+                    <Target className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <h3 className="font-light text-center text-sm" style={{ color: colors.text }}>
+                    New Project
+                  </h3>
+                </CardContent>
+              </Card>
+
+              {/* Placeholder */}
+              <Card
+                className={cn(
+                  "border-2 border-dashed opacity-50",
+                )}
+                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+              >
+                <CardContent className="p-6 flex flex-col items-center justify-center min-h-[100px]">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: colors.borderLight }}>
+                    <Plus className="h-5 w-5" style={{ color: colors.textSecondary }} />
+                  </div>
+                  <h3 className="font-light text-center text-sm" style={{ color: colors.textSecondary }}>
+                    More coming
+                  </h3>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -262,7 +554,6 @@ export default function SpacesHomePage() {
         currentTitle="Home"
         mode="floating-button"
       />
-    </div>
     </>
   )
 }

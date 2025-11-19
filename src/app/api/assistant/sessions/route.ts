@@ -42,14 +42,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
     
+    const { searchParams } = new URL(request.url)
+    const hasDraft = searchParams.get('hasDraft') === 'true'
+    
+    const whereClause: any = {
+      workspaceId: auth.workspaceId,
+      userId: auth.user.userId
+    }
+    
+    if (hasDraft) {
+      whereClause.draftTitle = { not: null }
+      whereClause.draftBody = { not: null }
+      whereClause.phase = { not: 'published' }
+    }
+    
     const sessions = await prisma.chatSession.findMany({
-      where: {
-        workspaceId: auth.workspaceId,
-        userId: auth.user.userId
-      },
+      where: whereClause,
       orderBy: {
         updatedAt: 'desc'
-      }
+      },
+      take: hasDraft ? 10 : 50
     })
 
     return NextResponse.json(sessions)

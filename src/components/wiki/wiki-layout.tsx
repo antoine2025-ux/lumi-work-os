@@ -855,12 +855,6 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                         
                         const isExpanded = expandedWorkspaces[workspace.id] || false
                         const hasPages = workspacePages.length > 0
-                        // Only Personal Space cannot be deleted - all other workspaces (including Team Workspace) are deletable
-                        const showDeleteButton = !isPersonalSpace
-                        
-                        if (showDeleteButton) {
-                          console.log('🗑️ Show delete button for:', workspace.name, workspace.id)
-                        }
                         
                         return (
                           <div key={workspace.id} className="group relative mb-2">
@@ -870,40 +864,22 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                                 className="flex items-center gap-3 flex-1"
                               >
                               <Circle className="h-2 w-2" style={{ color: workspace.color }} />
-                              <div 
-                                className="w-4 h-4 rounded-md flex items-center justify-center"
-                                style={{ backgroundColor: workspace.color + '20' }}
-                              >
-                                <FileText className="h-2 w-2" style={{ color: workspace.color }} />
-                              </div>
                                 <span className="text-sm flex-1">{workspace.name}</span>
-                                <span className="text-xs text-gray-400">({workspacePages.length})</span>
                               </Link>
                               <div className="flex items-center gap-1 ml-auto">
-                                {hasPages && (
+                                {hasPages ? (
                                   <button
                                     onClick={(e) => {
                                       e.preventDefault()
                                       e.stopPropagation()
                                       toggleWorkspace(workspace.id)
                                     }}
-                                    className="p-0.5 hover:bg-gray-200 rounded"
+                                    className="text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded px-1 py-0.5 transition-colors"
                                   >
-                                    {isExpanded ? (
-                                      <ChevronDown className="h-3 w-3 text-gray-500" />
-                                    ) : (
-                                      <ChevronRight className="h-3 w-3 text-gray-500" />
-                                    )}
+                                    ({workspacePages.length})
                                   </button>
-                                )}
-                                {showDeleteButton && (
-                                  <button
-                                    onClick={(e) => handleDeleteWorkspace(workspace.id, workspace.name, e)}
-                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-opacity"
-                                    title="Delete workspace"
-                                  >
-                                    <Trash2 className="h-3 w-3 text-red-600" />
-                                  </button>
+                                ) : (
+                                  <span className="text-xs text-gray-400">({workspacePages.length})</span>
                                 )}
                               </div>
                             </div>
@@ -1183,44 +1159,53 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
       )}>
         {isCreatingPage ? (
           /* Minimalistic Page Editor */
-          <div className="h-full bg-background min-h-screen w-full min-w-0">
+          <div className="h-full bg-background min-h-screen w-full min-w-0 relative">
+            {/* Floating Vertical Sidebar - Right Side */}
+            <div className={cn(
+              "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-500 ease-in-out",
+              isAISidebarOpen && aiDisplayMode === 'floating' 
+                ? "right-[540px]" // Slide left when AI chat is open in floating mode (500px width + 40px gap)
+                : isAISidebarOpen && aiDisplayMode === 'sidebar'
+                ? "right-[400px]" // Slide left when AI chat is open in sidebar mode (384px width + 16px gap)
+                : "right-8" // Default position
+            )}>
+              <Button 
+                onClick={handleSavePage} 
+                disabled={isSaving || !newPageTitle.trim()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10 rounded-full flex items-center justify-center p-0"
+                title={isSaving ? 'Saving...' : 'Save'}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="Share">
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="Favorite">
+                <Star className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="View">
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="Comments">
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="AI Assistant">
+                <Brain className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="More options">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </div>
+
             {/* Main Editor Area - Clean Document */}
             <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen w-full min-w-0">
               <div className="max-w-4xl mx-auto w-full min-w-0">
-                {/* Page Info and Actions */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
-                  <div className="flex items-center gap-2 sm:gap-4 flex-wrap min-w-0 w-full sm:w-auto max-w-full">
-                    <Button 
-                      onClick={handleSavePage} 
-                      disabled={isSaving || !newPageTitle.trim()}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                    >
-                      {isSaving ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4 mr-2" />
-                      )}
-                      {isSaving ? 'Saving...' : 'Save'}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
-                      <Share2 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
-                      <Star className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
-                      <MessageSquare className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
-                      <Brain className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto flex-shrink-0">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </div>
+                {/* Page Info */}
+                <div className="flex items-center justify-between gap-4 mb-6 w-full min-w-0">
                   <div className="text-sm text-gray-500 whitespace-nowrap flex-shrink-0">
                     New document
                   </div>
@@ -1372,8 +1357,8 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     <Dialog open={showWorkspaceSelectDialog} onOpenChange={setShowWorkspaceSelectDialog}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Select Workspace</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="font-light text-2xl">Select Workspace</DialogTitle>
+          <DialogDescription className="text-base font-light">
             Choose which workspace this page should be created in
           </DialogDescription>
         </DialogHeader>
@@ -1413,9 +1398,9 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                     {getIcon()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-foreground">{workspace.name}</div>
+                    <div className="font-light text-foreground">{workspace.name}</div>
                     {workspace.description && (
-                      <div className="text-sm text-muted-foreground">{workspace.description}</div>
+                      <div className="text-sm text-muted-foreground font-light">{workspace.description}</div>
                     )}
                   </div>
                 </button>
@@ -1425,7 +1410,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setShowWorkspaceSelectDialog(false)}>
+          <Button variant="outline" onClick={() => setShowWorkspaceSelectDialog(false)} className="font-light">
             Cancel
           </Button>
         </DialogFooter>

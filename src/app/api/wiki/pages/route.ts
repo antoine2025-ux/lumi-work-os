@@ -142,11 +142,11 @@ export async function POST(request: NextRequest) {
 
     logger.info('Creating new wiki page')
     const body = await request.json()
-    console.log('📝 Request body:', { workspaceId: auth.workspaceId, title: body.title, contentLength: body.content?.length, workspace_type: body.workspace_type })
+    console.log('📝 Request body:', { workspaceId: auth.workspaceId, title: body.title, contentLength: body.content?.length, workspace_type: body.workspace_type, permissionLevel: body.permissionLevel })
     
     const { title, content, parentId, tags = [], category = 'general', permissionLevel, workspace_type } = body
     
-    console.log('🔍 Extracted workspace_type:', workspace_type)
+    console.log('🔍 Extracted workspace_type:', workspace_type, 'permissionLevel:', permissionLevel)
 
     if (!title || !content) {
       console.log('❌ Missing required fields')
@@ -177,9 +177,33 @@ export async function POST(request: NextRequest) {
       }, { status: 409 })
     }
 
-    // Create the wiki page
-    const finalWorkspaceType = workspace_type || 'team'
-    console.log('💾 Saving page with workspace_type:', finalWorkspaceType)
+    // Determine workspace_type with strict validation
+    // Priority: explicit workspace_type > permissionLevel > default to 'team'
+    let finalWorkspaceType: string
+    let finalPermissionLevel: string
+    
+    if (workspace_type) {
+      // Explicit workspace_type provided - use it
+      finalWorkspaceType = workspace_type
+      // If permissionLevel matches workspace_type, use it; otherwise infer from workspace_type
+      if (permissionLevel && (permissionLevel === 'personal' || permissionLevel === 'team')) {
+        finalPermissionLevel = permissionLevel
+      } else {
+        finalPermissionLevel = workspace_type === 'personal' ? 'personal' : 'team'
+      }
+    } else if (permissionLevel === 'personal') {
+      // No workspace_type but permissionLevel is 'personal' - infer personal workspace
+      finalWorkspaceType = 'personal'
+      finalPermissionLevel = 'personal'
+      console.log('⚠️ No workspace_type provided, but permissionLevel is personal - setting workspace_type to personal')
+    } else {
+      // Default fallback - but log a warning
+      finalWorkspaceType = 'team'
+      finalPermissionLevel = permissionLevel || 'team'
+      console.log('⚠️ No workspace_type provided, defaulting to team. This may cause incorrect classification.')
+    }
+    
+    console.log('💾 Saving page with workspace_type:', finalWorkspaceType, 'permissionLevel:', finalPermissionLevel)
     
     const page = await prisma.wikiPage.create({
       data: {
@@ -191,7 +215,7 @@ export async function POST(request: NextRequest) {
         parentId: parentId || null,
         tags,
         category,
-        permissionLevel: permissionLevel || 'team',
+        permissionLevel: finalPermissionLevel,
         workspace_type: finalWorkspaceType,
         createdById: auth.user.userId
       },

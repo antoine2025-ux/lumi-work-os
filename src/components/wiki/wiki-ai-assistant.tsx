@@ -997,7 +997,26 @@ export function WikiAIAssistant({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to get AI response')
+        // Try to extract error details from response
+        let errorMessage = 'Failed to get AI response'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.details || errorData.error || errorMessage
+          console.error('❌ AI API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData.error,
+            details: errorData.details
+          })
+        } catch (parseError) {
+          // If response isn't JSON, use status text
+          errorMessage = `${response.status} ${response.statusText}`
+          console.error('❌ AI API error (non-JSON):', {
+            status: response.status,
+            statusText: response.statusText
+          })
+        }
+        throw new Error(errorMessage)
       }
 
       const data: LoopwellAIResponse = await response.json()
@@ -1056,10 +1075,12 @@ export function WikiAIAssistant({
       }
     } catch (error) {
       console.error('Error sending message:', error)
+      // Extract more detailed error message
+      const errorDetails = error instanceof Error ? error.message : 'Unknown error occurred'
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Sorry, there was an error processing your request. Please try again.',
+        content: `Sorry, there was an error processing your request: ${errorDetails}. Please try again or check your AI API configuration.`,
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
