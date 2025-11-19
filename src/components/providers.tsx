@@ -8,6 +8,7 @@ import { WorkspaceProvider } from "@/lib/workspace-context"
 import { CommandPalette } from "@/components/ui/command-palette"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { AuthWrapper } from "@/components/auth-wrapper"
+import { DataPrefetcher } from "@/components/data-prefetcher"
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 
@@ -59,13 +60,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 2 * 60 * 1000, // 2 minutes - data stays fresh longer
-        gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache (renamed from cacheTime in v5)
-        refetchOnWindowFocus: false,
+        staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer (increased from 2)
+        gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache much longer (increased from 10)
+        refetchOnWindowFocus: false, // Don't refetch on window focus - use cached data
         refetchOnMount: false, // Don't refetch if data is still fresh
+        refetchOnReconnect: false, // Don't refetch on reconnect - use cached data
         retry: 1, // Only retry once on failure
-        // Enable background refetching for better UX
-        refetchOnReconnect: true,
+        // Aggressive caching - prioritize cache over fresh data
+        networkMode: 'online', // But still respect network status
       },
     },
   }))
@@ -78,6 +80,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             <WorkspaceProvider>
               <SocketWrapper>
                 <KeyboardShortcutsWrapper>
+                  <DataPrefetcher />
                   {children}
                   <CommandPalette />
                 </KeyboardShortcutsWrapper>
