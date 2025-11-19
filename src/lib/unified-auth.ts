@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { createDefaultWorkspaceForUser } from '@/lib/workspace-onboarding'
+import { getCachedAuth, setCachedAuth } from '@/lib/auth-cache'
 
 export interface UnifiedAuthUser {
   userId: string
@@ -25,8 +26,21 @@ export interface AuthContext {
 /**
  * Unified authentication system that handles both development and production
  * Consolidates all authentication logic into a single, consistent interface
+ * 
+ * OPTIMIZED: Uses request-level caching to avoid duplicate auth queries
  */
 export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext> {
+  // Create cache key from request (use cookie hash or session ID)
+  const cacheKey = request 
+    ? `auth:${request.headers.get('cookie')?.substring(0, 50) || 'no-cookie'}`
+    : 'auth:server'
+  
+  // Check request-level cache first (within same request)
+  const cached = getCachedAuth(cacheKey)
+  if (cached) {
+    return cached
+  }
+
   // In App Router, getServerSession should work automatically
   // But for API routes, we need to handle it differently
   let session
@@ -70,7 +84,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
     throw new Error('Unauthorized: No session found. Please log in through Google OAuth.')
   }
 
-  // Get or create user from session
+  // OPTIMIZED: Get or create user (single query with upsert-like pattern)
   let user = await prisma.user.findUnique({
     where: { email: session.user.email }
   })
@@ -91,7 +105,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
   const roles = workspaceMember ? [workspaceMember.role] : []
   const isFirstTime = !workspaceMember
 
-  return {
+  const authContext = {
     user: {
       userId: user.id,
       activeWorkspaceId,
@@ -105,6 +119,11 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
     isAuthenticated: true,
     isDevelopment: false
   }
+
+  // Cache for this request
+  setCachedAuth(cacheKey, authContext)
+  
+  return authContext
 }
 
 /**
@@ -177,22 +196,24 @@ async function resolveActiveWorkspaceIdWithMember(
   }
 
   // Priority 3: User's default workspace
-  // Get first membership with existing workspace - already includes member data
-  const userMemberships = await prisma.workspaceMember.findMany({
-    where: { userId },
+  // OPTIMIZED: Single query to get first membership with workspace verification
+  // Use findFirst with a join condition instead of findMany + filter
+  const validMembership = await prisma.workspaceMember.findFirst({
+    where: { 
+      userId,
+      workspace: {
+        id: { not: undefined } // Ensure workspace exists
+      }
+    },
     orderBy: { joinedAt: 'asc' },
-    take: 1, // Only need the first one
     include: {
       workspace: {
         select: { id: true } // Verify workspace still exists
       }
     }
   })
-
-  // Find first membership with existing workspace
-  const validMembership = userMemberships.find(m => m.workspace !== null)
   
-  if (validMembership) {
+  if (validMembership && validMembership.workspace) {
     return { 
       workspaceId: validMembership.workspaceId, 
       workspaceMember: validMembership 

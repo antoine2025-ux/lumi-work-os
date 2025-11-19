@@ -26,9 +26,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const pagination = parsePaginationParams(searchParams)
     
-    // Check cache first
+    // OPTIMIZED: Check cache first (non-blocking with timeout)
     const cacheKey = `wiki_pages_${auth.workspaceId}_${pagination.page || 1}_${pagination.limit || 10}_${pagination.sortBy || 'order'}_${pagination.sortOrder || 'asc'}`
-    const cached = cache.get(cacheKey)
+    const cachePromise = cache.get(cacheKey)
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 50)) // 50ms timeout
+    
+    const cached = await Promise.race([cachePromise, timeoutPromise]) as any
     
     if (cached) {
       logger.debug('Returning cached wiki pages', { workspaceId: auth.workspaceId, ...pagination })
