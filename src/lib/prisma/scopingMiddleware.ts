@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client'
 
 // Models that require workspace scoping
-const WORKSPACE_SCOPED_MODELS = [
+export const WORKSPACE_SCOPED_MODELS = [
   'Project',
   'Task',
   'Epic',
