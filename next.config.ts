@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['@prisma/client'],
+  serverExternalPackages: ['@prisma/client', 'gray-matter', 'turndown'],
   images: {
     domains: ['localhost', 'lh3.googleusercontent.com', 'vercel.app', 'via.placeholder.com'],
     formats: ['image/webp', 'image/avif'],
