@@ -63,6 +63,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Error creating post:", error);
+    console.error("Error details:", {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      stack: error.stack,
+    });
     
     // Handle unique constraint violation (duplicate slug)
     if (error.code === 'P2002') {
@@ -72,8 +78,13 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Return more detailed error in development
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? `${error.message} (Code: ${error.code || 'N/A'})`
+      : "Failed to create post";
+    
     return NextResponse.json(
-      { error: error.message || "Failed to create post" },
+      { error: errorMessage, details: process.env.NODE_ENV === 'development' ? error.message : undefined },
       { status: 500 }
     );
   }
