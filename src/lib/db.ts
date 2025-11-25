@@ -35,37 +35,52 @@ if (isUsingPooler) {
   }
 }
 
-// Create Prisma client instance
-const prismaClient = new PrismaClient({
-  log: ['error'], // Only log errors in development for better performance
-  errorFormat: 'pretty',
-  // Connection pooling configuration
-  datasources: {
-    db: {
-      url: finalDatabaseUrl,
+// Function to create a fresh Prisma Client instance
+function createPrismaClient() {
+  return new PrismaClient({
+    log: ['error'], // Only log errors in development for better performance
+    errorFormat: 'pretty',
+    // Connection pooling configuration
+    datasources: {
+      db: {
+        url: finalDatabaseUrl,
+      },
     },
-  },
-})
+  })
+}
+
+// Create initial Prisma client instance
+let prismaClient = createPrismaClient()
 
 // Get or create singleton instance
 // Force recreation if BlogPost model is missing (for hot reload compatibility)
-let prisma = globalForPrisma.prisma ?? prismaClient
-if (globalForPrisma.prisma && typeof (globalForPrisma.prisma as any).blogPost === 'undefined') {
-  // Prisma Client is stale - recreate it
-  console.log('🔄 Detected stale Prisma Client, recreating...')
-  globalForPrisma.prisma = undefined
-  prisma = prismaClient
-}
+let prisma = globalForPrisma.prisma
 
-// Re-enable scoping middleware for automatic workspace isolation
-// This provides defense-in-depth by automatically adding workspaceId to all queries
-// Prisma v6 uses $extends instead of deprecated $use
-if (!globalForPrisma.prisma) {
-  // Only register middleware once (on first creation)
+// Check if we need to recreate the client
+if (!prisma || typeof (prisma as any).blogPost === 'undefined') {
+  // Prisma Client is stale or missing BlogPost - recreate it
+  if (prisma) {
+    console.log('🔄 Detected stale Prisma Client (missing BlogPost), recreating...')
+  }
+  
+  // Create fresh client
+  prismaClient = createPrismaClient()
+  
+  // Verify BlogPost is available
+  if (typeof prismaClient.blogPost === 'undefined') {
+    console.error('❌ CRITICAL: Prisma Client does not have BlogPost model!')
+    console.error('   Run: npx prisma generate')
+    // Still use it, but it will fail - this helps with debugging
+  }
+  
+  // Re-enable scoping middleware for automatic workspace isolation
+  // This provides defense-in-depth by automatically adding workspaceId to all queries
+  // Prisma v6 uses $extends instead of deprecated $use
   try {
     // Try $use first (legacy Prisma v4 pattern - may not work in v6)
     if (typeof (prismaClient as any).$use === 'function') {
       (prismaClient as any).$use(scopingMiddleware)
+      prisma = prismaClient
       console.log('✅ Scoping middleware enabled via $use - workspace isolation enforced automatically')
     } 
     // Use $extends (Prisma v5+ pattern) - creates extended client with automatic scoping
@@ -74,12 +89,15 @@ if (!globalForPrisma.prisma) {
       prisma = createScopedPrisma(prismaClient) as any
       console.log('✅ Scoping middleware enabled via $extends - workspace isolation enforced automatically')
     } else {
+      prisma = prismaClient
       console.warn('⚠️ Prisma middleware methods not available')
       console.warn('⚠️ Workspace isolation relies on manual filtering - ensure all queries use workspaceId!')
     }
   } catch (error) {
     console.error('❌ Failed to enable scoping middleware:', error)
     console.error('❌ Workspace isolation relies on manual filtering - review all queries!')
+    // Fall back to base client
+    prisma = prismaClient
     // Don't throw - allow app to start, but log the error
     // In production, you may want to fail fast here
     if (process.env.NODE_ENV === 'production') {
