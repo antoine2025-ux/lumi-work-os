@@ -247,7 +247,7 @@ export default function PersonalWorkspacePage() {
 
   if (userStatusLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -255,7 +255,7 @@ export default function PersonalWorkspacePage() {
 
   if (!userStatus?.workspaceId) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-foreground mb-2">No workspace found</h2>
           <p className="text-muted-foreground">Please ensure you're properly authenticated.</p>

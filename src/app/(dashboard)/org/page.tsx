@@ -601,7 +601,7 @@ export default function OrgChartPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background }}>
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-4" style={{ borderColor: colors.primary }}></div>
           <p style={{ color: colors.textSecondary }}>Loading organization chart...</p>
@@ -614,7 +614,7 @@ export default function OrgChartPage() {
   const isCleanSlate = departments.length === 0 && !loading
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+    <div className="min-h-screen bg-slate-950">
         {isCleanSlate ? (
           // Clean Slate Setup View
           <OrgCleanSlate

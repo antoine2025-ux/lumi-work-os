@@ -21,7 +21,10 @@ import {
   AlignRight,
   Plus,
   Table,
-  X
+  X,
+  Undo,
+  Redo,
+  Eraser
 } from "lucide-react"
 import { EmbedCommandPalette } from "@/components/embeds/embed-command-palette"
 import { EmbedData } from "@/types/embeds"
@@ -164,6 +167,79 @@ export function RichTextEditor({
     }
   }
 
+  const handleUndo = () => {
+    if (editorRef.current) {
+      editorRef.current.focus()
+      document.execCommand('undo', false)
+      setTimeout(() => {
+        if (editorRef.current) {
+          onChange(editorRef.current.innerHTML)
+        }
+      }, 0)
+    }
+  }
+
+  const handleRedo = () => {
+    if (editorRef.current) {
+      editorRef.current.focus()
+      document.execCommand('redo', false)
+      setTimeout(() => {
+        if (editorRef.current) {
+          onChange(editorRef.current.innerHTML)
+        }
+      }, 0)
+    }
+  }
+
+  const handleClearFormatting = () => {
+    if (editorRef.current) {
+      editorRef.current.focus()
+      const selection = window.getSelection()
+      
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0)
+        
+        // If there's a selection, remove formatting from it
+        if (!range.collapsed) {
+          document.execCommand('removeFormat', false)
+          document.execCommand('unlink', false)
+        } else {
+          // If cursor is collapsed, remove formatting from current position
+          // Get the parent element
+          const container = range.startContainer
+          const parent = container.nodeType === Node.TEXT_NODE 
+            ? container.parentElement 
+            : container as HTMLElement
+          
+          if (parent) {
+            // Check if we're in a formatted block
+            const tagName = parent.tagName
+            if (tagName.match(/^H[1-6]$/) || tagName === 'BLOCKQUOTE' || tagName === 'PRE') {
+              // Convert to plain div/paragraph
+              document.execCommand('formatBlock', false, 'div')
+            } else if (tagName === 'STRONG' || tagName === 'B') {
+              // Remove bold
+              document.execCommand('bold', false)
+            } else if (tagName === 'EM' || tagName === 'I') {
+              // Remove italic
+              document.execCommand('italic', false)
+            } else if (tagName === 'U') {
+              // Remove underline
+              document.execCommand('underline', false)
+            }
+          }
+        }
+        
+        // Update content
+        setTimeout(() => {
+          if (editorRef.current) {
+            onChange(editorRef.current.innerHTML)
+          }
+        }, 0)
+      }
+    }
+  }
+
   const handleInput = () => {
     if (editorRef.current) {
       const html = editorRef.current.innerHTML
@@ -279,6 +355,61 @@ export function RichTextEditor({
     })
   }
 
+  const insertCodeBlock = () => {
+    if (!editorRef.current) return
+
+    editorRef.current.focus()
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) return
+
+    const range = selection.getRangeAt(0)
+    const selectedText = range.toString().trim()
+
+    // If text is selected, wrap it in a single code block
+    if (selectedText) {
+      // Clone the range to extract text content properly
+      const clonedContents = range.cloneContents()
+      const tempDiv = document.createElement('div')
+      tempDiv.appendChild(clonedContents)
+      
+      // Get plain text content, preserving line breaks
+      const textContent = tempDiv.innerText || tempDiv.textContent || selectedText
+      
+      // Escape HTML entities and create code block HTML
+      const escapedText = textContent
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+      
+      // Use insertHTML to replace selection with code block
+      const codeBlockHtml = `<pre><code>${escapedText}</code></pre>`
+      document.execCommand('insertHTML', false, codeBlockHtml)
+    } else {
+      // Insert empty code block
+      const codeBlockHtml = '<pre><code><br></code></pre>'
+      document.execCommand('insertHTML', false, codeBlockHtml)
+      
+      // Move cursor inside the code element
+      setTimeout(() => {
+        const codeElements = editorRef.current?.querySelectorAll('code')
+        if (codeElements && codeElements.length > 0) {
+          const lastCode = codeElements[codeElements.length - 1]
+          const newRange = document.createRange()
+          newRange.setStart(lastCode, 0)
+          newRange.collapse(true)
+          const newSelection = window.getSelection()
+          if (newSelection) {
+            newSelection.removeAllRanges()
+            newSelection.addRange(newRange)
+          }
+        }
+      }, 0)
+    }
+
+    // Update content
+    onChange(editorRef.current.innerHTML)
+  }
+
   const insertTable = (rows: number = 3, cols: number = 3) => {
     if (!editorRef.current) return
 
@@ -353,7 +484,7 @@ export function RichTextEditor({
     { icon: List, command: 'insertUnorderedList', title: 'Bullet List' },
     { icon: ListOrdered, command: 'insertOrderedList', title: 'Numbered List' },
     { icon: Quote, command: 'formatBlock', value: 'blockquote', title: 'Quote' },
-    { icon: Code, command: 'formatBlock', value: 'pre', title: 'Code Block' },
+    { icon: Code, action: insertCodeBlock, title: 'Code Block' },
     { icon: AlignLeft, command: 'justifyLeft', title: 'Align Left' },
     { icon: AlignCenter, command: 'justifyCenter', title: 'Align Center' },
     { icon: AlignRight, command: 'justifyRight', title: 'Align Right' },
@@ -370,6 +501,7 @@ export function RichTextEditor({
     { icon: Heading1, command: 'formatBlock', value: 'H1', title: 'Heading 1' },
     { icon: Heading2, command: 'formatBlock', value: 'H2', title: 'Heading 2' },
     { icon: Heading3, command: 'formatBlock', value: 'H3', title: 'Heading 3' },
+    { icon: Code, action: insertCodeBlock, title: 'Code Block' },
   ]
 
   if (!editable) {
@@ -386,6 +518,35 @@ export function RichTextEditor({
       {/* Toolbar */}
       {showToolbar && (
         <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/50">
+        {/* Undo/Redo buttons */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          title="Undo (Cmd+Z)"
+          onClick={handleUndo}
+        >
+          <Undo className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          title="Redo (Cmd+Shift+Z)"
+          onClick={handleRedo}
+        >
+          <Redo className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          title="Clear Formatting"
+          onClick={handleClearFormatting}
+        >
+          <Eraser className="h-4 w-4" />
+        </Button>
+        <div className="w-px h-6 bg-border mx-1" />
         {toolbarButtons.map((button, index) => (
           <Button
             key={index}
@@ -393,7 +554,13 @@ export function RichTextEditor({
             size="sm"
             className="h-8 w-8 p-0"
             title={button.title}
-            onClick={() => execCommand(button.command, button.value)}
+            onClick={() => {
+              if (button.action) {
+                button.action()
+              } else if (button.command) {
+                execCommand(button.command, button.value)
+              }
+            }}
           >
             <button.icon className="h-4 w-4" />
           </Button>
@@ -440,6 +607,81 @@ export function RichTextEditor({
         onContextMenu={handleContextMenu}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
+        onKeyDown={(e) => {
+          // Allow undo/redo (Cmd+Z / Cmd+Shift+Z on Mac, Ctrl+Z / Ctrl+Y on Windows/Linux)
+          if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'y')) {
+            // Don't prevent default - let browser handle undo/redo
+            // But update content after undo/redo completes
+            setTimeout(() => {
+              if (editorRef.current) {
+                onChange(editorRef.current.innerHTML)
+              }
+            }, 0)
+            return
+          }
+          
+          // Handle Backspace/Delete to prevent formatting persistence
+          if (e.key === 'Backspace' || e.key === 'Delete') {
+            const selection = window.getSelection()
+            if (selection && selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0)
+              
+              // If deleting and cursor is at start of formatted block, prepare to clear format
+              if (range.collapsed) {
+                const container = range.startContainer
+                const parent = container.nodeType === Node.TEXT_NODE 
+                  ? container.parentElement 
+                  : container as HTMLElement
+                
+                // Store info about current formatting
+                const isInFormattedBlock = parent && (
+                  parent.tagName.match(/^H[1-6]$/) || 
+                  parent.tagName === 'STRONG' || 
+                  parent.tagName === 'B' ||
+                  parent.tagName === 'EM' ||
+                  parent.tagName === 'I'
+                )
+                
+                // After deletion completes, check if we should clear formatting
+                if (isInFormattedBlock) {
+                  setTimeout(() => {
+                    if (editorRef.current) {
+                      const newSelection = window.getSelection()
+                      if (newSelection && newSelection.rangeCount > 0) {
+                        const newRange = newSelection.getRangeAt(0)
+                        if (newRange.collapsed) {
+                          const newContainer = newRange.startContainer
+                          const newParent = newContainer.nodeType === Node.TEXT_NODE 
+                            ? newContainer.parentElement 
+                            : newContainer as HTMLElement
+                          
+                          // If still in formatted block and at start/empty, clear format
+                          if (newParent && (
+                            newParent.tagName.match(/^H[1-6]$/) || 
+                            newParent.tagName === 'STRONG' || 
+                            newParent.tagName === 'B' ||
+                            newParent.tagName === 'EM' ||
+                            newParent.tagName === 'I'
+                          )) {
+                            const textContent = newParent.textContent || ''
+                            // If the formatted element is empty or cursor is at start, clear format
+                            if (textContent.length === 0 || (newRange.startOffset === 0 && textContent.length < 2)) {
+                              document.execCommand('removeFormat', false)
+                              if (newParent.tagName.match(/^H[1-6]$/)) {
+                                document.execCommand('formatBlock', false, 'div')
+                              }
+                              onChange(editorRef.current.innerHTML)
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }, 10)
+                }
+              }
+            }
+          }
+        }}
         data-placeholder={placeholder}
         style={{
           '--tw-prose-body': 'inherit',
@@ -495,7 +737,13 @@ export function RichTextEditor({
               size="sm"
               className="h-8 w-8 p-0 hover:bg-muted text-foreground"
               title={button.title}
-              onClick={() => execCommand(button.command, button.value)}
+              onClick={() => {
+                if (button.action) {
+                  button.action()
+                } else if (button.command) {
+                  execCommand(button.command, button.value)
+                }
+              }}
             >
               <button.icon className="h-4 w-4" />
             </Button>
@@ -564,6 +812,17 @@ export function RichTextEditor({
           >
             <ListOrdered className="h-4 w-4" />
             Numbered List
+          </button>
+          <div className="border-t border-border my-1" />
+          <button
+            onClick={() => {
+              insertCodeBlock()
+              setShowContextMenu(false)
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"
+          >
+            <Code className="h-4 w-4" />
+            Code Block
           </button>
         </div>
       )}

@@ -114,7 +114,7 @@ export default function HomeLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-slate-950">
       <Header />
       <main className="min-h-screen">
         {children}

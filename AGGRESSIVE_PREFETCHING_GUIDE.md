@@ -119,3 +119,5 @@ Check browser console for prefetch logs:
 3. **Predictive Prefetching**: Use ML to predict what users will click next
 4. **Background Sync**: Sync data in background when app is idle
 
+
+

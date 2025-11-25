@@ -84,9 +84,34 @@ async function generateChatTitle(userMessage: string, aiResponse: LoopwellAIResp
 // POST /api/ai/chat - Chat with LoopwellAI assistant
 export async function POST(request: NextRequest) {
   try {
-    const auth = await getUnifiedAuth(request)
+    console.log('📥 POST /api/ai/chat - Starting request processing')
     
-    const { message, sessionId, model = 'gpt-4-turbo', context } = await request.json()
+    // Authenticate user
+    let auth
+    try {
+      auth = await getUnifiedAuth(request)
+      console.log('✅ Authentication successful, workspaceId:', auth.workspaceId)
+    } catch (authError) {
+      console.error('❌ Authentication failed:', authError)
+      return NextResponse.json({ 
+        error: 'Authentication failed',
+        details: authError instanceof Error ? authError.message : 'Unknown auth error'
+      }, { status: 401 })
+    }
+    
+    // Parse request body
+    let requestBody
+    try {
+      requestBody = await request.json()
+    } catch (parseError) {
+      console.error('❌ Failed to parse request body:', parseError)
+      return NextResponse.json({ 
+        error: 'Invalid request body',
+        details: parseError instanceof Error ? parseError.message : 'Unknown parsing error'
+      }, { status: 400 })
+    }
+    
+    const { message, sessionId, model = 'gpt-4-turbo', context } = requestBody
 
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
@@ -111,14 +136,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }
 
+    // Validate workspaceId exists
+    const workspaceId = chatSession.workspaceId
+    if (!workspaceId) {
+      console.error('❌ Chat session missing workspaceId:', chatSession.id)
+      return NextResponse.json({ error: 'Chat session missing workspace ID' }, { status: 400 })
+    }
+
     // Get conversation history
     const chatMessages = await prisma.chatMessage.findMany({
       where: { sessionId },
       orderBy: { createdAt: 'asc' },
       take: 20 // Limit to last 20 messages for context
     })
-
-        const workspaceId = chatSession.workspaceId
 
     // Generate cache key for AI context
     const contextCacheKey = cache.generateKey(
@@ -211,13 +241,31 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         title: true,
-        department: true,
+        teamId: true,
+        team: {
+          select: {
+            name: true,
+            department: {
+              select: { name: true }
+            }
+          }
+        },
         level: true,
         user: {
           select: { name: true, email: true }
         },
         parent: {
-          select: { title: true, department: true }
+          select: { 
+            title: true,
+            team: {
+              select: {
+                name: true,
+                department: {
+                  select: { name: true }
+                }
+              }
+            }
+          }
         }
       },
       take: 20
@@ -243,6 +291,12 @@ export async function POST(request: NextRequest) {
           }
         })
       : null
+    
+    // Determine mode: Page Context Mode (has pageId OR is editing a draft) vs Global Mode
+    // If user is editing a draft page (has content/title), treat as Page Context Mode
+    const hasPageContext = !!context?.pageId || !!(context?.content || (context?.title && context.title !== 'New page'))
+    const isPageContextMode = hasPageContext && (!!activePage || !!(context?.content || context?.title))
+    const isGlobalMode = !isPageContextMode
 
     // Get workspace info
     const workspace = await prisma.workspace.findUnique({
@@ -308,13 +362,13 @@ export async function POST(request: NextRequest) {
 
     const orgInfo = {
       teams: orgPositions.map(p => ({
-        name: p.department || 'General',
+        name: p.team?.name || p.team?.department?.name || 'General',
         role: p.title
       })),
       members: orgPositions.filter(p => p.user).map(p => ({
         name: p.user?.name || '',
         role: p.title,
-        department: p.department || ''
+        department: p.team?.department?.name || p.team?.name || ''
       }))
     }
 
@@ -330,16 +384,68 @@ export async function POST(request: NextRequest) {
       content: msg.content
     }))
 
-    // Build LoopwellAI system prompt
-    const systemPrompt = `You are Loopwell's Contextual Spaces AI. You help teams work inside a Workspace (aka Space) that contains wiki pages, projects, epics, tasks, and org context. Your job is to infer intent, decide the best action, and produce a preview—never write to the wiki unless the user explicitly confirms.
+    // Build LoopwellAI system prompt - Different prompts for Page Context vs Global Mode
+    let systemPrompt: string
+    
+    if (isPageContextMode) {
+      // PAGE CONTEXT MODE - User is inside a specific page
+      systemPrompt = `You are Loopwell's Contextual Spaces AI. The user is currently viewing or editing a specific page in the Spaces wiki.
 
-PRIMARY GOALS
-1. Answer accurately using the active Space's context.
-2. Choose the right action (chat vs. draft vs. improve vs. extract tasks).
-3. Return a concise, insertion-ready preview when drafting is appropriate.
-4. Cite sources when referencing Space content.
-5. Be conservative with writes: default to chat unless the user clearly asks to create/modify content.
+YOUR MAIN JOB: Help them write or refine the content of THIS page.
 
+BEHAVIOR RULES:
+1. Assume the current page is the target unless the user clearly asks to create a separate page.
+2. Do NOT ask for a page title or location when you already know you are inside a page.
+3. Ask clarifying questions only if you need essential information to draft a useful document (for example, specific requirements for a policy).
+4. If the user's request is clear enough, start drafting immediately.
+5. If user explicitly says "create a new page" or "under [Space]", then treat it as a new page request.
+
+OUTPUT RULES:
+1. Always output valid Markdown for the page content.
+2. Use "#", "##", "###" for headings, with blank lines between blocks.
+3. Use bullet points and numbered lists where helpful.
+4. Do NOT wrap the content in code fences.
+5. The content you return will be inserted directly into the current page.
+6. Return ONLY the document content - no meta commentary unless user asks for explanation.
+
+EXAMPLES:
+- "Create a policy for AI usage on this page" → Draft a complete AI usage policy directly into the current page.
+- "Draft a good use policy for this page" → Draft the policy content on this page, no questions about title or location.
+- "Create a new page for this under the Product Space" → Ask where to create it, then confirm that a new page (not the current one) is desired.
+
+CURRENT PAGE CONTEXT:
+${activePage ? `Page Title: "${activePage.title}"
+Current Content: ${activePage.content ? activePage.content.substring(0, 500) + '...' : '(empty page)'}` : 'No active page'}
+`
+    } else {
+      // GLOBAL MODE - User is NOT editing a specific page (Home or global view)
+      systemPrompt = `You are Loopwell's Contextual Spaces AI. The user is NOT currently editing a specific page.
+
+YOUR MAIN JOB: Help them create new pages in the correct location.
+
+BEHAVIOR RULES:
+1. When the user asks for a document, treat this as a request to create a new page.
+2. Ask where the page should live (Space or project) if this is not already clear.
+3. Infer a reasonable title from the user's request when possible, and suggest it.
+4. If you cannot infer a title, ask for one in a single, simple question.
+5. Once you have title and location, draft the full document immediately.
+
+OUTPUT RULES:
+1. Always output valid Markdown for the page content.
+2. Do NOT include meta-text in the response, only the document body.
+3. The system will create the new page and insert your Markdown as its content.
+
+EXAMPLE:
+User: "Create an AI usage policy for the whole company."
+You:
+- Ask: "Which Space or project should this page be created under?"
+- Suggest a title like "AI Usage Policy".
+- Then draft the full policy document in Markdown.
+`
+    }
+    
+    // Add common context and formatting rules
+    systemPrompt += `
 CONTEXT YOU RECEIVE
 ${activeSpace ? `active_space: ${JSON.stringify(activeSpace)}` : 'active_space: none'}
 ${activePageInfo ? `active_page: ${JSON.stringify(activePageInfo)}` : 'active_page: none'}
@@ -359,24 +465,56 @@ INTENTS YOU CAN CHOOSE (exactly one primary per reply)
 • tag_pages — propose tags/categories (preview).
 • do_nothing — if no useful action is possible; ask 1 clarifying question.
 
-ROUTING POLICY
-• If the user asks what/why/how/compare/explain → answer.
-• If they say summarize/tl;dr/brief me or highlight text → summarize.
-• If they say rewrite/refactor/clean up/fix tone or provide a selection → improve_existing_page.
-• If they say add/append a section or "document decision/action items" on a non-empty page → append_to_page.
-• If they say create/draft/write/spec/PRD/meeting notes and a new artifact is implied (or page is empty) → create_new_page.
-• If they say turn this into tasks/extract action items/todo → extract_tasks.
-• If they say find/show/list docs about X / where is Y / cite sources → find_things.
-• If they say tag/categorize/organize → tag_pages.
-• If ambiguous → answer with 1 crisp clarifying question, no write.
+INTENTS YOU CAN CHOOSE (exactly one primary per reply)
+• answer — conversational response (no write).
+• summarize — executive digest of selected/related content (preview).
+• improve_existing_page — rewrite/refactor current section or selection (preview).
+• append_to_page — add a new section to the current page (preview).
+• create_new_page — draft a new page when clearly requested (preview).
+• extract_tasks — convert content into actionable tasks (preview list).
+• find_things — semantic search/locate docs with citations (no write).
+• tag_pages — propose tags/categories (preview).
+• do_nothing — if no useful action is possible; ask 1 clarifying question.
 
-SAFETY & QUALITY RULES
-• Never write directly. Always produce a preview for user confirmation.
-• Keep previews < ~2,000 words. Use clear Markdown (H2/H3, bullets, tables when helpful).
+ROUTING POLICY - AUTOMATIC INTENT DETECTION
+${isPageContextMode ? `
+PAGE CONTEXT MODE - Default to current page:
+• If user mentions "create", "draft", "write", "make", "generate" WITHOUT "new page" → append_to_page or improve_existing_page (draft into current page).
+• If user mentions "create NEW page", "new page under [X]", "separate page" → create_new_page (ask for location).
+• If user mentions "rewrite", "refactor", "clean up", "fix tone", "improve", "edit" → improve_existing_page.
+• If user mentions "add", "append", "insert section", "document decision" → append_to_page.
+• If user mentions "summarize", "tl;dr", "brief me" or highlights text → summarize.
+• If user mentions "turn into tasks", "extract action items", "todo" → extract_tasks.
+• If user asks "what/why/how/compare/explain" → answer.
+• If user mentions "find", "show", "list docs", "where is", "cite sources" → find_things.
+• If user mentions "tag", "categorize", "organize" → tag_pages.
+` : `
+GLOBAL MODE - Default to new page:
+• If user mentions "create", "draft", "write", "make", "generate", "spec", "PRD", "meeting notes" → create_new_page (ask for location and title).
+• If user mentions "summarize", "tl;dr", "brief me" → summarize.
+• If user mentions "turn into tasks", "extract action items", "todo" → extract_tasks.
+• If user asks "what/why/how/compare/explain" → answer.
+• If user mentions "find", "show", "list docs", "where is", "cite sources" → find_things.
+• If user mentions "tag", "categorize", "organize" → tag_pages.
+`}
+• If truly ambiguous → ask ONE clear question, then proceed.
+
+DOCUMENT GENERATION RULES
+• Generate fully formatted Markdown pages ready for immediate insertion.
+• Follow proper Markdown conventions: # for title, ## for section headers, spacing between paragraphs, lists, etc.
+• Never return plain text or collapsed formatting.
+• Return only the document content unless the user asked for an explanation.
+• Keep documents < ~2,000 words. Use clear Markdown (H2/H3, bullets, tables when helpful).
 • Use the Space's vocabulary; keep tone concise and professional.
 • Cite sources when quoting/paraphrasing Space content: [Title] or {title, id}.
-• If context is thin, state uncertainty and request the missing piece.
-• Prefer incremental edits (append/improve) over full rewrites unless asked.
+• If context is thin, make reasonable assumptions and proceed—don't ask unless absolutely critical.
+
+PAGE OPERATIONS
+• If the page already exists, include in your response: "Page '[title]' already exists. Should I overwrite it, rename it, or append to the existing content?" Then proceed with generation.
+• If user asks to create a page under a specific Space or Project, use that path automatically.
+• If information is missing and required, ask one clear question (no multi-step interrogation).
+• Extract title from message automatically (e.g., "create Product Roadmap" → title: "Product Roadmap").
+• Extract location from message automatically (e.g., "under Loopwell project" → workspace: "Loopwell project").
 
 OUTPUT FORMAT (JSON inside triple backticks)
 Return exactly this structure every time:
@@ -400,6 +538,28 @@ Return exactly this structure every time:
 • If intent is answer or find_things, you may leave preview.markdown empty and place the conversational answer in preview.markdown for consistency.
 • If intent is write-like (improve/append/create/extract/tag), always populate preview so the user can confirm.
 
+MARKDOWN FORMATTING RULES (CRITICAL - MUST FOLLOW)
+Your job is to generate clean, structured wiki documents directly inside a page editor.
+Always output GitHub-flavored Markdown. The formatting rules below MUST be followed:
+
+1. Start with a clear H1 title using a single "#".
+2. Use "##" and "###" headings to organize sections.
+3. Insert a blank line between every heading, paragraph, or list.
+4. Keep paragraphs short (2–4 lines each).
+5. Use bullet lists ("- ") for unordered items.
+6. Use numbered lists ("1.") for ordered steps.
+7. Use bold text for emphasis when needed.
+8. Never wrap the final output in code blocks or quotes.
+9. Output only raw Markdown content.
+
+Tone and structure:
+- Write clearly and professionally.
+- Follow a logical document structure.
+- Use headings to separate ideas.
+- Avoid overly long blocks of text.
+
+The document should be ready for immediate rendering in the Loopwell wiki editor without additional cleanup.
+
 STYLE GUIDE FOR CONTENT DRAFTS
 • Start with a 2–4 line Executive Summary.
 • Then sections like: Goals, Scope, Decisions, Risks, Open Questions, Next Steps.
@@ -407,6 +567,13 @@ STYLE GUIDE FOR CONTENT DRAFTS
 • For specs/PRDs: include Acceptance Criteria and Success Metrics.
 • For meeting notes: include Decisions, Action Items (owner, due).
 • For improvements: preserve meaning, remove redundancy, enhance scannability.
+
+VOICE & UX - NOTION-STYLE ASSISTANT
+• Be proactive, intuitive, and act like a Notion-style assistant.
+• Keep conversation smooth and avoid unnecessary friction.
+• Assume the user wants the task completed unless explicitly unclear.
+• Your final output should ALWAYS be a single Markdown document ready to be placed directly into the editor, unless the user is clarifying details.
+• If page exists, mention it in rationale but still generate the content - frontend will handle the conflict resolution.
 
 TASK EXTRACTION RULES
 • Only create tasks that are specific, doable, and valuable in the current Space.
@@ -426,16 +593,30 @@ SELF-CHECKLIST (run before replying)
 Remember to return your response as JSON in triple backticks with the exact structure specified in the system prompt.`
 
     console.log('🤖 Generating LoopwellAI response...')
-    const aiResponse = await generateAIResponse(
-      prompt,
-      model,
-      {
-        systemPrompt,
-        conversationHistory,
-        temperature: 0.7,
-        maxTokens: 3000 // Increased for structured JSON
-      }
-    )
+    console.log('   Model:', model)
+    console.log('   Has API key:', !!process.env.OPENAI_API_KEY)
+    console.log('   Conversation history length:', conversationHistory.length)
+    console.log('   System prompt length:', systemPrompt.length)
+    
+    let aiResponse
+    try {
+      aiResponse = await generateAIResponse(
+        prompt,
+        model,
+        {
+          systemPrompt,
+          conversationHistory,
+          temperature: 0.7,
+          maxTokens: 3000 // Increased for structured JSON
+        }
+      )
+      console.log('✅ AI response received, length:', aiResponse.content?.length || 0)
+    } catch (aiError) {
+      console.error('❌ Error generating AI response:', aiError)
+      console.error('   Error type:', aiError instanceof Error ? aiError.constructor.name : typeof aiError)
+      console.error('   Error message:', aiError instanceof Error ? aiError.message : String(aiError))
+      throw new Error(`AI generation failed: ${aiError instanceof Error ? aiError.message : 'Unknown error'}`)
+    }
 
     // Parse structured response
     console.log('🔍 Parsing structured response...')
@@ -536,7 +717,12 @@ Remember to return your response as JSON in triple backticks with the exact stru
     })
 
   } catch (error) {
-    console.error('Error in LoopwellAI chat:', error)
+    console.error('❌ Error in LoopwellAI chat:', error)
+    console.error('   Error type:', error instanceof Error ? error.constructor.name : typeof error)
+    console.error('   Error message:', error instanceof Error ? error.message : String(error))
+    if (error instanceof Error && error.stack) {
+      console.error('   Stack trace:', error.stack)
+    }
     return NextResponse.json({ 
       error: 'Failed to process request',
       details: error instanceof Error ? error.message : 'Unknown error'

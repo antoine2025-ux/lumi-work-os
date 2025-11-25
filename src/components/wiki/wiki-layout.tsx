@@ -688,21 +688,21 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
           background: #9ca3af;
         }
       `}</style>
-      <div className="h-screen bg-background flex overflow-hidden">
+      <div className="h-screen bg-slate-900 flex overflow-hidden">
       {/* Left Sidebar */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-60'} bg-card transition-all duration-300 flex flex-col border-r border-border shadow-sm h-screen overflow-hidden flex-shrink-0`}>
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-60'} bg-slate-950 transition-all duration-300 flex flex-col border-r border-slate-900 shadow-sm h-screen overflow-hidden flex-shrink-0`}>
         {/* Top Section - Search and AI Button */}
         <div className="p-3 border-b border-border">
           {!sidebarCollapsed && (
             <>
               {/* Search */}
               <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   placeholder="Explore knowledge..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-muted border-border text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary"
+                  className="pl-10 bg-slate-900/50 border-slate-800 text-gray-200 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -731,8 +731,8 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                     href="/wiki/home"
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
                       (pathname || '') === '/wiki/home' || (pathname || '') === '/wiki' || (pathname || '') === '/spaces'
-                        ? 'bg-indigo-50 text-indigo-700' 
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        ? 'bg-slate-800 text-slate-100' 
+                        : 'text-gray-300 hover:text-white hover:bg-slate-900'
                     }`}
                   >
                     <Home className="h-4 w-4" />
@@ -742,12 +742,12 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
 
                 {/* Workspaces Section */}
                 <div className="mb-3">
-                  <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">WORKSPACES</h3>
+                  <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">WORKSPACES</h3>
                   
                   {isLoading ? (
                     <div className="space-y-2">
-                      <div className="h-8 bg-gray-100 rounded animate-pulse"></div>
-                      <div className="h-8 bg-gray-100 rounded animate-pulse"></div>
+                      <div className="h-8 bg-slate-900 rounded animate-pulse"></div>
+                      <div className="h-8 bg-slate-900 rounded animate-pulse"></div>
                     </div>
                   ) : (
                     <>
@@ -858,7 +858,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                         
                         return (
                           <div key={workspace.id} className="group relative mb-2">
-                            <div className="relative flex items-center px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg">
+                            <div className="relative flex items-center px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg">
                               <Link
                                 href={workspaceRoute}
                                 className="flex items-center gap-3 flex-1"
@@ -874,12 +874,12 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                                       e.stopPropagation()
                                       toggleWorkspace(workspace.id)
                                     }}
-                                    className="text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded px-1 py-0.5 transition-colors"
+                                    className="text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded px-1 py-0.5 transition-colors"
                                   >
                                     ({workspacePages.length})
                                   </button>
                                 ) : (
-                                  <span className="text-xs text-gray-400">({workspacePages.length})</span>
+                                  <span className="text-xs text-slate-400">({workspacePages.length})</span>
                                 )}
                               </div>
                             </div>
@@ -890,7 +890,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                                 {workspacePages.slice(0, 5).map((page) => (
                                   <div
                                     key={page.id}
-                                    className="group flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                                    className="group flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg"
                                   >
                                     <Link href={`/wiki/${page.slug}`} className="flex items-center gap-3 flex-1 min-w-0">
                                       <FileText className="h-3 w-3 text-indigo-600" />
@@ -917,13 +917,13 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                                 {workspacePages.slice(0, 5).map((page) => (
                                   <div
                                     key={page.id}
-                                    className="group flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                                    className="group flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg"
                                   >
                                     <Link href={`/wiki/${page.slug}`} className="flex items-center gap-3 flex-1 min-w-0">
-                                      <FileText className="h-3 w-3 text-gray-500" />
+                                      <FileText className="h-3 w-3 text-slate-400" />
                                       <div className="flex-1 min-w-0">
                                         <div className="text-sm truncate">{page.title}</div>
-                                        <div className="text-xs text-gray-500">{formatDate(page.updatedAt)}</div>
+                                        <div className="text-xs text-slate-400">{formatDate(page.updatedAt)}</div>
                                       </div>
                                     </Link>
                                     <button
@@ -944,13 +944,13 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                                 {workspacePages.slice(0, 5).map((page) => (
                                   <div
                                     key={page.id}
-                                    className="group flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                                    className="group flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg"
                                   >
                                     <Link href={`/wiki/${page.slug}`} className="flex items-center gap-3 flex-1 min-w-0">
-                                      <FileText className="h-3 w-3 text-gray-500" />
+                                      <FileText className="h-3 w-3 text-slate-400" />
                                       <div className="flex-1 min-w-0">
                                         <div className="text-sm truncate">{page.title}</div>
-                                        <div className="text-xs text-gray-500">{formatDate(page.updatedAt)}</div>
+                                        <div className="text-xs text-slate-400">{formatDate(page.updatedAt)}</div>
                                       </div>
                                     </Link>
                                     <button
@@ -971,7 +971,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                       {/* Create Workspace Button */}
                       <Button 
                         variant="ghost" 
-                        className="w-full justify-start text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                        className="w-full justify-start text-slate-300 hover:text-slate-100 hover:bg-slate-900"
                         onClick={() => setIsCreatingWorkspace(true)}
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -984,7 +984,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                 {/* Projects Section */}
                 <div className="mb-3">
                   <Link href="/projects">
-                    <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2 hover:text-gray-700 cursor-pointer">PROJECTS</h3>
+                    <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 hover:text-slate-100 cursor-pointer">PROJECTS</h3>
                   </Link>
                   
                   {projects.length > 0 ? (
@@ -993,7 +993,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                         <Link
                           key={project.id}
                           href={`/projects/${project.id}`}
-                          className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg group"
+                          className="flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg group"
                         >
                           <div 
                             className="w-2 h-2 rounded-full" 
@@ -1008,7 +1008,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                       {/* New Project Button */}
                       <Link
                         href="/projects/new"
-                        className="flex items-center gap-3 px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg"
+                        className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:text-slate-100 hover:bg-slate-900 rounded-lg"
                       >
                         <Plus className="h-4 w-4" />
                         <span className="text-sm">New Project</span>
@@ -1017,7 +1017,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                   ) : (
                     <Link
                       href="/projects/new"
-                      className="flex items-center gap-3 px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg"
+                      className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:text-slate-100 hover:bg-slate-900 rounded-lg"
                     >
                       <Plus className="h-4 w-4" />
                       <span className="text-sm">New Project</span>
@@ -1028,7 +1028,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                 {/* Recent Pages - Filter out personal pages */}
                 {recentPages.filter(p => p.permissionLevel !== 'personal').length > 0 && (
                   <div className="mb-3">
-                    <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">RECENT PAGES</h3>
+                    <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">RECENT PAGES</h3>
                     
                     <div className="space-y-1">
                       {recentPages
@@ -1038,12 +1038,12 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                         <Link
                           key={page.id}
                           href={`/wiki/${page.slug}`}
-                          className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                          className="flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg"
                         >
-                          <FileText className="h-3 w-3 text-gray-500" />
+                          <FileText className="h-3 w-3 text-slate-400" />
                           <div className="flex-1 min-w-0">
                             <div className="text-sm truncate">{page.title}</div>
-                            <div className="text-xs text-gray-500">{formatDate(page.updatedAt)}</div>
+                            <div className="text-xs text-slate-400">{formatDate(page.updatedAt)}</div>
                           </div>
                         </Link>
                       ))}
@@ -1053,7 +1053,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
 
                 {/* Favorites */}
                   <div className="mb-3">
-                    <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">FAVORITES</h3>
+                    <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">FAVORITES</h3>
                   
                   {favoritePages.length > 0 ? (
                     <div className="space-y-1">
@@ -1061,27 +1061,27 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                         <Link
                           key={page.id}
                           href={`/wiki/${page.slug}`}
-                          className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg group"
+                          className="flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg group"
                         >
                           <Star className="h-3 w-3 text-yellow-500 fill-current" />
                           <div className="flex-1 min-w-0">
                             <div className="text-sm truncate">{page.title}</div>
-                            <div className="text-xs text-gray-500">{formatDate(page.updatedAt)}</div>
+                            <div className="text-xs text-slate-400">{formatDate(page.updatedAt)}</div>
                           </div>
                           <button
                             onClick={(e) => {
                               e.preventDefault()
                               toggleFavorite(page)
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded"
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-800 rounded"
                           >
-                            <X className="h-3 w-3 text-gray-400" />
+                            <X className="h-3 w-3 text-slate-400" />
                           </button>
                         </Link>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500">No favorites yet</p>
+                    <p className="text-sm text-slate-400">No favorites yet</p>
                   )}
                 </div>
               </>
@@ -1093,42 +1093,42 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                 <>
                   <Link
                     href="/wiki/ai-insights"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
                   >
                     <Lightbulb className="h-4 w-4" />
                     <span className="text-sm">AI Insights</span>
                   </Link>
                   <Link
                     href="/wiki/team"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
                   >
                     <Users className="h-4 w-4" />
                     <span className="text-sm">Team Members</span>
                   </Link>
                   <Link
                     href="/wiki/import"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
                   >
                     <Upload className="h-4 w-4" />
                     <span className="text-sm">Import Data</span>
                   </Link>
                   <Link
                     href="/wiki/templates"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
                   >
                     <Grid3X3 className="h-4 w-4" />
                     <span className="text-sm">Templates</span>
                   </Link>
                   <Link
                     href="/wiki/shared"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
                   >
                     <Share2 className="h-4 w-4" />
                     <span className="text-sm">Shared Content</span>
                   </Link>
                   <Link
                     href="/wiki/archive"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
                   >
                     <Archive className="h-4 w-4" />
                     <span className="text-sm">Archive</span>
@@ -1145,7 +1145,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
             variant="ghost"
             size="sm"
             onClick={toggleSidebar}
-            className="w-full text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            className="w-full text-slate-300 hover:text-slate-100 hover:bg-slate-900"
           >
             {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </Button>
@@ -1154,12 +1154,12 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
 
       {/* Main Content Area */}
       <div className={cn(
-        "flex-1 bg-background overflow-y-auto overflow-x-hidden h-screen transition-all duration-500 min-w-0",
+        "flex-1 bg-slate-900 overflow-y-auto overflow-x-hidden h-screen transition-all duration-500 min-w-0",
         isAISidebarOpen && aiDisplayMode === 'sidebar' ? "mr-[384px]" : ""
       )}>
         {isCreatingPage ? (
           /* Minimalistic Page Editor */
-          <div className="h-full bg-background min-h-screen w-full min-w-0 relative">
+          <div className="h-full bg-slate-900 min-h-screen w-full min-w-0 relative">
             {/* Floating Vertical Sidebar - Right Side */}
             <div className={cn(
               "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-500 ease-in-out",
@@ -1202,7 +1202,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
             </div>
 
             {/* Main Editor Area - Clean Document */}
-            <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen w-full min-w-0">
+            <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-900 min-h-screen w-full min-w-0">
               <div className="max-w-4xl mx-auto w-full min-w-0">
                 {/* Page Info */}
                 <div className="flex items-center justify-between gap-4 mb-6 w-full min-w-0">
@@ -1271,7 +1271,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
               workspaces={workspaces}
               recentPages={recentPages}
               onCreatePage={async (title, content, selectedWorkspaceId) => {
-                // Create page with provided title, content, and workspace
+                // Create blank draft page first, then insert content after navigation
                 if (!selectedWorkspaceId) {
                   throw new Error("Please select a workspace")
                 }
@@ -1292,6 +1292,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                 }
                 
                 try {
+                  // Create blank draft page first
                   const response = await fetch('/api/wiki/pages', {
                     method: 'POST',
                     headers: {
@@ -1299,7 +1300,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                     },
                     body: JSON.stringify({
                       title: title.trim(),
-                      content: content || ' ',
+                      content: ' ', // Blank content initially
                       tags: [],
                       category: newPageCategory,
                       permissionLevel: selectedWorkspace?.type === 'personal' ? 'personal' : 'team',
@@ -1324,9 +1325,14 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                   // Dispatch event to refresh workspace pages
                   window.dispatchEvent(new CustomEvent('workspacePagesRefreshed'))
                   
-                  // Keep AI chat open and navigate to the new page
-                  // The AI chat will stay visible because we're not closing it
-                  router.push(`/wiki/${newPage.slug}`)
+                  // Note: Draft info should already be stored by the AI assistant component
+                  // Just navigate to the new page - it will detect pendingPageDraft and start streaming
+                  
+                  // Small delay to ensure page is committed to database before navigation
+                  await new Promise(resolve => setTimeout(resolve, 200))
+                  
+                  // Navigate to the new blank draft page with AI assistant open
+                  router.push(`/wiki/${newPage.slug}?edit=true&ai=open`)
                 } catch (error) {
                   console.error('Error creating page:', error)
                   throw error

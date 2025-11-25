@@ -1,10 +1,10 @@
 import { MetadataRoute } from 'next'
 import { getAllBlogPosts } from '@/lib/blog'
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://loopwell.io'
   
-  const blogPosts = getAllBlogPosts()
+  const blogPosts = await getAllBlogPosts()
   const blogUrls = blogPosts.map((post) => ({
     url: `${baseUrl}/blog/${post.slug}`,
     lastModified: new Date(post.publishedAt),

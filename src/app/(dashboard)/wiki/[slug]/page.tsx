@@ -29,10 +29,12 @@ import {
   Copy,
   Download,
   Eye,
-  EyeOff
+  EyeOff,
+  Brain
 } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,6 +61,10 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
   const [isStarred, setIsStarred] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  // Check URL params for AI assistant state on mount
+  const initialAIOpen = searchParams?.get('ai') === 'open'
+  const [isAISidebarOpen, setIsAISidebarOpen] = useState(initialAIOpen)
+  const [aiDisplayMode, setAiDisplayMode] = useState<'floating' | 'sidebar'>('floating')
 
   // Get workspace ID from user status
   useEffect(() => {
@@ -177,6 +183,69 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
           setPageData(page)
           setIsStarred(page.is_featured || false)
           loadRelatedPages(page)
+          
+          // Check if there's a pending page draft to stream
+          const pendingDraft = sessionStorage.getItem('pendingPageDraft')
+          console.log('🔍 Checking for pending draft:', pendingDraft ? 'Found' : 'Not found')
+          
+          if (pendingDraft) {
+            try {
+              const draftInfo = JSON.parse(pendingDraft)
+              console.log('📝 Found pending draft:', draftInfo)
+              console.log('📄 Current page:', { id: page.id, title: page.title, slug: resolvedParams?.slug })
+              
+              // More lenient matching: check title match OR recent timestamp (within 30 seconds)
+              const titleMatches = page.title === draftInfo.title || page.title.toLowerCase() === draftInfo.title.toLowerCase()
+              const timeDiff = Math.abs(Date.now() - draftInfo.timestamp)
+              const isRecent = timeDiff < 30000 // 30 seconds
+              
+              console.log('🔍 Matching check:', { 
+                titleMatches, 
+                isRecent, 
+                timeDiff, 
+                draftTitle: draftInfo.title,
+                pageTitle: page.title
+              })
+              
+              if (titleMatches || isRecent) {
+                console.log('✅ Draft matches page, starting streaming in 500ms...')
+                
+                // Clear session storage immediately
+                sessionStorage.removeItem('pendingPageDraft')
+                
+                // Auto-enable edit mode
+                setIsEditing(true)
+                
+                // Auto-open AI assistant
+                setIsAISidebarOpen(true)
+                setAiDisplayMode('floating')
+                
+                // Small delay to ensure page is fully loaded before streaming
+                setTimeout(() => {
+                  console.log('🚀 Starting streamPageContent now...')
+                  streamPageContent(page.id, draftInfo.prompt, draftInfo.workspaceId || userStatus?.workspaceId)
+                }, 500)
+              } else {
+                console.log('❌ Draft does not match page:', { titleMatches, isRecent, timeDiff })
+                // Clear stale draft
+                if (timeDiff > 30000) {
+                  console.log('🗑️ Clearing stale draft (older than 30s)')
+                  sessionStorage.removeItem('pendingPageDraft')
+                }
+              }
+            } catch (error) {
+              console.error('❌ Error parsing pending draft:', error)
+              sessionStorage.removeItem('pendingPageDraft')
+            }
+          } else {
+            console.log('ℹ️ No pending draft found in sessionStorage')
+          }
+          
+          // Also check URL params for AI assistant state
+          if (searchParams?.get('ai') === 'open') {
+            setIsAISidebarOpen(true)
+            setAiDisplayMode('floating')
+          }
         } else {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
           console.error('Failed to load page:', response.status, response.statusText, errorData)
@@ -194,6 +263,102 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
 
     loadPage()
   }, [resolvedParams?.slug])
+
+  // Stream content generation for a page
+  const streamPageContent = async (pageId: string, prompt: string, workspaceId?: string) => {
+    try {
+      console.log('🚀 Starting content streaming:', { pageId, prompt: prompt.substring(0, 50), workspaceId })
+      setIsSaving(true)
+      
+      const response = await fetch('/api/ai/draft-page', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pageId,
+          prompt,
+          workspaceId: workspaceId || userStatus?.workspaceId
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Streaming failed:', response.status, errorText)
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('No response body reader available')
+      }
+
+      let buffer = ''
+      let accumulatedContent = ''
+      console.log('📡 Starting to read stream...')
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) {
+          console.log('✅ Stream complete, final content length:', accumulatedContent.length)
+          break
+        }
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              
+              if (data.error) {
+                console.error('❌ Stream error:', data.error)
+                throw new Error(data.error)
+              }
+
+              if (data.content) {
+                accumulatedContent += data.content
+                // Update page content in real-time as chunks arrive
+                setPageData(prev => {
+                  if (!prev) return prev
+                  return {
+                    ...prev,
+                    content: accumulatedContent
+                  }
+                })
+              }
+
+              if (data.done) {
+                console.log('✅ Streaming done, finalizing...')
+                setIsSaving(false)
+                // Reload page to get final state
+                const reloadResponse = await fetch(`/api/wiki/pages/${resolvedParams?.slug}`)
+                if (reloadResponse.ok) {
+                  const updatedPage = await reloadResponse.json()
+                  setPageData(updatedPage)
+                }
+                return
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+              if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
+                console.error('Error parsing stream data:', e)
+              }
+            }
+          }
+        }
+      }
+
+      setIsSaving(false)
+    } catch (error) {
+      console.error('❌ Error streaming page content:', error)
+      setIsSaving(false)
+    }
+  }
 
   const loadRelatedPages = async (currentPage: any) => {
     try {
@@ -280,7 +445,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground">Loading page...</p>
@@ -291,7 +456,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
 
   if (!pageData) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-semibold text-foreground mb-2">Page not found</h2>
@@ -302,73 +467,92 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
   }
 
   return (
-    <div className="h-full bg-background min-h-screen w-full min-w-0">
-      {/* Main Editor Area - Clean Document */}
-      <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen overflow-x-hidden w-full min-w-0">
-        <div className="max-w-4xl mx-auto w-full min-w-0">
-          {/* Page Info and Actions */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
-            <div className="flex items-center gap-2 sm:gap-4 flex-wrap min-w-0 w-full sm:w-auto max-w-full">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto flex-shrink-0">
-                <Share2 className="h-4 w-4" />
-              </Button>
-              <Button 
-                onClick={toggleFavorite}
-                variant="ghost" 
-                size="sm" 
-                className={`p-2 h-auto ${isStarred ? 'text-yellow-500' : 'text-muted-foreground'} hover:text-yellow-500`}
-              >
-                <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} />
-              </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto flex-shrink-0">
-                <Eye className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto flex-shrink-0">
-                <MessageSquare className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto flex-shrink-0">
-                <Settings className="h-4 w-4" />
-              </Button>
-              {isEditing ? (
-                <>
-                  <Button 
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground hover:text-foreground p-2 h-auto"
-                  >
-                    {isSaving ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                  </Button>
-                </>
+    <div className="h-full bg-slate-950 min-h-screen w-full min-w-0 relative">
+      {/* Floating Vertical Sidebar - Right Side */}
+      <div className={cn(
+        "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-500 ease-in-out",
+        isAISidebarOpen && aiDisplayMode === 'floating' 
+          ? "right-[540px]" // Slide left when AI chat is open in floating mode (500px width + 40px gap)
+          : isAISidebarOpen && aiDisplayMode === 'sidebar'
+          ? "right-[400px]" // Slide left when AI chat is open in sidebar mode (384px width + 16px gap)
+          : "right-8" // Default position
+      )}>
+        {isEditing ? (
+          <>
+            <Button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10 rounded-full flex items-center justify-center p-0"
+              title={isSaving ? 'Saving...' : 'Save'}
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Button 
-                  onClick={() => setIsEditing(true)}
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground hover:text-foreground p-2 h-auto"
-                >
-                  <Edit3 className="h-4 w-4" />
-                </Button>
+                <Save className="h-4 w-4" />
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 h-auto flex-shrink-0">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleDeletePage} disabled={isDeleting} className="text-red-600 focus:text-red-600">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {isDeleting ? 'Deleting...' : 'Delete page'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            </Button>
+            <Button 
+              onClick={handleCancel}
+              variant="ghost"
+              size="sm"
+              className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm"
+              title="Cancel"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </>
+        ) : (
+          <Button 
+            onClick={() => setIsEditing(true)}
+            variant="ghost"
+            size="sm"
+            className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm"
+            title="Edit"
+          >
+            <Edit3 className="h-4 w-4" />
+          </Button>
+        )}
+        <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="Share">
+          <Share2 className="h-4 w-4" />
+        </Button>
+        <Button 
+          onClick={toggleFavorite}
+          variant="ghost" 
+          size="sm" 
+          className={`w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm ${isStarred ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-600 hover:text-gray-800'}`}
+          title="Favorite"
+        >
+          <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} />
+        </Button>
+        <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="View">
+          <Eye className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="Comments">
+          <MessageSquare className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="AI Assistant">
+          <Brain className="h-4 w-4" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="More options">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleDeletePage} disabled={isDeleting} className="text-red-600 focus:text-red-600">
+              <Trash2 className="mr-2 h-4 w-4" />
+              {isDeleting ? 'Deleting...' : 'Delete page'}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Main Editor Area - Clean Document */}
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-950 min-h-screen overflow-x-hidden w-full min-w-0">
+        <div className="max-w-4xl mx-auto w-full min-w-0">
+          {/* Page Info */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
             <div className="text-sm text-muted-foreground">
               Last updated {formatDate(pageData.updatedAt)}
             </div>
@@ -487,19 +671,6 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
             )}
           </div>
 
-          {/* Cancel button when editing */}
-          {isEditing && (
-            <div className="fixed bottom-6 right-6">
-              <Button 
-                onClick={handleCancel}
-                variant="outline"
-                  className="border-border text-foreground hover:bg-accent"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -519,6 +690,8 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
             setPageData({ ...pageData, title: newTitle })
           }
         }}
+        onOpenChange={(open) => setIsAISidebarOpen(open)}
+        onDisplayModeChange={(mode) => setAiDisplayMode(mode)}
       />
     </div>
   )

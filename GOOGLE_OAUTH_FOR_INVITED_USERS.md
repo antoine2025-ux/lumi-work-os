@@ -138,3 +138,6 @@ To verify it works:
 
 The system is designed to support **multiple auth methods** for the same user account, identified by email address.
 
+
+
+

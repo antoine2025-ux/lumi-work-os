@@ -98,3 +98,6 @@ Redirect to → /home?workspaceId=ws-123 (Dashboard)
 ✅ **Workspace membership is verified** - Before redirecting to dashboard  
 ✅ **Auth callback handles Supabase invites** - Exchanges code and verifies membership
 
+
+
+

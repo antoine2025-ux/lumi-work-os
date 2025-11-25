@@ -19,6 +19,35 @@ import {
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 
+/**
+ * Clean markdown content by removing code block wrappers and quotes
+ * Ensures raw markdown is returned for direct insertion into editor
+ */
+function cleanMarkdownContent(markdown: string): string {
+  if (!markdown) return ''
+  
+  let cleaned = markdown.trim()
+  
+  // Remove markdown code blocks (```markdown ... ``` or ``` ... ```)
+  cleaned = cleaned.replace(/^```(?:markdown)?\s*\n?([\s\S]*?)\n?```$/gm, '$1')
+  
+  // Remove any remaining code block markers at start/end
+  cleaned = cleaned.replace(/^```[a-z]*\s*\n?/gm, '')
+  cleaned = cleaned.replace(/\n?```$/gm, '')
+  
+  // Remove block quotes if wrapping entire content
+  if (cleaned.startsWith('> ')) {
+    cleaned = cleaned.split('\n').map(line => {
+      if (line.startsWith('> ')) {
+        return line.substring(2)
+      }
+      return line
+    }).join('\n')
+  }
+  
+  return cleaned.trim()
+}
+
 interface LoopwellAIResponse {
   intent: 'answer' | 'summarize' | 'improve_existing_page' | 'append_to_page' | 'create_new_page' | 'extract_tasks' | 'find_things' | 'tag_pages' | 'do_nothing'
   confidence: number
@@ -47,6 +76,9 @@ interface AIPreviewCardProps {
   onExpand?: () => void // Callback to open expanded preview modal
   onContentUpdate?: (content: string) => void
   onTitleUpdate?: (title: string) => void
+  onOverwrite?: () => void // Callback for overwrite option
+  onRename?: (newTitle: string) => void // Callback for rename option
+  onAppend?: () => void // Callback for append option
 }
 
 const intentIcons = {
@@ -79,16 +111,27 @@ export function AIPreviewCard({
   onReject,
   onExpand,
   onContentUpdate,
-  onTitleUpdate
+  onTitleUpdate,
+  onOverwrite,
+  onRename,
+  onAppend
 }: AIPreviewCardProps) {
   const [isExpanded, setIsExpanded] = useState(true)
+  const [showConflictOptions, setShowConflictOptions] = useState(false)
   const IntentIcon = intentIcons[response.intent]
+  
+  // Check if response indicates page conflict
+  const hasConflict = response.rationale?.toLowerCase().includes('already exists') || 
+                      response.rationale?.toLowerCase().includes('overwrite') ||
+                      response.rationale?.toLowerCase().includes('rename') ||
+                      response.rationale?.toLowerCase().includes('append')
 
   const handleConfirm = () => {
     if (response.intent === 'create_new_page' || response.intent === 'append_to_page') {
       // Update content if provided
       if (response.preview?.markdown && onContentUpdate) {
-        onContentUpdate(response.preview.markdown)
+        const cleanedMarkdown = cleanMarkdownContent(response.preview.markdown)
+        onContentUpdate(cleanedMarkdown)
       }
       // Update title if provided
       if (response.preview?.title && onTitleUpdate) {
@@ -96,6 +139,23 @@ export function AIPreviewCard({
       }
     }
     onConfirm?.()
+  }
+  
+  const handleOverwrite = () => {
+    if (response.preview?.markdown && onContentUpdate) {
+      const cleanedMarkdown = cleanMarkdownContent(response.preview.markdown)
+      onContentUpdate(cleanedMarkdown)
+    }
+    onOverwrite?.()
+  }
+  
+  const handleAppend = () => {
+    if (response.preview?.markdown && onContentUpdate) {
+      const cleanedMarkdown = cleanMarkdownContent(response.preview.markdown)
+      // Get existing content from context (would need to be passed as prop)
+      // For now, just call append callback
+      onAppend?.()
+    }
   }
 
   // Don't show preview for answer or find_things intents (no write action)
@@ -249,8 +309,55 @@ export function AIPreviewCard({
             </div>
           )}
 
+          {/* Conflict Resolution Options */}
+          {hasConflict && response.intent === 'create_new_page' && (
+            <div className="space-y-2 pt-4 border-t">
+              <p className="text-sm text-muted-foreground mb-3">{response.rationale}</p>
+              <div className="flex flex-col gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleOverwrite}
+                  className="bg-purple-600 hover:bg-purple-700 w-full"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Overwrite Existing Page
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newTitle = prompt('Enter new title:', response.preview?.title || 'Untitled')
+                    if (newTitle && onRename) {
+                      onRename(newTitle)
+                    }
+                  }}
+                  className="w-full"
+                >
+                  Rename & Create New
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAppend}
+                  className="w-full"
+                >
+                  Append to Existing Page
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onReject}
+                  className="w-full"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Action Buttons */}
-          {showPreview && (
+          {showPreview && !hasConflict && (
             <div className="flex items-center justify-between gap-2 pt-4 border-t">
               <div>
                 {response.intent === 'create_new_page' && onExpand && (

@@ -34,39 +34,43 @@ export function createScopedPrisma(baseClient: PrismaClient) {
           throw new Error(`Production error: No workspace context set for ${operation} on ${model}`)
         }
 
-        // Add workspaceId to queries
+        // Add workspaceId to queries (only if model has workspaceId field)
+        // Some models like WikiFavorite don't have workspaceId - they scope through relations
         if (operation === 'findMany' || operation === 'findFirst' || operation === 'count') {
           if (!args.where) {
             args.where = {}
           }
-          if (!args.where.workspaceId && workspaceId) {
+          // Skip adding workspaceId for models that don't have it (they scope through relations)
+          if (model !== 'WikiFavorite' && !args.where.workspaceId && workspaceId) {
             args.where.workspaceId = workspaceId
           }
         }
 
-        // For create operations, ensure workspaceId is set
+        // For create operations, ensure workspaceId is set (only if model has workspaceId field)
         if (operation === 'create' || operation === 'createMany') {
           if (operation === 'createMany' && Array.isArray(args.data)) {
             args.data = args.data.map((item: any) => {
-              if (!item.workspaceId && workspaceId) {
+              // Skip adding workspaceId for models that don't have it
+              if (model !== 'WikiFavorite' && !item.workspaceId && workspaceId) {
                 item.workspaceId = workspaceId
               }
               return item
             })
-          } else if (args.data && !args.data.workspaceId && workspaceId) {
+          } else if (args.data && model !== 'WikiFavorite' && !args.data.workspaceId && workspaceId) {
             args.data.workspaceId = workspaceId
           }
         }
 
-        // For update/delete operations, ensure workspaceId is in where clause
+        // For update/delete operations, ensure workspaceId is in where clause (only if model has workspaceId field)
         if (operation === 'update' || operation === 'updateMany' || operation === 'delete' || operation === 'deleteMany') {
           if (!args.where) {
-            if (isProduction) {
+            if (isProduction && model !== 'WikiFavorite') {
               throw new Error(`Production error: No where clause provided for ${operation} on ${model}`)
             }
             args.where = {}
           }
-          if (!args.where.workspaceId && workspaceId) {
+          // Skip adding workspaceId for models that don't have it
+          if (model !== 'WikiFavorite' && !args.where.workspaceId && workspaceId) {
             args.where.workspaceId = workspaceId
           }
         }

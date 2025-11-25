@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /_next/
+Disallow: /admin/
+Disallow: /test/
+Disallow: /demo/
+
+# Sitemap
+Sitemap: https://loopwell.io/sitemap.xml
+
+
+

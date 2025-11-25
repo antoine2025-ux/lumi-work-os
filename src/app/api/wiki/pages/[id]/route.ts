@@ -12,6 +12,11 @@ export async function GET(
   try {
     const auth = await getUnifiedAuth(request)
     
+    if (!auth.workspaceId) {
+      console.error('No workspace ID found in auth')
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 400 })
+    }
+    
     // Assert workspace access
     await assertAccess({ 
       userId: auth.user.userId, 
@@ -24,6 +29,7 @@ export async function GET(
     setWorkspaceContext(auth.workspaceId)
     
     const resolvedParams = await params
+    console.log('Fetching page with ID/slug:', resolvedParams.id, 'in workspace:', auth.workspaceId)
     // Try to find by ID first, then by slug
     let page = await prisma.wikiPage.findUnique({
       where: {
@@ -172,7 +178,13 @@ export async function GET(
     return NextResponse.json(page)
   } catch (error) {
     console.error('Error fetching wiki page:', error)
-    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('Error details:', { errorMessage, errorStack, error })
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: errorMessage 
+    }, { status: 500 })
   }
 }
 

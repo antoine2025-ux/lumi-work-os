@@ -79,12 +79,28 @@ class OpenAIProvider implements AIProvider {
     }
     
     try {
+      // Build messages array with system prompt, conversation history, and current prompt
+      const messages: Array<{ role: 'system' | 'user' | 'assistant', content: string }> = []
+      
+      // Add system prompt
+      if (options.systemPrompt) {
+        messages.push({ role: 'system', content: options.systemPrompt })
+      }
+      
+      // Add conversation history if provided
+      if (options.conversationHistory && Array.isArray(options.conversationHistory)) {
+        messages.push(...options.conversationHistory.map((msg: any) => ({
+          role: msg.role === 'user' ? 'user' : msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.content || ''
+        })))
+      }
+      
+      // Add current user prompt
+      messages.push({ role: 'user', content: prompt })
+      
       const completion = await this.client.chat.completions.create({
         model: model,
-        messages: [
-          { role: "system", content: options.systemPrompt || "You are a helpful AI assistant." },
-          { role: "user", content: prompt }
-        ],
+        messages: messages,
         temperature: options.temperature || 0.7,
         max_tokens: options.maxTokens || 2000,
         top_p: options.topP || 0.9,

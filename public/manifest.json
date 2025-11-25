@@ -1,0 +1,26 @@
+{
+  "name": "Loopwell - Intelligent Workplace Platform",
+  "short_name": "Loopwell",
+  "description": "The end of disconnected work. Loopwell connects projects, knowledge, and people into one system.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
+
+
+

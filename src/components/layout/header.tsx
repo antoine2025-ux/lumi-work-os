@@ -114,10 +114,9 @@ export function Header() {
   return (
     <TooltipProvider>
       <header className={cn(
-        "h-16 transition-transform duration-300 ease-in-out sticky top-0 z-50",
+        "h-16 transition-transform duration-300 ease-in-out sticky top-0 z-50 bg-slate-950 border-b border-slate-900",
         isVisible ? "translate-y-0" : "-translate-y-full"
       )}
-      style={{ backgroundColor: themeConfig.background }}
       >
         <div className="flex h-full items-center px-6">
           {/* Logo */}
@@ -128,7 +127,7 @@ export function Header() {
               className="w-8 h-8"
               priority
             />
-            <span className="text-xl font-semibold text-foreground">Loopwell</span>
+            <span className="text-xl font-semibold text-gray-200">Loopwell</span>
           </div>
           
           {/* Navigation Items - Centered */}
@@ -148,18 +147,14 @@ export function Header() {
                   className={cn(
                     "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out group relative overflow-hidden",
                     isActive
-                      ? "text-primary-foreground border min-w-[120px]"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted min-w-[44px] hover:min-w-[120px]"
+                      ? "text-white bg-blue-600 border border-blue-500 min-w-[120px]"
+                      : "text-slate-400 hover:text-gray-200 hover:bg-slate-900 min-w-[44px] hover:min-w-[120px]"
                   )}
-                  style={isActive ? {
-                    backgroundColor: themeConfig.primary,
-                    borderColor: themeConfig.primary
-                  } : {}}
                   title={item.description}
                 >
                   <item.icon className={cn(
                     "h-4 w-4 transition-colors flex-shrink-0",
-                    isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                    isActive ? "text-white" : "text-slate-400 group-hover:text-gray-200"
                   )} />
                   
                   {/* Page title with smooth animation */}
@@ -175,8 +170,7 @@ export function Header() {
                   {/* Active indicator */}
                   {isActive && (
                     <div 
-                      className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full"
-                      style={{ backgroundColor: themeConfig.primary }}
+                      className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400"
                     />
                   )}
                 </Link>
@@ -187,16 +181,16 @@ export function Header() {
           
           {/* User Controls */}
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="text-slate-400 hover:text-gray-200 hover:bg-slate-900">
               <Bell className="h-5 w-5" />
             </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:bg-slate-900">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
-                    <AvatarFallback>
+                    <AvatarFallback className="bg-slate-800 text-gray-200">
                       {session?.user?.name?.charAt(0) || "U"}
                     </AvatarFallback>
                   </Avatar>

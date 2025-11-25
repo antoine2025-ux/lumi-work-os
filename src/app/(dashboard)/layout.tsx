@@ -97,12 +97,12 @@ export default function DashboardLayout({
   // Render header and skeleton immediately for better perceived performance
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="h-16 border-b animate-pulse bg-muted" />
+      <div className="min-h-screen bg-slate-950">
+        <div className="h-16 border-b border-slate-900 animate-pulse bg-slate-900" />
         <main className="min-h-screen p-8">
           <div className="max-w-7xl mx-auto space-y-4">
-            <div className="h-8 w-64 bg-muted rounded animate-pulse" />
-            <div className="h-32 w-full bg-muted rounded animate-pulse" />
+            <div className="h-8 w-64 bg-slate-900 rounded animate-pulse" />
+            <div className="h-32 w-full bg-slate-900 rounded animate-pulse" />
           </div>
         </main>
       </div>
@@ -117,15 +117,15 @@ export default function DashboardLayout({
   // This allows LCP to happen much faster
   if (isLoadingWorkspace || !workspaceId) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-slate-950">
         <Header />
         <main className="min-h-screen">
           <div className="p-8">
             <div className="max-w-7xl mx-auto space-y-4">
-              <div className="h-8 w-64 bg-muted rounded animate-pulse" />
+              <div className="h-8 w-64 bg-slate-900 rounded animate-pulse" />
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-48 bg-muted rounded animate-pulse" />
+                  <div key={i} className="h-48 bg-slate-900 rounded animate-pulse" />
                 ))}
               </div>
             </div>
@@ -136,7 +136,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-slate-950">
       <Header />
       <main className="min-h-screen">
         {children}

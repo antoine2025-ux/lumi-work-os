@@ -27,7 +27,7 @@ import {
   Plus
 } from "lucide-react"
 import { AIPreviewCard } from "./ai-preview-card"
-import { AIPagePreviewModal } from "./ai-page-preview-modal"
+import { AIWorkspaceSelectDialog } from "./ai-workspace-select-dialog"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -94,6 +94,35 @@ interface LoopwellAIResponse {
   next_steps: Array<'ask_clarifying_question' | 'insert' | 'replace_section' | 'create_page' | 'create_tasks'>
 }
 
+/**
+ * Clean markdown content by removing code block wrappers and quotes
+ * Ensures raw markdown is returned for direct insertion into editor
+ */
+function cleanMarkdownContent(markdown: string): string {
+  if (!markdown) return ''
+  
+  let cleaned = markdown.trim()
+  
+  // Remove markdown code blocks (```markdown ... ``` or ``` ... ```)
+  cleaned = cleaned.replace(/^```(?:markdown)?\s*\n?([\s\S]*?)\n?```$/gm, '$1')
+  
+  // Remove any remaining code block markers at start/end
+  cleaned = cleaned.replace(/^```[a-z]*\s*\n?/gm, '')
+  cleaned = cleaned.replace(/\n?```$/gm, '')
+  
+  // Remove block quotes if wrapping entire content
+  if (cleaned.startsWith('> ')) {
+    cleaned = cleaned.split('\n').map(line => {
+      if (line.startsWith('> ')) {
+        return line.substring(2)
+      }
+      return line
+    }).join('\n')
+  }
+  
+  return cleaned.trim()
+}
+
 export function WikiAIAssistant({ 
   onContentUpdate, 
   onTitleUpdate,
@@ -124,13 +153,12 @@ export function WikiAIAssistant({
   const [displayMode, setDisplayMode] = useState<'sidebar' | 'floating'>(mode === 'floating-button' ? 'floating' : 'sidebar')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [pendingPreview, setPendingPreview] = useState<LoopwellAIResponse | null>(null)
-  const [showPreviewModal, setShowPreviewModal] = useState(false)
-  const [previewTitle, setPreviewTitle] = useState("")
-  const [previewContent, setPreviewContent] = useState("")
+  const [showWorkspaceSelectDialog, setShowWorkspaceSelectDialog] = useState(false)
+  const [pendingPageTitle, setPendingPageTitle] = useState("")
+  const [pendingPageContent, setPendingPageContent] = useState("")
   const [isCreatingPage, setIsCreatingPage] = useState(false)
   // Page creation flow state
   const [pageCreationState, setPageCreationState] = useState<'idle' | 'waiting_for_title' | 'waiting_for_location'>('idle')
-  const [pendingPageTitle, setPendingPageTitle] = useState<string>("")
   const [pendingPageLocation, setPendingPageLocation] = useState<{ type: 'workspace' | 'parent', id: string, name: string } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -156,6 +184,114 @@ export function WikiAIAssistant({
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  // Stream content generation for a page
+  const streamContentToPage = async (pageId: string, prompt: string, initialContent?: string) => {
+    try {
+      // Get workspace ID - try to get from user status or use first workspace
+      let workspaceId = ''
+      try {
+        const statusResponse = await fetch('/api/auth/user-status')
+        if (statusResponse.ok) {
+          const userStatus = await statusResponse.json()
+          workspaceId = userStatus.workspaceId || ''
+        }
+      } catch (e) {
+        console.warn('Could not fetch workspace ID:', e)
+      }
+      
+      if (!workspaceId && workspaces.length > 0) {
+        workspaceId = workspaces[0].id
+      }
+      
+      const response = await fetch('/api/ai/draft-page', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pageId,
+          prompt,
+          workspaceId
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('No response body reader available')
+      }
+
+      let buffer = ''
+      let accumulatedContent = initialContent || ''
+
+      // Add streaming status message
+      const streamingMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Drafting content...',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, streamingMessage])
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              
+              if (data.error) {
+                throw new Error(data.error)
+              }
+
+              if (data.content) {
+                accumulatedContent += data.content
+                // Update page content in real-time as chunks arrive
+                if (onContentUpdate) {
+                  onContentUpdate(accumulatedContent)
+                }
+              }
+
+              if (data.done) {
+                // Update streaming message
+                setMessages(prev => prev.map(msg => 
+                  msg.id === streamingMessage.id
+                    ? { ...msg, content: 'Content drafted successfully!' }
+                    : msg
+                ))
+                return
+              }
+            } catch (e) {
+              if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
+                console.error('Error parsing stream data:', e)
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error streaming page content:', error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `Error: ${error instanceof Error ? error.message : 'Failed to stream content'}`,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
+    }
   }
 
   useEffect(() => {
@@ -910,16 +1046,17 @@ export function WikiAIAssistant({
       if (pendingPreview.intent === 'create_new_page') {
         // For new page creation - show preview modal for workspace selection
         if (pendingPreview.preview?.title && pendingPreview.preview?.markdown) {
-          setPreviewTitle(pendingPreview.preview.title)
-          setPreviewContent(pendingPreview.preview.markdown)
-          setShowPreviewModal(true)
+          setPendingPageTitle(pendingPreview.preview.title)
+          setPendingPageContent(pendingPreview.preview.markdown)
+          setShowWorkspaceSelectDialog(true)
         }
       } else if (pendingPreview.intent === 'append_to_page') {
         if (pendingPreview.preview?.markdown && onContentUpdate) {
+          const cleanedMarkdown = cleanMarkdownContent(pendingPreview.preview.markdown)
           const existingContent = currentContent || ''
           const newContent = existingContent.trim() 
-            ? `${existingContent}\n\n${pendingPreview.preview.markdown}`
-            : pendingPreview.preview.markdown
+            ? `${existingContent}\n\n${cleanedMarkdown}`
+            : cleanedMarkdown
           onContentUpdate(newContent)
         }
         if (pendingPreview.preview?.title && onTitleUpdate) {
@@ -927,7 +1064,8 @@ export function WikiAIAssistant({
         }
       } else if (pendingPreview.intent === 'improve_existing_page') {
         if (pendingPreview.preview?.markdown && onContentUpdate) {
-          onContentUpdate(pendingPreview.preview.markdown)
+          const cleanedMarkdown = cleanMarkdownContent(pendingPreview.preview.markdown)
+          onContentUpdate(cleanedMarkdown)
         }
       }
       
@@ -1021,49 +1159,170 @@ export function WikiAIAssistant({
 
       const data: LoopwellAIResponse = await response.json()
       
-      // If AI suggests creating a page, start conversational flow instead of showing preview
-      if (data.intent === 'create_new_page' && pageCreationState === 'idle') {
-        setPageCreationState('waiting_for_title')
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: 'Sure — I can create a page. Could you tell me:\n\n• What should the page be titled?',
-          timestamp: new Date()
+      // Determine mode: Page Context Mode (has currentPageId OR is editing a draft) vs Global Mode
+      // If user is editing a draft page (has content/title), treat as Page Context Mode
+      const isPageContextMode = !!currentPageId || !!(currentContent || currentTitle !== 'New page')
+      const isGlobalMode = !isPageContextMode
+      
+      // NOTION-STYLE: Automatically insert content for write intents
+      const writeIntents = ['create_new_page', 'append_to_page', 'improve_existing_page']
+      const hasMarkdown = data.preview?.markdown && data.preview.markdown.trim().length > 0
+      
+      if (writeIntents.includes(data.intent) && hasMarkdown) {
+        const cleanedMarkdown = cleanMarkdownContent(data.preview.markdown)
+        
+        // PAGE CONTEXT MODE: Auto-insert into current page
+        if (isPageContextMode) {
+          if (data.intent === 'create_new_page') {
+            // User explicitly wants a new page - check if they mentioned location
+            const wantsNewPage = currentInput.toLowerCase().includes('new page') || 
+                                 currentInput.toLowerCase().includes('create a') ||
+                                 currentInput.toLowerCase().includes('separate page')
+            
+            if (wantsNewPage) {
+              // Show workspace selection dialog
+              if (data.preview?.title) {
+                setPendingPageTitle(data.preview.title)
+                setPendingPageContent(cleanedMarkdown)
+                setShowWorkspaceSelectDialog(true)
+                
+                const assistantMessage: Message = {
+                  id: (Date.now() + 1).toString(),
+                  role: 'assistant',
+                  content: `I've prepared "${data.preview.title}". Please select where to create it.`,
+                  timestamp: new Date()
+                }
+                setMessages(prev => [...prev, assistantMessage])
+                setIsLoading(false)
+                return
+              }
+            } else {
+              // User didn't explicitly say "new page" - stream content into current page
+              if (currentPageId && onContentUpdate) {
+                // Stream content generation for current page
+                streamContentToPage(currentPageId, currentInput, cleanedMarkdown)
+                setIsLoading(false)
+                return
+              } else if (onContentUpdate) {
+                // Fallback: insert content directly if no pageId
+                const existingContent = currentContent || ''
+                const isEmpty = !existingContent || existingContent.trim().length === 0
+                
+                if (isEmpty) {
+                  onContentUpdate(cleanedMarkdown)
+                } else {
+                  const newContent = `${existingContent}\n\n${cleanedMarkdown}`
+                  onContentUpdate(newContent)
+                }
+                
+                const assistantMessage: Message = {
+                  id: (Date.now() + 1).toString(),
+                  role: 'assistant',
+                  content: 'Content has been added to your page.',
+                  timestamp: new Date()
+                }
+                setMessages(prev => [...prev, assistantMessage])
+                setIsLoading(false)
+                return
+              }
+            }
+          } else if (data.intent === 'append_to_page') {
+            // Auto-append to current page
+            if (onContentUpdate) {
+              const existingContent = currentContent || ''
+              const newContent = existingContent.trim() 
+                ? `${existingContent}\n\n${cleanedMarkdown}`
+                : cleanedMarkdown
+              onContentUpdate(newContent)
+              
+              const assistantMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: 'Content has been appended to the page.',
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, assistantMessage])
+              setIsLoading(false)
+              return
+            }
+          } else if (data.intent === 'improve_existing_page') {
+            // Auto-improve current page
+            if (onContentUpdate) {
+              onContentUpdate(cleanedMarkdown)
+              
+              const assistantMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: 'Page has been improved and updated.',
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, assistantMessage])
+              setIsLoading(false)
+              return
+            }
+          }
+        } else {
+          // GLOBAL MODE: Create new page
+          if (data.intent === 'create_new_page') {
+            const suggestedTitle = data.preview?.title || extractTitle(currentInput) || 'Untitled'
+            
+            // Check if page with this title exists
+            const pageExists = recentPages.some(page => 
+              page.title.toLowerCase() === suggestedTitle.toLowerCase()
+            )
+            
+            if (pageExists && data.preview?.title) {
+              // Page exists - show options
+              setPendingPreview({
+                ...data,
+                rationale: `Page "${suggestedTitle}" already exists. Should I overwrite it, rename it, or append to the existing content?`
+              })
+              
+              const assistantMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: `I've generated the content, but a page titled "${suggestedTitle}" already exists. Please choose an option below.`,
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, assistantMessage])
+              setIsLoading(false)
+              return
+            } else {
+              // Page doesn't exist - show workspace selection dialog
+              if (data.preview?.title) {
+                setPendingPageTitle(data.preview.title)
+                setPendingPageContent(cleanedMarkdown)
+                setShowWorkspaceSelectDialog(true)
+                
+                const assistantMessage: Message = {
+                  id: (Date.now() + 1).toString(),
+                  role: 'assistant',
+                  content: `I've prepared "${data.preview.title}". Please select where to create it.`,
+                  timestamp: new Date()
+                }
+                setMessages(prev => [...prev, assistantMessage])
+                setIsLoading(false)
+                return
+              }
+            }
+          }
         }
-        setMessages(prev => [...prev, assistantMessage])
-        setIsLoading(false)
-        return
       }
       
-      // Handle structured response based on intent
-      const requiresPreview = [
-        'append_to_page', 
-        'improve_existing_page',
-        'extract_tasks',
-        'tag_pages'
-      ].includes(data.intent)
+      // For other intents (extract_tasks, tag_pages) - show preview card
+      const requiresPreview = ['extract_tasks', 'tag_pages'].includes(data.intent)
       
       if (requiresPreview) {
-        // Show preview card for confirmation
-        console.log('📋 Setting pending preview:', data.intent, data.preview)
         setPendingPreview(data)
-        
-        // Show a message indicating preview is ready
-        const actionText = data.intent === 'append_to_page'
-          ? 'Click "Append to Page" below to add it.'
-          : data.intent === 'improve_existing_page'
-          ? 'Click "Apply Changes" below to apply the improvements.'
-          : 'Please review the preview card below and click the button to confirm.'
-        
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `I've prepared a ${data.intent.replace(/_/g, ' ')}. ${actionText}`,
+          content: `I've prepared ${data.intent.replace(/_/g, ' ')}. Please review and confirm below.`,
           timestamp: new Date()
         }
         setMessages(prev => [...prev, assistantMessage])
       } else {
-        // For answer, find_things, do_nothing - show response directly
+        // For answer, find_things, do_nothing, summarize - show response directly
         const content = data.preview?.markdown || data.rationale
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
@@ -1355,28 +1614,29 @@ export function WikiAIAssistant({
                     <AIPreviewCard
                       response={pendingPreview}
                       onExpand={() => {
-                        // Open expanded preview modal
+                        // Show workspace selection dialog
                         if (pendingPreview.preview?.title && pendingPreview.preview?.markdown) {
-                          setPreviewTitle(pendingPreview.preview.title)
-                          setPreviewContent(pendingPreview.preview.markdown)
-                          setShowPreviewModal(true)
+                          setPendingPageTitle(pendingPreview.preview.title)
+                          setPendingPageContent(cleanMarkdownContent(pendingPreview.preview.markdown))
+                          setShowWorkspaceSelectDialog(true)
                         }
                       }}
                       onConfirm={() => {
                         // Handle confirmation based on intent
                         if (pendingPreview.intent === 'create_new_page') {
-                          // For new page creation - show preview modal for workspace selection
+                          // For new page creation - show workspace selection dialog
                           if (pendingPreview.preview?.title && pendingPreview.preview?.markdown) {
-                            setPreviewTitle(pendingPreview.preview.title)
-                            setPreviewContent(pendingPreview.preview.markdown)
-                            setShowPreviewModal(true)
+                            setPendingPageTitle(pendingPreview.preview.title)
+                            setPendingPageContent(cleanMarkdownContent(pendingPreview.preview.markdown))
+                            setShowWorkspaceSelectDialog(true)
                           }
                         } else if (pendingPreview.intent === 'append_to_page') {
                           if (pendingPreview.preview?.markdown && onContentUpdate) {
+                            const cleanedMarkdown = cleanMarkdownContent(pendingPreview.preview.markdown)
                             const existingContent = currentContent || ''
                             const newContent = existingContent.trim() 
-                              ? `${existingContent}\n\n${pendingPreview.preview.markdown}`
-                              : pendingPreview.preview.markdown
+                              ? `${existingContent}\n\n${cleanedMarkdown}`
+                              : cleanedMarkdown
                             onContentUpdate(newContent)
                           }
                           if (pendingPreview.preview?.title && onTitleUpdate) {
@@ -1393,7 +1653,8 @@ export function WikiAIAssistant({
                           setPendingPreview(null)
                         } else if (pendingPreview.intent === 'improve_existing_page') {
                           if (pendingPreview.preview?.markdown && onContentUpdate) {
-                            onContentUpdate(pendingPreview.preview.markdown)
+                            const cleanedMarkdown = cleanMarkdownContent(pendingPreview.preview.markdown)
+                            onContentUpdate(cleanedMarkdown)
                           }
                           // Add success message
                           const successMessage: Message = {
@@ -1408,6 +1669,64 @@ export function WikiAIAssistant({
                           // TODO: Handle extract_tasks and tag_pages
                           setPendingPreview(null)
                         }
+                      }}
+                      onOverwrite={() => {
+                        // Overwrite existing page
+                        if (pendingPreview.preview?.markdown && onContentUpdate) {
+                          const cleanedMarkdown = cleanMarkdownContent(pendingPreview.preview.markdown)
+                          onContentUpdate(cleanedMarkdown)
+                        }
+                        setPendingPreview(null)
+                      }}
+                      onRename={(newTitle) => {
+                        // Rename and create new page
+                        if (pendingPreview.preview?.markdown) {
+                          setPendingPageTitle(newTitle)
+                          setPendingPageContent(cleanMarkdownContent(pendingPreview.preview.markdown))
+                          setShowWorkspaceSelectDialog(true)
+                        }
+                        setPendingPreview(null)
+                      }}
+                      onAppend={() => {
+                        // Append to existing page
+                        if (pendingPreview.preview?.markdown && onContentUpdate) {
+                          const cleanedMarkdown = cleanMarkdownContent(pendingPreview.preview.markdown)
+                          const existingContent = currentContent || ''
+                          const newContent = existingContent.trim() 
+                            ? `${existingContent}\n\n${cleanedMarkdown}`
+                            : cleanedMarkdown
+                          onContentUpdate(newContent)
+                        }
+                        setPendingPreview(null)
+                      }}
+                      onOverwrite={() => {
+                        // Overwrite existing page
+                        if (pendingPreview.preview?.markdown && onContentUpdate) {
+                          const cleanedMarkdown = cleanMarkdownContent(pendingPreview.preview.markdown)
+                          onContentUpdate(cleanedMarkdown)
+                        }
+                        setPendingPreview(null)
+                      }}
+                      onRename={(newTitle) => {
+                        // Rename and create new page
+                        if (pendingPreview.preview?.markdown) {
+                          setPendingPageTitle(newTitle)
+                          setPendingPageContent(cleanMarkdownContent(pendingPreview.preview.markdown))
+                          setShowWorkspaceSelectDialog(true)
+                        }
+                        setPendingPreview(null)
+                      }}
+                      onAppend={() => {
+                        // Append to existing page
+                        if (pendingPreview.preview?.markdown && onContentUpdate) {
+                          const cleanedMarkdown = cleanMarkdownContent(pendingPreview.preview.markdown)
+                          const existingContent = currentContent || ''
+                          const newContent = existingContent.trim() 
+                            ? `${existingContent}\n\n${cleanedMarkdown}`
+                            : cleanedMarkdown
+                          onContentUpdate(newContent)
+                        }
+                        setPendingPreview(null)
                       }}
                       onReject={() => {
                         setPendingPreview(null)
@@ -1519,36 +1838,76 @@ export function WikiAIAssistant({
         />
       )}
 
-      {/* Expanded Preview Modal */}
-      <AIPagePreviewModal
-        open={showPreviewModal}
-        onOpenChange={setShowPreviewModal}
-        title={previewTitle}
-        content={previewContent}
+      {/* Workspace Selection Dialog */}
+      <AIWorkspaceSelectDialog
+        open={showWorkspaceSelectDialog}
+        onOpenChange={setShowWorkspaceSelectDialog}
+        title={pendingPageTitle}
         workspaces={workspaces}
-        onSave={async (title, content, workspaceId) => {
+        isCreating={isCreatingPage}
+        onSelect={async (workspaceId) => {
           setIsCreatingPage(true)
           try {
-            if (onCreatePage) {
-              await onCreatePage(title, content, workspaceId)
-              // Add success message
-              const successMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: `Page "${title}" created successfully in ${workspaces.find(w => w.id === workspaceId)?.name || 'workspace'}!`,
-                timestamp: new Date()
-              }
-              setMessages(prev => [...prev, successMessage])
-              // Clear preview
-              setPendingPreview(null)
+            // Create blank draft page first
+            if (!onCreatePage) {
+              throw new Error("onCreatePage callback not available")
             }
+            
+            // Store the original user prompt for drafting (get the LAST user message)
+            const userMessages = messages.filter(m => m.role === 'user')
+            const originalPrompt = userMessages.length > 0 
+              ? userMessages[userMessages.length - 1].content 
+              : pendingPageTitle
+            
+            console.log('📝 Preparing to create page:', { 
+              title: pendingPageTitle, 
+              prompt: originalPrompt.substring(0, 50), 
+              workspaceId,
+              userMessagesCount: userMessages.length
+            })
+            
+            // Store page creation info for streaming BEFORE creating page
+            const pageCreationInfo = {
+              title: pendingPageTitle,
+              prompt: originalPrompt,
+              workspaceId,
+              timestamp: Date.now()
+            }
+            
+            console.log('💾 Storing draft info in sessionStorage:', pageCreationInfo)
+            sessionStorage.setItem('pendingPageDraft', JSON.stringify(pageCreationInfo))
+            
+            // Verify it was stored
+            const stored = sessionStorage.getItem('pendingPageDraft')
+            console.log('✅ Draft info stored, verification:', stored ? 'Success' : 'Failed')
+            
+            // Create blank draft page (this will navigate)
+            console.log('📄 Creating page now...')
+            await onCreatePage(pendingPageTitle, ' ', workspaceId)
+            console.log('✅ Page creation completed')
+            
+            // Add status message
+            const statusMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: `Creating "${pendingPageTitle}" and drafting content now...`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, statusMessage])
+            
+            // Clear pending state (but keep dialog open until streaming starts)
+            setPendingPageTitle("")
+            setPendingPageContent("")
+            setPendingPreview(null)
+            
+            // Close dialog - page will handle streaming
+            setShowWorkspaceSelectDialog(false)
           } catch (error) {
             throw error
           } finally {
             setIsCreatingPage(false)
           }
         }}
-        isSaving={isCreatingPage}
       />
     </>
   )

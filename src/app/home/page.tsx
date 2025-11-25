@@ -192,7 +192,7 @@ export default function HomePage() {
   // Show loading skeleton if workspace is still loading
   if (workspaceLoading) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: themeConfig.background }}>
+      <div className="min-h-screen bg-slate-950">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="mb-8">
             <div className="h-8 w-64 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mb-2"></div>
@@ -213,7 +213,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: themeConfig.background }}>
+    <div className="min-h-screen bg-slate-950">
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}

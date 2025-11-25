@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   description: "Insights, updates, and stories from the Loopwell team",
 };
 
-export default function BlogPage() {
-  const posts = getAllBlogPosts();
+export default async function BlogPage() {
+  const posts = await getAllBlogPosts();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">

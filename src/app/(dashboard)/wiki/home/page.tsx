@@ -235,7 +235,7 @@ export default function SpacesHomePage() {
 
   if (userStatusLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -257,11 +257,11 @@ export default function SpacesHomePage() {
 
   return (
     <>
-      <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+      <div className="min-h-screen bg-slate-900">
         {/* Header */}
         <div className="px-16 py-8 space-y-2">
-          <h1 className="text-4xl font-light" style={{ color: colors.text }}>Home</h1>
-          <p className="text-lg font-light" style={{ color: colors.textSecondary }}>
+          <h1 className="text-4xl font-light text-gray-200">Home</h1>
+          <p className="text-lg font-light text-slate-400">
             Welcome back{userStatus?.user?.name ? `, ${userStatus.user.name.split(' ')[0]}` : ''}.
           </p>
         </div>
@@ -271,7 +271,7 @@ export default function SpacesHomePage() {
           {/* Section 1: Your Spaces */}
           <div>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-light" style={{ color: colors.text }}>Your Spaces</h2>
+              <h2 className="text-xl font-light text-gray-200">Your Spaces</h2>
               <Button
                 variant="ghost"
                 size="sm"
@@ -292,7 +292,7 @@ export default function SpacesHomePage() {
                     "hover:shadow-lg hover:border-primary/50",
                     "group"
                   )}
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                  className="bg-slate-800 border-slate-700"
                   onClick={() => router.push(getWorkspaceRoute(workspace))}
                 >
                   <CardContent className="p-4">
@@ -302,10 +302,10 @@ export default function SpacesHomePage() {
                         {getWorkspaceIcon(workspace)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-light truncate mb-1 group-hover:text-primary transition-colors" style={{ color: colors.text }}>
+                        <h3 className="font-light truncate mb-1 group-hover:text-blue-400 transition-colors text-gray-200">
                           {workspace.name}
                         </h3>
-                        <div className="flex items-center gap-3 text-xs" style={{ color: colors.textSecondary }}>
+                        <div className="flex items-center gap-3 text-xs text-slate-400">
                           {workspace.pageCount !== undefined && (
                             <span>{workspace.pageCount} {workspace.pageCount === 1 ? 'page' : 'pages'}</span>
                           )}
@@ -314,12 +314,12 @@ export default function SpacesHomePage() {
                           )}
                         </div>
                         {workspace.lastUpdated && (
-                          <p className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                          <p className="text-xs mt-1 text-slate-400">
                             Updated {formatTimeAgo(workspace.lastUpdated)}
                           </p>
                         )}
                       </div>
-                      <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: colors.textSecondary }} />
+                      <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400" />
                     </div>
                   </CardContent>
                 </Card>
@@ -330,7 +330,7 @@ export default function SpacesHomePage() {
           {/* Section 2: Your Work / Recent */}
           {recentWork.length > 0 && (
             <div>
-              <h2 className="text-xl font-light mb-6" style={{ color: colors.text }}>Recent</h2>
+              <h2 className="text-xl font-light mb-6 text-gray-200">Recent</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {recentWork.map((item) => (
                   <Card
@@ -340,19 +340,19 @@ export default function SpacesHomePage() {
                       "hover:shadow-lg hover:border-primary/50",
                       "group"
                     )}
-                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                    className="bg-slate-800 border-slate-700"
                     onClick={() => router.push(item.url)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: colors.borderLight }}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-700">
                           {item.icon}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-light truncate mb-1 group-hover:text-primary transition-colors" style={{ color: colors.text }}>
+                          <h3 className="font-light truncate mb-1 group-hover:text-blue-400 transition-colors text-gray-200">
                             {item.title}
                           </h3>
-                          <p className="text-xs" style={{ color: colors.textSecondary }}>
+                          <p className="text-xs text-slate-400">
                             {formatTimeAgo(item.updatedAt)}
                           </p>
                         </div>
@@ -367,7 +367,7 @@ export default function SpacesHomePage() {
           {/* Section 3: Drafts */}
           {draftsData.length > 0 && (
             <div>
-              <h2 className="text-xl font-light mb-6" style={{ color: colors.text }}>Continue Writing</h2>
+              <h2 className="text-xl font-light mb-6 text-gray-200">Continue Writing</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {draftsData.map((draft) => (
                   <Card
@@ -377,7 +377,7 @@ export default function SpacesHomePage() {
                       "hover:shadow-lg hover:border-primary/50",
                       "group border-dashed"
                     )}
-                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                    className="bg-slate-800 border-slate-700"
                     onClick={() => {
                       if (draft.type === 'session') {
                         router.push(`/assistant?session=${draft.id}`)
@@ -388,17 +388,17 @@ export default function SpacesHomePage() {
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <Edit3 className="h-4 w-4 mt-1" style={{ color: colors.textSecondary }} />
+                        <Edit3 className="h-4 w-4 mt-1 text-slate-400" />
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-light truncate mb-1 group-hover:text-primary transition-colors" style={{ color: colors.text }}>
+                          <h3 className="font-light truncate mb-1 group-hover:text-blue-400 transition-colors text-gray-200">
                             {draft.title}
                           </h3>
                           {draft.excerpt && (
-                            <p className="text-xs mt-1 line-clamp-2" style={{ color: colors.textSecondary }}>
+                            <p className="text-xs mt-1 line-clamp-2 text-slate-400">
                               {draft.excerpt}
                             </p>
                           )}
-                          <p className="text-xs mt-2" style={{ color: colors.textSecondary }}>
+                          <p className="text-xs mt-2 text-slate-400">
                             {formatTimeAgo(draft.updatedAt)}
                           </p>
                         </div>
@@ -414,8 +414,8 @@ export default function SpacesHomePage() {
           {aiSuggestions.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-6">
-                <Brain className="h-5 w-5" style={{ color: colors.primary }} />
-                <h2 className="text-xl font-light" style={{ color: colors.text }}>LoopBrain Suggestions</h2>
+                <Brain className="h-5 w-5 text-blue-500" />
+                <h2 className="text-xl font-light text-gray-200">LoopBrain Suggestions</h2>
               </div>
               <div className="space-y-3">
                 {aiSuggestions.map((suggestion) => (
@@ -426,20 +426,16 @@ export default function SpacesHomePage() {
                       "hover:shadow-md hover:border-primary/30",
                       "border-l-4"
                     )}
-                    style={{ 
-                      backgroundColor: colors.surface, 
-                      borderColor: colors.primary,
-                      borderLeftWidth: '4px'
-                    }}
+                    className="bg-slate-800 border-blue-500 border-l-4"
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <Sparkles className="h-4 w-4 mt-1 flex-shrink-0" style={{ color: colors.primary }} />
+                        <Sparkles className="h-4 w-4 mt-1 flex-shrink-0 text-blue-500" />
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-light mb-1" style={{ color: colors.text }}>
+                          <h3 className="font-light mb-1 text-gray-200">
                             {suggestion.title}
                           </h3>
-                          <p className="text-sm" style={{ color: colors.textSecondary }}>
+                          <p className="text-sm text-slate-400">
                             {suggestion.description}
                           </p>
                           {suggestion.action && (
@@ -466,7 +462,7 @@ export default function SpacesHomePage() {
 
           {/* Section 5: Create New (Bottom) */}
           <div>
-            <h2 className="text-xl font-light mb-6" style={{ color: colors.text }}>Create New</h2>
+            <h2 className="text-xl font-light mb-6 text-gray-200">Create New</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Create Page */}
               <Card
@@ -482,7 +478,7 @@ export default function SpacesHomePage() {
                   <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-2 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/50 transition-colors">
                     <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                  <h3 className="font-light text-center text-sm" style={{ color: colors.text }}>
+                  <h3 className="font-light text-center text-sm text-gray-200">
                     New Page
                   </h3>
                 </CardContent>
@@ -502,7 +498,7 @@ export default function SpacesHomePage() {
                   <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-2 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 transition-colors">
                     <Globe className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <h3 className="font-light text-center text-sm" style={{ color: colors.text }}>
+                  <h3 className="font-light text-center text-sm text-gray-200">
                     New Space
                   </h3>
                 </CardContent>
@@ -522,7 +518,7 @@ export default function SpacesHomePage() {
                   <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-2 group-hover:bg-green-200 dark:group-hover:bg-green-800/50 transition-colors">
                     <Target className="h-5 w-5 text-green-600 dark:text-green-400" />
                   </div>
-                  <h3 className="font-light text-center text-sm" style={{ color: colors.text }}>
+                  <h3 className="font-light text-center text-sm text-gray-200">
                     New Project
                   </h3>
                 </CardContent>
@@ -536,10 +532,10 @@ export default function SpacesHomePage() {
                 style={{ backgroundColor: colors.surface, borderColor: colors.border }}
               >
                 <CardContent className="p-6 flex flex-col items-center justify-center min-h-[100px]">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: colors.borderLight }}>
-                    <Plus className="h-5 w-5" style={{ color: colors.textSecondary }} />
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2 bg-slate-700">
+                    <Plus className="h-5 w-5 text-slate-400" />
                   </div>
-                  <h3 className="font-light text-center text-sm" style={{ color: colors.textSecondary }}>
+                  <h3 className="font-light text-center text-sm text-slate-400">
                     More coming
                   </h3>
                 </CardContent>

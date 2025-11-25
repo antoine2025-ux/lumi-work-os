@@ -115,3 +115,6 @@ END $$;
 -- Add index for org_positions.teamId (only if it doesn't exist)
 CREATE INDEX IF NOT EXISTS "org_positions_teamId_idx" ON "org_positions"("teamId");
 
+
+
+

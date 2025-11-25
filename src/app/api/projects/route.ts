@@ -145,12 +145,12 @@ export async function POST(request: NextRequest) {
     // 1. Get authenticated user with workspace context
     const auth = await getUnifiedAuth(request)
     
-    // 2. Assert workspace access (require ADMIN or OWNER to create projects)
+    // 2. Assert workspace access (require MEMBER or higher to create projects)
     await assertAccess({ 
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       scope: 'workspace', 
-      requireRole: ['ADMIN', 'OWNER'] 
+      requireRole: ['MEMBER'] // Allow MEMBERs to create projects
     })
 
     // 3. Set workspace context for Prisma middleware

@@ -8,25 +8,25 @@
 }
 
 :root {
-  /* Default light theme - will be overridden by theme provider */
-  --background: #ffffff;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  /* Dark blue theme */
+  --background: #020617;
+  --foreground: #f1f5f9;
+  --card: #0f172a;
+  --card-foreground: #f1f5f9;
+  --popover: #0f172a;
+  --popover-foreground: #f1f5f9;
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f8fafc;
-  --muted-foreground: #64748b;
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
+  --secondary: #1e293b;
+  --secondary-foreground: #f1f5f9;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #1e293b;
+  --accent-foreground: #f1f5f9;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #ffffff;
+  --border: #1e293b;
+  --input: #1e293b;
   --ring: #3b82f6;
   --radius: 0.5rem;
 }
@@ -267,6 +267,15 @@ body {
   margin: 1rem 0;
   overflow-x: auto;
   display: block;
+}
+
+.wiki-editor pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.875em;
+  color: inherit;
+  font-family: 'Courier New', monospace;
 }
 
 /* Enhanced Drag and Drop Animations */

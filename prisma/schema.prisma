@@ -121,10 +121,10 @@ model Workspace {
   orgPositions        OrgPosition[]
   orgDepartments      OrgDepartment[]
   orgTeams            OrgTeam[]
-  projectTemplates     ProjectTemplate[]
+  projectTemplates    ProjectTemplate[]
   projects            Project[]
   roleCards           RoleCard[]
-  taskTemplates        TaskTemplate[]
+  taskTemplates       TaskTemplate[]
   tasks               Task[]
   wikiChunks          WikiChunk[]
   wikiPages           WikiPage[]
@@ -399,23 +399,23 @@ model OrgTeam {
 }
 
 model RoleCard {
-  id              String       @id @default(cuid())
-  workspaceId     String
-  positionId      String?       @unique // Link to OrgPosition (one-to-one)
-  roleName        String
-  jobFamily       String
-  level           String
-  roleDescription String
-  responsibilities String[]    @default([])
-  requiredSkills  String[]     @default([])
-  preferredSkills String[]     @default([])
-  keyMetrics      String[]     @default([])
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  createdById     String
-  createdBy       User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  workspace       Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  position        OrgPosition? @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  id               String       @id @default(cuid())
+  workspaceId      String
+  positionId       String?      @unique // Link to OrgPosition (one-to-one)
+  roleName         String
+  jobFamily        String
+  level            String
+  roleDescription  String
+  responsibilities String[]     @default([])
+  requiredSkills   String[]     @default([])
+  preferredSkills  String[]     @default([])
+  keyMetrics       String[]     @default([])
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  createdById      String
+  createdBy        User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  workspace        Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  position         OrgPosition? @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
   @@index([positionId])
@@ -427,7 +427,7 @@ model RoleCard {
 model OrgPosition {
   id                 String        @id @default(cuid())
   workspaceId        String
-  teamId             String?       // Link to OrgTeam (replaces department string)
+  teamId             String? // Link to OrgTeam (replaces department string)
   userId             String?
   title              String
   level              Int           @default(1)
@@ -1095,4 +1095,23 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   SKIPPED
+}
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  excerpt     String
+  content     String   @db.Text
+  authorName  String   @default("Loopwell Team")
+  publishedAt DateTime
+  tags        String[]
+  readingTime Int?     @default(5)
+  coverImage  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([publishedAt])
+  @@map("blog_posts")
 }

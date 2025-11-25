@@ -300,7 +300,7 @@ export default function ProjectsDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background }}>
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" style={{ color: colors.primary }} />
           <p style={{ color: colors.textSecondary }}>Loading dashboard...</p>
@@ -311,7 +311,7 @@ export default function ProjectsDashboard() {
 
   return (
     <WikiLayout>
-      <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+      <div className="min-h-screen bg-slate-950">
       {/* Zen-style Header */}
       <div className="px-16 py-8 space-y-4">
         <div className="flex items-center space-x-3">

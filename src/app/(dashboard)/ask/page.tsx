@@ -454,7 +454,7 @@ export default function AskPage() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-slate-950">
       {/* Sidebar */}
       {showHistory && (
         <div className="w-80 bg-muted border-r border-border flex flex-col">
