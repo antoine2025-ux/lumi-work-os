@@ -3,11 +3,8 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 
 // In production, this MUST be set via environment variable
+// Don't throw during build - check at runtime instead
 const DEV_PASSWORD = process.env.DEV_BLOG_PASSWORD;
-
-if (!DEV_PASSWORD && process.env.NODE_ENV === "production") {
-  throw new Error("DEV_BLOG_PASSWORD environment variable is required in production");
-}
 
 // Simple session token generation
 function generateSessionToken(): string {
