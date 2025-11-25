@@ -60,6 +60,7 @@
     "@types/nodemailer": "^7.0.2",
     "@types/redis": "^4.0.10",
     "@types/socket.io-client": "^1.4.36",
+    "@uiw/react-md-editor": "^4.0.8",
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
     "autoprefixer": "^10.4.21",
@@ -69,6 +70,7 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.23",
     "googleapis": "^164.1.0",
+    "gray-matter": "^4.0.3",
     "lowlight": "^2.9.0",
     "lucide-react": "^0.544.0",
     "marked": "^16.3.0",
@@ -92,6 +94,7 @@
     "socket.io-client": "^4.8.1",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
+    "turndown": "^7.2.2",
     "zod": "^4.1.11"
   },
   "devDependencies": {
