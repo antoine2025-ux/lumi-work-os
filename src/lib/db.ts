@@ -48,7 +48,14 @@ const prismaClient = new PrismaClient({
 })
 
 // Get or create singleton instance
+// Force recreation if BlogPost model is missing (for hot reload compatibility)
 let prisma = globalForPrisma.prisma ?? prismaClient
+if (globalForPrisma.prisma && typeof (globalForPrisma.prisma as any).blogPost === 'undefined') {
+  // Prisma Client is stale - recreate it
+  console.log('🔄 Detected stale Prisma Client, recreating...')
+  globalForPrisma.prisma = undefined
+  prisma = prismaClient
+}
 
 // Re-enable scoping middleware for automatic workspace isolation
 // This provides defense-in-depth by automatically adding workspaceId to all queries
