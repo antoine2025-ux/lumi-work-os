@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
+  // Transpile packages that need to be bundled
+  transpilePackages: ['gray-matter', 'turndown'],
   // Aggressive prefetching for instant navigation
   async rewrites() {
     return [
