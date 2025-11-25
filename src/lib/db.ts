@@ -66,11 +66,12 @@ if (!prisma || typeof (prisma as any).blogPost === 'undefined') {
   // Create fresh client
   prismaClient = createPrismaClient()
   
-  // Verify BlogPost is available
+  // Verify BlogPost is available BEFORE wrapping
   if (typeof prismaClient.blogPost === 'undefined') {
     console.error('❌ CRITICAL: Prisma Client does not have BlogPost model!')
     console.error('   Run: npx prisma generate')
-    // Still use it, but it will fail - this helps with debugging
+    // Force regeneration
+    throw new Error('Prisma Client missing BlogPost model - run: npx prisma generate')
   }
   
   // Re-enable scoping middleware for automatic workspace isolation
@@ -87,7 +88,13 @@ if (!prisma || typeof (prisma as any).blogPost === 'undefined') {
     else if (typeof (prismaClient as any).$extends === 'function') {
       // Create scoped client using $extends
       prisma = createScopedPrisma(prismaClient) as any
-      console.log('✅ Scoping middleware enabled via $extends - workspace isolation enforced automatically')
+      // Verify BlogPost is still available after wrapping
+      if (typeof (prisma as any).blogPost === 'undefined') {
+        console.error('❌ CRITICAL: Scoped client lost BlogPost model! Using base client instead.')
+        prisma = prismaClient
+      } else {
+        console.log('✅ Scoping middleware enabled via $extends - workspace isolation enforced automatically')
+      }
     } else {
       prisma = prismaClient
       console.warn('⚠️ Prisma middleware methods not available')
@@ -103,6 +110,12 @@ if (!prisma || typeof (prisma as any).blogPost === 'undefined') {
     if (process.env.NODE_ENV === 'production') {
       console.error('🚨 PRODUCTION: Scoping middleware failed - this is a security risk!')
     }
+  }
+  
+  // Final verification
+  if (typeof (prisma as any).blogPost === 'undefined') {
+    console.error('❌ CRITICAL: Final prisma instance missing BlogPost model!')
+    console.error('   This will cause blog post operations to fail.')
   }
   
   // Store in global for Next.js hot reload
