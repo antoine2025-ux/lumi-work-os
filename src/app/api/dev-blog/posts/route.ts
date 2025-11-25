@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireDevAuth } from "@/lib/dev-auth";
 import { getAllBlogPosts } from "@/lib/blog";
-import { prisma } from "@/lib/db";
 import { PrismaClient } from "@prisma/client";
 
-// Create a direct Prisma client for blog posts to avoid scoping issues
+// Lazy-load Prisma client for blog posts to ensure it's fresh
 // Blog posts are public and don't need workspace scoping
-const blogPrisma = new PrismaClient();
+let blogPrismaInstance: PrismaClient | null = null;
+
+function getBlogPrisma(): PrismaClient {
+  if (!blogPrismaInstance) {
+    blogPrismaInstance = new PrismaClient();
+    // Verify BlogPost model exists
+    if (typeof blogPrismaInstance.blogPost === 'undefined') {
+      throw new Error('Prisma Client missing BlogPost model - run: npx prisma generate');
+    }
+  }
+  return blogPrismaInstance;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,6 +45,7 @@ export async function POST(request: NextRequest) {
       : new Date();
 
     // Create blog post in database (use direct client to avoid scoping issues)
+    const blogPrisma = getBlogPrisma();
     const newPost = await blogPrisma.blogPost.create({
       data: {
         slug: slug,

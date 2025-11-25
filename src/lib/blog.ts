@@ -1,11 +1,22 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import { prisma } from "@/lib/db";
 import { PrismaClient } from "@prisma/client";
 
-// Use direct Prisma client for blog posts to avoid scoping issues
-const blogPrisma = new PrismaClient();
+// Lazy-load Prisma client for blog posts to ensure it's fresh
+let blogPrismaInstance: PrismaClient | null = null;
+
+function getBlogPrisma(): PrismaClient {
+  if (!blogPrismaInstance) {
+    blogPrismaInstance = new PrismaClient();
+    // Verify BlogPost model exists
+    if (typeof blogPrismaInstance.blogPost === 'undefined') {
+      console.error('❌ CRITICAL: Prisma Client missing BlogPost model!');
+      throw new Error('Prisma Client missing BlogPost model - run: npx prisma generate');
+    }
+  }
+  return blogPrismaInstance;
+}
 
 export interface BlogPost {
   slug: string;
@@ -32,6 +43,7 @@ export async function getAllBlogPosts(): Promise<BlogPost[]> {
   
   try {
     // Try to read from database first (use direct client)
+    const blogPrisma = getBlogPrisma();
     const dbPosts = await blogPrisma.blogPost.findMany({
       orderBy: { publishedAt: 'desc' },
     });
@@ -108,6 +120,7 @@ export async function getAllBlogPosts(): Promise<BlogPost[]> {
 export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   try {
     // Try database first (use direct client)
+    const blogPrisma = getBlogPrisma();
     const dbPost = await blogPrisma.blogPost.findUnique({
       where: { slug },
     });
