@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireDevAuth } from "@/lib/dev-auth";
 import { getAllBlogPosts } from "@/lib/blog";
 import { prisma } from "@/lib/db";
+import { PrismaClient } from "@prisma/client";
+
+// Create a direct Prisma client for blog posts to avoid scoping issues
+// Blog posts are public and don't need workspace scoping
+const blogPrisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,8 +34,8 @@ export async function POST(request: NextRequest) {
       ? new Date(data.publishedAt) 
       : new Date();
 
-    // Create blog post in database
-    const newPost = await prisma.blogPost.create({
+    // Create blog post in database (use direct client to avoid scoping issues)
+    const newPost = await blogPrisma.blogPost.create({
       data: {
         slug: slug,
         title: data.title,

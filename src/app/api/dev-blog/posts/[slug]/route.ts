@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireDevAuth } from "@/lib/dev-auth";
 import { getBlogPost } from "@/lib/blog";
 import { prisma } from "@/lib/db";
+import { PrismaClient } from "@prisma/client";
+
+// Create a direct Prisma client for blog posts to avoid scoping issues
+// Blog posts are public and don't need workspace scoping
+const blogPrisma = new PrismaClient();
 
 export async function PUT(
   request: NextRequest,
@@ -12,8 +17,8 @@ export async function PUT(
     await requireDevAuth(request);
     const data = await request.json();
 
-    // Check if post exists in database
-    const existingDbPost = await prisma.blogPost.findUnique({
+    // Check if post exists in database (use direct client)
+    const existingDbPost = await blogPrisma.blogPost.findUnique({
       where: { slug },
     });
 
@@ -59,8 +64,8 @@ export async function PUT(
       // Update existing database post
       if (newSlug !== slug) {
         // Slug changed - delete old and create new
-        await prisma.blogPost.delete({ where: { slug } });
-        updatedPost = await prisma.blogPost.create({
+        await blogPrisma.blogPost.delete({ where: { slug } });
+        updatedPost = await blogPrisma.blogPost.create({
           data: {
             slug: newSlug,
             title: data.title,
@@ -75,7 +80,7 @@ export async function PUT(
         });
       } else {
         // Update in place
-        updatedPost = await prisma.blogPost.update({
+        updatedPost = await blogPrisma.blogPost.update({
           where: { slug },
           data: {
             title: data.title,
@@ -91,7 +96,7 @@ export async function PUT(
       }
     } else {
       // Create new database post from file-based post
-      updatedPost = await prisma.blogPost.create({
+      updatedPost = await blogPrisma.blogPost.create({
         data: {
           slug: newSlug,
           title: data.title,

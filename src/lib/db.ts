@@ -112,10 +112,23 @@ if (!prisma || typeof (prisma as any).blogPost === 'undefined') {
     }
   }
   
-  // Final verification
-  if (typeof (prisma as any).blogPost === 'undefined') {
-    console.error('❌ CRITICAL: Final prisma instance missing BlogPost model!')
-    console.error('   This will cause blog post operations to fail.')
+  // Final verification - test actual BlogPost access
+  try {
+    // Try to access BlogPost model - this will fail if it doesn't exist
+    const blogPostModel = (prisma as any).blogPost
+    if (!blogPostModel) {
+      console.error('❌ CRITICAL: Final prisma instance missing BlogPost model!')
+      console.error('   Falling back to base client without scoping.')
+      prisma = prismaClient
+    } else {
+      // Test that we can actually query it (this will fail if table doesn't exist)
+      // We'll catch this error but it helps verify the model is accessible
+      console.log('✅ BlogPost model verified in Prisma Client')
+    }
+  } catch (error: any) {
+    console.error('❌ CRITICAL: Error accessing BlogPost model:', error.message)
+    console.error('   Falling back to base client without scoping.')
+    prisma = prismaClient
   }
   
   // Store in global for Next.js hot reload

@@ -2,6 +2,10 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import { prisma } from "@/lib/db";
+import { PrismaClient } from "@prisma/client";
+
+// Use direct Prisma client for blog posts to avoid scoping issues
+const blogPrisma = new PrismaClient();
 
 export interface BlogPost {
   slug: string;
@@ -27,8 +31,8 @@ export async function getAllBlogPosts(): Promise<BlogPost[]> {
   const posts: BlogPost[] = [];
   
   try {
-    // Try to read from database first
-    const dbPosts = await prisma.blogPost.findMany({
+    // Try to read from database first (use direct client)
+    const dbPosts = await blogPrisma.blogPost.findMany({
       orderBy: { publishedAt: 'desc' },
     });
     
@@ -103,8 +107,8 @@ export async function getAllBlogPosts(): Promise<BlogPost[]> {
  */
 export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   try {
-    // Try database first
-    const dbPost = await prisma.blogPost.findUnique({
+    // Try database first (use direct client)
+    const dbPost = await blogPrisma.blogPost.findUnique({
       where: { slug },
     });
 
