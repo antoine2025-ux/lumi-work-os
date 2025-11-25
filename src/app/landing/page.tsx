@@ -86,6 +86,7 @@ export default function LandingPage() {
               <a href="#features" className="text-slate-300 hover:text-white transition-colors">Features</a>
               <a href="#preview" className="text-slate-300 hover:text-white transition-colors">Preview</a>
               <a href="#benefits" className="text-slate-300 hover:text-white transition-colors">Benefits</a>
+              <a href="/blog" className="text-slate-300 hover:text-white transition-colors">Blog</a>
               <a 
                 href="#become-a-tester" 
                 className="text-slate-300 hover:text-white transition-colors"
@@ -149,6 +150,13 @@ export default function LandingPage() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Benefits
+                </a>
+                <a 
+                  href="/blog" 
+                  className="text-slate-300 hover:text-white transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Blog
                 </a>
                 <a 
                   href="#become-a-tester" 
@@ -603,7 +611,7 @@ export default function LandingPage() {
               <h3 className="font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-slate-400">
                 <li><a href="/about" className="hover:text-white transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
+                <li><a href="/blog" className="hover:text-white transition-colors">Blog</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
               </ul>
@@ -621,7 +629,9 @@ export default function LandingPage() {
           <div className="border-t border-slate-800 mt-8 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-slate-400 text-sm">&copy; 2025 Loopwell. All rights reserved.</p>
-              <div className="flex flex-wrap gap-4 text-sm text-slate-400">
+              <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400">
+                <a href="/dev-login" className="hover:text-white transition-colors">Dev Login</a>
+                <span className="text-slate-600">•</span>
                 <a href="/cookie-policy" className="hover:text-white transition-colors">Cookie Policy</a>
                 <span className="text-slate-600">•</span>
                 <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
