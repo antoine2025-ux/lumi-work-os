@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { RichTextEditor } from "@/components/wiki/rich-text-editor";
-import TurndownService from "turndown";
 import { marked } from "marked";
 
 interface MarkdownWysiwygEditorProps {
@@ -11,50 +10,61 @@ interface MarkdownWysiwygEditorProps {
   placeholder?: string;
 }
 
-// Initialize Turndown service for HTML to Markdown conversion
-const turndownService = new TurndownService({
-  headingStyle: "atx",
-  codeBlockStyle: "fenced",
-  bulletListMarker: "-",
-  emDelimiter: "*",
-  strongDelimiter: "**",
-  linkStyle: "inlined",
-  linkReferenceStyle: "full",
-});
+// Lazy-load Turndown service
+let turndownServicePromise: Promise<any> | null = null;
 
-// Configure Turndown to handle code blocks properly
-turndownService.addRule("codeBlock", {
-  filter: function (node) {
-    return (
-      node.nodeName === "PRE" &&
-      node.firstChild &&
-      node.firstChild.nodeName === "CODE"
-    );
-  },
-  replacement: function (content, node) {
-    const codeNode = node as HTMLElement;
-    const codeElement = codeNode.querySelector("code");
-    const language = codeElement?.className?.replace("language-", "") || "";
-    const code = codeElement?.textContent || "";
-    return `\n\`\`\`${language}\n${code}\n\`\`\`\n\n`;
-  },
-});
+async function getTurndownService() {
+  if (!turndownServicePromise) {
+    turndownServicePromise = import("turndown").then((TurndownService) => {
+      const service = new TurndownService.default({
+        headingStyle: "atx",
+        codeBlockStyle: "fenced",
+        bulletListMarker: "-",
+        emDelimiter: "*",
+        strongDelimiter: "**",
+        linkStyle: "inlined",
+        linkReferenceStyle: "full",
+      });
 
-// Add rule for paragraphs to ensure proper spacing
-turndownService.addRule("paragraph", {
-  filter: "p",
-  replacement: function (content) {
-    return content.trim() ? `\n\n${content.trim()}\n\n` : "\n\n";
-  },
-});
+      // Configure Turndown to handle code blocks properly
+      service.addRule("codeBlock", {
+        filter: function (node: any) {
+          return (
+            node.nodeName === "PRE" &&
+            node.firstChild &&
+            node.firstChild.nodeName === "CODE"
+          );
+        },
+        replacement: function (content: string, node: any) {
+          const codeNode = node as HTMLElement;
+          const codeElement = codeNode.querySelector("code");
+          const language = codeElement?.className?.replace("language-", "") || "";
+          const code = codeElement?.textContent || "";
+          return `\n\`\`\`${language}\n${code}\n\`\`\`\n\n`;
+        },
+      });
 
-// Add rule for line breaks
-turndownService.addRule("lineBreak", {
-  filter: "br",
-  replacement: function () {
-    return "\n";
-  },
-});
+      // Add rule for paragraphs to ensure proper spacing
+      service.addRule("paragraph", {
+        filter: "p",
+        replacement: function (content: string) {
+          return content.trim() ? `\n\n${content.trim()}\n\n` : "\n\n";
+        },
+      });
+
+      // Add rule for line breaks
+      service.addRule("lineBreak", {
+        filter: "br",
+        replacement: function () {
+          return "\n";
+        },
+      });
+
+      return service;
+    });
+  }
+  return turndownServicePromise;
+}
 
 export function MarkdownWysiwygEditor({
   content,
@@ -84,11 +94,12 @@ export function MarkdownWysiwygEditor({
   }, [content, lastContent]);
 
   // Handle HTML content changes from the editor
-  const handleHtmlChange = (html: string) => {
+  const handleHtmlChange = async (html: string) => {
     setHtmlContent(html);
     
     // Convert HTML back to markdown
     try {
+      const turndownService = await getTurndownService();
       const markdown = turndownService.turndown(html);
       // Only update if markdown actually changed
       if (markdown !== lastContent) {
