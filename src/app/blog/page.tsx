@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, Suspense } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Calendar, BookOpen, Sparkles, ArrowRight, Search, Newspaper, Package, Brain, Building2 } from "lucide-react"
+import { ArrowLeft, Calendar, BookOpen, Sparkles, ArrowRight, Search, Newspaper, Package, Brain, Building2, Loader2 } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
 
 interface BlogPost {
@@ -26,7 +26,7 @@ const CATEGORIES = [
   { value: "LOOPWELL", label: "Loopwell", icon: Building2 },
 ] as const
 
-export default function BlogPage() {
+function BlogPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
@@ -263,5 +263,22 @@ export default function BlogPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function BlogPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-400" />
+            <p className="text-slate-400">Loading blog...</p>
+          </div>
+        </div>
+      }
+    >
+      <BlogPageContent />
+    </Suspense>
   )
 }
