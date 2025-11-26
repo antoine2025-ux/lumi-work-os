@@ -4,6 +4,22 @@
 
 The `blog_posts` table is missing in production. Run this migration immediately:
 
+### Option 0: Via API Endpoint (Easiest - After Deployment)
+
+After your deployment completes, call this API endpoint:
+
+```bash
+# Check if migration is needed
+curl https://loopwell.io/api/migrations/blog
+
+# Run the migration
+curl -X POST https://loopwell.io/api/migrations/blog
+```
+
+Or visit in your browser:
+- Check: `https://loopwell.io/api/migrations/blog`
+- Run: Use a tool like Postman or curl to POST to the endpoint
+
 ### Option 1: Using Prisma Migrate (Recommended)
 
 ```bash
