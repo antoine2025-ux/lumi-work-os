@@ -68,6 +68,13 @@ SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key"
 ```
 
+#### Blog Admin (Required for blog management)
+```bash
+BLOG_ADMIN_PASSWORD="your-strong-random-password-here"
+# Generate with: openssl rand -base64 32
+# This password is required to access /blog/admin
+```
+
 ### Optional Variables
 
 ```bash
