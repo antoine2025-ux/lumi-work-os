@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ThemeSelector } from "@/components/theme-selector"
 import { MigrationModal } from "@/components/migrations/migration-modal"
 import { useUserStatus } from '@/hooks/use-user-status'
 import { 
@@ -514,7 +513,25 @@ export default function SettingsPage() {
       {/* Appearance Settings */}
       {activeTab === "appearance" && (
         <div className="space-y-6">
-          <ThemeSelector />
+          <Card>
+            <CardHeader>
+              <CardTitle>Appearance</CardTitle>
+              <CardDescription>
+                Theme preferences for your workspace
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div>
+                  <h4 className="font-medium">Dark Mode</h4>
+                  <p className="text-sm text-muted-foreground">
+                    The application uses dark mode by default
+                  </p>
+                </div>
+                <Badge variant="secondary">Active</Badge>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 

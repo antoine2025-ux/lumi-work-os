@@ -40,11 +40,6 @@ export default function LandingPage() {
     router.push('/login');
   };
 
-  const handleSignUp = () => {
-    // Redirect to main app's login page (same as sign in for OAuth)
-    router.push('/login');
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Status Banner - Top of Page */}
@@ -86,12 +81,17 @@ export default function LandingPage() {
               <a href="#features" className="text-slate-300 hover:text-white transition-colors">Features</a>
               <a href="#preview" className="text-slate-300 hover:text-white transition-colors">Preview</a>
               <a href="#benefits" className="text-slate-300 hover:text-white transition-colors">Benefits</a>
-              <a href="/blog" className="text-slate-300 hover:text-white transition-colors">Blog</a>
               <a 
                 href="#become-a-tester" 
                 className="text-slate-300 hover:text-white transition-colors"
               >
                 Become a Tester
+              </a>
+              <a 
+                href="/blog" 
+                className="text-slate-300 hover:text-white transition-colors"
+              >
+                Blog
               </a>
               <a 
                 href="/login" 
@@ -102,16 +102,6 @@ export default function LandingPage() {
                 className="text-slate-300 hover:text-white transition-colors"
               >
                 Sign In
-              </a>
-              <a 
-                href="/login" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleSignUp();
-                }}
-                className="text-slate-300 hover:text-white transition-colors"
-              >
-                Sign Up
               </a>
             </div>
             <button
@@ -152,18 +142,18 @@ export default function LandingPage() {
                   Benefits
                 </a>
                 <a 
-                  href="/blog" 
-                  className="text-slate-300 hover:text-white transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Blog
-                </a>
-                <a 
                   href="#become-a-tester" 
                   onClick={() => setMobileMenuOpen(false)}
                   className="text-slate-300 hover:text-white transition-colors"
                 >
                   Become a Tester
+                </a>
+                <a 
+                  href="/blog" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-slate-300 hover:text-white transition-colors"
+                >
+                  Blog
                 </a>
                 <a 
                   href="/login" 
@@ -175,17 +165,6 @@ export default function LandingPage() {
                   className="text-slate-300 hover:text-white transition-colors"
                 >
                   Sign In
-                </a>
-                <a 
-                  href="/login" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleSignUp();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="text-slate-300 hover:text-white transition-colors"
-                >
-                  Sign Up
                 </a>
               </div>
             </div>
@@ -206,7 +185,7 @@ export default function LandingPage() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Button size="lg" className="px-8 py-4 text-lg" onClick={handleSignUp}>
+              <Button size="lg" className="px-8 py-4 text-lg" onClick={handleSignIn}>
                 Get Started
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
@@ -566,7 +545,7 @@ export default function LandingPage() {
             size="lg" 
             variant="secondary" 
             className="px-8 py-4 text-lg"
-            onClick={handleSignUp}
+            onClick={handleSignIn}
           >
             Get Started
             <ArrowRight className="ml-2 w-5 h-5" />
@@ -611,7 +590,6 @@ export default function LandingPage() {
               <h3 className="font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-slate-400">
                 <li><a href="/about" className="hover:text-white transition-colors">About</a></li>
-                <li><a href="/blog" className="hover:text-white transition-colors">Blog</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
               </ul>
@@ -630,13 +608,13 @@ export default function LandingPage() {
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-slate-400 text-sm">&copy; 2025 Loopwell. All rights reserved.</p>
               <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400">
-                <a href="/dev-login" className="hover:text-white transition-colors">Dev Login</a>
-                <span className="text-slate-600">•</span>
                 <a href="/cookie-policy" className="hover:text-white transition-colors">Cookie Policy</a>
                 <span className="text-slate-600">•</span>
                 <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
                 <span className="text-slate-600">•</span>
                 <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+                <span className="text-slate-600">•</span>
+                <a href="/blog/dev-login" className="hover:text-white transition-colors text-xs opacity-50">Dev access</a>
               </div>
             </div>
           </div>

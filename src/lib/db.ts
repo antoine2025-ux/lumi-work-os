@@ -53,26 +53,12 @@ function createPrismaClient() {
 let prismaClient = createPrismaClient()
 
 // Get or create singleton instance
-// Force recreation if BlogPost model is missing (for hot reload compatibility)
 let prisma = globalForPrisma.prisma
 
 // Check if we need to recreate the client
-if (!prisma || typeof (prisma as any).blogPost === 'undefined') {
-  // Prisma Client is stale or missing BlogPost - recreate it
-  if (prisma) {
-    console.log('🔄 Detected stale Prisma Client (missing BlogPost), recreating...')
-  }
-  
+if (!prisma) {
   // Create fresh client
   prismaClient = createPrismaClient()
-  
-  // Verify BlogPost is available BEFORE wrapping
-  if (typeof prismaClient.blogPost === 'undefined') {
-    console.error('❌ CRITICAL: Prisma Client does not have BlogPost model!')
-    console.error('   Run: npx prisma generate')
-    // Force regeneration
-    throw new Error('Prisma Client missing BlogPost model - run: npx prisma generate')
-  }
   
   // Re-enable scoping middleware for automatic workspace isolation
   // This provides defense-in-depth by automatically adding workspaceId to all queries
@@ -88,13 +74,7 @@ if (!prisma || typeof (prisma as any).blogPost === 'undefined') {
     else if (typeof (prismaClient as any).$extends === 'function') {
       // Create scoped client using $extends
       prisma = createScopedPrisma(prismaClient) as any
-      // Verify BlogPost is still available after wrapping
-      if (typeof (prisma as any).blogPost === 'undefined') {
-        console.error('❌ CRITICAL: Scoped client lost BlogPost model! Using base client instead.')
-        prisma = prismaClient
-      } else {
-        console.log('✅ Scoping middleware enabled via $extends - workspace isolation enforced automatically')
-      }
+      console.log('✅ Scoping middleware enabled via $extends - workspace isolation enforced automatically')
     } else {
       prisma = prismaClient
       console.warn('⚠️ Prisma middleware methods not available')
@@ -110,25 +90,6 @@ if (!prisma || typeof (prisma as any).blogPost === 'undefined') {
     if (process.env.NODE_ENV === 'production') {
       console.error('🚨 PRODUCTION: Scoping middleware failed - this is a security risk!')
     }
-  }
-  
-  // Final verification - test actual BlogPost access
-  try {
-    // Try to access BlogPost model - this will fail if it doesn't exist
-    const blogPostModel = (prisma as any).blogPost
-    if (!blogPostModel) {
-      console.error('❌ CRITICAL: Final prisma instance missing BlogPost model!')
-      console.error('   Falling back to base client without scoping.')
-      prisma = prismaClient
-    } else {
-      // Test that we can actually query it (this will fail if table doesn't exist)
-      // We'll catch this error but it helps verify the model is accessible
-      console.log('✅ BlogPost model verified in Prisma Client')
-    }
-  } catch (error: any) {
-    console.error('❌ CRITICAL: Error accessing BlogPost model:', error.message)
-    console.error('   Falling back to base client without scoping.')
-    prisma = prismaClient
   }
   
   // Store in global for Next.js hot reload

@@ -118,8 +118,8 @@ model Workspace {
   onboardingPlans     OnboardingPlan[]
   onboardingTemplates OnboardingTemplate[]
   orgAuditLogs        OrgAuditLog[]
-  orgPositions        OrgPosition[]
   orgDepartments      OrgDepartment[]
+  orgPositions        OrgPosition[]
   orgTeams            OrgTeam[]
   projectTemplates    ProjectTemplate[]
   projects            Project[]
@@ -388,9 +388,9 @@ model OrgTeam {
   isActive     Boolean       @default(true)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  department   OrgDepartment @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   positions    OrgPosition[]
+  department   OrgDepartment @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, departmentId, name])
   @@index([workspaceId])
@@ -401,21 +401,21 @@ model OrgTeam {
 model RoleCard {
   id               String       @id @default(cuid())
   workspaceId      String
-  positionId       String?      @unique // Link to OrgPosition (one-to-one)
   roleName         String
   jobFamily        String
   level            String
   roleDescription  String
-  responsibilities String[]     @default([])
-  requiredSkills   String[]     @default([])
-  preferredSkills  String[]     @default([])
-  keyMetrics       String[]     @default([])
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   createdById      String
+  keyMetrics       String[]     @default([])
+  positionId       String?      @unique
+  preferredSkills  String[]     @default([])
+  requiredSkills   String[]     @default([])
+  responsibilities String[]     @default([])
   createdBy        User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  position         OrgPosition? @relation(fields: [positionId], references: [id])
   workspace        Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  position         OrgPosition? @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
   @@index([positionId])
@@ -427,7 +427,6 @@ model RoleCard {
 model OrgPosition {
   id                 String        @id @default(cuid())
   workspaceId        String
-  teamId             String? // Link to OrgTeam (replaces department string)
   userId             String?
   title              String
   level              Int           @default(1)
@@ -444,11 +443,12 @@ model OrgPosition {
   teamSize           Int?
   budget             String?
   reportingStructure String?
+  teamId             String?
   parent             OrgPosition?  @relation("OrgHierarchy", fields: [parentId], references: [id])
   children           OrgPosition[] @relation("OrgHierarchy")
+  team               OrgTeam?      @relation(fields: [teamId], references: [id])
   user               User?         @relation(fields: [userId], references: [id])
   workspace          Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  team               OrgTeam?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
   roleCard           RoleCard?
 
   @@index([workspaceId])
@@ -997,6 +997,25 @@ model ProjectDailySummary {
   @@map("project_daily_summaries")
 }
 
+model BlogPost {
+  id          String           @id @default(cuid())
+  title       String
+  slug        String           @unique
+  excerpt     String
+  content     String           @db.Text
+  category    BlogPostCategory @default(NEWS)
+  status      BlogPostStatus   @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([slug])
+  @@index([status])
+  @@index([category])
+  @@index([publishedAt(sort: Desc)])
+  @@map("blog_posts")
+}
+
 enum WorkspaceRole {
   OWNER
   ADMIN
@@ -1097,21 +1116,14 @@ enum TaskStatus {
   SKIPPED
 }
 
-model BlogPost {
-  id          String   @id @default(cuid())
-  slug        String   @unique
-  title       String
-  excerpt     String
-  content     String   @db.Text
-  authorName  String   @default("Loopwell Team")
-  publishedAt DateTime
-  tags        String[]
-  readingTime Int?     @default(5)
-  coverImage  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+enum BlogPostStatus {
+  DRAFT
+  PUBLISHED
+}
 
-  @@index([slug])
-  @@index([publishedAt])
-  @@map("blog_posts")
+enum BlogPostCategory {
+  NEWS
+  PRODUCT
+  CONTEXTUAL_AI
+  LOOPWELL
 }

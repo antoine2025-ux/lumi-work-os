@@ -16,8 +16,8 @@ export function createScopedPrisma(baseClient: PrismaClient) {
   return baseClient.$extends({
     query: {
       $allOperations({ operation, model, args, query }) {
-        // Skip non-workspace-scoped models (including BlogPost which is public)
-        if (!model || !WORKSPACE_SCOPED_MODELS.includes(model as any) || model === 'BlogPost') {
+        // Skip non-workspace-scoped models
+        if (!model || !WORKSPACE_SCOPED_MODELS.includes(model as any)) {
           return query(args)
         }
 

@@ -26,7 +26,7 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
   const hasRedirectedToWelcome = useRef(false)
   
   useEffect(() => {
-    const publicRoutes = ['/login', '/welcome', '/api/auth', '/landing', '/about', '/cookie-policy']
+    const publicRoutes = ['/login', '/welcome', '/api/auth', '/landing', '/about', '/cookie-policy', '/presentation', '/blog']
     const isPublicRoute = pathname === '/' || (pathname && publicRoutes.some(route => pathname.startsWith(route)))
     
     // Skip loader logic if we're on public routes or welcome page
@@ -68,7 +68,7 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
 
   useEffect(() => {
     // Skip auth check for public routes - RETURN EARLY, don't process anything
-    const publicRoutes = ['/login', '/welcome', '/api/auth', '/landing', '/about', '/cookie-policy']
+    const publicRoutes = ['/login', '/welcome', '/api/auth', '/landing', '/about', '/cookie-policy', '/presentation', '/blog']
     const isPublicRoute = pathname === '/' || (pathname && publicRoutes.some(route => pathname.startsWith(route)))
     if (isPublicRoute) {
       return
@@ -152,7 +152,7 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
   }, [router, pathname, userStatus, loading, sessionStatus])
 
   // Show loading only if we're on a protected route
-  const publicRoutes = ['/login', '/welcome', '/api/auth', '/landing', '/about', '/cookie-policy']
+  const publicRoutes = ['/login', '/welcome', '/api/auth', '/landing', '/about', '/cookie-policy', '/presentation', '/blog']
   const isPublicRoute = pathname === '/' || (pathname && publicRoutes.some(route => pathname.startsWith(route)))
   
   // Skip loader if flag is set (after workspace creation)
