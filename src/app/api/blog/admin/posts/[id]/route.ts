@@ -47,6 +47,9 @@ export async function PUT(
     const body = await request.json()
     const { title, slug, excerpt, content, category, status } = body
 
+    // Sanitize slug: trim whitespace and ensure it's URL-safe
+    const sanitizedSlug = slug ? slug.trim().toLowerCase().replace(/\s+/g, '-') : undefined
+
     // Get existing post to check slug conflicts
     const existingPost = await blogPrisma.blogPost.findUnique({
       where: { id },
@@ -57,9 +60,9 @@ export async function PUT(
     }
 
     // Check if new slug conflicts with another post
-    if (slug && slug !== existingPost.slug) {
+    if (sanitizedSlug && sanitizedSlug !== existingPost.slug) {
       const slugConflict = await blogPrisma.blogPost.findUnique({
-        where: { slug },
+        where: { slug: sanitizedSlug },
       })
 
       if (slugConflict && slugConflict.id !== id) {
@@ -85,7 +88,7 @@ export async function PUT(
       where: { id },
       data: {
         ...(title && { title }),
-        ...(slug && { slug }),
+        ...(sanitizedSlug && { slug: sanitizedSlug }),
         ...(excerpt && { excerpt }),
         ...(content && { content }),
         ...(category && { category }),
