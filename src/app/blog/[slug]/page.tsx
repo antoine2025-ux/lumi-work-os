@@ -58,15 +58,39 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params
 
-  // Fetch published post by slug
-  const post = await blogPrisma.blogPost.findUnique({
-    where: {
-      slug,
-      status: "PUBLISHED",
-    },
-  })
+  console.log("[Blog Post Page] Fetching post with slug:", slug)
 
+  // Fetch published post by slug
+  let post
+  try {
+    post = await blogPrisma.blogPost.findUnique({
+      where: {
+        slug,
+        status: "PUBLISHED",
+      },
+    })
+    console.log("[Blog Post Page] Post found:", post ? { id: post.id, title: post.title } : "null")
+  } catch (error) {
+    console.error("[Blog Post Page] Database error:", error)
+    throw error
+  }
+
+  // If not found, try to find any post with this slug (for debugging)
   if (!post) {
+    console.log("[Blog Post Page] Published post not found, checking all posts with this slug...")
+    const anyPost = await blogPrisma.blogPost.findUnique({
+      where: { slug },
+    })
+    if (anyPost) {
+      console.log("[Blog Post Page] Found post but status is:", anyPost.status)
+    } else {
+      console.log("[Blog Post Page] No post found with slug:", slug)
+      // List all slugs for debugging
+      const allPosts = await blogPrisma.blogPost.findMany({
+        select: { slug: true, status: true, title: true },
+      })
+      console.log("[Blog Post Page] All posts in database:", allPosts)
+    }
     notFound()
   }
 
