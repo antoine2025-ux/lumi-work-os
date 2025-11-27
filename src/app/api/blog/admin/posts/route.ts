@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
 
     const { title, slug, excerpt, content, category, status } = body
 
+    // Sanitize slug: trim whitespace and ensure it's URL-safe
+    const sanitizedSlug = slug.trim().toLowerCase().replace(/\s+/g, '-')
+
     if (!title || !slug || !excerpt || !content || !category) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -94,7 +97,7 @@ export async function POST(request: NextRequest) {
       }
       
       const existingPost = await blogPrisma.blogPost.findUnique({
-        where: { slug },
+        where: { slug: sanitizedSlug },
       })
 
       if (existingPost) {
@@ -132,7 +135,7 @@ export async function POST(request: NextRequest) {
       const post = await blogPrisma.blogPost.create({
         data: {
           title,
-          slug,
+          slug: sanitizedSlug,
           excerpt,
           content,
           category: category || "NEWS",
