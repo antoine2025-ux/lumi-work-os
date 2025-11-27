@@ -19,9 +19,12 @@ export function useDrafts() {
       if (!userStatus?.workspaceId) return []
 
       // Fetch unpublished pages and draft sessions in parallel
+      // Only fetch assistant sessions if we have a workspaceId
       const [unpublishedRes, sessionsRes] = await Promise.all([
         fetch('/api/wiki/pages?isPublished=false&limit=10').catch(() => null),
-        fetch(`/api/assistant/sessions?workspaceId=${userStatus.workspaceId}&hasDraft=true`).catch(() => null)
+        userStatus.workspaceId 
+          ? fetch(`/api/assistant/sessions?workspaceId=${userStatus.workspaceId}&hasDraft=true`).catch(() => null)
+          : Promise.resolve(null)
       ])
 
       const drafts: Draft[] = []
