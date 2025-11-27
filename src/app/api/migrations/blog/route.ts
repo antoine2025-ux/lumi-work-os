@@ -1,20 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { PrismaClient } from "@prisma/client"
+import { blogPrisma } from "@/lib/blog-db"
 
-// Use DIRECT_URL for migrations (bypasses connection pooler)
-const databaseUrl = process.env.DIRECT_URL || process.env.DATABASE_URL
-
-if (!databaseUrl) {
-  console.error("[MIGRATIONS] No DATABASE_URL or DIRECT_URL found")
-}
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: databaseUrl,
-    },
-  },
-})
+const prisma = blogPrisma
 
 /**
  * POST /api/migrations/blog
