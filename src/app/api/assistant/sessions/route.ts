@@ -42,6 +42,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
     
+    // Return empty array if no workspace (public routes)
+    if (!auth.workspaceId) {
+      return NextResponse.json([])
+    }
+    
     const { searchParams } = new URL(request.url)
     const hasDraft = searchParams.get('hasDraft') === 'true'
     
@@ -55,6 +60,10 @@ export async function GET(request: NextRequest) {
       whereClause.draftBody = { not: null }
       whereClause.phase = { not: 'published' }
     }
+    
+    // Set workspace context for Prisma middleware
+    const { setWorkspaceContext } = await import('@/lib/prisma/scopingMiddleware')
+    setWorkspaceContext(auth.workspaceId)
     
     const sessions = await prisma.chatSession.findMany({
       where: whereClause,

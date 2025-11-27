@@ -89,7 +89,8 @@ export async function prefetchAllData(options: PrefetchOptions) {
         const [unpublishedRes, sessionsRes] = await Promise.all([
           // Use metadata-only endpoint (no includeContent)
           fetch('/api/wiki/pages?isPublished=false&limit=10').catch(() => null),
-          fetch(`/api/assistant/sessions?workspaceId=${workspaceId}&hasDraft=true`).catch(() => null)
+          // Only fetch assistant sessions if we have a workspaceId (skip on public routes)
+          workspaceId ? fetch(`/api/assistant/sessions?workspaceId=${workspaceId}&hasDraft=true`).catch(() => null) : Promise.resolve(null)
         ])
 
         const drafts: any[] = []
