@@ -1,31 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { checkBlogAdmin } from "@/lib/blog-admin-auth"
-import { PrismaClient } from "@prisma/client"
-
-// Use a direct Prisma client for blog posts (global, not workspace-scoped)
-// Create singleton instance to avoid connection issues
-const globalForBlogPrisma = globalThis as unknown as {
-  blogPrisma: PrismaClient | undefined
-}
-
-const blogPrisma =
-  globalForBlogPrisma.blogPrisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : [],
-  })
-
-if (process.env.NODE_ENV !== "production") {
-  globalForBlogPrisma.blogPrisma = blogPrisma
-}
-
-// Verify BlogPost model is available
-if (typeof blogPrisma.blogPost === 'undefined') {
-  console.error("[BLOG API] ❌ CRITICAL: BlogPost model not found in Prisma Client!")
-  console.error("[BLOG API] Please run: npx prisma generate")
-  throw new Error("BlogPost model not available in Prisma Client. Run: npx prisma generate")
-}
-
-console.log("[BLOG API] ✅ BlogPost model available in Prisma Client")
+import { blogPrisma } from "@/lib/blog-db"
 
 // GET /api/blog/admin/posts - List all posts
 export async function GET(request: NextRequest) {

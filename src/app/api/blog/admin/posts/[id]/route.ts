@@ -1,22 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { checkBlogAdmin } from "@/lib/blog-admin-auth"
-import { PrismaClient } from "@prisma/client"
-
-// Use a direct Prisma client for blog posts (global, not workspace-scoped)
-// Create singleton instance to avoid connection issues
-const globalForBlogPrisma = globalThis as unknown as {
-  blogPrisma: PrismaClient | undefined
-}
-
-const blogPrisma =
-  globalForBlogPrisma.blogPrisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : [],
-  })
-
-if (process.env.NODE_ENV !== "production") {
-  globalForBlogPrisma.blogPrisma = blogPrisma
-}
+import { blogPrisma } from "@/lib/blog-db"
 
 // GET /api/blog/admin/posts/[id] - Get single post
 export async function GET(

@@ -1,20 +1,5 @@
 import { NextResponse } from "next/server"
-import { PrismaClient } from "@prisma/client"
-
-// Use a direct Prisma client for blog posts (global, not workspace-scoped)
-const globalForBlogPrisma = globalThis as unknown as {
-  blogPrisma: PrismaClient | undefined
-}
-
-const blogPrisma =
-  globalForBlogPrisma.blogPrisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error"] : [],
-  })
-
-if (process.env.NODE_ENV !== "production") {
-  globalForBlogPrisma.blogPrisma = blogPrisma
-}
+import { blogPrisma } from "@/lib/blog-db"
 
 // GET /api/blog/posts - Get all published blog posts
 export async function GET() {
