@@ -49,9 +49,34 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     }
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://loopwell.io"
+  const postUrl = `${siteUrl}/blog/${slug}`
+
   return {
     title: `${post.title} | Blog | Loopwell`,
-    description: post.excerpt,
+    description: post.excerpt || "Read the latest insights from Loopwell.",
+    openGraph: {
+      title: post.title,
+      description: post.excerpt || "Read the latest insights from Loopwell.",
+      url: postUrl,
+      siteName: "Loopwell",
+      type: "article",
+      publishedTime: post.publishedAt?.toISOString(),
+      images: [
+        {
+          url: "/og/loopwell-og.png",
+          width: 1200,
+          height: 630,
+          alt: post.title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.excerpt || "Read the latest insights from Loopwell.",
+      images: ["/og/loopwell-og.png"],
+    },
   }
 }
 
