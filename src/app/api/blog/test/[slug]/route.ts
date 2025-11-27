@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { blogPrisma } from "@/lib/blog-db"
 
+// Mark as dynamic to ensure it's not statically generated
+export const dynamic = 'force-dynamic'
+
 // Test route to verify database connection and slug lookup
 export async function GET(
   request: NextRequest,
