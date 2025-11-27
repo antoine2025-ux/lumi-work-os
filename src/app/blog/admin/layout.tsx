@@ -1,5 +1,8 @@
 import { requireBlogAdmin } from "@/lib/blog-admin-auth"
 
+// Mark as dynamic since we use cookies for auth
+export const dynamic = 'force-dynamic'
+
 export default async function BlogAdminLayout({
   children,
 }: {

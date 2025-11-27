@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Calendar, BookOpen } from "lucide-react"
-import { prisma } from "@/lib/db"
+import { blogPrisma } from "@/lib/blog-db"
 import { notFound } from "next/navigation"
 
 interface BlogPostPageProps {
@@ -13,7 +13,7 @@ interface BlogPostPageProps {
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params
-  const post = await prisma.blogPost.findUnique({
+  const post = await blogPrisma.blogPost.findUnique({
     where: {
       slug,
       status: "PUBLISHED",
@@ -36,7 +36,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params
 
   // Fetch published post by slug
-  const post = await prisma.blogPost.findUnique({
+  const post = await blogPrisma.blogPost.findUnique({
     where: {
       slug,
       status: "PUBLISHED",
