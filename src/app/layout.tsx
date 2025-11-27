@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { StructuredData } from "@/components/seo/structured-data";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -147,6 +148,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${montserrat.variable} font-sans antialiased bg-slate-950`}>
+        <StructuredData />
         <Providers>
           {children}
         </Providers>
