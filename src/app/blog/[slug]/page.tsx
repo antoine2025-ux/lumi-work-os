@@ -36,7 +36,7 @@ interface BlogPostPageProps {
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params
-  const post = await blogPrisma.blogPost.findUnique({
+  const post = await blogPrisma.blogPost.findFirst({
     where: {
       slug,
       status: "PUBLISHED",
@@ -61,9 +61,10 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   console.log("[Blog Post Page] Fetching post with slug:", slug)
 
   // Fetch published post by slug
+  // Note: findUnique only works with unique fields, so we use findFirst instead
   let post
   try {
-    post = await blogPrisma.blogPost.findUnique({
+    post = await blogPrisma.blogPost.findFirst({
       where: {
         slug,
         status: "PUBLISHED",
