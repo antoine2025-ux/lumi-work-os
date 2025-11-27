@@ -38,25 +38,39 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Run migration SQL
+    // Run migration SQL - split into separate statements for Supabase pooler
     console.log("[MIGRATIONS] Creating blog_posts table...")
 
-    await prisma.$executeRawUnsafe(`
-      -- CreateEnum
-      DO $$ BEGIN
+    // Create BlogPostStatus enum
+    try {
+      await prisma.$executeRawUnsafe(`
         CREATE TYPE "BlogPostStatus" AS ENUM ('DRAFT', 'PUBLISHED');
-      EXCEPTION
-        WHEN duplicate_object THEN null;
-      END $$;
+      `)
+      console.log("[MIGRATIONS] Created BlogPostStatus enum")
+    } catch (error: any) {
+      if (error.code === '42P07' || error.message?.includes('already exists')) {
+        console.log("[MIGRATIONS] BlogPostStatus enum already exists")
+      } else {
+        throw error
+      }
+    }
 
-      -- CreateEnum
-      DO $$ BEGIN
+    // Create BlogPostCategory enum
+    try {
+      await prisma.$executeRawUnsafe(`
         CREATE TYPE "BlogPostCategory" AS ENUM ('NEWS', 'PRODUCT', 'CONTEXTUAL_AI', 'LOOPWELL');
-      EXCEPTION
-        WHEN duplicate_object THEN null;
-      END $$;
+      `)
+      console.log("[MIGRATIONS] Created BlogPostCategory enum")
+    } catch (error: any) {
+      if (error.code === '42P07' || error.message?.includes('already exists')) {
+        console.log("[MIGRATIONS] BlogPostCategory enum already exists")
+      } else {
+        throw error
+      }
+    }
 
-      -- CreateTable
+    // Create blog_posts table
+    await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "blog_posts" (
           "id" TEXT NOT NULL,
           "title" TEXT NOT NULL,
@@ -68,17 +82,29 @@ export async function POST(request: NextRequest) {
           "publishedAt" TIMESTAMP(3),
           "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" TIMESTAMP(3) NOT NULL,
-
           CONSTRAINT "blog_posts_pkey" PRIMARY KEY ("id")
       );
-
-      -- CreateIndex
-      CREATE UNIQUE INDEX IF NOT EXISTS "blog_posts_slug_key" ON "blog_posts"("slug");
-      CREATE INDEX IF NOT EXISTS "blog_posts_slug_idx" ON "blog_posts"("slug");
-      CREATE INDEX IF NOT EXISTS "blog_posts_status_idx" ON "blog_posts"("status");
-      CREATE INDEX IF NOT EXISTS "blog_posts_category_idx" ON "blog_posts"("category");
-      CREATE INDEX IF NOT EXISTS "blog_posts_publishedAt_idx" ON "blog_posts"("publishedAt" DESC);
     `)
+    console.log("[MIGRATIONS] Created blog_posts table")
+
+    // Create indexes one by one
+    const indexes = [
+      { name: 'blog_posts_slug_key', sql: 'CREATE UNIQUE INDEX IF NOT EXISTS "blog_posts_slug_key" ON "blog_posts"("slug");' },
+      { name: 'blog_posts_slug_idx', sql: 'CREATE INDEX IF NOT EXISTS "blog_posts_slug_idx" ON "blog_posts"("slug");' },
+      { name: 'blog_posts_status_idx', sql: 'CREATE INDEX IF NOT EXISTS "blog_posts_status_idx" ON "blog_posts"("status");' },
+      { name: 'blog_posts_category_idx', sql: 'CREATE INDEX IF NOT EXISTS "blog_posts_category_idx" ON "blog_posts"("category");' },
+      { name: 'blog_posts_publishedAt_idx', sql: 'CREATE INDEX IF NOT EXISTS "blog_posts_publishedAt_idx" ON "blog_posts"("publishedAt" DESC);' },
+    ]
+
+    for (const index of indexes) {
+      try {
+        await prisma.$executeRawUnsafe(index.sql)
+        console.log(`[MIGRATIONS] Created index: ${index.name}`)
+      } catch (error: any) {
+        // Index might already exist, continue
+        console.log(`[MIGRATIONS] Index ${index.name} may already exist, continuing...`)
+      }
+    }
 
     console.log("[MIGRATIONS] Blog migration completed successfully")
 
