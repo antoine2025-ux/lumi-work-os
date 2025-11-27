@@ -56,7 +56,15 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 }
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
-  const { slug } = await params
+  let slug: string
+  try {
+    const resolvedParams = await params
+    slug = resolvedParams.slug
+    console.log("[Blog Post Page] Resolved slug:", slug)
+  } catch (error) {
+    console.error("[Blog Post Page] Error resolving params:", error)
+    notFound()
+  }
 
   console.log("[Blog Post Page] Fetching post with slug:", slug)
 
@@ -64,16 +72,28 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   // Note: findUnique only works with unique fields, so we use findFirst instead
   let post
   try {
+    // First, try to find by slug only (to see if post exists)
+    const postBySlug = await blogPrisma.blogPost.findUnique({
+      where: { slug },
+    })
+    console.log("[Blog Post Page] Post by slug only:", postBySlug ? { id: postBySlug.id, title: postBySlug.title, status: postBySlug.status } : "null")
+    
+    // Then find published post
     post = await blogPrisma.blogPost.findFirst({
       where: {
         slug,
         status: "PUBLISHED",
       },
     })
-    console.log("[Blog Post Page] Post found:", post ? { id: post.id, title: post.title } : "null")
+    console.log("[Blog Post Page] Published post found:", post ? { id: post.id, title: post.title } : "null")
   } catch (error) {
     console.error("[Blog Post Page] Database error:", error)
-    throw error
+    console.error("[Blog Post Page] Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+    // Don't throw - let the notFound() handle it below
+    post = null
   }
 
   // If not found, try to find any post with this slug (for debugging)
