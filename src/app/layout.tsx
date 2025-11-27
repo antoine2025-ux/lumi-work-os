@@ -16,10 +16,10 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://loopwell.io'),
   title: {
-    default: "Loopwell - The End of Disconnected Work",
+    default: "Loopwell – Organizational Intelligence for Growing Teams",
     template: "%s | Loopwell",
   },
-  description: "Loopwell gives startups the structural intelligence of world-class organizations, without the bureaucracy. It connects projects, knowledge, and people into one system that builds alignment, discipline, and momentum from day one.",
+  description: "Loopwell connects projects, documentation, org structure, and contextual AI into one system that behaves like a proactive team member.",
   keywords: ["workplace productivity", "project management", "knowledge management", "team collaboration", "AI workspace", "startup tools", "organizational intelligence"],
   authors: [{ name: "Loopwell Team" }],
   creator: "Loopwell",
@@ -34,22 +34,22 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: process.env.NEXT_PUBLIC_SITE_URL || "https://loopwell.io",
     siteName: "Loopwell",
-    title: "Loopwell - The End of Disconnected Work",
-    description: "Loopwell gives startups the structural intelligence of world-class organizations, without the bureaucracy.",
+    title: "Loopwell – Your Company's Shared Brain",
+    description: "Loopwell connects projects, documentation, org structure, and contextual AI into one system that behaves like a proactive team member.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og/loopwell-og.png",
         width: 1200,
         height: 630,
-        alt: "Loopwell - Intelligent Workplace Platform",
+        alt: "Loopwell – Organizational Intelligence for Growing Teams",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Loopwell - The End of Disconnected Work",
-    description: "Loopwell gives startups the structural intelligence of world-class organizations, without the bureaucracy.",
-    images: ["/og-image.png"],
+    title: "Loopwell – Your Company's Shared Brain",
+    description: "Loopwell connects projects, documentation, org structure, and contextual AI into one system that behaves like a proactive team member.",
+    images: ["/og/loopwell-og.png"],
     creator: "@loopwell",
   },
   robots: {
@@ -67,10 +67,9 @@ export const metadata: Metadata = {
     icon: [
       { url: "/favicon.ico" },
       { url: "/icon.png", type: "image/png", sizes: "512x512" },
-      { url: "/icon.svg", type: "image/svg+xml" },
     ],
     apple: [
-      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
   },
   manifest: "/manifest.json",

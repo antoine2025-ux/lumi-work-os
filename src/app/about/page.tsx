@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, Lightbulb, Zap, Target, Users, Rocket } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "About | Loopwell Work OS",
-  description: "Learn about Loopwell - the unified workspace that brings projects, documentation, and team intelligence together.",
+  title: "About Loopwell",
+  description: "Learn about Loopwell - the unified workspace that brings projects, documentation, and team intelligence together. Discover our mission to build organizational intelligence for growing teams.",
 }
 
 export default function AboutPage() {

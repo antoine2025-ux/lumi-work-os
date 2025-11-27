@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, Cookie } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "Cookie Policy | Loopwell Work OS",
-  description: "Learn about how Loopwell Work OS uses cookies to provide and improve our services.",
+  title: "Cookie Policy",
+  description: "Learn about how Loopwell uses cookies to provide and improve our services. Understand our cookie practices and how to manage your preferences.",
 }
 
 export default function CookiePolicyPage() {
