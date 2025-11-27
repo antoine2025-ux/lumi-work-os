@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
+import { usePathname } from 'next/navigation'
 import { prefetchAllData } from '@/lib/prefetch'
 import { useUserStatus } from '@/hooks/use-user-status'
 
@@ -15,9 +16,18 @@ export function DataPrefetcher() {
   const queryClient = useQueryClient()
   const { data: session } = useSession()
   const { userStatus } = useUserStatus()
+  const pathname = usePathname()
   const hasPrefetched = useRef(false)
 
   useEffect(() => {
+    // Skip prefetching on public routes (blog, landing, etc.)
+    const publicRoutes = ['/blog', '/landing', '/about', '/cookie-policy', '/presentation', '/login', '/welcome']
+    const isPublicRoute = pathname && publicRoutes.some(route => pathname.startsWith(route))
+    
+    if (isPublicRoute) {
+      return // Don't prefetch on public routes
+    }
+
     // Only prefetch once per session
     if (hasPrefetched.current) return
     
@@ -35,7 +45,7 @@ export function DataPrefetcher() {
         // Don't throw - prefetching failures shouldn't break the app
       })
     }
-  }, [session?.user, userStatus?.workspaceId, queryClient])
+  }, [session?.user, userStatus?.workspaceId, queryClient, pathname])
 
   // Also prefetch when workspace changes (e.g., user switches workspace)
   useEffect(() => {
