@@ -7,6 +7,29 @@ import { ArrowLeft, Calendar, BookOpen } from "lucide-react"
 import { blogPrisma } from "@/lib/blog-db"
 import { notFound } from "next/navigation"
 
+// Mark as dynamic to prevent static generation issues
+export const dynamic = 'force-dynamic'
+
+/**
+ * Sanitize HTML content to prevent XSS and script execution
+ */
+function sanitizeHtml(html: string): string {
+  // Remove script tags and their content
+  let sanitized = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+  
+  // Remove event handlers (onclick, onerror, etc.)
+  sanitized = sanitized.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '')
+  sanitized = sanitized.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, '')
+  
+  // Remove javascript: protocol in href/src
+  sanitized = sanitized.replace(/javascript:/gi, '')
+  
+  // Remove iframe tags (security risk)
+  sanitized = sanitized.replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+  
+  return sanitized
+}
+
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>
 }
@@ -99,7 +122,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             <CardContent className="p-8 md:p-12">
               <div
                 className="blog-content text-slate-300 prose prose-invert prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ __html: post.content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
               />
             </CardContent>
           </Card>

@@ -18,6 +18,9 @@ interface BlogPost {
   publishedAt: string | null
 }
 
+// Mark as dynamic since we use search params
+export const dynamic = 'force-dynamic'
+
 const CATEGORIES = [
   { value: "all", label: "All Posts", icon: BookOpen },
   { value: "NEWS", label: "News", icon: Newspaper },
