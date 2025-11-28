@@ -51,19 +51,19 @@ export function WelcomeScreen({ user, onCreateWorkspace, isLoading = false }: We
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
-              <Building2 className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
+              <Building2 className="w-8 h-8 text-primary-foreground" />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          <h1 className="text-4xl font-bold text-foreground mb-2">
             Welcome to Loopwell, {user.name}! 🎉
           </h1>
-          <p className="text-xl text-gray-600">
+          <p className="text-xl text-muted-foreground">
             Let's set up your workspace to get started
           </p>
         </div>
@@ -72,11 +72,11 @@ export function WelcomeScreen({ user, onCreateWorkspace, isLoading = false }: We
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card className="text-center">
             <CardContent className="pt-6">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Building2 className="w-6 h-6 text-blue-600" />
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Building2 className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="font-semibold mb-2">Organize Your Team</h3>
-              <p className="text-sm text-gray-600">
+              <h3 className="font-semibold mb-2 text-foreground">Organize Your Team</h3>
+              <p className="text-sm text-muted-foreground">
                 Create role cards, manage positions, and build your org chart
               </p>
             </CardContent>
@@ -84,11 +84,11 @@ export function WelcomeScreen({ user, onCreateWorkspace, isLoading = false }: We
 
           <Card className="text-center">
             <CardContent className="pt-6">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-6 h-6 text-green-600" />
+              <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-6 h-6 text-green-500" />
               </div>
-              <h3 className="font-semibold mb-2">Collaborate Seamlessly</h3>
-              <p className="text-sm text-gray-600">
+              <h3 className="font-semibold mb-2 text-foreground">Collaborate Seamlessly</h3>
+              <p className="text-sm text-muted-foreground">
                 Manage projects, track progress, and keep everyone aligned
               </p>
             </CardContent>
@@ -96,11 +96,11 @@ export function WelcomeScreen({ user, onCreateWorkspace, isLoading = false }: We
 
           <Card className="text-center">
             <CardContent className="pt-6">
-              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Zap className="w-6 h-6 text-purple-600" />
+              <div className="w-12 h-12 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Zap className="w-6 h-6 text-purple-500" />
               </div>
-              <h3 className="font-semibold mb-2">AI-Powered Insights</h3>
-              <p className="text-sm text-gray-600">
+              <h3 className="font-semibold mb-2 text-foreground">AI-Powered Insights</h3>
+              <p className="text-sm text-muted-foreground">
                 Get intelligent recommendations and contextual assistance
               </p>
             </CardContent>
@@ -131,7 +131,7 @@ export function WelcomeScreen({ user, onCreateWorkspace, isLoading = false }: We
               <div className="space-y-2">
                 <Label htmlFor="workspace-slug">Workspace URL</Label>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">loopwell.app/</span>
+                  <span className="text-sm text-muted-foreground">loopwell.app/</span>
                   <Input
                     id="workspace-slug"
                     value={workspaceData.slug}
@@ -189,14 +189,14 @@ export function WelcomeScreen({ user, onCreateWorkspace, isLoading = false }: We
                 </div>
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg">
                 <div className="flex items-start space-x-3">
-                  <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-white text-xs font-bold">!</span>
+                  <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-primary-foreground text-xs font-bold">!</span>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-blue-900 mb-1">You'll be the Admin</h4>
-                    <p className="text-sm text-blue-800">
+                    <h4 className="font-semibold text-foreground mb-1">You'll be the Admin</h4>
+                    <p className="text-sm text-muted-foreground">
                       As the workspace creator, you'll have full administrative access to manage users, 
                       roles, and settings. You can invite team members later.
                     </p>
