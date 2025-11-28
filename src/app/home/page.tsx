@@ -192,18 +192,18 @@ export default function HomePage() {
   // Show loading skeleton if workspace is still loading
   if (workspaceLoading) {
     return (
-      <div className="min-h-screen bg-slate-950">
+      <div className="min-h-screen bg-background">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="mb-8">
-            <div className="h-8 w-64 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mb-2"></div>
-            <div className="h-6 w-96 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+            <div className="h-8 w-64 bg-muted rounded animate-pulse mb-2"></div>
+            <div className="h-6 w-96 bg-muted rounded animate-pulse"></div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-lg p-6 animate-pulse">
-                <div className="h-6 w-3/4 bg-slate-200 dark:bg-slate-700 rounded mb-4"></div>
-                <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded mb-2"></div>
-                <div className="h-4 w-2/3 bg-slate-200 dark:bg-slate-700 rounded"></div>
+              <div key={i} className="bg-card rounded-lg p-6 animate-pulse">
+                <div className="h-6 w-3/4 bg-muted rounded mb-4"></div>
+                <div className="h-4 w-full bg-muted rounded mb-2"></div>
+                <div className="h-4 w-2/3 bg-muted rounded"></div>
               </div>
             ))}
           </div>
@@ -213,7 +213,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-background">
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
