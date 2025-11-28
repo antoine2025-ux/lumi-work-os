@@ -43,6 +43,13 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Ensure cards use dark background in dark mode */
+.dark .bg-card,
+.bg-card {
+  background-color: var(--card) !important;
+  color: var(--card-foreground);
+}
+
 /* Dark mode specific styles */
 .dark {
   color-scheme: dark;
