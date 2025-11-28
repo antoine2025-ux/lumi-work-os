@@ -178,7 +178,7 @@ export function Navigation() {
 
   return (
     <nav className={cn(
-      "bg-white border-b border-gray-200 px-6 transition-transform duration-300 ease-in-out",
+      "bg-card border-b border-border px-6 transition-transform duration-300 ease-in-out",
       isVisible ? "translate-y-0" : "-translate-y-full"
     )}>
       <div className="flex items-center justify-center h-16">
@@ -195,20 +195,20 @@ export function Navigation() {
                 className={cn(
                   "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative",
                   isActive
-                    ? "bg-blue-50 text-blue-700 border border-blue-200"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
                 title={item.description}
               >
                 <item.icon className={cn(
                   "h-4 w-4 transition-colors",
-                  isActive ? "text-blue-600" : "text-gray-500 group-hover:text-gray-700"
+                  isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                 )} />
                 <span className="hidden sm:inline">{item.name}</span>
                 
                 {/* Active indicator */}
                 {isActive && (
-                  <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full" />
+                  <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
                 )}
               </Link>
             )

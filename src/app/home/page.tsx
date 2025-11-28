@@ -234,14 +234,14 @@ export default function HomePage() {
               <div className="relative w-16 h-16 mb-2">
                 <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
                   <path
-                    className="text-gray-200"
+                    className="text-muted"
                     stroke="currentColor"
                     strokeWidth="3"
                     fill="none"
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
                   <path
-                    className="text-blue-500"
+                    className="text-primary"
                     stroke="currentColor"
                     strokeWidth="3"
                     fill="none"
@@ -267,7 +267,7 @@ export default function HomePage() {
               <div className="relative w-16 h-16 mb-2">
                 <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
                   <path
-                    className="text-gray-200"
+                    className="text-muted"
                     stroke="currentColor"
                     strokeWidth="3"
                     fill="none"
@@ -308,10 +308,10 @@ export default function HomePage() {
             </CardHeader>
             <CardContent className="space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
               {mockTasks.map((task) => (
-                <div key={task.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                <div key={task.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors">
                   <div className="flex-shrink-0">
                     <div className={`w-4 h-4 rounded-full border-2 ${
-                      task.completed ? 'bg-green-500 border-green-500' : 'border-gray-300'
+                      task.completed ? 'bg-green-500 border-green-500' : 'border-border'
                     } flex items-center justify-center`}>
                       {task.completed && <CheckCircle className="h-3 w-3 text-white" />}
                     </div>
@@ -335,7 +335,7 @@ export default function HomePage() {
                 </div>
               ))}
               <div className="text-center py-4">
-                <p className="text-xs text-gray-500">Task management coming soon</p>
+                <p className="text-xs text-muted-foreground">Task management coming soon</p>
               </div>
             </CardContent>
           </Card>
@@ -355,12 +355,12 @@ export default function HomePage() {
                     <div key={index} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-gray-200 rounded-full animate-pulse"></div>
-                          <div className="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
+                          <div className="w-2 h-2 bg-muted rounded-full animate-pulse"></div>
+                          <div className="h-4 bg-muted rounded animate-pulse w-24"></div>
                         </div>
-                        <div className="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
+                        <div className="h-4 bg-muted rounded animate-pulse w-16"></div>
                       </div>
-                      <div className="h-2 bg-gray-200 rounded animate-pulse"></div>
+                      <div className="h-2 bg-muted rounded animate-pulse"></div>
                     </div>
                   ))}
                 </div>
@@ -397,7 +397,7 @@ export default function HomePage() {
                 ))
               ) : (
                 <div className="text-center py-4">
-                  <p className="text-sm text-gray-500 mb-2">No projects yet</p>
+                  <p className="text-sm text-muted-foreground mb-2">No projects yet</p>
                   <Link href="/projects/new">
                     <Button size="sm" variant="outline">
                       <Plus className="h-4 w-4 mr-1" />
@@ -425,7 +425,7 @@ export default function HomePage() {
                       {metric.value}{metric.unit || '%'}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-muted rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full ${metric.color}`}
                       style={{ width: `${metric.value}%` }}
@@ -434,7 +434,7 @@ export default function HomePage() {
                 </div>
               ))}
               <div className="text-center py-2">
-                <p className="text-xs text-gray-500">Analytics dashboard coming soon</p>
+                <p className="text-xs text-muted-foreground">Analytics dashboard coming soon</p>
               </div>
             </CardContent>
           </Card>
@@ -452,16 +452,16 @@ export default function HomePage() {
                       {day}
                     </div>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs ${
-                      index === 0 ? 'bg-blue-100 text-blue-600' : ''
+                      index === 0 ? 'bg-primary/10 text-primary' : ''
                     }`}>
                       {index + 1}
                     </div>
-                    {index === 0 && <div className="w-1 h-1 bg-blue-500 rounded-full mx-auto mt-1" />}
+                    {index === 0 && <div className="w-1 h-1 bg-primary rounded-full mx-auto mt-1" />}
                   </div>
                 ))}
               </div>
               <div className="text-center py-4">
-                <p className="text-xs text-gray-500">Calendar integration coming soon</p>
+                <p className="text-xs text-muted-foreground">Calendar integration coming soon</p>
               </div>
             </CardContent>
           </Card>

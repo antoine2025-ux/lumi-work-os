@@ -71,19 +71,19 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
           <div className="space-y-3">
             {[...Array(3)].map((_, index) => (
               <div key={index} className="flex items-center space-x-3 p-3 rounded-lg animate-pulse">
-                <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                <div className="w-4 h-4 bg-muted rounded"></div>
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-4 bg-muted rounded w-3/4"></div>
+                  <div className="h-3 bg-muted rounded w-1/2"></div>
                 </div>
-                <div className="w-12 h-5 bg-gray-200 rounded"></div>
+                <div className="w-12 h-5 bg-muted rounded"></div>
               </div>
             ))}
           </div>
         ) : needsAuth ? (
           <div className="text-center py-6">
-            <Calendar className="h-8 w-8 mx-auto mb-3 text-gray-400" />
-            <p className="text-sm text-gray-500 mb-3">
+            <Calendar className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground mb-3">
               Connect your Google Calendar to see today's meetings
             </p>
             <Button onClick={handleConnectCalendar} size="sm">
@@ -93,8 +93,8 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
           </div>
         ) : error ? (
           <div className="text-center py-6">
-            <AlertCircle className="h-8 w-8 mx-auto mb-3 text-red-400" />
-            <p className="text-sm text-red-500 mb-3">{error}</p>
+            <AlertCircle className="h-8 w-8 mx-auto mb-3 text-destructive" />
+            <p className="text-sm text-destructive mb-3">{error}</p>
             <Button onClick={refetch} size="sm" variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
               Try Again
@@ -102,14 +102,14 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
           </div>
         ) : events.length === 0 ? (
           <div className="text-center py-6">
-            <Calendar className="h-8 w-8 mx-auto mb-3 text-gray-400" />
-            <p className="text-sm text-gray-500">No meetings scheduled for today</p>
+            <Calendar className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">No meetings scheduled for today</p>
           </div>
         ) : (
           events.map((meeting: CalendarEvent) => (
             <div 
               key={meeting.id} 
-              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer group"
               style={{ backgroundColor: themeConfig.muted }}
               onClick={() => handleMeetingClick(meeting)}
               title={meeting.meetingLink && meeting.type === 'video' ? 'Click to join meeting' : 'Click to view in calendar'}
@@ -157,7 +157,7 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
                 >
                   {meeting.priority}
                 </Badge>
-                <ExternalLink className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </div>
           ))
