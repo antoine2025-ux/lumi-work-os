@@ -44,10 +44,14 @@ body {
 }
 
 /* Ensure cards use dark background in dark mode */
-.dark .bg-card,
 .bg-card {
   background-color: var(--card) !important;
-  color: var(--card-foreground);
+  color: var(--card-foreground) !important;
+}
+
+.dark .bg-card {
+  background-color: var(--card) !important;
+  color: var(--card-foreground) !important;
 }
 
 /* Dark mode specific styles */
@@ -110,7 +114,7 @@ body {
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {
-  color: #adb5bd;
+  color: var(--muted-foreground);
   content: attr(data-placeholder);
   float: left;
   height: 0;
@@ -148,24 +152,25 @@ body {
 }
 
 .ProseMirror blockquote {
-  border-left: 4px solid #e2e8f0;
+  border-left: 4px solid var(--border);
   padding-left: 1rem;
   margin: 1rem 0;
   font-style: italic;
-  color: #64748b;
+  color: var(--muted-foreground);
 }
 
 .ProseMirror code {
-  background-color: #f1f5f9;
+  background-color: var(--muted);
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   font-size: 0.875rem;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  color: var(--foreground);
 }
 
 .ProseMirror pre {
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background-color: var(--muted);
+  border: 1px solid var(--border);
   border-radius: 0.5rem;
   padding: 1rem;
   margin: 1rem 0;
@@ -176,6 +181,7 @@ body {
   background-color: transparent;
   padding: 0;
   border-radius: 0;
+  color: var(--foreground);
 }
 
 .ProseMirror img {
@@ -186,14 +192,14 @@ body {
 }
 
 .ProseMirror a {
-  color: #0f172a;
+  color: var(--primary);
   text-decoration: underline;
-  text-decoration-color: #0f172a;
+  text-decoration-color: var(--primary);
   text-underline-offset: 2px;
 }
 
 .ProseMirror a:hover {
-  text-decoration-color: #64748b;
+  text-decoration-color: var(--muted-foreground);
 }
 
 .ProseMirror strong {
@@ -250,30 +256,32 @@ body {
 }
 
 .wiki-editor blockquote {
-  border-left: 4px solid #e5e7eb;
+  border-left: 4px solid var(--border);
   padding-left: 1rem;
   margin: 1rem 0;
-  color: #6b7280;
+  color: var(--muted-foreground);
   font-style: italic;
   display: block;
 }
 
 .wiki-editor code {
-  background-color: #f3f4f6;
+  background-color: var(--muted);
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   font-size: 0.875em;
   font-family: 'Courier New', monospace;
+  color: var(--foreground);
 }
 
 .wiki-editor pre {
-  background-color: #1f2937;
-  color: #f9fafb;
+  background-color: var(--muted);
+  color: var(--foreground);
   padding: 1rem;
   border-radius: 0.5rem;
   margin: 1rem 0;
   overflow-x: auto;
   display: block;
+  border: 1px solid var(--border);
 }
 
 .wiki-editor pre code {

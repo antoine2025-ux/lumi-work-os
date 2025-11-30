@@ -147,7 +147,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${montserrat.variable} font-sans antialiased bg-slate-950`}>
+      <body className={`${montserrat.variable} font-sans antialiased bg-background`}>
         <StructuredData />
         <Providers>
           {children}

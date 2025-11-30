@@ -8,6 +8,8 @@ const hasGoogleCredentials = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_
   process.env.GOOGLE_CLIENT_SECRET !== "your-google-client-secret"
 
 export const authOptions: NextAuthOptions = {
+  // Don't set 'url' here - it affects all NextAuth operations
+  // We'll handle OAuth callback URL in the provider config instead
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === 'google') {
@@ -60,6 +62,20 @@ export const authOptions: NextAuthOptions = {
         token.expiresAt = account.expires_at
       }
       return token
+    },
+    async redirect({ url, baseUrl }) {
+      // In development, if OAuth callback came from ngrok, redirect back to localhost
+      if (process.env.NODE_ENV === 'development' && baseUrl.includes('ngrok')) {
+        // Extract the path from the ngrok URL and redirect to localhost
+        const urlObj = new URL(url)
+        const localhostUrl = `http://localhost:3000${urlObj.pathname}${urlObj.search}`
+        console.log('🔄 Redirecting from ngrok to localhost:', localhostUrl)
+        return localhostUrl
+      }
+      // Default behavior: redirect to the provided URL or base URL
+      if (url.startsWith('/')) return `${baseUrl}${url}`
+      if (new URL(url).origin === baseUrl) return url
+      return baseUrl
     },
   },
   providers: [

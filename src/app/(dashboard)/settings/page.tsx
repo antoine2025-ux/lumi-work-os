@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +23,9 @@ import {
   Plug,
   Download,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle,
+  XCircle
 } from "lucide-react"
 
 interface WorkspaceData {
@@ -42,8 +45,17 @@ interface WorkspaceData {
   }
 }
 
+interface SlackIntegration {
+  connected: boolean
+  teamId?: string
+  teamName?: string
+  lastSyncAt?: string
+}
+
 export default function SettingsPage() {
   const { userStatus, loading: userStatusLoading } = useUserStatus()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState("workspace")
   const [workspaceData, setWorkspaceData] = useState<WorkspaceData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -55,6 +67,9 @@ export default function SettingsPage() {
     description: "",
     slug: ""
   })
+  const [slackIntegration, setSlackIntegration] = useState<SlackIntegration | null>(null)
+  const [slackLoading, setSlackLoading] = useState(false)
+  const [slackMessage, setSlackMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   // Fetch workspace data
   useEffect(() => {
@@ -95,6 +110,90 @@ export default function SettingsPage() {
 
     fetchWorkspaceData()
   }, [userStatus, userStatusLoading])
+
+  // Check for OAuth callback messages
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const error = searchParams.get('error')
+    
+    if (success === 'slack_connected') {
+      setSlackMessage({ type: 'success', text: 'Slack connected successfully!' })
+      // Clear URL params
+      router.replace('/settings?tab=integrations', { scroll: false })
+      // Refresh Slack status
+      fetchSlackIntegration()
+    } else if (error) {
+      setSlackMessage({ type: 'error', text: decodeURIComponent(error) })
+      router.replace('/settings?tab=integrations', { scroll: false })
+    }
+  }, [searchParams, router])
+
+  // Set active tab from URL
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab && ['workspace', 'notifications', 'appearance', 'integrations', 'permissions', 'migrations'].includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
+
+  // Fetch Slack integration status
+  const fetchSlackIntegration = async () => {
+    if (!userStatus?.workspaceId) return
+    
+    try {
+      setSlackLoading(true)
+      const response = await fetch('/api/integrations/slack')
+      if (response.ok) {
+        const data = await response.json()
+        setSlackIntegration(data)
+      } else {
+        setSlackIntegration({ connected: false })
+      }
+    } catch (err) {
+      console.error('Error fetching Slack integration:', err)
+      setSlackIntegration({ connected: false })
+    } finally {
+      setSlackLoading(false)
+    }
+  }
+
+  // Fetch Slack integration when integrations tab is active
+  useEffect(() => {
+    if (activeTab === 'integrations' && userStatus?.workspaceId) {
+      fetchSlackIntegration()
+    }
+  }, [activeTab, userStatus?.workspaceId])
+
+  // Handle Slack connect
+  const handleSlackConnect = () => {
+    window.location.href = '/api/integrations/slack/connect'
+  }
+
+  // Handle Slack disconnect
+  const handleSlackDisconnect = async () => {
+    if (!confirm('Are you sure you want to disconnect Slack? This will stop all Slack notifications.')) {
+      return
+    }
+
+    try {
+      setSlackLoading(true)
+      const response = await fetch('/api/integrations/slack', {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        setSlackMessage({ type: 'success', text: 'Slack disconnected successfully' })
+        setSlackIntegration({ connected: false })
+      } else {
+        const data = await response.json()
+        setSlackMessage({ type: 'error', text: data.error || 'Failed to disconnect Slack' })
+      }
+    } catch (err) {
+      setSlackMessage({ type: 'error', text: 'Failed to disconnect Slack' })
+    } finally {
+      setSlackLoading(false)
+    }
+  }
 
   // Save workspace changes
   const handleSave = async () => {
@@ -225,7 +324,10 @@ export default function SettingsPage() {
         <Button
           variant={activeTab === "workspace" ? "default" : "ghost"}
           size="sm"
-          onClick={() => setActiveTab("workspace")}
+          onClick={() => {
+            setActiveTab("workspace")
+            router.push('/settings?tab=workspace', { scroll: false })
+          }}
         >
           <Building className="mr-2 h-4 w-4" />
           Workspace
@@ -233,7 +335,10 @@ export default function SettingsPage() {
         <Button
           variant={activeTab === "notifications" ? "default" : "ghost"}
           size="sm"
-          onClick={() => setActiveTab("notifications")}
+          onClick={() => {
+            setActiveTab("notifications")
+            router.push('/settings?tab=notifications', { scroll: false })
+          }}
         >
           <Bell className="mr-2 h-4 w-4" />
           Notifications
@@ -241,7 +346,10 @@ export default function SettingsPage() {
         <Button
           variant={activeTab === "appearance" ? "default" : "ghost"}
           size="sm"
-          onClick={() => setActiveTab("appearance")}
+          onClick={() => {
+            setActiveTab("appearance")
+            router.push('/settings?tab=appearance', { scroll: false })
+          }}
         >
           <Palette className="mr-2 h-4 w-4" />
           Appearance
@@ -249,7 +357,10 @@ export default function SettingsPage() {
         <Button
           variant={activeTab === "integrations" ? "default" : "ghost"}
           size="sm"
-          onClick={() => setActiveTab("integrations")}
+          onClick={() => {
+            setActiveTab("integrations")
+            router.push('/settings?tab=integrations', { scroll: false })
+          }}
         >
           <Plug className="mr-2 h-4 w-4" />
           Integrations
@@ -257,7 +368,10 @@ export default function SettingsPage() {
         <Button
           variant={activeTab === "permissions" ? "default" : "ghost"}
           size="sm"
-          onClick={() => setActiveTab("permissions")}
+          onClick={() => {
+            setActiveTab("permissions")
+            router.push('/settings?tab=permissions', { scroll: false })
+          }}
         >
           <Shield className="mr-2 h-4 w-4" />
           Permissions
@@ -265,7 +379,10 @@ export default function SettingsPage() {
         <Button
           variant={activeTab === "migrations" ? "default" : "ghost"}
           size="sm"
-          onClick={() => setActiveTab("migrations")}
+          onClick={() => {
+            setActiveTab("migrations")
+            router.push('/settings?tab=migrations', { scroll: false })
+          }}
         >
           <Download className="mr-2 h-4 w-4" />
           Migrations
@@ -544,12 +661,42 @@ export default function SettingsPage() {
               Connect Loopwell with your favorite tools and services
             </p>
           </div>
+
+          {/* Success/Error Messages */}
+          {slackMessage && (
+            <div className={`p-4 rounded-lg border flex items-center gap-3 ${
+              slackMessage.type === 'success' 
+                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+                : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+            }`}>
+              {slackMessage.type === 'success' ? (
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+              ) : (
+                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              )}
+              <p className={`text-sm ${
+                slackMessage.type === 'success' 
+                  ? 'text-green-800 dark:text-green-200' 
+                  : 'text-red-800 dark:text-red-200'
+              }`}>
+                {slackMessage.text}
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto"
+                onClick={() => setSlackMessage(null)}
+              >
+                <XCircle className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-[#4A154B] rounded-lg flex items-center justify-center">
                     <Plug className="h-4 w-4 text-white" />
                   </div>
                   <span>Slack</span>
@@ -557,16 +704,63 @@ export default function SettingsPage() {
                 <CardDescription>Connect with Slack for notifications</CardDescription>
               </CardHeader>
               <CardContent>
-                <Badge variant="secondary" className="mb-4">Connected</Badge>
-                <div className="space-y-2">
-                  <p className="text-sm">• Send notifications to channels</p>
-                  <p className="text-sm">• Sync user data</p>
-                  <p className="text-sm">• Trigger workflows from messages</p>
-                </div>
-                <div className="flex space-x-2 mt-4">
-                  <Button variant="outline" size="sm">Configure</Button>
-                  <Button variant="outline" size="sm">Disconnect</Button>
-                </div>
+                {slackLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    {slackIntegration?.connected ? (
+                      <>
+                        <Badge variant="secondary" className="mb-4">Connected</Badge>
+                        {slackIntegration.teamName && (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Workspace: {slackIntegration.teamName}
+                          </p>
+                        )}
+                        <div className="space-y-2 mb-4">
+                          <p className="text-sm">• Send notifications to channels</p>
+                          <p className="text-sm">• Loopbrain can send messages</p>
+                          <p className="text-sm">• Automatic token refresh</p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleSlackDisconnect}
+                            disabled={slackLoading}
+                          >
+                            Disconnect
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Badge variant="outline" className="mb-4">Not Connected</Badge>
+                        <div className="space-y-2 mb-4">
+                          <p className="text-sm">• Send notifications to channels</p>
+                          <p className="text-sm">• Loopbrain can send messages</p>
+                          <p className="text-sm">• Automatic token refresh</p>
+                        </div>
+                        <Button 
+                          size="sm"
+                          onClick={handleSlackConnect}
+                          disabled={slackLoading}
+                          className="w-full"
+                        >
+                          {slackLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Connecting...
+                            </>
+                          ) : (
+                            'Connect Slack'
+                          )}
+                        </Button>
+                      </>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
 

@@ -1127,3 +1127,75 @@ enum BlogPostCategory {
   CONTEXTUAL_AI
   LOOPWELL
 }
+
+// ============================================================================
+// Loopbrain Context Store Models
+// ============================================================================
+
+/**
+ * ContextItem - Canonical storage for ContextObject instances
+ * Stores the full serialized ContextObject in JSON format for queryable persistence
+ */
+model ContextItem {
+  id          String   @id @default(cuid())
+  contextId   String // Original entity ID (pageId, projectId, taskId, etc.)
+  workspaceId String
+  type        String // ContextType enum value (workspace, page, project, task, org, activity, unified)
+  title       String
+  summary     String? // Optional human-readable summary
+  data        Json // Full serialized ContextObject (entire object, not partial)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  // Relations
+  embedding       ContextEmbedding?
+  summaryRelation ContextSummary?
+
+  // Indexes for efficient multi-tenant queries
+  @@index([workspaceId, type], map: "idx_context_items_workspace_type")
+  @@index([contextId, type], map: "idx_context_items_context_type")
+  @@index([workspaceId, updatedAt(sort: Desc)], map: "idx_context_items_workspace_updated")
+  @@map("context_items")
+}
+
+/**
+ * ContextEmbedding - Vector storage for semantic search
+ * Stores embeddings for ContextItem instances to enable vector similarity search
+ * TODO: Replace Float[] with Vector type after enabling pgvector extension in Step 4
+ * TODO: Add vector index: @@index([embedding], type: "vector") after pgvector setup
+ */
+model ContextEmbedding {
+  id            String   @id @default(cuid())
+  contextItemId String   @unique
+  embedding     Float[] // TODO: Replace with Vector type after enabling pgvector extension
+  workspaceId   String
+  updatedAt     DateTime @updatedAt
+
+  // Relation
+  contextItem ContextItem @relation(fields: [contextItemId], references: [id], onDelete: Cascade)
+
+  // Indexes for efficient multi-tenant queries
+  @@index([workspaceId], map: "idx_context_embeddings_workspace")
+  // TODO: Add vector index after pgvector: @@index([embedding], type: "vector")
+  @@map("context_embeddings")
+}
+
+/**
+ * ContextSummary - Pre-computed LLM-generated summaries
+ * Stores cached text summaries for ContextItem instances to reduce LLM calls
+ */
+model ContextSummary {
+  id            String   @id @default(cuid())
+  contextItemId String   @unique
+  summary       String // Pre-computed text summary
+  workspaceId   String
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  // Relation
+  contextItem ContextItem @relation(fields: [contextItemId], references: [id], onDelete: Cascade)
+
+  // Indexes for efficient multi-tenant queries
+  @@index([workspaceId], map: "idx_context_summaries_workspace")
+  @@map("context_summaries")
+}

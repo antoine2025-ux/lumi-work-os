@@ -110,8 +110,7 @@ export function Celebration({ isVisible, onComplete }: CelebrationProps) {
                     >
                       {/* Balloon string */}
                       <div 
-                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-px h-16 bg-gray-400"
-                        style={{ backgroundColor: '#9ca3af' }}
+                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-px h-16 bg-muted-foreground/30"
                       />
                     </div>
                   </motion.div>
@@ -128,7 +127,7 @@ export function Celebration({ isVisible, onComplete }: CelebrationProps) {
             exit={{ scale: 0, opacity: 0 }}
             transition={{ delay: 0.5, duration: 0.5 }}
           >
-            <div className="bg-white rounded-lg shadow-2xl p-8 border-4 border-green-400 text-center max-w-sm mx-4">
+            <div className="bg-card rounded-lg shadow-2xl p-8 border-4 border-green-400 text-center max-w-sm mx-4">
               <motion.div
                 className="text-6xl mb-4"
                 animate={{ 
@@ -143,10 +142,10 @@ export function Celebration({ isVisible, onComplete }: CelebrationProps) {
               >
                 🎉
               </motion.div>
-              <h2 className="text-3xl font-bold text-green-600 mb-2">
+              <h2 className="text-3xl font-bold text-green-400 mb-2">
                 Project Complete!
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 Congratulations! All tasks are done!
               </p>
             </div>

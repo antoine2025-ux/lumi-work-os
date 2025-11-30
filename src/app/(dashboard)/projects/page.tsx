@@ -178,7 +178,10 @@ export default function ProjectsDashboard() {
         const projectsResponse = await fetch(`/api/projects?workspaceId=${wsId}`)
         if (projectsResponse.ok) {
           const projectsResult = await projectsResponse.json()
-          const projectsData = projectsResult.data || projectsResult
+          // Handle new response shape: { projects: Project[], contextObjects: ContextObject[] }
+          const projectsData = Array.isArray(projectsResult) 
+            ? projectsResult 
+            : (projectsResult.projects || projectsResult.data || [])
           setProjects(Array.isArray(projectsData) ? projectsData : [])
         }
 
@@ -247,13 +250,13 @@ export default function ProjectsDashboard() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "ACTIVE": return "bg-green-100 text-green-800"
-      case "ON_HOLD": return "bg-yellow-100 text-yellow-800"
-      case "COMPLETED": return "bg-blue-100 text-blue-800"
-      case "CANCELLED": return "bg-red-100 text-red-800"
-      case "IN_PROGRESS": return "bg-blue-100 text-blue-800"
-      case "DONE": return "bg-green-100 text-green-800"
-      case "TODO": return "bg-gray-100 text-gray-800"
-      case "BLOCKED": return "bg-red-100 text-red-800"
+      case "ON_HOLD": return "bg-yellow-500/20 text-yellow-400"
+      case "COMPLETED": return "bg-blue-500/20 text-blue-400"
+      case "CANCELLED": return "bg-red-500/20 text-red-400"
+      case "IN_PROGRESS": return "bg-blue-500/20 text-blue-400"
+      case "DONE": return "bg-green-500/20 text-green-400"
+      case "TODO": return "bg-muted text-foreground"
+      case "BLOCKED": return "bg-red-500/20 text-red-400"
       default: return "bg-muted text-foreground"
     }
   }
@@ -435,30 +438,30 @@ export default function ProjectsDashboard() {
                   <Card className="border-0 rounded-xl opacity-50" style={{ backgroundColor: colors.surface }}>
                     <CardContent className="p-6">
                       <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-2 h-2 rounded-full bg-gray-300" />
-                        <h3 className="text-lg font-bold text-gray-400">My Initiatives</h3>
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                        <h3 className="text-lg font-bold text-muted-foreground">My Initiatives</h3>
                       </div>
-                      <p className="text-sm text-gray-400">Coming soon...</p>
+                      <p className="text-sm text-muted-foreground">Coming soon...</p>
                     </CardContent>
                   </Card>
 
                   <Card className="border-0 rounded-xl opacity-50" style={{ backgroundColor: colors.surface }}>
                     <CardContent className="p-6">
                       <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-2 h-2 rounded-full bg-gray-300" />
-                        <h3 className="text-lg font-bold text-gray-400">Team Initiatives</h3>
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                        <h3 className="text-lg font-bold text-muted-foreground">Team Initiatives</h3>
                       </div>
-                      <p className="text-sm text-gray-400">Coming soon...</p>
+                      <p className="text-sm text-muted-foreground">Coming soon...</p>
                     </CardContent>
                   </Card>
 
                   <Card className="border-0 rounded-xl opacity-50" style={{ backgroundColor: colors.surface }}>
                     <CardContent className="p-6">
                       <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-2 h-2 rounded-full bg-gray-300" />
-                        <h3 className="text-lg font-bold text-gray-400">Role Initiatives</h3>
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                        <h3 className="text-lg font-bold text-muted-foreground">Role Initiatives</h3>
                       </div>
-                      <p className="text-sm text-gray-400">Coming soon...</p>
+                      <p className="text-sm text-muted-foreground">Coming soon...</p>
                     </CardContent>
                   </Card>
                 </div>

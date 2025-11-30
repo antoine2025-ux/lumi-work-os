@@ -65,7 +65,7 @@ export default function LandingPage() {
       <WaitlistSignupModal open={waitlistModalOpen} onOpenChange={setWaitlistModalOpen} />
 
       {/* Navigation */}
-      <nav className="border-b border-slate-700 bg-slate-900/80 backdrop-blur-sm sticky top-[57px] z-50">
+      <nav className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-[57px] z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
@@ -118,7 +118,7 @@ export default function LandingPage() {
           </div>
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <div className="md:hidden border-t border-slate-700 bg-slate-900 py-4">
+            <div className="md:hidden border-t border-border bg-background py-4">
               <div className="flex flex-col space-y-3 px-4">
                 <a 
                   href="#features" 
@@ -216,7 +216,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-800">
+      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-background">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-4">
@@ -228,7 +228,7 @@ export default function LandingPage() {
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="border border-border bg-card shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -242,7 +242,7 @@ export default function LandingPage() {
               </CardHeader>
             </Card>
             
-            <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="border border-border bg-card shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -256,7 +256,7 @@ export default function LandingPage() {
               </CardHeader>
             </Card>
             
-            <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="border border-border bg-card shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -270,7 +270,7 @@ export default function LandingPage() {
               </CardHeader>
             </Card>
             
-            <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="border border-border bg-card shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -284,7 +284,7 @@ export default function LandingPage() {
               </CardHeader>
             </Card>
             
-            <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="border border-border bg-card shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -298,7 +298,7 @@ export default function LandingPage() {
               </CardHeader>
             </Card>
             
-            <Card className="border border-slate-700 bg-slate-900 shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="border border-border bg-card shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-indigo-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -316,7 +316,7 @@ export default function LandingPage() {
       </section>
 
       {/* Visual Preview Section */}
-      <section id="preview" className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-900">
+      <section id="preview" className="py-20 px-4 sm:px-6 lg:px-8 bg-background">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-4">
@@ -368,7 +368,7 @@ export default function LandingPage() {
       </section>
 
       {/* Benefits Section */}
-      <section id="benefits" className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-900">
+      <section id="benefits" className="py-20 px-4 sm:px-6 lg:px-8 bg-background">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-4">
@@ -437,7 +437,7 @@ export default function LandingPage() {
             <div className="relative">
               <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-8 text-white">
                 <div className="flex items-center mb-6">
-                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mr-4">
+                  <div className="w-12 h-12 bg-foreground/20 rounded-lg flex items-center justify-center mr-4">
                     <TrendingUp className="w-6 h-6" />
                   </div>
                   <div>
@@ -475,7 +475,7 @@ export default function LandingPage() {
       </section>
 
       {/* Become a Tester Section */}
-      <section id="become-a-tester" className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-800">
+      <section id="become-a-tester" className="py-20 px-4 sm:px-6 lg:px-8 bg-background">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold text-white mb-6">
             Test Loopwell Before the World Sees It
@@ -554,7 +554,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-white py-12 px-4 sm:px-6 lg:px-8">
+      <footer className="bg-background text-foreground py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8">
             <div>

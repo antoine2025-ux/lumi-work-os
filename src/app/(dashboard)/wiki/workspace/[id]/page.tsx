@@ -15,7 +15,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { useUserStatus } from "@/hooks/use-user-status"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { WikiAIAssistant } from "@/components/wiki/wiki-ai-assistant"
+import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 
 interface WorkspacePageProps {
   params: Promise<{
@@ -261,7 +261,7 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
           <p className="text-muted-foreground">Loading workspace...</p>
@@ -272,7 +272,7 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
 
   if (!workspace) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-foreground mb-2">Workspace not found</h2>
           <p className="text-muted-foreground mb-6">The requested workspace does not exist.</p>
@@ -397,11 +397,8 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
         </div>
       </div>
       
-      {/* AI Assistant - Floating Button Mode */}
-      <WikiAIAssistant 
-        currentTitle={workspace?.name || "Workspace"}
-        mode="floating-button"
-      />
+      {/* Global Loopbrain Assistant */}
+      <LoopbrainAssistantLauncher mode="spaces" />
     </>
   )
 }

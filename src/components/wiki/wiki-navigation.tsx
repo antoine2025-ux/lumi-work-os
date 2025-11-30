@@ -122,11 +122,11 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
   const navigationItems = createNavigationStructure()
 
   return (
-    <div className="w-80 bg-white border-r border-gray-200 h-full flex flex-col">
+    <div className="w-80 bg-card border-r border-border h-full flex flex-col">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-6 border-b border-border">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Knowledge Base</h2>
+          <h2 className="text-lg font-semibold text-foreground">Knowledge Base</h2>
           <Button 
             onClick={handleNewPage}
             size="sm"
@@ -138,12 +138,12 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
         
         {/* Search */}
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search pages..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="pl-10 border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
 
@@ -153,8 +153,8 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
             onClick={() => setSelectedCategory("all")}
             className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
               selectedCategory === "all" 
-                ? "bg-blue-100 text-blue-700" 
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-primary/20 text-primary" 
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
           >
             All
@@ -165,8 +165,8 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
               onClick={() => setSelectedCategory(category)}
               className={`px-2 py-1 rounded text-xs font-medium transition-colors capitalize ${
                 selectedCategory === category 
-                  ? "bg-blue-100 text-blue-700" 
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-primary/20 text-primary" 
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
               {category}
@@ -190,12 +190,12 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-2",
                 currentPath === "/wiki" 
-                  ? "bg-blue-100 text-blue-700" 
-                  : "text-gray-700 hover:bg-gray-100"
+                  ? "bg-primary/20 text-primary" 
+                  : "text-foreground hover:bg-muted"
               )}
             >
-              <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
-                <BookOpen className="h-3 w-3 text-blue-600" />
+              <div className="w-6 h-6 bg-primary/20 rounded flex items-center justify-center">
+                <BookOpen className="h-3 w-3 text-primary" />
               </div>
               <span>Knowledge Base</span>
             </Link>
@@ -209,12 +209,12 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group",
                     currentPath === `/wiki/${page.slug}` 
-                      ? "bg-blue-100 text-blue-700" 
-                      : "text-gray-700 hover:bg-gray-100"
+                      ? "bg-primary/20 text-primary" 
+                      : "text-foreground hover:bg-muted"
                   )}
                 >
-                  <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                    <FileText className="h-3 w-3 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                  <div className="w-6 h-6 bg-muted rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <FileText className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{page.title}</div>
@@ -231,8 +231,8 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
             {/* Empty State */}
             {filteredPages.length === 0 && !isLoading && (
               <div className="text-center py-8">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <FileText className="h-6 w-6 text-gray-400" />
+                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                  <FileText className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <p className="text-sm text-gray-500 mb-4">
                   {searchQuery ? 'No pages found' : 'No pages yet'}
@@ -254,10 +254,10 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-border">
         <Button 
           variant="outline" 
-          className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
+          className="w-full border-border text-foreground hover:bg-muted"
         >
           <Sparkles className="h-4 w-4 mr-2" />
           LoopBrain

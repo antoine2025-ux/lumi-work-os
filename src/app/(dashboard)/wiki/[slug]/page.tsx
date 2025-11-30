@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { WikiNavigation } from "@/components/wiki/wiki-navigation"
 import { RichTextEditor } from "@/components/wiki/rich-text-editor"
-import { WikiAIAssistant } from "@/components/wiki/wiki-ai-assistant"
+import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 import { useUserStatus } from '@/hooks/use-user-status'
 import { 
   Edit3,
@@ -445,7 +445,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground">Loading page...</p>
@@ -456,7 +456,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
 
   if (!pageData) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-semibold text-foreground mb-2">Page not found</h2>
@@ -467,7 +467,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
   }
 
   return (
-    <div className="h-full bg-slate-950 min-h-screen w-full min-w-0 relative">
+      <div className="h-full bg-background min-h-screen w-full min-w-0 relative">
       {/* Floating Vertical Sidebar - Right Side */}
       <div className={cn(
         "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-500 ease-in-out",
@@ -495,7 +495,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
               onClick={handleCancel}
               variant="ghost"
               size="sm"
-              className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm"
+              className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
               title="Cancel"
             >
               <X className="h-4 w-4" />
@@ -506,36 +506,36 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
             onClick={() => setIsEditing(true)}
             variant="ghost"
             size="sm"
-            className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm"
+            className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
             title="Edit"
           >
             <Edit3 className="h-4 w-4" />
           </Button>
         )}
-        <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="Share">
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Share">
           <Share2 className="h-4 w-4" />
         </Button>
         <Button 
           onClick={toggleFavorite}
           variant="ghost" 
           size="sm" 
-          className={`w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm ${isStarred ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-600 hover:text-gray-800'}`}
+          className={`w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm ${isStarred ? 'text-yellow-500 hover:text-yellow-400' : 'text-muted-foreground hover:text-foreground'}`}
           title="Favorite"
         >
           <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} />
         </Button>
-        <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="View">
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="View">
           <Eye className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="Comments">
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Comments">
           <MessageSquare className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="AI Assistant">
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="AI Assistant">
           <Brain className="h-4 w-4" />
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="More options">
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="More options">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -549,7 +549,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
       </div>
 
       {/* Main Editor Area - Clean Document */}
-      <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-950 min-h-screen overflow-x-hidden w-full min-w-0">
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen overflow-x-hidden w-full min-w-0">
         <div className="max-w-4xl mx-auto w-full min-w-0">
           {/* Page Info */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
@@ -674,24 +674,10 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
         </div>
       </div>
 
-      {/* AI Assistant */}
-      <WikiAIAssistant 
-        currentPageId={pageData?.id}
-        currentTitle={pageData?.title || ''}
-        currentContent={pageData?.content || ''}
-        mode={isEditing ? 'bottom-bar' : 'floating-button'}
-        onContentUpdate={(newContent) => {
-          if (pageData) {
-            setPageData({ ...pageData, content: newContent })
-          }
-        }}
-        onTitleUpdate={(newTitle) => {
-          if (pageData) {
-            setPageData({ ...pageData, title: newTitle })
-          }
-        }}
-        onOpenChange={(open) => setIsAISidebarOpen(open)}
-        onDisplayModeChange={(mode) => setAiDisplayMode(mode)}
+      {/* Global Loopbrain Assistant */}
+      <LoopbrainAssistantLauncher 
+        mode="spaces" 
+        anchors={{ pageId: pageData?.id }} 
       />
     </div>
   )

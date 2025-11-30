@@ -94,7 +94,7 @@ interface TaskEditDialogProps {
 }
 
 const statusOptions = [
-  { value: 'TODO', label: 'To Do', color: 'bg-gray-100 text-gray-800' },
+  { value: 'TODO', label: 'To Do', color: 'bg-muted text-foreground' },
   { value: 'IN_PROGRESS', label: 'In Progress', color: 'bg-blue-100 text-blue-800' },
   { value: 'IN_REVIEW', label: 'In Review', color: 'bg-yellow-100 text-yellow-800' },
   { value: 'DONE', label: 'Done', color: 'bg-green-100 text-green-800' },
@@ -615,7 +615,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
                         <button
                           type="button"
                           onClick={() => handleRemoveTag(tag)}
-                          className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                          className="ml-1 hover:bg-muted rounded-full p-0.5"
                         >
                           <X className="h-3 w-3" />
                         </button>

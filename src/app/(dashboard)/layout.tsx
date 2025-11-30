@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import dynamic from "next/dynamic"
+import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context"
 
 // Lazy load Header to reduce initial bundle size and improve LCP
 const Header = dynamic(() => import("@/components/layout/header").then(mod => ({ default: mod.Header })), {
@@ -136,11 +137,13 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <Header />
-      <main className="min-h-screen">
-        {children}
-      </main>
-    </div>
+    <LoopbrainAssistantProvider>
+      <div className="min-h-screen bg-slate-950">
+        <Header />
+        <main className="min-h-screen">
+          {children}
+        </main>
+      </div>
+    </LoopbrainAssistantProvider>
   )
 }

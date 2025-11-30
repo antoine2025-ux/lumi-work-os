@@ -89,7 +89,7 @@ export default function CookiePolicyPage() {
                       such as security, network management, and accessibility. You cannot opt-out of these cookies 
                       as they are essential for the service to work.
                     </p>
-                    <div className="mt-3 p-4 bg-slate-50 rounded-lg">
+                    <div className="mt-3 p-4 bg-muted rounded-lg">
                       <p className="font-semibold mb-2">Examples of essential cookies we use:</p>
                       <ul className="list-disc pl-6 space-y-1 text-sm">
                         <li>
@@ -114,7 +114,7 @@ export default function CookiePolicyPage() {
                       We use Google OAuth for authentication, which may set cookies on your device. These cookies are 
                       managed by Google and are subject to Google's Privacy Policy.
                     </p>
-                    <div className="mt-3 p-4 bg-slate-50 rounded-lg">
+                    <div className="mt-3 p-4 bg-muted rounded-lg">
                       <p className="font-semibold mb-2">Google OAuth cookies:</p>
                       <ul className="list-disc pl-6 space-y-1 text-sm">
                         <li>

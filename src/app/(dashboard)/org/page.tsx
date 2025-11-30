@@ -15,6 +15,7 @@ import { RoleForm } from "@/components/org/role-form"
 import { UserAssignmentModal } from "@/components/org/user-assignment-modal"
 import { OrgCleanSlate } from "@/components/org/org-clean-slate"
 import { InviteUserDialog } from "@/components/org/invite-user-dialog"
+import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 import { 
   Users, 
   Plus, 
@@ -556,18 +557,18 @@ export default function OrgChartPage() {
   }
 
   const getDepartmentColor = (department: string | null) => {
-    if (!department) return "bg-gray-100 text-gray-800"
+    if (!department) return "bg-muted text-foreground"
     
     switch (department) {
-      case "Executive": return "bg-yellow-100 text-yellow-800"
-      case "Engineering": return "bg-blue-100 text-blue-800"
-      case "Marketing": return "bg-purple-100 text-purple-800"
-      case "Finance": return "bg-green-100 text-green-800"
-      case "Product": return "bg-orange-100 text-orange-800"
-      case "Sales": return "bg-red-100 text-red-800"
-      case "HR": return "bg-pink-100 text-pink-800"
-      case "Operations": return "bg-gray-100 text-gray-800"
-      default: return "bg-gray-100 text-gray-800"
+      case "Executive": return "bg-yellow-500/20 text-yellow-400"
+      case "Engineering": return "bg-blue-500/20 text-blue-400"
+      case "Marketing": return "bg-purple-500/20 text-purple-400"
+      case "Finance": return "bg-green-500/20 text-green-400"
+      case "Product": return "bg-orange-500/20 text-orange-400"
+      case "Sales": return "bg-red-500/20 text-red-400"
+      case "HR": return "bg-pink-500/20 text-pink-400"
+      case "Operations": return "bg-muted text-foreground"
+      default: return "bg-muted text-foreground"
     }
   }
 
@@ -714,10 +715,10 @@ export default function OrgChartPage() {
             <Card className="border-0 rounded-xl" style={{ backgroundColor: colors.surface }}>
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-2 h-2 rounded-full bg-gray-300" />
-                  <h3 className="text-lg font-bold text-gray-400">No positions yet</h3>
+                  <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                  <h3 className="text-lg font-bold text-muted-foreground">No positions yet</h3>
                 </div>
-                <p className="text-sm text-gray-400 mb-4">Get started by adding your first position to the organization chart.</p>
+                <p className="text-sm text-muted-foreground mb-4">Get started by adding your first position to the organization chart.</p>
                 {isAdmin && showUserManagement && (
                   <Button onClick={handleAddPosition} className="rounded-lg">
                     <UserPlus className="mr-2 h-4 w-4" />
@@ -777,15 +778,15 @@ export default function OrgChartPage() {
           <h2 className="text-xl font-medium" style={{ color: colors.text }}>Department Overview</h2>
           {departmentsCount === 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="border-0 rounded-xl opacity-50" style={{ backgroundColor: colors.surface }}>
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-2 h-2 rounded-full bg-gray-300" />
-                    <h3 className="text-lg font-bold text-gray-400">Department Overview</h3>
-                  </div>
-                  <p className="text-sm text-gray-400">Coming soon...</p>
-                </CardContent>
-              </Card>
+                  <Card className="border-0 rounded-xl opacity-50" style={{ backgroundColor: colors.surface }}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                        <h3 className="text-lg font-bold text-muted-foreground">Department Overview</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Coming soon...</p>
+                    </CardContent>
+                  </Card>
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -799,7 +800,7 @@ export default function OrgChartPage() {
                       <CardTitle className="flex items-center space-x-2" style={{ color: colors.text }}>
                         <Building className="h-5 w-5" />
                         <span>{dept.name}</span>
-                        <Badge variant="secondary" className="bg-gray-100 text-gray-600">{deptPositions.length}</Badge>
+                        <Badge variant="secondary" className="bg-muted text-muted-foreground">{deptPositions.length}</Badge>
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -874,6 +875,9 @@ export default function OrgChartPage() {
             )}
           </>
         )}
+
+      {/* Global Loopbrain Assistant */}
+      <LoopbrainAssistantLauncher mode="org" />
     </div>
   )
 }

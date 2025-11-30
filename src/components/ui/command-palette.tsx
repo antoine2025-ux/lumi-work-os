@@ -267,19 +267,19 @@ export function CommandPalette() {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center pt-20">
-      <div className="bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-2xl mx-4">
+      <div className="bg-popover rounded-lg shadow-xl border border-border w-full max-w-2xl mx-4">
         {/* Search input */}
-        <div className="flex items-center px-4 py-3 border-b border-gray-200">
-          <Search className="h-4 w-4 text-gray-400 mr-3" />
+        <div className="flex items-center px-4 py-3 border-b border-border">
+          <Search className="h-4 w-4 text-muted-foreground mr-3" />
           <input
             type="text"
             placeholder="Type a command or search..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 outline-none text-sm"
+            className="flex-1 outline-none text-sm bg-transparent text-foreground placeholder:text-muted-foreground"
             autoFocus
           />
-          <div className="flex items-center text-xs text-gray-400 ml-3">
+          <div className="flex items-center text-xs text-muted-foreground ml-3">
             <Command className="h-3 w-3 mr-1" />
             K
           </div>
@@ -288,7 +288,7 @@ export function CommandPalette() {
         {/* Results */}
         <div className="max-h-96 overflow-y-auto">
           {allItems.length === 0 ? (
-            <div className="px-4 py-8 text-center text-gray-500">
+            <div className="px-4 py-8 text-center text-muted-foreground">
               {isLoading ? "Searching..." : "No results found"}
             </div>
           ) : (
@@ -302,21 +302,21 @@ export function CommandPalette() {
                     setQuery("")
                   }}
                   className={cn(
-                    "w-full flex items-center px-4 py-3 text-left hover:bg-gray-50 transition-colors",
-                    index === selectedIndex && "bg-blue-50 border-r-2 border-blue-500"
+                    "w-full flex items-center px-4 py-3 text-left hover:bg-muted transition-colors",
+                    index === selectedIndex && "bg-muted border-r-2 border-primary"
                   )}
                 >
-                  <item.icon className="h-4 w-4 text-gray-400 mr-3 flex-shrink-0" />
+                  <item.icon className="h-4 w-4 text-muted-foreground mr-3 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">
+                    <div className="text-sm font-medium text-foreground truncate">
                       {item.title}
                     </div>
-                    <div className="text-xs text-gray-500 truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       {item.description}
                     </div>
                   </div>
                   {item.category === "search" && (
-                    <ArrowRight className="h-3 w-3 text-gray-400 ml-2" />
+                    <ArrowRight className="h-3 w-3 text-muted-foreground ml-2" />
                   )}
                 </button>
               ))}
@@ -325,8 +325,8 @@ export function CommandPalette() {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-2 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-          <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="px-4 py-2 border-t border-border bg-muted rounded-b-lg">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center space-x-4">
               <span>↑↓ Navigate</span>
               <span>↵ Select</span>

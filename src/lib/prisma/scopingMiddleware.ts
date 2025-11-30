@@ -37,7 +37,10 @@ export const WORKSPACE_SCOPED_MODELS = [
   'ProjectWatcher',
   'ProjectAssignee',
   'Subtask',
-  'TaskComment'
+  'TaskComment',
+  'ContextItem',
+  'ContextEmbedding',
+  'ContextSummary'
 ] as const
 
 // Context for workspace scoping

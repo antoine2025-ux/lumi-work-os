@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import { Header } from "@/components/layout/header"
+import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context"
 
 export default function HomeLayout({
   children,
@@ -114,12 +115,14 @@ export default function HomeLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <Header />
-      <main className="min-h-screen">
-        {children}
-      </main>
-    </div>
+    <LoopbrainAssistantProvider>
+      <div className="min-h-screen bg-slate-950">
+        <Header />
+        <main className="min-h-screen">
+          {children}
+        </main>
+      </div>
+    </LoopbrainAssistantProvider>
   )
 }
 

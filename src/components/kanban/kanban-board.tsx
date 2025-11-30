@@ -108,7 +108,7 @@ type ScreenSize = 'desktop' | 'tablet' | 'mobile'
 type GroupByMode = 'status' | 'epic'
 
 const columns = [
-  { id: 'todo', status: 'TODO' as const, title: 'To Do', color: 'bg-gray-100 text-gray-800' },
+  { id: 'todo', status: 'TODO' as const, title: 'To Do', color: 'bg-muted text-foreground' },
   { id: 'in-progress', status: 'IN_PROGRESS' as const, title: 'In Progress', color: 'bg-blue-100 text-blue-800' },
   { id: 'in-review', status: 'IN_REVIEW' as const, title: 'In Review', color: 'bg-yellow-100 text-yellow-800' },
   { id: 'done', status: 'DONE' as const, title: 'Done', color: 'bg-green-100 text-green-800' },
@@ -467,14 +467,14 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
               return (
                 <div key={epic.id} className="border rounded-lg">
                   {/* Epic Header */}
-                  <div className="p-4 border-b bg-gray-50">
+                  <div className="p-4 border-b bg-muted">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleEpicCollapse(epic.id)}
-                          className="h-6 w-6 p-0 hover:bg-gray-200"
+                          className="h-6 w-6 p-0 hover:bg-muted"
                         >
                           {collapsedEpics.has(epic.id) ? (
                             <ChevronRight className="h-4 w-4" />
@@ -541,7 +541,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
 
               return (
                 <div className="border rounded-lg">
-                  <div className="p-4 border-b bg-gray-50">
+                  <div className="p-4 border-b bg-muted">
                     <h3 className="font-semibold text-gray-900">Unassigned Tasks</h3>
                   </div>
                   <div className="p-4">

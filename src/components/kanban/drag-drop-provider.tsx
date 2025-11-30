@@ -107,7 +107,7 @@ export function DragDropProvider({
         {children}
         <DragOverlay>
           {activeTask ? (
-            <div className="bg-white border-2 border-blue-400 rounded-lg shadow-2xl p-3 max-w-[220px] transform rotate-2 scale-105 opacity-95">
+            <div className="bg-card border-2 border-primary rounded-lg shadow-2xl p-3 max-w-[220px] transform rotate-2 scale-105 opacity-95">
               <div className="font-medium text-sm text-gray-900 truncate mb-1">
                 {activeTask.title}
               </div>

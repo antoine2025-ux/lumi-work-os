@@ -14,7 +14,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { useUserStatus } from "@/hooks/use-user-status"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { WikiAIAssistant } from "@/components/wiki/wiki-ai-assistant"
+import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 
 interface WorkspaceItem {
   id: string
@@ -252,7 +252,7 @@ export default function TeamWorkspacePage() {
 
   if (userStatusLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -374,11 +374,8 @@ export default function TeamWorkspacePage() {
         </div>
       </div>
       
-      {/* AI Assistant - Floating Button Mode */}
-      <WikiAIAssistant 
-        currentTitle="Team Workspace"
-        mode="floating-button"
-      />
+      {/* Global Loopbrain Assistant */}
+      <LoopbrainAssistantLauncher mode="spaces" />
     </>
   )
 }

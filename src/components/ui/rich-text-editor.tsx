@@ -75,11 +75,11 @@ export function RichTextEditor({
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0)
       const blockquote = document.createElement('blockquote')
-      blockquote.style.borderLeft = '4px solid #e5e7eb'
+      blockquote.style.borderLeft = '4px solid var(--border)'
       blockquote.style.paddingLeft = '16px'
       blockquote.style.margin = '8px 0'
       blockquote.style.fontStyle = 'italic'
-      blockquote.style.color = '#6b7280'
+      blockquote.style.color = 'var(--muted-foreground)'
       
       try {
         range.surroundContents(blockquote)
@@ -89,7 +89,7 @@ export function RichTextEditor({
         // If surroundContents fails, insert as HTML
         const content = selection.toString()
         if (content) {
-          execCommand('insertHTML', `<blockquote style="border-left: 4px solid #e5e7eb; padding-left: 16px; margin: 8px 0; font-style: italic; color: #6b7280;">${content}</blockquote>`)
+          execCommand('insertHTML', `<blockquote style="border-left: 4px solid var(--border); padding-left: 16px; margin: 8px 0; font-style: italic; color: var(--muted-foreground);">${content}</blockquote>`)
         }
       }
     }
@@ -150,7 +150,7 @@ export function RichTextEditor({
       
       {/* Floating Toolbar */}
       {showToolbar && (
-        <div className="absolute top-[-50px] left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-2 flex items-center gap-1 z-10">
+        <div className="absolute top-[-50px] left-0 bg-popover border border-border rounded-lg shadow-lg p-2 flex items-center gap-1 z-10">
           <Button
             variant="ghost"
             size="sm"
@@ -181,7 +181,7 @@ export function RichTextEditor({
             <Underline className="h-4 w-4" />
           </Button>
           
-          <div className="w-px h-6 bg-gray-200 mx-1" />
+          <div className="w-px h-6 bg-border mx-1" />
           
           <Button
             variant="ghost"
@@ -223,7 +223,7 @@ export function RichTextEditor({
             <Link className="h-4 w-4" />
           </Button>
           
-          <div className="w-px h-6 bg-gray-200 mx-1" />
+          <div className="w-px h-6 bg-border mx-1" />
           
           <Button
             variant="ghost"

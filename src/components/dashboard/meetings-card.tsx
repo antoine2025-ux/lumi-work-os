@@ -109,16 +109,15 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
           events.map((meeting: CalendarEvent) => (
             <div 
               key={meeting.id} 
-              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer group"
-              style={{ backgroundColor: themeConfig.muted }}
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer group bg-muted/50"
               onClick={() => handleMeetingClick(meeting)}
               title={meeting.meetingLink && meeting.type === 'video' ? 'Click to join meeting' : 'Click to view in calendar'}
             >
               <div className="flex-shrink-0">
                 {meeting.type === 'video' ? (
-                  <Video className="h-4 w-4 text-blue-600" />
+                  <Video className="h-4 w-4 text-blue-400" />
                 ) : (
-                  <Phone className="h-4 w-4 text-green-600" />
+                  <Phone className="h-4 w-4 text-green-400" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
@@ -144,7 +143,7 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
                 </div>
                 {meeting.meetingLink && meeting.type === 'video' && (
                   <div className="mt-1">
-                    <span className="text-xs text-blue-600 font-medium">
+                    <span className="text-xs text-blue-400 font-medium">
                       Click to join meeting
                     </span>
                   </div>

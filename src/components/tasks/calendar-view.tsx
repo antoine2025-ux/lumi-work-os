@@ -62,7 +62,7 @@ interface CalendarViewProps {
 }
 
 const statusOptions = [
-  { value: 'TODO', label: 'To Do', color: 'bg-gray-100 text-gray-800' },
+  { value: 'TODO', label: 'To Do', color: 'bg-muted text-foreground' },
   { value: 'IN_PROGRESS', label: 'In Progress', color: 'bg-blue-100 text-blue-800' },
   { value: 'IN_REVIEW', label: 'In Review', color: 'bg-yellow-100 text-yellow-800' },
   { value: 'DONE', label: 'Done', color: 'bg-green-100 text-green-800' },
@@ -329,7 +329,7 @@ export default function CalendarView({ projectId, workspaceId }: CalendarViewPro
                       key={task.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, task)}
-                      className="text-xs p-1 bg-white rounded border cursor-move hover:shadow-sm"
+                      className="text-xs p-1 bg-card rounded border cursor-move hover:shadow-sm"
                       onClick={() => handleEditTask(task)}
                     >
                       <div className="font-medium truncate">{task.title}</div>

@@ -110,6 +110,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
   const [projects, setProjects] = useState<Project[]>([])
   const [recentPages, setRecentPages] = useState<RecentPage[]>([])
   const [favoritePages, setFavoritePages] = useState<RecentPage[]>([])
+  const [pageCounts, setPageCounts] = useState<Record<string, number>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [isCreatingPage, setIsCreatingPage] = useState(false)
   const [newPageTitle, setNewPageTitle] = useState("")
@@ -346,20 +347,28 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
       
       if (isCurrentlyFavorite) {
         // Remove from favorites
-        await fetch(`/api/wiki/pages/${page.id}/favorite`, {
+        const response = await fetch(`/api/wiki/pages/${page.id}/favorite`, {
           method: 'DELETE'
         })
-        setFavoritePages(prev => prev.filter(fav => fav.id !== page.id))
+        if (response.ok) {
+          setFavoritePages(prev => prev.filter(fav => fav.id !== page.id))
+          // Dispatch event to refresh favorites in other components
+          window.dispatchEvent(new CustomEvent('favoritesChanged'))
+        }
       } else {
         // Add to favorites
-        await fetch(`/api/wiki/pages/${page.id}/favorite`, {
+        const response = await fetch(`/api/wiki/pages/${page.id}/favorite`, {
           method: 'POST'
         })
-        // Refresh favorites list from server
-        const response = await fetch('/api/wiki/favorites')
         if (response.ok) {
-          const favoritesData = await response.json()
-          setFavoritePages(favoritesData)
+          // Refresh favorites list from server
+          const favoritesResponse = await fetch('/api/wiki/favorites')
+          if (favoritesResponse.ok) {
+            const favoritesData = await favoritesResponse.json()
+            setFavoritePages(Array.isArray(favoritesData) ? favoritesData : [])
+            // Dispatch event to refresh favorites in other components
+            window.dispatchEvent(new CustomEvent('favoritesChanged'))
+          }
         }
       }
     } catch (error) {
@@ -477,8 +486,16 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
         setRecentPages(recentData)
       }
       
-      // Dispatch event to refresh workspace pages
+      // Refresh page counts
+      const countsResponse = await fetch('/api/wiki/page-counts')
+      if (countsResponse.ok) {
+        const countsData = await countsResponse.json()
+        setPageCounts(countsData)
+      }
+      
+      // Dispatch events to refresh workspace pages and page counts
       window.dispatchEvent(new CustomEvent('workspacePagesRefreshed'))
+      window.dispatchEvent(new CustomEvent('pageCreated'))
       
       // Navigate to the new page using router (no full page reload)
       router.push(`/wiki/${newPage.slug}`)
@@ -512,11 +529,15 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     fetchWorkspaceId()
   }, [workspaceId])
 
-  // Load workspaces - always load regardless of workspaceId
+  // Load workspaces and page counts - always load regardless of workspaceId
   useEffect(() => {
     const loadWorkspaces = async () => {
       try {
-        const workspacesResponse = await fetch('/api/wiki/workspaces')
+        const [workspacesResponse, countsResponse] = await Promise.all([
+          fetch('/api/wiki/workspaces'),
+          fetch('/api/wiki/page-counts')
+        ])
+        
         if (workspacesResponse.ok) {
           const workspacesData = await workspacesResponse.json()
           
@@ -549,6 +570,17 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
         } else {
           console.error('❌ Failed to fetch workspaces:', workspacesResponse.status, workspacesResponse.statusText)
         }
+
+        if (countsResponse.ok) {
+          const countsData = await countsResponse.json()
+          console.log('📊 Page counts loaded:', countsData)
+          setPageCounts(countsData)
+        } else {
+          const errorData = await countsResponse.json().catch(() => ({}))
+          console.error('❌ Failed to fetch page counts:', countsResponse.status, countsResponse.statusText, errorData)
+          // Don't fail completely - just log the error and continue with empty counts
+          setPageCounts({})
+        }
       } catch (error) {
         console.error('Error loading workspaces:', error)
       }
@@ -557,7 +589,41 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     loadWorkspaces()
   }, []) // Load once on mount
 
-  // Load recent pages, favorites, and projects - depends on workspaceId
+  // Load favorites and page counts - these don't depend on workspaceId
+  useEffect(() => {
+    const loadGlobalData = async () => {
+      try {
+        const [favoritesResponse, countsResponse] = await Promise.all([
+          fetch('/api/wiki/favorites'),
+          fetch('/api/wiki/page-counts')
+        ])
+
+        if (favoritesResponse.ok) {
+          const favoritesData = await favoritesResponse.json()
+          console.log('⭐ Favorites loaded:', favoritesData.length, 'favorites', favoritesData)
+          setFavoritePages(Array.isArray(favoritesData) ? favoritesData : [])
+        } else {
+          console.error('Failed to load favorites:', favoritesResponse.status)
+        }
+
+        if (countsResponse.ok) {
+          const countsData = await countsResponse.json()
+          console.log('📊 Page counts refreshed:', countsData)
+          setPageCounts(countsData)
+        } else {
+          console.error('❌ Failed to fetch page counts:', countsResponse.status, countsResponse.statusText)
+          // Don't fail completely - just log the error and continue with empty counts
+          setPageCounts({})
+        }
+      } catch (error) {
+        console.error('Error loading global wiki data:', error)
+      }
+    }
+
+    loadGlobalData()
+  }, []) // Load once on mount
+
+  // Load recent pages and projects - depends on workspaceId
   useEffect(() => {
     if (!workspaceId) {
       setIsLoading(false)
@@ -569,9 +635,8 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
         // Load all data in parallel for better performance
         // Note: We fetch all pages here for the sidebar, but each workspace will filter its own pages
         // The filtering happens client-side based on workspace_type to avoid multiple API calls
-        const [recentResponse, favoritesResponse, projectsResponse] = await Promise.all([
+        const [recentResponse, projectsResponse] = await Promise.all([
           fetch('/api/wiki/recent-pages?limit=100'),
-          fetch('/api/wiki/favorites'),
           fetch(`/api/projects?workspaceId=${workspaceId}`)
         ])
 
@@ -586,14 +651,13 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
           setRecentPages(recentData)
         }
 
-        if (favoritesResponse.ok) {
-          const favoritesData = await favoritesResponse.json()
-          setFavoritePages(favoritesData)
-        }
-
         if (projectsResponse.ok) {
-          const projectsData = await projectsResponse.json()
-          setProjects(projectsData)
+          const projectsResult = await projectsResponse.json()
+          // Handle new response shape: { projects: Project[], contextObjects: ContextObject[] }
+          const projectsData = Array.isArray(projectsResult) 
+            ? projectsResult 
+            : (projectsResult.projects || [])
+          setProjects(Array.isArray(projectsData) ? projectsData : [])
         }
       } catch (error) {
         console.error('Error loading wiki data:', error)
@@ -627,20 +691,38 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     }
 
     const handlePageDeleted = async () => {
-      // Refresh recent pages when a page is deleted
-      const recentResponse = await fetch('/api/wiki/recent-pages')
+      // Refresh recent pages and page counts when a page is deleted
+      const [recentResponse, countsResponse] = await Promise.all([
+        fetch('/api/wiki/recent-pages'),
+        fetch('/api/wiki/page-counts')
+      ])
       if (recentResponse.ok) {
         const recentData = await recentResponse.json()
         setRecentPages(recentData)
+      }
+      if (countsResponse.ok) {
+        const countsData = await countsResponse.json()
+        setPageCounts(countsData)
+      }
+    }
+
+    const handlePageCreated = async () => {
+      // Refresh page counts when a page is created
+      const countsResponse = await fetch('/api/wiki/page-counts')
+      if (countsResponse.ok) {
+        const countsData = await countsResponse.json()
+        setPageCounts(countsData)
       }
     }
 
     window.addEventListener('favoritesChanged', handleFavoritesChanged)
     window.addEventListener('pageDeleted', handlePageDeleted)
+    window.addEventListener('pageCreated', handlePageCreated)
     
     return () => {
       window.removeEventListener('favoritesChanged', handleFavoritesChanged)
       window.removeEventListener('pageDeleted', handlePageDeleted)
+      window.removeEventListener('pageCreated', handlePageCreated)
     }
   }, [])
 
@@ -688,9 +770,9 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
           background: #9ca3af;
         }
       `}</style>
-      <div className="h-screen bg-slate-900 flex overflow-hidden">
+      <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Sidebar */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-60'} bg-slate-950 transition-all duration-300 flex flex-col border-r border-slate-900 shadow-sm h-screen overflow-hidden flex-shrink-0`}>
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-60'} bg-card transition-all duration-300 flex flex-col border-r border-border shadow-sm h-screen overflow-hidden flex-shrink-0`}>
         {/* Top Section - Search and AI Button */}
         <div className="p-3 border-b border-border">
           {!sidebarCollapsed && (
@@ -702,7 +784,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                   placeholder="Explore knowledge..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-slate-900/50 border-slate-800 text-gray-200 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="pl-10 bg-muted/50 border-border text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
 
@@ -731,8 +813,8 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                     href="/wiki/home"
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
                       (pathname || '') === '/wiki/home' || (pathname || '') === '/wiki' || (pathname || '') === '/spaces'
-                        ? 'bg-slate-800 text-slate-100' 
-                        : 'text-gray-300 hover:text-white hover:bg-slate-900'
+                        ? 'bg-muted text-foreground' 
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
                   >
                     <Home className="h-4 w-4" />
@@ -746,8 +828,8 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                   
                   {isLoading ? (
                     <div className="space-y-2">
-                      <div className="h-8 bg-slate-900 rounded animate-pulse"></div>
-                      <div className="h-8 bg-slate-900 rounded animate-pulse"></div>
+                      <div className="h-8 bg-muted rounded animate-pulse"></div>
+                      <div className="h-8 bg-muted rounded animate-pulse"></div>
                     </div>
                   ) : (
                     <>
@@ -854,11 +936,13 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                         }
                         
                         const isExpanded = expandedWorkspaces[workspace.id] || false
-                        const hasPages = workspacePages.length > 0
+                        // Use page counts from API instead of filtering recentPages
+                        const pageCount = pageCounts[workspace.id] || 0
+                        const hasPages = pageCount > 0
                         
                         return (
                           <div key={workspace.id} className="group relative mb-2">
-                            <div className="relative flex items-center px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg">
+                            <div className="relative flex items-center px-3 py-2 text-foreground hover:text-foreground hover:bg-muted rounded-lg">
                               <Link
                                 href={workspaceRoute}
                                 className="flex items-center gap-3 flex-1"
@@ -874,12 +958,12 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                                       e.stopPropagation()
                                       toggleWorkspace(workspace.id)
                                     }}
-                                    className="text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded px-1 py-0.5 transition-colors"
+                                    className="text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded px-1 py-0.5 transition-colors"
                                   >
-                                    ({workspacePages.length})
+                                    ({pageCount})
                                   </button>
                                 ) : (
-                                  <span className="text-xs text-slate-400">({workspacePages.length})</span>
+                                  <span className="text-xs text-slate-400">({pageCount})</span>
                                 )}
                               </div>
                             </div>
@@ -890,7 +974,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                                 {workspacePages.slice(0, 5).map((page) => (
                                   <div
                                     key={page.id}
-                                    className="group flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg"
+                                    className="group flex items-center gap-3 px-3 py-2 text-foreground hover:text-foreground hover:bg-muted rounded-lg"
                                   >
                                     <Link href={`/wiki/${page.slug}`} className="flex items-center gap-3 flex-1 min-w-0">
                                       <FileText className="h-3 w-3 text-indigo-600" />
@@ -917,7 +1001,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                                 {workspacePages.slice(0, 5).map((page) => (
                                   <div
                                     key={page.id}
-                                    className="group flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg"
+                                    className="group flex items-center gap-3 px-3 py-2 text-foreground hover:text-foreground hover:bg-muted rounded-lg"
                                   >
                                     <Link href={`/wiki/${page.slug}`} className="flex items-center gap-3 flex-1 min-w-0">
                                       <FileText className="h-3 w-3 text-slate-400" />
@@ -944,7 +1028,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                                 {workspacePages.slice(0, 5).map((page) => (
                                   <div
                                     key={page.id}
-                                    className="group flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg"
+                                    className="group flex items-center gap-3 px-3 py-2 text-foreground hover:text-foreground hover:bg-muted rounded-lg"
                                   >
                                     <Link href={`/wiki/${page.slug}`} className="flex items-center gap-3 flex-1 min-w-0">
                                       <FileText className="h-3 w-3 text-slate-400" />
@@ -971,7 +1055,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                       {/* Create Workspace Button */}
                       <Button 
                         variant="ghost" 
-                        className="w-full justify-start text-slate-300 hover:text-slate-100 hover:bg-slate-900"
+                        className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted"
                         onClick={() => setIsCreatingWorkspace(true)}
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -1008,7 +1092,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                       {/* New Project Button */}
                       <Link
                         href="/projects/new"
-                        className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:text-slate-100 hover:bg-slate-900 rounded-lg"
+                        className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                       >
                         <Plus className="h-4 w-4" />
                         <span className="text-sm">New Project</span>
@@ -1073,7 +1157,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                               e.preventDefault()
                               toggleFavorite(page)
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-800 rounded"
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded"
                           >
                             <X className="h-3 w-3 text-slate-400" />
                           </button>
@@ -1093,42 +1177,42 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                 <>
                   <Link
                     href="/wiki/ai-insights"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Lightbulb className="h-4 w-4" />
                     <span className="text-sm">AI Insights</span>
                   </Link>
                   <Link
                     href="/wiki/team"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Users className="h-4 w-4" />
                     <span className="text-sm">Team Members</span>
                   </Link>
                   <Link
                     href="/wiki/import"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Upload className="h-4 w-4" />
                     <span className="text-sm">Import Data</span>
                   </Link>
                   <Link
                     href="/wiki/templates"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Grid3X3 className="h-4 w-4" />
                     <span className="text-sm">Templates</span>
                   </Link>
                   <Link
                     href="/wiki/shared"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Share2 className="h-4 w-4" />
                     <span className="text-sm">Shared Content</span>
                   </Link>
                   <Link
                     href="/wiki/archive"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-slate-900 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Archive className="h-4 w-4" />
                     <span className="text-sm">Archive</span>
@@ -1145,7 +1229,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
             variant="ghost"
             size="sm"
             onClick={toggleSidebar}
-            className="w-full text-slate-300 hover:text-slate-100 hover:bg-slate-900"
+            className="w-full text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </Button>
@@ -1154,12 +1238,12 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
 
       {/* Main Content Area */}
       <div className={cn(
-        "flex-1 bg-slate-900 overflow-y-auto overflow-x-hidden h-screen transition-all duration-500 min-w-0",
+        "flex-1 bg-background overflow-y-auto overflow-x-hidden h-screen transition-all duration-500 min-w-0",
         isAISidebarOpen && aiDisplayMode === 'sidebar' ? "mr-[384px]" : ""
       )}>
         {isCreatingPage ? (
           /* Minimalistic Page Editor */
-          <div className="h-full bg-slate-900 min-h-screen w-full min-w-0 relative">
+          <div className="h-full bg-background min-h-screen w-full min-w-0 relative">
             {/* Floating Vertical Sidebar - Right Side */}
             <div className={cn(
               "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-500 ease-in-out",
@@ -1181,28 +1265,28 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                   <Save className="h-4 w-4" />
                 )}
               </Button>
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="Share">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Share">
                 <Share2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="Favorite">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Favorite">
                 <Star className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="View">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="View">
                 <Eye className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="Comments">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Comments">
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="AI Assistant">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="AI Assistant">
                 <Brain className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 w-10 h-10 rounded-full flex items-center justify-center p-0 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm" title="More options">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="More options">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </div>
 
             {/* Main Editor Area - Clean Document */}
-            <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-900 min-h-screen w-full min-w-0">
+            <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen w-full min-w-0">
               <div className="max-w-4xl mx-auto w-full min-w-0">
                 {/* Page Info */}
                 <div className="flex items-center justify-between gap-4 mb-6 w-full min-w-0">

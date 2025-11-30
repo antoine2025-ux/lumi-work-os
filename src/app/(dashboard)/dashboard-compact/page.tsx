@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useTheme } from "@/components/theme-provider"
+import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 
 // Mock data for demo
 const mockMeetings = [
@@ -336,7 +337,7 @@ export default function DashboardCompactPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {mockTasks.map((task) => (
-                    <div key={task.id} className="flex items-center space-x-2 p-2 rounded hover:bg-gray-50 transition-colors">
+                    <div key={task.id} className="flex items-center space-x-2 p-2 rounded hover:bg-muted transition-colors">
                       <div className={`w-3 h-3 rounded-full border ${
                         task.completed ? 'bg-green-500 border-green-500' : 'border-gray-300'
                       }`} />
@@ -369,7 +370,7 @@ export default function DashboardCompactPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {mockMeetings.map((meeting) => (
-                    <div key={meeting.id} className="flex items-center space-x-2 p-2 rounded hover:bg-gray-50 transition-colors">
+                    <div key={meeting.id} className="flex items-center space-x-2 p-2 rounded hover:bg-muted transition-colors">
                       <div className="flex-shrink-0">
                         {meeting.type === 'video' ? (
                           <Video className="h-3 w-3 text-blue-600" />
@@ -488,7 +489,7 @@ export default function DashboardCompactPage() {
                           {metric.value}{metric.unit || '%'}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div className="w-full bg-muted rounded-full h-1.5">
                         <div 
                           className={`h-1.5 rounded-full ${metric.color}`}
                           style={{ width: `${metric.value}%` }}
@@ -588,6 +589,9 @@ export default function DashboardCompactPage() {
           </Card>
         </div>
       </div>
+
+      {/* Global Loopbrain Assistant */}
+      <LoopbrainAssistantLauncher mode="dashboard" />
     </div>
   )
 }

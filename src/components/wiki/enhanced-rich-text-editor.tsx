@@ -166,10 +166,10 @@ export function EnhancedRichTextEditor({
     if (!showToolbar || !editable) return null
 
     return (
-      <div className="border-b border-gray-200 p-3 bg-gray-50">
+      <div className="border-b border-border p-3 bg-muted">
         <div className="flex items-center gap-1 flex-wrap">
           {/* Text Formatting */}
-          <div className="flex items-center gap-1 border-r border-gray-300 pr-2 mr-2">
+          <div className="flex items-center gap-1 border-r border-border pr-2 mr-2">
             <Button
               variant="ghost"
               size="sm"
@@ -197,7 +197,7 @@ export function EnhancedRichTextEditor({
           </div>
 
           {/* Headings */}
-          <div className="flex items-center gap-1 border-r border-gray-300 pr-2 mr-2">
+          <div className="flex items-center gap-1 border-r border-border pr-2 mr-2">
             <Button
               variant="ghost"
               size="sm"
@@ -225,7 +225,7 @@ export function EnhancedRichTextEditor({
           </div>
 
           {/* Lists */}
-          <div className="flex items-center gap-1 border-r border-gray-300 pr-2 mr-2">
+          <div className="flex items-center gap-1 border-r border-border pr-2 mr-2">
             <Button
               variant="ghost"
               size="sm"
@@ -245,7 +245,7 @@ export function EnhancedRichTextEditor({
           </div>
 
           {/* Special Elements */}
-          <div className="flex items-center gap-1 border-r border-gray-300 pr-2 mr-2">
+          <div className="flex items-center gap-1 border-r border-border pr-2 mr-2">
             <Button
               variant="ghost"
               size="sm"
@@ -273,7 +273,7 @@ export function EnhancedRichTextEditor({
           </div>
 
           {/* Interactive Elements */}
-          <div className="flex items-center gap-1 border-r border-gray-300 pr-2 mr-2">
+          <div className="flex items-center gap-1 border-r border-border pr-2 mr-2">
             <Button
               variant="ghost"
               size="sm"
@@ -293,7 +293,7 @@ export function EnhancedRichTextEditor({
           </div>
 
           {/* Links and Media */}
-          <div className="flex items-center gap-1 border-r border-gray-300 pr-2 mr-2">
+          <div className="flex items-center gap-1 border-r border-border pr-2 mr-2">
             <Button
               variant="ghost"
               size="sm"
@@ -329,7 +329,7 @@ export function EnhancedRichTextEditor({
   }
 
   return (
-    <div className={`border border-gray-200 rounded-lg bg-white ${className}`}>
+    <div className={`border border-border rounded-lg bg-card ${className}`}>
       <Toolbar />
       
       <div

@@ -60,6 +60,7 @@ const CalendarView = dynamic(() => import("@/components/tasks/calendar-view"), {
 const EpicsView = dynamic(() => import("@/components/projects/epics-view").then(mod => ({ default: mod.EpicsView })), { ssr: false })
 const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mod => ({ default: mod.WikiLayout })), { ssr: false })
 const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
+const LoopbrainAssistantLauncher = dynamic(() => import("@/components/loopbrain/assistant-launcher").then(mod => ({ default: mod.LoopbrainAssistantLauncher })), { ssr: false })
 
 interface Project {
   id: string
@@ -845,6 +846,12 @@ export default function ProjectDetailPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Global Loopbrain Assistant */}
+      <LoopbrainAssistantLauncher 
+        mode="spaces" 
+        anchors={{ projectId }} 
+      />
     </WikiLayout>
   )
 }

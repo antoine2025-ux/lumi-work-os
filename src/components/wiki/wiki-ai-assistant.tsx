@@ -30,6 +30,8 @@ import { AIPreviewCard } from "./ai-preview-card"
 import { AIWorkspaceSelectDialog } from "./ai-workspace-select-dialog"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { callSpacesLoopbrainAssistant } from "@/lib/loopbrain/client"
+import type { LoopbrainResponse, LoopbrainSuggestion } from "@/lib/loopbrain/orchestrator-types"
 
 interface Message {
   id: string
@@ -153,6 +155,8 @@ export function WikiAIAssistant({
   const [displayMode, setDisplayMode] = useState<'sidebar' | 'floating'>(mode === 'floating-button' ? 'floating' : 'sidebar')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [pendingPreview, setPendingPreview] = useState<LoopwellAIResponse | null>(null)
+  // Loopbrain response state
+  const [lastLoopbrainResponse, setLastLoopbrainResponse] = useState<LoopbrainResponse | null>(null)
   const [showWorkspaceSelectDialog, setShowWorkspaceSelectDialog] = useState(false)
   const [pendingPageTitle, setPendingPageTitle] = useState("")
   const [pendingPageContent, setPendingPageContent] = useState("")
@@ -1088,258 +1092,39 @@ export function WikiAIAssistant({
       return
     }
 
-    // If we get here, proceed with normal AI API call
+    // If we get here, proceed with Loopbrain API call
     setIsLoading(true)
 
     try {
-      // Wait for session ID if not ready yet
-      let currentSessionId = sessionId
-      if (!currentSessionId) {
-        const sessionResponse = await fetch('/api/ai/chat-sessions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4-turbo',
-            title: currentTitle || 'Wiki Chat'
-          })
-        })
-        
-        if (sessionResponse.ok) {
-          const sessionData = await sessionResponse.json()
-          currentSessionId = sessionData.sessionId
-          setSessionId(currentSessionId)
-        } else {
-          throw new Error('Failed to create session')
-        }
-      }
-
-      // Call LoopwellAI API with context
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: currentInput,
-          sessionId: currentSessionId,
-          model: 'gpt-4-turbo',
-          context: {
-            pageId: currentPageId,
-            title: currentTitle,
-            content: currentContent,
-            selectedText: selectedText
-          }
-        })
+      // Call Loopbrain assistant (no session needed - stateless)
+      const result = await callSpacesLoopbrainAssistant({
+        query: currentInput,
+        pageId: currentPageId,
+        // projectId and taskId can be added later when used in project/task pages
+        useSemanticSearch: true,
+        maxContextItems: 10
       })
 
-      if (!response.ok) {
-        // Try to extract error details from response
-        let errorMessage = 'Failed to get AI response'
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.details || errorData.error || errorMessage
-          console.error('❌ AI API error:', {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData.error,
-            details: errorData.details
-          })
-        } catch (parseError) {
-          // If response isn't JSON, use status text
-          errorMessage = `${response.status} ${response.statusText}`
-          console.error('❌ AI API error (non-JSON):', {
-            status: response.status,
-            statusText: response.statusText
-          })
-        }
-        throw new Error(errorMessage)
-      }
+      // Store response for suggestions/retrieved items
+      setLastLoopbrainResponse(result)
 
-      const data: LoopwellAIResponse = await response.json()
-      
-      // Determine mode: Page Context Mode (has currentPageId OR is editing a draft) vs Global Mode
-      // If user is editing a draft page (has content/title), treat as Page Context Mode
-      const isPageContextMode = !!currentPageId || !!(currentContent || currentTitle !== 'New page')
-      const isGlobalMode = !isPageContextMode
-      
-      // NOTION-STYLE: Automatically insert content for write intents
-      const writeIntents = ['create_new_page', 'append_to_page', 'improve_existing_page']
-      const hasMarkdown = data.preview?.markdown && data.preview.markdown.trim().length > 0
-      
-      if (writeIntents.includes(data.intent) && hasMarkdown) {
-        const cleanedMarkdown = cleanMarkdownContent(data.preview.markdown)
-        
-        // PAGE CONTEXT MODE: Auto-insert into current page
-        if (isPageContextMode) {
-          if (data.intent === 'create_new_page') {
-            // User explicitly wants a new page - check if they mentioned location
-            const wantsNewPage = currentInput.toLowerCase().includes('new page') || 
-                                 currentInput.toLowerCase().includes('create a') ||
-                                 currentInput.toLowerCase().includes('separate page')
-            
-            if (wantsNewPage) {
-              // Show workspace selection dialog
-              if (data.preview?.title) {
-                setPendingPageTitle(data.preview.title)
-                setPendingPageContent(cleanedMarkdown)
-                setShowWorkspaceSelectDialog(true)
-                
-                const assistantMessage: Message = {
-                  id: (Date.now() + 1).toString(),
-                  role: 'assistant',
-                  content: `I've prepared "${data.preview.title}". Please select where to create it.`,
-                  timestamp: new Date()
-                }
-                setMessages(prev => [...prev, assistantMessage])
-                setIsLoading(false)
-                return
-              }
-            } else {
-              // User didn't explicitly say "new page" - stream content into current page
-              if (currentPageId && onContentUpdate) {
-                // Stream content generation for current page
-                streamContentToPage(currentPageId, currentInput, cleanedMarkdown)
-                setIsLoading(false)
-                return
-              } else if (onContentUpdate) {
-                // Fallback: insert content directly if no pageId
-                const existingContent = currentContent || ''
-                const isEmpty = !existingContent || existingContent.trim().length === 0
-                
-                if (isEmpty) {
-                  onContentUpdate(cleanedMarkdown)
-                } else {
-                  const newContent = `${existingContent}\n\n${cleanedMarkdown}`
-                  onContentUpdate(newContent)
-                }
-                
-                const assistantMessage: Message = {
-                  id: (Date.now() + 1).toString(),
-                  role: 'assistant',
-                  content: 'Content has been added to your page.',
-                  timestamp: new Date()
-                }
-                setMessages(prev => [...prev, assistantMessage])
-                setIsLoading(false)
-                return
-              }
-            }
-          } else if (data.intent === 'append_to_page') {
-            // Auto-append to current page
-            if (onContentUpdate) {
-              const existingContent = currentContent || ''
-              const newContent = existingContent.trim() 
-                ? `${existingContent}\n\n${cleanedMarkdown}`
-                : cleanedMarkdown
-              onContentUpdate(newContent)
-              
-              const assistantMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: 'Content has been appended to the page.',
-                timestamp: new Date()
-              }
-              setMessages(prev => [...prev, assistantMessage])
-              setIsLoading(false)
-              return
-            }
-          } else if (data.intent === 'improve_existing_page') {
-            // Auto-improve current page
-            if (onContentUpdate) {
-              onContentUpdate(cleanedMarkdown)
-              
-              const assistantMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: 'Page has been improved and updated.',
-                timestamp: new Date()
-              }
-              setMessages(prev => [...prev, assistantMessage])
-              setIsLoading(false)
-              return
-            }
-          }
-        } else {
-          // GLOBAL MODE: Create new page
-          if (data.intent === 'create_new_page') {
-            const suggestedTitle = data.preview?.title || extractTitle(currentInput) || 'Untitled'
-            
-            // Check if page with this title exists
-            const pageExists = recentPages.some(page => 
-              page.title.toLowerCase() === suggestedTitle.toLowerCase()
-            )
-            
-            if (pageExists && data.preview?.title) {
-              // Page exists - show options
-              setPendingPreview({
-                ...data,
-                rationale: `Page "${suggestedTitle}" already exists. Should I overwrite it, rename it, or append to the existing content?`
-              })
-              
-              const assistantMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: `I've generated the content, but a page titled "${suggestedTitle}" already exists. Please choose an option below.`,
-                timestamp: new Date()
-              }
-              setMessages(prev => [...prev, assistantMessage])
-              setIsLoading(false)
-              return
-            } else {
-              // Page doesn't exist - show workspace selection dialog
-              if (data.preview?.title) {
-                setPendingPageTitle(data.preview.title)
-                setPendingPageContent(cleanedMarkdown)
-                setShowWorkspaceSelectDialog(true)
-                
-                const assistantMessage: Message = {
-                  id: (Date.now() + 1).toString(),
-                  role: 'assistant',
-                  content: `I've prepared "${data.preview.title}". Please select where to create it.`,
-                  timestamp: new Date()
-                }
-                setMessages(prev => [...prev, assistantMessage])
-                setIsLoading(false)
-                return
-              }
-            }
-          }
-        }
+      // Add assistant message with answer
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: result.answer || 'Sorry, I could not generate a response.',
+        timestamp: new Date()
       }
-      
-      // For other intents (extract_tasks, tag_pages) - show preview card
-      const requiresPreview = ['extract_tasks', 'tag_pages'].includes(data.intent)
-      
-      if (requiresPreview) {
-        setPendingPreview(data)
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: `I've prepared ${data.intent.replace(/_/g, ' ')}. Please review and confirm below.`,
-          timestamp: new Date()
-        }
-        setMessages(prev => [...prev, assistantMessage])
-      } else {
-        // For answer, find_things, do_nothing, summarize - show response directly
-        const content = data.preview?.markdown || data.rationale
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: content || 'Sorry, I could not generate a response.',
-          timestamp: new Date()
-        }
-        setMessages(prev => [...prev, assistantMessage])
-      }
+      setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
-      console.error('Error sending message:', error)
-      // Extract more detailed error message
-      const errorDetails = error instanceof Error ? error.message : 'Unknown error occurred'
+      console.error('Error calling Loopbrain:', error)
+      // Extract user-friendly error message
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `Sorry, there was an error processing your request: ${errorDetails}. Please try again or check your AI API configuration.`,
+        content: error instanceof Error && error.message.includes('Loopbrain')
+          ? error.message
+          : 'Loopbrain couldn\'t answer right now. Please try again.',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
@@ -1553,60 +1338,118 @@ export function WikiAIAssistant({
             ) : (
               <div className="p-4">
                 <div className="space-y-6 max-w-3xl mx-auto">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
-                  >
-                    {/* Avatar for assistant messages */}
-                    {message.role === 'assistant' && (
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                        <AILogo 
-                          width={20} 
-                          height={20} 
-                          className="w-5 h-5"
-                        />
-                      </div>
-                    )}
+                {messages.map((message, messageIndex) => {
+                  // Check if this is the last assistant message and we have Loopbrain response
+                  const isLastAssistantMessage = message.role === 'assistant' && 
+                    messageIndex === messages.length - 1 &&
+                    lastLoopbrainResponse !== null
+                  
+                  return (
                     <div
-                      className={`flex-1 rounded-lg px-4 py-3 ${
-                        message.role === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-foreground'
-                      }`}
+                      key={message.id}
+                      className={`flex gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                     >
-                      {message.role === 'user' ? (
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      ) : (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 mt-0 text-foreground border-b border-border pb-2">{children}</h1>,
-                              h2: ({ children }) => <h2 className="text-xl font-bold mb-3 mt-6 text-foreground">{children}</h2>,
-                              h3: ({ children }) => <h3 className="text-lg font-semibold mb-2 mt-5 text-foreground">{children}</h3>,
-                              h4: ({ children }) => <h4 className="text-base font-medium mb-2 mt-4 text-foreground">{children}</h4>,
-                              p: ({ children }) => <p className="text-sm mb-4 leading-relaxed text-foreground last:mb-0">{children}</p>,
-                              ul: ({ children }) => <ul className="list-disc list-outside mb-4 ml-5 space-y-2 text-sm text-foreground">{children}</ul>,
-                              ol: ({ children }) => <ol className="list-decimal list-outside mb-4 ml-5 space-y-2 text-sm text-foreground">{children}</ol>,
-                              li: ({ children }) => <li className="text-sm text-foreground leading-relaxed">{children}</li>,
-                              strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-                              em: ({ children }) => <em className="italic text-foreground">{children}</em>,
-                              code: ({ children }) => <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono text-foreground">{children}</code>,
-                              pre: ({ children }) => <pre className="bg-muted p-3 rounded-lg overflow-x-auto mb-4 text-xs font-mono text-foreground border border-border">{children}</pre>,
-                              blockquote: ({ children }) => <blockquote className="border-l-4 border-purple-400 dark:border-purple-600 pl-4 italic mb-4 text-foreground bg-purple-50 dark:bg-purple-900/10 py-2">{children}</blockquote>,
-                              hr: () => <hr className="my-6 border-border" />,
-                              a: ({ children, href }) => <a href={href} className="text-purple-600 dark:text-purple-400 hover:underline">{children}</a>,
-                            }}
-                          >
-                            {message.content}
-                          </ReactMarkdown>
+                      {/* Avatar for assistant messages */}
+                      {message.role === 'assistant' && (
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                          <AILogo 
+                            width={20} 
+                            height={20} 
+                            className="w-5 h-5"
+                          />
                         </div>
                       )}
+                      <div
+                        className={`flex-1 rounded-lg px-4 py-3 ${
+                          message.role === 'user'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-foreground'
+                        }`}
+                      >
+                        {message.role === 'user' ? (
+                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        ) : (
+                          <div className="space-y-4">
+                            {/* Answer content */}
+                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 mt-0 text-foreground border-b border-border pb-2">{children}</h1>,
+                                  h2: ({ children }) => <h2 className="text-xl font-bold mb-3 mt-6 text-foreground">{children}</h2>,
+                                  h3: ({ children }) => <h3 className="text-lg font-semibold mb-2 mt-5 text-foreground">{children}</h3>,
+                                  h4: ({ children }) => <h4 className="text-base font-medium mb-2 mt-4 text-foreground">{children}</h4>,
+                                  p: ({ children }) => <p className="text-sm mb-4 leading-relaxed text-foreground last:mb-0">{children}</p>,
+                                  ul: ({ children }) => <ul className="list-disc list-outside mb-4 ml-5 space-y-2 text-sm text-foreground">{children}</ul>,
+                                  ol: ({ children }) => <ol className="list-decimal list-outside mb-4 ml-5 space-y-2 text-sm text-foreground">{children}</ol>,
+                                  li: ({ children }) => <li className="text-sm text-foreground leading-relaxed">{children}</li>,
+                                  strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                                  em: ({ children }) => <em className="italic text-foreground">{children}</em>,
+                                  code: ({ children }) => <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono text-foreground">{children}</code>,
+                                  pre: ({ children }) => <pre className="bg-muted p-3 rounded-lg overflow-x-auto mb-4 text-xs font-mono text-foreground border border-border">{children}</pre>,
+                                  blockquote: ({ children }) => <blockquote className="border-l-4 border-purple-400 dark:border-purple-600 pl-4 italic mb-4 text-foreground bg-purple-50 dark:bg-purple-900/10 py-2">{children}</blockquote>,
+                                  hr: () => <hr className="my-6 border-border" />,
+                                  a: ({ children, href }) => <a href={href} className="text-purple-600 dark:text-purple-400 hover:underline">{children}</a>,
+                                }}
+                              >
+                                {message.content}
+                              </ReactMarkdown>
+                            </div>
+                            
+                            {/* Loopbrain suggestions and retrieved items - only for last assistant message */}
+                            {isLastAssistantMessage && lastLoopbrainResponse && (
+                              <>
+                                {/* Suggestions */}
+                                {lastLoopbrainResponse.suggestions && lastLoopbrainResponse.suggestions.length > 0 && (
+                                  <div className="mt-4 pt-4 border-t border-border">
+                                    <p className="text-xs font-medium text-muted-foreground mb-2">Suggestions:</p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {lastLoopbrainResponse.suggestions.map((suggestion, idx) => (
+                                        <button
+                                          key={idx}
+                                          onClick={() => {
+                                            console.log('Loopbrain suggestion clicked', suggestion)
+                                            // TODO: wire to action executor in a later step
+                                          }}
+                                          className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                        >
+                                          {suggestion.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Retrieved items from semantic search */}
+                                {lastLoopbrainResponse.context.retrievedItems && 
+                                 lastLoopbrainResponse.context.retrievedItems.length > 0 && (
+                                  <div className="mt-4 pt-4 border-t border-border">
+                                    <p className="text-xs font-medium text-muted-foreground mb-2">Related items:</p>
+                                    <div className="space-y-1">
+                                      {lastLoopbrainResponse.context.retrievedItems.slice(0, 5).map((item, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="text-xs text-muted-foreground flex items-center justify-between"
+                                        >
+                                          <span className="truncate">{item.title}</span>
+                                          {item.score !== undefined && (
+                                            <span className="ml-2 text-xs text-muted-foreground/70">
+                                              {item.score.toFixed(2)}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {/* Draft to page button - REMOVED: LoopwellAI handles drafts through preview cards based on intent */}
-                  </div>
-                ))}
+                  )
+                })}
                 
                 {/* Pending Preview Card */}
                 {pendingPreview && (

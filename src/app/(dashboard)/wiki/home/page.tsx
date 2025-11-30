@@ -24,7 +24,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { WikiAIAssistant } from "@/components/wiki/wiki-ai-assistant"
+import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 
 interface RecentPage {
   id: string
@@ -235,7 +235,7 @@ export default function SpacesHomePage() {
 
   if (userStatusLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -257,7 +257,7 @@ export default function SpacesHomePage() {
 
   return (
     <>
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="px-16 py-8 space-y-2">
           <h1 className="text-4xl font-light text-gray-200">Home</h1>
@@ -292,7 +292,7 @@ export default function SpacesHomePage() {
                     "hover:shadow-lg hover:border-primary/50",
                     "group"
                   )}
-                  className="bg-slate-800 border-slate-700"
+                  className="bg-card border-border"
                   onClick={() => router.push(getWorkspaceRoute(workspace))}
                 >
                   <CardContent className="p-4">
@@ -340,12 +340,12 @@ export default function SpacesHomePage() {
                       "hover:shadow-lg hover:border-primary/50",
                       "group"
                     )}
-                    className="bg-slate-800 border-slate-700"
+                    className="bg-card border-border"
                     onClick={() => router.push(item.url)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-700">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-muted">
                           {item.icon}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -377,7 +377,7 @@ export default function SpacesHomePage() {
                       "hover:shadow-lg hover:border-primary/50",
                       "group border-dashed"
                     )}
-                    className="bg-slate-800 border-slate-700"
+                    className="bg-card border-border"
                     onClick={() => {
                       if (draft.type === 'session') {
                         router.push(`/assistant?session=${draft.id}`)
@@ -426,7 +426,7 @@ export default function SpacesHomePage() {
                       "hover:shadow-md hover:border-primary/30",
                       "border-l-4"
                     )}
-                    className="bg-slate-800 border-blue-500 border-l-4"
+                    className="bg-card border-primary border-l-4"
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
@@ -532,7 +532,7 @@ export default function SpacesHomePage() {
                 style={{ backgroundColor: colors.surface, borderColor: colors.border }}
               >
                 <CardContent className="p-6 flex flex-col items-center justify-center min-h-[100px]">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2 bg-slate-700">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2 bg-muted">
                     <Plus className="h-5 w-5 text-slate-400" />
                   </div>
                   <h3 className="font-light text-center text-sm text-slate-400">
@@ -545,11 +545,8 @@ export default function SpacesHomePage() {
         </div>
       </div>
       
-      {/* AI Assistant - Floating Button Mode */}
-      <WikiAIAssistant 
-        currentTitle="Home"
-        mode="floating-button"
-      />
+      {/* Global Loopbrain Assistant */}
+      <LoopbrainAssistantLauncher mode="spaces" />
     </>
   )
 }

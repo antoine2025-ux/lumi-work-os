@@ -42,6 +42,7 @@ import {
 } from "lucide-react"
 import { ContextMenu, contextMenuItems } from "@/components/ui/context-menu"
 import { useTheme } from "@/components/theme-provider"
+import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 // Lazy load heavy components for better initial page load
 const MeetingsCard = dynamic(() => import("@/components/dashboard/meetings-card").then(mod => ({ default: mod.MeetingsCard })), {
   loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />,
@@ -160,7 +161,10 @@ export default function HomePage() {
       const response = await fetch(`/api/projects?workspaceId=${currentWorkspace.id}`)
       if (!response.ok) return []
       const result = await response.json()
-      const data = result.data || result
+      // Handle new response shape: { projects: Project[], contextObjects: ContextObject[] }
+      const data = Array.isArray(result) 
+        ? result 
+        : (result.projects || result.data || [])
       if (Array.isArray(data)) {
         return data
           .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -257,7 +261,7 @@ export default function HomePage() {
               </div>
               <p className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Tasks</p>
               <div className="flex items-center justify-center space-x-1 mt-1">
-                <CheckCircle className="h-3 w-3 text-green-600" />
+                <CheckCircle className="h-3 w-3 text-green-400" />
                 <span className="text-xs" style={{ color: themeConfig.mutedForeground }}>On Track</span>
               </div>
             </div>
@@ -313,7 +317,7 @@ export default function HomePage() {
                     <div className={`w-4 h-4 rounded-full border-2 ${
                       task.completed ? 'bg-green-500 border-green-500' : 'border-border'
                     } flex items-center justify-center`}>
-                      {task.completed && <CheckCircle className="h-3 w-3 text-white" />}
+                      {task.completed && <CheckCircle className="h-3 w-3 text-foreground" />}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -509,7 +513,7 @@ export default function HomePage() {
             <CardContent className="p-6">
               <div className="flex items-start space-x-4">
                 <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                  <Lightbulb className="h-5 w-5 text-white" />
+                  <Lightbulb className="h-5 w-5 text-foreground" />
                 </div>
                 <div className="flex-1">
                   <h4 className="font-medium mb-2" style={{ color: themeConfig.foreground }}>
@@ -520,7 +524,7 @@ export default function HomePage() {
                   </p>
                   <div className="flex space-x-2">
                     <Link href="/ask">
-                      <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                      <Button size="sm" className="bg-purple-500 hover:bg-purple-600">
                         <Zap className="h-4 w-4 mr-2" />
                         Get AI Help
                       </Button>
@@ -535,6 +539,9 @@ export default function HomePage() {
           </Card>
         </div>
       </div>
+
+      {/* Global Loopbrain Assistant */}
+      <LoopbrainAssistantLauncher mode="dashboard" />
     </div>
   )
 }

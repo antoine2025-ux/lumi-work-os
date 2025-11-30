@@ -216,7 +216,7 @@ export function AIPreviewCard({
               {response.preview.markdown && (
                 <div>
                   <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Preview:</p>
-                  <div className="prose prose-sm dark:prose-invert max-w-none border rounded-lg p-4 bg-gray-50 dark:bg-gray-900 max-h-96 overflow-y-auto">
+                  <div className="prose prose-sm dark:prose-invert max-w-none border rounded-lg p-4 bg-muted max-h-96 overflow-y-auto">
                     <ReactMarkdown>{response.preview.markdown}</ReactMarkdown>
                   </div>
                 </div>
@@ -256,7 +256,7 @@ export function AIPreviewCard({
                   </p>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {response.preview.tasks.map((task, idx) => (
-                      <div key={idx} className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-900">
+                      <div key={idx} className="border rounded-lg p-3 bg-muted">
                         <p className="font-medium text-sm">{task.title}</p>
                         <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{task.description}</p>
                         <div className="flex items-center gap-2 mt-2">

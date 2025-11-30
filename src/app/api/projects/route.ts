@@ -6,8 +6,20 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
+import { projectToContext } from '@/lib/context/context-builders'
 
-// GET /api/projects - Get all projects for a workspace
+/**
+ * GET /api/projects - Get all projects for a workspace
+ * 
+ * Response shape:
+ * {
+ *   projects: Project[]        // Array of project objects (original format)
+ *   contextObjects: ContextObject[]  // Array of unified ContextObjects for each project
+ * }
+ * 
+ * Note: The response is an object (not a direct array) to support both the original
+ * project data and the new ContextObject format. Consumers should read from `response.projects`.
+ */
 export async function GET(request: NextRequest) {
   try {
     // 1. Get authenticated user with workspace context
@@ -37,7 +49,19 @@ export async function GET(request: NextRequest) {
     // Check cache first
     const cached = await cache.get(cacheKey)
     if (cached) {
-      const response = NextResponse.json(cached)
+      // Build ContextObjects for cached projects
+      const cachedProjects = cached as typeof projects
+      const cachedContextObjects = cachedProjects.map(project => {
+        return projectToContext(project, {
+          owner: project.owner || null,
+          team: null
+        })
+      })
+      const cachedResponseData = {
+        projects: cachedProjects,
+        contextObjects: cachedContextObjects
+      }
+      const response = NextResponse.json(cachedResponseData)
       response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
       response.headers.set('X-Cache', 'HIT')
       return response
@@ -58,8 +82,21 @@ export async function GET(request: NextRequest) {
         status: true,
         priority: true,
         color: true,
+        department: true,
+        team: true,
+        ownerId: true,
+        isArchived: true,
+        startDate: true,
+        endDate: true,
         createdAt: true,
         updatedAt: true,
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
         createdBy: {
           select: {
             id: true,
@@ -113,11 +150,27 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Cache the result for 5 minutes
+    // Build ContextObjects for each project
+    const contextObjects = projects.map(project => {
+      return projectToContext(project, {
+        owner: project.owner || null,
+        team: null // Team is stored as string in Project model, not a relation
+      })
+    })
+
+    // Prepare response: return object with projects array and contextObjects array
+    // Note: This changes the response shape from array to object, but maintains
+    // all original project data in the 'projects' field for backward compatibility
+    const responseData = {
+      projects,
+      contextObjects
+    }
+
+    // Cache the result for 5 minutes (cache original projects only to maintain compatibility)
     await cache.set(cacheKey, projects, CACHE_TTL.SHORT)
 
     // Add HTTP caching headers for better performance
-    const response = NextResponse.json(projects)
+    const response = NextResponse.json(responseData)
     response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
     response.headers.set('X-Cache', 'MISS')
     return response

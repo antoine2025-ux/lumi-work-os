@@ -269,13 +269,13 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
           
           {/* Mentions Dropdown */}
           {showMentions && (
-            <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+            <div className="absolute bottom-full left-0 right-0 mb-2 bg-popover border border-border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
               {filteredMembers.length > 0 ? (
                 filteredMembers.map((member) => (
                   <button
                     key={member.id}
                     onClick={() => handleMentionSelect(member)}
-                    className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center space-x-2"
+                    className="w-full px-3 py-2 text-left hover:bg-muted flex items-center space-x-2"
                   >
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-xs">
