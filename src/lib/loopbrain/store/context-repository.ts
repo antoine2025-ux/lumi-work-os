@@ -184,6 +184,8 @@ function extractTitle(context: ContextObject): string {
       return context.name
     case ContextType.TASK:
       return context.title
+    case ContextType.EPIC:
+      return context.title
     case ContextType.ORG:
       return `Org Context for ${context.workspaceId}`
     case ContextType.ACTIVITY:

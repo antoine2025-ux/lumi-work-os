@@ -3,6 +3,8 @@ import { UpdateEpicSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { prisma } from '@/lib/db'
+import { upsertEpicContext } from '@/lib/loopbrain/context-engine'
+import { logger } from '@/lib/logger'
 
 
 // GET /api/projects/[projectId]/epics/[epicId] - Get a specific epic
@@ -133,6 +135,12 @@ export async function PATCH(
         userId: accessResult.user!.id
       }
     )
+
+    // Asynchronously upsert epic context for Loopbrain
+    // Log errors but don't block the main response
+    console.log('[LB-EPIC] upsertEpicContext called after update:', epicId)
+    upsertEpicContext(epicId)
+      .catch((error) => logger.error('Failed to upsert epic context after update', { epicId, error }))
 
     return NextResponse.json(epic)
   } catch (error) {

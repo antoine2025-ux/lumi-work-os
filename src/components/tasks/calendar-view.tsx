@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChevronLeft, ChevronRight, Calendar, Plus, User, Tag, Clock } from 'lucide-react'
 import Link from 'next/link'
 import { TaskEditDialog } from './task-edit-dialog'
+import { CreateTaskDialog } from './create-task-dialog'
+import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
 
 interface Task {
   id: string
@@ -77,6 +79,7 @@ const priorityOptions = [
 ]
 
 export default function CalendarView({ projectId, workspaceId }: CalendarViewProps) {
+  const { open } = useTaskSidebarStore()
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -84,6 +87,7 @@ export default function CalendarView({ projectId, workspaceId }: CalendarViewPro
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [draggedTask, setDraggedTask] = useState<Task | null>(null)
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
 
   useEffect(() => {
     loadTasks()
@@ -109,9 +113,9 @@ export default function CalendarView({ projectId, workspaceId }: CalendarViewPro
     }
   }
 
-  const handleEditTask = (task: Task) => {
-    setEditingTask(task)
-    setIsEditDialogOpen(true)
+  const handleEditTask = async (task: Task) => {
+    // Open sidebar with task ID
+    open(task.id)
   }
 
   const handleTaskUpdate = (updatedTask: Task) => {
@@ -472,11 +476,9 @@ export default function CalendarView({ projectId, workspaceId }: CalendarViewPro
               <SelectItem value="week">Week</SelectItem>
             </SelectContent>
           </Select>
-          <Button asChild>
-            <Link href={`/projects/${projectId}/tasks/new`}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Task
-            </Link>
+          <Button onClick={() => setIsCreateTaskOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Task
           </Button>
         </div>
       </div>
@@ -515,6 +517,16 @@ export default function CalendarView({ projectId, workspaceId }: CalendarViewPro
         onClose={handleCloseEditDialog}
         task={editingTask}
         onSave={handleTaskUpdate}
+      />
+
+      {/* Create Task Dialog */}
+      <CreateTaskDialog
+        open={isCreateTaskOpen}
+        onOpenChange={setIsCreateTaskOpen}
+        projectId={projectId}
+        onTaskCreated={() => {
+          loadTasks()
+        }}
       />
     </div>
   )

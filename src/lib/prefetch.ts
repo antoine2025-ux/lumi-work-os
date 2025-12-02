@@ -74,10 +74,12 @@ export async function prefetchAllData(options: PrefetchOptions) {
     queryClient.prefetchQuery({
       queryKey: ['projects', workspaceId],
       queryFn: async () => {
-        const response = await fetch(`/api/projects?workspaceId=${workspaceId}`)
+        // Note: workspaceId is not needed as query param - API gets it from auth context
+        const response = await fetch('/api/projects')
         if (!response.ok) throw new Error('Failed to fetch projects')
         const data = await response.json()
-        return Array.isArray(data) ? data : (data.data || data.projects || [])
+        // API returns { projects: Project[], contextObjects: ContextObject[] }
+        return data.projects || []
       },
       staleTime: 2 * 60 * 1000,
     }).then(() => console.log('[Prefetch] ✓ Projects metadata cached')),
@@ -210,10 +212,12 @@ export function prefetchRoute(route: string, queryClient: QueryClient, workspace
     queryClient.prefetchQuery({
       queryKey: ['projects', workspaceId],
       queryFn: async () => {
-        const response = await fetch(`/api/projects?workspaceId=${workspaceId}`)
+        // Note: workspaceId is not needed as query param - API gets it from auth context
+        const response = await fetch('/api/projects')
         if (!response.ok) throw new Error('Failed to fetch projects')
         const data = await response.json()
-        return Array.isArray(data) ? data : (data.data || data.projects || [])
+        // API returns { projects: Project[], contextObjects: ContextObject[] }
+        return data.projects || []
       },
       staleTime: 2 * 60 * 1000,
     })

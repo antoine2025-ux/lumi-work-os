@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
-import { scopingMiddleware } from './prisma/scopingMiddleware'
-import { createScopedPrisma } from './prisma/scoped-prisma'
+// Temporarily disabled to test if scoped client is causing schema issues
+// import { scopingMiddleware } from './prisma/scopingMiddleware'
+// import { createScopedPrisma } from './prisma/scoped-prisma'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -49,20 +50,38 @@ function createPrismaClient() {
   })
 }
 
-// Create initial Prisma client instance
-let prismaClient = createPrismaClient()
-
 // Get or create singleton instance
+// FORCE clear cached client in development to ensure fresh Prisma client after schema changes
+// This is critical after Prisma schema changes - Next.js caches the module
+if (process.env.NODE_ENV === 'development') {
+  // Always clear in dev to force fresh client after schema changes
+  if (globalForPrisma.prisma) {
+    try {
+      globalForPrisma.prisma.$disconnect().catch(() => {})
+    } catch (e) {
+      // Ignore
+    }
+  }
+  // Clear the cached instance
+  globalForPrisma.prisma = undefined
+}
+
 let prisma = globalForPrisma.prisma
 
 // Check if we need to recreate the client
 if (!prisma) {
-  // Create fresh client
-  prismaClient = createPrismaClient()
+  // Create fresh client - ALWAYS create new instance, don't reuse
+  const prismaClient = createPrismaClient()
+  
+  // TEMPORARILY: Use base client directly to test if scoped client is causing schema issues
+  // TODO: Re-enable scoping middleware after confirming base client works
+  prisma = prismaClient
+  console.log('✅ Using base Prisma client (scoping temporarily disabled for testing)')
   
   // Re-enable scoping middleware for automatic workspace isolation
   // This provides defense-in-depth by automatically adding workspaceId to all queries
   // Prisma v6 uses $extends instead of deprecated $use
+  /*
   try {
     // Try $use first (legacy Prisma v4 pattern - may not work in v6)
     if (typeof (prismaClient as any).$use === 'function') {
@@ -91,6 +110,7 @@ if (!prisma) {
       console.error('🚨 PRODUCTION: Scoping middleware failed - this is a security risk!')
     }
   }
+  */
   
   // Store in global for Next.js hot reload
   if (process.env.NODE_ENV !== 'production') {

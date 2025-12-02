@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, User, Calendar, Palette } from "lucide-react"
+import { Loader2, User, Calendar, Palette, X } from "lucide-react"
+import { getProjectSlackHints, setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
 
 interface User {
   id: string
@@ -87,8 +88,12 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
     endDate: '',
     color: '#3b82f6',
     ownerId: '',
-    assigneeIds: [] as string[]
+    assigneeIds: [] as string[],
+    slackChannelHints: [] as string[]
   })
+  
+  // Channel input state for UI
+  const [channelInput, setChannelInput] = useState('')
 
   // Load users when dialog opens
   useEffect(() => {
@@ -109,8 +114,11 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
         endDate: project.endDate ? project.endDate.split('T')[0] : '',
         color: project.color || '#3b82f6',
         ownerId: project.ownerId || 'none',
-        assigneeIds: project.assignees?.map(a => a.user.id) || []
+        assigneeIds: project.assignees?.map(a => a.user.id) || [],
+        // Load channel hints from localStorage (fallback) or from project if it exists
+        slackChannelHints: (project as any).slackChannelHints || getProjectSlackHints(project.id) || []
       })
+      setChannelInput('')
     }
   }, [project])
 
@@ -145,25 +153,68 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
   const handleSave = async () => {
     if (!project) return
 
+    // Validate required fields
+    if (!formData.name || !formData.name.trim()) {
+      alert('Project name is required')
+      return
+    }
+
     try {
       setIsLoading(true)
+      
+      // Prepare request body - format dates properly for Zod validation
+      const requestBody: Record<string, unknown> = {
+        name: formData.name.trim(),
+        status: formData.status,
+        priority: formData.priority,
+      }
+      
+      // Description - send as string or undefined (not empty string or null)
+      // Schema: z.string().optional() means string | undefined
+      if (formData.description !== undefined && formData.description !== null && formData.description.trim()) {
+        requestBody.description = formData.description.trim()
+      }
+      
+      // Dates - convert YYYY-MM-DD to ISO datetime format (required by schema)
+      // Schema: z.string().datetime().optional() - must be valid ISO datetime or undefined
+      if (formData.startDate && formData.startDate.trim()) {
+        const dateStr = formData.startDate.trim()
+        requestBody.startDate = dateStr.includes('T') 
+          ? dateStr 
+          : `${dateStr}T00:00:00.000Z`
+      }
+      
+      if (formData.endDate && formData.endDate.trim()) {
+        const dateStr = formData.endDate.trim()
+        requestBody.endDate = dateStr.includes('T')
+          ? dateStr
+          : `${dateStr}T23:59:59.999Z`
+      }
+      
+      // Color - only if valid format (schema has regex: /^#[0-9A-Fa-f]{6}$/)
+      if (formData.color && formData.color.trim()) {
+        const colorStr = formData.color.trim()
+        if (/^#[0-9A-Fa-f]{6}$/.test(colorStr)) {
+          requestBody.color = colorStr
+        }
+      }
+      
+      // Owner ID - only if not 'none' (schema: z.string().optional())
+      if (formData.ownerId && formData.ownerId !== 'none' && formData.ownerId.trim()) {
+        requestBody.ownerId = formData.ownerId.trim()
+      }
+      
+      // Include assigneeIds separately (not in schema, extracted before validation)
+      if (formData.assigneeIds && Array.isArray(formData.assigneeIds)) {
+        requestBody.assigneeIds = formData.assigneeIds
+      }
       
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.description,
-          status: formData.status,
-          priority: formData.priority,
-          startDate: formData.startDate || null,
-          endDate: formData.endDate || null,
-          color: formData.color,
-          ownerId: formData.ownerId === 'none' ? null : formData.ownerId || null,
-          assigneeIds: formData.assigneeIds
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (response.ok) {
@@ -171,7 +222,16 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
         onSave(updatedProject)
         onClose()
       } else {
-        console.error('Failed to update project')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update project' }))
+        console.error('Failed to update project:', errorData)
+        
+        // Show detailed validation errors if available
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const errorMessages = errorData.details.map((d: any) => `${d.path || 'field'}: ${d.message}`).join('\n')
+          alert(`Validation error:\n${errorMessages}`)
+        } else {
+          alert(errorData.error || 'Failed to update project. Please check your permissions.')
+        }
       }
     } catch (error) {
       console.error('Error updating project:', error)
@@ -216,6 +276,75 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
                 placeholder="Enter project description"
                 rows={3}
               />
+            </div>
+
+            {/* Slack Channels - sent in request body but not persisted to DB */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Relevant Slack Channels (optional)</Label>
+              <p className="text-xs text-muted-foreground">
+                Add Slack channel names to help Loopbrain fetch relevant conversations. These are sent with the request but not stored in the database.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {formData.slackChannelHints.map((channel, idx) => (
+                  <Badge
+                    key={idx}
+                    variant="outline"
+                    className="flex items-center gap-1"
+                  >
+                    #{channel}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = formData.slackChannelHints.filter((_, i) => i !== idx)
+                        setFormData({ ...formData, slackChannelHints: updated })
+                      }}
+                      className="ml-1 hover:opacity-70"
+                      disabled={isLoading}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add channel (e.g. loopbrain-architecture)"
+                  value={channelInput}
+                  onChange={(e) => setChannelInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const channel = channelInput.trim().replace(/^#/, '')
+                      if (channel && !formData.slackChannelHints.includes(channel)) {
+                        setFormData({
+                          ...formData,
+                          slackChannelHints: [...formData.slackChannelHints, channel]
+                        })
+                        setChannelInput('')
+                      }
+                    }
+                  }}
+                  className="flex-1"
+                  disabled={isLoading}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const channel = channelInput.trim().replace(/^#/, '')
+                    if (channel && !formData.slackChannelHints.includes(channel)) {
+                      setFormData({
+                        ...formData,
+                        slackChannelHints: [...formData.slackChannelHints, channel]
+                      })
+                      setChannelInput('')
+                    }
+                  }}
+                  disabled={isLoading || !channelInput.trim()}
+                >
+                  Add
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

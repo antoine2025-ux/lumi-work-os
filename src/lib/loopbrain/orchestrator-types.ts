@@ -37,6 +37,8 @@ export interface LoopbrainRequest {
   pageId?: string
   /** Task ID (for Spaces mode) */
   taskId?: string
+  /** Epic ID (for Spaces mode) */
+  epicId?: string
   /** Role ID (for Org mode) */
   roleId?: string
   /** Team ID (for Org mode) */
@@ -51,6 +53,10 @@ export interface LoopbrainRequest {
   sendToSlack?: boolean
   /** Slack channel to send to (if sendToSlack is true) */
   slackChannel?: string
+  /** Client-side metadata (e.g., project Slack channel hints from localStorage) */
+  clientMetadata?: Record<string, unknown>
+  /** Slack channel hints from project (sent in request body, not persisted) */
+  slackChannelHints?: string[]
 }
 
 /**
@@ -80,6 +86,26 @@ export interface LoopbrainContextSummary {
   personalDocs?: UnifiedContextObject[]
   /** Organization people (users with their roles/positions) */
   orgPeople?: UnifiedContextObject[]
+  /** Epics for the current project (if projectId is present) */
+  projectEpics?: UnifiedContextObject[]
+  /** Tasks for the current project (if projectId is present) */
+  projectTasks?: UnifiedContextObject[]
+  /** Slack context from project channels (Tier B - non-persistent) */
+  slackContext?: Array<{
+    channel: string
+    channelId?: string
+    relevance: 'high' | 'medium' | 'low'
+    summary: string
+    messages: Array<{
+      user: string
+      userId?: string
+      text: string
+      ts: string
+      threadTs?: string
+      replies?: number
+    }>
+    messageCount: number
+  }>
 }
 
 /**

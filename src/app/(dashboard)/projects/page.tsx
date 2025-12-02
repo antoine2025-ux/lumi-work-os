@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,6 +42,7 @@ import Link from "next/link"
 import { useWorkspace } from "@/lib/workspace-context"
 import { motion, AnimatePresence } from "framer-motion"
 import { WikiLayout } from "@/components/wiki/wiki-layout"
+import { CreateProjectDialog } from "@/components/projects/create-project-dialog"
 
 interface Project {
   id: string
@@ -129,6 +130,7 @@ interface Task {
 type ViewMode = 'projects' | 'epics' | 'tasks' | 'team-initiatives' | 'my-epics' | 'my-tasks' | 'team-board' | 'reports'
 
 export default function ProjectsDashboard() {
+  const router = useRouter()
   const { currentWorkspace } = useWorkspace()
   const searchParams = useSearchParams()
   const [viewMode, setViewMode] = useState<ViewMode>('projects')
@@ -137,6 +139,7 @@ export default function ProjectsDashboard() {
   const [projects, setProjects] = useState<Project[]>([])
   const [epics, setEpics] = useState<Epic[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
   // Handle URL parameters for view mode
   useEffect(() => {
@@ -305,8 +308,8 @@ export default function ProjectsDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" style={{ color: colors.primary }} />
-          <p style={{ color: colors.textSecondary }}>Loading dashboard...</p>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" style={{ color: typeof window !== 'undefined' ? colors.primary : '#6366f1' }} />
+          <p style={{ color: typeof window !== 'undefined' ? colors.textSecondary : '#94a3b8' }}>Loading dashboard...</p>
         </div>
       </div>
     )
@@ -757,16 +760,29 @@ export default function ProjectsDashboard() {
             <p className="mb-6" style={{ color: colors.textSecondary }}>
               {searchQuery ? "Try adjusting your search terms" : "Create your first project to get started"}
             </p>
-            <Button asChild className="rounded-lg" style={{ backgroundColor: colors.primary }}>
-              <Link href="/projects/new">
-                <Plus className="mr-2 h-4 w-4" />
-                New Project
-              </Link>
+            <Button 
+              className="rounded-lg" 
+              style={{ backgroundColor: colors.primary }}
+              onClick={() => setIsCreateDialogOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Project
             </Button>
           </div>
         )}
       </div>
       </div>
+
+      {/* Create Project Dialog */}
+      <CreateProjectDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onProjectCreated={(project) => {
+          console.log('[ProjectsPage] onProjectCreated', project.id)
+          // Navigate to the newly created project detail page
+          router.push(`/projects/${project.id}`)
+        }}
+      />
     </WikiLayout>
   )
 }

@@ -115,3 +115,5 @@ curl -X POST http://localhost:3000/api/loopbrain/chat \
 - [ ] Multi-tenant isolation works (can't access other workspace data)
 
 
+
+

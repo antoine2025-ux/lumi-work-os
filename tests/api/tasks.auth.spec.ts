@@ -146,7 +146,6 @@ describe('Tasks API Auth', () => {
       method: 'POST',
       body: JSON.stringify({
         projectId: 'project-1',
-        workspaceId: 'workspace-1',
         title: 'Test Task',
         description: 'Test task description'
       }),

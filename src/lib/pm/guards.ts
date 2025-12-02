@@ -31,7 +31,26 @@ export async function assertProjectAccess(
 
   const member = project.members[0]
 
-  if (!member || !hasRequiredRole(member.role, requiredRole)) {
+  // Fallback: If member record is missing but user is the creator/owner, allow access
+  // This handles edge cases where ProjectMember might not be created yet or is misconfigured
+  if (!member) {
+    if (project.createdById === user.id || project.ownerId === user.id) {
+      // Allow access for creator/owner even if ProjectMember record is missing
+      // Return a synthetic member object for consistency
+      return { 
+        user, 
+        project, 
+        member: { 
+          userId: user.id, 
+          role: 'OWNER' as ProjectRole,
+          projectId: project.id
+        } 
+      }
+    }
+    throw new Error('Forbidden: Insufficient project permissions.')
+  }
+
+  if (!hasRequiredRole(member.role, requiredRole)) {
     throw new Error('Forbidden: Insufficient project permissions.')
   }
 

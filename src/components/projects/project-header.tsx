@@ -1,6 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Edit, Trash2 } from "lucide-react"
 
 interface ProjectHeaderProps {
   project: {
@@ -29,6 +37,9 @@ interface ProjectHeaderProps {
   currentView?: 'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'
   onViewChange?: (view: 'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files') => void
   onMoreClick?: () => void
+  channelHints?: string[]
+  onEdit?: () => void
+  onDelete?: () => void
 }
 
 export function ProjectHeader({
@@ -37,7 +48,10 @@ export function ProjectHeader({
   colors,
   currentView = 'board',
   onViewChange,
-  onMoreClick
+  onMoreClick,
+  channelHints = [],
+  onEdit,
+  onDelete
 }: ProjectHeaderProps) {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
 
@@ -92,6 +106,20 @@ export function ProjectHeader({
                 </button>
               )}
             </div>
+            
+            {/* Channel Hints */}
+            {channelHints.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {channelHints.map((channel) => (
+                  <span
+                    key={channel}
+                    className="px-3 py-1 text-xs rounded-full bg-slate-800 text-slate-100 border border-slate-700"
+                  >
+                    #{channel}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           
         </div>
@@ -203,12 +231,44 @@ export function ProjectHeader({
               <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ backgroundColor: colors.primary }} />
             )}
           </button>
-          <button
-            onClick={onMoreClick}
-            className="px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            …
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }}
+              >
+                …
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onEdit?.()
+                }}
+                className="cursor-pointer"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Project
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onDelete?.()
+                }}
+                className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Project
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>

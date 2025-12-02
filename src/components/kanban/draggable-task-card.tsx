@@ -8,6 +8,8 @@ import { ContextMenu } from '@/components/ui/context-menu'
 import { Badge } from '@/components/ui/badge'
 import { Edit, LinkIcon, User, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import { getEpicColor } from '@/lib/utils/epic-colors'
+import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
 
 interface Task {
   id: string
@@ -79,6 +81,7 @@ export function DraggableTaskCard({
   onManageDependencies,
   compact = false
 }: DraggableTaskCardProps) {
+  const { open } = useTaskSidebarStore()
   const {
     attributes,
     listeners,
@@ -107,7 +110,7 @@ export function DraggableTaskCard({
       id: "edit",
       label: "Edit Task",
       icon: Edit,
-      action: () => onEdit?.(task)
+      action: () => open(task.id)
     },
     {
       id: "dependencies",
@@ -129,20 +132,28 @@ export function DraggableTaskCard({
     }
   }
 
+  // Get epic color for left border and pill
+  const epicColor = getEpicColor(task.epic)
+  const hasEpic = task.epic && task.epic.title
+
   return (
     <ContextMenu items={menuItems}>
       <Card
         ref={setNodeRef}
-        style={style}
+        style={{
+          ...style,
+          borderLeftWidth: '4px',
+          borderLeftColor: epicColor,
+        }}
         className={`border-border bg-card hover:bg-muted/50 transition-colors cursor-pointer ${
           isDragging ? 'opacity-50' : ''
         }`}
         {...attributes}
         {...listeners}
         onClick={(e) => {
-          // Allow clicking to edit, but prevent navigation if dragging
-          if (!isDragging && onEdit) {
-            onEdit(task)
+          // Allow clicking to open sidebar, but prevent navigation if dragging
+          if (!isDragging) {
+            open(task.id)
           }
         }}
       >
@@ -155,6 +166,26 @@ export function DraggableTaskCard({
               {task.title}
             </p>
           </div>
+          
+          {/* Epic Pill */}
+          <div className="mb-2">
+            <Badge
+              variant="outline"
+              className={`text-xs ${
+                hasEpic
+                  ? 'bg-blue-100 text-blue-800 border-blue-200'
+                  : 'bg-muted text-muted-foreground border-muted-foreground/20'
+              }`}
+              style={hasEpic && task.epic?.color ? {
+                backgroundColor: `${task.epic.color}15`,
+                color: task.epic.color,
+                borderColor: `${task.epic.color}40`,
+              } : undefined}
+            >
+              {hasEpic ? task.epic.title : 'No Epic'}
+            </Badge>
+          </div>
+
           <div className="flex items-center justify-between">
             <Badge
               variant="outline"

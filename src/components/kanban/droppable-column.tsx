@@ -95,9 +95,20 @@ export function DroppableColumn({
         {/* Simple Column Header */}
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-foreground">{column.title}</h4>
-          <Badge variant="outline" className="text-xs border-border text-muted-foreground">
-            {tasks.length}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs border-border text-muted-foreground">
+              {tasks.length}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onAddTask?.(column.status, epicId)}
+              className="h-7 px-2 text-xs"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Task
+            </Button>
+          </div>
         </div>
 
         {/* Tasks */}
@@ -112,10 +123,10 @@ export function DroppableColumn({
             />
           ))}
 
-          {/* Add Task Button */}
+          {/* Add Task Placeholder (shown when column is empty) */}
           {tasks.length === 0 && (
             <button
-              onClick={() => onAddTask?.(column.status)}
+              onClick={() => onAddTask?.(column.status, epicId)}
               className="w-full p-2 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center space-x-2"
             >
               <Plus className="w-4 h-4" />

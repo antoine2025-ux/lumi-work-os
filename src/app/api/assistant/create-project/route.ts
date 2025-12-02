@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
               const task = await prisma.task.create({
                 data: {
                   projectId: project.id,
+                  workspaceId: auth.workspaceId, // Always use authenticated workspace
                   title: taskTemplate.title || 'Untitled Task',
                   description: taskTemplate.description || '',
                   status: taskTemplate.status || 'TODO',
@@ -159,6 +160,7 @@ export async function POST(request: NextRequest) {
         const task = await prisma.task.create({
           data: {
             projectId: project.id,
+            workspaceId: auth.workspaceId, // Always use authenticated workspace
             title: taskTemplate.title,
             description: taskTemplate.description,
             status: taskTemplate.status as any,

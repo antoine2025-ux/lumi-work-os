@@ -6,6 +6,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
+import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
 import { projectToContext } from '@/lib/context/context-builders'
 
 /**
@@ -22,8 +23,10 @@ import { projectToContext } from '@/lib/context/context-builders'
  */
 export async function GET(request: NextRequest) {
   try {
+    console.log('[PROJECTS API] Starting GET request')
     // 1. Get authenticated user with workspace context
     const auth = await getUnifiedAuth(request)
+    console.log('[PROJECTS API] Auth successful, workspaceId:', auth.workspaceId)
     
     // 2. Assert workspace access
     await assertAccess({ 
@@ -73,6 +76,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Optimized query: Use select instead of include, limit tasks loaded
+    console.log('[PROJECTS API] About to query Prisma with where:', where)
     const projects = await prisma.project.findMany({
       where,
       select: {
@@ -149,6 +153,7 @@ export async function GET(request: NextRequest) {
         createdAt: 'desc'
       }
     })
+    console.log('[PROJECTS API] Query successful, found', projects.length, 'projects')
 
     // Build ContextObjects for each project
     const contextObjects = projects.map(project => {
@@ -174,20 +179,35 @@ export async function GET(request: NextRequest) {
     response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
     response.headers.set('X-Cache', 'MISS')
     return response
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching projects:', error)
+    console.error('Error message:', error?.message)
+    console.error('Error stack:', error?.stack)
+    console.error('Error code:', error?.code)
+    console.error('Error name:', error?.name)
     
     // Handle auth errors
-    if (error.message.includes('Unauthorized')) {
+    if (error?.message?.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message.includes('Forbidden')) {
+    if (error?.message?.includes('Forbidden')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     
+    // Return detailed error in development
+    const errorDetails = process.env.NODE_ENV === 'development' 
+      ? { 
+          message: error?.message, 
+          code: error?.code, 
+          name: error?.name,
+          stack: error?.stack?.split('\n').slice(0, 5).join('\n') // First 5 lines of stack
+        }
+      : {}
+    
     return NextResponse.json({ 
-      error: 'Failed to fetch projects' 
+      error: 'Failed to fetch projects',
+      ...errorDetails
     }, { status: 500 })
   }
 }
@@ -240,58 +260,95 @@ export async function POST(request: NextRequest) {
       wikiPageId: wikiPageId || undefined
     }
 
-    // Create the project
-    const project = await prisma.project.create({
-      data: {
-        workspaceId: auth.workspaceId, // 5. Use activeWorkspaceId
-        name,
-        description,
-        status: status as any,
-        priority: priority as any,
-        startDate: cleanData.startDate ? new Date(cleanData.startDate) : null,
-        endDate: cleanData.endDate ? new Date(cleanData.endDate) : null,
-        color,
-        department: cleanData.department,
-        team: cleanData.team,
-        ownerId: cleanData.ownerId || auth.user.userId, // Use provided owner or default to creator
-        wikiPageId: cleanData.wikiPageId,
-        dailySummaryEnabled,
-        createdById: auth.user.userId // 3. Use userId from auth
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
+    // Create the project and creator's membership atomically in a transaction
+    // This guarantees immediate access for the creator and avoids race conditions with assertProjectAccess
+    const project = await prisma.$transaction(async (tx) => {
+      // Create the project
+      const createdProject = await tx.project.create({
+        data: {
+          workspaceId: auth.workspaceId, // 5. Use activeWorkspaceId
+          name,
+          description,
+          status: status as any,
+          priority: priority as any,
+          startDate: cleanData.startDate ? new Date(cleanData.startDate) : null,
+          endDate: cleanData.endDate ? new Date(cleanData.endDate) : null,
+          color,
+          department: cleanData.department,
+          team: cleanData.team,
+          ownerId: cleanData.ownerId || auth.user.userId, // Use provided owner or default to creator
+          wikiPageId: cleanData.wikiPageId,
+          dailySummaryEnabled,
+          createdById: auth.user.userId // 3. Use userId from auth
         },
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
               }
             }
-          }
-        },
-        _count: {
-          select: {
-            tasks: true
+          },
+          _count: {
+            select: {
+              tasks: true
+            }
           }
         }
-      }
-    })
+      })
 
-    // Add the creator as a project member with OWNER role
-    await prisma.projectMember.create({
-      data: {
-        projectId: project.id,
-        userId: auth.user.userId, // 3. Use userId from auth
-        role: 'OWNER'
-      }
+      // Add the creator as a project member with OWNER role
+      // This is always created, even if no watchers/assignees/owner are passed
+      await tx.projectMember.create({
+        data: {
+          projectId: createdProject.id,
+          userId: auth.user.userId, // 3. Use userId from auth
+          role: 'OWNER'
+        }
+      })
+
+      // Reload project to include the newly created member in the response
+      const projectWithMember = await tx.project.findUnique({
+        where: { id: createdProject.id },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
+              }
+            }
+          },
+          _count: {
+            select: {
+              tasks: true
+            }
+          }
+        }
+      })
+
+      return projectWithMember || createdProject
     })
 
     // Create watchers
@@ -314,6 +371,11 @@ export async function POST(request: NextRequest) {
         }))
       })
     }
+
+    // Upsert project context in Loopbrain (fire-and-forget, don't block response)
+    upsertProjectContext(project.id).catch((error) => {
+      console.error('Failed to upsert project context after creation', { projectId: project.id, error })
+    })
 
     return NextResponse.json(project)
   } catch (error) {

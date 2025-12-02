@@ -1,5 +1,8 @@
 "use client"
 
+// TODO: TaskEditDialog is deprecated in favor of TaskSidebar.
+// Remove after all usages are migrated.
+
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -10,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, User, Calendar, Tag, X, Settings, MessageSquare, History } from "lucide-react"
+import { Loader2, User, Calendar, Tag, X, Settings, MessageSquare, History, Plus, AlertCircle } from "lucide-react"
 import { TaskComments } from "./task-comments"
 
 interface User {
@@ -58,10 +61,25 @@ interface Task {
     title: string
   }
   customFields?: CustomFieldValue[]
+  subtasks?: Array<{
+    id: string
+    title: string
+    description: string | null
+    assigneeId: string | null
+    dueDate: string | null
+  }>
   _count: {
     comments: number
     subtasks: number
   }
+}
+
+interface Subtask {
+  id?: string
+  title: string
+  description: string
+  assigneeId: string
+  dueDate: string
 }
 
 interface CustomFieldDef {
@@ -128,6 +146,8 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
     points: undefined as number | undefined
   })
   const [newTag, setNewTag] = useState('')
+  const [subtasks, setSubtasks] = useState<Subtask[]>([])
+  const [subtaskErrors, setSubtaskErrors] = useState<Record<string, string>>({})
 
   // Load users and custom fields when dialog opens
   useEffect(() => {
@@ -163,6 +183,19 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
         })
       }
       setCustomFieldValues(initialValues)
+
+      // Initialize subtasks
+      if (task.subtasks && task.subtasks.length > 0) {
+        setSubtasks(task.subtasks.map(st => ({
+          id: st.id,
+          title: st.title,
+          description: st.description || '',
+          assigneeId: st.assigneeId || '',
+          dueDate: st.dueDate ? st.dueDate.split('T')[0] : ''
+        })))
+      } else {
+        setSubtasks([])
+      }
     }
   }, [task])
 
@@ -258,6 +291,41 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
     }
   }
 
+  const addSubtask = () => {
+    setSubtasks([...subtasks, {
+      title: '',
+      description: '',
+      assigneeId: '',
+      dueDate: ''
+    }])
+  }
+
+  const updateSubtask = (index: number, field: keyof Subtask, value: string) => {
+    setSubtasks(prev => prev.map((subtask, i) => 
+      i === index ? { ...subtask, [field]: value } : subtask
+    ))
+    // Clear error when user starts typing
+    if (subtaskErrors[`subtask-${index}`]) {
+      setSubtaskErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[`subtask-${index}`]
+        return newErrors
+      })
+    }
+  }
+
+  const removeSubtask = (index: number) => {
+    setSubtasks(prev => prev.filter((_, i) => i !== index))
+    // Clear error
+    if (subtaskErrors[`subtask-${index}`]) {
+      setSubtaskErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[`subtask-${index}`]
+        return newErrors
+      })
+    }
+  }
+
   const handleSave = async () => {
     if (!task) return
 
@@ -319,6 +387,36 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
             console.error('Failed to update custom fields:', errorData.error || 'Unknown error')
             // Continue anyway - main task update succeeded
           }
+        }
+
+        // Update subtasks
+        const validSubtasks = subtasks.filter(st => st.title.trim()).map(st => ({
+          title: st.title.trim(),
+          description: st.description?.trim() || undefined,
+          assigneeId: st.assigneeId || undefined,
+          dueDate: st.dueDate || undefined
+        }))
+
+        const subtasksResponse = await fetch(`/api/tasks/${task.id}/subtasks`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            subtasks: validSubtasks
+          }),
+        })
+
+        if (!subtasksResponse.ok) {
+          const errorData = await subtasksResponse.json().catch(() => ({}))
+          console.error('Failed to update subtasks:', errorData.error || 'Unknown error')
+          // Continue anyway - main task update succeeded
+        } else {
+          // Reload task with updated subtasks
+          const taskWithSubtasks = await subtasksResponse.json()
+          onSave({ ...updatedTask, subtasks: taskWithSubtasks.subtasks })
+          onClose()
+          return
         }
 
         onSave(updatedTask)
@@ -624,6 +722,101 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Subtasks */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Subtasks</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addSubtask}
+                  disabled={isLoading}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Subtask
+                </Button>
+              </div>
+              {subtasks.map((subtask, index) => (
+                <div key={subtask.id || index} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">Subtask {index + 1}</h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeSubtask(index)}
+                      className="text-red-500 hover:text-red-700"
+                      disabled={isLoading}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-sm">Title</Label>
+                      <Input
+                        value={subtask.title}
+                        onChange={(e) => updateSubtask(index, 'title', e.target.value)}
+                        placeholder="Subtask title"
+                        className={subtaskErrors[`subtask-${index}`] ? 'border-red-500' : ''}
+                        disabled={isLoading}
+                      />
+                      {subtaskErrors[`subtask-${index}`] && (
+                        <p className="text-xs text-red-500">{subtaskErrors[`subtask-${index}`]}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Assignee</Label>
+                      <Select 
+                        value={subtask.assigneeId || "unassigned"} 
+                        onValueChange={(value) => updateSubtask(index, 'assigneeId', value === "unassigned" ? "" : value)}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select assignee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
+                          {users
+                            .filter((user) => !!user.id)
+                            .map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Description</Label>
+                    <Textarea
+                      value={subtask.description}
+                      onChange={(e) => updateSubtask(index, 'description', e.target.value)}
+                      placeholder="Subtask description"
+                      rows={2}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Due Date</Label>
+                    <Input
+                      type="date"
+                      value={subtask.dueDate}
+                      onChange={(e) => updateSubtask(index, 'dueDate', e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              ))}
+              {subtasks.length === 0 && (
+                <p className="text-muted-foreground text-center py-4 text-sm">
+                  No subtasks added yet. Click &quot;Add Subtask&quot; to get started.
+                </p>
+              )}
             </div>
 
             {/* Custom Fields */}

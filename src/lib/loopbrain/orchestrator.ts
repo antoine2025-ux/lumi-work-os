@@ -14,7 +14,9 @@
  * - Explicit prompts with clear sections
  */
 
-import { contextEngine, getWorkspaceContextObjects, getPersonalSpaceDocs, getOrgPeopleContext } from './context-engine'
+import { contextEngine, getWorkspaceContextObjects, getPersonalSpaceDocs, getOrgPeopleContext, getProjectContextObject, getEpicContextObject, getProjectEpicsContext, getProjectTasksContext } from './context-engine'
+import { prisma } from '@/lib/db'
+import { buildEpicContext, type EpicWithRelations } from './context-sources/pm/epics'
 import { searchSimilarContextItems } from './embedding-service'
 import { generateAIResponse } from '@/lib/ai/providers'
 import { logger } from '@/lib/logger'
@@ -160,6 +162,70 @@ async function handleSpacesMode(
     // Don't fail the request if personal docs fail to load
   }
   
+  // Fetch Slack context if slackChannelHints are provided (Tier B - non-persistent)
+  // Only fetch if question suggests Slack could help (e.g., "why is this blocked", "in Slack", mentions channel)
+  if (slackAvailable && req.slackChannelHints && req.slackChannelHints.length > 0) {
+    const shouldQuery = shouldQuerySlackForQuestion(req.query, req.slackChannelHints)
+    
+    if (shouldQuery) {
+      try {
+        const { getSlackContextForProject, deriveKeywordsFromUserQuestion } = await import('./context-sources/slack')
+        
+        // Extract project name from context
+        let projectName: string | undefined
+        if (contextSummary.primaryContext?.type === 'project') {
+          projectName = contextSummary.primaryContext.name
+        } else if (contextSummary.structuredContext) {
+          const projectContext = contextSummary.structuredContext.find(ctx => ctx.type === 'project')
+          if (projectContext) {
+            projectName = projectContext.title
+          }
+        }
+        
+        // Extract task titles from context
+        const taskTitles: string[] = []
+        if (contextSummary.projectTasks && contextSummary.projectTasks.length > 0) {
+          taskTitles.push(...contextSummary.projectTasks.map(t => t.title))
+        } else if (contextSummary.structuredContext) {
+          const taskContexts = contextSummary.structuredContext.filter(ctx => ctx.type === 'task')
+          taskTitles.push(...taskContexts.map(t => t.title))
+        }
+        
+        // Derive keywords from question, project name, and task titles
+        const keywords = deriveKeywordsFromUserQuestion(req.query, projectName, taskTitles)
+        
+        const slackContext = await getSlackContextForProject({
+          workspaceId: req.workspaceId,
+          slackChannelHints: req.slackChannelHints,
+          projectName,
+          taskTitles: taskTitles.length > 0 ? taskTitles : undefined,
+          keywords,
+          maxMessagesPerChannel: 50
+        })
+        
+        if (slackContext.length > 0) {
+          contextSummary.slackContext = slackContext
+          logger.info('Fetched Slack context for project', {
+            workspaceId: req.workspaceId,
+            projectId: req.projectId,
+            projectName,
+            taskCount: taskTitles.length,
+            channelCount: slackContext.length,
+            totalMessages: slackContext.reduce((sum, ch) => sum + ch.messageCount, 0),
+            relevantMessages: slackContext.reduce((sum, ch) => sum + ch.messages.length, 0)
+          })
+        }
+      } catch (error) {
+        logger.warn('Failed to fetch Slack context for project', {
+          workspaceId: req.workspaceId,
+          projectId: req.projectId,
+          error: error instanceof Error ? error.message : String(error)
+        })
+        // Don't fail the request if Slack context fails to load
+      }
+    }
+  }
+  
   // Build prompt (include Slack availability)
   const prompt = buildSpacesPrompt(req, contextSummary, slackAvailable)
   
@@ -189,6 +255,52 @@ async function handleSpacesMode(
       retrievedCount: contextSummary.retrievedItems?.length || 0
     }
   }
+}
+
+/**
+ * Determine if we should query Slack based on the user's question
+ * Returns true if question suggests Slack could help (mentions Slack, blocked issues, specific channels, etc.)
+ */
+function shouldQuerySlackForQuestion(question: string, slackChannelHints: string[]): boolean {
+  const lowerQuestion = question.toLowerCase()
+  
+  // Explicit Slack mentions
+  const slackMentions = ['slack', 'in slack', 'on slack', 'check slack', 'look in slack', 'mentioned in']
+  if (slackMentions.some(mention => lowerQuestion.includes(mention))) {
+    return true
+  }
+  
+  // Problem/blocker indicators that might be discussed in Slack
+  const problemIndicators = [
+    'why is', 'why are', 'why did', 'why does',
+    'blocked', 'block', 'stuck', 'cannot', "can't", 'unable',
+    'issue', 'problem', 'error', 'bug', 'broken', 'fail',
+    'discussion', 'conversation', 'chat', 'message', 'talked about'
+  ]
+  if (problemIndicators.some(indicator => lowerQuestion.includes(indicator))) {
+    return true
+  }
+  
+  // Check if question mentions any of the project's Slack channels
+  const channelMentions = slackChannelHints.map(hint => {
+    const channelName = hint.replace(/^#/, '').toLowerCase()
+    return lowerQuestion.includes(channelName) || lowerQuestion.includes(`#${channelName}`)
+  })
+  if (channelMentions.some(mentioned => mentioned)) {
+    return true
+  }
+  
+  // Questions asking about communication or updates
+  const communicationIndicators = [
+    'anyone say', 'anyone mention', 'anyone discuss', 'anyone talk',
+    'what did', 'what are', 'what is', 'what was',
+    'find out', 'check if', 'see if', 'look for'
+  ]
+  if (communicationIndicators.some(indicator => lowerQuestion.includes(indicator))) {
+    return true
+  }
+  
+  return false
 }
 
 /**
@@ -384,12 +496,112 @@ async function loadSpacesContextForRequest(
       summary.primaryContext = pageContext
     }
   } else if (req.projectId) {
+    // Try to get UnifiedContextObject first (from store)
+    const projectContextObject = await getProjectContextObject(
+      req.projectId,
+      req.workspaceId
+    )
+    
+    // Also get ProjectContext for primary context (Loopbrain format)
     const projectContext = await contextEngine.getProjectContext(
       req.projectId,
       req.workspaceId
     )
     if (projectContext) {
       summary.primaryContext = projectContext
+    }
+    
+    // Merge project slackChannelHints into request (if project has them)
+    // This allows projects to specify channels that Loopbrain should check
+    try {
+      const project = await prisma.project.findUnique({
+        where: { id: req.projectId, workspaceId: req.workspaceId },
+        select: { id: true } // We don't persist slackChannelHints, but check if project exists
+      })
+      // Note: slackChannelHints come from request body (not persisted in DB)
+      // They should already be in req.slackChannelHints from the API route
+    } catch (err) {
+      // Ignore errors - project might not exist or slackChannelHints not available
+    }
+    
+    // Add UnifiedContextObject to structured context if available
+    if (projectContextObject && summary.structuredContext) {
+      // Check if it's already in the list
+      const exists = summary.structuredContext.some(obj => obj.id === projectContextObject.id)
+      if (!exists) {
+        summary.structuredContext = [projectContextObject, ...summary.structuredContext]
+      }
+    } else if (projectContextObject) {
+      summary.structuredContext = [projectContextObject]
+    }
+
+    // Inline-load epics directly via Prisma (temporary fix to unblock Loopbrain)
+    // TODO: Refactor back to getProjectEpicsContext once verified working
+    try {
+      const epics = await prisma.epic.findMany({
+        where: { projectId: req.projectId },
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          _count: {
+            select: {
+              tasks: true
+            }
+          },
+          tasks: {
+            select: {
+              status: true
+            }
+          }
+        },
+        orderBy: { order: 'asc' }
+      })
+
+      // Build epic contexts using buildEpicContext
+      const epicContexts: UnifiedContextObject[] = epics.map(epic => 
+        buildEpicContext(epic as EpicWithRelations)
+      )
+
+      summary.projectEpics = epicContexts
+
+      // Also add epics to structuredContext if not already present
+      if (epicContexts.length > 0) {
+        if (!summary.structuredContext) {
+          summary.structuredContext = []
+        }
+        // Add epics that aren't already in structuredContext
+        for (const epic of epicContexts) {
+          const exists = summary.structuredContext.some(obj => obj.id === epic.id)
+          if (!exists) {
+            summary.structuredContext.push(epic)
+          }
+        }
+      }
+
+    } catch (err) {
+      console.error('[LB-EPIC] Failed to inline-load project epics:', err)
+      // Fallback to helper if inline load fails
+      try {
+        const projectEpics = await getProjectEpicsContext(
+          req.projectId,
+          req.workspaceId
+        )
+        summary.projectEpics = projectEpics
+        if (projectEpics.length > 0 && summary.structuredContext) {
+          for (const epic of projectEpics) {
+            const exists = summary.structuredContext.some(obj => obj.id === epic.id)
+            if (!exists) {
+              summary.structuredContext.push(epic)
+            }
+          }
+        }
+      } catch (fallbackErr) {
+        console.error('[LB-EPIC] Fallback to getProjectEpicsContext also failed:', fallbackErr)
+      }
     }
   } else if (req.taskId) {
     const taskContext = await contextEngine.getTaskContext(
@@ -399,11 +611,30 @@ async function loadSpacesContextForRequest(
     if (taskContext) {
       summary.primaryContext = taskContext
     }
+  } else if (req.epicId) {
+    // Try to get UnifiedContextObject for epic (from store)
+    const epicContextObject = await getEpicContextObject(
+      req.epicId,
+      req.workspaceId
+    )
+    
+    // Add UnifiedContextObject to structured context if available
+    if (epicContextObject) {
+      if (summary.structuredContext) {
+        // Check if it's already in the list
+        const exists = summary.structuredContext.some(obj => obj.id === epicContextObject.id)
+        if (!exists) {
+          summary.structuredContext.push(epicContextObject)
+        }
+      } else {
+        summary.structuredContext = [epicContextObject]
+      }
+    }
   }
 
   // If no primary context from anchors, use unified context or workspace
   if (!summary.primaryContext) {
-    if (req.projectId || req.pageId || req.taskId) {
+    if (req.projectId || req.pageId || req.taskId || req.epicId) {
       const unifiedContext = await contextEngine.getUnifiedContext({
         workspaceId: req.workspaceId,
         projectId: req.projectId,
@@ -423,6 +654,7 @@ async function loadSpacesContextForRequest(
       }
     }
   }
+
 
   // Optional semantic search
   if (req.useSemanticSearch !== false) {
@@ -672,6 +904,17 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
   if (ctx.primaryContext) {
     sections.push(`\n## Primary Context:`)
     sections.push(formatContextObject(ctx.primaryContext))
+    
+    // Add relevant communication channels if available from client metadata
+    if (ctx.primaryContext.type === 'project' && req.clientMetadata?.projectSlackHints) {
+      const channels = req.clientMetadata.projectSlackHints as string[]
+      if (Array.isArray(channels) && channels.length > 0) {
+        sections.push(`\n### Relevant Communication Channels`)
+        sections.push(`These are the channels typically associated with this project: ${channels.map((c: string) => `#${c.replace(/^#/, '')}`).join(', ')}`)
+        sections.push(`When answering questions such as "why is this task blocked?", you may use these channels as references for where relevant discussions may have occurred.`)
+        sections.push(`⚠️ Do NOT say "I checked Slack" — just use information naturally.`)
+      }
+    }
   }
 
   // Related items from semantic search
@@ -680,6 +923,96 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
     ctx.retrievedItems.forEach(item => {
       sections.push(`- ${item.title} (${item.type})${item.score ? ` [relevance: ${item.score.toFixed(2)}]` : ''}`)
     })
+  }
+
+  // Epics for the current project (if projectId is present)
+  if (ctx.projectEpics && ctx.projectEpics.length > 0) {
+    sections.push(`\n## EPICS IN THIS PROJECT:`)
+    sections.push(`You know the project's epics from the EPICS IN THIS PROJECT (JSON) section below. When the user asks things like "which epics exist in this project?" or "list the epics in this project", you MUST answer by listing those epics by name, along with status and any relevant details from the JSON. Do NOT say that there are no epics if this section is non-empty.`)
+    sections.push(`\nEPICS IN THIS PROJECT (JSON):`)
+    sections.push(`\`\`\`json`)
+    
+    const epicsData = ctx.projectEpics.map(epic => ({
+      id: epic.metadata?.id || epic.id,
+      title: epic.title,
+      status: epic.status,
+      description: epic.metadata?.description || undefined,
+      tasksTotal: epic.metadata?.tasksTotal || 0,
+      tasksDone: epic.metadata?.tasksDone || 0,
+      order: epic.metadata?.order || undefined
+    }))
+    
+    sections.push(JSON.stringify(epicsData, null, 2))
+    sections.push(`\`\`\``)
+  }
+
+  // Tasks for the current project (if projectId is present)
+  if (ctx.projectTasks && ctx.projectTasks.length > 0) {
+    sections.push(`\n## TASKS IN THIS PROJECT:`)
+    sections.push(`These are all tasks related to the current project. Use them to answer questions about blocked tasks, tasks by status, tasks in a given epic, tasks assigned to a user, and tasks due soon. When the user asks about tasks (e.g., "which tasks are blocked?", "what tasks are in epic X?"), you MUST use TASKS IN THIS PROJECT (JSON). Do NOT say tasks are unavailable if this section contains tasks.`)
+    sections.push(`\nTASKS IN THIS PROJECT (JSON):`)
+    sections.push(`\`\`\`json`)
+    
+    const tasksData = ctx.projectTasks.map(task => ({
+      id: task.metadata?.id || task.id,
+      title: task.title,
+      status: task.status,
+      priority: task.metadata?.priority || undefined,
+      description: task.metadata?.description || undefined,
+      epicId: task.metadata?.epicId || undefined,
+      epicTitle: task.metadata?.epicTitle || undefined,
+      assigneeId: task.metadata?.assigneeId || undefined,
+      dueDate: task.metadata?.dueDate || undefined,
+      subtaskCount: task.metadata?.subtaskCount || 0,
+      subtaskDoneCount: task.metadata?.subtaskDoneCount || 0
+    }))
+    
+    sections.push(JSON.stringify(tasksData, null, 2))
+    sections.push(`\`\`\``)
+  }
+
+  // Instructions for joining epics and tasks
+  if ((ctx.projectEpics && ctx.projectEpics.length > 0) && (ctx.projectTasks && ctx.projectTasks.length > 0)) {
+    sections.push(`\n### How to reason about epics and tasks:`)
+    sections.push(`- **EPICS IN THIS PROJECT (JSON)** contains epics, each with an \`id\` and \`title\`.`)
+    sections.push(`- **TASKS IN THIS PROJECT (JSON)** contains tasks.`)
+    sections.push(`- Each task may have:`)
+    sections.push(`  - \`epicId\`: the id of the epic it belongs to (matches an epic's \`id\`).`)
+    sections.push(`  - \`epicTitle\`: the title of the epic it belongs to (matches an epic's \`title\`).`)
+    sections.push(`- Use these fields to answer questions like:`)
+    sections.push(`  - "Which tasks belong to epic X?"`)
+    sections.push(`  - "Are these tasks related to an epic?"`)
+    sections.push(`  - "Which blocked tasks belong to the epic Y?"`)
+    sections.push(`\nWhen the user asks about tasks in a specific epic, you MUST:`)
+    sections.push(`1. Identify the epic by name using EPICS IN THIS PROJECT (JSON).`)
+    sections.push(`2. Find tasks whose \`epicId\` or \`epicTitle\` match that epic.`)
+    sections.push(`3. Answer using those tasks. Do NOT say there is no relationship if these fields are present.`)
+  }
+
+  // Slack Discussions (Tier B - non-persistent context from project channels)
+  if (ctx.slackContext && ctx.slackContext.length > 0) {
+    sections.push(`\n## SLACK DISCUSSIONS (PROJECT-RELATED):`)
+    sections.push(`Below is a summary of Slack conversations from channels the project declared as relevant.`)
+    sections.push(`Use this information when answering questions about blockers, root causes, decisions, or alignment issues.`)
+    sections.push(`\nIf a user asks:`)
+    sections.push(`- "Why is this task blocked?"`)
+    sections.push(`- "Any Slack mention of this issue?"`)
+    sections.push(`- "Is anyone discussing this problem?"`)
+    sections.push(`- "What are people saying about this in Slack?"`)
+    sections.push(`you MUST inspect this Slack JSON.`)
+    sections.push(`\nSLACK DISCUSSIONS (JSON):`)
+    sections.push(`\`\`\`json`)
+    
+    const slackData = ctx.slackContext.map(channel => ({
+      channel: channel.channel,
+      relevance: channel.relevance,
+      summary: channel.summary,
+      messageCount: channel.messageCount,
+      messages: channel.messages.slice(0, 20) // Limit to 20 most recent messages per channel
+    }))
+    
+    sections.push(JSON.stringify(slackData, null, 2))
+    sections.push(`\`\`\``)
   }
 
   // Structured ContextObjects (unified format)

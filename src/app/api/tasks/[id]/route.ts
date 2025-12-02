@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { upsertTaskContext } from '@/lib/loopbrain/context-engine'
+import { logger } from '@/lib/logger'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { logTaskHistory } from '@/lib/pm/history'
@@ -557,6 +559,11 @@ export async function PATCH(
         userId: actorId
       })
     }
+
+    // Upsert task context for Loopbrain
+    upsertTaskContext(taskId).catch((err) => 
+      logger.error('Failed to update task context after PATCH', { taskId, error: err })
+    )
 
     return NextResponse.json(task)
   } catch (error) {

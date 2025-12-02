@@ -24,7 +24,7 @@ export const ProjectCreateSchema = z.object({
   team: z.string().max(100).optional(),
   wikiPageId: z.string().optional(),
   ownerId: z.string().optional(),
-  dailySummaryEnabled: z.boolean().default(false)
+  dailySummaryEnabled: z.boolean().default(false),
 }).refine(
   (data) => {
     if (data.startDate && data.endDate) {
@@ -50,7 +50,7 @@ export const ProjectUpdateSchema = z.object({
   team: z.string().max(100).optional(),
   wikiPageId: z.string().optional(),
   ownerId: z.string().optional(),
-  dailySummaryEnabled: z.boolean().optional()
+  dailySummaryEnabled: z.boolean().optional(),
 }).refine(
   (data) => {
     if (data.startDate && data.endDate) {
@@ -65,9 +65,10 @@ export const ProjectUpdateSchema = z.object({
 )
 
 // Task schemas
+// Note: workspaceId is not included in the schema because it is always derived from
+// the authenticated session (auth.workspaceId) on the server for security.
 export const TaskCreateSchema = z.object({
   projectId: z.string().min(1, 'Project ID is required'),
-  workspaceId: z.string().min(1, 'Workspace ID is required'),
   title: z.string().min(1, 'Task title is required').max(255, 'Task title too long'),
   description: z.string().optional(),
   status: z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED']).default('TODO'),
@@ -96,7 +97,13 @@ export const TaskCreateSchema = z.object({
   milestoneId: z.string().optional(),
   points: z.number().int().min(0).max(100).optional(),
   dependsOn: z.array(z.string()).default([]),
-  blocks: z.array(z.string()).default([])
+  blocks: z.array(z.string()).default([]),
+  subtasks: z.array(z.object({
+    title: z.string().min(1, 'Subtask title is required'),
+    description: z.string().optional(),
+    assigneeId: z.string().optional(),
+    dueDate: z.string().optional()
+  })).optional().default([])
 })
 
 export const TaskPatchSchema = z.object({

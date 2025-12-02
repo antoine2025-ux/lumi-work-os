@@ -8,6 +8,7 @@ import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Clock, User, Pl
 import { TaskEditDialog } from '@/components/tasks/task-edit-dialog'
 import { EpicDrawer } from './epic-drawer'
 import { CreateTaskDialog } from '@/components/tasks/create-task-dialog'
+import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
 
 interface Epic {
   id: string
@@ -52,12 +53,11 @@ interface EpicsViewProps {
 }
 
 export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: EpicsViewProps) {
+  const { open } = useTaskSidebarStore()
   const [epics, setEpics] = useState<Epic[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [collapsedEpics, setCollapsedEpics] = useState<Set<string>>(new Set())
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [hoveredAction, setHoveredAction] = useState<string | null>(null)
   const [selectedEpic, setSelectedEpic] = useState<Epic | null>(null)
   const [isEpicDrawerOpen, setIsEpicDrawerOpen] = useState(false)
@@ -645,8 +645,7 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
                   key={task.id}
                   onClick={(e) => {
                     e.stopPropagation()
-                    setEditingTask(task)
-                    setIsEditDialogOpen(true)
+                    open(task.id)
                   }}
                   className="p-2 rounded border cursor-pointer hover:bg-opacity-50 transition-colors"
                   style={{ 
@@ -669,19 +668,6 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
         </div>
       )}
 
-      {/* Task Edit Dialog */}
-      {editingTask && (
-        <TaskEditDialog
-          isOpen={isEditDialogOpen}
-          onClose={() => {
-            setIsEditDialogOpen(false)
-            setEditingTask(null)
-          }}
-          task={editingTask}
-          onSave={handleTaskUpdate}
-          workspaceId={workspaceId}
-        />
-      )}
 
       {/* Epic Drawer */}
       {selectedEpic && (
@@ -700,20 +686,20 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
 
       {/* Create Task Dialog */}
       <CreateTaskDialog
-        isOpen={isCreateTaskDialogOpen}
-        onClose={() => {
-          setIsCreateTaskDialogOpen(false)
-          setCreateTaskEpicId(undefined)
+        open={isCreateTaskDialogOpen}
+        onOpenChange={(open) => {
+          setIsCreateTaskDialogOpen(open)
+          if (!open) {
+            setCreateTaskEpicId(undefined)
+          }
         }}
         projectId={projectId}
-        workspaceId={workspaceId}
-        epicId={createTaskEpicId}
-        onTaskCreated={() => {
+        defaultEpicId={createTaskEpicId || null}
+        onTaskCreated={(task) => {
           loadTasks()
           setIsCreateTaskDialogOpen(false)
           setCreateTaskEpicId(undefined)
         }}
-        colors={colors}
       />
     </div>
   )

@@ -6,6 +6,7 @@ import { useEffect, useState, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import dynamic from "next/dynamic"
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context"
+import { TaskSidebar } from "@/components/tasks/task-sidebar"
 
 // Lazy load Header to reduce initial bundle size and improve LCP
 const Header = dynamic(() => import("@/components/layout/header").then(mod => ({ default: mod.Header })), {
@@ -144,6 +145,7 @@ export default function DashboardLayout({
           {children}
         </main>
       </div>
+      <TaskSidebar />
     </LoopbrainAssistantProvider>
   )
 }

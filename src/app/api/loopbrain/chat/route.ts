@@ -56,12 +56,15 @@ export async function POST(request: NextRequest) {
       projectId?: string
       pageId?: string
       taskId?: string
+      epicId?: string
       roleId?: string
       teamId?: string
       useSemanticSearch?: boolean
       maxContextItems?: number
       sendToSlack?: boolean
       slackChannel?: string
+      clientMetadata?: Record<string, unknown>
+      slackChannelHints?: string[]
     }
 
     try {
@@ -97,21 +100,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Fix routing: ensure projectId triggers spaces mode
+    // If projectId, pageId, taskId, or epicId is present, force spaces mode
+    let finalMode = body.mode as LoopbrainMode
+    if (body.projectId || body.pageId || body.taskId || body.epicId) {
+      finalMode = 'spaces'
+    }
+
     // Build LoopbrainRequest (workspaceId and userId from auth, never from client)
     const loopbrainRequest: LoopbrainRequest = {
       workspaceId, // Always from auth
       userId, // Always from auth
-      mode: body.mode as LoopbrainMode,
+      mode: finalMode,
       query: body.query.trim(),
       projectId: body.projectId,
       pageId: body.pageId,
       taskId: body.taskId,
+      epicId: body.epicId,
       roleId: body.roleId,
       teamId: body.teamId,
       useSemanticSearch: body.useSemanticSearch !== false, // Default to true
       maxContextItems: body.maxContextItems ? Math.min(Math.max(1, body.maxContextItems), 50) : 10,
       sendToSlack: body.sendToSlack === true, // Only true if explicitly set
-      slackChannel: body.slackChannel
+      slackChannel: body.slackChannel,
+      clientMetadata: body.clientMetadata,
+      slackChannelHints: body.slackChannelHints // From project edit (sent in request body, not persisted)
     }
 
     // Run Loopbrain query

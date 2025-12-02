@@ -36,12 +36,14 @@ import Link from "next/link"
 import { useWorkspace } from "@/lib/workspace-context"
 import dynamic from "next/dynamic"
 import { useTheme } from "@/components/theme-provider"
+import { useProjectSlackHints, setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
 
 // Keep essential imports at top for faster initial render
 import ReactMarkdown from "react-markdown"
 import TaskList from "@/components/tasks/task-list"
 import type { ViewMode } from "@/components/tasks/view-switcher"
 import { ViewSwitcher } from "@/components/tasks/view-switcher"
+import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
 
 // Dynamic imports for heavy components to reduce initial bundle size
 const KanbanBoard = dynamic(() => import("@/components/kanban/kanban-board").then(mod => ({ default: mod.KanbanBoard })), { ssr: false })
@@ -122,6 +124,7 @@ interface Project {
     content?: string
     updatedAt: string
   }
+  slackChannelHints?: string[] // From API (not persisted, but returned in response)
 }
 
 export default function ProjectDetailPage() {
@@ -132,6 +135,10 @@ export default function ProjectDetailPage() {
   const { currentWorkspace } = useWorkspace()
   
   const [project, setProject] = useState<Project | null>(null)
+  
+  // Get channel hints from project (API response) or fallback to client-side store
+  const { hints: localStorageHints } = useProjectSlackHints(projectId)
+  const channelHints = project?.slackChannelHints || localStorageHints || []
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isUpdatingWiki, setIsUpdatingWiki] = useState(false)
@@ -155,6 +162,7 @@ export default function ProjectDetailPage() {
   const [newEpicTitle, setNewEpicTitle] = useState('')
   const [newEpicDescription, setNewEpicDescription] = useState('')
   const [newEpicColor, setNewEpicColor] = useState('#3B82F6')
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
 
   // Use theme-based colors
   const colors = {
@@ -179,18 +187,28 @@ export default function ProjectDetailPage() {
   const loadProject = async () => {
     try {
       setIsLoading(true)
+      console.log('[ProjectPage] loading project', projectId, 'workspaceId:', currentWorkspace?.id)
       const response = await fetch(`/api/projects/${projectId}`)
+      
+      console.log('[ProjectPage] API response status:', response.status)
       
       if (response.ok) {
         const data = await response.json()
+        console.log('[ProjectPage] project loaded successfully', data.id, data.name)
         setProject(data)
       } else if (response.status === 404) {
+        console.log('[ProjectPage] project not found (404), setting error')
         setError('Project not found')
+      } else if (response.status === 403) {
+        console.log('[ProjectPage] forbidden (403) - insufficient permissions')
+        setError('You do not have access to this project')
       } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.log('[ProjectPage] failed to load project', response.status, errorData)
         setError('Failed to load project')
       }
     } catch (error) {
-      console.error('Error loading project:', error)
+      console.error('[ProjectPage] error loading project:', error)
       setError('Failed to load project')
     } finally {
       setIsLoading(false)
@@ -253,8 +271,44 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const handleProjectUpdate = (updatedProject: any) => {
+  const handleProjectUpdate = async (updatedProject: any) => {
     setProject(updatedProject)
+    // Save slackChannelHints to localStorage (session-only, not persisted to DB)
+    if (updatedProject.slackChannelHints && Array.isArray(updatedProject.slackChannelHints)) {
+      setProjectSlackHints(projectId, updatedProject.slackChannelHints)
+    }
+    // Reload project to get fresh data
+    await loadProject()
+  }
+
+  const handleDeleteProject = async () => {
+    if (!project) return
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${project.name}"? This action cannot be undone and will delete all tasks, epics, and other project data.`
+    )
+    
+    if (!confirmed) return
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        // Remove channel hints from localStorage
+        setProjectSlackHints(project.id, [])
+        
+        // Redirect to projects list
+        router.push('/projects')
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        alert(errorData.error || 'Failed to delete project')
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error)
+      alert('An error occurred while deleting the project')
+    }
   }
 
   // More menu handlers
@@ -299,41 +353,13 @@ export default function ProjectDetailPage() {
     alert('Project sharing feature coming soon!')
   }
 
-  const handleDeleteProject = async () => {
-    if (!project) return
-    
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${project.name}"? This action cannot be undone and will delete all tasks, comments, and project data.`
-    )
-    
-    if (confirmed) {
-      try {
-        const response = await fetch(`/api/projects/${projectId}`, {
-          method: 'DELETE',
-        })
-
-        if (response.ok) {
-          // Successfully deleted, redirect to projects page
-          router.push('/projects')
-        } else {
-          const errorData = await response.json()
-          console.error('Failed to delete project:', errorData)
-          alert(`Failed to delete project: ${errorData.error || 'Unknown error'}`)
-        }
-      } catch (error) {
-        console.error('Error deleting project:', error)
-        alert('Failed to delete project. Please try again.')
-      }
-    }
-  }
-
   const handleFilterChange = (filteredTasks: any[]) => {
     setFilteredTasks(filteredTasks)
     setIsFiltered(true)
   }
 
   const handleCreateTask = () => {
-    router.push(`/projects/${projectId}/tasks/new`)
+    setIsCreateTaskOpen(true)
   }
 
   const handleCreateEpic = () => {
@@ -473,6 +499,7 @@ export default function ProjectDetailPage() {
   }
 
   if (error || !project) {
+    console.log('[ProjectPage] rendering error state - error:', error, 'project:', project)
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background }}>
         <div className="text-center">
@@ -508,6 +535,7 @@ export default function ProjectDetailPage() {
             tasks={project?.tasks || []}
             colors={colors}
             currentView={headerView}
+            channelHints={channelHints}
             onViewChange={(view) => {
               setHeaderView(view)
               // Map header views to ViewMode for compatibility
@@ -516,9 +544,10 @@ export default function ProjectDetailPage() {
               else if (view === 'tasks') setCurrentView('list')
               // TODO: Handle epics, timeline, files views
             }}
-            onMoreClick={() => {
-              // TODO: Implement more menu
+            onEdit={() => {
+              setIsEditDialogOpen(true)
             }}
+            onDelete={handleDeleteProject}
           />
           
         </>
@@ -535,9 +564,21 @@ export default function ProjectDetailPage() {
               />
               <h1 className="text-3xl font-semibold" style={{ color: colors.text }}>{project?.name}</h1>
             </div>
-            <p className="text-base leading-relaxed" style={{ color: colors.textSecondary }}>
+            <p className="text-base leading-relaxed mb-3" style={{ color: colors.textSecondary }}>
               {project?.description || 'No description available'}
             </p>
+            {channelHints.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {channelHints.map((channel) => (
+                  <span
+                    key={channel}
+                    className="px-3 py-1 text-sm rounded-full bg-slate-800 text-slate-100 border border-slate-700"
+                  >
+                    #{channel}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Right Side - Project Details */}
@@ -851,6 +892,16 @@ export default function ProjectDetailPage() {
       <LoopbrainAssistantLauncher 
         mode="spaces" 
         anchors={{ projectId }} 
+      />
+
+      {/* Create Task Dialog */}
+      <CreateTaskDialog
+        open={isCreateTaskOpen}
+        onOpenChange={setIsCreateTaskOpen}
+        projectId={projectId}
+        onTaskCreated={() => {
+          loadProject()
+        }}
       />
     </WikiLayout>
   )

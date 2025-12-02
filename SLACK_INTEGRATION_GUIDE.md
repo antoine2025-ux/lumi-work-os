@@ -204,3 +204,5 @@ This deactivates the integration but doesn't delete the credentials (so you can 
 - Ensure the bot is a member of the channel (for private channels)
 
 
+
+

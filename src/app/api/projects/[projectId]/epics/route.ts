@@ -6,6 +6,8 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
+import { upsertEpicContext } from '@/lib/loopbrain/context-engine'
+import { logger } from '@/lib/logger'
 
 // GET /api/projects/[projectId]/epics - Get all epics for a project
 export async function GET(
@@ -184,6 +186,12 @@ export async function POST(
         userId: auth.user.userId
       }
     )
+
+    // Asynchronously upsert epic context for Loopbrain
+    // Log errors but don't block the main response
+    console.log('[LB-EPIC] upsertEpicContext called after create:', epic.id)
+    upsertEpicContext(epic.id)
+      .catch((error) => logger.error('Failed to upsert epic context after creation', { epicId: epic.id, error }))
 
     return NextResponse.json(epic, { status: 201 })
   } catch (error) {

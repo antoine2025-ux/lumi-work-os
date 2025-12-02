@@ -4,6 +4,7 @@ import { ProjectUpdateSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
+import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
 
 
 // GET /api/projects/[projectId] - Get a specific project
@@ -31,7 +32,25 @@ export async function GET(
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        status: true,
+        priority: true,
+        color: true,
+        department: true,
+        team: true,
+        ownerId: true,
+        isArchived: true,
+        startDate: true,
+        endDate: true,
+        createdAt: true,
+        updatedAt: true,
+        dailySummaryEnabled: true,
+        wikiPageId: true,
+        createdById: true,
+        workspaceId: true,
         createdBy: {
           select: {
             id: true,
@@ -109,10 +128,24 @@ export async function GET(
     }
 
     return NextResponse.json(project)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching project:', error)
+    
+    // Handle specific access control errors
+    if (error.message === 'Unauthorized: User not authenticated.') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    if (error.message === 'Project not found.') {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+    
+    if (error.message === 'Forbidden: Insufficient project permissions.') {
+      return NextResponse.json({ error: 'Forbidden: Insufficient project permissions' }, { status: 403 })
+    }
+    
     return NextResponse.json({ 
-      error: 'Failed to fetch project' 
+      error: 'Failed to fetch project'
     }, { status: 500 })
   }
 }
@@ -132,11 +165,46 @@ export async function PUT(
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
     }
 
-    // Check project access (require admin access for updates)
-    await assertProjectAccess(auth.user, projectId, 'ADMIN')
+    // Check project access (require member access for updates - creator/owner can always edit)
+    // Convert auth.user to format expected by assertProjectAccess
+    const nextAuthUser = {
+      id: auth.user.userId,
+      email: auth.user.email,
+      name: auth.user.name
+    } as any
+    
+    try {
+      await assertProjectAccess(nextAuthUser, projectId, 'MEMBER')
+    } catch (accessError) {
+      // If access check fails, return proper error response
+      if (accessError instanceof Error) {
+        if (accessError.message.includes('Unauthorized') || accessError.message.includes('not authenticated')) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+        if (accessError.message.includes('Forbidden') || accessError.message.includes('Insufficient')) {
+          return NextResponse.json({ error: 'You do not have permission to edit this project' }, { status: 403 })
+        }
+        if (accessError.message.includes('not found')) {
+          return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+        }
+      }
+      // Re-throw if it's not a known access error
+      throw accessError
+    }
 
-    // Validate request body with Zod
-    const validatedData = ProjectUpdateSchema.parse(body)
+    // Extract assigneeIds and slackChannelHints before validation (not in schema)
+    const assigneeIds = body.assigneeIds
+    const slackChannelHints = body.slackChannelHints as string[] | undefined
+
+    // Validate request body with Zod (exclude assigneeIds and slackChannelHints from validation)
+    // Prisma will ignore unknown fields, so slackChannelHints won't cause errors
+    const { assigneeIds: _, slackChannelHints: __, ...bodyWithoutExtras } = body
+    
+    console.log('[PUT /api/projects] Request body (without assigneeIds):', JSON.stringify(bodyWithoutAssignees, null, 2))
+    
+    const validatedData = ProjectUpdateSchema.parse(bodyWithoutAssignees)
+    
+    console.log('[PUT /api/projects] Validation passed:', Object.keys(validatedData))
     const { 
       name, 
       description, 
@@ -194,7 +262,7 @@ export async function PUT(
         ...(team && { team }),
         ...(wikiPageId !== undefined && { wikiPageId: wikiPageId || null }),
         ...(ownerId !== undefined && { ownerId: ownerId || null }),
-        ...(dailySummaryEnabled !== undefined && { dailySummaryEnabled })
+        ...(dailySummaryEnabled !== undefined && { dailySummaryEnabled }),
       },
       include: {
         createdBy: {
@@ -269,15 +337,30 @@ export async function PUT(
       }
     })
 
-    return NextResponse.json(project)
+    // Upsert project context in Loopbrain (fire-and-forget, don't block response)
+    upsertProjectContext(projectId).catch((error) => {
+      console.error('Failed to upsert project context after update', { projectId, error })
+    })
+
+    // Include slackChannelHints in response if provided (not persisted, but returned for UI)
+    const responseProject = project as any
+    if (slackChannelHints) {
+      responseProject.slackChannelHints = slackChannelHints
+    }
+    
+    return NextResponse.json(responseProject)
   } catch (error) {
     console.error('Error updating project:', error)
     
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
+      console.error('Zod validation error:', error.errors)
       return NextResponse.json({
         error: 'Validation error',
-        details: error.errors
+        details: error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message
+        }))
       }, { status: 400 })
     }
     
@@ -297,6 +380,63 @@ export async function PUT(
     
     return NextResponse.json({ 
       error: 'Failed to update project' 
+    }, { status: 500 })
+  }
+}
+
+// DELETE /api/projects/[projectId] - Delete a project
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ projectId: string }> }
+) {
+  try {
+    const auth = await getUnifiedAuth(request)
+    const resolvedParams = await params
+    const projectId = resolvedParams.projectId
+
+    if (!projectId) {
+      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
+    }
+
+    // Check project access (require admin access for deletion)
+    // Convert auth.user to format expected by assertProjectAccess
+    const nextAuthUser = {
+      id: auth.user.userId,
+      email: auth.user.email,
+      name: auth.user.name
+    } as any
+    await assertProjectAccess(nextAuthUser, projectId, 'ADMIN')
+
+    // Check if project exists
+    const existingProject = await prisma.project.findUnique({
+      where: { id: projectId }
+    })
+
+    if (!existingProject) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    // Delete the project (cascade will handle related records)
+    await prisma.project.delete({
+      where: { id: projectId }
+    })
+
+    return NextResponse.json({ success: true, message: 'Project deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting project:', error)
+    
+    if (error instanceof Error) {
+      if (error.message.includes('Unauthorized')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      
+      if (error.message === 'Forbidden: Insufficient project permissions.') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+    
+    return NextResponse.json({ 
+      error: 'Failed to delete project' 
     }, { status: 500 })
   }
 }

@@ -121,6 +121,7 @@ export default function RootLayout({
                 };
                 const root = document.documentElement;
                 const body = document.body;
+                if (!root || !body) return; // Guard against null elements
                 root.style.setProperty('--primary', darkConfig.primary);
                 root.style.setProperty('--primary-foreground', darkConfig.primaryForeground);
                 root.style.setProperty('--secondary', darkConfig.secondary);

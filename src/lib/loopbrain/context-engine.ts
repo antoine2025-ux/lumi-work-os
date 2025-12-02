@@ -15,6 +15,7 @@ import {
   PageContext,
   ProjectContext,
   TaskContext,
+  EpicContext,
   OrgContext,
   ActivityContext,
   UnifiedContext,
@@ -37,6 +38,9 @@ import {
 import { logger } from '@/lib/logger'
 import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
 import { projectToContext, taskToContext, pageToContext, roleToContext } from '@/lib/context/context-builders'
+import { buildProjectContext, type ProjectWithRelations } from './context-sources/pm/projects'
+import { buildEpicContext, type EpicWithRelations } from './context-sources/pm/epics'
+import { buildTaskContext, type TaskWithRelations } from './context-sources/pm/tasks'
 
 /**
  * Options for context retrieval
@@ -1005,6 +1009,511 @@ export class PrismaContextEngine implements ContextEngine {
  * Default context engine instance
  */
 export const contextEngine: ContextEngine = new PrismaContextEngine()
+
+/**
+ * Upsert project context in Loopbrain store
+ * 
+ * Loads a project with minimal relations, builds its UnifiedContextObject,
+ * converts it to ProjectContext format, and stores it in the context store.
+ * 
+ * @param projectId - The project ID
+ * @returns Promise that resolves when context is stored
+ */
+export async function upsertProjectContext(projectId: string): Promise<void> {
+  try {
+    // Load project with minimal relations needed for context
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        _count: {
+          select: {
+            tasks: true
+          }
+        }
+      }
+    })
+
+    if (!project) {
+      logger.warn('Project not found for context upsert', { projectId })
+      return
+    }
+
+    // Build UnifiedContextObject
+    const unifiedContext = buildProjectContext(project)
+
+    // Convert UnifiedContextObject to ProjectContext format for storage
+    // ProjectContext extends BaseContext which is what saveContextItem expects
+    const projectContext: ProjectContext = {
+      type: ContextType.PROJECT,
+      id: unifiedContext.id,
+      workspaceId: project.workspaceId,
+      timestamp: new Date().toISOString(),
+      name: unifiedContext.title,
+      description: project.description || undefined,
+      status: unifiedContext.status || project.status,
+      priority: unifiedContext.metadata?.priority as string | undefined || project.priority,
+      startDate: unifiedContext.metadata?.startDate as string | undefined,
+      endDate: unifiedContext.metadata?.endDate as string | undefined,
+      department: unifiedContext.metadata?.department as string | undefined,
+      team: unifiedContext.metadata?.team as string | undefined,
+      metadata: {
+        ...unifiedContext.metadata,
+        unifiedContextObject: unifiedContext // Store the full UnifiedContextObject in metadata for retrieval
+      }
+    }
+
+    // Save to context store (log errors but don't fail)
+    try {
+      await saveContextItem(projectContext)
+      logger.debug('Project context upserted successfully', { projectId, workspaceId: project.workspaceId })
+    } catch (error) {
+      logger.error('Failed to save project context to store', { projectId, workspaceId: project.workspaceId, error })
+      // Don't throw - context updates should not break project operations
+    }
+  } catch (error) {
+    logger.error('Error upserting project context', { projectId, error })
+    // Don't throw - context updates should not break project operations
+  }
+}
+
+/**
+ * Upsert epic context in Loopbrain store
+ * 
+ * Loads an epic with minimal relations, builds its UnifiedContextObject,
+ * converts it to EpicContext format, and stores it in the context store.
+ * 
+ * @param epicId - The epic ID
+ * @returns Promise that resolves when context is stored
+ */
+export async function upsertEpicContext(epicId: string): Promise<void> {
+  try {
+    // Load epic with minimal relations needed for context
+    const epic = await prisma.epic.findUnique({
+      where: { id: epicId },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        _count: {
+          select: {
+            tasks: true
+          }
+        },
+        tasks: { // Include tasks to count tasksDone
+          select: {
+            status: true
+          }
+        }
+      }
+    })
+
+    if (!epic) {
+      logger.warn('Epic not found for context upsert', { epicId })
+      return
+    }
+
+    // Build UnifiedContextObject
+    const unifiedContext = buildEpicContext(epic as EpicWithRelations)
+
+    // Convert UnifiedContextObject to EpicContext format for storage
+    // EpicContext extends BaseContext which is what saveContextItem expects
+    const epicContext: EpicContext = {
+      type: ContextType.EPIC,
+      id: unifiedContext.id, // This is epic:${epic.id}
+      workspaceId: epic.workspaceId,
+      timestamp: new Date().toISOString(),
+      title: unifiedContext.title,
+      description: epic.description || undefined,
+      projectId: epic.projectId,
+      tasksTotal: unifiedContext.metadata?.tasksTotal as number | undefined,
+      tasksDone: unifiedContext.metadata?.tasksDone as number | undefined,
+      color: epic.color || undefined,
+      order: epic.order || undefined,
+      metadata: {
+        ...unifiedContext.metadata,
+        unifiedContextObject: unifiedContext // Store the full UnifiedContextObject in metadata for retrieval
+      }
+    }
+
+    // Save to context store (log errors but don't fail)
+    try {
+      await saveContextItem(epicContext)
+      logger.debug('Epic context upserted successfully', { epicId, workspaceId: epic.workspaceId })
+    } catch (error) {
+      logger.error('Failed to save epic context to store', { epicId, workspaceId: epic.workspaceId, error })
+      // Don't throw - context updates should not break epic operations
+    }
+  } catch (error) {
+    logger.error('Error upserting epic context', { epicId, error })
+    // Don't throw - context updates should not break epic operations
+  }
+}
+
+/**
+ * Upsert task context in Loopbrain store
+ * 
+ * Loads a task with minimal relations, builds its UnifiedContextObject,
+ * converts it to TaskContext format, and stores it in the context store.
+ * 
+ * @param taskId - The task ID
+ * @returns Promise that resolves when context is stored
+ */
+export async function upsertTaskContext(taskId: string): Promise<void> {
+  try {
+    // Load task with minimal relations needed for context
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        epic: {
+          select: {
+            id: true,
+            title: true
+          }
+        },
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        subtasks: {
+          select: {
+            id: true,
+            title: true,
+            status: true
+          }
+        },
+        _count: {
+          select: {
+            subtasks: true
+          }
+        }
+      }
+    })
+
+    if (!task) {
+      logger.warn('Task not found for context upsert', { taskId })
+      return
+    }
+
+    // Build UnifiedContextObject
+    const unifiedContext = buildTaskContext(task as TaskWithRelations)
+
+    // Convert UnifiedContextObject to TaskContext format for storage
+    // TaskContext extends BaseContext which is what saveContextItem expects
+    const taskContext: TaskContext = {
+      type: ContextType.TASK,
+      id: unifiedContext.id,
+      workspaceId: task.workspaceId,
+      timestamp: new Date().toISOString(),
+      title: unifiedContext.title,
+      description: task.description || undefined,
+      status: unifiedContext.status || task.status,
+      priority: unifiedContext.metadata?.priority as string | undefined || task.priority,
+      dueDate: task.dueDate?.toISOString() || undefined,
+      assignee: task.assignee ? {
+        id: task.assignee.id,
+        name: task.assignee.name || 'Unknown',
+        email: task.assignee.email || undefined
+      } : undefined,
+      project: task.project ? {
+        id: task.project.id,
+        name: task.project.name
+      } : undefined,
+      epic: task.epic ? {
+        id: task.epic.id,
+        name: task.epic.title
+      } : undefined,
+      dependencies: task.dependsOn.length > 0 ? task.dependsOn : undefined,
+      metadata: {
+        ...unifiedContext.metadata,
+        unifiedContextObject: unifiedContext // Store the full UnifiedContextObject in metadata for retrieval
+      }
+    }
+
+    // Save to context store (log errors but don't fail)
+    try {
+      await saveContextItem(taskContext)
+      logger.debug('Task context upserted successfully', { taskId })
+    } catch (error) {
+      logger.error('Failed to save task context to store', { taskId, error })
+      // Don't throw - context updates should not break task operations
+    }
+
+    // Don't throw - context updates should not break task operations
+  } catch (error) {
+    logger.error('Error upserting task context', { taskId, error })
+    // Don't throw - context updates should not break task operations
+  }
+}
+
+/**
+ * Get epic context from Loopbrain store
+ * 
+ * Retrieves the stored UnifiedContextObject for an epic from the context store.
+ * Falls back to building it fresh if not found in store.
+ * 
+ * @param epicId - The epic ID
+ * @param workspaceId - The workspace ID for scoping
+ * @returns UnifiedContextObject or null if epic not found
+ */
+export async function getEpicContextObject(
+  epicId: string,
+  workspaceId: string
+): Promise<UnifiedContextObject | null> {
+  try {
+    // Try to get from store first using epic:${epicId} as contextId
+    const contextId = `epic:${epicId}`
+    const storedContext = await getContextItem(contextId, ContextType.EPIC, workspaceId)
+    
+    if (storedContext) {
+      const contextObject = deserializeContextObject(storedContext) as EpicContext
+      // Extract UnifiedContextObject from metadata if stored
+      if (contextObject.metadata?.unifiedContextObject) {
+        return contextObject.metadata.unifiedContextObject as UnifiedContextObject
+      }
+    }
+
+    // Fallback: build fresh if not in store
+    const epic = await prisma.epic.findUnique({
+      where: { 
+        id: epicId,
+        workspaceId // Enforce workspace scoping
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        _count: {
+          select: {
+            tasks: true
+          }
+        },
+        tasks: {
+          select: {
+            status: true
+          }
+        }
+      }
+    })
+
+    if (!epic) {
+      return null
+    }
+
+    return buildEpicContext(epic as EpicWithRelations)
+  } catch (error) {
+    logger.error('Error getting epic context object', { epicId, workspaceId, error })
+    return null
+  }
+}
+
+/**
+ * Get all epics for a project as UnifiedContextObjects
+ * 
+ * Loads all epics for a given project and returns them as UnifiedContextObjects.
+ * Tries to load from context store first, falls back to building fresh from Prisma.
+ * 
+ * @param projectId - The project ID
+ * @param workspaceId - The workspace ID for scoping
+ * @returns Array of UnifiedContextObjects for epics in the project
+ */
+export async function getProjectEpicsContext(
+  projectId: string,
+  workspaceId: string
+): Promise<UnifiedContextObject[]> {
+  try {
+    // Query Prisma for all epics in the project
+    // Only filter by projectId - workspace scoping is already enforced via project access control
+    const epics = await prisma.epic.findMany({
+      where: {
+        projectId
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        _count: {
+          select: {
+            tasks: true
+          }
+        },
+        tasks: {
+          select: {
+            status: true
+          }
+        }
+      },
+      orderBy: {
+        order: 'asc'
+      }
+    })
+
+    // Build context objects for each epic
+    // Try to get from store first, fall back to building fresh
+    const epicContexts: UnifiedContextObject[] = []
+    
+    for (const epic of epics) {
+      const contextId = `epic:${epic.id}`
+      const storedContext = await getContextItem(contextId, ContextType.EPIC, workspaceId)
+      
+      if (storedContext) {
+        const contextObject = deserializeContextObject(storedContext) as EpicContext
+        // Extract UnifiedContextObject from metadata if stored
+        if (contextObject.metadata?.unifiedContextObject) {
+          epicContexts.push(contextObject.metadata.unifiedContextObject as UnifiedContextObject)
+          continue
+        }
+      }
+
+      // Fallback: build fresh if not in store
+      epicContexts.push(buildEpicContext(epic as EpicWithRelations))
+    }
+
+    return epicContexts
+  } catch (error) {
+    logger.error('Error getting project epics context', { projectId, workspaceId, error })
+    return []
+  }
+}
+
+/**
+ * Get project tasks context
+ * 
+ * Loads all tasks for a project and returns them as UnifiedContextObjects
+ */
+export async function getProjectTasksContext(
+  projectId: string,
+  workspaceId: string
+): Promise<UnifiedContextObject[]> {
+  try {
+    // Query Prisma for all tasks in the project
+    const tasks = await prisma.task.findMany({
+      where: {
+        projectId
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        epic: {
+          select: {
+            id: true,
+            title: true
+          }
+        },
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        subtasks: {
+          select: {
+            id: true,
+            title: true,
+            status: true
+          }
+        }
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      }
+    })
+
+    // Build context objects for each task
+    return tasks.map(task => buildTaskContext(task as TaskWithRelations))
+  } catch (error) {
+    logger.error('Error getting project tasks context', { projectId, workspaceId, error })
+    return []
+  }
+}
+
+/**
+ * Get project context from Loopbrain store
+ * 
+ * Retrieves the stored UnifiedContextObject for a project from the context store.
+ * Falls back to building it fresh if not found in store.
+ * 
+ * @param projectId - The project ID
+ * @param workspaceId - The workspace ID for scoping
+ * @returns UnifiedContextObject or null if project not found
+ */
+export async function getProjectContextObject(
+  projectId: string,
+  workspaceId: string
+): Promise<UnifiedContextObject | null> {
+  try {
+    // Try to get from store first
+    const storedContext = await getContextItem(projectId, ContextType.PROJECT, workspaceId)
+    
+    if (storedContext) {
+      const contextObject = deserializeContextObject(storedContext) as ProjectContext
+      // Extract UnifiedContextObject from metadata if stored
+      if (contextObject.metadata?.unifiedContextObject) {
+        return contextObject.metadata.unifiedContextObject as UnifiedContextObject
+      }
+    }
+
+    // Fallback: build fresh if not in store
+    const project = await prisma.project.findUnique({
+      where: { 
+        id: projectId,
+        workspaceId // Enforce workspace scoping
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        _count: {
+          select: {
+            tasks: true
+          }
+        }
+      }
+    })
+
+    if (!project) {
+      return null
+    }
+
+    return buildProjectContext(project)
+  } catch (error) {
+    logger.error('Error getting project context object', { projectId, workspaceId, error })
+    return null
+  }
+}
 
 /**
  * Get workspace ContextObjects (unified format)

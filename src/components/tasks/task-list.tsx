@@ -28,6 +28,8 @@ import {
 import Link from "next/link"
 import { TaskEditDialog } from "./task-edit-dialog"
 import { DependencyManager } from "./dependency-manager"
+import { CreateTaskDialog } from "./create-task-dialog"
+import { useTaskSidebarStore } from "@/lib/stores/use-task-sidebar-store"
 
 interface Task {
   id: string
@@ -86,6 +88,7 @@ const priorityOptions = [
 ]
 
 export default function TaskList({ projectId, workspaceId, isFullscreen = false, onToggleFullscreen }: TaskListProps) {
+  const { open } = useTaskSidebarStore()
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState('all')
@@ -95,6 +98,7 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [dependencyTaskId, setDependencyTaskId] = useState<string | null>(null)
   const [isDependencyManagerOpen, setIsDependencyManagerOpen] = useState(false)
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
 
   useEffect(() => {
     loadTasks()
@@ -174,9 +178,9 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
     }
   }
 
-  const handleEditTask = (task: Task) => {
-    setEditingTask(task)
-    setIsEditDialogOpen(true)
+  const handleEditTask = async (task: Task) => {
+    // Open sidebar with task ID
+    open(task.id)
   }
 
   const handleTaskUpdate = (updatedTask: Task) => {
@@ -287,11 +291,9 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
               )}
             </Button>
           )}
-          <Button asChild>
-            <Link href={`/projects/${projectId}/tasks/new`}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Task
-            </Link>
+          <Button onClick={() => setIsCreateTaskOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Task
           </Button>
         </div>
       </div>
@@ -342,9 +344,15 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
               </div>
               <div className="space-y-2">
                 {statusTasks.map((task) => (
-                  <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <Link href={`/projects/${projectId}/tasks/${task.id}`}>
-                      <CardContent className="p-4">
+                  <Card 
+                    key={task.id} 
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      open(task.id)
+                    }}
+                  >
+                    <CardContent className="p-4">
                       <div className="space-y-3 min-h-[120px]">
                         <div className="flex items-start justify-between">
                           <h4 className="font-medium text-sm line-clamp-2">
@@ -476,7 +484,6 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
                         </div>
                       </div>
                     </CardContent>
-                    </Link>
                   </Card>
                 ))}
                 {statusTasks.length === 0 && (
@@ -508,6 +515,17 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
           onDependenciesUpdated={handleDependenciesUpdated}
         />
       )}
+
+      {/* Create Task Dialog */}
+      <CreateTaskDialog
+        open={isCreateTaskOpen}
+        onOpenChange={setIsCreateTaskOpen}
+        projectId={projectId}
+        onTaskCreated={(task) => {
+          // Reload tasks to show the new task
+          loadTasks()
+        }}
+      />
     </div>
   )
 }

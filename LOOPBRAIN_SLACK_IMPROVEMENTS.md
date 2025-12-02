@@ -157,3 +157,5 @@ Potential enhancements:
 - `src/app/api/loopbrain/chat/route.ts` - Loopbrain API endpoint
 
 
+
+

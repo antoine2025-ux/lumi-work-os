@@ -1,10 +1,12 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { DragDropProvider } from './drag-drop-provider'
 import { DroppableColumn } from './droppable-column'
 import { TaskEditDialog } from '../tasks/task-edit-dialog'
 import { DependencyManager } from '../tasks/dependency-manager'
+import { CreateTaskDialog } from '../tasks/create-task-dialog'
+import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -116,29 +118,89 @@ const columns = [
 ]
 
 export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTasks, epicId }: KanbanBoardProps) {
+  const { open } = useTaskSidebarStore()
   const [tasks, setTasks] = useState<Task[]>([])
   const [epics, setEpics] = useState<Epic[]>([])
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [dependencyTaskId, setDependencyTaskId] = useState<string | null>(null)
   const [isDependencyManagerOpen, setIsDependencyManagerOpen] = useState(false)
   const [viewDensity, setViewDensity] = useState<ViewDensity>('comfortable')
   const [screenSize, setScreenSize] = useState<ScreenSize>('desktop')
   const [groupByMode, setGroupByMode] = useState<GroupByMode>('status')
   const [selectedMilestones, setSelectedMilestones] = useState<string[]>([])
+  const [selectedEpicFilter, setSelectedEpicFilter] = useState<string | null>(null)
   const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false)
   const [newEpicTitle, setNewEpicTitle] = useState('')
   const [newEpicDescription, setNewEpicDescription] = useState('')
   const [newEpicColor, setNewEpicColor] = useState('#3B82F6')
   const [collapsedEpics, setCollapsedEpics] = useState<Set<string>>(new Set())
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
+  const [createTaskStatus, setCreateTaskStatus] = useState<'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED'>('TODO')
+  const [createTaskEpicId, setCreateTaskEpicId] = useState<string | null>(null)
 
+  // Initialize tasks from filteredTasks prop if provided, otherwise load from API
   useEffect(() => {
-    loadTasks()
+    if (filteredTasks && filteredTasks.length > 0) {
+      console.log('[Kanban] initializing tasks from filteredTasks prop', filteredTasks.length)
+      const enrichedTasks = enrichTasksWithEpicData(filteredTasks, epics)
+      setTasks(enrichedTasks)
+      setIsLoading(false)
+    } else {
+      loadTasks()
+    }
     loadEpics()
     loadMilestones()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, workspaceId, epicId]) // Add epicId to dependencies
+
+  // Sync tasks state when filteredTasks prop changes (but don't override optimistic updates)
+  // This only runs when filteredTasks prop changes, not on every render
+  // We use a ref to track if we've made optimistic updates to avoid overwriting them
+  const hasOptimisticUpdateRef = useRef(false)
+  
+  useEffect(() => {
+    // Skip sync entirely if we have optimistic updates in progress
+    if (hasOptimisticUpdateRef.current) {
+      console.log('[Kanban] Skipping filteredTasks sync (optimistic update in progress)')
+      return
+    }
+    
+    if (filteredTasks && filteredTasks.length > 0) {
+      console.log('[Kanban] filteredTasks prop changed, syncing to state', filteredTasks.length)
+      setTasks(prevTasks => {
+        // If we have no tasks, use filteredTasks
+        if (prevTasks.length === 0) {
+          return enrichTasksWithEpicData(filteredTasks, epics)
+        }
+        // Otherwise, merge: update existing tasks with prop data
+        const propTaskMap = new Map(filteredTasks.map(t => [t.id, t]))
+        return prevTasks.map(task => {
+          const propTask = propTaskMap.get(task.id)
+          // Use prop data if it exists, otherwise keep current task
+          return propTask ? { ...task, ...propTask } : task
+        })
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredTasks]) // Only depend on filteredTasks, not epics (to avoid loops)
+
+  // Re-enrich tasks when epics are loaded (in case epics load after tasks)
+  // This ensures tasks have epic data even if API response doesn't include it
+  useEffect(() => {
+    if (epics.length > 0 && tasks.length > 0) {
+      // Check if any task needs enrichment
+      const needsEnrichment = tasks.some(task => 
+        task.epicId && !task.epic
+      )
+      
+      if (needsEnrichment) {
+        const enriched = enrichTasksWithEpicData(tasks, epics)
+        setTasks(enriched)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [epics]) // Only re-run when epics change, tasks dependency handled by loadTasks
 
   // Screen size detection
   useEffect(() => {
@@ -158,20 +220,67 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const loadTasks = async () => {
+  // Enrich tasks with epic data if not already present from API
+  // This is a fallback in case API response doesn't include epic relation
+  // Note: With the API update, tasks should already include epic data, but this ensures consistency
+  const enrichTasksWithEpicData = (tasksData: Task[], epicsData: Epic[]): Task[] => {
+    if (!epicsData || epicsData.length === 0) {
+      return tasksData
+    }
+
+    const epicMap = new Map<string, Epic>()
+    epicsData.forEach(epic => {
+      epicMap.set(epic.id, epic)
+    })
+
+    return tasksData.map(task => {
+      // If task already has epic data from API, use it
+      if (task.epic) {
+        return task
+      }
+
+      // Otherwise, enrich from epics array
+      if (task.epicId) {
+        const epic = epicMap.get(task.epicId)
+        if (epic) {
+          return {
+            ...task,
+            epic: {
+              id: epic.id,
+              title: epic.title,
+              color: epic.color || undefined
+            }
+          }
+        }
+      }
+
+      return task
+    })
+  }
+
+  const loadTasks = async (force = false) => {
     try {
+      console.log('[Kanban] loadTasks called', 'force:', force, 'hasOptimisticUpdate:', hasOptimisticUpdateRef.current)
+      // Don't overwrite state if we have optimistic updates in progress (unless forced)
+      if (!force && hasOptimisticUpdateRef.current) {
+        console.log('[Kanban] Skipping loadTasks - optimistic update in progress')
+        return
+      }
       setIsLoading(true)
       // Add epicId filter to the API call if provided
       const epicFilter = epicId ? `&epicId=${epicId}` : ''
       const response = await fetch(`/api/tasks?projectId=${projectId}&workspaceId=${workspaceId}${epicFilter}`)
       if (response.ok) {
         const data = await response.json()
-        setTasks(data)
+        // Tasks should already include epic data from API, but enrich if needed as fallback
+        const enrichedTasks = enrichTasksWithEpicData(data, epics)
+        console.log('[Kanban] tasks set from loadTasks', enrichedTasks.length)
+        setTasks(enrichedTasks)
       } else {
-        console.error('Failed to load tasks:', response.status, response.statusText)
+        console.error('[Kanban] Failed to load tasks:', response.status, response.statusText)
       }
     } catch (error) {
-      console.error('Error loading tasks:', error)
+      console.error('[Kanban] Error loading tasks:', error)
     } finally {
       setIsLoading(false)
     }
@@ -252,7 +361,27 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
   }
 
   const handleTaskMove = async (taskId: string, newStatus: string, newOrder?: number) => {
+    const task = tasks.find(t => t.id === taskId)
+    const fromStatus = task?.status
+    console.log('[Kanban] handleTaskMove start', { taskId, fromStatus, toStatus: newStatus })
+    console.log('[Kanban] tasks length before update', tasks.length)
+    
+    // Mark that we're making an optimistic update to prevent prop sync from overwriting it
+    // Set this BEFORE the state update to ensure it's active immediately
+    hasOptimisticUpdateRef.current = true
+    
     try {
+      // Optimistically update UI immediately before API call
+      // Use functional update to avoid stale closure
+      setTasks(prevTasks => {
+        const updated = prevTasks.map(task =>
+          task.id === taskId ? { ...task, status: newStatus as any } : task
+        )
+        console.log('[Kanban] tasks length after optimistic update', updated.length)
+        console.log('[Kanban] Updated task status:', updated.find(t => t.id === taskId)?.status)
+        return updated
+      })
+
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PUT',
         headers: {
@@ -262,22 +391,34 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
       })
 
       if (response.ok) {
-        // Update local state optimistically
-        setTasks(prevTasks =>
-          prevTasks.map(task =>
-            task.id === taskId ? { ...task, status: newStatus as any } : task
+        // Update with full task data from API response to ensure consistency
+        const updatedTask = await response.json()
+        console.log('[Kanban] API response received, updating task', updatedTask.id, 'status:', updatedTask.status)
+        setTasks(prevTasks => {
+          const final = prevTasks.map(task =>
+            task.id === taskId ? { ...task, ...updatedTask } : task
           )
-        )
-        // Notify parent component that tasks were updated
-        onTasksUpdated?.()
+          console.log('[Kanban] Final task status after API update:', final.find(t => t.id === taskId)?.status)
+          return final
+        })
+        // Keep the flag set for a bit longer to prevent any late-arriving prop updates
+        setTimeout(() => {
+          hasOptimisticUpdateRef.current = false
+          console.log('[Kanban] Optimistic update flag reset')
+        }, 2000) // Increased delay to prevent overwrites
+        // Don't call onTasksUpdated for status changes - we handle it optimistically
+        // onTasksUpdated?.() // Commented out to prevent parent reload from overwriting state
       } else {
-        console.error('Task move failed:', response.status, response.statusText)
-        // Reload tasks if update failed
-        loadTasks()
+        console.error('[Kanban] Task move failed:', response.status, response.statusText)
+        // Revert optimistic update and reload tasks if update failed (force reload)
+        hasOptimisticUpdateRef.current = false
+        loadTasks(true)
       }
     } catch (error) {
-      console.error('Error moving task:', error)
-      loadTasks()
+      console.error('[Kanban] Error moving task:', error)
+      // Revert optimistic update and reload tasks on error (force reload)
+      hasOptimisticUpdateRef.current = false
+      loadTasks(true)
     }
   }
 
@@ -292,8 +433,8 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
       })
 
       if (response.ok) {
-        // Reload tasks to get updated order
-        loadTasks()
+        // Reload tasks to get updated order (force reload since this is not a status change)
+        loadTasks(true)
       }
     } catch (error) {
       console.error('Error reordering task:', error)
@@ -301,18 +442,27 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
   }
 
   const handleEditTask = (task: Task) => {
-    setEditingTask(task)
-    setIsEditDialogOpen(true)
+    open(task.id)
   }
 
   const handleTaskUpdate = (updatedTask: Task) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
+    console.log('[Kanban] handleTaskUpdate', updatedTask.id, 'new status:', updatedTask.status)
+    // Mark that we're making an optimistic update
+    hasOptimisticUpdateRef.current = true
+    // Update local state immediately with the updated task
+    setTasks(prevTasks => {
+      const updated = prevTasks.map(task =>
         task.id === updatedTask.id ? updatedTask : task
       )
-    )
-    // Notify parent component that tasks were updated
-    onTasksUpdated?.()
+      console.log('[Kanban] tasks updated in handleTaskUpdate', updated.length)
+      return updated
+    })
+    // Reset the optimistic update flag after a delay
+    setTimeout(() => {
+      hasOptimisticUpdateRef.current = false
+    }, 500)
+    // Don't call onTasksUpdated - we handle it optimistically to prevent parent reload
+    // onTasksUpdated?.() // Commented out to prevent parent reload from overwriting state
   }
 
   const handleManageDependencies = (taskId: string) => {
@@ -326,10 +476,22 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
     onTasksUpdated?.()
   }
 
-  const handleAddTask = (status: string) => {
-    // Navigate to the new task page with the status pre-filled and epicId if available
-    const epicParam = epicId ? `&epicId=${epicId}` : ''
-    window.location.href = `/projects/${projectId}/tasks/new?status=${status}${epicParam}`
+  const handleAddTask = (status: string, epicIdForTask?: string) => {
+    setCreateTaskStatus(status as 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED')
+    setCreateTaskEpicId(epicIdForTask || epicId || null)
+    setIsCreateTaskOpen(true)
+  }
+
+  const handleTaskCreated = (task: any) => {
+    // Add the new task to the local state optimistically
+    hasOptimisticUpdateRef.current = true
+    setTasks(prevTasks => [...prevTasks, task])
+    // Reset the optimistic update flag after a delay
+    setTimeout(() => {
+      hasOptimisticUpdateRef.current = false
+    }, 2000)
+    // Optionally reload tasks to ensure consistency
+    loadTasks()
   }
 
   // Helper functions for grouping and filtering
@@ -396,20 +558,31 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
     return new Set()
   }
 
-  // Use filtered tasks if provided, otherwise use loaded tasks
-  // Apply milestone filtering and ensure filtered tasks have project information and dependsOn array
-  const displayTasks = (filteredTasks ? 
-    filteredTasks.map(task => ({
-      ...task,
-      project: task.project || { id: projectId },
-      dependsOn: task.dependsOn || []
-    })) : 
-    tasks
-  ).filter(task => {
+  // Always use tasks state for rendering (never render directly from props)
+  // Apply milestone and epic filtering and ensure tasks have project information and dependsOn array
+  const displayTasks = tasks.map(task => ({
+    ...task,
+    project: task.project || { id: projectId },
+    dependsOn: task.dependsOn || []
+  })).filter(task => {
     // Apply milestone filtering
     if (selectedMilestones.length > 0) {
-      return task.milestoneId && selectedMilestones.includes(task.milestoneId)
+      if (!task.milestoneId || !selectedMilestones.includes(task.milestoneId)) {
+        return false
+      }
     }
+    
+    // Apply epic filtering
+    if (selectedEpicFilter !== null) {
+      if (selectedEpicFilter === 'none') {
+        // Filter for tasks with no epic
+        return !task.epicId
+      } else {
+        // Filter for specific epic
+        return task.epicId === selectedEpicFilter
+      }
+    }
+    
     return true
   })
 
@@ -434,6 +607,62 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
             ? 'max-w-7xl mx-auto' 
             : 'max-w-full px-4'
       }`}>
+        {/* Board Toolbar */}
+        {groupByMode === 'status' && (
+          <div className="mb-6 flex items-center justify-between flex-wrap gap-4 pb-4 border-b">
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Epic Filter */}
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select
+                  value={selectedEpicFilter || 'all'}
+                  onValueChange={(value) => {
+                    setSelectedEpicFilter(value === 'all' ? null : value)
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by Epic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Epics</SelectItem>
+                    {epics.map((epic) => (
+                      <SelectItem key={epic.id} value={epic.id}>
+                        {epic.title}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="none">No Epic</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {/* View Controls */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant={viewDensity === 'compact' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewDensity('compact')}
+              >
+                <Columns3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewDensity === 'comfortable' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewDensity('comfortable')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewDensity === 'spacious' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewDensity('spacious')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+        
         {groupByMode === 'status' ? (
           <div className={`grid gap-4 ${
             screenSize === 'desktop' 
@@ -576,13 +805,6 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
         )}
       </div>
 
-      {/* Task Edit Dialog */}
-      <TaskEditDialog
-        isOpen={isEditDialogOpen}
-        onClose={() => setIsEditDialogOpen(false)}
-        task={editingTask}
-        onSave={handleTaskUpdate}
-      />
 
       {/* Dependency Manager */}
       {dependencyTaskId && (
@@ -594,6 +816,16 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
           onDependenciesUpdated={handleDependenciesUpdated}
         />
       )}
+
+      {/* Create Task Dialog */}
+      <CreateTaskDialog
+        open={isCreateTaskOpen}
+        onOpenChange={setIsCreateTaskOpen}
+        projectId={projectId}
+        defaultStatus={createTaskStatus}
+        defaultEpicId={createTaskEpicId}
+        onTaskCreated={handleTaskCreated}
+      />
     </DragDropProvider>
   )
 }

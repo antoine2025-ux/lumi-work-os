@@ -84,6 +84,7 @@ export async function POST(
         const task = await prisma.task.create({
           data: {
             projectId: projectId,
+            workspaceId: auth.workspaceId, // Always use authenticated workspace
             title: taskName,
             description: template.description || '',
             status: taskData?.status || 'TODO',

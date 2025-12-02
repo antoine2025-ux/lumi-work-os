@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Calendar, FileText, Link as LinkIcon, GanttChart, Sparkles } from 'lucide-react'
 import { TaskEditDialog } from '@/components/tasks/task-edit-dialog'
+import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
 
 interface Epic {
   id: string
@@ -56,10 +57,9 @@ interface EpicDrawerProps {
 }
 
 export function EpicDrawer({ epic, isOpen, onClose, projectId, workspaceId, colors }: EpicDrawerProps) {
+  const { open } = useTaskSidebarStore()
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
@@ -289,8 +289,7 @@ export function EpicDrawer({ epic, isOpen, onClose, projectId, workspaceId, colo
                             <tr
                               key={task.id}
                               onClick={() => {
-                                setEditingTask(task)
-                                setIsEditDialogOpen(true)
+                                open(task.id)
                               }}
                               className="border-b cursor-pointer hover:bg-opacity-50 transition-colors"
                               style={{ borderColor: colors.border }}
@@ -367,22 +366,6 @@ export function EpicDrawer({ epic, isOpen, onClose, projectId, workspaceId, colo
         </DialogContent>
       </Dialog>
 
-      {/* Task Edit Dialog */}
-      {editingTask && (
-        <TaskEditDialog
-          isOpen={isEditDialogOpen}
-          onClose={() => {
-            setIsEditDialogOpen(false)
-            setEditingTask(null)
-            loadTasks()
-          }}
-          task={editingTask}
-          onSave={() => {
-            loadTasks()
-          }}
-          workspaceId={workspaceId}
-        />
-      )}
     </>
   )
 }

@@ -13,6 +13,7 @@ export enum ContextType {
   PAGE = 'page',
   PROJECT = 'project',
   TASK = 'task',
+  EPIC = 'epic',
   ORG = 'org',
   ACTIVITY = 'activity',
   UNIFIED = 'unified'
@@ -132,6 +133,21 @@ export interface TaskContext extends BaseContext {
 }
 
 /**
+ * Epic context
+ * Represents an epic and its associated tasks
+ */
+export interface EpicContext extends BaseContext {
+  type: ContextType.EPIC
+  title: string
+  description?: string
+  projectId: string
+  tasksTotal?: number
+  tasksDone?: number
+  color?: string
+  order?: number
+}
+
+/**
  * Organization context
  * Represents org structure, teams, roles, and people
  */
@@ -187,6 +203,7 @@ export type ContextObject =
   | PageContext
   | ProjectContext
   | TaskContext
+  | EpicContext
   | OrgContext
   | ActivityContext
   | UnifiedContext

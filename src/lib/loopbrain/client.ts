@@ -9,6 +9,7 @@ import type {
   LoopbrainResponse,
   LoopbrainMode
 } from './orchestrator-types'
+import { getProjectSlackHints } from '@/lib/client-state/project-slack-hints'
 
 /**
  * Parameters for Loopbrain assistant call (generic, supports all modes)
@@ -32,6 +33,8 @@ export interface LoopbrainAssistantParams {
   useSemanticSearch?: boolean
   /** Maximum number of context items to retrieve (default: 10) */
   maxContextItems?: number
+  /** Slack channel hints from project (sent in request body, not persisted) */
+  slackChannelHints?: string[]
 }
 
 /**
@@ -84,24 +87,48 @@ export async function callLoopbrainAssistant(
     throw new Error('Mode must be one of: spaces, org, dashboard')
   }
 
+  // Client-side routing fix: ensure projectId triggers spaces mode
+  // This is a safety measure in addition to server-side override
+  let finalMode = mode
+  if (projectId || pageId || taskId) {
+    finalMode = 'spaces'
+  }
+
+  // Read client-side metadata (e.g., project Slack channel hints from localStorage)
+  const clientMetadata: Record<string, unknown> = {}
+  if (projectId) {
+    const hints = getProjectSlackHints(projectId)
+    if (hints.length > 0) {
+      clientMetadata.projectSlackHints = hints
+    }
+  }
+
+  // Use slackChannelHints from params if provided, otherwise fallback to localStorage
+  const finalSlackChannelHints = params.slackChannelHints || 
+    (projectId ? getProjectSlackHints(projectId) : undefined)
+
+  const payload = {
+    mode: finalMode,
+    query: query.trim(),
+    pageId,
+    projectId,
+    taskId,
+    roleId,
+    teamId,
+    useSemanticSearch,
+    maxContextItems,
+    ...(Object.keys(clientMetadata).length > 0 && { clientMetadata }),
+    ...(finalSlackChannelHints && finalSlackChannelHints.length > 0 && { slackChannelHints: finalSlackChannelHints })
+  }
+
   try {
     const response = await fetch('/api/loopbrain/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        mode,
-        query: query.trim(),
-        pageId,
-        projectId,
-        taskId,
-        roleId,
-        teamId,
-        useSemanticSearch,
-        maxContextItems
-        // Note: workspaceId and userId are NOT sent - backend derives from auth
-      })
+      body: JSON.stringify(payload)
+      // Note: workspaceId and userId are NOT sent - backend derives from auth
     })
 
     if (!response.ok) {
