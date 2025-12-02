@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getUnifiedAuth } from '@/lib/auth/unified-auth'
-import { assertAccess } from '@/lib/pm/guards'
-import { setWorkspaceContext } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 // POST /api/tasks/[id]/subtasks - Create or update subtasks for a task
 export async function POST(
