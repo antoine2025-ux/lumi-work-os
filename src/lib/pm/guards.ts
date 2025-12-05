@@ -6,14 +6,33 @@ const prisma = new PrismaClient()
 /**
  * Assert that the authenticated user has access to the project
  * Throws error if access is denied, returns project and user data if granted
+ * 
+ * CRITICAL: Verifies workspace isolation - project must belong to user's workspace
  */
 export async function assertProjectAccess(
   user: User,
   projectId: string,
-  requiredRole: ProjectRole = ProjectRole.VIEWER
+  requiredRole: ProjectRole = ProjectRole.VIEWER,
+  workspaceId?: string
 ): Promise<{ user: User; project: any; member: any }> {
   if (!user || !user.id) {
     throw new Error('Unauthorized: User not authenticated.')
+  }
+
+  // First, verify workspace membership if workspaceId is provided
+  if (workspaceId) {
+    const workspaceMember = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId: user.id
+        }
+      }
+    })
+
+    if (!workspaceMember) {
+      throw new Error('Forbidden: User not member of workspace.')
+    }
   }
 
   const project = await prisma.project.findUnique({
@@ -27,6 +46,11 @@ export async function assertProjectAccess(
 
   if (!project) {
     throw new Error('Project not found.')
+  }
+
+  // CRITICAL: Verify workspace isolation - project must belong to user's workspace
+  if (workspaceId && project.workspaceId !== workspaceId) {
+    throw new Error('Forbidden: Insufficient project permissions.')
   }
 
   const member = project.members[0]
@@ -67,9 +91,10 @@ function hasRequiredRole(userRole: ProjectRole, requiredRole: ProjectRole): bool
  */
 export async function assertProjectWriteAccess(
   user: User,
-  projectId: string
+  projectId: string,
+  workspaceId?: string
 ): Promise<{ user: User; project: any; member: any }> {
-  return assertProjectAccess(user, projectId, ProjectRole.MEMBER)
+  return assertProjectAccess(user, projectId, ProjectRole.MEMBER, workspaceId)
 }
 
 /**
@@ -77,7 +102,8 @@ export async function assertProjectWriteAccess(
  */
 export async function assertProjectAdminAccess(
   user: User,
-  projectId: string
+  projectId: string,
+  workspaceId?: string
 ): Promise<{ user: User; project: any; member: any }> {
-  return assertProjectAccess(user, projectId, ProjectRole.ADMIN)
+  return assertProjectAccess(user, projectId, ProjectRole.ADMIN, workspaceId)
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { ProjectUpdateSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { ProjectRole } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
@@ -28,7 +29,8 @@ export async function GET(
       email: auth.user.email,
       name: auth.user.name
     } as any
-    await assertProjectAccess(nextAuthUser, projectId)
+    // CRITICAL: Pass workspaceId to ensure workspace isolation
+    await assertProjectAccess(nextAuthUser, projectId, ProjectRole.VIEWER, auth.workspaceId)
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -174,7 +176,8 @@ export async function PUT(
     } as any
     
     try {
-      await assertProjectAccess(nextAuthUser, projectId, 'MEMBER')
+      // CRITICAL: Pass workspaceId to ensure workspace isolation
+      await assertProjectAccess(nextAuthUser, projectId, ProjectRole.MEMBER, auth.workspaceId)
     } catch (accessError) {
       // If access check fails, return proper error response
       if (accessError instanceof Error) {
@@ -200,9 +203,9 @@ export async function PUT(
     // Prisma will ignore unknown fields, so slackChannelHints won't cause errors
     const { assigneeIds: _, slackChannelHints: __, ...bodyWithoutExtras } = body
     
-    console.log('[PUT /api/projects] Request body (without assigneeIds):', JSON.stringify(bodyWithoutAssignees, null, 2))
+    console.log('[PUT /api/projects] Request body (without assigneeIds):', JSON.stringify(bodyWithoutExtras, null, 2))
     
-    const validatedData = ProjectUpdateSchema.parse(bodyWithoutAssignees)
+    const validatedData = ProjectUpdateSchema.parse(bodyWithoutExtras)
     
     console.log('[PUT /api/projects] Validation passed:', Object.keys(validatedData))
     const { 
@@ -405,7 +408,8 @@ export async function DELETE(
       email: auth.user.email,
       name: auth.user.name
     } as any
-    await assertProjectAccess(nextAuthUser, projectId, 'ADMIN')
+    // CRITICAL: Pass workspaceId to ensure workspace isolation
+    await assertProjectAccess(nextAuthUser, projectId, ProjectRole.ADMIN, auth.workspaceId)
 
     // Check if project exists
     const existingProject = await prisma.project.findUnique({
