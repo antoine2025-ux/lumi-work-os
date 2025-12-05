@@ -96,59 +96,70 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                // Set dark mode immediately to prevent flash
-                document.documentElement.classList.add('dark');
-                const darkConfig = {
-                  primary: '#60a5fa',
-                  primaryForeground: '#0f172a',
-                  secondary: '#1e293b',
-                  secondaryForeground: '#f8fafc',
-                  accent: '#1e293b',
-                  accentForeground: '#f8fafc',
-                  background: '#0f172a',
-                  foreground: '#f8fafc',
-                  muted: '#1e293b',
-                  mutedForeground: '#94a3b8',
-                  border: '#334155',
-                  input: '#1e293b',
-                  ring: '#60a5fa',
-                  card: '#1e293b',
-                  cardForeground: '#f8fafc',
-                  popover: '#1e293b',
-                  popoverForeground: '#f8fafc',
-                  destructive: '#ef4444',
-                  destructiveForeground: '#ffffff'
-                };
-                const root = document.documentElement;
-                const body = document.body;
-                if (!root || !body) return; // Guard against null elements
-                root.style.setProperty('--primary', darkConfig.primary);
-                root.style.setProperty('--primary-foreground', darkConfig.primaryForeground);
-                root.style.setProperty('--secondary', darkConfig.secondary);
-                root.style.setProperty('--secondary-foreground', darkConfig.secondaryForeground);
-                root.style.setProperty('--accent', darkConfig.accent);
-                root.style.setProperty('--accent-foreground', darkConfig.accentForeground);
-                root.style.setProperty('--background', darkConfig.background);
-                root.style.setProperty('--foreground', darkConfig.foreground);
-                root.style.setProperty('--muted', darkConfig.muted);
-                root.style.setProperty('--muted-foreground', darkConfig.mutedForeground);
-                root.style.setProperty('--border', darkConfig.border);
-                root.style.setProperty('--input', darkConfig.input);
-                root.style.setProperty('--ring', darkConfig.ring);
-                root.style.setProperty('--card', darkConfig.card);
-                root.style.setProperty('--card-foreground', darkConfig.cardForeground);
-                root.style.setProperty('--popover', darkConfig.popover);
-                root.style.setProperty('--popover-foreground', darkConfig.popoverForeground);
-                root.style.setProperty('--destructive', darkConfig.destructive);
-                root.style.setProperty('--destructive-foreground', darkConfig.destructiveForeground);
-                body.style.backgroundColor = darkConfig.background;
-                body.style.color = darkConfig.foreground;
+                try {
+                  // Force dark mode - always apply dark theme
+                  // Clean up any existing 'light' theme preference
+                  const savedTheme = localStorage.getItem('lumi-theme');
+                  if (savedTheme === 'light') {
+                    localStorage.removeItem('lumi-theme');
+                  }
+                  
+                  // Always apply dark theme immediately to prevent flash
+                  const root = document.documentElement;
+                  root.classList.add('dark');
+                  
+                  const darkConfig = {
+                    primary: '#60a5fa',
+                    primaryForeground: '#0f172a',
+                    secondary: '#1e293b',
+                    secondaryForeground: '#f8fafc',
+                    accent: '#1e293b',
+                    accentForeground: '#f8fafc',
+                    background: '#0f172a',
+                    foreground: '#f8fafc',
+                    muted: '#1e293b',
+                    mutedForeground: '#94a3b8',
+                    border: '#334155',
+                    input: '#1e293b',
+                    ring: '#60a5fa',
+                    card: '#1e293b',
+                    cardForeground: '#f8fafc',
+                    popover: '#1e293b',
+                    popoverForeground: '#f8fafc',
+                    destructive: '#ef4444',
+                    destructiveForeground: '#ffffff'
+                  };
+                  
+                  // Apply dark theme CSS variables immediately
+                  root.style.setProperty('--primary', darkConfig.primary);
+                  root.style.setProperty('--primary-foreground', darkConfig.primaryForeground);
+                  root.style.setProperty('--secondary', darkConfig.secondary);
+                  root.style.setProperty('--secondary-foreground', darkConfig.secondaryForeground);
+                  root.style.setProperty('--accent', darkConfig.accent);
+                  root.style.setProperty('--accent-foreground', darkConfig.accentForeground);
+                  root.style.setProperty('--background', darkConfig.background);
+                  root.style.setProperty('--foreground', darkConfig.foreground);
+                  root.style.setProperty('--muted', darkConfig.muted);
+                  root.style.setProperty('--muted-foreground', darkConfig.mutedForeground);
+                  root.style.setProperty('--border', darkConfig.border);
+                  root.style.setProperty('--input', darkConfig.input);
+                  root.style.setProperty('--ring', darkConfig.ring);
+                  root.style.setProperty('--card', darkConfig.card);
+                  root.style.setProperty('--card-foreground', darkConfig.cardForeground);
+                  root.style.setProperty('--popover', darkConfig.popover);
+                  root.style.setProperty('--popover-foreground', darkConfig.popoverForeground);
+                  root.style.setProperty('--destructive', darkConfig.destructive);
+                  root.style.setProperty('--destructive-foreground', darkConfig.destructiveForeground);
+                } catch (e) {
+                  // Fallback: just add dark class if anything fails
+                  document.documentElement.classList.add('dark');
+                }
               })();
             `,
           }}
         />
       </head>
-      <body className={`${montserrat.variable} font-sans antialiased bg-background`}>
+      <body className={`${montserrat.variable} font-sans antialiased bg-background`} suppressHydrationWarning>
         <StructuredData />
         <Providers>
           {children}
