@@ -18,6 +18,7 @@ interface CreateTaskDialogProps {
   projectId: string
   defaultStatus?: TaskStatus
   defaultEpicId?: string | null
+  defaultDueDate?: string | null
   onTaskCreated?: (task: any) => void
 }
 
@@ -34,6 +35,7 @@ export function CreateTaskDialog({
   projectId,
   defaultStatus = 'TODO',
   defaultEpicId,
+  defaultDueDate,
   onTaskCreated
 }: CreateTaskDialogProps) {
   const [title, setTitle] = useState('')
@@ -41,7 +43,7 @@ export function CreateTaskDialog({
   const [status, setStatus] = useState<TaskStatus>(defaultStatus)
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('MEDIUM')
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
-  const [dueDate, setDueDate] = useState('')
+  const [dueDate, setDueDate] = useState(defaultDueDate || '')
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
   const [epicId, setEpicId] = useState<string | null>(defaultEpicId || null)
@@ -61,14 +63,14 @@ export function CreateTaskDialog({
       setStatus(defaultStatus)
       setPriority('MEDIUM')
       setAssigneeId(null)
-      setDueDate('')
+      setDueDate(defaultDueDate || '')
       setTags([])
       setNewTag('')
       setEpicId(defaultEpicId || null)
       setSubtasks([])
       setErrors({})
     }
-  }, [open, defaultStatus, defaultEpicId])
+  }, [open, defaultStatus, defaultEpicId, defaultDueDate])
 
   const loadUsers = async () => {
     try {

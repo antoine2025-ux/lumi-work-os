@@ -116,6 +116,7 @@ const priorityOptions = [
 
 export function TaskSidebar() {
   const { isOpen, taskId, close } = useTaskSidebarStore()
+  const getStoreState = useTaskSidebarStore.getState
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingTask, setIsLoadingTask] = useState(false)
@@ -443,12 +444,22 @@ export function TaskSidebar() {
           }),
         })
 
+        let finalUpdatedTask = updatedTask
+        
         if (!subtasksResponse.ok) {
           const errorData = await subtasksResponse.json().catch(() => ({}))
           console.error('Failed to update subtasks:', errorData.error || 'Unknown error')
         } else {
           const taskWithSubtasks = await subtasksResponse.json()
-          setTask({ ...updatedTask, subtasks: taskWithSubtasks.subtasks })
+          finalUpdatedTask = { ...updatedTask, subtasks: taskWithSubtasks.subtasks }
+          setTask(finalUpdatedTask)
+        }
+
+        // Notify store callback if set (for KanbanBoard updates)
+        const { onTaskUpdate } = getStoreState()
+        if (onTaskUpdate) {
+          console.log('[TaskSidebar] Notifying task update', finalUpdatedTask.id, 'status:', finalUpdatedTask.status)
+          onTaskUpdate(finalUpdatedTask)
         }
 
         // Refresh the page data

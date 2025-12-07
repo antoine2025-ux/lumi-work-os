@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { DraggableTaskCard } from './draggable-task-card'
+import { cn } from '@/lib/utils'
 
 interface Task {
   id: string
@@ -83,17 +84,10 @@ export function DroppableColumn({
   }
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`min-h-[400px] ${getColumnWidth()} ${
-        isOver 
-          ? 'bg-accent/20 border-2 border-accent border-dashed rounded-lg' 
-          : ''
-      }`}
-    >
-      <div className="space-y-3">
-        {/* Simple Column Header */}
-        <div className="flex items-center justify-between">
+    <div className={`min-h-[400px] ${getColumnWidth()} flex flex-col`}>
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* Column Header - NOT part of droppable zone */}
+        <div className="flex items-center justify-between flex-shrink-0">
           <h4 className="text-sm font-semibold text-foreground">{column.title}</h4>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs border-border text-muted-foreground">
@@ -111,8 +105,15 @@ export function DroppableColumn({
           </div>
         </div>
 
-        {/* Tasks */}
-        <div className="space-y-2 min-h-[200px]">
+        {/* Droppable zone: entire task list area from top to bottom - fills remaining space */}
+        {/* This zone must cover the full height so drops work anywhere in the column */}
+        <div
+          ref={setNodeRef}
+          className={cn(
+            "mt-2 flex flex-col gap-2 rounded-xl p-1 flex-1 min-h-[300px]",
+            isOver && "bg-primary/3 ring-1 ring-primary/20"
+          )}
+        >
           {tasks.map((task) => (
             <DraggableTaskCard
               key={task.id}

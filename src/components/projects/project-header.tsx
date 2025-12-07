@@ -108,16 +108,25 @@ export function ProjectHeader({
             </div>
             
             {/* Channel Hints */}
-            {channelHints.length > 0 && (
+            {channelHints && channelHints.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-2">
-                {channelHints.map((channel) => (
-                  <span
-                    key={channel}
-                    className="px-3 py-1 text-xs rounded-full bg-slate-800 text-slate-100 border border-slate-700"
-                  >
-                    #{channel}
-                  </span>
-                ))}
+                {channelHints.map((channel) => {
+                  console.log('[ProjectHeader] Rendering channel:', channel)
+                  return (
+                    <span
+                      key={channel}
+                      className="px-3 py-1 text-xs rounded-full bg-slate-800 text-slate-100 border border-slate-700"
+                    >
+                      #{channel}
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+            {/* Debug: Show if channelHints is empty */}
+            {(!channelHints || channelHints.length === 0) && (
+              <div className="mb-3 text-xs text-muted-foreground" style={{ display: 'none' }}>
+                Debug: channelHints is empty or undefined
               </div>
             )}
           </div>

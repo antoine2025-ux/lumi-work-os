@@ -59,10 +59,12 @@ const Celebration = dynamic(() => import("@/components/ui/celebration").then(mod
 const TaskSearchFilter = dynamic(() => import("@/components/search/task-search-filter").then(mod => ({ default: mod.TaskSearchFilter })), { ssr: false })
 const ProjectHeader = dynamic(() => import("@/components/projects/project-header").then(mod => ({ default: mod.ProjectHeader })), { ssr: false })
 const CalendarView = dynamic(() => import("@/components/tasks/calendar-view"), { ssr: false })
+const TimelineView = dynamic(() => import("@/components/tasks/timeline-view"), { ssr: false })
 const EpicsView = dynamic(() => import("@/components/projects/epics-view").then(mod => ({ default: mod.EpicsView })), { ssr: false })
 const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mod => ({ default: mod.WikiLayout })), { ssr: false })
 const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
 const LoopbrainAssistantLauncher = dynamic(() => import("@/components/loopbrain/assistant-launcher").then(mod => ({ default: mod.LoopbrainAssistantLauncher })), { ssr: false })
+const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
 
 interface Project {
   id: string
@@ -137,8 +139,42 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null)
   
   // Get channel hints from project (API response) or fallback to client-side store
-  const { hints: localStorageHints } = useProjectSlackHints(projectId)
+  const { hints: localStorageHints, setHints: setLocalStorageHints } = useProjectSlackHints(projectId)
   const channelHints = project?.slackChannelHints || localStorageHints || []
+  
+  // Debug logging - always log to help troubleshoot
+  useEffect(() => {
+    if (projectId && project) {
+      console.log('[ProjectPage] channelHints debug:', {
+        projectId,
+        'project?.slackChannelHints': project?.slackChannelHints,
+        localStorageHints,
+        'localStorageHints.length': localStorageHints?.length || 0,
+        channelHints,
+        'channelHints.length': channelHints.length,
+        'Will render channels?': channelHints.length > 0
+      })
+      
+      // Also check localStorage directly
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('project-slack-hints')
+          const parsed = stored ? JSON.parse(stored) : {}
+          const allProjectIds = Object.keys(parsed)
+          console.log('[ProjectPage] localStorage check:', {
+            'project-slack-hints': parsed,
+            'for this projectId': parsed[projectId] || 'not found',
+            'current projectId': projectId,
+            'all stored projectIds': allProjectIds,
+            'projectId type': typeof projectId,
+            'matches?': allProjectIds.includes(projectId)
+          })
+        } catch (e) {
+          console.error('[ProjectPage] Error reading localStorage:', e)
+        }
+      }
+    }
+  }, [projectId, project, project?.slackChannelHints, localStorageHints, channelHints])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isUpdatingWiki, setIsUpdatingWiki] = useState(false)
@@ -187,14 +223,20 @@ export default function ProjectDetailPage() {
   const loadProject = async () => {
     try {
       setIsLoading(true)
-      console.log('[ProjectPage] loading project', projectId, 'workspaceId:', currentWorkspace?.id)
+      console.log('[ProjectPage] loading project', projectId, 'workspaceId:', currentWorkspace?.id, 'projectId type:', typeof projectId)
       const response = await fetch(`/api/projects/${projectId}`)
       
       console.log('[ProjectPage] API response status:', response.status)
       
       if (response.ok) {
         const data = await response.json()
-        console.log('[ProjectPage] project loaded successfully', data.id, data.name)
+        console.log('[ProjectPage] project loaded successfully', {
+          'data.id': data.id,
+          'data.id type': typeof data.id,
+          'projectId from URL': projectId,
+          'projectId type': typeof projectId,
+          'ids match?': data.id === projectId
+        })
         setProject(data)
       } else if (response.status === 404) {
         console.log('[ProjectPage] project not found (404), setting error')
@@ -272,12 +314,21 @@ export default function ProjectDetailPage() {
   }
 
   const handleProjectUpdate = async (updatedProject: any) => {
-    setProject(updatedProject)
-    // Save slackChannelHints to localStorage (session-only, not persisted to DB)
-    if (updatedProject.slackChannelHints && Array.isArray(updatedProject.slackChannelHints)) {
-      setProjectSlackHints(projectId, updatedProject.slackChannelHints)
+    console.log('[ProjectPage] handleProjectUpdate called with:', {
+      'updatedProject.slackChannelHints': updatedProject.slackChannelHints,
+      'isArray': Array.isArray(updatedProject.slackChannelHints),
+      'length': updatedProject.slackChannelHints?.length
+    })
+    
+    // Save slackChannelHints to localStorage FIRST (before reloading project)
+    if (updatedProject.slackChannelHints && Array.isArray(updatedProject.slackChannelHints) && updatedProject.slackChannelHints.length > 0) {
+      console.log('[ProjectPage] Saving slackChannelHints to localStorage:', updatedProject.slackChannelHints)
+      // Use the hook's setter to update both localStorage and component state
+      setLocalStorageHints(updatedProject.slackChannelHints)
     }
-    // Reload project to get fresh data
+    
+    setProject(updatedProject)
+    // Reload project to get fresh data (this will clear project.slackChannelHints, but localStorage should have it)
     await loadProject()
   }
 
@@ -414,6 +465,20 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     checkProjectCompletion()
   }, [project])
+
+  // Sync slackChannelHints from project response to localStorage when project loads
+  // Only sync if project has slackChannelHints (from PUT response) and they're different from localStorage
+  useEffect(() => {
+    if (project?.slackChannelHints && Array.isArray(project.slackChannelHints) && project.slackChannelHints.length > 0) {
+      // Only update if different to avoid unnecessary re-renders
+      const currentHints = localStorageHints || []
+      const projectHints = project.slackChannelHints
+      if (JSON.stringify(currentHints.sort()) !== JSON.stringify(projectHints.sort())) {
+        console.log('[ProjectPage] Syncing slackChannelHints from project response to localStorage:', projectHints)
+        setLocalStorageHints(projectHints)
+      }
+    }
+  }, [project?.slackChannelHints, setLocalStorageHints, localStorageHints])
 
   // Sync headerView with currentView
   useEffect(() => {
@@ -692,7 +757,7 @@ export default function ProjectDetailPage() {
                 />
               </div>
             ) : (
-              <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
+              <Card className="bg-background border-0 shadow-none rounded-none">
                 <CardContent className="p-0">
                   {/* Collapsible Search Bar */}
                   {isSearchExpanded && (
@@ -732,9 +797,19 @@ export default function ProjectDetailPage() {
                     />
                   )}
                   
-                  {(headerView === 'timeline' || headerView === 'files') && (
-                    <div className="flex items-center justify-center h-64">
-                      <p className="text-muted-foreground">Coming soon</p>
+                  {headerView === 'timeline' && (
+                    <TimelineView 
+                      projectId={projectId} 
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                    />
+                  )}
+                  
+                  {headerView === 'files' && project && currentWorkspace && (
+                    <div className="px-6 pt-3 pb-6">
+                      <ProjectDocumentationSection 
+                        projectId={project.id} 
+                        workspaceId={project.workspaceId || currentWorkspace.id} 
+                      />
                     </div>
                   )}
                 </CardContent>

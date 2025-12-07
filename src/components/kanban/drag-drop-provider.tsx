@@ -14,6 +14,7 @@ import {
   CollisionDetection,
 } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
+import { DraggableTaskCard } from './draggable-task-card'
 
 interface DragDropContextType {
   activeTask: any | null
@@ -55,6 +56,11 @@ export function DragDropProvider({
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event
     const task = active.data.current?.task
+    console.log('[DND] start', {
+      taskId: active.id,
+      fromStatus: task?.status,
+      taskData: task
+    })
     if (task) {
       // Ensure dependsOn is always an array
       const normalizedTask = {
@@ -70,26 +76,78 @@ export function DragDropProvider({
   const handleDragOver = useCallback((event: DragOverEvent) => {
     // Handle drag over events for visual feedback
     // This could be used to show drop zones or highlight areas
+    const { active, over } = event
+    const task = active.data.current?.task
+    console.log('[DND] over', {
+      taskId: active.id,
+      fromStatus: task?.status,
+      overId: over?.id,
+      overData: over?.data.current
+    })
   }, [])
+
+  // Helper function to map column ID to status
+  const statusFromColumnId = (columnId: string): string | null => {
+    const columnIdToStatus: Record<string, string> = {
+      'todo': 'TODO',
+      'in-progress': 'IN_PROGRESS',
+      'in-review': 'IN_REVIEW',
+      'done': 'DONE',
+      'blocked': 'BLOCKED'
+    }
+    return columnIdToStatus[columnId] || null
+  }
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event
     
+    console.log('[DND] end', {
+      taskId: active.id,
+      fromStatus: active.data.current?.task?.status,
+      overId: over?.id,
+      activeData: active.data.current,
+      overData: over?.data.current
+    })
+    
     setActiveTask(null)
 
-    if (!over) return
+    if (!over) {
+      console.log('[DND] No drop target')
+      return
+    }
 
     const activeTask = active.data.current?.task
     const overColumn = over.data.current?.column
+    const overType = over.data.current?.type
 
-    if (!activeTask) return
+    if (!activeTask) {
+      console.log('[DND] No active task data')
+      return
+    }
 
-    // If dropping on a column (status change)
-    if (overColumn) {
-      const newStatus = overColumn.status
-      if (activeTask.status !== newStatus) {
-        await onTaskMove(activeTask.id, newStatus)
-      }
+    // Try to get status from column data first, then fall back to column ID mapping
+    let newStatus: string | null = null
+    
+    if (overColumn && overType === 'column') {
+      // Column data has status directly
+      newStatus = overColumn.status
+      console.log('[DND] Got status from column data', { newStatus })
+    } else {
+      // Try to extract status from column ID
+      newStatus = statusFromColumnId(over.id)
+      console.log('[DND] Computed nextStatus from column ID', { columnId: over.id, nextStatus: newStatus })
+    }
+
+    if (!newStatus) {
+      console.log('[DND] Could not determine new status', { overId: over.id, overData: over.data.current })
+      return
+    }
+
+    if (activeTask.status !== newStatus) {
+      console.log('[DND] Moving task', { from: activeTask.status, to: newStatus })
+      await onTaskMove(activeTask.id, newStatus)
+    } else {
+      console.log('[DND] Task already in target status, skipping move')
     }
   }, [onTaskMove])
 
@@ -107,41 +165,8 @@ export function DragDropProvider({
         {children}
         <DragOverlay>
           {activeTask ? (
-            <div className="bg-card border-2 border-primary rounded-lg shadow-2xl p-3 max-w-[220px] transform rotate-2 scale-105 opacity-95">
-              <div className="font-medium text-sm text-gray-900 truncate mb-1">
-                {activeTask.title}
-              </div>
-              <div className="text-xs text-gray-500 mb-2">
-                {activeTask.description && activeTask.description.length > 0 
-                  ? activeTask.description.substring(0, 50) + (activeTask.description.length > 50 ? '...' : '')
-                  : 'No description'
-                }
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    activeTask.priority === 'URGENT' ? 'bg-red-500' :
-                    activeTask.priority === 'HIGH' ? 'bg-orange-500' :
-                    activeTask.priority === 'MEDIUM' ? 'bg-yellow-500' : 'bg-green-500'
-                  }`} />
-                  <span className="text-xs text-gray-600 font-medium">
-                    {activeTask.priority}
-                  </span>
-                </div>
-                {activeTask.assignee && (
-                  <span className="text-xs text-gray-500">
-                    {activeTask.assignee.name}
-                  </span>
-                )}
-              </div>
-              {activeTask.dependsOn && activeTask.dependsOn.length > 0 && (
-                <div className="flex items-center space-x-1 mt-2">
-                  <div className="w-1 h-1 bg-blue-500 rounded-full" />
-                  <span className="text-xs text-blue-600 font-medium">
-                    {activeTask.dependsOn.length} dependency
-                  </span>
-                </div>
-              )}
+            <div className="pointer-events-none w-fit max-w-full">
+              <DraggableTaskCard task={activeTask} isOverlay />
             </div>
           ) : null}
         </DragOverlay>

@@ -118,7 +118,7 @@ const columns = [
 ]
 
 export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTasks, epicId }: KanbanBoardProps) {
-  const { open } = useTaskSidebarStore()
+  const { open, setOnTaskUpdate } = useTaskSidebarStore()
   const [tasks, setTasks] = useState<Task[]>([])
   const [epics, setEpics] = useState<Epic[]>([])
   const [milestones, setMilestones] = useState<Milestone[]>([])
@@ -452,7 +452,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
     // Update local state immediately with the updated task
     setTasks(prevTasks => {
       const updated = prevTasks.map(task =>
-        task.id === updatedTask.id ? updatedTask : task
+        task.id === updatedTask.id ? { ...task, ...updatedTask, status: updatedTask.status } : task
       )
       console.log('[Kanban] tasks updated in handleTaskUpdate', updated.length)
       return updated
@@ -464,6 +464,15 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
     // Don't call onTasksUpdated - we handle it optimistically to prevent parent reload
     // onTasksUpdated?.() // Commented out to prevent parent reload from overwriting state
   }
+
+  // Register handleTaskUpdate with the task sidebar store so TaskSidebar can notify us
+  useEffect(() => {
+    setOnTaskUpdate(handleTaskUpdate)
+    return () => {
+      setOnTaskUpdate(() => {}) // Cleanup: set empty callback
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount
 
   const handleManageDependencies = (taskId: string) => {
     setDependencyTaskId(taskId)
