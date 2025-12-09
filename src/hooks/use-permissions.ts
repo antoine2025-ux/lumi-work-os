@@ -1,17 +1,18 @@
 "use client"
 
+import React from 'react'
 import { createContext, useContext, useEffect, useState } from 'react'
-import { calculateOrgPermissions, PermissionContext } from '@/lib/permissions'
+import { calculateOrgPermissions, PermissionContext as PermissionContextType } from '@/lib/permissions'
 import { useUserStatus } from './use-user-status'
 
 interface PermissionHookContext {
-  context: PermissionContext | null
+  context: PermissionContextType | null
   permissions: ReturnType<typeof calculateOrgPermissions> | null
   loading: boolean
   error: string | null
 }
 
-const PermissionContext = createContext<PermissionHookContext>({
+const PermissionHookContext = createContext<PermissionHookContext>({
   context: null,
   permissions: null,
   loading: true,
@@ -20,7 +21,7 @@ const PermissionContext = createContext<PermissionHookContext>({
 
 export function PermissionProvider({ children }: { children: React.ReactNode }) {
   const { userStatus, loading: userStatusLoading } = useUserStatus()
-  const [context, setContext] = useState<PermissionContext | null>(null)
+  const [context, setContext] = useState<PermissionContextType | null>(null)
   const [permissions, setPermissions] = useState<ReturnType<typeof calculateOrgPermissions> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -46,7 +47,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         const roleData = await roleResponse.json()
         const userRole = roleData.role || 'MEMBER'
         
-        const context: PermissionContext = {
+        const permissionContext: PermissionContextType = {
           userId: userStatus.user.id,
           workspaceId: userStatus.workspaceId,
           userRole: userRole,
@@ -55,9 +56,9 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
           isMember: userRole === 'MEMBER' || userRole === 'ADMIN' || userRole === 'OWNER',
         }
         
-        const calculatedPermissions = calculateOrgPermissions(context)
+        const calculatedPermissions = calculateOrgPermissions(permissionContext)
         
-        setContext(context)
+        setContext(permissionContext)
         setPermissions(calculatedPermissions)
         setError(null)
       } catch (err) {
@@ -71,14 +72,14 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
   }, [userStatus, userStatusLoading])
 
   return (
-    <PermissionContext.Provider value={{ context, permissions, loading, error }}>
+    <PermissionHookContext.Provider value={{ context, permissions, loading, error }}>
       {children}
-    </PermissionContext.Provider>
+    </PermissionHookContext.Provider>
   )
 }
 
 export function usePermissionContext() {
-  const context = useContext(PermissionContext)
+  const context = useContext(PermissionHookContext)
   if (!context) {
     throw new Error('usePermissionContext must be used within a PermissionProvider')
   }

@@ -268,6 +268,13 @@ export class PrismaContextEngine implements ContextEngine {
       // Find related docs (by tags or category, limit to 5)
       const relatedDocs = await this.findRelatedDocs(page, workspaceId, options?.limit || 5)
 
+      // Process content to group consecutive code blocks for better context
+      let processedContent = page.content || undefined
+      if (processedContent) {
+        const { groupConsecutiveCodeBlocks } = await import('@/lib/wiki/content-processor')
+        processedContent = groupConsecutiveCodeBlocks(processedContent)
+      }
+
       // Map to PageContext
       const context: PageContext = {
         type: ContextType.PAGE,
@@ -276,7 +283,7 @@ export class PrismaContextEngine implements ContextEngine {
         timestamp: new Date().toISOString(),
         title: page.title,
         slug: page.slug,
-        content: page.content || undefined,
+        content: processedContent,
         excerpt: page.excerpt || undefined,
         isEmpty: !page.content || page.content.trim().length === 0,
         selectedText: undefined, // Will be provided by caller if needed
@@ -1030,6 +1037,23 @@ export async function upsertProjectContext(projectId: string): Promise<void> {
             id: true,
             name: true,
             email: true
+          }
+        },
+        documentationLinks: {
+          include: {
+            wikiPage: {
+              select: {
+                id: true,
+                title: true,
+                slug: true,
+                workspace_type: true,
+                updatedAt: true,
+                content: true // Include full content for Loopbrain
+              }
+            }
+          },
+          orderBy: {
+            order: 'asc'
           }
         },
         _count: {

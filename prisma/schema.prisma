@@ -174,7 +174,8 @@ model WikiPage {
   last_viewed_at       DateTime?              @db.Timestamp(6)
   ai_analysis          Json?
   quality_score        Decimal?               @db.Decimal(3, 2)
-  projects             Project[]
+  projects             Project[]             @relation("ProjectPrimaryWiki")
+  projectLinks        ProjectDocumentation[]
   wiki_ai_interactions wiki_ai_interactions[]
   attachments          WikiAttachment[]
   chunks               WikiChunk[]
@@ -625,9 +626,10 @@ model Project {
   dailySummaries      ProjectDailySummary[]
   members             ProjectMember[]
   watchers            ProjectWatcher[]
+  documentationLinks ProjectDocumentation[]
   createdBy           User                  @relation(fields: [createdById], references: [id], onDelete: Cascade)
   owner               User?                 @relation("ProjectOwner", fields: [ownerId], references: [id])
-  wikiPage            WikiPage?             @relation(fields: [wikiPageId], references: [id])
+  wikiPage            WikiPage?             @relation("ProjectPrimaryWiki", fields: [wikiPageId], references: [id])
   workspace           Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tasks               Task[]
 
@@ -995,6 +997,21 @@ model ProjectDailySummary {
   @@unique([projectId, date])
   @@index([projectId, date(sort: Desc)], map: "idx_project_daily_summary_project_date")
   @@map("project_daily_summaries")
+}
+
+model ProjectDocumentation {
+  id         String   @id @default(cuid())
+  projectId  String
+  wikiPageId String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  wikiPage   WikiPage @relation(fields: [wikiPageId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, wikiPageId])
+  @@index([projectId], map: "idx_project_documentation_project")
+  @@index([wikiPageId], map: "idx_project_documentation_wiki_page")
+  @@map("project_documentation")
 }
 
 model BlogPost {

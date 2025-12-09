@@ -25,3 +25,4 @@ ALTER TABLE "project_documentation" ADD CONSTRAINT "project_documentation_projec
 ALTER TABLE "project_documentation" ADD CONSTRAINT "project_documentation_wikiPageId_fkey" FOREIGN KEY ("wikiPageId") REFERENCES "wiki_pages"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 
+

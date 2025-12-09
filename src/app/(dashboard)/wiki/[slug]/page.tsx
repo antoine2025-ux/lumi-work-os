@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { WikiNavigation } from "@/components/wiki/wiki-navigation"
 import { RichTextEditor } from "@/components/wiki/rich-text-editor"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
+import { WikiPageBody } from "@/components/wiki/wiki-page-body"
 import { useUserStatus } from '@/hooks/use-user-status'
 import { 
   Edit3,
@@ -550,128 +551,58 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
 
       {/* Main Editor Area - Clean Document */}
       <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen overflow-x-hidden w-full min-w-0">
-        <div className="max-w-4xl mx-auto w-full min-w-0">
-          {/* Page Info */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
-            <div className="text-sm text-muted-foreground">
-              Last updated {formatDate(pageData.updatedAt)}
+        {isEditing ? (
+          <div className="max-w-4xl mx-auto w-full min-w-0">
+            {/* Page Info */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
+              <div className="text-sm text-muted-foreground">
+                Last updated {formatDate(pageData.updatedAt)}
+              </div>
             </div>
-          </div>
 
-          {/* Title - Like Slite */}
-          <div className="mb-8">
-            {isEditing ? (
+            {/* Title - Like Slite */}
+            <div className="mb-8">
               <Input
                 value={pageData.title}
                 onChange={(e) => setPageData({...pageData, title: e.target.value})}
                 className="text-4xl font-bold border-none p-0 h-auto focus:ring-0 focus:outline-none focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder-muted-foreground bg-transparent text-foreground"
                 placeholder="Give your doc a title"
               />
-            ) : (
-              <h1 className="text-4xl font-bold text-foreground">{pageData.title}</h1>
-            )}
-          </div>
+            </div>
 
-          {/* Content Editor - No Border */}
-          <div className="min-h-[400px]">
-            {isEditing ? (
-              <div>
-                <RichTextEditor
-                  content={pageData.content}
-                  onChange={(content) => setPageData({...pageData, content})}
-                  placeholder="Click here to start writing"
-                  className="min-h-[400px] border-none shadow-none bg-transparent focus:ring-0 focus:outline-none"
-                  showToolbar={false}
-                />
-                {/* Action Suggestions - Only show when editing */}
-                <div className="flex items-center gap-3 sm:gap-6 text-sm text-muted-foreground mt-8 flex-wrap overflow-x-auto w-full">
-                  <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
-                    <Settings className="h-4 w-4 flex-shrink-0" />
-                    Use a template
-                  </button>
-                  <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
-                    <Download className="h-4 w-4 flex-shrink-0" />
-                    Import
-                  </button>
-                  <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
-                    <FileText className="h-4 w-4 flex-shrink-0" />
-                    New subdoc
-                  </button>
-                  <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
-                    <MoreHorizontal className="h-4 w-4 flex-shrink-0" />
-                    Convert to collection
-                  </button>
-                </div>
+            {/* Content Editor - No Border */}
+            <div className="min-h-[400px]">
+              <RichTextEditor
+                content={pageData.content}
+                onChange={(content) => setPageData({...pageData, content})}
+                placeholder="Click here to start writing"
+                className="min-h-[400px] border-none shadow-none bg-transparent focus:ring-0 focus:outline-none"
+                showToolbar={false}
+              />
+              {/* Action Suggestions - Only show when editing */}
+              <div className="flex items-center gap-3 sm:gap-6 text-sm text-muted-foreground mt-8 flex-wrap overflow-x-auto w-full">
+                <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                  <Settings className="h-4 w-4 flex-shrink-0" />
+                  Use a template
+                </button>
+                <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                  <Download className="h-4 w-4 flex-shrink-0" />
+                  Import
+                </button>
+                <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                  <FileText className="h-4 w-4 flex-shrink-0" />
+                  New subdoc
+                </button>
+                <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                  <MoreHorizontal className="h-4 w-4 flex-shrink-0" />
+                  Convert to collection
+                </button>
               </div>
-            ) : (
-              <div className="prose prose-foreground max-w-none min-h-[400px] dark:prose-invert">
-                {(() => {
-                  // Check if content is HTML or Markdown
-                  const isHtml = pageData.content?.includes('<') && (
-                    pageData.content.includes('<div') || 
-                    pageData.content.includes('<p>') || 
-                    pageData.content.includes('<h1') ||
-                    pageData.content.includes('<ul') ||
-                    pageData.content.includes('<ol')
-                  )
-                  
-                  if (isHtml) {
-                    return (
-                      <div 
-                        dangerouslySetInnerHTML={{ __html: pageData.content || '<p>No content available.</p>' }}
-                        className="text-foreground leading-relaxed"
-                      />
-                    )
-                  } else {
-                    // Render Markdown - basic rendering without external library
-                    const markdownToHtml = (md: string) => {
-                      let html = md
-                      
-                      // Headers
-                      html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mb-3 mt-6">$1</h3>')
-                      html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mb-4 mt-8">$1</h2>')
-                      html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mb-6 mt-8">$1</h1>')
-                      
-                      // Bold
-                      html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold">$1</strong>')
-                      
-                      // Lists
-                      html = html.replace(/^\- (.*$)/gim, '<li class="mb-1">$1</li>')
-                      html = html.replace(/^(\d+)\. (.*$)/gim, '<li class="mb-1">$2</li>')
-                      
-                      // Wrap consecutive list items in ul/ol
-                      html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, (match) => {
-                        if (match.includes('</li>')) {
-                          return '<ul class="list-disc pl-6 mb-4 space-y-1">' + match + '</ul>'
-                        }
-                        return match
-                      })
-                      
-                      // Paragraphs
-                      html = html.replace(/\n\n/g, '</p><p class="mb-4 leading-relaxed">')
-                      html = '<p class="mb-4 leading-relaxed">' + html + '</p>'
-                      
-                      // Clean up empty paragraphs
-                      html = html.replace(/<p class="mb-4 leading-relaxed"><\/p>/g, '')
-                      html = html.replace(/<p class="mb-4 leading-relaxed">(<h[123])/g, '$1')
-                      html = html.replace(/(<\/h[123]>)<\/p>/g, '$1')
-                      
-                      return html
-                    }
-                    
-                    return (
-                      <div 
-                        dangerouslySetInnerHTML={{ __html: markdownToHtml(pageData.content || 'No content available.') }}
-                        className="text-foreground leading-relaxed"
-                      />
-                    )
-                  }
-                })()}
-              </div>
-            )}
+            </div>
           </div>
-
-        </div>
+        ) : (
+          <WikiPageBody page={pageData} showOpenButton={false} />
+        )}
       </div>
 
       {/* Global Loopbrain Assistant */}

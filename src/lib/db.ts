@@ -62,8 +62,17 @@ if (process.env.NODE_ENV === 'development') {
       // Ignore
     }
   }
-  // Clear the cached instance
+  // Clear the cached instance - FORCE fresh client
   globalForPrisma.prisma = undefined
+  // Also clear from module cache if possible
+  if (typeof require !== 'undefined' && require.cache) {
+    // Clear Prisma client from require cache
+    Object.keys(require.cache).forEach(key => {
+      if (key.includes('@prisma/client') || key.includes('prisma')) {
+        delete require.cache[key]
+      }
+    })
+  }
 }
 
 let prisma = globalForPrisma.prisma
@@ -115,6 +124,15 @@ if (!prisma) {
   // Store in global for Next.js hot reload
   if (process.env.NODE_ENV !== 'production') {
     globalForPrisma.prisma = prisma
+  }
+  
+  // Verify ProjectDocumentation model is available (for documentation attachments feature)
+  if (typeof (prisma as any).projectDocumentation === 'undefined') {
+    console.error('[PRISMA] ❌ CRITICAL: ProjectDocumentation model not found in Prisma Client!')
+    console.error('[PRISMA] Please run: npx prisma generate')
+    console.error('[PRISMA] Then restart your Next.js dev server')
+  } else {
+    console.log('[PRISMA] ✅ ProjectDocumentation model available')
   }
 }
 

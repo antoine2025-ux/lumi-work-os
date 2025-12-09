@@ -989,6 +989,39 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
     sections.push(`3. Answer using those tasks. Do NOT say there is no relationship if these fields are present.`)
   }
 
+  // Project Documentation (if available in project context)
+  if (ctx.primaryContext?.type === 'project' || (ctx.structuredContext && ctx.structuredContext.some(obj => obj.type === 'project'))) {
+    const projectContext = ctx.primaryContext?.type === 'project' 
+      ? ctx.primaryContext 
+      : ctx.structuredContext?.find(obj => obj.type === 'project')
+    
+    if (projectContext?.metadata?.documentation && Array.isArray(projectContext.metadata.documentation) && projectContext.metadata.documentation.length > 0) {
+      sections.push(`\n## PROJECT DOCUMENTATION:`)
+      sections.push(`The project has attached documentation pages listed below. Use these to answer questions about where detailed specs or docs for this project live. If the user asks for documentation, reference these pages.`)
+      sections.push(`\nPROJECT DOCUMENTATION (JSON):`)
+      sections.push(`\`\`\`json`)
+      // Include full content for each documentation page (already processed with grouped code blocks)
+      const docsWithContent = projectContext.metadata.documentation.map((doc: any) => ({
+        id: doc.id,
+        wikiPageId: doc.wikiPageId,
+        title: doc.title,
+        slug: doc.slug,
+        workspaceType: doc.workspaceType,
+        updatedAt: doc.updatedAt,
+        content: doc.content || undefined // Include full content if available
+      }))
+      sections.push(JSON.stringify(docsWithContent, null, 2))
+      sections.push(`\`\`\``)
+      sections.push(`\nWhen the user asks:`)
+      sections.push(`- "What documentation is linked to this project?"`)
+      sections.push(`- "Where can I find the specs for this project?"`)
+      sections.push(`- "What docs are attached to this project?"`)
+      sections.push(`- "Describe the architecture diagram in the documentation"`)
+      sections.push(`you MUST list the documentation pages from the PROJECT DOCUMENTATION (JSON) section above, including their titles and workspace types (Personal, Team, or custom space names).`)
+      sections.push(`\n**IMPORTANT:** Each documentation entry includes its full content (with code/ASCII blocks already merged). When answering questions about diagrams, architecture, or detailed specs, use the complete content from the \`content\` field, not just the title.`)
+    }
+  }
+
   // Slack Discussions (Tier B - non-persistent context from project channels)
   if (ctx.slackContext && ctx.slackContext.length > 0) {
     sections.push(`\n## SLACK DISCUSSIONS (PROJECT-RELATED):`)
@@ -1570,6 +1603,14 @@ function formatContextObject(ctx: any): string {
     case ContextType.PAGE:
       parts.push(`Page: ${ctx.title}`)
       if (ctx.excerpt) parts.push(`Excerpt: ${ctx.excerpt}`)
+      // Include full content (already processed with grouped code blocks) for complete context
+      if (ctx.content) {
+        // Strip HTML tags for text-only representation in prompt
+        const textContent = ctx.content.replace(/<[^>]*>/g, '').trim()
+        if (textContent) {
+          parts.push(`Content:\n${textContent}`)
+        }
+      }
       if (ctx.category) parts.push(`Category: ${ctx.category}`)
       if (ctx.tags && ctx.tags.length > 0) {
         parts.push(`Tags: ${ctx.tags.join(', ')}`)

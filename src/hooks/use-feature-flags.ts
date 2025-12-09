@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 
 interface FeatureFlags {

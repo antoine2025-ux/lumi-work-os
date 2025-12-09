@@ -27,13 +27,21 @@ import {
   Smartphone,
   Sparkles
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LandingPage() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
+
+  // Ensure dark mode is applied
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!root.classList.contains('dark')) {
+      root.classList.add('dark');
+    }
+  }, []);
 
   const handleSignIn = () => {
     // Redirect to main app's login page (same domain)

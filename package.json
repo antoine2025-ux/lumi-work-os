@@ -18,6 +18,7 @@
     "test:auth": "ts-node scripts/test-auth.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
+    "health:check": "node health-check.js",
     "phase2:check": "./scripts/phase2-safety-check.sh",
     "phase2:staging-test": "./scripts/phase2-staging-test.sh",
     "phase3:verify": "./scripts/phase3-production-verify.sh",
