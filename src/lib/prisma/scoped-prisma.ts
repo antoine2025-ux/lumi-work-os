@@ -29,9 +29,13 @@ export function createScopedPrisma(baseClient: PrismaClient) {
           return query(args)
         }
 
-        // In production, enforce workspace context
-        if (isProduction && !workspaceId) {
-          throw new Error(`Production error: No workspace context set for ${operation} on ${model}`)
+        // STRICT: Enforce workspace context in both dev and prod
+        // Missing workspace context must not silently execute - fail fast to catch bugs
+        if (!workspaceId) {
+          const errorMessage = `Workspace scoping enabled but no workspace context set for ${operation} on ${model}. ` +
+            `Call setWorkspaceContext(workspaceId) before querying workspace-scoped models. ` +
+            `This is a safety check to prevent cross-workspace data leaks.`
+          throw new Error(errorMessage)
         }
 
         // Add workspaceId to queries (only if model has workspaceId field)
@@ -64,10 +68,11 @@ export function createScopedPrisma(baseClient: PrismaClient) {
         // For update/delete operations, ensure workspaceId is in where clause (only if model has workspaceId field)
         if (operation === 'update' || operation === 'updateMany' || operation === 'delete' || operation === 'deleteMany') {
           if (!args.where) {
-            if (isProduction && model !== 'WikiFavorite') {
-              throw new Error(`Production error: No where clause provided for ${operation} on ${model}`)
-            }
-            args.where = {}
+            // STRICT: Require where clause for update/delete operations
+            throw new Error(
+              `Workspace scoping enabled: No where clause provided for ${operation} on ${model}. ` +
+              `Update/delete operations must include a where clause for safety.`
+            )
           }
           // Skip adding workspaceId for models that don't have it
           if (model !== 'WikiFavorite' && !args.where.workspaceId && workspaceId) {

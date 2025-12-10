@@ -88,6 +88,7 @@ model User {
   workflowInstances    WorkflowInstance[]
   workspaceMemberships WorkspaceMember[]
   ownedWorkspaces      Workspace[]            @relation("WorkspaceOwner")
+  createdInvites       WorkspaceInvite[]      @relation("InviteCreator")
   onboarding_tasks     OnboardingTask[]       @relation("OnboardingTaskToUser")
 
   @@map("users")
@@ -132,6 +133,8 @@ model Workspace {
   workflowInstances   WorkflowInstance[]
   workflows           Workflow[]
   members             WorkspaceMember[]
+  activities          Activity[]
+  invites             WorkspaceInvite[]
   owner               User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@map("workspaces")
@@ -150,6 +153,27 @@ model WorkspaceMember {
   @@index([userId], map: "idx_workspace_members_user")
   @@index([userId, workspaceId], map: "idx_workspace_members_user_workspace")
   @@map("workspace_members")
+}
+
+model WorkspaceInvite {
+  id              String        @id @default(cuid())
+  workspaceId     String
+  email           String        @db.VarChar(255)
+  role            WorkspaceRole @default(MEMBER)
+  token           String        @unique
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  createdByUserId String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("InviteCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, email], map: "idx_invites_workspace_email")
+  @@index([workspaceId, revokedAt, acceptedAt], map: "idx_invites_workspace_status")
+  @@index([token], map: "idx_invites_token")
+  @@map("workspace_invites")
 }
 
 model WikiPage {
@@ -174,8 +198,8 @@ model WikiPage {
   last_viewed_at       DateTime?              @db.Timestamp(6)
   ai_analysis          Json?
   quality_score        Decimal?               @db.Decimal(3, 2)
-  projects             Project[]             @relation("ProjectPrimaryWiki")
-  projectLinks        ProjectDocumentation[]
+  projects             Project[]              @relation("ProjectPrimaryWiki")
+  projectLinks         ProjectDocumentation[]
   wiki_ai_interactions wiki_ai_interactions[]
   attachments          WikiAttachment[]
   chunks               WikiChunk[]
@@ -601,24 +625,24 @@ model ChatMessage {
 }
 
 model Project {
-  id                  String                @id @default(cuid())
+  id                  String                 @id @default(cuid())
   workspaceId         String
   name                String
   description         String?
-  status              ProjectStatus         @default(ACTIVE)
-  priority            Priority              @default(MEDIUM)
+  status              ProjectStatus          @default(ACTIVE)
+  priority            Priority               @default(MEDIUM)
   startDate           DateTime?
   endDate             DateTime?
   color               String?
-  isArchived          Boolean               @default(false)
+  isArchived          Boolean                @default(false)
   department          String?
   team                String?
   wikiPageId          String?
   ownerId             String?
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
   createdById         String
-  dailySummaryEnabled Boolean               @default(false)
+  dailySummaryEnabled Boolean                @default(false)
   customFields        CustomFieldDef[]
   epics               Epic[]
   milestones          Milestone[]
@@ -626,11 +650,11 @@ model Project {
   dailySummaries      ProjectDailySummary[]
   members             ProjectMember[]
   watchers            ProjectWatcher[]
-  documentationLinks ProjectDocumentation[]
-  createdBy           User                  @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  owner               User?                 @relation("ProjectOwner", fields: [ownerId], references: [id])
-  wikiPage            WikiPage?             @relation("ProjectPrimaryWiki", fields: [wikiPageId], references: [id])
-  workspace           Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  documentationLinks  ProjectDocumentation[]
+  createdBy           User                   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  owner               User?                  @relation("ProjectOwner", fields: [ownerId], references: [id])
+  wikiPage            WikiPage?              @relation("ProjectPrimaryWiki", fields: [wikiPageId], references: [id])
+  workspace           Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tasks               Task[]
 
   @@index([workspaceId, status], map: "idx_projects_workspace_status")
@@ -785,17 +809,21 @@ model ProjectTemplate {
 }
 
 model Activity {
-  id        String   @id @default(cuid())
-  actorId   String
-  entity    String
-  entityId  String
-  action    String
-  meta      Json?
-  createdAt DateTime @default(now())
-  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  actorId     String
+  workspaceId String
+  entity      String
+  entityId    String
+  action      String
+  meta        Json?
+  createdAt   DateTime  @default(now())
+  actor       User      @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([actorId, entity, entityId], map: "idx_activities_actor_entity")
   @@index([createdAt(sort: Desc)], map: "idx_activities_created")
+  @@index([workspaceId], map: "idx_activities_workspace")
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_activities_workspace_created")
   @@map("activities")
 }
 

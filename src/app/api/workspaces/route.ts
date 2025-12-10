@@ -7,45 +7,40 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
     
-    // If no workspace ID, user needs to create a workspace
-    if (!auth.workspaceId) {
-      return NextResponse.json({ workspaces: [] })
-    }
-    
-    // Get the workspace details
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: auth.workspaceId },
+    // Get all workspaces where user has a WorkspaceMember record
+    const memberships = await prisma.workspaceMember.findMany({
+      where: { userId: auth.user.userId },
       include: {
-        members: {
-          where: { userId: auth.user.userId },
-          select: { role: true }
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            description: true,
+            createdAt: true,
+            updatedAt: true
+          }
         }
+      },
+      orderBy: {
+        joinedAt: 'asc' // Return oldest membership first (consistent ordering)
       }
     })
 
-    if (!workspace) {
-      return NextResponse.json({ workspaces: [] })
-    }
+    // Map to response shape (preserve all existing fields)
+    const workspaces = memberships.map(m => ({
+      id: m.workspace.id,
+      name: m.workspace.name,
+      slug: m.workspace.slug,
+      description: m.workspace.description,
+      createdAt: m.workspace.createdAt,
+      updatedAt: m.workspace.updatedAt,
+      userRole: m.role
+    }))
 
-    const userRole = workspace.members[0]?.role || 'MEMBER'
-
-    const workspaceData = {
-      id: workspace.id,
-      name: workspace.name,
-      slug: workspace.slug,
-      description: workspace.description,
-      createdAt: workspace.createdAt,
-      updatedAt: workspace.updatedAt,
-      userRole
-    }
-
-    return NextResponse.json({ workspaces: [workspaceData] })
+    return NextResponse.json({ workspaces })
   } catch (error) {
     console.error("Error fetching workspaces:", error)
-    // If it's a "no workspace found" error, return empty array
-    if (error instanceof Error && error.message.includes('No workspace found')) {
-      return NextResponse.json({ workspaces: [] })
-    }
     // If user is not authenticated, return empty array
     if (error instanceof Error && error.message.includes('Unauthorized')) {
       return NextResponse.json({ workspaces: [] })

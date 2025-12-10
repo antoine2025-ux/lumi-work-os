@@ -8,6 +8,8 @@ import { prisma } from '@/lib/db'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
 import { projectToContext } from '@/lib/context/context-builders'
+import { logger } from '@/lib/logger'
+import { buildLogContextFromRequest } from '@/lib/request-context'
 
 /**
  * GET /api/projects - Get all projects for a workspace
@@ -22,11 +24,14 @@ import { projectToContext } from '@/lib/context/context-builders'
  * project data and the new ContextObject format. Consumers should read from `response.projects`.
  */
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
+  const baseContext = await buildLogContextFromRequest(request)
+  
+  logger.info('Incoming request /api/projects', baseContext)
+  
   try {
-    console.log('[PROJECTS API] Starting GET request')
     // 1. Get authenticated user with workspace context
     const auth = await getUnifiedAuth(request)
-    console.log('[PROJECTS API] Auth successful, workspaceId:', auth.workspaceId)
     
     // 2. Assert workspace access
     await assertAccess({ 
@@ -67,6 +72,16 @@ export async function GET(request: NextRequest) {
       const response = NextResponse.json(cachedResponseData)
       response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
       response.headers.set('X-Cache', 'HIT')
+      
+      // Log completion (cached)
+      const durationMs = Date.now() - startTime
+      logger.info('Projects fetch completed (cached)', {
+        ...baseContext,
+        projectCount: cachedProjects.length,
+        durationMs,
+        cacheHit: true,
+      })
+      
       return response
     }
 
@@ -153,7 +168,6 @@ export async function GET(request: NextRequest) {
         createdAt: 'desc'
       }
     })
-    console.log('[PROJECTS API] Query successful, found', projects.length, 'projects')
 
     // Build ContextObjects for each project
     const contextObjects = projects.map(project => {
@@ -178,13 +192,31 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.json(responseData)
     response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
     response.headers.set('X-Cache', 'MISS')
+    
+    // Log completion
+    const durationMs = Date.now() - startTime
+    logger.info('Projects fetch completed', {
+      ...baseContext,
+      projectCount: projects.length,
+      durationMs,
+      cacheHit: false,
+    })
+
+    // Log slow requests
+    if (durationMs > 500) {
+      logger.warn('Slow request /api/projects', {
+        ...baseContext,
+        durationMs,
+      })
+    }
+    
     return response
   } catch (error: any) {
-    console.error('Error fetching projects:', error)
-    console.error('Error message:', error?.message)
-    console.error('Error stack:', error?.stack)
-    console.error('Error code:', error?.code)
-    console.error('Error name:', error?.name)
+    const durationMs = Date.now() - startTime
+    logger.error('Error in /api/projects', {
+      ...baseContext,
+      durationMs,
+    }, error)
     
     // Handle auth errors
     if (error?.message?.includes('Unauthorized')) {

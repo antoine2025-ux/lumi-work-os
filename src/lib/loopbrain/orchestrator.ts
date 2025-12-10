@@ -46,23 +46,56 @@ const DEFAULT_LOOPBRAIN_MODEL = 'gpt-4-turbo'
 export async function runLoopbrainQuery(
   req: LoopbrainRequest
 ): Promise<LoopbrainResponse> {
-  logger.debug('Loopbrain query started', {
-    mode: req.mode,
+  const startTime = Date.now()
+  
+  logger.info('Loopbrain orchestrator started', {
+    requestId: (req as any).requestId, // Passed from API route if available
     workspaceId: req.workspaceId,
     userId: req.userId,
-    query: req.query.substring(0, 100) // Log first 100 chars
+    mode: req.mode,
+    queryLength: req.query.length, // Log length, not content
   })
 
-  // Route to mode-specific handler
-  switch (req.mode) {
-    case 'spaces':
-      return handleSpacesMode(req)
-    case 'org':
-      return handleOrgMode(req)
-    case 'dashboard':
-      return handleDashboardMode(req)
-    default:
-      throw new Error(`Unsupported Loopbrain mode: ${req.mode}`)
+  try {
+    // Route to mode-specific handler
+    let result: LoopbrainResponse
+    switch (req.mode) {
+      case 'spaces':
+        result = await handleSpacesMode(req)
+        break
+      case 'org':
+        result = await handleOrgMode(req)
+        break
+      case 'dashboard':
+        result = await handleDashboardMode(req)
+        break
+      default:
+        throw new Error(`Unsupported Loopbrain mode: ${req.mode}`)
+    }
+
+    // Log completion
+    const executionTimeMs = Date.now() - startTime
+    logger.info('Loopbrain orchestrator completed', {
+      requestId: (req as any).requestId,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      mode: req.mode,
+      executionTimeMs,
+      retrievedCount: result.metadata?.retrievedCount || 0,
+    })
+
+    return result
+  } catch (error) {
+    const executionTimeMs = Date.now() - startTime
+    logger.error('Loopbrain orchestrator error', {
+      requestId: (req as any).requestId,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      mode: req.mode,
+      executionTimeMs,
+    }, error)
+    
+    throw error
   }
 }
 

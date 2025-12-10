@@ -701,17 +701,18 @@ export class PrismaContextEngine implements ContextEngine {
    * Get activity/recent changes context
    * v1: Last N activities for the workspace
    * 
-   * Note: Activity model doesn't have workspaceId, so we fetch recent activities
-   * and filter by checking if the entity belongs to the workspace.
-   * This is a limitation that should be fixed in the schema.
+   * Fetches activities scoped to the workspace using workspaceId field.
    */
   async getActivityContext(
     workspaceId: string,
     options?: ContextOptions
   ): Promise<ActivityContext | null> {
     try {
-      // Fetch recent activities (limit to 100, we'll filter by workspace after)
+      // Fetch recent activities for this workspace
       const activities = await prisma.activity.findMany({
+        where: {
+          workspaceId
+        },
         include: {
           actor: {
             select: {
@@ -721,47 +722,14 @@ export class PrismaContextEngine implements ContextEngine {
             }
           }
         },
-        take: 100, // Fetch more to filter by workspace
+        take: options?.limit || 50,
         orderBy: {
           createdAt: 'desc'
         }
       })
 
-      // Filter by workspace by checking entity workspaceId
-      // This is a workaround - Activity should have workspaceId in future
-      const workspaceActivityIds = new Set<string>()
-      
-      // Check projects
-      const projectIds = await prisma.project.findMany({
-        where: { workspaceId },
-        select: { id: true }
-      })
-      projectIds.forEach(p => workspaceActivityIds.add(p.id))
-
-      // Check tasks
-      const taskIds = await prisma.task.findMany({
-        where: { workspaceId },
-        select: { id: true }
-      })
-      taskIds.forEach(t => workspaceActivityIds.add(t.id))
-
-      // Check wiki pages
-      const pageIds = await prisma.wikiPage.findMany({
-        where: { workspaceId },
-        select: { id: true }
-      })
-      pageIds.forEach(p => workspaceActivityIds.add(p.id))
-
-      // Filter activities that belong to this workspace
-      const workspaceActivities = activities
-        .filter(activity => {
-          // Check if entityId matches any workspace entity
-          return workspaceActivityIds.has(activity.entityId)
-        })
-        .slice(0, options?.limit || 50) // Apply limit after filtering
-
       // Map to ActivitySummary
-      const activitySummaries: ActivitySummary[] = workspaceActivities.map(activity => ({
+      const activitySummaries: ActivitySummary[] = activities.map(activity => ({
         id: activity.id,
         entity: activity.entity,
         entityId: activity.entityId,

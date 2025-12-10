@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/theme-provider"
 import { useWorkspace } from "@/lib/workspace-context"
+import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher"
 import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target, LayoutDashboard, FolderKanban, Brain, Network, Sliders } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Logo } from "@/components/logo"
@@ -42,34 +43,35 @@ function prefetchRoutes() {
   })
 }
 
+// Navigation items - hrefs will be made slug-aware in the component
 const navigationItems = [
   {
     name: "Dashboard",
-    href: "/home",
+    href: "/", // Will be prefixed with /w/[slug] in component
     icon: LayoutDashboard,
     description: "Overview and quick actions"
   },
   {
-    name: "Spaces",
-    href: "/wiki/home",
+    name: "Projects",
+    href: "/projects", // Will be prefixed with /w/[slug] in component
     icon: FolderKanban,
-    description: "Workspaces, wikis and projects"
+    description: "Project management and tasks"
   },
   {
     name: "LoopBrain",
-    href: "/ask",
+    href: "/ask", // Will be prefixed with /w/[slug] in component
     icon: Brain,
     description: "AI-powered assistance"
   },
   {
     name: "Org",
-    href: "/org",
+    href: "/org", // Will be prefixed with /w/[slug] in component
     icon: Network,
     description: "Organization chart and structure"
   },
   {
     name: "Settings",
-    href: "/settings",
+    href: "/settings", // Will be prefixed with /w/[slug] in component
     icon: Sliders,
     description: "Workspace configuration"
   }
@@ -86,11 +88,19 @@ export function Header() {
 
   // Prefetch all common routes on mount for instant navigation
   useEffect(() => {
-    const commonRoutes = ['/wiki/home', '/ask', '/settings', '/org']
-    commonRoutes.forEach(route => {
-      router.prefetch(route)
-    })
-  }, [router])
+    if (currentWorkspace?.slug) {
+      const commonRoutes = [
+        `/w/${currentWorkspace.slug}`,
+        `/w/${currentWorkspace.slug}/projects`,
+        `/w/${currentWorkspace.slug}/ask`,
+        `/w/${currentWorkspace.slug}/settings`,
+        `/w/${currentWorkspace.slug}/org`
+      ]
+      commonRoutes.forEach(route => {
+        router.prefetch(route)
+      })
+    }
+  }, [router, currentWorkspace])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -130,19 +140,30 @@ export function Header() {
             <span className="text-xl font-semibold text-foreground">Loopwell</span>
           </div>
           
+          {/* Workspace Switcher */}
+          <div className="ml-6">
+            <WorkspaceSwitcher />
+          </div>
+          
           {/* Navigation Items - Centered */}
           <div className="flex-1 flex items-center justify-center">
             <div className="flex items-center space-x-1">
             {navigationItems.map((item) => {
+              // Build slug-aware href
+              const slugHref = currentWorkspace?.slug 
+                ? `/w/${currentWorkspace.slug}${item.href === '/' ? '' : item.href}`
+                : item.href // Fallback to original if no workspace
+              
               // Check if current pathname matches the navigation item
-              // For routes other than dashboard, also check if pathname starts with href
-              const isActive = pathname === item.href || 
-                (item.href !== "/home" && pathname?.startsWith(item.href))
+              // Support both slug-based and legacy paths for active state
+              const isActive = pathname === slugHref || 
+                pathname === item.href ||
+                (item.href !== "/" && (pathname?.startsWith(slugHref) || pathname?.startsWith(item.href)))
               
               return (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={slugHref}
                   prefetch={true}
                   className={cn(
                     "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out group relative overflow-hidden",

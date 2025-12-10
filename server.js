@@ -20,9 +20,10 @@ async function generateDailySummaries() {
   try {
     console.log('Starting daily summary generation...')
     
-    // Import Prisma client dynamically to avoid issues with Next.js
-    const { PrismaClient } = require('@prisma/client')
-    const prisma = new PrismaClient()
+    // Import unscoped Prisma client for background job
+    // Background jobs need unscoped access to process data across workspaces
+    const { prismaUnscoped } = require('./src/lib/db')
+    const prisma = prismaUnscoped
     
     // Get all projects with daily summary enabled
     const projects = await prisma.project.findMany({

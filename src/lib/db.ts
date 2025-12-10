@@ -1,7 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-// Temporarily disabled to test if scoped client is causing schema issues
-// import { scopingMiddleware } from './prisma/scopingMiddleware'
-// import { createScopedPrisma } from './prisma/scoped-prisma'
+import { createScopedPrisma } from './prisma/scoped-prisma'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -75,68 +73,75 @@ if (process.env.NODE_ENV === 'development') {
   }
 }
 
-let prisma = globalForPrisma.prisma
+// Feature flag for workspace scoping (defense-in-depth layer)
+// When enabled, all workspace-scoped queries automatically require workspace context
+// This is a safety layer - routes must still use assertAccess() + explicit where: { workspaceId }
+const WORKSPACE_SCOPING_ENABLED = process.env.PRISMA_WORKSPACE_SCOPING_ENABLED === 'true'
 
-// Check if we need to recreate the client
-if (!prisma) {
-  // Create fresh client - ALWAYS create new instance, don't reuse
-  const prismaClient = createPrismaClient()
-  
-  // TEMPORARILY: Use base client directly to test if scoped client is causing schema issues
-  // TODO: Re-enable scoping middleware after confirming base client works
-  prisma = prismaClient
-  console.log('✅ Using base Prisma client (scoping temporarily disabled for testing)')
-  
-  // Re-enable scoping middleware for automatic workspace isolation
-  // This provides defense-in-depth by automatically adding workspaceId to all queries
-  // Prisma v6 uses $extends instead of deprecated $use
-  /*
-  try {
-    // Try $use first (legacy Prisma v4 pattern - may not work in v6)
-    if (typeof (prismaClient as any).$use === 'function') {
-      (prismaClient as any).$use(scopingMiddleware)
-      prisma = prismaClient
-      console.log('✅ Scoping middleware enabled via $use - workspace isolation enforced automatically')
-    } 
-    // Use $extends (Prisma v5+ pattern) - creates extended client with automatic scoping
-    else if (typeof (prismaClient as any).$extends === 'function') {
-      // Create scoped client using $extends
-      prisma = createScopedPrisma(prismaClient) as any
-      console.log('✅ Scoping middleware enabled via $extends - workspace isolation enforced automatically')
-    } else {
-      prisma = prismaClient
-      console.warn('⚠️ Prisma middleware methods not available')
-      console.warn('⚠️ Workspace isolation relies on manual filtering - ensure all queries use workspaceId!')
-    }
-  } catch (error) {
-    console.error('❌ Failed to enable scoping middleware:', error)
-    console.error('❌ Workspace isolation relies on manual filtering - review all queries!')
-    // Fall back to base client
-    prisma = prismaClient
-    // Don't throw - allow app to start, but log the error
-    // In production, you may want to fail fast here
-    if (process.env.NODE_ENV === 'production') {
-      console.error('🚨 PRODUCTION: Scoping middleware failed - this is a security risk!')
-    }
-  }
-  */
-  
-  // Store in global for Next.js hot reload
-  if (process.env.NODE_ENV !== 'production') {
-    globalForPrisma.prisma = prisma
-  }
-  
-  // Verify ProjectDocumentation model is available (for documentation attachments feature)
-  if (typeof (prisma as any).projectDocumentation === 'undefined') {
-    console.error('[PRISMA] ❌ CRITICAL: ProjectDocumentation model not found in Prisma Client!')
-    console.error('[PRISMA] Please run: npx prisma generate')
-    console.error('[PRISMA] Then restart your Next.js dev server')
-  } else {
-    console.log('[PRISMA] ✅ ProjectDocumentation model available')
-  }
+// Base Prisma client (always unscoped) - for scripts/background jobs
+// Scripts should import this directly: import { prismaUnscoped } from '@/lib/db'
+const prismaUnscoped: PrismaClient = globalForPrisma.prisma || createPrismaClient()
+
+// Store in global for Next.js hot reload (if we just created it)
+if (!globalForPrisma.prisma && process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prismaUnscoped
 }
 
-export { prisma }
+// Main Prisma client export - scoped or unscoped based on feature flag
+let prisma: PrismaClient
+
+if (WORKSPACE_SCOPING_ENABLED) {
+  // Scoped Prisma client - workspace scoping enabled
+  // All workspace-scoped queries automatically require workspace context via setWorkspaceContext()
+  // Missing workspace context will throw errors (both dev and prod) to prevent data leaks
+  prisma = createScopedPrisma(prismaUnscoped) as any
+  console.log('✅ Workspace scoping ENABLED - Prisma client is scoped, workspace context required')
+  console.log('   Use setWorkspaceContext(workspaceId) before querying workspace-scoped models')
+  console.log('   For scripts/background jobs, use prismaUnscoped instead')
+} else {
+  // Unscoped Prisma client - workspace scoping disabled
+  // Current behavior: routes must manually filter by workspaceId
+  prisma = prismaUnscoped
+  console.log('✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)')
+  console.log('   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true')
+}
+
+// Verify ProjectDocumentation model is available (for documentation attachments feature)
+if (typeof (prisma as any).projectDocumentation === 'undefined') {
+  console.error('[PRISMA] ❌ CRITICAL: ProjectDocumentation model not found in Prisma Client!')
+  console.error('[PRISMA] Please run: npx prisma generate')
+  console.error('[PRISMA] Then restart your Next.js dev server')
+} else {
+  console.log('[PRISMA] ✅ ProjectDocumentation model available')
+}
+
+export { prisma, prismaUnscoped }
+
+/**
+ * Workspace-scoped models (defense-in-depth):
+ * 
+ * When PRISMA_WORKSPACE_SCOPING_ENABLED=true, queries for these models automatically
+ * require workspace context via setWorkspaceContext(workspaceId).
+ * 
+ * Models: Project, Task, Epic, Milestone, WikiPage, WikiChunk, WikiEmbed, 
+ * WikiAttachment, WikiComment, WikiVersion, WikiPagePermission, WikiFavorite,
+ * ChatSession, ChatMessage, FeatureFlag, Integration, Migration, Workflow,
+ * WorkflowInstance, OnboardingTemplate, OnboardingPlan, OnboardingTask,
+ * OrgPosition, ProjectTemplate, TaskTemplate, TaskTemplateItem, Activity,
+ * CustomFieldDef, CustomFieldVal, TaskHistory, ProjectDailySummary,
+ * ProjectMember, ProjectWatcher, ProjectAssignee, Subtask, TaskComment,
+ * ContextItem, ContextEmbedding, ContextSummary
+ * 
+ * Note: This is defense-in-depth, not a replacement for assertAccess().
+ * Routes must still:
+ * 1. Call getUnifiedAuth() to get workspaceId
+ * 2. Call assertAccess() to validate membership
+ * 3. Call setWorkspaceContext(workspaceId) before queries
+ * 4. Use explicit where: { workspaceId } in queries
+ * 
+ * For scripts/background jobs that need unscoped access:
+ * import { prismaUnscoped } from '@/lib/db'
+ */
 
 // Graceful shutdown
 process.on('beforeExit', async () => {

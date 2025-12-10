@@ -308,9 +308,12 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Recent activities
+    // Recent activities (scoped to workspace for tenant safety)
     const recentActivities = await prisma.activity.findMany({
-      where: { actorId: chatSession.userId },
+      where: { 
+        workspaceId: auth.workspaceId,
+        actorId: chatSession.userId 
+      },
       select: {
         entity: true,
         action: true,

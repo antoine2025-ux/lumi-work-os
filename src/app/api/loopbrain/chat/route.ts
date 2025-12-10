@@ -13,6 +13,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { runLoopbrainQuery } from '@/lib/loopbrain/orchestrator'
 import { LoopbrainMode, LoopbrainRequest } from '@/lib/loopbrain/orchestrator-types'
 import { logger } from '@/lib/logger'
+import { buildLogContextFromRequest } from '@/lib/request-context'
 
 /**
  * POST /api/loopbrain/chat
@@ -33,6 +34,11 @@ import { logger } from '@/lib/logger'
  * Response: LoopbrainResponse
  */
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  const baseContext = await buildLogContextFromRequest(request)
+  
+  logger.info('Incoming request /api/loopbrain/chat', baseContext)
+  
   try {
     // Get auth context (preferred source for workspaceId and userId)
     const auth = await getUnifiedAuth(request)
@@ -125,15 +131,39 @@ export async function POST(request: NextRequest) {
       slackChannel: body.slackChannel,
       clientMetadata: body.clientMetadata,
       slackChannelHints: body.slackChannelHints // From project edit (sent in request body, not persisted)
-    }
+    } as any
+
+    // Pass requestId to orchestrator for logging
+    ;(loopbrainRequest as any).requestId = baseContext.requestId
 
     // Run Loopbrain query
     const result = await runLoopbrainQuery(loopbrainRequest)
 
+    // Log completion
+    const durationMs = Date.now() - startTime
+    logger.info('Loopbrain chat completed', {
+      ...baseContext,
+      mode: finalMode,
+      queryLength: body.query.length,
+      durationMs,
+    })
+
+    // Log slow requests
+    if (durationMs > 1000) {
+      logger.warn('Slow request /api/loopbrain/chat', {
+        ...baseContext,
+        durationMs,
+      })
+    }
+
     // Return response
     return NextResponse.json(result)
   } catch (error) {
-    logger.error('Error in Loopbrain chat API', { error })
+    const durationMs = Date.now() - startTime
+    logger.error('Error in /api/loopbrain/chat', {
+      ...baseContext,
+      durationMs,
+    }, error)
 
     // Handle auth errors
     if (error instanceof Error) {

@@ -129,12 +129,53 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
 /**
  * Resolve active workspace ID and member in one optimized call
  * Returns both workspaceId and workspaceMember to avoid duplicate queries
+ * 
+ * Priority order:
+ * 1. URL path slug (/w/[workspaceSlug]/...) - highest priority
+ * 2. URL query params (workspaceId or projectId)
+ * 3. x-workspace-id header
+ * 4. User's default workspace
  */
 async function resolveActiveWorkspaceIdWithMember(
   userId: string, 
   request?: NextRequest
 ): Promise<{ workspaceId: string; workspaceMember: any }> {
-  // Priority 1: URL params
+  // Priority 1: URL path slug (/w/[workspaceSlug]/...)
+  if (request) {
+    const url = new URL(request.url)
+    const pathname = url.pathname
+    
+    // Check if path matches /w/[workspaceSlug]/... pattern
+    const slugMatch = pathname.match(/^\/w\/([^\/]+)/)
+    if (slugMatch) {
+      const workspaceSlug = slugMatch[1]
+      
+      // Look up workspace by slug and validate membership in one query
+      const workspace = await prisma.workspace.findUnique({
+        where: { slug: workspaceSlug },
+        include: {
+          members: {
+            where: { userId }
+          }
+        }
+      })
+      
+      if (workspace && workspace.members.length > 0) {
+        const member = workspace.members[0]
+        return { workspaceId: workspace.id, workspaceMember: member }
+      }
+      
+      // If workspace exists but user is not a member, throw error
+      if (workspace) {
+        throw new Error(`Forbidden: You do not have access to workspace "${workspaceSlug}"`)
+      }
+      
+      // If workspace doesn't exist, throw error
+      throw new Error(`Not found: Workspace "${workspaceSlug}" does not exist`)
+    }
+  }
+
+  // Priority 2: URL query params
   if (request) {
     const url = new URL(request.url)
     const workspaceId = url.searchParams.get('workspaceId')
@@ -176,7 +217,7 @@ async function resolveActiveWorkspaceIdWithMember(
     }
   }
 
-  // Priority 2: Header
+  // Priority 3: Header
   if (request) {
     const headerWorkspaceId = request.headers.get('x-workspace-id')
     if (headerWorkspaceId) {
@@ -195,7 +236,7 @@ async function resolveActiveWorkspaceIdWithMember(
     }
   }
 
-  // Priority 3: User's default workspace
+  // Priority 4: User's default workspace
   // OPTIMIZED: Single query to get first membership with workspace verification
   // Use findFirst with a join condition instead of findMany + filter
   const validMembership = await prisma.workspaceMember.findFirst({
@@ -226,16 +267,51 @@ async function resolveActiveWorkspaceIdWithMember(
 
 /**
  * Resolve active workspace ID with priority:
- * 1. URL params: workspaceId or projectId → map to workspace
- * 2. x-workspace-id header
- * 3. user's default workspace
- * 4. Create default workspace if none exists
+ * 1. URL path slug (/w/[workspaceSlug]/...) - highest priority
+ * 2. URL params: workspaceId or projectId → map to workspace
+ * 3. x-workspace-id header
+ * 4. user's default workspace
+ * 5. Create default workspace if none exists
  */
 async function resolveActiveWorkspaceId(
   userId: string, 
   request?: NextRequest
 ): Promise<string> {
-  // Priority 1: URL params
+  // Priority 1: URL path slug (/w/[workspaceSlug]/...)
+  if (request) {
+    const url = new URL(request.url)
+    const pathname = url.pathname
+    
+    // Check if path matches /w/[workspaceSlug]/... pattern
+    const slugMatch = pathname.match(/^\/w\/([^\/]+)/)
+    if (slugMatch) {
+      const workspaceSlug = slugMatch[1]
+      
+      // Look up workspace by slug and validate membership
+      const workspace = await prisma.workspace.findUnique({
+        where: { slug: workspaceSlug },
+        include: {
+          members: {
+            where: { userId }
+          }
+        }
+      })
+      
+      if (workspace && workspace.members.length > 0) {
+        return workspace.id
+      }
+      
+      // If workspace exists but user is not a member, throw error
+      if (workspace) {
+        throw new Error(`Forbidden: You do not have access to workspace "${workspaceSlug}"`)
+      }
+      
+      // If workspace doesn't exist, throw error
+      throw new Error(`Not found: Workspace "${workspaceSlug}" does not exist`)
+    }
+  }
+
+  // Priority 2: URL params
   if (request) {
     const url = new URL(request.url)
     const workspaceId = url.searchParams.get('workspaceId')
@@ -277,7 +353,7 @@ async function resolveActiveWorkspaceId(
     }
   }
 
-  // Priority 2: Header
+  // Priority 3: Header
   if (request) {
     const headerWorkspaceId = request.headers.get('x-workspace-id')
     if (headerWorkspaceId) {
@@ -296,7 +372,7 @@ async function resolveActiveWorkspaceId(
     }
   }
 
-  // Priority 3: User's default workspace
+  // Priority 4: User's default workspace
   // Get all memberships and find the first one with an existing workspace
   const userMemberships = await prisma.workspaceMember.findMany({
     where: { userId },
