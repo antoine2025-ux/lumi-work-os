@@ -205,7 +205,17 @@ Before enabling `PRISMA_WORKSPACE_SCOPING_ENABLED=true` in production:
 - [ ] **Deploy**: Restart application
 - [ ] **Monitor**: Watch logs for startup errors
 
-### Step 2: Smoke Test Sequence
+### Step 2: Pre-Deployment: Apply Invites Migration
+
+**CRITICAL**: Before deploying invites feature, ensure migration is applied:
+
+- [ ] **Check migration status**: `npx prisma migrate status`
+- [ ] **Apply migration**: `npx prisma migrate deploy`
+  - Or use: `./scripts/apply-invites-migration-production.sh`
+- [ ] **Verify table exists**: `workspace_invites` table created
+- [ ] **See**: `docs/PRODUCTION_INVITES_MIGRATION.md` for detailed instructions
+
+### Step 3: Smoke Test Sequence
 
 Run these checks immediately after deployment:
 
