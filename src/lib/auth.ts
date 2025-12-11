@@ -99,24 +99,51 @@ export const authOptions: NextAuthOptions = {
       
       // Determine final redirect URL
       let finalUrl: string
-      if (url.startsWith('/')) {
+      const isRelative = url.startsWith('/')
+      
+      if (isRelative) {
         finalUrl = `${baseUrl}${url}`
-      } else if (new URL(url).origin === baseUrl) {
-        finalUrl = url
       } else {
-        finalUrl = baseUrl
+        // url is absolute - check if same origin
+        try {
+          const urlObj = new URL(url)
+          const baseUrlObj = new URL(baseUrl)
+          if (urlObj.origin === baseUrlObj.origin) {
+            finalUrl = url
+          } else {
+            finalUrl = baseUrl
+          }
+        } catch (error) {
+          // If URL parsing fails, treat as relative
+          finalUrl = `${baseUrl}${url}`
+        }
       }
       
       // Log redirect callback for debugging invite flow
-      logger.info('NextAuth redirect callback', {
+      // Only parse URLs for logging if they're absolute (to avoid errors)
+      const logContext: any = {
         url,
         baseUrl,
         finalUrl,
-        urlOrigin: new URL(url).origin,
-        baseUrlOrigin: new URL(baseUrl).origin,
-        isRelative: url.startsWith('/'),
-        isSameOrigin: new URL(url).origin === baseUrl
-      })
+        isRelative,
+      }
+      
+      if (!isRelative) {
+        try {
+          const urlObj = new URL(url)
+          const baseUrlObj = new URL(baseUrl)
+          logContext.urlOrigin = urlObj.origin
+          logContext.baseUrlOrigin = baseUrlObj.origin
+          logContext.isSameOrigin = urlObj.origin === baseUrlObj.origin
+        } catch (error) {
+          // If URL parsing fails, skip origin comparison
+          logContext.urlParseError = 'Failed to parse URL'
+        }
+      } else {
+        logContext.isSameOrigin = true // Relative URLs are always same origin
+      }
+      
+      logger.info('NextAuth redirect callback', logContext)
       
       return finalUrl
     },
