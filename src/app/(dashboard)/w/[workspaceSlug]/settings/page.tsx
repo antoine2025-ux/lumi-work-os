@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -56,6 +56,7 @@ interface SlackIntegration {
 export default function SettingsPage() {
   const { userStatus, loading: userStatusLoading } = useUserStatus()
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || "workspace")
   const [workspaceData, setWorkspaceData] = useState<WorkspaceData | null>(null)
@@ -333,7 +334,7 @@ export default function SettingsPage() {
           size="sm"
           onClick={() => {
             setActiveTab("workspace")
-            router.push('/settings?tab=workspace', { scroll: false })
+            router.push(`${pathname}?tab=workspace`, { scroll: false })
           }}
         >
           <Building className="mr-2 h-4 w-4" />
@@ -344,7 +345,7 @@ export default function SettingsPage() {
           size="sm"
           onClick={() => {
             setActiveTab("notifications")
-            router.push('/settings?tab=notifications', { scroll: false })
+            router.push(`${pathname}?tab=notifications`, { scroll: false })
           }}
         >
           <Bell className="mr-2 h-4 w-4" />
@@ -355,7 +356,7 @@ export default function SettingsPage() {
           size="sm"
           onClick={() => {
             setActiveTab("appearance")
-            router.push('/settings?tab=appearance', { scroll: false })
+            router.push(`${pathname}?tab=appearance`, { scroll: false })
           }}
         >
           <Palette className="mr-2 h-4 w-4" />
@@ -366,7 +367,7 @@ export default function SettingsPage() {
           size="sm"
           onClick={() => {
             setActiveTab("integrations")
-            router.push('/settings?tab=integrations', { scroll: false })
+            router.push(`${pathname}?tab=integrations`, { scroll: false })
           }}
         >
           <Plug className="mr-2 h-4 w-4" />
@@ -377,7 +378,7 @@ export default function SettingsPage() {
           size="sm"
           onClick={() => {
             setActiveTab("permissions")
-            router.push('/settings?tab=permissions', { scroll: false })
+            router.push(`${pathname}?tab=permissions`, { scroll: false })
           }}
         >
           <Shield className="mr-2 h-4 w-4" />
@@ -388,7 +389,7 @@ export default function SettingsPage() {
           size="sm"
           onClick={() => {
             setActiveTab("migrations")
-            router.push('/settings?tab=migrations', { scroll: false })
+            router.push(`${pathname}?tab=migrations`, { scroll: false })
           }}
         >
           <Download className="mr-2 h-4 w-4" />
@@ -399,7 +400,7 @@ export default function SettingsPage() {
           size="sm"
           onClick={() => {
             setActiveTab("members")
-            router.push('/settings?tab=members', { scroll: false })
+            router.push(`${pathname}?tab=members`, { scroll: false })
           }}
         >
           <User className="mr-2 h-4 w-4" />

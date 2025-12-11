@@ -86,9 +86,9 @@ model User {
   wiki_workspaces      wiki_workspaces[]
   workflowAssignments  WorkflowAssignment[]
   workflowInstances    WorkflowInstance[]
+  createdInvites       WorkspaceInvite[]      @relation("InviteCreator")
   workspaceMemberships WorkspaceMember[]
   ownedWorkspaces      Workspace[]            @relation("WorkspaceOwner")
-  createdInvites       WorkspaceInvite[]      @relation("InviteCreator")
   onboarding_tasks     OnboardingTask[]       @relation("OnboardingTaskToUser")
 
   @@map("users")
@@ -132,9 +132,8 @@ model Workspace {
   wiki_workspaces     wiki_workspaces[]
   workflowInstances   WorkflowInstance[]
   workflows           Workflow[]
-  members             WorkspaceMember[]
-  activities          Activity[]
   invites             WorkspaceInvite[]
+  members             WorkspaceMember[]
   owner               User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@map("workspaces")
@@ -166,9 +165,8 @@ model WorkspaceInvite {
   revokedAt       DateTime?
   createdAt       DateTime      @default(now())
   createdByUserId String
-
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy User      @relation("InviteCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdBy       User          @relation("InviteCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  workspace       Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, email], map: "idx_invites_workspace_email")
   @@index([workspaceId, revokedAt, acceptedAt], map: "idx_invites_workspace_status")
@@ -198,8 +196,8 @@ model WikiPage {
   last_viewed_at       DateTime?              @db.Timestamp(6)
   ai_analysis          Json?
   quality_score        Decimal?               @db.Decimal(3, 2)
-  projects             Project[]              @relation("ProjectPrimaryWiki")
   projectLinks         ProjectDocumentation[]
+  projects             Project[]              @relation("ProjectPrimaryWiki")
   wiki_ai_interactions wiki_ai_interactions[]
   attachments          WikiAttachment[]
   chunks               WikiChunk[]
@@ -648,9 +646,9 @@ model Project {
   milestones          Milestone[]
   assignees           ProjectAssignee[]
   dailySummaries      ProjectDailySummary[]
+  documentationLinks  ProjectDocumentation[]
   members             ProjectMember[]
   watchers            ProjectWatcher[]
-  documentationLinks  ProjectDocumentation[]
   createdBy           User                   @relation(fields: [createdById], references: [id], onDelete: Cascade)
   owner               User?                  @relation("ProjectOwner", fields: [ownerId], references: [id])
   wikiPage            WikiPage?              @relation("ProjectPrimaryWiki", fields: [wikiPageId], references: [id])
@@ -809,21 +807,17 @@ model ProjectTemplate {
 }
 
 model Activity {
-  id          String    @id @default(cuid())
-  actorId     String
-  workspaceId String
-  entity      String
-  entityId    String
-  action      String
-  meta        Json?
-  createdAt   DateTime  @default(now())
-  actor       User      @relation(fields: [actorId], references: [id], onDelete: Cascade)
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  actorId   String
+  entity    String
+  entityId  String
+  action    String
+  meta      Json?
+  createdAt DateTime @default(now())
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
 
   @@index([actorId, entity, entityId], map: "idx_activities_actor_entity")
   @@index([createdAt(sort: Desc)], map: "idx_activities_created")
-  @@index([workspaceId], map: "idx_activities_workspace")
-  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_activities_workspace_created")
   @@map("activities")
 }
 
@@ -1047,7 +1041,7 @@ model BlogPost {
   title       String
   slug        String           @unique
   excerpt     String
-  content     String           @db.Text
+  content     String
   category    BlogPostCategory @default(NEWS)
   status      BlogPostStatus   @default(DRAFT)
   publishedAt DateTime?
@@ -1059,6 +1053,61 @@ model BlogPost {
   @@index([category])
   @@index([publishedAt(sort: Desc)])
   @@map("blog_posts")
+}
+
+/// *
+///  * ContextItem - Canonical storage for ContextObject instances
+///  * Stores the full serialized ContextObject in JSON format for queryable persistence
+model ContextItem {
+  id              String            @id @default(cuid())
+  contextId       String
+  workspaceId     String
+  type            String
+  title           String
+  summary         String?
+  data            Json
+  updatedAt       DateTime          @updatedAt
+  createdAt       DateTime          @default(now())
+  embedding       ContextEmbedding?
+  summaryRelation ContextSummary?
+
+  @@index([workspaceId, type], map: "idx_context_items_workspace_type")
+  @@index([contextId, type], map: "idx_context_items_context_type")
+  @@index([workspaceId, updatedAt(sort: Desc)], map: "idx_context_items_workspace_updated")
+  @@map("context_items")
+}
+
+/// *
+///  * ContextEmbedding - Vector storage for semantic search
+///  * Stores embeddings for ContextItem instances to enable vector similarity search
+///  * TODO: Replace Float[] with Vector type after enabling pgvector extension in Step 4
+///  * TODO: Add vector index: @@index([embedding], type: "vector") after pgvector setup
+model ContextEmbedding {
+  id            String      @id @default(cuid())
+  contextItemId String      @unique
+  embedding     Float[]
+  workspaceId   String
+  updatedAt     DateTime    @updatedAt
+  contextItem   ContextItem @relation(fields: [contextItemId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId], map: "idx_context_embeddings_workspace")
+  @@map("context_embeddings")
+}
+
+/// *
+///  * ContextSummary - Pre-computed LLM-generated summaries
+///  * Stores cached text summaries for ContextItem instances to reduce LLM calls
+model ContextSummary {
+  id            String      @id @default(cuid())
+  contextItemId String      @unique
+  summary       String
+  workspaceId   String
+  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime    @default(now())
+  contextItem   ContextItem @relation(fields: [contextItemId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId], map: "idx_context_summaries_workspace")
+  @@map("context_summaries")
 }
 
 enum WorkspaceRole {
@@ -1171,76 +1220,4 @@ enum BlogPostCategory {
   PRODUCT
   CONTEXTUAL_AI
   LOOPWELL
-}
-
-// ============================================================================
-// Loopbrain Context Store Models
-// ============================================================================
-
-/**
- * ContextItem - Canonical storage for ContextObject instances
- * Stores the full serialized ContextObject in JSON format for queryable persistence
- */
-model ContextItem {
-  id          String   @id @default(cuid())
-  contextId   String // Original entity ID (pageId, projectId, taskId, etc.)
-  workspaceId String
-  type        String // ContextType enum value (workspace, page, project, task, org, activity, unified)
-  title       String
-  summary     String? // Optional human-readable summary
-  data        Json // Full serialized ContextObject (entire object, not partial)
-  updatedAt   DateTime @updatedAt
-  createdAt   DateTime @default(now())
-
-  // Relations
-  embedding       ContextEmbedding?
-  summaryRelation ContextSummary?
-
-  // Indexes for efficient multi-tenant queries
-  @@index([workspaceId, type], map: "idx_context_items_workspace_type")
-  @@index([contextId, type], map: "idx_context_items_context_type")
-  @@index([workspaceId, updatedAt(sort: Desc)], map: "idx_context_items_workspace_updated")
-  @@map("context_items")
-}
-
-/**
- * ContextEmbedding - Vector storage for semantic search
- * Stores embeddings for ContextItem instances to enable vector similarity search
- * TODO: Replace Float[] with Vector type after enabling pgvector extension in Step 4
- * TODO: Add vector index: @@index([embedding], type: "vector") after pgvector setup
- */
-model ContextEmbedding {
-  id            String   @id @default(cuid())
-  contextItemId String   @unique
-  embedding     Float[] // TODO: Replace with Vector type after enabling pgvector extension
-  workspaceId   String
-  updatedAt     DateTime @updatedAt
-
-  // Relation
-  contextItem ContextItem @relation(fields: [contextItemId], references: [id], onDelete: Cascade)
-
-  // Indexes for efficient multi-tenant queries
-  @@index([workspaceId], map: "idx_context_embeddings_workspace")
-  // TODO: Add vector index after pgvector: @@index([embedding], type: "vector")
-  @@map("context_embeddings")
-}
-
-/**
- * ContextSummary - Pre-computed LLM-generated summaries
- * Stores cached text summaries for ContextItem instances to reduce LLM calls
- */
-model ContextSummary {
-  id            String   @id @default(cuid())
-  contextItemId String   @unique
-  summary       String // Pre-computed text summary
-  workspaceId   String
-  updatedAt     DateTime @updatedAt
-  createdAt     DateTime @default(now())
-
-  // Relation
-  contextItem ContextItem @relation(fields: [contextItemId], references: [id], onDelete: Cascade)
-
-  // Indexes for efficient multi-tenant queries
-  @@index([workspaceId], map: "idx_context_summaries_workspace")
-  @@map("context_summaries")
 }
