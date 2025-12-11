@@ -1,7 +1,7 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import dynamic from "next/dynamic"
@@ -20,6 +20,7 @@ export default function DashboardLayout({
 }) {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const pathname = usePathname()
   const [isFirstTime, setIsFirstTime] = useState(false)
   
   // Use React Query for user status - automatic caching and no sequential delays
@@ -46,10 +47,15 @@ export default function DashboardLayout({
   const workspaceId = userStatus?.workspaceId || null
 
   // Handle workspace redirect
+  // Skip redirect if user is on an invite page - they need to accept the invite first
   useEffect(() => {
     if (status === 'authenticated' && !isLoadingWorkspace && !workspaceId) {
       const workspaceJustCreated = sessionStorage.getItem('__workspace_just_created__') === 'true'
-      if (!workspaceJustCreated) {
+      const isInvitePage = pathname?.startsWith('/invites')
+      
+      // Don't redirect to welcome if user is on an invite page
+      // They need to accept the invite first, which will create the workspace membership
+      if (!workspaceJustCreated && !isInvitePage) {
         window.location.href = '/welcome'
       }
     }
@@ -62,7 +68,7 @@ export default function DashboardLayout({
         sessionStorage.removeItem('__skip_loader__')
       }
     }
-  }, [status, isLoadingWorkspace, workspaceId, userStatus])
+  }, [status, isLoadingWorkspace, workspaceId, userStatus, pathname])
 
   // Re-enable auth redirect - but only check once per mount or when session actually changes
   const hasCheckedAuth = useRef(false)

@@ -133,20 +133,29 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
       }
       
       // Check for workspace deletion error or missing workspace
+      // Skip redirect if user is on an invite page - they need to accept the invite first
+      const isInvitePage = pathname?.startsWith('/invites')
+      
       if (userStatus.error && userStatus.error.includes('No workspace found')) {
         // Workspace was deleted or user has no workspace, redirect to welcome
-        console.log('[AuthWrapper] No workspace found (error), redirecting to welcome')
-        hasRedirected.current = true
-        window.location.href = '/welcome'
-        return
+        // But skip if on invite page - user needs to accept invite first
+        if (!isInvitePage) {
+          console.log('[AuthWrapper] No workspace found (error), redirecting to welcome')
+          hasRedirected.current = true
+          window.location.href = '/welcome'
+          return
+        }
       }
       
       if (userStatus.isFirstTime || !userStatus.workspaceId) {
         // First-time user or no workspace, redirect to welcome
-        console.log('[AuthWrapper] No workspace found (isFirstTime:', userStatus.isFirstTime, 'workspaceId:', userStatus.workspaceId,'), redirecting to welcome')
-        hasRedirected.current = true
-        window.location.href = '/welcome'
-        return
+        // But skip if on invite page - user needs to accept invite first
+        if (!isInvitePage) {
+          console.log('[AuthWrapper] No workspace found (isFirstTime:', userStatus.isFirstTime, 'workspaceId:', userStatus.workspaceId,'), redirecting to welcome')
+          hasRedirected.current = true
+          window.location.href = '/welcome'
+          return
+        }
       }
     }
   }, [router, pathname, userStatus, loading, sessionStatus])
