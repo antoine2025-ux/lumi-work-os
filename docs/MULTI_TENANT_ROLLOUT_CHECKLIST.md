@@ -215,6 +215,9 @@ Run these checks immediately after deployment:
 - [ ] **Test**: `GET /api/wiki/pages` → returns wiki pages
 - [ ] **Test**: Single-workspace user can login and navigate
 - [ ] **Test**: Multi-workspace user can switch workspaces
+- [ ] **Invites smoke test**: See `docs/INVITES_SMOKE_TEST_CHECKLIST.md`
+  - Quick test: Create invite → Accept invite → Verify access
+  - Optional: Use `npm run smoke:invites:dev` to generate test invite link
 - [ ] **Monitor**: Error tracking for 15 minutes
 
 ### Step 3: Monitor for Issues
@@ -269,3 +272,4 @@ If issues arise:
 - `docs/MULTI_WORKSPACE_UX.md` - User experience documentation
 - `docs/MULTI_WORKSPACE_TEST_RUNBOOK.md` - Manual test procedures
 - `docs/PRISMA_SCOPING_FEATURE_FLAG.md` - Scoping flag technical details
+- `docs/INVITES_SMOKE_TEST_CHECKLIST.md` - Workspace invites smoke test (pre-deploy)

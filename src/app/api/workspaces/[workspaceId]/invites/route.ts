@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { prisma } from "@/lib/db"
+import { prisma, prismaUnscoped } from "@/lib/db"
 import { randomBytes } from "crypto"
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
@@ -13,13 +13,38 @@ export async function POST(
   { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   const startTime = Date.now()
-  const baseContext = await buildLogContextFromRequest(request)
+  let baseContext
+  try {
+    baseContext = await buildLogContextFromRequest(request)
+  } catch (error) {
+    // If building context fails, create minimal context
+    baseContext = {
+      requestId: request.headers.get('x-request-id') ?? undefined,
+      route: request.nextUrl.pathname,
+      method: request.method,
+    }
+  }
   
   logger.info('Incoming request /api/workspaces/[workspaceId]/invites', baseContext)
   
   try {
     const { workspaceId } = await params
-    const auth = await getUnifiedAuth(request)
+    
+    // Get auth - handle unauthorized errors separately
+    let auth
+    try {
+      auth = await getUnifiedAuth(request)
+    } catch (authError) {
+      const authMessage = authError instanceof Error ? authError.message : String(authError)
+      if (authMessage.includes('Unauthorized') || authMessage.includes('No session')) {
+        return NextResponse.json(
+          { error: authMessage },
+          { status: 401 }
+        )
+      }
+      // Re-throw other auth errors to be handled as 500
+      throw authError
+    }
     
     // Ensure workspaceId from route matches auth context (avoid cross-workspace leaks)
     if (auth.workspaceId !== workspaceId) {
@@ -30,14 +55,28 @@ export async function POST(
     }
     
     // Assert user has OWNER or ADMIN role to create invites
-    await assertAccess({ 
-      userId: auth.user.userId, 
-      workspaceId: workspaceId, 
-      scope: 'workspace', 
-      requireRole: ['OWNER', 'ADMIN'] 
-    })
+    // Handle access denied errors separately (403, not 500)
+    try {
+      await assertAccess({ 
+        userId: auth.user.userId, 
+        workspaceId: workspaceId, 
+        scope: 'workspace', 
+        requireRole: ['OWNER', 'ADMIN'] 
+      })
+    } catch (accessError) {
+      const accessMessage = accessError instanceof Error ? accessError.message : String(accessError)
+      if (accessMessage.includes('Forbidden') || accessMessage.includes('Insufficient')) {
+        return NextResponse.json(
+          { error: accessMessage },
+          { status: 403 }
+        )
+      }
+      // Re-throw other access errors to be handled as 500
+      throw accessError
+    }
 
-    // Set workspace context for Prisma middleware
+    // Set workspace context for Prisma middleware (only needed for scoped models)
+    // WorkspaceInvite is not in WORKSPACE_SCOPED_MODELS, but we set it anyway for consistency
     setWorkspaceContext(workspaceId)
 
     const body = await request.json()
@@ -114,8 +153,9 @@ export async function POST(
     }
 
     // Check for existing pending invite (not revoked, not accepted, not expired)
+    // Use prismaUnscoped since WorkspaceInvite is not a scoped model
     const now = new Date()
-    const existingInvite = await prisma.workspaceInvite.findFirst({
+    const existingInvite = await prismaUnscoped.workspaceInvite.findFirst({
       where: {
         workspaceId,
         email: normalizedEmail,
@@ -127,7 +167,7 @@ export async function POST(
 
     // If existing pending invite, revoke it before creating new one
     if (existingInvite) {
-      await prisma.workspaceInvite.update({
+      await prismaUnscoped.workspaceInvite.update({
         where: { id: existingInvite.id },
         data: { revokedAt: now }
       })
@@ -141,25 +181,70 @@ export async function POST(
     expiresAt.setDate(expiresAt.getDate() + 7)
 
     // Create invite
-    const invite = await prisma.workspaceInvite.create({
-      data: {
-        workspaceId,
-        email: normalizedEmail,
-        role: role as any,
-        token,
-        expiresAt,
-        createdByUserId: auth.user.userId
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
+    // Note: WorkspaceInvite is not in WORKSPACE_SCOPED_MODELS, so scoping middleware won't interfere
+    // We're setting workspaceId explicitly in the data
+    logger.info('Creating workspace invite', {
+      ...baseContext,
+      email: normalizedEmail,
+      role,
+      workspaceId,
+      tokenLength: token.length,
+      createdByUserId: auth.user.userId,
+    })
+    
+    // Ensure role is a valid WorkspaceRole type
+    const inviteRole = role as 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
+    
+    // Prepare invite data
+    const inviteData = {
+      workspaceId,
+      email: normalizedEmail,
+      role: inviteRole,
+      token,
+      expiresAt,
+      createdByUserId: auth.user.userId
+    }
+    
+    console.log('Creating invite with data:', {
+      ...inviteData,
+      token: '[REDACTED]', // Don't log the actual token
+      expiresAt: inviteData.expiresAt.toISOString(),
+    })
+    
+    // Use prismaUnscoped since WorkspaceInvite is not a scoped model
+    // This avoids any potential issues with workspace scoping middleware
+    let invite
+    try {
+      invite = await prismaUnscoped.workspaceInvite.create({
+        data: inviteData,
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
           }
         }
+      })
+      console.log('✅ Invite created successfully:', invite.id)
+    } catch (createError) {
+      console.error('❌ Prisma create error:', createError)
+      if (createError instanceof Error) {
+        console.error('Error name:', createError.name)
+        console.error('Error message:', createError.message)
+        console.error('Error stack:', createError.stack)
+        // Check for common Prisma errors
+        if (createError.message.includes('Unique constraint')) {
+          console.error('❌ Unique constraint violation - token or email might already exist')
+        }
+        if (createError.message.includes('Foreign key constraint')) {
+          console.error('❌ Foreign key constraint violation - workspaceId or createdByUserId might be invalid')
+        }
       }
-    })
+      // Re-throw to be caught by outer catch
+      throw createError
+    }
 
     // Build invite URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
@@ -201,9 +286,37 @@ export async function POST(
       durationMs,
     }, error)
     
+    // Log full error details for debugging
+    if (error instanceof Error) {
+      console.error('Invite creation error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      })
+    }
+    
     const errorMessage = error instanceof Error ? error.message : String(error)
+    
+    // In development, return the actual error message for debugging
+    // In production, return a generic message
+    if (process.env.NODE_ENV === 'development') {
+      return NextResponse.json(
+        { 
+          error: errorMessage,
+          details: error instanceof Error ? {
+            name: error.name,
+            stack: error.stack?.split('\n').slice(0, 10).join('\n'),
+          } : {}
+        },
+        { status: 500 }
+      )
+    }
+    
+    // Production: return generic error
     return NextResponse.json(
-      { error: "Failed to create invite", details: errorMessage },
+      { 
+        error: "Failed to create invite"
+      },
       { status: 500 }
     )
   }
@@ -215,7 +328,17 @@ export async function GET(
   { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   const startTime = Date.now()
-  const baseContext = await buildLogContextFromRequest(request)
+  let baseContext
+  try {
+    baseContext = await buildLogContextFromRequest(request)
+  } catch (error) {
+    // If building context fails, create minimal context
+    baseContext = {
+      requestId: request.headers.get('x-request-id') ?? undefined,
+      route: request.nextUrl.pathname,
+      method: request.method,
+    }
+  }
   
   logger.info('Incoming request GET /api/workspaces/[workspaceId]/invites', baseContext)
   
@@ -243,8 +366,9 @@ export async function GET(
     setWorkspaceContext(workspaceId)
 
     // Get pending invites: not revoked, not accepted, not expired
+    // Use prismaUnscoped since WorkspaceInvite is not a scoped model
     const now = new Date()
-    const invites = await prisma.workspaceInvite.findMany({
+    const invites = await prismaUnscoped.workspaceInvite.findMany({
       where: {
         workspaceId,
         revokedAt: null,

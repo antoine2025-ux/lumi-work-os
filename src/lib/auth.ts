@@ -1,13 +1,23 @@
 import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
-import { prisma } from "@/lib/db"
+import { prismaUnscoped } from "@/lib/db"
 
 // Check if we have Google OAuth credentials
 const hasGoogleCredentials = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && 
   process.env.GOOGLE_CLIENT_ID !== "your-google-client-id" && 
   process.env.GOOGLE_CLIENT_SECRET !== "your-google-client-secret"
 
+// Validate required NextAuth environment variables
+if (!process.env.NEXTAUTH_SECRET) {
+  console.warn('⚠️ NEXTAUTH_SECRET is not set. Authentication may not work correctly.')
+}
+
+if (!process.env.NEXTAUTH_URL && process.env.NODE_ENV === 'production') {
+  console.warn('⚠️ NEXTAUTH_URL is not set in production. Authentication may not work correctly.')
+}
+
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   // Don't set 'url' here - it affects all NextAuth operations
   // We'll handle OAuth callback URL in the provider config instead
   callbacks: {
@@ -15,16 +25,24 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === 'google') {
         // For Google OAuth, ensure user exists in our database
         try {
+          if (!user.email) {
+            console.error('❌ No email provided in user object')
+            return false
+          }
+          
           console.log('🔐 Creating/updating user:', user.email)
-          const dbUser = await prisma.user.upsert({
-            where: { email: user.email! },
+          
+          // Use prismaUnscoped to avoid workspace scoping issues during sign-in
+          // During authentication, we don't have a workspace context yet
+          const dbUser = await prismaUnscoped.user.upsert({
+            where: { email: user.email },
             update: {
               name: user.name,
               image: user.image,
               emailVerified: new Date(),
             },
             create: {
-              email: user.email!,
+              email: user.email,
               name: user.name || 'User',
               image: user.image,
               emailVerified: new Date(),
@@ -35,6 +53,11 @@ export const authOptions: NextAuthOptions = {
         } catch (error) {
           console.error('❌ Error creating/updating user:', error)
           console.error('❌ User data:', { email: user.email, name: user.name })
+          console.error('❌ Error details:', error instanceof Error ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+          } : error)
           // Don't fail authentication for database errors - let user in
           return true
         }

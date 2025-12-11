@@ -115,6 +115,32 @@ if (typeof (prisma as any).projectDocumentation === 'undefined') {
   console.log('[PRISMA] ✅ ProjectDocumentation model available')
 }
 
+// Verify WorkspaceInvite model is available
+if (typeof (prismaUnscoped as any).workspaceInvite === 'undefined') {
+  console.error('[PRISMA] ❌ CRITICAL: WorkspaceInvite model not found in Prisma Client!')
+  console.error('[PRISMA] Please run: npx prisma generate')
+  console.error('[PRISMA] Then restart your Next.js dev server')
+} else {
+  console.log('[PRISMA] ✅ WorkspaceInvite model available')
+  
+  // Verify table exists in database (async check, don't block startup)
+  if (process.env.NODE_ENV === 'development') {
+    prismaUnscoped.$queryRaw`SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'workspace_invites' LIMIT 1`
+      .then((result: any) => {
+        if (result && result.length > 0) {
+          console.log('[PRISMA] ✅ workspace_invites table exists in database')
+        } else {
+          console.error('[PRISMA] ❌ CRITICAL: workspace_invites table does NOT exist in database!')
+          console.error('[PRISMA] Run: npx prisma migrate deploy')
+          console.error('[PRISMA] Or: npx prisma db execute --file prisma/migrations/20250116140000_add_workspace_invites/migration.sql')
+        }
+      })
+      .catch((error: any) => {
+        console.error('[PRISMA] ⚠️  Could not verify workspace_invites table:', error.message)
+      })
+  }
+}
+
 export { prisma, prismaUnscoped }
 
 /**

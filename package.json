@@ -22,7 +22,8 @@
     "phase2:check": "./scripts/phase2-safety-check.sh",
     "phase2:staging-test": "./scripts/phase2-staging-test.sh",
     "phase3:verify": "./scripts/phase3-production-verify.sh",
-    "phase3:deploy": "npm run build && npm start && npm run phase3:verify"
+    "phase3:deploy": "npm run build && npm start && npm run phase3:verify",
+    "smoke:invites:dev": "ts-node scripts/dev-smoke-invite-link.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.0",

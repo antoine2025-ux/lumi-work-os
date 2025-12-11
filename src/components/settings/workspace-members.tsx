@@ -136,6 +136,12 @@ export function WorkspaceMembers() {
       const data = await response.json()
 
       if (!response.ok) {
+        // Always log detailed error information for debugging
+        console.error('Invite creation failed', {
+          status: response.status,
+          statusText: response.statusText,
+          data,
+        })
         throw new Error(data.error || "Failed to create invite")
       }
 
