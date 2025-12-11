@@ -1,5 +1,18 @@
 "use client"
 
+/**
+ * React Hook Ordering Fix:
+ * 
+ * PREVIOUS ISSUE: The second useEffect (redirect logic) was placed AFTER an early return,
+ * causing React error #310 "Rendered more hooks than during the previous render."
+ * 
+ * When status === 'loading', the component returned early before the second useEffect,
+ * so on first render: 1 useEffect called, on second render: 2 useEffects called.
+ * 
+ * FIX: All hooks (including all useEffects) are now called unconditionally at the top level,
+ * before any early returns. Conditional logic is moved inside the effects.
+ */
+
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,11 +42,45 @@ export default function InviteAcceptPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
+  // All hooks must be called unconditionally before any early returns
+  // This ensures React sees the same number of hooks on every render
+
   useEffect(() => {
     // Invite details would be fetched from API if needed
     // For now, we'll just show the accept button
     setLoading(false)
   }, [token])
+
+  // Redirect unauthenticated users to login with callbackUrl to preserve invite token
+  // This useEffect must be called before any early returns to maintain hook order
+  useEffect(() => {
+    if (status === 'unauthenticated' && token) {
+      const invitePath = `/invites/${token}`
+      const loginUrl = `/login?callbackUrl=${encodeURIComponent(invitePath)}`
+      
+      // Log redirect for debugging invite flow
+      const logData = {
+        message: 'Redirecting unauthenticated user from invite',
+        invitePath,
+        callbackUrl: invitePath,
+        loginUrl,
+        currentHref: typeof window !== 'undefined' ? window.location.href : null,
+        timestamp: new Date().toISOString()
+      }
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔗 [Invite] Redirecting to login:', logData)
+      } else {
+        // In production, log as JSON for server logs
+        console.log(JSON.stringify({
+          level: 'info',
+          ...logData
+        }))
+      }
+      
+      router.push(loginUrl)
+    }
+  }, [status, token, router])
 
   const handleAcceptInvite = async () => {
     if (!token) return
@@ -78,6 +125,8 @@ export default function InviteAcceptPage() {
     }
   }
 
+  // Early returns are now AFTER all hooks have been called
+  // This ensures React always sees the same number of hooks on every render
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -92,36 +141,6 @@ export default function InviteAcceptPage() {
       </div>
     )
   }
-
-  // Redirect unauthenticated users to login with callbackUrl to preserve invite token
-  useEffect(() => {
-    if (status === 'unauthenticated' && token) {
-      const invitePath = `/invites/${token}`
-      const loginUrl = `/login?callbackUrl=${encodeURIComponent(invitePath)}`
-      
-      // Log redirect for debugging invite flow
-      const logData = {
-        message: 'Redirecting unauthenticated user from invite',
-        invitePath,
-        callbackUrl: invitePath,
-        loginUrl,
-        currentHref: typeof window !== 'undefined' ? window.location.href : null,
-        timestamp: new Date().toISOString()
-      }
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔗 [Invite] Redirecting to login:', logData)
-      } else {
-        // In production, log as JSON for server logs
-        console.log(JSON.stringify({
-          level: 'info',
-          ...logData
-        }))
-      }
-      
-      router.push(loginUrl)
-    }
-  }, [status, token, router])
 
   if (status === 'unauthenticated') {
     return (
