@@ -5,12 +5,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookOpen, ArrowRight } from "lucide-react"
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [hasGoogleAuth, setHasGoogleAuth] = useState(true)
+  
+  // Read callbackUrl from search params, default to '/home'
+  // This preserves invite URLs (/invites/[token]) through the authentication flow
+  // All sign-in methods (Google, email, credentials, etc.) should use this callbackUrl
+  const callbackUrl = searchParams.get('callbackUrl') ?? '/home'
 
   useEffect(() => {
     // Clear logout flag when login page loads
@@ -67,14 +73,36 @@ export default function LoginPage() {
     
     setIsLoading(true)
     try {
-      console.log('🟢 [login] Calling signIn("google") with account selection forced')
+      // Log sign-in attempt with callbackUrl for debugging invite flow
+      const logData = {
+        message: 'Login: calling signIn with callbackUrl',
+        callbackUrl,
+        href: typeof window !== 'undefined' ? window.location.href : null,
+        searchParams: typeof window !== 'undefined' ? window.location.search : null,
+        timestamp: new Date().toISOString()
+      }
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔐 [Login] Calling signIn("google"):', logData)
+      } else {
+        // In production, log as JSON for server logs
+        console.log(JSON.stringify({
+          level: 'info',
+          ...logData
+        }))
+      }
+      
       // Force account selection by passing authorizationParams
       // This will override the default and ensure Google shows account picker
+      // Use dynamic callbackUrl to preserve invite URLs through OAuth flow
       const result = await signIn('google', { 
-        callbackUrl: '/home',
+        callbackUrl,
         redirect: true,
       })
-      console.log('🟢 [login] signIn result:', result)
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🟢 [login] signIn result:', result)
+      }
     } catch (error) {
       console.error('❌ [login] Sign in error:', error)
     } finally {

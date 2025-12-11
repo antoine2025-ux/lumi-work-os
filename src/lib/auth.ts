@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import { prismaUnscoped } from "@/lib/db"
+import { logger } from "@/lib/logger"
 
 // Check if we have Google OAuth credentials
 const hasGoogleCredentials = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && 
@@ -95,10 +96,29 @@ export const authOptions: NextAuthOptions = {
         console.log('🔄 Redirecting from ngrok to localhost:', localhostUrl)
         return localhostUrl
       }
-      // Default behavior: redirect to the provided URL or base URL
-      if (url.startsWith('/')) return `${baseUrl}${url}`
-      if (new URL(url).origin === baseUrl) return url
-      return baseUrl
+      
+      // Determine final redirect URL
+      let finalUrl: string
+      if (url.startsWith('/')) {
+        finalUrl = `${baseUrl}${url}`
+      } else if (new URL(url).origin === baseUrl) {
+        finalUrl = url
+      } else {
+        finalUrl = baseUrl
+      }
+      
+      // Log redirect callback for debugging invite flow
+      logger.info('NextAuth redirect callback', {
+        url,
+        baseUrl,
+        finalUrl,
+        urlOrigin: new URL(url).origin,
+        baseUrlOrigin: new URL(baseUrl).origin,
+        isRelative: url.startsWith('/'),
+        isSameOrigin: new URL(url).origin === baseUrl
+      })
+      
+      return finalUrl
     },
   },
   providers: [

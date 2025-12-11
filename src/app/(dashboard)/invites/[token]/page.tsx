@@ -57,10 +57,19 @@ export default function InviteAcceptPage() {
 
       setSuccess(true)
       
-      // Redirect to workspace after a short delay
-      setTimeout(() => {
-        router.push(`/home?workspaceId=${data.workspaceId}`)
-      }, 2000)
+      // Redirect to the invited workspace using slug-based URL
+      // This ensures getUnifiedAuth() resolves to the correct workspace
+      if (data.workspace?.slug) {
+        setTimeout(() => {
+          router.push(`/w/${data.workspace.slug}`)
+        }, 2000)
+      } else {
+        // Fallback to workspaceId if slug is missing (shouldn't happen)
+        console.warn('Workspace slug missing from accept response, using workspaceId fallback')
+        setTimeout(() => {
+          router.push(`/home?workspaceId=${data.workspaceId}`)
+        }, 2000)
+      }
     } catch (error: any) {
       console.error("Error accepting invite:", error)
       setError(error.message || 'Failed to accept invite')
@@ -84,27 +93,45 @@ export default function InviteAcceptPage() {
     )
   }
 
+  // Redirect unauthenticated users to login with callbackUrl to preserve invite token
+  useEffect(() => {
+    if (status === 'unauthenticated' && token) {
+      const invitePath = `/invites/${token}`
+      const loginUrl = `/login?callbackUrl=${encodeURIComponent(invitePath)}`
+      
+      // Log redirect for debugging invite flow
+      const logData = {
+        message: 'Redirecting unauthenticated user from invite',
+        invitePath,
+        callbackUrl: invitePath,
+        loginUrl,
+        currentHref: typeof window !== 'undefined' ? window.location.href : null,
+        timestamp: new Date().toISOString()
+      }
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔗 [Invite] Redirecting to login:', logData)
+      } else {
+        // In production, log as JSON for server logs
+        console.log(JSON.stringify({
+          level: 'info',
+          ...logData
+        }))
+      }
+      
+      router.push(loginUrl)
+    }
+  }, [status, token, router])
+
   if (status === 'unauthenticated') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Accept Workspace Invite</CardTitle>
-            <CardDescription>
-              You need to be logged in to accept this invitation
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2 text-muted-foreground">
-              <AlertTriangle className="h-4 w-4" />
-              <span>Please log in to continue</span>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center space-x-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Redirecting to login...</span>
             </div>
-            <Button 
-              onClick={() => router.push('/login')}
-              className="w-full"
-            >
-              Go to Login
-            </Button>
           </CardContent>
         </Card>
       </div>

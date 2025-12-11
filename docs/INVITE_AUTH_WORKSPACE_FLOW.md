@@ -550,3 +550,295 @@ After reviewing this document, the fixes needed are:
 5. **Update frontend to respect explicit workspace selection**
 
 But as requested, **no code changes in this step** - only analysis and documentation.
+
+---
+
+## 11. Post-Fix Verification
+
+After implementing the fixes described in the implementation, verify the following scenarios:
+
+### Scenario A — Brand New User with No Workspace
+
+**Steps:**
+1. Use an incognito/private window
+2. Click invite link `/invites/[token]`
+3. **Expected**: You are sent to `/login?callbackUrl=/invites/[token]`
+4. After login/signup via **any sign-in method** (Google OAuth, email/magic link, credentials, etc.)
+5. **Expected**: You land back on `/invites/[token]` (not `/home` or `/welcome`)
+6. Click "Accept Invite"
+7. **Expected**: You are redirected to `/w/[invitedWorkspaceSlug]`
+8. **Expected**: No auto-created workspace appears; only the invited workspace exists
+9. **Expected**: Workspace switcher shows only the invited workspace
+
+**Test with all sign-in methods:**
+- **Google OAuth**: Click "Continue with Google" → Should preserve callbackUrl
+- **Email/Magic Link** (if configured): Enter email → Should preserve callbackUrl after email verification
+- **Credentials** (if configured): Enter email/password → Should preserve callbackUrl
+
+**Verification:**
+- Check browser console: No "No workspace found - user needs to create a workspace" error
+- Check network tab: No redirects to `/home` or `/welcome` after accepting invite
+- Verify `/api/auth/user-status` returns the invited workspace ID
+- Verify `getUnifiedAuth()` resolves to the invited workspace (not a default one)
+
+---
+
+### Scenario B — User with an Existing Workspace
+
+**Steps:**
+1. Log in as a user who already has workspace W1
+2. Receive invite to workspace W2 (different workspace)
+3. Click `/invites/[token]` (while logged in)
+4. **Expected**: Invite page loads (no redirect to login)
+5. Click "Accept Invite"
+6. **Expected**: You are redirected to `/w/[W2.slug]` (not W1)
+7. **Expected**: Workspace switcher now shows both W1 and W2
+8. **Expected**: You are currently in W2 (the newly invited workspace)
+
+**Verification:**
+- Check browser console: No errors about workspace resolution
+- Check network tab: Redirect goes to `/w/[W2.slug]`, not `/home?workspaceId=...`
+- Verify `/api/auth/user-status` returns W2's workspace ID (not W1)
+- Verify `getUnifiedAuth()` resolves to W2 when on `/w/[W2.slug]`
+- Verify `WorkspaceProvider` shows both workspaces in the switcher
+- Verify `currentWorkspace` is W2, not W1
+
+---
+
+### Scenario C — User Already a Member (Role Upgrade)
+
+**Steps:**
+1. Log in as a user who is already a MEMBER of workspace W1
+2. Receive invite to W1 with ADMIN role
+3. Click `/invites/[token]` and accept
+4. **Expected**: Role is upgraded from MEMBER to ADMIN
+5. **Expected**: Redirect to `/w/[W1.slug]` (same workspace)
+6. **Expected**: User still sees W1, but with ADMIN permissions
+
+**Verification:**
+- Check database: `WorkspaceMember.role` is updated to ADMIN
+- Verify permissions: User can now access admin-only features
+- Verify redirect: Goes to `/w/[W1.slug]` (not a different workspace)
+
+---
+
+### Common Verification Points
+
+**For all scenarios, verify:**
+
+1. **No automatic workspace creation:**
+   - No calls to `/api/workspace/create` or `createDefaultWorkspaceForUser`
+   - No redirects to `/welcome` page
+   - User only has the workspace(s) they were invited to
+
+2. **Correct workspace resolution:**
+   - `getUnifiedAuth()` resolves to invited workspace when on `/w/[slug]`
+   - Priority 1 (URL slug) takes precedence over Priority 4 (default workspace)
+   - No "wrong workspace" issues
+
+3. **Proper redirect chain:**
+   - Unauthenticated: `/invites/[token]` → `/login?callbackUrl=/invites/[token]` → `/invites/[token]`
+   - After accept: `/invites/[token]` → `/w/[workspaceSlug]`
+   - No intermediate redirects to `/home` or `/welcome`
+   - **All sign-in methods** (Google, email, credentials) must preserve callbackUrl through the auth flow
+
+4. **Logs and errors:**
+   - No "No workspace found" errors in console
+   - No 500 errors from `/api/invites/[token]/accept`
+   - No unexpected redirects in network tab
+
+---
+
+### Troubleshooting
+
+If issues occur:
+
+1. **User still redirected to `/welcome`:**
+   - Check `HomeLayout` redirect logic - should not trigger if user has workspace
+   - Verify `getUnifiedAuth()` is returning workspace ID correctly
+
+2. **User lands in wrong workspace:**
+   - Check that redirect uses `/w/[slug]` not `/home?workspaceId=...`
+   - Verify `getUnifiedAuth()` Priority 1 (slug) is working
+   - Check `WorkspaceProvider` is selecting correct workspace
+
+3. **Invite token lost during login:**
+   - Verify `callbackUrl` is preserved in login page (`src/app/login/page.tsx`)
+   - Check that **all sign-in methods** use the dynamic `callbackUrl` (not hardcoded `/home`)
+   - Check NextAuth redirect callback in `src/lib/auth.ts` - should respect the `url` parameter
+   - Verify middleware doesn't strip query params
+   - If using email/magic link: Verify the email verification flow preserves callbackUrl
+
+4. **API returns wrong workspace:**
+   - Check `/api/auth/user-status` response
+   - Verify `getUnifiedAuth(request)` sees the correct request URL
+   - Check that slug-based resolution is working in API routes
+
+---
+
+## 12. Debugging in Production
+
+To debug invite/login redirect issues in production, check the following log messages:
+
+### Log Messages to Look For
+
+#### 1. "Redirecting unauthenticated user from invite"
+
+**Location**: `src/app/(dashboard)/invites/[token]/page.tsx` (client-side)
+
+**When it appears**: When an unauthenticated user visits an invite link
+
+**What to check**:
+```json
+{
+  "level": "info",
+  "message": "Redirecting unauthenticated user from invite",
+  "invitePath": "/invites/[token]",
+  "callbackUrl": "/invites/[token]",
+  "loginUrl": "/login?callbackUrl=%2Finvites%2F[token]",
+  "currentHref": "https://loopwell.io/invites/[token]",
+  "timestamp": "2025-01-XX..."
+}
+```
+
+**Healthy flow**:
+- `invitePath` should be `/invites/[token]` (not empty or null)
+- `callbackUrl` should match `invitePath`
+- `loginUrl` should contain the encoded `callbackUrl`
+
+---
+
+#### 2. "Login: calling signIn with callbackUrl"
+
+**Location**: `src/app/login/page.tsx` (client-side)
+
+**When it appears**: Right before calling `signIn('google', ...)`
+
+**What to check**:
+```json
+{
+  "level": "info",
+  "message": "Login: calling signIn with callbackUrl",
+  "callbackUrl": "/invites/[token]",
+  "href": "https://loopwell.io/login?callbackUrl=%2Finvites%2F[token]",
+  "searchParams": "?callbackUrl=%2Finvites%2F[token]",
+  "timestamp": "2025-01-XX..."
+}
+```
+
+**Healthy flow**:
+- `callbackUrl` should be `/invites/[token]` (not `/home`)
+- `href` should contain `callbackUrl` in query params
+- `searchParams` should show the encoded `callbackUrl`
+
+**If broken**:
+- `callbackUrl` is `/home` → The search param wasn't read correctly
+- `callbackUrl` is `null` or missing → Search params weren't parsed
+
+---
+
+#### 3. "NextAuth redirect callback"
+
+**Location**: `src/lib/auth.ts` (server-side, in NextAuth callback)
+
+**When it appears**: After OAuth completes, when NextAuth determines where to redirect
+
+**What to check**:
+```json
+{
+  "timestamp": "2025-01-XX...",
+  "level": "info",
+  "message": "NextAuth redirect callback",
+  "context": {
+    "url": "/invites/[token]",
+    "baseUrl": "https://loopwell.io",
+    "finalUrl": "https://loopwell.io/invites/[token]",
+    "urlOrigin": "https://loopwell.io",
+    "baseUrlOrigin": "https://loopwell.io",
+    "isRelative": true,
+    "isSameOrigin": true
+  }
+}
+```
+
+**Healthy flow**:
+- `url` should be `/invites/[token]` (the callbackUrl from signIn)
+- `finalUrl` should be `https://loopwell.io/invites/[token]` (full URL)
+- `isRelative` should be `true` (if url starts with `/`)
+- `isSameOrigin` should be `true` (if url is same origin as baseUrl)
+
+**If broken**:
+- `url` is `/home` or `/` → The callbackUrl wasn't passed to NextAuth
+- `url` is a different origin → Security issue or misconfiguration
+- `finalUrl` doesn't match expected invite path → Redirect logic issue
+
+---
+
+### How to Trigger These Logs
+
+1. **Open invite link while logged out**:
+   - Visit `/invites/[token]` in incognito/private window
+   - Should see log #1 (redirecting to login)
+
+2. **Click sign-in button**:
+   - On `/login?callbackUrl=/invites/[token]` page
+   - Click "Continue with Google"
+   - Should see log #2 (calling signIn)
+
+3. **After OAuth completes**:
+   - NextAuth processes the callback
+   - Should see log #3 (redirect callback)
+   - User should be redirected to `/invites/[token]`
+
+---
+
+### What a Healthy Flow Looks Like
+
+**Step 1 - Invite page redirect**:
+```
+invitePath: "/invites/abc123"
+callbackUrl: "/invites/abc123"
+loginUrl: "/login?callbackUrl=%2Finvites%2Fabc123"
+```
+
+**Step 2 - Login page signIn**:
+```
+callbackUrl: "/invites/abc123"
+href: "https://loopwell.io/login?callbackUrl=%2Finvites%2Fabc123"
+```
+
+**Step 3 - NextAuth redirect callback**:
+```
+url: "/invites/abc123"
+baseUrl: "https://loopwell.io"
+finalUrl: "https://loopwell.io/invites/abc123"
+```
+
+**Result**: User lands on `/invites/abc123` (not `/home` or `/welcome`)
+
+---
+
+### Common Issues and What Logs Show
+
+**Issue**: User ends up on `/welcome` instead of `/invites/[token]`
+
+**Check logs**:
+- If log #1 shows correct `callbackUrl` but log #2 shows `callbackUrl: "/home"` → Login page isn't reading search params
+- If log #2 shows correct `callbackUrl` but log #3 shows `url: "/home"` → NextAuth isn't receiving callbackUrl
+- If log #3 shows correct `finalUrl` but user still goes to `/welcome` → Client-side redirect happening after NextAuth
+
+**Issue**: User ends up on `/home` instead of `/invites/[token]`
+
+**Check logs**:
+- If log #3 shows `url: "/home"` → callbackUrl was lost or overridden
+- If log #3 shows correct `url` but `finalUrl` is wrong → Redirect logic issue
+
+---
+
+### Where to Find Logs
+
+- **Development**: Browser console (for client-side logs) and terminal (for server-side logs)
+- **Production**: 
+  - Client-side logs: Browser console (if enabled) or client-side error tracking
+  - Server-side logs: Application logs (Vercel logs, CloudWatch, etc.)
+  - Look for JSON-formatted log entries with `level: "info"` and the message strings above
