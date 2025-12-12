@@ -3,11 +3,24 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { logger } from '@/lib/logger'
+import { buildLogContextFromRequest } from '@/lib/request-context'
+
+// Helper to hash workspaceId for logging (privacy/correlation protection)
+function hashWorkspaceId(workspaceId: string | null): string | undefined {
+  if (!workspaceId) return undefined
+  return workspaceId.slice(-6)
+}
 
 // GET /api/admin/users - Get all users for admin management
 export async function GET(request: NextRequest) {
+  const startTime = performance.now()
+  const baseContext = await buildLogContextFromRequest(request)
+  
   try {
+    const authStartTime = performance.now()
     const auth = await getUnifiedAuth(request)
+    const authDurationMs = performance.now() - authStartTime
     
     // Assert workspace access (admin only)
     await assertAccess({ 
@@ -20,6 +33,7 @@ export async function GET(request: NextRequest) {
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
+    const dbStartTime = performance.now()
     const users = await prisma.user.findMany({
       where: {
         workspaceMemberships: {
@@ -59,10 +73,36 @@ export async function GET(request: NextRequest) {
         name: 'asc'
       }
     })
+    const dbDurationMs = performance.now() - dbStartTime
+    const totalDurationMs = performance.now() - startTime
+
+    logger.info('admin/users GET', {
+      ...baseContext,
+      durationMs: Math.round(totalDurationMs * 100) / 100,
+      authDurationMs: Math.round(authDurationMs * 100) / 100,
+      dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+      resultCount: users.length,
+      workspaceIdHash: hashWorkspaceId(auth.workspaceId)
+    })
+
+    if (totalDurationMs > 500) {
+      logger.warn('admin/users GET (slow)', {
+        ...baseContext,
+        durationMs: Math.round(totalDurationMs * 100) / 100,
+        authDurationMs: Math.round(authDurationMs * 100) / 100,
+        dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+        resultCount: users.length,
+        workspaceIdHash: hashWorkspaceId(auth.workspaceId)
+      })
+    }
 
     return NextResponse.json(users)
   } catch (error) {
-    console.error('Error fetching users:', error)
+    const totalDurationMs = performance.now() - startTime
+    logger.error('admin/users GET (error)', {
+      ...baseContext,
+      durationMs: Math.round(totalDurationMs * 100) / 100
+    }, error instanceof Error ? error : new Error(String(error)))
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
   }
 }

@@ -3,11 +3,24 @@ import { prisma } from "@/lib/db"
 import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { logger } from "@/lib/logger"
+import { buildLogContextFromRequest } from "@/lib/request-context"
+
+// Helper to hash workspaceId for logging (privacy/correlation protection)
+function hashWorkspaceId(workspaceId: string | null): string | undefined {
+  if (!workspaceId) return undefined
+  return workspaceId.slice(-6)
+}
 
 // GET /api/org/departments - List all departments for a workspace
 export async function GET(request: NextRequest) {
+  const startTime = performance.now()
+  const baseContext = await buildLogContextFromRequest(request)
+  
   try {
+    const authStartTime = performance.now()
     const auth = await getUnifiedAuth(request)
+    const authDurationMs = performance.now() - authStartTime
     
     // Assert workspace access (VIEWER can read org structure)
     await assertAccess({ 
@@ -20,6 +33,7 @@ export async function GET(request: NextRequest) {
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
+    const dbStartTime = performance.now()
     const departments = await prisma.orgDepartment.findMany({
       where: {
         workspaceId: auth.workspaceId,
@@ -36,10 +50,36 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { order: 'asc' }
     })
+    const dbDurationMs = performance.now() - dbStartTime
+    const totalDurationMs = performance.now() - startTime
+
+    logger.info('org/departments GET', {
+      ...baseContext,
+      durationMs: Math.round(totalDurationMs * 100) / 100,
+      authDurationMs: Math.round(authDurationMs * 100) / 100,
+      dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+      resultCount: departments.length,
+      workspaceIdHash: hashWorkspaceId(auth.workspaceId)
+    })
+
+    if (totalDurationMs > 500) {
+      logger.warn('org/departments GET (slow)', {
+        ...baseContext,
+        durationMs: Math.round(totalDurationMs * 100) / 100,
+        authDurationMs: Math.round(authDurationMs * 100) / 100,
+        dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+        resultCount: departments.length,
+        workspaceIdHash: hashWorkspaceId(auth.workspaceId)
+      })
+    }
 
     return NextResponse.json(departments)
   } catch (error: any) {
-    console.error('Error fetching departments:', error)
+    const totalDurationMs = performance.now() - startTime
+    logger.error('org/departments GET (error)', {
+      ...baseContext,
+      durationMs: Math.round(totalDurationMs * 100) / 100
+    }, error instanceof Error ? error : new Error(String(error)))
     return NextResponse.json({ 
       error: error.message || 'Failed to fetch departments' 
     }, { status: 500 })
