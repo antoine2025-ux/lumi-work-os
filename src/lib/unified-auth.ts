@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { createDefaultWorkspaceForUser } from '@/lib/workspace-onboarding'
 import { getCachedAuth, setCachedAuth } from '@/lib/auth-cache'
+import { logger } from '@/lib/logger'
 
 export interface UnifiedAuthUser {
   userId: string
@@ -30,6 +31,10 @@ export interface AuthContext {
  * OPTIMIZED: Uses request-level caching to avoid duplicate auth queries
  */
 export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext> {
+  const startTime = performance.now()
+  const requestId = request?.headers.get('x-request-id') || 'no-request-id'
+  const route = request ? new URL(request.url).pathname : 'server-component'
+  
   // Create cache key from request (use cookie hash or session ID)
   const cacheKey = request 
     ? `auth:${request.headers.get('cookie')?.substring(0, 50) || 'no-cookie'}`
@@ -38,9 +43,17 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
   // Check request-level cache first (within same request)
   const cached = getCachedAuth(cacheKey)
   if (cached) {
+    const durationMs = performance.now() - startTime
+    logger.info('getUnifiedAuth (cached)', {
+      requestId,
+      route,
+      durationMs: Math.round(durationMs * 100) / 100,
+      cacheHit: true
+    })
     return cached
   }
 
+  const sessionStartTime = performance.now()
   // In App Router, getServerSession should work automatically
   // But for API routes, we need to handle it differently
   let session
@@ -78,12 +91,22 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
     console.error('Error getting session:', error)
     session = null
   }
+  const sessionDurationMs = performance.now() - sessionStartTime
+  
   // Require authentication - no dev bypasses
   // All users must authenticate through Google OAuth
   if (!session?.user?.email) {
+    const durationMs = performance.now() - startTime
+    logger.warn('getUnifiedAuth (unauthorized)', {
+      requestId,
+      route,
+      durationMs: Math.round(durationMs * 100) / 100,
+      sessionDurationMs: Math.round(sessionDurationMs * 100) / 100
+    })
     throw new Error('Unauthorized: No session found. Please log in through Google OAuth.')
   }
 
+  const dbStartTime = performance.now()
   // OPTIMIZED: Get or create user (single query with upsert-like pattern)
   let user = await prisma.user.findUnique({
     where: { email: session.user.email }
@@ -98,9 +121,12 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
       }
     })
   }
+  const userQueryDurationMs = performance.now() - dbStartTime
 
+  const workspaceStartTime = performance.now()
   // Resolve active workspace and get member in one optimized call
   const { workspaceId: activeWorkspaceId, workspaceMember } = await resolveActiveWorkspaceIdWithMember(user.id, request)
+  const workspaceQueryDurationMs = performance.now() - workspaceStartTime
 
   const roles = workspaceMember ? [workspaceMember.role] : []
   const isFirstTime = !workspaceMember
@@ -123,6 +149,31 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
   // Cache for this request
   setCachedAuth(cacheKey, authContext)
   
+  const totalDurationMs = performance.now() - startTime
+  logger.info('getUnifiedAuth', {
+    requestId,
+    route,
+    durationMs: Math.round(totalDurationMs * 100) / 100,
+    sessionDurationMs: Math.round(sessionDurationMs * 100) / 100,
+    dbDurationMs: Math.round((userQueryDurationMs + workspaceQueryDurationMs) * 100) / 100,
+    userQueryDurationMs: Math.round(userQueryDurationMs * 100) / 100,
+    workspaceQueryDurationMs: Math.round(workspaceQueryDurationMs * 100) / 100,
+    cacheHit: false,
+    userId: user.id,
+    workspaceId: activeWorkspaceId
+  })
+  
+  // Log slow auth (>500ms)
+  if (totalDurationMs > 500) {
+    logger.warn('getUnifiedAuth (slow)', {
+      requestId,
+      route,
+      durationMs: Math.round(totalDurationMs * 100) / 100,
+      sessionDurationMs: Math.round(sessionDurationMs * 100) / 100,
+      dbDurationMs: Math.round((userQueryDurationMs + workspaceQueryDurationMs) * 100) / 100
+    })
+  }
+  
   return authContext
 }
 
@@ -140,6 +191,9 @@ async function resolveActiveWorkspaceIdWithMember(
   userId: string, 
   request?: NextRequest
 ): Promise<{ workspaceId: string; workspaceMember: any }> {
+  const startTime = performance.now()
+  const requestId = request?.headers.get('x-request-id') || 'no-request-id'
+  
   // Priority 1: URL path slug (/w/[workspaceSlug]/...)
   if (request) {
     const url = new URL(request.url)
@@ -150,6 +204,7 @@ async function resolveActiveWorkspaceIdWithMember(
     if (slugMatch) {
       const workspaceSlug = slugMatch[1]
       
+      const dbStartTime = performance.now()
       // Look up workspace by slug and validate membership in one query
       const workspace = await prisma.workspace.findUnique({
         where: { slug: workspaceSlug },
@@ -159,9 +214,18 @@ async function resolveActiveWorkspaceIdWithMember(
           }
         }
       })
+      const dbDurationMs = performance.now() - dbStartTime
       
       if (workspace && workspace.members.length > 0) {
         const member = workspace.members[0]
+        const totalDurationMs = performance.now() - startTime
+        logger.debug('resolveActiveWorkspaceIdWithMember (slug)', {
+          requestId,
+          method: 'slug',
+          durationMs: Math.round(totalDurationMs * 100) / 100,
+          dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+          workspaceId: workspace.id
+        })
         return { workspaceId: workspace.id, workspaceMember: member }
       }
       
@@ -239,6 +303,7 @@ async function resolveActiveWorkspaceIdWithMember(
   // Priority 4: User's default workspace
   // OPTIMIZED: Single query to get first membership with workspace verification
   // Use findFirst with a join condition instead of findMany + filter
+  const dbStartTime = performance.now()
   const validMembership = await prisma.workspaceMember.findFirst({
     where: { 
       userId,
@@ -253,8 +318,17 @@ async function resolveActiveWorkspaceIdWithMember(
       }
     }
   })
+  const dbDurationMs = performance.now() - dbStartTime
   
   if (validMembership && validMembership.workspace) {
+    const totalDurationMs = performance.now() - startTime
+    logger.debug('resolveActiveWorkspaceIdWithMember (default)', {
+      requestId,
+      method: 'default',
+      durationMs: Math.round(totalDurationMs * 100) / 100,
+      dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+      workspaceId: validMembership.workspaceId
+    })
     return { 
       workspaceId: validMembership.workspaceId, 
       workspaceMember: validMembership 
@@ -262,6 +336,13 @@ async function resolveActiveWorkspaceIdWithMember(
   }
 
   // No workspace found - user needs to create one
+  const totalDurationMs = performance.now() - startTime
+  logger.warn('resolveActiveWorkspaceIdWithMember (no workspace)', {
+    requestId,
+    method: 'default',
+    durationMs: Math.round(totalDurationMs * 100) / 100,
+    dbDurationMs: Math.round(dbDurationMs * 100) / 100
+  })
   throw new Error('No workspace found - user needs to create a workspace')
 }
 

@@ -3,6 +3,10 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 
 // GET /api/workspaces/[workspaceId]/user-role - Get user's role in a workspace
+// 
+// DEPRECATED: Frontend no longer calls this endpoint. Role is now included in /api/auth/user-status response.
+// Keeping this endpoint temporarily for backwards compatibility with any external integrations.
+// TODO: Remove after confirming no external dependencies.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceId: string }> }

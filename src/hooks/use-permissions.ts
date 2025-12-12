@@ -38,14 +38,9 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
           throw new Error('No workspace found')
         }
 
-        // Get user role in workspace
-        const roleResponse = await fetch(`/api/workspaces/${userStatus.workspaceId}/user-role`)
-        if (!roleResponse.ok) {
-          throw new Error('Failed to get user role')
-        }
-        
-        const roleData = await roleResponse.json()
-        const userRole = roleData.role || 'MEMBER'
+        // Get user role from userStatus (no separate API call needed)
+        // Default to MEMBER for backward compatibility if role is missing
+        const userRole = userStatus.role || 'MEMBER'
         
         const permissionContext: PermissionContextType = {
           userId: userStatus.user.id,

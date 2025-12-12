@@ -9,6 +9,7 @@ interface UserStatus {
     email: string
   }
   workspaceId: string | null
+  role?: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' // Optional for backward compatibility
   isDevelopment: boolean
   error?: string
   pendingInvite?: {

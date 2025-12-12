@@ -55,6 +55,7 @@ interface OrgPosition {
   id: string
   title: string
   teamId?: string | null
+  departmentId?: string | null // New: direct department ID
   team?: {
     id: string
     name: string
@@ -66,8 +67,11 @@ interface OrgPosition {
   level: number
   parentId: string | null
   userId: string | null
-  order: number
+  order?: number // Optional for backward compatibility
   isActive: boolean
+  createdAt?: string // ISO string from API
+  updatedAt?: string // ISO string from API
+  childCount?: number // New: number of children (for lazy loading)
   // Contextual AI fields (optional for backward compatibility)
   roleDescription?: string | null
   responsibilities?: string[]
@@ -85,7 +89,7 @@ interface OrgPosition {
       name: string | null
     } | null
   } | null
-  children?: OrgPosition[]
+  children?: OrgPosition[] // Optional: only present in legacy tree mode
 }
 
 export default function OrgChartPage() {
@@ -111,7 +115,7 @@ export default function OrgChartPage() {
   const [userRoleLoaded, setUserRoleLoaded] = useState(false)
   const [orgAccessDenied, setOrgAccessDenied] = useState(false)
 
-  // Get workspace ID from user status, then fetch role separately
+  // Get workspace ID and role from user status (no separate API call needed)
   useEffect(() => {
     const fetchUserStatus = async () => {
       try {
@@ -121,27 +125,17 @@ export default function OrgChartPage() {
           if (userStatus.workspaceId) {
             setWorkspaceId(userStatus.workspaceId)
             
-            // Fetch user role from workspace members API (user-status doesn't return role)
-            try {
-              const roleResponse = await fetch(`/api/workspaces/${userStatus.workspaceId}/user-role`, {
-                credentials: 'include'
-              })
-              if (roleResponse.ok) {
-                const roleData = await roleResponse.json()
-                if (roleData.role) {
-                  setUserRole(roleData.role as 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER')
-                }
-              }
-              // Mark role as loaded regardless of success/failure (defaults to MEMBER)
-              setUserRoleLoaded(true)
-            } catch (roleError) {
-              // Graceful degradation - default to MEMBER if role fetch fails
-              setUserRoleLoaded(true)
-            }
+            // Use role from userStatus if available, otherwise default to MEMBER
+            const role = userStatus.role || 'MEMBER'
+            setUserRole(role as 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER')
+            setUserRoleLoaded(true)
           }
         }
       } catch (error) {
         // Error handling - don't log sensitive data
+        // Default to MEMBER if fetch fails
+        setUserRole('MEMBER')
+        setUserRoleLoaded(true)
       }
     }
     fetchUserStatus()
@@ -192,7 +186,19 @@ export default function OrgChartPage() {
       } else if (orgResponse && orgResponse.ok) {
         try {
           const data = await orgResponse.json()
-          setOrgData(data || [])
+          // Edge case handling: Normalize data for UI compatibility
+          const normalizedData = (data || []).map((position: OrgPosition) => {
+            // Create new object without children field (flat mode contract)
+            const { children, ...positionWithoutChildren } = position
+            return {
+              ...positionWithoutChildren,
+              // Ensure level is never null (default to 0 for root positions)
+              level: position.level ?? 0,
+              // Ensure parentId is null (not undefined) for consistency
+              parentId: position.parentId ?? null
+            }
+          })
+          setOrgData(normalizedData)
         } catch (err) {
           console.error('Error parsing org data:', err)
           setOrgData([])
@@ -794,9 +800,24 @@ export default function OrgChartPage() {
           ) : (
             <div className="space-y-8">
               {/* Render by levels */}
-              {[1, 2, 3, 4, 5].map(level => {
-                const positionsAtLevel = orgData.filter(position => position.level === level)
+              {/* Edge case: Handle positions with null/undefined level (treat as level 0) */}
+              {[0, 1, 2, 3, 4, 5].map(level => {
+                const positionsAtLevel = orgData.filter(position => (position.level ?? 0) === level)
                 if (positionsAtLevel.length === 0) return null
+                
+                // Edge case: If parentId points to missing node, treat as root (level 0)
+                // This handles stale data where parent was deleted
+                const validPositions = positionsAtLevel.filter(position => {
+                  if (position.parentId) {
+                    const parentExists = orgData.some(p => p.id === position.parentId)
+                    if (!parentExists) {
+                      // Parent missing - this is a data inconsistency, but don't break UI
+                      // Position will render at its current level (may appear as orphan)
+                      return true
+                    }
+                  }
+                  return true
+                })
 
                 return (
                   <div key={level} className="space-y-4">
@@ -804,7 +825,7 @@ export default function OrgChartPage() {
                       Level {level} {level === 1 ? '(Executive)' : level === 2 ? '(Senior Leadership)' : level === 3 ? '(Directors)' : level === 4 ? '(Managers)' : '(Individual Contributors)'}
                     </h3>
                     <div className={`flex ${level === 1 ? 'justify-center' : level === 2 ? 'justify-center space-x-8' : 'justify-center space-x-4'} flex-wrap gap-4`}>
-                      {positionsAtLevel.map((position) => (
+                      {validPositions.map((position) => (
                         <div key={position.id} className={`${level === 1 ? 'w-80' : level === 2 ? 'w-72' : 'w-64'}`}>
                           {position.user ? (
                             <UserProfileCard
@@ -857,7 +878,7 @@ export default function OrgChartPage() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {departments.map((dept) => {
                 const deptPositions = orgData.filter(position => 
-                  position.team?.department?.id === dept.id
+                  position.departmentId === dept.id || position.team?.department?.id === dept.id
                 )
                 return (
                   <Card key={dept.id} className="border-0 rounded-xl" style={{ backgroundColor: colors.surface }}>

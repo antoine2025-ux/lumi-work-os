@@ -81,30 +81,16 @@ export default function SettingsPage() {
   const [slackLoading, setSlackLoading] = useState(false)
   const [slackMessage, setSlackMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
-  // Fetch user role (reuse pattern from org page)
+  // Get user role from userStatus (no separate API call needed)
   useEffect(() => {
-    const fetchUserRole = async () => {
-      try {
-        if (userStatusLoading || !userStatus?.workspaceId) {
-          return
-        }
-        
-        const roleResponse = await fetch(`/api/workspaces/${userStatus.workspaceId}/user-role`, {
-          credentials: 'include'
-        })
-        if (roleResponse.ok) {
-          const roleData = await roleResponse.json()
-          if (roleData.role) {
-            setUserRole(roleData.role as 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER')
-          }
-        }
-        setUserRoleLoaded(true)
-      } catch (roleError) {
-        // Graceful degradation - default to MEMBER if role fetch fails
-        setUserRoleLoaded(true)
-      }
+    if (userStatusLoading || !userStatus) {
+      return
     }
-    fetchUserRole()
+    
+    // Use role from userStatus if available, otherwise default to MEMBER
+    const role = userStatus.role || 'MEMBER'
+    setUserRole(role as 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER')
+    setUserRoleLoaded(true)
   }, [userStatus, userStatusLoading])
 
   // Fetch workspace data (only if role allows)

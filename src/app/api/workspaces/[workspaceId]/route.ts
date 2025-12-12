@@ -3,15 +3,22 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from "@/lib/db"
+import { logger } from '@/lib/logger'
+import { buildLogContextFromRequest } from '@/lib/request-context'
 
 // GET /api/workspaces/[workspaceId] - Get workspace details
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceId: string }> }
 ) {
+  const startTime = performance.now()
+  const baseContext = await buildLogContextFromRequest(request)
+  
   try {
     const { workspaceId } = await params
+    const authStartTime = performance.now()
     const auth = await getUnifiedAuth(request)
+    const authDurationMs = performance.now() - authStartTime
     
     // Assert user has access to this workspace
     await assertAccess({ 
@@ -25,6 +32,7 @@ export async function GET(
     setWorkspaceContext(workspaceId)
 
     // Get workspace details
+    const dbStartTime = performance.now()
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
       include: {
@@ -49,6 +57,9 @@ export async function GET(
 
     const userRole = workspace.members[0]?.role || 'MEMBER'
 
+    const dbDurationMs = performance.now() - dbStartTime
+    const totalDurationMs = performance.now() - startTime
+
     const workspaceData = {
       id: workspace.id,
       name: workspace.name,
@@ -64,6 +75,23 @@ export async function GET(
         wikiPages: workspace._count.wikiPages,
         tasks: workspace._count.tasks
       }
+    }
+
+    logger.info('workspace GET', {
+      ...baseContext,
+      durationMs: Math.round(totalDurationMs * 100) / 100,
+      authDurationMs: Math.round(authDurationMs * 100) / 100,
+      dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+      workspaceId
+    })
+    
+    if (totalDurationMs > 500) {
+      logger.warn('workspace GET (slow)', {
+        ...baseContext,
+        durationMs: Math.round(totalDurationMs * 100) / 100,
+        authDurationMs: Math.round(authDurationMs * 100) / 100,
+        dbDurationMs: Math.round(dbDurationMs * 100) / 100
+      })
     }
 
     return NextResponse.json(workspaceData)
