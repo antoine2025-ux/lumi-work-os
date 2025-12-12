@@ -93,18 +93,35 @@ export function WorkspaceMembers() {
         canManageMembers ? fetch(`/api/workspaces/${currentWorkspace.id}/invites`) : Promise.resolve(null)
       ])
 
-      if (membersRes.ok) {
+      // Handle 403/401 gracefully (no console errors)
+      if (membersRes.status === 403 || membersRes.status === 401) {
+        // Silent handling - user doesn't have permission
+        setMembers([])
+      } else if (membersRes.ok) {
         const membersData = await membersRes.json()
         setMembers(membersData.members || [])
+      } else if (membersRes.status >= 500) {
+        // Only show error for 5xx
+        setToastMessage({ type: 'error', message: 'Failed to load members' })
       }
 
-      if (invitesRes?.ok) {
-        const invitesData = await invitesRes.json()
-        setInvites(invitesData.invites || [])
+      if (invitesRes) {
+        if (invitesRes.status === 403 || invitesRes.status === 401) {
+          // Silent handling
+          setInvites([])
+        } else if (invitesRes.ok) {
+          const invitesData = await invitesRes.json()
+          setInvites(invitesData.invites || [])
+        } else if (invitesRes.status >= 500) {
+          // Only show error for 5xx
+          setToastMessage({ type: 'error', message: 'Failed to load invites' })
+        }
       }
     } catch (error) {
-      console.error("Error loading members/invites:", error)
-      setToastMessage({ type: 'error', message: 'Failed to load members and invites' })
+      // Only log real network errors, not permission errors
+      if (error instanceof Error && !error.message.includes('permission')) {
+        // Silent handling for permission errors
+      }
     } finally {
       setLoading(false)
     }

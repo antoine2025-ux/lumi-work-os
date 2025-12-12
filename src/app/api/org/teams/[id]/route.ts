@@ -13,12 +13,12 @@ export async function GET(
     const auth = await getUnifiedAuth(request)
     const { id } = await params
     
-    // Assert workspace access
+    // Assert workspace access (VIEWER can read org structure)
     await assertAccess({ 
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       scope: 'workspace', 
-      requireRole: ['MEMBER'] 
+      requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
     })
 
     setWorkspaceContext(auth.workspaceId)

@@ -109,6 +109,7 @@ export default function OrgChartPage() {
   const [workspaceId, setWorkspaceId] = useState<string>('')
   const [userRole, setUserRole] = useState<'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'>('MEMBER')
   const [userRoleLoaded, setUserRoleLoaded] = useState(false)
+  const [orgAccessDenied, setOrgAccessDenied] = useState(false)
 
   // Get workspace ID from user status, then fetch role separately
   useEffect(() => {
@@ -156,6 +157,7 @@ export default function OrgChartPage() {
   const loadOrgData = async () => {
     try {
       setLoading(true)
+      setOrgAccessDenied(false)
       
       // Include credentials for authentication
       const fetchOptions = {
@@ -183,7 +185,11 @@ export default function OrgChartPage() {
         })
       ])
       
-      if (orgResponse && orgResponse.ok) {
+      // Check for 403 (access denied) errors
+      if (orgResponse && orgResponse.status === 403) {
+        setOrgAccessDenied(true)
+        setOrgData([])
+      } else if (orgResponse && orgResponse.ok) {
         try {
           const data = await orgResponse.json()
           setOrgData(data || [])
@@ -193,6 +199,21 @@ export default function OrgChartPage() {
         }
       } else {
         setOrgData([])
+      }
+
+      if (departmentsResponse && departmentsResponse.status === 403) {
+        setOrgAccessDenied(true)
+        setDepartments([])
+      } else if (departmentsResponse && departmentsResponse.ok) {
+        try {
+          const departmentsData = await departmentsResponse.json()
+          setDepartments(departmentsData || [])
+        } catch (err) {
+          // Error parsing departments data - handled gracefully
+          setDepartments([])
+        }
+      } else {
+        setDepartments([])
       }
 
       if (usersResponse && usersResponse.ok) {
@@ -205,18 +226,6 @@ export default function OrgChartPage() {
         }
       } else if (usersResponse) {
         setUsers([])
-      }
-
-      if (departmentsResponse && departmentsResponse.ok) {
-        try {
-          const departmentsData = await departmentsResponse.json()
-          setDepartments(departmentsData || [])
-        } catch (err) {
-          // Error parsing departments data - handled gracefully
-          setDepartments([])
-        }
-      } else {
-        setDepartments([])
       }
     } catch (error) {
       // Error loading org data - handled gracefully
@@ -645,11 +654,28 @@ export default function OrgChartPage() {
 
   // Check if this is a clean slate (no departments exist)
   const isCleanSlate = departments.length === 0 && !loading
+  const orgDataIsEmpty = orgData.length === 0 && !loading
+  const canEdit = userRole === 'OWNER' || userRole === 'ADMIN'
 
   return (
     <div className="min-h-screen bg-slate-950">
-        {isCleanSlate ? (
-          // Clean Slate Setup View
+        {orgAccessDenied ? (
+          // Access denied message
+          <div className="min-h-screen flex items-center justify-center">
+            <Card className="border-0 rounded-xl max-w-md" style={{ backgroundColor: colors.surface }}>
+              <CardContent className="p-6">
+                <div className="text-center">
+                  <Shield className="h-12 w-12 mx-auto mb-4" style={{ color: colors.textSecondary }} />
+                  <h3 className="text-lg font-bold mb-2" style={{ color: colors.text }}>No Access</h3>
+                  <p className="text-sm" style={{ color: colors.textSecondary }}>
+                    You don't have permission to view the organization chart.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : isCleanSlate && canEdit ? (
+          // Clean Slate Setup View (only for OWNER/ADMIN)
           <OrgCleanSlate
             workspaceId={workspaceId}
             onStructureCreated={loadOrgData}
@@ -750,12 +776,18 @@ export default function OrgChartPage() {
                   <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
                   <h3 className="text-lg font-bold text-muted-foreground">No positions yet</h3>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4">Get started by adding your first position to the organization chart.</p>
-                {isAdmin && showUserManagement && (
-                  <Button onClick={handleAddPosition} className="rounded-lg">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Add First Position
-                  </Button>
+                {canEdit ? (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-4">Get started by adding your first position to the organization chart.</p>
+                    {isAdmin && showUserManagement && (
+                      <Button onClick={handleAddPosition} className="rounded-lg">
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Add First Position
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">The organization chart is empty. Contact an administrator to set up the organization structure.</p>
                 )}
               </CardContent>
             </Card>

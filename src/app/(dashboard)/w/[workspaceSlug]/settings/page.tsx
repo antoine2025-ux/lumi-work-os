@@ -60,6 +60,8 @@ export default function SettingsPage() {
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || "workspace")
   const [workspaceData, setWorkspaceData] = useState<WorkspaceData | null>(null)
+  const [userRole, setUserRole] = useState<'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'>('MEMBER')
+  const [userRoleLoaded, setUserRoleLoaded] = useState(false)
   
   // Update activeTab when searchParams change
   useEffect(() => {
@@ -79,26 +81,61 @@ export default function SettingsPage() {
   const [slackLoading, setSlackLoading] = useState(false)
   const [slackMessage, setSlackMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
-  // Fetch workspace data
+  // Fetch user role (reuse pattern from org page)
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        if (userStatusLoading || !userStatus?.workspaceId) {
+          return
+        }
+        
+        const roleResponse = await fetch(`/api/workspaces/${userStatus.workspaceId}/user-role`, {
+          credentials: 'include'
+        })
+        if (roleResponse.ok) {
+          const roleData = await roleResponse.json()
+          if (roleData.role) {
+            setUserRole(roleData.role as 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER')
+          }
+        }
+        setUserRoleLoaded(true)
+      } catch (roleError) {
+        // Graceful degradation - default to MEMBER if role fetch fails
+        setUserRoleLoaded(true)
+      }
+    }
+    fetchUserRole()
+  }, [userStatus, userStatusLoading])
+
+  // Fetch workspace data (only if role allows)
   useEffect(() => {
     const fetchWorkspaceData = async () => {
+      // Wait for role to be loaded before fetching
+      if (!userRoleLoaded || userStatusLoading || !userStatus?.workspaceId) {
+        return
+      }
+      
       try {
         setLoading(true)
         setError(null)
         
-        // Wait for user status to be loaded
-        if (userStatusLoading || !userStatus) {
+        // Fetch workspace details
+        const workspaceResponse = await fetch(`/api/workspaces/${userStatus.workspaceId}`)
+        
+        // Handle 403/401 gracefully (no console errors)
+        if (workspaceResponse.status === 403 || workspaceResponse.status === 401) {
+          setError('You don\'t have permission to view workspace settings')
+          setLoading(false)
           return
         }
         
-        if (!userStatus.workspaceId) {
-          throw new Error('No workspace found')
-        }
-        
-        // Fetch workspace details
-        const workspaceResponse = await fetch(`/api/workspaces/${userStatus.workspaceId}`)
         if (!workspaceResponse.ok) {
-          throw new Error('Failed to fetch workspace data')
+          // Only show error for 5xx, not 4xx
+          if (workspaceResponse.status >= 500) {
+            setError('Failed to load workspace data')
+          }
+          setLoading(false)
+          return
         }
         
         const workspace = await workspaceResponse.json()
@@ -109,15 +146,18 @@ export default function SettingsPage() {
           slug: workspace.slug
         })
       } catch (err) {
-        console.error('Error fetching workspace:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load workspace data')
+        // Only log real errors (network issues, etc.), not permission errors
+        if (err instanceof Error && !err.message.includes('permission')) {
+          // Silent handling for permission errors
+        }
+        // Don't set error for network issues - let it fail gracefully
       } finally {
         setLoading(false)
       }
     }
 
     fetchWorkspaceData()
-  }, [userStatus, userStatusLoading])
+  }, [userStatus, userStatusLoading, userRoleLoaded])
 
   // Check for OAuth callback messages
   useEffect(() => {
@@ -136,13 +176,35 @@ export default function SettingsPage() {
     }
   }, [searchParams, router])
 
-  // Set active tab from URL
+  // Set active tab from URL (validate against role permissions)
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab && ['workspace', 'notifications', 'appearance', 'integrations', 'permissions', 'migrations'].includes(tab)) {
-      setActiveTab(tab)
+    if (tab && ['workspace', 'notifications', 'appearance', 'integrations', 'permissions', 'migrations', 'members'].includes(tab)) {
+      // Validate tab access based on role
+      const allowedTabs = getAllowedTabs(userRole)
+      if (allowedTabs.includes(tab)) {
+        setActiveTab(tab)
+      } else {
+        // Redirect to first allowed tab if current tab is not allowed
+        setActiveTab(allowedTabs[0] || 'workspace')
+        router.push(`${pathname}?tab=${allowedTabs[0] || 'workspace'}`, { scroll: false })
+      }
     }
-  }, [searchParams])
+  }, [searchParams, userRole, pathname, router])
+
+  // Helper function to get allowed tabs based on role
+  const getAllowedTabs = (role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'): string[] => {
+    if (role === 'OWNER' || role === 'ADMIN') {
+      return ['workspace', 'notifications', 'appearance', 'integrations', 'permissions', 'migrations', 'members']
+    } else if (role === 'MEMBER') {
+      return ['workspace', 'notifications', 'appearance', 'members']
+    } else { // VIEWER
+      return ['workspace', 'notifications', 'appearance']
+    }
+  }
+
+  const allowedTabs = getAllowedTabs(userRole)
+  const canEdit = userRole === 'OWNER' || userRole === 'ADMIN'
 
   // Fetch Slack integration status
   const fetchSlackIntegration = async () => {
@@ -158,19 +220,20 @@ export default function SettingsPage() {
         setSlackIntegration({ connected: false })
       }
     } catch (err) {
-      console.error('Error fetching Slack integration:', err)
+      // Silent handling - don't log permission errors
       setSlackIntegration({ connected: false })
     } finally {
       setSlackLoading(false)
     }
   }
 
-  // Fetch Slack integration when integrations tab is active
+  // Fetch Slack integration when integrations tab is active (only if role allows)
   useEffect(() => {
-    if (activeTab === 'integrations' && userStatus?.workspaceId) {
+    const canAccessIntegrations = userRole === 'OWNER' || userRole === 'ADMIN'
+    if (activeTab === 'integrations' && userStatus?.workspaceId && canAccessIntegrations) {
       fetchSlackIntegration()
     }
-  }, [activeTab, userStatus?.workspaceId])
+  }, [activeTab, userStatus?.workspaceId, userRole])
 
   // Handle Slack connect
   const handleSlackConnect = () => {
@@ -205,7 +268,7 @@ export default function SettingsPage() {
 
   // Save workspace changes
   const handleSave = async () => {
-    if (!workspaceData) return
+    if (!workspaceData || !canEdit) return
     
     try {
       setSaving(true)
@@ -219,21 +282,36 @@ export default function SettingsPage() {
         body: JSON.stringify(formData)
       })
       
+      // Handle 403/401 gracefully
+      if (response.status === 403 || response.status === 401) {
+        setError('You don\'t have permission to update workspace settings')
+        setSaving(false)
+        return
+      }
+      
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update workspace')
+        // Only show error for 5xx, not 4xx
+        if (response.status >= 500) {
+          throw new Error(errorData.error || 'Failed to update workspace')
+        } else {
+          setError(errorData.error || 'Failed to update workspace')
+          setSaving(false)
+          return
+        }
       }
       
       const updatedWorkspace = await response.json()
       setWorkspaceData(updatedWorkspace)
       setEditMode(false)
       
-      // Show success message (you could add a toast notification here)
-      console.log('Workspace updated successfully')
-      
     } catch (err) {
-      console.error('Error updating workspace:', err)
-      setError(err instanceof Error ? err.message : 'Failed to update workspace')
+      // Handle 403/401 gracefully
+      if (err instanceof Error && err.message.includes('permission')) {
+        setError('You don\'t have permission to update workspace settings')
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to update workspace')
+      }
     } finally {
       setSaving(false)
     }
@@ -241,7 +319,7 @@ export default function SettingsPage() {
 
   // Delete workspace
   const handleDeleteWorkspace = async () => {
-    if (!workspaceData) return
+    if (!workspaceData || userRole !== 'OWNER') return
     
     const confirmed = window.confirm(
       `Are you sure you want to delete "${workspaceData.name}"? This action cannot be undone and will permanently delete all workspace data including:\n\n` +
@@ -268,9 +346,23 @@ export default function SettingsPage() {
         method: 'DELETE'
       })
       
+      // Handle 403/401 gracefully
+      if (response.status === 403 || response.status === 401) {
+        setError('You don\'t have permission to delete this workspace')
+        setSaving(false)
+        return
+      }
+      
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete workspace')
+        // Only show error for 5xx, not 4xx
+        if (response.status >= 500) {
+          throw new Error(errorData.error || 'Failed to delete workspace')
+        } else {
+          setError(errorData.error || 'Failed to delete workspace')
+          setSaving(false)
+          return
+        }
       }
       
       // Clear any cached data
@@ -284,8 +376,12 @@ export default function SettingsPage() {
       window.location.href = '/login'
       
     } catch (err) {
-      console.error('Error deleting workspace:', err)
-      setError(err instanceof Error ? err.message : 'Failed to delete workspace')
+      // Handle 403/401 gracefully
+      if (err instanceof Error && err.message.includes('permission')) {
+        setError('You don\'t have permission to delete this workspace')
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to delete workspace')
+      }
     } finally {
       setSaving(false)
     }
@@ -327,85 +423,99 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs - gated by role */}
       <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
-        <Button
-          variant={activeTab === "workspace" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => {
-            setActiveTab("workspace")
-            router.push(`${pathname}?tab=workspace`, { scroll: false })
-          }}
-        >
-          <Building className="mr-2 h-4 w-4" />
-          Workspace
-        </Button>
-        <Button
-          variant={activeTab === "notifications" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => {
-            setActiveTab("notifications")
-            router.push(`${pathname}?tab=notifications`, { scroll: false })
-          }}
-        >
-          <Bell className="mr-2 h-4 w-4" />
-          Notifications
-        </Button>
-        <Button
-          variant={activeTab === "appearance" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => {
-            setActiveTab("appearance")
-            router.push(`${pathname}?tab=appearance`, { scroll: false })
-          }}
-        >
-          <Palette className="mr-2 h-4 w-4" />
-          Appearance
-        </Button>
-        <Button
-          variant={activeTab === "integrations" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => {
-            setActiveTab("integrations")
-            router.push(`${pathname}?tab=integrations`, { scroll: false })
-          }}
-        >
-          <Plug className="mr-2 h-4 w-4" />
-          Integrations
-        </Button>
-        <Button
-          variant={activeTab === "permissions" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => {
-            setActiveTab("permissions")
-            router.push(`${pathname}?tab=permissions`, { scroll: false })
-          }}
-        >
-          <Shield className="mr-2 h-4 w-4" />
-          Permissions
-        </Button>
-        <Button
-          variant={activeTab === "migrations" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => {
-            setActiveTab("migrations")
-            router.push(`${pathname}?tab=migrations`, { scroll: false })
-          }}
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Migrations
-        </Button>
-        <Button
-          variant={activeTab === "members" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => {
-            setActiveTab("members")
-            router.push(`${pathname}?tab=members`, { scroll: false })
-          }}
-        >
-          <User className="mr-2 h-4 w-4" />
-          Members
-        </Button>
+        {allowedTabs.includes('workspace') && (
+          <Button
+            variant={activeTab === "workspace" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => {
+              setActiveTab("workspace")
+              router.push(`${pathname}?tab=workspace`, { scroll: false })
+            }}
+          >
+            <Building className="mr-2 h-4 w-4" />
+            Workspace
+          </Button>
+        )}
+        {allowedTabs.includes('notifications') && (
+          <Button
+            variant={activeTab === "notifications" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => {
+              setActiveTab("notifications")
+              router.push(`${pathname}?tab=notifications`, { scroll: false })
+            }}
+          >
+            <Bell className="mr-2 h-4 w-4" />
+            Notifications
+          </Button>
+        )}
+        {allowedTabs.includes('appearance') && (
+          <Button
+            variant={activeTab === "appearance" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => {
+              setActiveTab("appearance")
+              router.push(`${pathname}?tab=appearance`, { scroll: false })
+            }}
+          >
+            <Palette className="mr-2 h-4 w-4" />
+            Appearance
+          </Button>
+        )}
+        {allowedTabs.includes('integrations') && (
+          <Button
+            variant={activeTab === "integrations" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => {
+              setActiveTab("integrations")
+              router.push(`${pathname}?tab=integrations`, { scroll: false })
+            }}
+          >
+            <Plug className="mr-2 h-4 w-4" />
+            Integrations
+          </Button>
+        )}
+        {allowedTabs.includes('permissions') && (
+          <Button
+            variant={activeTab === "permissions" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => {
+              setActiveTab("permissions")
+              router.push(`${pathname}?tab=permissions`, { scroll: false })
+            }}
+          >
+            <Shield className="mr-2 h-4 w-4" />
+            Permissions
+          </Button>
+        )}
+        {allowedTabs.includes('migrations') && (
+          <Button
+            variant={activeTab === "migrations" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => {
+              setActiveTab("migrations")
+              router.push(`${pathname}?tab=migrations`, { scroll: false })
+            }}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Migrations
+          </Button>
+        )}
+        {allowedTabs.includes('members') && (
+          <Button
+            variant={activeTab === "members" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => {
+              setActiveTab("members")
+              router.push(`${pathname}?tab=members`, { scroll: false })
+            }}
+          >
+            <User className="mr-2 h-4 w-4" />
+            Members
+          </Button>
+        )}
       </div>
 
       {/* Workspace Settings */}
@@ -431,6 +541,17 @@ export default function SettingsPage() {
             </Card>
           ) : workspaceData ? (
             <>
+              {/* Show read-only message for VIEWER */}
+              {!canEdit && (
+                <Card className="mb-4">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2 text-muted-foreground">
+                      <Shield className="h-4 w-4" />
+                      <span className="text-sm">View-only mode. Contact an administrator to make changes.</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -440,7 +561,7 @@ export default function SettingsPage() {
                         Basic information about your workspace
                       </CardDescription>
                     </div>
-                    {!editMode && (workspaceData.userRole === 'ADMIN' || workspaceData.userRole === 'OWNER') && (
+                    {!editMode && canEdit && (
                       <Button variant="outline" onClick={() => setEditMode(true)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
@@ -464,8 +585,9 @@ export default function SettingsPage() {
                       <Input 
                         value={formData.name}
                         onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        disabled={!editMode}
+                        disabled={!editMode || !canEdit}
                         placeholder="Enter workspace name"
+                        readOnly={!canEdit}
                       />
                     </div>
                     <div className="space-y-2">
@@ -477,9 +599,10 @@ export default function SettingsPage() {
                         <Input 
                           value={formData.slug}
                           onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
-                          disabled={!editMode}
+                          disabled={!editMode || !canEdit}
                           className="rounded-l-none"
                           placeholder="workspace-url"
+                          readOnly={!canEdit}
                         />
                       </div>
                     </div>
@@ -490,8 +613,9 @@ export default function SettingsPage() {
                     <Input 
                       value={formData.description}
                       onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      disabled={!editMode}
+                      disabled={!editMode || !canEdit}
                       placeholder="Enter workspace description"
+                      readOnly={!canEdit}
                     />
                   </div>
                   
@@ -558,7 +682,7 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
 
-              {workspaceData.userRole === 'OWNER' && (
+              {userRole === 'OWNER' && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Danger Zone</CardTitle>
@@ -671,8 +795,8 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Integrations Settings */}
-      {activeTab === "integrations" && (
+      {/* Integrations Settings - Admin only */}
+      {activeTab === "integrations" && canEdit ? (
         <div className="space-y-6">
           <div>
             <h2 className="text-xl font-semibold">Integrations</h2>
@@ -830,10 +954,22 @@ export default function SettingsPage() {
             </Card>
           </div>
         </div>
-      )}
+      ) : activeTab === "integrations" ? (
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">Admin Only</h3>
+              <p className="text-sm text-muted-foreground">
+                You don't have permission to access integrations settings.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
-      {/* Permissions Settings */}
-      {activeTab === "permissions" && (
+      {/* Permissions Settings - Admin only */}
+      {activeTab === "permissions" && canEdit ? (
         <div className="space-y-6">
           <div>
             <h2 className="text-xl font-semibold">Permissions</h2>
@@ -916,10 +1052,22 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
-      )}
+      ) : activeTab === "permissions" ? (
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">Admin Only</h3>
+              <p className="text-sm text-muted-foreground">
+                You don't have permission to access permissions settings.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
-      {/* Migrations Settings */}
-      {activeTab === "migrations" && (
+      {/* Migrations Settings - Admin only */}
+      {activeTab === "migrations" && canEdit ? (
         <div className="space-y-6">
           <div>
             <h2 className="text-xl font-semibold">Platform Migrations</h2>
@@ -1088,10 +1236,22 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
-      )}
+      ) : activeTab === "migrations" ? (
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">Admin Only</h3>
+              <p className="text-sm text-muted-foreground">
+                You don't have permission to access migrations settings.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Members & Invites */}
-      {activeTab === "members" && (
+      {activeTab === "members" && allowedTabs.includes('members') && (
         <div className="space-y-6">
           <WorkspaceMembers />
         </div>

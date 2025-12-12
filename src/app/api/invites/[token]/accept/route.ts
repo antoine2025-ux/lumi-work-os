@@ -75,12 +75,19 @@ export async function POST(
       )
     }
 
-    // Find invite by token (initial fetch for workspace info)
+    // Find invite by token (initial fetch for workspace info and validation)
     const invite = await prisma.workspaceInvite.findUnique({
       where: { token },
       select: {
         id: true,
         workspaceId: true,
+        email: true,
+        role: true,
+        revokedAt: true,
+        acceptedAt: true,
+        expiresAt: true,
+        positionId: true,
+        createdByRole: true,
         workspace: {
           select: {
             id: true,
@@ -228,50 +235,50 @@ export async function POST(
       
       // Step 4: Create or upgrade WorkspaceMember
       const existingMember = await tx.workspaceMember.findUnique({
-        where: {
-          workspaceId_userId: {
+      where: {
+        workspaceId_userId: {
             workspaceId: currentInvite.workspaceId,
-            userId: auth.user.userId
-          }
+          userId: auth.user.userId
+        }
+      }
+    })
+
+    const roleHierarchy: Record<string, number> = {
+        VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4
+    }
+
+      let finalRole = currentInvite.role
+
+    if (existingMember) {
+        // Upgrade role if invite role is higher
+      const currentRoleLevel = roleHierarchy[existingMember.role] || 0
+        const inviteRoleLevel = roleHierarchy[currentInvite.role] || 0
+
+      if (inviteRoleLevel > currentRoleLevel) {
+          await tx.workspaceMember.update({
+          where: {
+            workspaceId_userId: {
+                workspaceId: currentInvite.workspaceId,
+              userId: auth.user.userId
+            }
+          },
+            data: { role: currentInvite.role as any }
+        })
+          finalRole = currentInvite.role
+      } else {
+        finalRole = existingMember.role
+      }
+    } else {
+      // Create new membership
+        await tx.workspaceMember.create({
+        data: {
+            workspaceId: currentInvite.workspaceId,
+          userId: auth.user.userId,
+            role: currentInvite.role as any
         }
       })
-      
-      const roleHierarchy: Record<string, number> = {
-        VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4
-      }
-      
-      let finalRole = currentInvite.role
-      
-      if (existingMember) {
-        // Upgrade role if invite role is higher
-        const currentRoleLevel = roleHierarchy[existingMember.role] || 0
-        const inviteRoleLevel = roleHierarchy[currentInvite.role] || 0
-        
-        if (inviteRoleLevel > currentRoleLevel) {
-          await tx.workspaceMember.update({
-            where: {
-              workspaceId_userId: {
-                workspaceId: currentInvite.workspaceId,
-                userId: auth.user.userId
-              }
-            },
-            data: { role: currentInvite.role as any }
-          })
-          finalRole = currentInvite.role
-        } else {
-          finalRole = existingMember.role
-        }
-      } else {
-        // Create new membership
-        await tx.workspaceMember.create({
-          data: {
-            workspaceId: currentInvite.workspaceId,
-            userId: auth.user.userId,
-            role: currentInvite.role as any
-          }
-        })
-      }
-      
+    }
+
       // Step 5: If position-based invite, assign user to position (atomic)
       let assignedPositionId: string | null = null
       
@@ -326,7 +333,7 @@ export async function POST(
       // Step 6: Mark invite as accepted (inside same transaction)
       await tx.workspaceInvite.update({
         where: { id: currentInvite.id },
-        data: { acceptedAt: now }
+      data: { acceptedAt: now }
       })
       
       return { finalRole, assignedPositionId }

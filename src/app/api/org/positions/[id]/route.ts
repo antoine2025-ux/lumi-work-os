@@ -17,7 +17,7 @@ export async function GET(
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       scope: 'workspace', 
-      requireRole: ['MEMBER'] 
+      requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
     })
 
     setWorkspaceContext(auth.workspaceId)
