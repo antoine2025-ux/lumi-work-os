@@ -484,8 +484,10 @@ model OrgPosition {
   invites            WorkspaceInvite[]
 
   @@index([workspaceId])
+  @@index([workspaceId, isActive], map: "idx_org_positions_workspace_active")
   @@index([teamId])
   @@index([level])
+  @@index([parentId], map: "idx_org_positions_parent_id")
   @@map("org_positions")
 }
 

@@ -205,19 +205,30 @@ async function resolveActiveWorkspaceIdWithMember(
       const workspaceSlug = slugMatch[1]
       
       const dbStartTime = performance.now()
-      // Look up workspace by slug and validate membership in one query
+      // OPTIMIZED: Look up workspace by slug, then validate membership with direct query
+      // This avoids loading all members and filtering client-side
       const workspace = await prisma.workspace.findUnique({
         where: { slug: workspaceSlug },
-        include: {
-          members: {
-            where: { userId }
+        select: { id: true } // Only need ID for membership check
+      })
+      
+      if (!workspace) {
+        throw new Error(`Not found: Workspace "${workspaceSlug}" does not exist`)
+      }
+      
+      // Direct membership lookup (uses composite index)
+      const member = await prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: workspace.id,
+            userId
           }
         }
       })
       const dbDurationMs = performance.now() - dbStartTime
       
-      if (workspace && workspace.members.length > 0) {
-        const member = workspace.members[0]
+      if (member) {
+        const totalDurationMs = performance.now() - startTime
         const totalDurationMs = performance.now() - startTime
         logger.debug('resolveActiveWorkspaceIdWithMember (slug)', {
           requestId,
@@ -230,12 +241,7 @@ async function resolveActiveWorkspaceIdWithMember(
       }
       
       // If workspace exists but user is not a member, throw error
-      if (workspace) {
-        throw new Error(`Forbidden: You do not have access to workspace "${workspaceSlug}"`)
-      }
-      
-      // If workspace doesn't exist, throw error
-      throw new Error(`Not found: Workspace "${workspaceSlug}" does not exist`)
+      throw new Error(`Forbidden: You do not have access to workspace "${workspaceSlug}"`)
     }
   }
 
@@ -368,27 +374,32 @@ async function resolveActiveWorkspaceId(
     if (slugMatch) {
       const workspaceSlug = slugMatch[1]
       
-      // Look up workspace by slug and validate membership
+      // OPTIMIZED: Look up workspace by slug, then validate membership with direct query
       const workspace = await prisma.workspace.findUnique({
         where: { slug: workspaceSlug },
-        include: {
-          members: {
-            where: { userId }
+        select: { id: true } // Only need ID for membership check
+      })
+      
+      if (!workspace) {
+        throw new Error(`Not found: Workspace "${workspaceSlug}" does not exist`)
+      }
+      
+      // Direct membership lookup (uses composite index)
+      const member = await prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: workspace.id,
+            userId
           }
         }
       })
       
-      if (workspace && workspace.members.length > 0) {
+      if (member) {
         return workspace.id
       }
       
       // If workspace exists but user is not a member, throw error
-      if (workspace) {
-        throw new Error(`Forbidden: You do not have access to workspace "${workspaceSlug}"`)
-      }
-      
-      // If workspace doesn't exist, throw error
-      throw new Error(`Not found: Workspace "${workspaceSlug}" does not exist`)
+      throw new Error(`Forbidden: You do not have access to workspace "${workspaceSlug}"`)
     }
   }
 
