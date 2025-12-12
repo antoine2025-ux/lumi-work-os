@@ -23,15 +23,25 @@ export const authOptions: NextAuthOptions = {
   // We'll handle OAuth callback URL in the provider config instead
   callbacks: {
     async signIn({ user, account, profile }) {
+      console.log('🔐 [NextAuth] signIn callback triggered', {
+        provider: account?.provider,
+        hasEmail: !!user.email,
+        email: user.email,
+        hasAccount: !!account,
+        hasProfile: !!profile
+      })
+
       if (account?.provider === 'google') {
         // For Google OAuth, ensure user exists in our database
         try {
           if (!user.email) {
-            console.error('❌ No email provided in user object')
+            console.error('❌ [NextAuth] No email provided in user object')
+            console.error('❌ [NextAuth] User object:', JSON.stringify(user, null, 2))
             return false
           }
           
-          console.log('🔐 Creating/updating user:', user.email)
+          console.log('🔐 [NextAuth] Creating/updating user:', user.email)
+          console.log('🔐 [NextAuth] User data:', { email: user.email, name: user.name, image: user.image })
           
           // Use prismaUnscoped to avoid workspace scoping issues during sign-in
           // During authentication, we don't have a workspace context yet
@@ -49,12 +59,12 @@ export const authOptions: NextAuthOptions = {
               emailVerified: new Date(),
             }
           })
-          console.log('✅ User created/updated successfully:', dbUser.id)
+          console.log('✅ [NextAuth] User created/updated successfully:', dbUser.id)
           return true
         } catch (error) {
-          console.error('❌ Error creating/updating user:', error)
-          console.error('❌ User data:', { email: user.email, name: user.name })
-          console.error('❌ Error details:', error instanceof Error ? {
+          console.error('❌ [NextAuth] Error creating/updating user:', error)
+          console.error('❌ [NextAuth] User data:', { email: user.email, name: user.name })
+          console.error('❌ [NextAuth] Error details:', error instanceof Error ? {
             message: error.message,
             stack: error.stack,
             name: error.name
@@ -169,6 +179,7 @@ export const authOptions: NextAuthOptions = {
       })
     ] : [])
   ],
+  debug: process.env.NODE_ENV === 'development', // Enable debug logging in dev
   session: {
     strategy: "jwt",
   },

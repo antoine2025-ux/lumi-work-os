@@ -11,6 +11,13 @@ interface UserStatus {
   workspaceId: string | null
   isDevelopment: boolean
   error?: string
+  pendingInvite?: {
+    token: string
+    workspace: {
+      slug: string
+      name: string
+    }
+  } | null
 }
 
 interface UseUserStatusReturn {

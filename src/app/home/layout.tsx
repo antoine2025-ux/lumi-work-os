@@ -20,14 +20,33 @@ export default function HomeLayout({
   useEffect(() => {
     const checkWorkspace = async () => {
       try {
+        // Guard: Never redirect if already on invite page
+        const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
+        const isInvitePage = currentPath.startsWith('/invites') || currentPath === '/invites'
+        if (isInvitePage) {
+          setIsLoadingWorkspace(false)
+          return
+        }
+        
         const response = await fetch('/api/auth/user-status')
         if (response.ok) {
           const data = await response.json()
           console.log('[HomeLayout] User status:', data)
           
-          // If no workspace, redirect immediately
+          // If no workspace, check for pending invite first
           if (!data.workspaceId) {
-            console.log('[HomeLayout] No workspace found, redirecting to welcome immediately')
+            if (data.pendingInvite?.token) {
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[HomeLayout] No workspace found but pending invite exists, redirecting to invite:', data.pendingInvite.token)
+              }
+              window.location.href = `/invites/${data.pendingInvite.token}`
+              return
+            }
+            
+            // No pending invite, redirect to welcome
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[HomeLayout] No workspace found, no pending invite, redirecting to welcome')
+            }
             window.location.href = '/welcome'
             return
           }
@@ -38,15 +57,29 @@ export default function HomeLayout({
           const errorData = await response.json()
           console.log('[HomeLayout] Error response:', errorData)
           
-          // If error indicates no workspace, redirect
+          // If error indicates no workspace, check for pending invite
           if (errorData.error && errorData.error.includes('No workspace')) {
-            console.log('[HomeLayout] No workspace in error, redirecting to welcome')
+            if (errorData.pendingInvite?.token) {
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[HomeLayout] No workspace in error but pending invite exists, redirecting to invite:', errorData.pendingInvite.token)
+              }
+              window.location.href = `/invites/${errorData.pendingInvite.token}`
+              return
+            }
+            
+            // No pending invite, redirect to welcome
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[HomeLayout] No workspace in error, no pending invite, redirecting to welcome')
+            }
             window.location.href = '/welcome'
             return
           }
         }
       } catch (error) {
         console.error('[HomeLayout] Error checking workspace:', error)
+        // Resilience: Don't redirect on fetch failure - let user stay on current page
+        // This prevents infinite loading or redirect loops if API is down
+        // User can retry or navigate manually
       } finally {
         setIsLoadingWorkspace(false)
       }

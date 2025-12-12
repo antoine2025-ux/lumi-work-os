@@ -155,22 +155,30 @@ model WorkspaceMember {
 }
 
 model WorkspaceInvite {
-  id              String        @id @default(cuid())
-  workspaceId     String
-  email           String        @db.VarChar(255)
-  role            WorkspaceRole @default(MEMBER)
-  token           String        @unique
-  expiresAt       DateTime
-  acceptedAt      DateTime?
-  revokedAt       DateTime?
-  createdAt       DateTime      @default(now())
-  createdByUserId String
-  createdBy       User          @relation("InviteCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
-  workspace       Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id               String           @id @default(cuid())
+  workspaceId      String
+  email            String           @db.VarChar(255)
+  role             WorkspaceRole    @default(MEMBER)
+  token            String           @unique
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime         @default(now())
+  createdByUserId  String
+  positionId       String?
+  viewerScopeType  ViewerScopeType?
+  viewerScopeRefId String?
+  createdByRole    WorkspaceRole
+  createdBy        User             @relation("InviteCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  position         OrgPosition?     @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, email], map: "idx_invites_workspace_email")
   @@index([workspaceId, revokedAt, acceptedAt], map: "idx_invites_workspace_status")
   @@index([token], map: "idx_invites_token")
+  @@index([positionId], map: "idx_invites_position")
+  @@index([workspaceId, email, revokedAt, acceptedAt, expiresAt], map: "idx_invites_pending_lookup")
+  @@index([workspaceId, positionId], map: "idx_invites_workspace_position")
   @@map("workspace_invites")
 }
 
@@ -448,31 +456,32 @@ model RoleCard {
 }
 
 model OrgPosition {
-  id                 String        @id @default(cuid())
+  id                 String            @id @default(cuid())
   workspaceId        String
   userId             String?
   title              String
-  level              Int           @default(1)
+  level              Int               @default(1)
   parentId           String?
-  order              Int           @default(0)
-  isActive           Boolean       @default(true)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  order              Int               @default(0)
+  isActive           Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
   roleDescription    String?
-  responsibilities   String[]      @default([])
-  requiredSkills     String[]      @default([])
-  preferredSkills    String[]      @default([])
-  keyMetrics         String[]      @default([])
+  responsibilities   String[]          @default([])
+  requiredSkills     String[]          @default([])
+  preferredSkills    String[]          @default([])
+  keyMetrics         String[]          @default([])
   teamSize           Int?
   budget             String?
   reportingStructure String?
   teamId             String?
-  parent             OrgPosition?  @relation("OrgHierarchy", fields: [parentId], references: [id])
-  children           OrgPosition[] @relation("OrgHierarchy")
-  team               OrgTeam?      @relation(fields: [teamId], references: [id])
-  user               User?         @relation(fields: [userId], references: [id])
-  workspace          Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent             OrgPosition?      @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children           OrgPosition[]     @relation("OrgHierarchy")
+  team               OrgTeam?          @relation(fields: [teamId], references: [id])
+  user               User?             @relation(fields: [userId], references: [id])
+  workspace          Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   roleCard           RoleCard?
+  invites            WorkspaceInvite[]
 
   @@index([workspaceId])
   @@index([teamId])
@@ -1115,6 +1124,12 @@ enum WorkspaceRole {
   ADMIN
   MEMBER
   VIEWER
+}
+
+enum ViewerScopeType {
+  WORKSPACE_READONLY
+  TEAM_READONLY
+  PROJECTS_ONLY
 }
 
 enum OnboardingStatus {

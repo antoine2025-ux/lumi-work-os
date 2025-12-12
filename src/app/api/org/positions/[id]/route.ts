@@ -134,6 +134,27 @@ export async function PUT(
       return NextResponse.json({ error: 'Position not found' }, { status: 404 })
     }
 
+    // If assigning a user, validate single-occupant constraint
+    if (userId !== undefined && userId !== null) {
+      // Check if position is already occupied by different user
+      if (existingPosition.userId && existingPosition.userId !== userId) {
+        return NextResponse.json(
+          { error: 'Position is already occupied by another user' },
+          { status: 409 }
+        )
+      }
+      
+      // Remove user from other positions in same workspace (enforce one-position-per-user-per-workspace)
+      await prisma.orgPosition.updateMany({
+        where: {
+          workspaceId: existingPosition.workspaceId,
+          userId,
+          id: { not: resolvedParams.id }
+        },
+        data: { userId: null }
+      })
+    }
+
     // Build update data - only include fields that are provided
     const updateData: any = {}
     if (title !== undefined) updateData.title = title

@@ -46,10 +46,12 @@ export default function InviteAcceptPage() {
   // This ensures React sees the same number of hooks on every render
 
   useEffect(() => {
-    // Invite details would be fetched from API if needed
-    // For now, we'll just show the accept button
-    setLoading(false)
-  }, [token])
+    // Just set loading to false - don't try to accept on page load
+    // The accept button will handle the acceptance
+    if (status === 'authenticated') {
+      setLoading(false)
+    }
+  }, [token, status])
 
   // Redirect unauthenticated users to login with callbackUrl to preserve invite token
   // This useEffect must be called before any early returns to maintain hook order
@@ -99,23 +101,56 @@ export default function InviteAcceptPage() {
       const data = await response.json()
 
       if (!response.ok) {
+        // Handle specific error cases
+        if (response.status === 409 && data.error?.includes('already accepted')) {
+          // Invite already accepted - check if we got workspace info for redirect
+          if (data.workspace?.slug) {
+            // Redirect to workspace immediately
+            window.location.href = `/w/${data.workspace.slug}`
+            return
+          }
+          // Otherwise show error
+          throw new Error(data.error || 'This invite was already accepted')
+        }
         throw new Error(data.error || 'Failed to accept invite')
       }
 
       setSuccess(true)
       
+      // Handle already-accepted case (shouldn't happen but handle gracefully)
+      if (data.alreadyAccepted && data.workspace?.slug) {
+        // Redirect immediately without delay
+        window.location.href = `/w/${data.workspace.slug}`
+        return
+      }
+      
+      // Clear any cached user status to ensure fresh workspace resolution
+      // This is critical after accepting an invite to avoid stale cache
+      if (typeof window !== 'undefined') {
+        // Clear React Query cache for user-status
+        const queryClient = (window as any).__REACT_QUERY_CLIENT__
+        if (queryClient) {
+          queryClient.invalidateQueries({ queryKey: ['user-status'] })
+        }
+        
+        // Clear sessionStorage flags that might interfere
+        sessionStorage.removeItem('__workspace_just_created__')
+      }
+      
       // Redirect to the invited workspace using slug-based URL
       // This ensures getUnifiedAuth() resolves to the correct workspace
+      // Use window.location.href for a hard redirect to clear any cached state
       if (data.workspace?.slug) {
         setTimeout(() => {
-          router.push(`/w/${data.workspace.slug}`)
-        }, 2000)
+          // Use window.location.href for hard redirect to ensure fresh page load
+          window.location.href = `/w/${data.workspace.slug}`
+        }, 1500)
       } else {
         // Fallback to workspaceId if slug is missing (shouldn't happen)
         console.warn('Workspace slug missing from accept response, using workspaceId fallback')
         setTimeout(() => {
-          router.push(`/home?workspaceId=${data.workspaceId}`)
-        }, 2000)
+          window.location.href = `/home?workspaceId=${data.workspaceId}`
+        }, 1500)
       }
     } catch (error: any) {
       console.error("Error accepting invite:", error)

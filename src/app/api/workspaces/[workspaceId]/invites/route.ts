@@ -80,7 +80,7 @@ export async function POST(
     setWorkspaceContext(workspaceId)
 
     const body = await request.json()
-    const { email, role = 'MEMBER' } = body
+    const { email, role = 'MEMBER', viewerScopeType, viewerScopeRefId } = body
 
     // Validate required fields
     if (!email) {
@@ -111,8 +111,8 @@ export async function POST(
       )
     }
 
-    // Role restrictions: Non-OWNER cannot invite OWNER
-    const userRole = await prisma.workspaceMember.findUnique({
+    // Get creator's role (for defense-in-depth)
+    const creatorMember = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
           workspaceId,
@@ -122,11 +122,46 @@ export async function POST(
       select: { role: true }
     })
 
-    if (role === 'OWNER' && userRole?.role !== 'OWNER') {
+    if (!creatorMember) {
+      return NextResponse.json(
+        { error: "Creator is not a member of this workspace" },
+        { status: 403 }
+      )
+    }
+
+    // Role restrictions: Non-OWNER cannot invite OWNER
+    if (role === 'OWNER' && creatorMember.role !== 'OWNER') {
       return NextResponse.json(
         { error: "Only workspace owners can invite other owners" },
         { status: 403 }
       )
+    }
+
+    // Validate viewerScopeType (if provided)
+    if (viewerScopeType !== undefined && viewerScopeType !== null) {
+      const validScopeTypes = ['WORKSPACE_READONLY', 'TEAM_READONLY', 'PROJECTS_ONLY']
+      if (!validScopeTypes.includes(viewerScopeType)) {
+        return NextResponse.json(
+          { error: `Invalid viewerScopeType. Must be one of: ${validScopeTypes.join(', ')}` },
+          { status: 400 }
+        )
+      }
+      
+      // viewerScopeType can only be set for VIEWER role
+      if (role !== 'VIEWER') {
+        return NextResponse.json(
+          { error: "viewerScopeType can only be set for VIEWER role" },
+          { status: 400 }
+        )
+      }
+      
+      // viewerScopeRefId is required for TEAM_READONLY
+      if (viewerScopeType === 'TEAM_READONLY' && !viewerScopeRefId) {
+        return NextResponse.json(
+          { error: "viewerScopeRefId is required when viewerScopeType is TEAM_READONLY" },
+          { status: 400 }
+        )
+      }
     }
 
     // Check if user is already a member
@@ -202,7 +237,10 @@ export async function POST(
       role: inviteRole,
       token,
       expiresAt,
-      createdByUserId: auth.user.userId
+      createdByUserId: auth.user.userId,
+      createdByRole: creatorMember.role,  // Defense-in-depth
+      viewerScopeType: viewerScopeType || null,
+      viewerScopeRefId: viewerScopeRefId || null
     }
     
     console.log('Creating invite with data:', {
@@ -227,19 +265,19 @@ export async function POST(
           }
         }
       })
-      console.log('✅ Invite created successfully:', invite.id)
+      console.log('? Invite created successfully:', invite.id)
     } catch (createError) {
-      console.error('❌ Prisma create error:', createError)
+      console.error('? Prisma create error:', createError)
       if (createError instanceof Error) {
         console.error('Error name:', createError.name)
         console.error('Error message:', createError.message)
         console.error('Error stack:', createError.stack)
         // Check for common Prisma errors
         if (createError.message.includes('Unique constraint')) {
-          console.error('❌ Unique constraint violation - token or email might already exist')
+          console.error('? Unique constraint violation - token or email might already exist')
         }
         if (createError.message.includes('Foreign key constraint')) {
-          console.error('❌ Foreign key constraint violation - workspaceId or createdByUserId might be invalid')
+          console.error('? Foreign key constraint violation - workspaceId or createdByUserId might be invalid')
         }
       }
       // Re-throw to be caught by outer catch

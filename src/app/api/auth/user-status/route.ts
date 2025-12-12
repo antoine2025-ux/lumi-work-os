@@ -51,11 +51,62 @@ export async function GET(request: NextRequest) {
       // Try to get the user at least
       const session = await getServerSession(authOptions)
       
+      let pendingInvite = null
+      
+      // Check for pending invites if user is authenticated
+      if (session?.user?.email) {
+        const { prisma } = await import('@/lib/db')
+        const normalizedEmail = session.user.email.toLowerCase().trim()
+        
+        try {
+          const invite = await prisma.workspaceInvite.findFirst({
+            where: {
+              email: normalizedEmail,
+              revokedAt: null,
+              acceptedAt: null,
+              expiresAt: { gt: new Date() }
+            },
+            select: {
+              token: true,
+              workspace: {
+                select: {
+                  slug: true,
+                  name: true
+                }
+              }
+            },
+            orderBy: { createdAt: 'desc' }
+          })
+          
+          if (invite) {
+            pendingInvite = {
+              token: invite.token,
+              workspace: invite.workspace
+            }
+            
+            // Log pending invite found (dev/prod-safe: email domain only)
+            const emailDomain = normalizedEmail.split('@')[1] || 'unknown'
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[user-status] Pending invite found for @${emailDomain}`)
+            }
+          } else {
+            const emailDomain = normalizedEmail.split('@')[1] || 'unknown'
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[user-status] No pending invite found for @${emailDomain}`)
+            }
+          }
+        } catch (inviteError) {
+          console.error('[user-status] Error checking pending invites:', inviteError)
+          // Graceful degradation: continue without pendingInvite
+        }
+      }
+      
       return NextResponse.json({
         isAuthenticated: !!session?.user?.email,
         isFirstTime: true,
         workspaceId: null,
         error: 'No workspace found',
+        pendingInvite,
         user: session?.user ? {
           id: (session.user as any).id,
           name: session.user.name,

@@ -77,6 +77,20 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
           return
         }
         
+        // Skip workspace loading if we're on an invite page
+        // Users need to accept the invite first, which will create the workspace membership
+        if (typeof window !== 'undefined') {
+          const isInvitePage = window.location.pathname.startsWith('/invites/')
+          if (isInvitePage) {
+            console.log('On invite page, skipping workspace load until invite is accepted')
+            setWorkspaces([])
+            setCurrentWorkspace(null)
+            setUserRole(null)
+            setIsLoading(false)
+            return
+          }
+        }
+        
         // If user is first-time or has no workspace, don't load workspaces
         if (userStatus.isFirstTime || !userStatus.workspaceId) {
           console.log('First-time user or no workspace, skipping workspace load')

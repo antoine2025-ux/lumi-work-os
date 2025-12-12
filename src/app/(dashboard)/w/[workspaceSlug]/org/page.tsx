@@ -15,6 +15,7 @@ import { RoleForm } from "@/components/org/role-form"
 import { UserAssignmentModal } from "@/components/org/user-assignment-modal"
 import { OrgCleanSlate } from "@/components/org/org-clean-slate"
 import { InviteUserDialog } from "@/components/org/invite-user-dialog"
+import { PositionInviteDialog } from "@/components/org/position-invite-dialog"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 import { 
   Users, 
@@ -100,36 +101,57 @@ export default function OrgChartPage() {
   const [showEnhancedRoleForm, setShowEnhancedRoleForm] = useState(false)
   const [showUserAssignmentModal, setShowUserAssignmentModal] = useState(false)
   const [showInviteDialog, setShowInviteDialog] = useState(false)
+  const [showPositionInviteDialog, setShowPositionInviteDialog] = useState(false)
+  const [invitingPosition, setInvitingPosition] = useState<OrgPosition | null>(null)
   const [editingPosition, setEditingPosition] = useState<OrgPosition | null>(null)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [assigningToRole, setAssigningToRole] = useState<OrgPosition | null>(null)
   const [workspaceId, setWorkspaceId] = useState<string>('')
-  const [userRole] = useState('ADMIN') // In a real app, this would come from session/context
+  const [userRole, setUserRole] = useState<'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'>('MEMBER')
+  const [userRoleLoaded, setUserRoleLoaded] = useState(false)
 
-  // Get workspace ID from user status
+  // Get workspace ID from user status, then fetch role separately
   useEffect(() => {
-    const fetchWorkspaceId = async () => {
+    const fetchUserStatus = async () => {
       try {
         const response = await fetch('/api/auth/user-status')
         if (response.ok) {
           const userStatus = await response.json()
           if (userStatus.workspaceId) {
             setWorkspaceId(userStatus.workspaceId)
+            
+            // Fetch user role from workspace members API (user-status doesn't return role)
+            try {
+              const roleResponse = await fetch(`/api/workspaces/${userStatus.workspaceId}/user-role`, {
+                credentials: 'include'
+              })
+              if (roleResponse.ok) {
+                const roleData = await roleResponse.json()
+                if (roleData.role) {
+                  setUserRole(roleData.role as 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER')
+                }
+              }
+              // Mark role as loaded regardless of success/failure (defaults to MEMBER)
+              setUserRoleLoaded(true)
+            } catch (roleError) {
+              // Graceful degradation - default to MEMBER if role fetch fails
+              setUserRoleLoaded(true)
+            }
           }
         }
       } catch (error) {
-        console.error('Error fetching workspace ID:', error)
+        // Error handling - don't log sensitive data
       }
     }
-    fetchWorkspaceId()
+    fetchUserStatus()
   }, [])
 
-  // Load org data on component mount
+  // Load org data on component mount (only after workspaceId and userRole are loaded)
   useEffect(() => {
-    if (workspaceId) {
+    if (workspaceId && userRoleLoaded) {
       loadOrgData()
     }
-  }, [workspaceId])
+  }, [workspaceId, userRoleLoaded])
 
   const loadOrgData = async () => {
     try {
@@ -146,17 +168,17 @@ export default function OrgChartPage() {
       // Fetch with error handling to prevent hanging
       const [orgResponse, usersResponse, departmentsResponse] = await Promise.all([
         fetch(`/api/org/positions`, fetchOptions).catch(err => {
-          console.error('Error fetching positions:', err)
+          // Error fetching positions - handled gracefully
           return { ok: false, status: 500, statusText: err.message, json: async () => [] }
         }),
         userRole === 'ADMIN' || userRole === 'OWNER' 
           ? fetch(`/api/admin/users?workspaceId=${workspaceId}`, fetchOptions).catch(err => {
-              console.error('Error fetching users:', err)
+              // Error fetching users - handled gracefully
               return { ok: false, status: 500, statusText: err.message, json: async () => [] }
             })
           : Promise.resolve(null),
         fetch(`/api/org/departments`, fetchOptions).catch(err => {
-          console.error('Error fetching departments:', err)
+          // Error fetching departments - handled gracefully
           return { ok: false, status: 500, statusText: err.message, json: async () => [] }
         })
       ])
@@ -178,7 +200,7 @@ export default function OrgChartPage() {
           const usersData = await usersResponse.json()
           setUsers(usersData || [])
         } catch (err) {
-          console.error('Error parsing users data:', err)
+          // Error parsing users data - handled gracefully
           setUsers([])
         }
       } else if (usersResponse) {
@@ -190,14 +212,14 @@ export default function OrgChartPage() {
           const departmentsData = await departmentsResponse.json()
           setDepartments(departmentsData || [])
         } catch (err) {
-          console.error('Error parsing departments data:', err)
+          // Error parsing departments data - handled gracefully
           setDepartments([])
         }
       } else {
         setDepartments([])
       }
     } catch (error) {
-      console.error('Error loading org data:', error)
+      // Error loading org data - handled gracefully
       // Set empty arrays on error to prevent infinite loading
       setOrgData([])
       setDepartments([])
@@ -232,15 +254,11 @@ export default function OrgChartPage() {
         setEditingPosition(null)
       } else {
         const errorData = await response.json()
-        console.error('Error saving position:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData
-        })
+        // Error saving position - handled gracefully
         alert('Failed to save position: ' + (errorData.error || 'Unknown error'))
       }
     } catch (error) {
-      console.error('Error saving position:', error)
+      // Error saving position - handled gracefully
       alert('Failed to save position: ' + (error instanceof Error ? error.message : 'Unknown error'))
     }
   }
@@ -264,7 +282,7 @@ export default function OrgChartPage() {
         
         try {
           rawResponse = await response.text()
-          console.log('Raw response:', rawResponse)
+          // Raw response logged for debugging (dev only)
           
           if (rawResponse) {
             errorData = JSON.parse(rawResponse)
@@ -513,6 +531,20 @@ export default function OrgChartPage() {
     setShowUserAssignmentModal(true)
   }
 
+  const handleInviteToPosition = (position: OrgPosition) => {
+    // Ensure position exists and is not occupied
+    if (!position.id) {
+      alert('Position ID is required')
+      return
+    }
+    if (position.userId) {
+      alert('Position is already occupied')
+      return
+    }
+    setInvitingPosition(position)
+    setShowPositionInviteDialog(true)
+  }
+
   const handleUserAssignment = async (userId: string) => {
     if (!assigningToRole) return
 
@@ -759,6 +791,7 @@ export default function OrgChartPage() {
                               role={position}
                               onEdit={isAdmin && showUserManagement ? handleEditEnhancedRole : undefined}
                               onAssignUser={isAdmin && showUserManagement ? handleAssignUserToRole : undefined}
+                              onInvite={isAdmin && showUserManagement ? handleInviteToPosition : undefined}
                               showActions={isAdmin && showUserManagement}
                               compact={false}
                             />
@@ -871,6 +904,22 @@ export default function OrgChartPage() {
                 onClose={() => setShowInviteDialog(false)}
                 onSuccess={loadOrgData}
                 workspaceId={workspaceId}
+              />
+            )}
+
+            {/* Position Invite Dialog */}
+            {isAdmin && invitingPosition && (
+              <PositionInviteDialog
+                isOpen={showPositionInviteDialog}
+                onClose={() => {
+                  setShowPositionInviteDialog(false)
+                  setInvitingPosition(null)
+                }}
+                onSuccess={loadOrgData}
+                positionId={invitingPosition.id}
+                positionTitle={invitingPosition.title}
+                workspaceId={workspaceId}
+                userRole={userRole as 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'}
               />
             )}
           </>

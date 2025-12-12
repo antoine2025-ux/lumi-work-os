@@ -24,7 +24,7 @@ export default function DashboardLayout({
   const [isFirstTime, setIsFirstTime] = useState(false)
   
   // Use React Query for user status - automatic caching and no sequential delays
-  const { data: userStatus, isLoading: isLoadingWorkspace } = useQuery({
+  const { data: userStatus, isLoading: isLoadingWorkspace, isError: isUserStatusError } = useQuery({
     queryKey: ['user-status'],
     queryFn: async () => {
       const response = await fetch('/api/auth/user-status')
@@ -49,13 +49,35 @@ export default function DashboardLayout({
   // Handle workspace redirect
   // Skip redirect if user is on an invite page - they need to accept the invite first
   useEffect(() => {
-    if (status === 'authenticated' && !isLoadingWorkspace && !workspaceId) {
+    // Resilience: Don't redirect if user-status query failed - prevents infinite redirects
+    if (status === 'authenticated' && !isLoadingWorkspace && !workspaceId && userStatus && !isUserStatusError) {
       const workspaceJustCreated = sessionStorage.getItem('__workspace_just_created__') === 'true'
-      const isInvitePage = pathname?.startsWith('/invites')
+      const isInvitePage = pathname?.startsWith('/invites') || pathname === '/invites'
       
-      // Don't redirect to welcome if user is on an invite page
-      // They need to accept the invite first, which will create the workspace membership
-      if (!workspaceJustCreated && !isInvitePage) {
+      // Guard: Never redirect if already on invite page
+      if (isInvitePage) {
+        return
+      }
+      
+      // Don't redirect if we're already on the welcome page
+      if (pathname === '/welcome') {
+        return
+      }
+      
+      // Check for pending invite first
+      if (userStatus?.pendingInvite?.token) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[DashboardLayout] No workspace found but pending invite exists, redirecting to invite:', userStatus.pendingInvite.token)
+        }
+        window.location.href = `/invites/${userStatus.pendingInvite.token}`
+        return
+      }
+      
+      // No pending invite, redirect to welcome (unless workspace just created)
+      if (!workspaceJustCreated) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[DashboardLayout] No workspace found, no pending invite, redirecting to welcome')
+        }
         window.location.href = '/welcome'
       }
     }
@@ -121,9 +143,14 @@ export default function DashboardLayout({
     return null
   }
   
+  // Skip workspace requirement check if we're on an invite page
+  // Users need to accept the invite first, which will create the workspace membership
+  const isInvitePage = pathname?.startsWith('/invites')
+  
   // Render immediately with loading state - don't block on workspace check
   // This allows LCP to happen much faster
-  if (isLoadingWorkspace || !workspaceId) {
+  // BUT: Skip this check on invite pages - they don't need a workspace yet
+  if (!isInvitePage && (isLoadingWorkspace || !workspaceId)) {
     return (
       <div className="min-h-screen bg-slate-950">
         <Header />

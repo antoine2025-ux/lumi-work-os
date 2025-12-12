@@ -14,7 +14,7 @@ interface AuthWrapperProps {
 export function AuthWrapper({ children }: AuthWrapperProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const { userStatus, loading } = useUserStatus()
+  const { userStatus, loading, error } = useUserStatus()
   const { data: session, status: sessionStatus } = useSession()
   const hasRedirected = useRef(false)
   const [showLoader, setShowLoader] = useState(false)
@@ -123,7 +123,8 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
 
     // Only redirect if we have user status data and loading is complete and session is authenticated
     // Skip logging unless there's an actual issue to reduce console noise
-    if (!loading && userStatus && sessionStatus === 'authenticated') {
+    // Resilience: Don't redirect if userStatus fetch failed (error state) - prevents infinite redirects
+    if (!loading && userStatus && sessionStatus === 'authenticated' && !error) {
       if (!userStatus.isAuthenticated) {
         // Not authenticated, redirect to login
         console.log('[AuthWrapper] User not authenticated, forcing redirect to login')
@@ -134,28 +135,51 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
       
       // Check for workspace deletion error or missing workspace
       // Skip redirect if user is on an invite page - they need to accept the invite first
-      const isInvitePage = pathname?.startsWith('/invites')
+      const isInvitePage = pathname?.startsWith('/invites') || pathname === '/invites'
+      
+      // Guard: Never redirect if already on invite page
+      if (isInvitePage) {
+        return
+      }
       
       if (userStatus.error && userStatus.error.includes('No workspace found')) {
-        // Workspace was deleted or user has no workspace, redirect to welcome
-        // But skip if on invite page - user needs to accept invite first
-        if (!isInvitePage) {
-          console.log('[AuthWrapper] No workspace found (error), redirecting to welcome')
+        // Check for pending invite first
+        if (userStatus.pendingInvite?.token) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[AuthWrapper] No workspace found but pending invite exists, redirecting to invite:', userStatus.pendingInvite.token)
+          }
           hasRedirected.current = true
-          window.location.href = '/welcome'
+          window.location.href = `/invites/${userStatus.pendingInvite.token}`
           return
         }
+        
+        // No pending invite, redirect to welcome
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[AuthWrapper] No workspace found (error), no pending invite, redirecting to welcome')
+        }
+        hasRedirected.current = true
+        window.location.href = '/welcome'
+        return
       }
       
       if (userStatus.isFirstTime || !userStatus.workspaceId) {
-        // First-time user or no workspace, redirect to welcome
-        // But skip if on invite page - user needs to accept invite first
-        if (!isInvitePage) {
-          console.log('[AuthWrapper] No workspace found (isFirstTime:', userStatus.isFirstTime, 'workspaceId:', userStatus.workspaceId,'), redirecting to welcome')
+        // Check for pending invite first
+        if (userStatus.pendingInvite?.token) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[AuthWrapper] No workspace found but pending invite exists, redirecting to invite:', userStatus.pendingInvite.token)
+          }
           hasRedirected.current = true
-          window.location.href = '/welcome'
+          window.location.href = `/invites/${userStatus.pendingInvite.token}`
           return
         }
+        
+        // No pending invite, redirect to welcome
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[AuthWrapper] No workspace found (isFirstTime:', userStatus.isFirstTime, 'workspaceId:', userStatus.workspaceId,'), no pending invite, redirecting to welcome')
+        }
+        hasRedirected.current = true
+        window.location.href = '/welcome'
+        return
       }
     }
   }, [router, pathname, userStatus, loading, sessionStatus])

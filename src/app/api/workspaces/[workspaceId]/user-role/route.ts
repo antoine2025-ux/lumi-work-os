@@ -5,16 +5,21 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 // GET /api/workspaces/[workspaceId]/user-role - Get user's role in a workspace
 export async function GET(
   request: NextRequest,
-  { params }: { params: { workspaceId: string } }
+  { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   try {
+    // Authentication check
     const auth = await getUnifiedAuth(request)
     const { workspaceId } = await params
 
-    const membership = await prisma.workspaceMember.findFirst({
+    // Security: Use composite key lookup and verify membership exists
+    // This is the authorization gate - if user isn't a member, they can't query role
+    const membership = await prisma.workspaceMember.findUnique({
       where: {
-        userId: auth.user.userId,
-        workspaceId
+        workspaceId_userId: {
+          workspaceId,
+          userId: auth.user.userId
+        }
       },
       select: {
         role: true,
@@ -31,7 +36,7 @@ export async function GET(
       joinedAt: membership.joinedAt
     })
   } catch (error) {
-    console.error('Error fetching user role:', error)
+    // Error handling - don't log sensitive data
     return NextResponse.json({ error: 'Failed to fetch user role' }, { status: 500 })
   }
 }

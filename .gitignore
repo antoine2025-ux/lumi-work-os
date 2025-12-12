@@ -99,3 +99,7 @@ jspm_packages/
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 .vercel
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+*.tsbuildinfo

@@ -18,7 +18,8 @@ import {
   CheckCircle,
   Clock,
   TrendingUp,
-  Star
+  Star,
+  Mail
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -55,6 +56,7 @@ interface RoleCardProps {
   role: RoleCardData
   onEdit?: (role: RoleCardData) => void
   onAssignUser?: (role: RoleCardData) => void
+  onInvite?: (role: RoleCardData) => void
   showActions?: boolean
   compact?: boolean
 }
@@ -63,6 +65,7 @@ export function RoleCard({
   role, 
   onEdit, 
   onAssignUser,
+  onInvite,
   showActions = true,
   compact = false 
 }: RoleCardProps) {
@@ -164,6 +167,12 @@ export function RoleCard({
                     <DropdownMenuItem onClick={() => onAssignUser(role)}>
                       <UserPlus className="mr-2 h-4 w-4" />
                       Assign User
+                    </DropdownMenuItem>
+                  )}
+                  {onInvite && !role.user && (
+                    <DropdownMenuItem onClick={() => onInvite(role)}>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Invite to Position
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -392,6 +401,17 @@ export function RoleCard({
               >
                 <UserPlus className="mr-2 h-4 w-4" />
                 Assign User
+              </Button>
+            )}
+            {onInvite && !role.user && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => onInvite(role)}
+                className="w-full"
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                Invite to Position
               </Button>
             )}
           </div>
