@@ -44,6 +44,22 @@ export async function GET(request: NextRequest) {
     return response
 
   } catch (error) {
+    // Handle "Unauthorized" errors first (before logging)
+    if (error instanceof Error && (
+      error.message.includes('Unauthorized') || 
+      error.message.includes('No session found') ||
+      error.message.includes('Please log in')
+    )) {
+      // User is not authenticated - return appropriate status without logging error
+      return NextResponse.json({
+        isAuthenticated: false,
+        isFirstTime: true,
+        workspaceId: null,
+        error: 'Not authenticated'
+      }, { status: 401 })
+    }
+    
+    // Log other errors
     console.error('[user-status] Error checking user status:', error)
     
     // If user has no workspace, return appropriate status
@@ -115,21 +131,12 @@ export async function GET(request: NextRequest) {
       })
     }
     
-    // If user is not authenticated, return appropriate status
-    if (error instanceof Error && error.message.includes('Unauthorized')) {
-      return NextResponse.json({
-        isAuthenticated: false,
-        isFirstTime: true,
-        workspaceId: null,
-        error: 'Not authenticated'
-      })
-    }
-    
+    // Fallback for any other errors
     return NextResponse.json({ 
       isAuthenticated: false,
       isFirstTime: true,
       workspaceId: null,
       error: 'Failed to check user status'
-    })
+    }, { status: 500 })
   }
 }
