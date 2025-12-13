@@ -416,6 +416,7 @@ export async function POST(request: NextRequest) {
       // Default: PUBLIC - use General space
       const { getOrCreateGeneralProjectSpace } = await import('@/lib/pm/project-space-helpers')
       projectSpaceId = await getOrCreateGeneralProjectSpace(auth.workspaceId)
+      // If migration not run, projectSpaceId will be null - that's OK, project will work without it (legacy mode)
     }
 
     // Handle empty strings as null/undefined

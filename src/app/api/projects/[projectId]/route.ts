@@ -273,6 +273,7 @@ export async function PUT(
       if (visibility === 'PUBLIC') {
         // Switch to PUBLIC: move to General space
         newProjectSpaceId = await getOrCreateGeneralProjectSpace(auth.workspaceId)
+        // If migration not run, newProjectSpaceId will be null - that's OK (legacy mode)
       } else if (visibility === 'TARGETED') {
         // Switch to TARGETED: create new private space or use existing
         const currentSpace = existingProject.projectSpace
@@ -299,6 +300,7 @@ export async function PUT(
             auth.user.userId,
             memberUserIds
           )
+          // If migration not run, newProjectSpaceId will be null - that's OK (legacy mode)
         }
       }
     }
