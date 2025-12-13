@@ -74,13 +74,19 @@ export function CreateTaskDialog({
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/users')
+      // Use Policy B compliant assignees endpoint
+      const response = await fetch(`/api/projects/${projectId}/assignees`)
       if (response.ok) {
         const data = await response.json()
-        setUsers(data)
+        setUsers(data.users || [])
+      } else if (response.status === 403) {
+        // User doesn't have access to project - show empty list
+        setUsers([])
       }
     } catch (error) {
-      console.error('Error loading users:', error)
+      console.error('Error loading assignees:', error)
+      // Fallback to empty list on error
+      setUsers([])
     }
   }
 
@@ -185,6 +191,19 @@ export function CreateTaskDialog({
         console.error('Task creation error:', errorData)
         
         let errorMessage = errorData.error || errorData.message || 'Failed to create task'
+        
+        // Handle Policy B 403 errors with clear message
+        if (response.status === 403 && (errorMessage.includes('assignee') || errorMessage.includes('access'))) {
+          // Use the backend error message if it's specific, otherwise provide generic guidance
+          if (errorMessage.includes('TARGETED') || errorMessage.includes('ProjectSpace')) {
+            // Backend already specified it's TARGETED
+            errorMessage = errorMessage
+          } else {
+            // Generic message - could be TARGETED or other access issue
+            errorMessage = 'Cannot assign task: The selected assignee does not have access to this project. If this is a private project, add them to the project members first.'
+          }
+        }
+        
         if (errorData.details) {
           if (Array.isArray(errorData.details)) {
             const validationErrors = errorData.details.map((err: any) => 
@@ -335,13 +354,24 @@ export function CreateTaskDialog({
                   <SelectValue placeholder="Unassigned" />
                 </SelectTrigger>
                 <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
+                  {users.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No eligible assignees
+                    </div>
+                  ) : (
+                    users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {users.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No eligible assignees. This project is in a TARGETED ProjectSpace. Add members to the ProjectSpace first.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -526,10 +556,18 @@ export function CreateTaskDialog({
           {/* Error Message */}
           {errors.submit && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600 flex items-center space-x-1">
-                <AlertCircle className="h-4 w-4" />
-                <span>{errors.submit}</span>
-              </p>
+              <div className="text-sm text-red-600 flex items-start space-x-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-medium mb-1">Task creation failed</p>
+                  <p className="whitespace-pre-line">{errors.submit}</p>
+                  {errors.submit.includes('ProjectSpace') && (
+                    <p className="mt-2 text-xs text-red-500">
+                      💡 Tip: The "Manage ProjectSpace Members" button is located on the project detail page, below the project header.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

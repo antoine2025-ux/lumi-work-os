@@ -28,11 +28,28 @@ export async function assertAccess(opts: AccessOptions): Promise<void> {
   })
 
   if (!workspaceMember) {
+    console.error('[assertAccess] WorkspaceMember not found:', {
+      userId,
+      workspaceId,
+      scope,
+      requireRole
+    })
     throw new Error('Forbidden: User not member of workspace')
   }
 
   // Check if workspace role is sufficient
-  if (hasRequiredRole(workspaceMember.role, requireRole)) {
+  const hasRole = hasRequiredRole(workspaceMember.role, requireRole)
+  if (!hasRole) {
+    console.error('[assertAccess] Insufficient role:', {
+      userId,
+      workspaceId,
+      userRole: workspaceMember.role,
+      requireRole,
+      scope
+    })
+  }
+  
+  if (hasRole) {
     return
   }
 

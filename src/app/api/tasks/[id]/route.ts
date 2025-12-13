@@ -7,6 +7,7 @@ import { logTaskHistory } from '@/lib/pm/history'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { TaskPatchSchema, TaskPutSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { ProjectRole } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 
@@ -227,8 +228,16 @@ export async function PUT(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
-    // Check project access (require member access for updating tasks)
-    await assertProjectAccess(userToUse, currentTask.projectId, 'MEMBER')
+    // Check project access
+    // Allow VIEWER to update tasks if they are the assignee (for status changes, etc.)
+    // Otherwise require MEMBER access
+    const isAssignee = currentTask.assigneeId === userToUse.id
+    const requiredRole = isAssignee ? ProjectRole.VIEWER : ProjectRole.MEMBER
+    
+    // Also need workspaceId for proper access check
+    const { getUnifiedAuth } = await import('@/lib/unified-auth')
+    const auth = await getUnifiedAuth(request)
+    await assertProjectAccess(userToUse, currentTask.projectId, requiredRole, auth.workspaceId)
 
     // Get actor ID for history logging
     const actorId = userToUse.id
@@ -431,9 +440,32 @@ export async function PATCH(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
-    // Get session for history logging
+    // Get session and user for access check
     const session = await getServerSession(authOptions)
-    const actorId = session?.user?.id || 'system'
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+
+    // Check project access
+    // Allow VIEWER to update tasks if they are the assignee (for status changes, etc.)
+    // Otherwise require MEMBER access
+    const isAssignee = currentTask.assigneeId === user.id
+    const requiredRole = isAssignee ? ProjectRole.VIEWER : ProjectRole.MEMBER
+    
+    // Also need workspaceId for proper access check
+    const { getUnifiedAuth } = await import('@/lib/unified-auth')
+    const auth = await getUnifiedAuth(request)
+    await assertProjectAccess(user, currentTask.projectId, requiredRole, auth.workspaceId)
+
+    const actorId = user.id
 
     // Build update data object
     const updateData: any = {}
@@ -458,6 +490,30 @@ export async function PATCH(
     // If status is not DONE, clear completedAt
     if (status && status !== 'DONE') {
       updateData.completedAt = null
+    }
+
+    // POLICY B: Validate that assignee has project access before assigning task
+    if (assigneeId !== undefined && assigneeId !== null) {
+      const { hasProjectAccess } = await import('@/lib/pm/guards')
+      const { getUnifiedAuth } = await import('@/lib/unified-auth')
+      
+      try {
+        const auth = await getUnifiedAuth(request)
+        const assigneeHasAccess = await hasProjectAccess(
+          assigneeId,
+          currentTask.projectId,
+          auth.workspaceId
+        )
+
+        if (!assigneeHasAccess) {
+          return NextResponse.json({ 
+            error: 'Cannot assign task: The selected assignee does not have access to this project. Please add them to the project first.' 
+          }, { status: 403 })
+        }
+      } catch (authError) {
+        // If auth fails, we can't validate - but this should be caught by other checks
+        console.error('Error validating assignee access:', authError)
+      }
     }
 
     const task = await prisma.task.update({

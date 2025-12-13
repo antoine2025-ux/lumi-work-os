@@ -24,6 +24,9 @@ export const ProjectCreateSchema = z.object({
   team: z.string().max(100).optional(),
   wikiPageId: z.string().optional(),
   ownerId: z.string().optional(),
+  projectSpaceId: z.string().optional().nullable(), // Legacy support
+  visibility: z.enum(['PUBLIC', 'TARGETED']).optional(), // New: simplified visibility
+  memberUserIds: z.array(z.string()).optional(), // New: members for TARGETED projects
   dailySummaryEnabled: z.boolean().default(false),
 }).refine(
   (data) => {
@@ -50,6 +53,8 @@ export const ProjectUpdateSchema = z.object({
   team: z.string().max(100).optional(),
   wikiPageId: z.string().optional(),
   ownerId: z.string().optional(),
+  visibility: z.enum(['PUBLIC', 'TARGETED']).optional(), // New: simplified visibility
+  memberUserIds: z.array(z.string()).optional(), // New: members for TARGETED projects
   dailySummaryEnabled: z.boolean().optional(),
 }).refine(
   (data) => {

@@ -58,6 +58,9 @@ const ConnectionStatus = dynamic(() => import("@/components/realtime/connection-
 const Celebration = dynamic(() => import("@/components/ui/celebration").then(mod => ({ default: mod.Celebration })), { ssr: false })
 const TaskSearchFilter = dynamic(() => import("@/components/search/task-search-filter").then(mod => ({ default: mod.TaskSearchFilter })), { ssr: false })
 const ProjectHeader = dynamic(() => import("@/components/projects/project-header").then(mod => ({ default: mod.ProjectHeader })), { ssr: false })
+const ProjectSpaceBadge = dynamic(() => import("@/components/projects/project-space-badge").then(mod => ({ default: mod.ProjectSpaceBadge })), { ssr: false })
+const AccessDenied = dynamic(() => import("@/components/projects/access-denied").then(mod => ({ default: mod.AccessDenied })), { ssr: false })
+const ProjectSpaceMembersModal = dynamic(() => import("@/components/projects/project-space-members-modal").then(mod => ({ default: mod.ProjectSpaceMembersModal })), { ssr: false })
 const CalendarView = dynamic(() => import("@/components/tasks/calendar-view"), { ssr: false })
 const TimelineView = dynamic(() => import("@/components/tasks/timeline-view"), { ssr: false })
 const EpicsView = dynamic(() => import("@/components/projects/epics-view").then(mod => ({ default: mod.EpicsView })), { ssr: false })
@@ -126,6 +129,13 @@ interface Project {
     content?: string
     updatedAt: string
   }
+  workspaceId: string
+  projectSpaceId?: string | null
+  projectSpace?: {
+    id: string
+    name: string
+    visibility: 'PUBLIC' | 'TARGETED'
+  }
   slackChannelHints?: string[] // From API (not persisted, but returned in response)
 }
 
@@ -134,9 +144,13 @@ export default function ProjectDetailPage() {
   const router = useRouter()
   const projectId = params?.id as string
   const { themeConfig } = useTheme()
-  const { currentWorkspace } = useWorkspace()
+  const { currentWorkspace, userRole } = useWorkspace()
   
   const [project, setProject] = useState<Project | null>(null)
+  const [accessDenied, setAccessDenied] = useState(false)
+  const [accessDeniedProjectSpace, setAccessDeniedProjectSpace] = useState<{ name: string } | null>(null)
+  const [accessDeniedProjectSpaceId, setAccessDeniedProjectSpaceId] = useState<string | null>(null)
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false)
   
   // Get channel hints from project (API response) or fallback to client-side store
   const { hints: localStorageHints, setHints: setLocalStorageHints } = useProjectSlackHints(projectId)
@@ -243,7 +257,29 @@ export default function ProjectDetailPage() {
         setError('Project not found')
       } else if (response.status === 403) {
         console.log('[ProjectPage] forbidden (403) - insufficient permissions')
-        setError('You do not have access to this project')
+        // Try to get project info even on 403 to extract projectSpaceId
+        try {
+          // Try to fetch project with minimal fields to get projectSpaceId
+          const projectResponse = await fetch(`/api/projects/${projectId}`, {
+            headers: { 'Accept': 'application/json' }
+          })
+          if (projectResponse.ok) {
+            const projectData = await projectResponse.json()
+            if (projectData.projectSpaceId) {
+              setAccessDeniedProjectSpaceId(projectData.projectSpaceId)
+              // Fetch project space info
+              const spaceResponse = await fetch(`/api/project-spaces/${projectData.projectSpaceId}`)
+              if (spaceResponse.ok) {
+                const spaceData = await spaceResponse.json()
+                setAccessDeniedProjectSpace({ name: spaceData.name })
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching project space info:', e)
+        }
+        setAccessDenied(true)
+        setError(null) // Don't show generic error, show AccessDenied component
       } else {
         const errorData = await response.json().catch(() => ({}))
         console.log('[ProjectPage] failed to load project', response.status, errorData)
@@ -563,6 +599,29 @@ export default function ProjectDetailPage() {
     )
   }
 
+  // Show access denied UI if 403 error
+  if (accessDenied) {
+    const isAdminOrOwner = userRole === 'ADMIN' || userRole === 'OWNER'
+    return (
+      <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+        <AccessDenied
+          projectName={project?.name}
+          projectSpaceName={accessDeniedProjectSpace?.name}
+          isAdminOrOwner={isAdminOrOwner}
+          onManageMembers={isAdminOrOwner && accessDeniedProjectSpaceId ? () => setIsMembersModalOpen(true) : undefined}
+        />
+        {isAdminOrOwner && accessDeniedProjectSpaceId && (
+          <ProjectSpaceMembersModal
+            isOpen={isMembersModalOpen}
+            onClose={() => setIsMembersModalOpen(false)}
+            projectSpaceId={accessDeniedProjectSpaceId}
+            projectName={project?.name || 'Project'}
+          />
+        )}
+      </div>
+    )
+  }
+
   if (error || !project) {
     console.log('[ProjectPage] rendering error state - error:', error, 'project:', project)
     return (
@@ -586,6 +645,21 @@ export default function ProjectDetailPage() {
 
   return (
     <WikiLayout>
+      {/* ProjectSpace Members Modal */}
+      {project && (project.projectSpaceId || project.projectSpace?.id) && (userRole === 'ADMIN' || userRole === 'OWNER') && (
+        <ProjectSpaceMembersModal
+          isOpen={isMembersModalOpen}
+          onClose={() => setIsMembersModalOpen(false)}
+          projectSpaceId={project.projectSpaceId || project.projectSpace?.id || ''}
+          projectName={project.name}
+          onMemberAdded={() => {
+            // Reload project to refresh assignee list
+            if (projectId) {
+              loadProject()
+            }
+          }}
+        />
+      )}
       <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
         <Celebration 
           isVisible={showCelebration} 
@@ -628,6 +702,9 @@ export default function ProjectDetailPage() {
                 style={{ backgroundColor: project?.color || colors.primary }}
               />
               <h1 className="text-3xl font-semibold" style={{ color: colors.text }}>{project?.name}</h1>
+              {project?.projectSpace && (
+                <ProjectSpaceBadge visibility={project.projectSpace.visibility} />
+              )}
             </div>
             <p className="text-base leading-relaxed mb-3" style={{ color: colors.textSecondary }}>
               {project?.description || 'No description available'}

@@ -1,4 +1,4 @@
-import { ProjectRole } from '@prisma/client'
+import { ProjectRole, ProjectSpaceVisibility } from '@prisma/client'
 import { User } from 'next-auth'
 import { prisma } from '@/lib/db'
 
@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db'
  * Throws error if access is denied, returns project and user data if granted
  * 
  * CRITICAL: Verifies workspace isolation - project must belong to user's workspace
+ * NEW: Checks ProjectSpace visibility (PUBLIC vs TARGETED)
  */
 export async function assertProjectAccess(
   user: User,
@@ -18,12 +19,19 @@ export async function assertProjectAccess(
     throw new Error('Unauthorized: User not authenticated.')
   }
 
-  // Fetch project first - this is the critical check
+  // Fetch project with ProjectSpace info - this is the critical check
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
       members: {
         where: { userId: user.id }
+      },
+      projectSpace: {
+        include: {
+          members: {
+            where: { userId: user.id }
+          }
+        }
       }
     }
   })
@@ -38,8 +46,7 @@ export async function assertProjectAccess(
     throw new Error('Forbidden: Insufficient project permissions.')
   }
 
-  // Optional: Verify workspace membership (skip if connection issues occur)
-  // This is a secondary check - if it fails, we still allow access since project.workspaceId matches
+  // Verify workspace membership
   if (workspaceId) {
     try {
       const workspaceMember = await prisma.workspaceMember.findUnique({
@@ -52,8 +59,6 @@ export async function assertProjectAccess(
       })
 
       if (!workspaceMember) {
-        // Only throw if we're certain - but project.workspaceId check above already ensures isolation
-        // This is a redundant check for extra security, but don't fail if connection issues occur
         throw new Error('Forbidden: User not member of workspace.')
       }
     } catch (error: any) {
@@ -69,6 +74,82 @@ export async function assertProjectAccess(
       } else {
         // For other errors (like user not found), still throw
         throw error
+      }
+    }
+  }
+
+  // NEW: Check ProjectSpace visibility
+  // If project has a ProjectSpace, check visibility rules
+  if (project.projectSpace) {
+    const space = project.projectSpace
+    const isSpaceMember = space.members.length > 0
+
+    if (space.visibility === ProjectSpaceVisibility.TARGETED) {
+      // TARGETED: Only members can access
+      if (!isSpaceMember) {
+        // Check if user is project creator/owner (they should always have access)
+        if (project.createdById !== user.id && project.ownerId !== user.id) {
+          throw new Error('Forbidden: You do not have access to this project space.')
+        }
+      }
+    } else if (space.visibility === ProjectSpaceVisibility.PUBLIC) {
+      // PUBLIC: All workspace members can access
+      // Verify user is a workspace member
+      if (workspaceId) {
+        const workspaceMember = await prisma.workspaceMember.findUnique({
+          where: {
+            workspaceId_userId: {
+              workspaceId,
+              userId: user.id
+            }
+          }
+        })
+        if (workspaceMember) {
+          // Workspace member has access to PUBLIC space
+          // Return with synthetic member if no ProjectMember record exists
+          const member = project.members[0]
+          if (!member) {
+            return {
+              user,
+              project,
+              member: {
+                userId: user.id,
+                role: 'VIEWER' as ProjectRole,
+                projectId: project.id
+              }
+            }
+          }
+          // Continue to check ProjectMember role
+        }
+      }
+    }
+  } else {
+    // No ProjectSpace (legacy): treat as PUBLIC - all workspace members can access
+    if (workspaceId) {
+      const workspaceMember = await prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId,
+            userId: user.id
+          }
+        }
+      })
+      if (workspaceMember) {
+        // Workspace member has access to legacy project
+        // Return with synthetic member if no ProjectMember record exists
+        const member = project.members[0]
+        if (!member) {
+          return {
+            user,
+            project,
+            member: {
+              userId: user.id,
+              role: 'VIEWER' as ProjectRole,
+              projectId: project.id
+            }
+          }
+        }
+        // Continue to check ProjectMember role
       }
     }
   }
@@ -126,4 +207,102 @@ export async function assertProjectAdminAccess(
   workspaceId?: string
 ): Promise<{ user: User; project: any; member: any }> {
   return assertProjectAccess(user, projectId, ProjectRole.ADMIN, workspaceId)
+}
+
+/**
+ * Check if a user has access to a project (for task assignment validation)
+ * Returns true if user can access the project, false otherwise
+ * This implements Policy B: task assignment does NOT grant access
+ */
+export async function hasProjectAccess(
+  userId: string,
+  projectId: string,
+  workspaceId: string
+): Promise<boolean> {
+  try {
+    // Get project with ProjectSpace info
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        projectSpace: {
+          include: {
+            members: {
+              where: { userId }
+            }
+          }
+        }
+      }
+    })
+
+    if (!project || project.workspaceId !== workspaceId) {
+      return false
+    }
+
+    // Check ProjectSpace visibility
+    if (project.projectSpace) {
+      const space = project.projectSpace
+      const isSpaceMember = space.members.length > 0
+
+      if (space.visibility === ProjectSpaceVisibility.TARGETED) {
+        // TARGETED: Only members can access
+        if (!isSpaceMember) {
+          // Check if user is project creator/owner
+          if (project.createdById !== userId && project.ownerId !== userId) {
+            return false
+          }
+        }
+      } else if (space.visibility === ProjectSpaceVisibility.PUBLIC) {
+        // PUBLIC: All workspace members can access
+        // Verify user is a workspace member
+        const workspaceMember = await prisma.workspaceMember.findUnique({
+          where: {
+            workspaceId_userId: {
+              workspaceId,
+              userId
+            }
+          }
+        })
+        if (workspaceMember) {
+          return true // Workspace member has access to PUBLIC space
+        }
+      }
+    } else {
+      // No ProjectSpace (legacy): treat as PUBLIC - all workspace members can access
+      const workspaceMember = await prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId,
+            userId
+          }
+        }
+      })
+      if (workspaceMember) {
+        return true // Workspace member has access to legacy project
+      }
+    }
+
+    // Check ProjectMember
+    const projectMember = await prisma.projectMember.findUnique({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId
+        }
+      }
+    })
+
+    if (projectMember) {
+      return true
+    }
+
+    // Check if user is creator/owner
+    if (project.createdById === userId || project.ownerId === userId) {
+      return true
+    }
+
+    return false
+  } catch (error) {
+    console.error('Error checking project access:', error)
+    return false
+  }
 }

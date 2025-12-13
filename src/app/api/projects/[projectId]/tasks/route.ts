@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { ProjectRole } from '@prisma/client'
 import { prisma } from '@/lib/db'
 
 
@@ -25,22 +25,20 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
 
-    // Get session and verify project access
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    // Get authenticated user with workspace context
+    const auth = await getUnifiedAuth(request)
+    
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { id: auth.user.userId }
     })
     
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
 
-    await assertProjectAccess(user, projectId)
+    // Verify project access (VIEWER can see tasks)
+    await assertProjectAccess(user, projectId, ProjectRole.VIEWER, auth.workspaceId)
 
     // Build where clause
     const where: any = {

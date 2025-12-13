@@ -10,12 +10,12 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
     
-    // Assert workspace access
+    // Assert workspace access (VIEWER can see page counts)
     await assertAccess({ 
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       scope: 'workspace', 
-      requireRole: ['MEMBER'] 
+      requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
     })
 
     // Set workspace context for Prisma middleware

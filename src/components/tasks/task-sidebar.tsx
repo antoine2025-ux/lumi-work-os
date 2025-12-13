@@ -244,15 +244,21 @@ export function TaskSidebar() {
   }
 
   const loadUsers = async () => {
-    if (!workspaceId) return
+    if (!task?.project?.id) return
     try {
-      const response = await fetch(`/api/org/users?workspaceId=${workspaceId}`)
+      // Use Policy B compliant assignees endpoint
+      const response = await fetch(`/api/projects/${task.project.id}/assignees`)
       if (response.ok) {
-        const userData = await response.json()
-        setUsers(userData)
+        const data = await response.json()
+        setUsers(data.users || [])
+      } else if (response.status === 403) {
+        // User doesn't have access to project - show empty list
+        setUsers([])
       }
     } catch (error) {
-      console.error('Error loading users:', error)
+      console.error('Error loading assignees:', error)
+      // Fallback to empty list on error
+      setUsers([])
     }
   }
 
@@ -666,17 +672,28 @@ export function TaskSidebar() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">No assignee</SelectItem>
-                            {users.map((user) => (
-                              <SelectItem key={user.id} value={user.id}>
-                                <div className="flex items-center space-x-2">
-                                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                  <span>{user.name}</span>
-                                  <span className="text-sm text-muted-foreground">({user.email})</span>
-                                </div>
-                              </SelectItem>
-                            ))}
+                            {users.length === 0 ? (
+                              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                No eligible assignees
+                              </div>
+                            ) : (
+                              users.map((user) => (
+                                <SelectItem key={user.id} value={user.id}>
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                    <span>{user.name}</span>
+                                    <span className="text-sm text-muted-foreground">({user.email})</span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
+                        {users.length === 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            No eligible assignees. This project is in a TARGETED ProjectSpace. Add members to the ProjectSpace first.
+                          </p>
+                        )}
                       </div>
                     </div>
 

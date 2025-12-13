@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Edit, Trash2 } from "lucide-react"
+import { ProjectSpaceBadge } from "./project-space-badge"
 
 interface ProjectHeaderProps {
   project: {
@@ -16,6 +17,11 @@ interface ProjectHeaderProps {
     name: string
     description?: string
     color?: string
+    projectSpace?: {
+      id: string
+      name: string
+      visibility: 'PUBLIC' | 'TARGETED'
+    }
     members: Array<{
       id: string
       user: { name: string }
@@ -90,6 +96,9 @@ export function ProjectHeader({
               <h1 className="text-2xl font-light" style={{ color: colors.text }}>
                 {project.name}
               </h1>
+              {project.projectSpace && (
+                <ProjectSpaceBadge visibility={project.projectSpace.visibility} />
+              )}
             </div>
             {/* Description moved here */}
             <div className="mb-3">

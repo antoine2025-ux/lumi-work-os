@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 import { CreateMilestoneSchema, UpdateMilestoneSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
+import { ProjectRole } from '@prisma/client'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { prisma } from '@/lib/db'
 
@@ -15,16 +15,12 @@ export async function GET(
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
 
-    // Get session and verify access
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Get authenticated user with workspace context
+    const auth = await getUnifiedAuth(request)
     
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { id: auth.user.userId }
     })
     
     if (!user) {
@@ -40,8 +36,8 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
     
-    // Verify project access
-    await assertProjectAccess(user, projectId)
+    // Verify project access (VIEWER can see milestones)
+    await assertProjectAccess(user, projectId, ProjectRole.VIEWER, auth.workspaceId)
     
     // Get milestones
     const milestones = await prisma.milestone.findMany({

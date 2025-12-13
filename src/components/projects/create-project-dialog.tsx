@@ -65,7 +65,37 @@ export function CreateProjectDialog({
   const [channelInput, setChannelInput] = useState('')
   const [channelList, setChannelList] = useState<string[]>([])
 
-  // Reset form when dialog opens
+  // Visibility state
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'TARGETED'>('PUBLIC')
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
+  const [workspaceMembers, setWorkspaceMembers] = useState<Array<{ id: string; name: string; email: string }>>([])
+  const [loadingMembers, setLoadingMembers] = useState(false)
+
+  // Resolve workspaceId: use initialWorkspaceId if provided, otherwise use current workspace
+  // Note: This design supports a future visible workspace selector in the UI
+  const resolvedWorkspaceId = initialWorkspaceId || currentWorkspace?.id
+
+  const loadWorkspaceMembers = async () => {
+    if (!resolvedWorkspaceId) return
+    try {
+      setLoadingMembers(true)
+      const response = await fetch(`/api/workspaces/${resolvedWorkspaceId}/members`)
+      if (response.ok) {
+        const data = await response.json()
+        setWorkspaceMembers(data.members?.map((m: any) => ({
+          id: m.userId,
+          name: m.user?.name || m.user?.email || 'Unknown',
+          email: m.user?.email || ''
+        })) || [])
+      }
+    } catch (error) {
+      console.error('Error loading workspace members:', error)
+    } finally {
+      setLoadingMembers(false)
+    }
+  }
+
+  // Load workspace members when dialog opens and visibility is TARGETED
   useEffect(() => {
     if (open) {
       setFormData({
@@ -79,12 +109,22 @@ export function CreateProjectDialog({
       setChannelInput('')
       setChannelList([])
       setErrors({})
+      setVisibility('PUBLIC')
+      setSelectedMemberIds([])
+      
+      if (visibility === 'TARGETED' && resolvedWorkspaceId) {
+        loadWorkspaceMembers()
+      }
     }
   }, [open])
 
-  // Resolve workspaceId: use initialWorkspaceId if provided, otherwise use current workspace
-  // Note: This design supports a future visible workspace selector in the UI
-  const resolvedWorkspaceId = initialWorkspaceId || currentWorkspace?.id
+  useEffect(() => {
+    if (open && visibility === 'TARGETED' && resolvedWorkspaceId) {
+      loadWorkspaceMembers()
+    } else {
+      setWorkspaceMembers([])
+    }
+  }, [open, visibility, resolvedWorkspaceId])
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -137,6 +177,12 @@ export function CreateProjectDialog({
       }
       if (formData.endDate) {
         requestBody.endDate = formData.endDate
+      }
+      
+      // New visibility-based flow
+      requestBody.visibility = visibility
+      if (visibility === 'TARGETED' && selectedMemberIds.length > 0) {
+        requestBody.memberUserIds = selectedMemberIds
       }
 
       const response = await fetch('/api/projects', {
@@ -232,6 +278,83 @@ export function CreateProjectDialog({
               disabled={isLoading}
             />
           </div>
+
+          {/* Visibility Toggle */}
+          <div className="space-y-2">
+            <Label>Visibility</Label>
+            <div className="flex gap-4">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="visibility"
+                  value="PUBLIC"
+                  checked={visibility === 'PUBLIC'}
+                  onChange={(e) => setVisibility(e.target.value as 'PUBLIC' | 'TARGETED')}
+                  disabled={isLoading}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">Public</span>
+                <Badge variant="default" className="text-xs">All workspace members</Badge>
+              </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="visibility"
+                  value="TARGETED"
+                  checked={visibility === 'TARGETED'}
+                  onChange={(e) => setVisibility(e.target.value as 'PUBLIC' | 'TARGETED')}
+                  disabled={isLoading}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">Private</span>
+                <Badge variant="secondary" className="text-xs">Selected members only</Badge>
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {visibility === 'PUBLIC' 
+                ? 'All workspace members will be able to view and access this project.'
+                : 'Only selected members will be able to view and access this project. You will be added automatically.'}
+            </p>
+          </div>
+
+          {/* Member Picker (only for Private) */}
+          {visibility === 'TARGETED' && (
+            <div className="space-y-2">
+              <Label>Add Members</Label>
+              {loadingMembers ? (
+                <div className="text-sm text-muted-foreground">Loading members...</div>
+              ) : workspaceMembers.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No workspace members found.</div>
+              ) : (
+                <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                  {workspaceMembers.map((member) => (
+                    <label key={member.id} className="flex items-center space-x-2 cursor-pointer hover:bg-muted p-2 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedMemberIds.includes(member.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedMemberIds([...selectedMemberIds, member.id])
+                          } else {
+                            setSelectedMemberIds(selectedMemberIds.filter(id => id !== member.id))
+                          }
+                        }}
+                        disabled={isLoading}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">{member.name}</span>
+                      {member.email && (
+                        <span className="text-xs text-muted-foreground">({member.email})</span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Select workspace members who should have access to this private project.
+              </p>
+            </div>
+          )}
 
           {/* Slack Channels (client-side only) */}
           <div className="space-y-2">

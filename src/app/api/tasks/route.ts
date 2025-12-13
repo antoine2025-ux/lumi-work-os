@@ -16,12 +16,12 @@ export async function GET(request: NextRequest) {
     // 1. Get authenticated user with workspace context
     const auth = await getUnifiedAuth(request)
     
-    // 2. Assert workspace access
+    // 2. Assert workspace access (VIEWER can see tasks)
     await assertAccess({ 
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       scope: 'workspace', 
-      requireRole: ['MEMBER'] 
+      requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
     })
 
     // 3. Set workspace context for Prisma middleware
@@ -39,13 +39,13 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // 4. Assert project access (project must be in active workspace)
+    // 4. Assert project access (project must be in active workspace, VIEWER can see tasks)
     await assertAccess({ 
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       projectId, 
       scope: 'project', 
-      requireRole: ['MEMBER'] 
+      requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
     })
 
     const where: any = { 
@@ -282,6 +282,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ 
           error: 'Epic does not belong to the specified project' 
         }, { status: 400 })
+      }
+    }
+
+    // POLICY B: Validate that assignee has project access before assigning task
+    if (assigneeId) {
+      const { hasProjectAccess } = await import('@/lib/pm/guards')
+      const assigneeHasAccess = await hasProjectAccess(
+        assigneeId,
+        projectId,
+        auth.workspaceId
+      )
+
+      if (!assigneeHasAccess) {
+        return NextResponse.json({ 
+          error: 'Cannot assign task: The selected assignee does not have access to this project. Please add them to the project first.' 
+        }, { status: 403 })
       }
     }
 

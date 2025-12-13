@@ -229,7 +229,6 @@ async function resolveActiveWorkspaceIdWithMember(
       
       if (member) {
         const totalDurationMs = performance.now() - startTime
-        const totalDurationMs = performance.now() - startTime
         logger.debug('resolveActiveWorkspaceIdWithMember (slug)', {
           requestId,
           method: 'slug',

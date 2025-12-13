@@ -53,6 +53,14 @@ export async function GET(
         wikiPageId: true,
         createdById: true,
         workspaceId: true,
+        projectSpaceId: true,
+        projectSpace: {
+          select: {
+            id: true,
+            name: true,
+            visibility: true
+          }
+        },
         createdBy: {
           select: {
             id: true,
@@ -142,8 +150,21 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
     
-    if (error.message === 'Forbidden: Insufficient project permissions.') {
-      return NextResponse.json({ error: 'Forbidden: Insufficient project permissions' }, { status: 403 })
+    if (error.message === 'Forbidden: Insufficient project permissions.' || 
+        error.message === 'Forbidden: You do not have access to this project space.') {
+      // Try to include projectSpaceId in error response for better UX
+      try {
+        const project = await prisma.project.findUnique({
+          where: { id: projectId },
+          select: { projectSpaceId: true }
+        })
+        return NextResponse.json({ 
+          error: 'Forbidden: Insufficient project permissions',
+          projectSpaceId: project?.projectSpaceId || null
+        }, { status: 403 })
+      } catch {
+        return NextResponse.json({ error: 'Forbidden: Insufficient project permissions' }, { status: 403 })
+      }
     }
     
     return NextResponse.json({ 
@@ -220,16 +241,66 @@ export async function PUT(
       team,
       wikiPageId,
       ownerId,
-      dailySummaryEnabled
+      dailySummaryEnabled,
+      visibility,
+      memberUserIds = []
     } = validatedData
 
-    // Check if project exists
+    // Check if project exists and get current ProjectSpace info
     const existingProject = await prisma.project.findUnique({
-      where: { id: projectId }
+      where: { id: projectId },
+      include: {
+        projectSpace: {
+          select: {
+            id: true,
+            visibility: true,
+            name: true
+          }
+        }
+      }
     })
 
     if (!existingProject) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    // Handle visibility changes
+    let newProjectSpaceId: string | undefined = existingProject.projectSpaceId || undefined
+    
+    if (visibility !== undefined) {
+      const { getOrCreateGeneralProjectSpace, createPrivateProjectSpace } = await import('@/lib/pm/project-space-helpers')
+      
+      if (visibility === 'PUBLIC') {
+        // Switch to PUBLIC: move to General space
+        newProjectSpaceId = await getOrCreateGeneralProjectSpace(auth.workspaceId)
+      } else if (visibility === 'TARGETED') {
+        // Switch to TARGETED: create new private space or use existing
+        const currentSpace = existingProject.projectSpace
+        if (currentSpace && currentSpace.visibility === 'TARGETED') {
+          // Already TARGETED: update members if provided
+          newProjectSpaceId = currentSpace.id
+          
+          if (memberUserIds.length > 0) {
+            // Add new members (creator is always included)
+            const allMemberIds = [auth.user.userId, ...memberUserIds.filter(id => id !== auth.user.userId)]
+            await prisma.projectSpaceMember.createMany({
+              data: allMemberIds.map(userId => ({
+                projectSpaceId: currentSpace.id,
+                userId
+              })),
+              skipDuplicates: true
+            })
+          }
+        } else {
+          // Switching from PUBLIC to TARGETED: create new private space
+          newProjectSpaceId = await createPrivateProjectSpace(
+            auth.workspaceId,
+            existingProject.name,
+            auth.user.userId,
+            memberUserIds
+          )
+        }
+      }
     }
 
     // Handle assignee updates if provided
@@ -266,6 +337,7 @@ export async function PUT(
         ...(wikiPageId !== undefined && { wikiPageId: wikiPageId || null }),
         ...(ownerId !== undefined && { ownerId: ownerId || null }),
         ...(dailySummaryEnabled !== undefined && { dailySummaryEnabled }),
+        ...(newProjectSpaceId !== undefined && { projectSpaceId: newProjectSpaceId }),
       },
       include: {
         createdBy: {

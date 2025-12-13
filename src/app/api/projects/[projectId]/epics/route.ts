@@ -21,24 +21,24 @@ export async function GET(
     // 1. Get authenticated user with workspace context
     const auth = await getUnifiedAuth(request)
     
-    // 2. Assert workspace access
+    // 2. Assert workspace access (VIEWER can see epics)
     await assertAccess({ 
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       scope: 'workspace', 
-      requireRole: ['MEMBER'] 
+      requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
     })
 
     // 3. Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
-    // 4. Assert project access (project must be in active workspace)
+    // 4. Assert project access (project must be in active workspace, VIEWER can see epics)
     await assertAccess({ 
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       projectId, 
       scope: 'project', 
-      requireRole: ['MEMBER'] 
+      requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
     })
 
     const epics = await prisma.epic.findMany({

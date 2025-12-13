@@ -38,58 +38,59 @@ model Session {
 }
 
 model User {
-  id                   String                 @id @default(cuid())
-  name                 String?
-  email                String                 @unique
-  emailVerified        DateTime?
-  image                String?
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  themePreference      String?                @default("default")
-  bio                  String?
-  skills               String[]               @default([])
-  currentGoals         String[]               @default([])
-  interests            String[]               @default([])
-  timezone             String?
-  location             String?
-  phone                String?
-  linkedinUrl          String?
-  githubUrl            String?
-  personalWebsite      String?
-  accounts             Account[]
-  activities           Activity[]
-  chatSessions         ChatSession[]
-  onboarding_plans     OnboardingPlan[]
-  orgAuditLogs         OrgAuditLog[]
-  orgPositions         OrgPosition[]
-  projectAssignees     ProjectAssignee[]      @relation("ProjectAssignee")
-  projectMemberships   ProjectMember[]
-  projectTemplates     ProjectTemplate[]
-  projectWatchers      ProjectWatcher[]       @relation("ProjectWatcher")
-  createdProjects      Project[]
-  ownedProjects        Project[]              @relation("ProjectOwner")
-  roleCards            RoleCard[]
-  sessions             Session[]
-  assignedSubtasks     Subtask[]
-  taskComments         TaskComment[]
-  taskHistory          TaskHistory[]
-  createdTaskTemplates TaskTemplate[]         @relation("TaskTemplateCreator")
-  assignedTasks        Task[]                 @relation("TaskAssignee")
-  createdTasks         Task[]                 @relation("TaskCreator")
-  wiki_ai_interactions wiki_ai_interactions[]
-  wikiComments         WikiComment[]
-  wiki_favorites       WikiFavorite[]
-  wikiPagePermissions  WikiPagePermission[]
-  wiki_page_views      wiki_page_views[]
-  wikiPages            WikiPage[]
-  wikiVersions         WikiVersion[]
-  wiki_workspaces      wiki_workspaces[]
-  workflowAssignments  WorkflowAssignment[]
-  workflowInstances    WorkflowInstance[]
-  createdInvites       WorkspaceInvite[]      @relation("InviteCreator")
-  workspaceMemberships WorkspaceMember[]
-  ownedWorkspaces      Workspace[]            @relation("WorkspaceOwner")
-  onboarding_tasks     OnboardingTask[]       @relation("OnboardingTaskToUser")
+  id                      String                 @id @default(cuid())
+  name                    String?
+  email                   String                 @unique
+  emailVerified           DateTime?
+  image                   String?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  themePreference         String?                @default("default")
+  bio                     String?
+  skills                  String[]               @default([])
+  currentGoals            String[]               @default([])
+  interests               String[]               @default([])
+  timezone                String?
+  location                String?
+  phone                   String?
+  linkedinUrl             String?
+  githubUrl               String?
+  personalWebsite         String?
+  accounts                Account[]
+  activities              Activity[]
+  chatSessions            ChatSession[]
+  onboarding_plans        OnboardingPlan[]
+  orgAuditLogs            OrgAuditLog[]
+  orgPositions            OrgPosition[]
+  projectAssignees        ProjectAssignee[]      @relation("ProjectAssignee")
+  projectMemberships      ProjectMember[]
+  projectSpaceMemberships ProjectSpaceMember[]
+  projectTemplates        ProjectTemplate[]
+  projectWatchers         ProjectWatcher[]       @relation("ProjectWatcher")
+  createdProjects         Project[]
+  ownedProjects           Project[]              @relation("ProjectOwner")
+  roleCards               RoleCard[]
+  sessions                Session[]
+  assignedSubtasks        Subtask[]
+  taskComments            TaskComment[]
+  taskHistory             TaskHistory[]
+  createdTaskTemplates    TaskTemplate[]         @relation("TaskTemplateCreator")
+  assignedTasks           Task[]                 @relation("TaskAssignee")
+  createdTasks            Task[]                 @relation("TaskCreator")
+  wiki_ai_interactions    wiki_ai_interactions[]
+  wikiComments            WikiComment[]
+  wiki_favorites          WikiFavorite[]
+  wikiPagePermissions     WikiPagePermission[]
+  wiki_page_views         wiki_page_views[]
+  wikiPages               WikiPage[]
+  wikiVersions            WikiVersion[]
+  wiki_workspaces         wiki_workspaces[]
+  workflowAssignments     WorkflowAssignment[]
+  workflowInstances       WorkflowInstance[]
+  createdInvites          WorkspaceInvite[]      @relation("InviteCreator")
+  workspaceMemberships    WorkspaceMember[]
+  ownedWorkspaces         Workspace[]            @relation("WorkspaceOwner")
+  onboarding_tasks        OnboardingTask[]       @relation("OnboardingTaskToUser")
 
   @@map("users")
 }
@@ -124,6 +125,7 @@ model Workspace {
   orgTeams            OrgTeam[]
   projectTemplates    ProjectTemplate[]
   projects            Project[]
+  projectSpaces       ProjectSpace[]
   roleCards           RoleCard[]
   taskTemplates       TaskTemplate[]
   tasks               Task[]
@@ -633,6 +635,36 @@ model ChatMessage {
   @@map("chat_messages")
 }
 
+model ProjectSpace {
+  id          String                 @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  visibility  ProjectSpaceVisibility @default(PUBLIC)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  workspace   Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projects    Project[]
+  members     ProjectSpaceMember[]
+
+  @@index([workspaceId], map: "idx_project_spaces_workspace")
+  @@map("project_spaces")
+}
+
+model ProjectSpaceMember {
+  id             String       @id @default(cuid())
+  projectSpaceId String
+  userId         String
+  joinedAt       DateTime     @default(now())
+  projectSpace   ProjectSpace @relation(fields: [projectSpaceId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectSpaceId, userId])
+  @@index([userId], map: "idx_project_space_members_user")
+  @@index([projectSpaceId], map: "idx_project_space_members_space")
+  @@map("project_space_members")
+}
+
 model Project {
   id                  String                 @id @default(cuid())
   workspaceId         String
@@ -648,6 +680,7 @@ model Project {
   team                String?
   wikiPageId          String?
   ownerId             String?
+  projectSpaceId      String?
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
   createdById         String
@@ -664,10 +697,12 @@ model Project {
   owner               User?                  @relation("ProjectOwner", fields: [ownerId], references: [id])
   wikiPage            WikiPage?              @relation("ProjectPrimaryWiki", fields: [wikiPageId], references: [id])
   workspace           Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectSpace        ProjectSpace?          @relation(fields: [projectSpaceId], references: [id], onDelete: SetNull)
   tasks               Task[]
 
   @@index([workspaceId, status], map: "idx_projects_workspace_status")
   @@index([updatedAt(sort: Desc)], map: "idx_projects_updated_at")
+  @@index([projectSpaceId], map: "idx_projects_project_space")
   @@map("projects")
 }
 
@@ -1237,4 +1272,9 @@ enum BlogPostCategory {
   PRODUCT
   CONTEXTUAL_AI
   LOOPWELL
+}
+
+enum ProjectSpaceVisibility {
+  PUBLIC
+  TARGETED
 }

@@ -41,6 +41,12 @@ interface Project {
   ownerId?: string
   assignees: ProjectAssignee[]
   owner?: ProjectOwner
+  projectSpace?: {
+    id: string
+    name: string
+    visibility: 'PUBLIC' | 'TARGETED'
+  }
+  projectSpaceId?: string | null
 }
 
 interface ProjectEditDialogProps {
@@ -79,6 +85,9 @@ const colorOptions = [
 export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceId }: ProjectEditDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
+  const [workspaceMembers, setWorkspaceMembers] = useState<Array<{ id: string; name: string; email: string }>>([])
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'TARGETED'>('PUBLIC')
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -99,12 +108,18 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
   useEffect(() => {
     if (isOpen && workspaceId) {
       loadUsers()
+      loadWorkspaceMembers()
     }
   }, [isOpen, workspaceId])
 
   // Update form data when project changes
   useEffect(() => {
     if (project) {
+      // Determine current visibility
+      const currentVisibility = project.projectSpace?.visibility || 
+                                (project.projectSpaceId ? 'TARGETED' : 'PUBLIC')
+      
+      setVisibility(currentVisibility)
       setFormData({
         name: project.name,
         description: project.description || '',
@@ -119,8 +134,43 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
         slackChannelHints: (project as any).slackChannelHints || getProjectSlackHints(project.id) || []
       })
       setChannelInput('')
+      
+      // Load ProjectSpace members if TARGETED
+      if (currentVisibility === 'TARGETED' && project.projectSpaceId) {
+        loadProjectSpaceMembers(project.projectSpaceId)
+      } else {
+        setSelectedMemberIds([])
+      }
     }
   }, [project])
+
+  const loadWorkspaceMembers = async () => {
+    try {
+      const response = await fetch(`/api/workspaces/${workspaceId}/members`)
+      if (response.ok) {
+        const data = await response.json()
+        setWorkspaceMembers(data.members?.map((m: any) => ({
+          id: m.userId,
+          name: m.user?.name || m.user?.email || 'Unknown',
+          email: m.user?.email || ''
+        })) || [])
+      }
+    } catch (error) {
+      console.error('Error loading workspace members:', error)
+    }
+  }
+
+  const loadProjectSpaceMembers = async (projectSpaceId: string) => {
+    try {
+      const response = await fetch(`/api/project-spaces/${projectSpaceId}/members`)
+      if (response.ok) {
+        const data = await response.json()
+        setSelectedMemberIds(data.members?.map((m: any) => m.userId) || [])
+      }
+    } catch (error) {
+      console.error('Error loading ProjectSpace members:', error)
+    }
+  }
 
   const loadUsers = async () => {
     try {
@@ -207,6 +257,16 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
       // Include assigneeIds separately (not in schema, extracted before validation)
       if (formData.assigneeIds && Array.isArray(formData.assigneeIds)) {
         requestBody.assigneeIds = formData.assigneeIds
+      }
+      
+      // Include visibility and memberUserIds if visibility changed
+      const currentVisibility = project.projectSpace?.visibility || 
+                                (project.projectSpaceId ? 'TARGETED' : 'PUBLIC')
+      if (visibility !== currentVisibility) {
+        requestBody.visibility = visibility
+        if (visibility === 'TARGETED' && selectedMemberIds.length > 0) {
+          requestBody.memberUserIds = selectedMemberIds
+        }
       }
       
       const response = await fetch(`/api/projects/${project.id}`, {
@@ -346,6 +406,81 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
                 </Button>
               </div>
             </div>
+
+            {/* Visibility Control */}
+            <div className="space-y-2">
+              <Label>Visibility</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value="PUBLIC"
+                    checked={visibility === 'PUBLIC'}
+                    onChange={(e) => setVisibility(e.target.value as 'PUBLIC' | 'TARGETED')}
+                    disabled={isLoading}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Public</span>
+                  <Badge variant="default" className="text-xs">All workspace members</Badge>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value="TARGETED"
+                    checked={visibility === 'TARGETED'}
+                    onChange={(e) => setVisibility(e.target.value as 'PUBLIC' | 'TARGETED')}
+                    disabled={isLoading}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Private</span>
+                  <Badge variant="secondary" className="text-xs">Selected members only</Badge>
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {visibility === 'PUBLIC' 
+                  ? 'All workspace members can view and access this project.'
+                  : 'Only selected members can view and access this project.'}
+              </p>
+            </div>
+
+            {/* Member Picker (only for Private) */}
+            {visibility === 'TARGETED' && (
+              <div className="space-y-2">
+                <Label>Project Members</Label>
+                {workspaceMembers.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">Loading members...</div>
+                ) : (
+                  <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                    {workspaceMembers.map((member) => (
+                      <label key={member.id} className="flex items-center space-x-2 cursor-pointer hover:bg-muted p-2 rounded">
+                        <input
+                          type="checkbox"
+                          checked={selectedMemberIds.includes(member.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedMemberIds([...selectedMemberIds, member.id])
+                            } else {
+                              setSelectedMemberIds(selectedMemberIds.filter(id => id !== member.id))
+                            }
+                          }}
+                          disabled={isLoading}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">{member.name}</span>
+                        {member.email && (
+                          <span className="text-xs text-muted-foreground">({member.email})</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Select workspace members who should have access to this private project.
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
