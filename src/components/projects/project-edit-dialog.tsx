@@ -269,6 +269,11 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
         }
       }
       
+      // Include slackChannelHints (client-side only, not persisted to DB but returned in response)
+      if (formData.slackChannelHints && Array.isArray(formData.slackChannelHints)) {
+        requestBody.slackChannelHints = formData.slackChannelHints
+      }
+      
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PUT',
         headers: {
@@ -279,6 +284,12 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
 
       if (response.ok) {
         const updatedProject = await response.json()
+        // Save slackChannelHints to localStorage before calling onSave
+        // This ensures they persist even if the API response doesn't include them
+        if (formData.slackChannelHints && formData.slackChannelHints.length > 0) {
+          const { setProjectSlackHints } = await import('@/lib/client-state/project-slack-hints')
+          setProjectSlackHints(project.id, formData.slackChannelHints)
+        }
         onSave(updatedProject)
         onClose()
       } else {
