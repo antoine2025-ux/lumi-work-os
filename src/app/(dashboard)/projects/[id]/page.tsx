@@ -36,7 +36,7 @@ import Link from "next/link"
 import { useWorkspace } from "@/lib/workspace-context"
 import dynamic from "next/dynamic"
 import { useTheme } from "@/components/theme-provider"
-import { useProjectSlackHints, setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
+import { useProjectSlackHints, setProjectSlackHints, getProjectSlackHints } from "@/lib/client-state/project-slack-hints"
 
 // Keep essential imports at top for faster initial render
 import ReactMarkdown from "react-markdown"
@@ -251,7 +251,20 @@ export default function ProjectDetailPage() {
           'projectId type': typeof projectId,
           'ids match?': data.id === projectId
         })
-        setProject(data)
+        // Merge slackChannelHints from localStorage into project data
+        // The GET endpoint doesn't return slackChannelHints (they're client-side only)
+        // So we need to merge them from localStorage to keep them visible
+        const storedHints = getProjectSlackHints(projectId)
+        const projectWithHints = {
+          ...data,
+          slackChannelHints: data.slackChannelHints || storedHints || []
+        }
+        console.log('[ProjectPage] Merged slackChannelHints:', {
+          'from API': data.slackChannelHints,
+          'from localStorage': storedHints,
+          'merged': projectWithHints.slackChannelHints
+        })
+        setProject(projectWithHints)
       } else if (response.status === 404) {
         console.log('[ProjectPage] project not found (404), setting error')
         setError('Project not found')
