@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -7,6 +8,8 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
     const { message, sessionId } = await request.json()
 
     if (!message || !sessionId) {
@@ -20,7 +23,7 @@ export async function POST(request: NextRequest) {
           const completion = await openai.chat.completions.create({
             model: "gpt-4-turbo-preview",
             messages: [
-              { role: "system", content: "You are Lumi AI, a helpful assistant." },
+              { role: "system", content: "You are Loopwell AI, a helpful assistant." },
               { role: "user", content: message }
             ],
             stream: true,

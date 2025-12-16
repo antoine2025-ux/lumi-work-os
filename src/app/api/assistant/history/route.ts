@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // Temporarily bypass authentication for development
-    // const session = await getServerSession(authOptions)
-    // if (!session?.user?.email) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    // }
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
 
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
 
     const sessions = await prisma.chatSession.findMany({
       where: {
-        userId: 'dev-user-1', // Hardcoded for development
-        workspaceId: 'workspace-1'
+        userId: auth.user.userId,
+        workspaceId: auth.workspaceId
       },
       orderBy: {
         updatedAt: 'desc'

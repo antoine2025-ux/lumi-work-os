@@ -39,6 +39,7 @@ export default function WikiSearchPage() {
   const [query, setQuery] = useState(searchParams.get('q') || '')
   const [results, setResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [workspaceId, setWorkspaceId] = useState<string>('')
   const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'title'>('relevance')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [filters, setFilters] = useState({
@@ -47,9 +48,27 @@ export default function WikiSearchPage() {
     tags: [] as string[]
   })
 
+  // Get workspace ID from user status
+  useEffect(() => {
+    const fetchWorkspaceId = async () => {
+      try {
+        const response = await fetch('/api/auth/user-status')
+        if (response.ok) {
+          const userStatus = await response.json()
+          if (userStatus.workspaceId) {
+            setWorkspaceId(userStatus.workspaceId)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching workspace ID:', error)
+      }
+    }
+    fetchWorkspaceId()
+  }, [])
+
   // Perform search
   const performSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
+    if (!searchQuery.trim() || !workspaceId) {
       setResults([])
       return
     }
@@ -59,7 +78,7 @@ export default function WikiSearchPage() {
     try {
       const params = new URLSearchParams({
         q: searchQuery,
-        workspaceId: 'cmgl0f0wa00038otlodbw5jhn', // TODO: Get from context/session
+        workspaceId: workspaceId,
         type: filters.type,
         ...(filters.author && { author: filters.author }),
         ...(filters.tags.length > 0 && { tags: filters.tags.join(',') })

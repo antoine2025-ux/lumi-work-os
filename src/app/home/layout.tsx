@@ -1,0 +1,161 @@
+"use client"
+
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { useEffect, useState, useRef } from "react"
+import { Header } from "@/components/layout/header"
+import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context"
+
+export default function HomeLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
+  const [isFirstTime, setIsFirstTime] = useState(false)
+  const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(true)
+
+  useEffect(() => {
+    const checkWorkspace = async () => {
+      try {
+        // Guard: Never redirect if already on invite page
+        const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
+        const isInvitePage = currentPath.startsWith('/invites') || currentPath === '/invites'
+        if (isInvitePage) {
+          setIsLoadingWorkspace(false)
+          return
+        }
+        
+        const response = await fetch('/api/auth/user-status')
+        if (response.ok) {
+          const data = await response.json()
+          console.log('[HomeLayout] User status:', data)
+          
+          // If no workspace, check for pending invite first
+          if (!data.workspaceId) {
+            if (data.pendingInvite?.token) {
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[HomeLayout] No workspace found but pending invite exists, redirecting to invite:', data.pendingInvite.token)
+              }
+              window.location.href = `/invites/${data.pendingInvite.token}`
+              return
+            }
+            
+            // No pending invite, redirect to welcome
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[HomeLayout] No workspace found, no pending invite, redirecting to welcome')
+            }
+            window.location.href = '/welcome'
+            return
+          }
+          
+          setWorkspaceId(data.workspaceId)
+          setIsFirstTime(data.isFirstTime || false)
+        } else {
+          const errorData = await response.json()
+          console.log('[HomeLayout] Error response:', errorData)
+          
+          // If error indicates no workspace, check for pending invite
+          if (errorData.error && errorData.error.includes('No workspace')) {
+            if (errorData.pendingInvite?.token) {
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[HomeLayout] No workspace in error but pending invite exists, redirecting to invite:', errorData.pendingInvite.token)
+              }
+              window.location.href = `/invites/${errorData.pendingInvite.token}`
+              return
+            }
+            
+            // No pending invite, redirect to welcome
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[HomeLayout] No workspace in error, no pending invite, redirecting to welcome')
+            }
+            window.location.href = '/welcome'
+            return
+          }
+        }
+      } catch (error) {
+        console.error('[HomeLayout] Error checking workspace:', error)
+        // Resilience: Don't redirect on fetch failure - let user stay on current page
+        // This prevents infinite loading or redirect loops if API is down
+        // User can retry or navigate manually
+      } finally {
+        setIsLoadingWorkspace(false)
+      }
+    }
+    
+    if (status === 'authenticated' && session) {
+      checkWorkspace()
+    } else if (status === 'unauthenticated') {
+      setIsLoadingWorkspace(false)
+    }
+  }, [session, status])
+
+  // Re-enable auth redirect - but only check once per mount or when session actually changes
+  const hasCheckedAuth = useRef(false)
+  useEffect(() => {
+    // Skip if we've already checked and session hasn't meaningfully changed
+    if (hasCheckedAuth.current && status === 'authenticated' && session) {
+      return
+    }
+    
+    if (status === "loading") return // Still loading session
+    
+    // Check for logout flag - if set, redirect to login immediately and clear flag
+    const logoutFlag = sessionStorage.getItem('__logout_flag__')
+    if (logoutFlag === 'true') {
+      sessionStorage.removeItem('__logout_flag__')
+      window.location.href = '/login'
+      return
+    }
+    
+    // Only redirect if we're actually unauthenticated (not just refetching)
+    if (status === 'unauthenticated' && !session) {
+      hasCheckedAuth.current = true
+      router.push("/")
+      return
+    }
+    
+    // Mark as checked if we have a valid session
+    if (status === 'authenticated' && session) {
+      hasCheckedAuth.current = true
+    }
+  }, [session, status, router])
+
+  // Show loading while checking session or workspace
+  if (status === "loading" || isLoadingWorkspace) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p className="ml-3 text-sm text-muted-foreground">Loading...</p>
+      </div>
+    )
+  }
+
+  if (!session) {
+    return null
+  }
+  
+  // Don't render anything while workspace is being checked
+  if (!workspaceId) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p className="ml-3 text-sm text-muted-foreground">Checking workspace...</p>
+      </div>
+    )
+  }
+
+  return (
+    <LoopbrainAssistantProvider>
+      <div className="min-h-screen bg-slate-950">
+        <Header />
+        <main className="min-h-screen">
+          {children}
+        </main>
+      </div>
+    </LoopbrainAssistantProvider>
+  )
+}
+

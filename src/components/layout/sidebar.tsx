@@ -3,10 +3,10 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { Logo } from "@/components/logo"
 import { 
   LayoutDashboard, 
   Users, 
-  GraduationCap, 
   BookOpen, 
   MessageSquare, 
   Settings,
@@ -16,11 +16,10 @@ import {
 } from "lucide-react"
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/home", icon: LayoutDashboard },
   { name: "Projects", href: "/projects", icon: Target },
   { name: "Org Chart", href: "/org", icon: Users },
   { name: "Admin", href: "/admin", icon: Shield },
-  { name: "Clario Onboarding", href: "/onboarding", icon: GraduationCap },
   { name: "Wiki", href: "/wiki", icon: BookOpen },
   { name: "Ask Wiki", href: "/ask", icon: MessageSquare },
   { name: "Migration Review", href: "/migrations/review", icon: Download },
@@ -33,10 +32,13 @@ export function Sidebar() {
     <div className="flex h-full w-64 flex-col bg-card border-r">
       <div className="flex h-16 items-center px-6 border-b">
         <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg">L</span>
-          </div>
-          <span className="text-xl font-semibold">Lumi</span>
+          <Logo 
+            width={32} 
+            height={32} 
+            className="h-8 w-8"
+            priority
+          />
+          <span className="text-xl font-semibold">Loopwell</span>
         </div>
       </div>
       

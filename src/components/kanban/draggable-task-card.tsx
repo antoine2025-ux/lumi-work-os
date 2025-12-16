@@ -1,12 +1,15 @@
 "use client"
 
-import React from 'react'
+import React, { useRef, useEffect } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { Card, CardContent } from '@/components/ui/card'
 import { ContextMenu } from '@/components/ui/context-menu'
-import { Edit, LinkIcon } from 'lucide-react'
-import Link from 'next/link'
+import { Badge } from '@/components/ui/badge'
+import { Edit, LinkIcon, User, AlertCircle } from 'lucide-react'
+import { getEpicColor } from '@/lib/utils/epic-colors'
+import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
+import { cn } from '@/lib/utils'
 
 interface Task {
   id: string
@@ -26,6 +29,30 @@ interface Task {
   blocks: string[]
   createdAt: string
   updatedAt: string
+  epicId?: string
+  epic?: {
+    id: string
+    title: string
+    color?: string
+  }
+  milestoneId?: string
+  milestone?: {
+    id: string
+    title: string
+    startDate?: string
+    endDate?: string
+  }
+  points?: number
+  customFields?: {
+    id: string
+    fieldId: string
+    value: any
+    field: {
+      id: string
+      label: string
+      type: string
+    }
+  }[]
   createdBy: {
     id: string
     name: string
@@ -46,14 +73,22 @@ interface DraggableTaskCardProps {
   onEdit?: (task: Task) => void
   onManageDependencies?: (taskId: string) => void
   compact?: boolean
+  isOverlay?: boolean // When true, this card is rendered in DragOverlay (no drag handlers)
 }
 
 export function DraggableTaskCard({ 
   task,
   onEdit,
   onManageDependencies,
-  compact = false
+  compact = false,
+  isOverlay = false
 }: DraggableTaskCardProps) {
+  const { open } = useTaskSidebarStore()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [dimensions, setDimensions] = React.useState<{ width: number; height: number } | null>(null)
+  
+  // Only use draggable hooks when NOT in overlay mode
+  // In overlay mode, this is just a visual representation
   const {
     attributes,
     listeners,
@@ -65,16 +100,35 @@ export function DraggableTaskCard({
     data: {
       task,
       type: 'task'
-    }
+    },
+    disabled: isOverlay, // Disable drag when in overlay
   })
 
-  const style = {
+  // Capture dimensions when drag starts to lock them and prevent stretching
+  useEffect(() => {
+    if (!isOverlay && isDragging && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      setDimensions({ width: rect.width, height: rect.height })
+    } else if (!isDragging) {
+      setDimensions(null)
+    }
+  }, [isDragging, isOverlay])
+
+  // Style for the draggable root element - keep it simple to avoid drag ghost stretching
+  // We avoid transitions on transform/scale here because DnD applies its own transforms
+  const style = isOverlay ? {} : {
     transform: CSS.Transform.toString(transform),
     opacity: isDragging ? 0.4 : 1,
-    zIndex: isDragging ? 1000 : 1,
-    transition: isDragging ? 'none' : 'all 0.2s ease-in-out',
+    // Lock dimensions during drag to prevent stretching
+    ...(isDragging && dimensions ? {
+      width: `${dimensions.width}px`,
+      height: `${dimensions.height}px`,
+      minWidth: `${dimensions.width}px`,
+      maxWidth: `${dimensions.width}px`,
+      minHeight: `${dimensions.height}px`,
+      maxHeight: `${dimensions.height}px`,
+    } : {}),
   }
-
 
   // Create context menu items for this task
   const menuItems = [
@@ -82,7 +136,7 @@ export function DraggableTaskCard({
       id: "edit",
       label: "Edit Task",
       icon: Edit,
-      action: () => onEdit?.(task)
+      action: () => open(task.id)
     },
     {
       id: "dependencies",
@@ -92,105 +146,193 @@ export function DraggableTaskCard({
     }
   ]
 
-  return (
-    <ContextMenu items={menuItems}>
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "URGENT":
+      case "HIGH":
+        return "bg-red-500/20 text-red-400 border-red-500/30"
+      case "MEDIUM":
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+      default:
+        return "bg-blue-500/20 text-blue-400 border-blue-500/30"
+    }
+  }
+
+  // Get epic color for left border and pill
+  const epicColor = getEpicColor(task.epic)
+  const hasEpic = task.epic && task.epic.title
+
+  // When in overlay mode, render without drag handlers and with enhanced visual feedback
+  // Lock width to prevent stretching when dragging downward
+  // The card should be the same size as the original, just with a stronger shadow
+  if (isOverlay) {
+    return (
       <Card
-        ref={setNodeRef}
-        style={style}
-        className={`hover-lift drag-transition border-0 shadow-sm ${
-          isDragging 
-            ? 'shadow-lg border border-blue-300' 
-            : 'hover:scale-[1.02] hover:border-gray-200'
-        } ${compact ? 'text-xs' : ''}`}
+        style={{
+          borderLeftWidth: '4px',
+          borderLeftColor: epicColor,
+        }}
+        className={cn(
+          "border-border bg-card shadow-2xl w-full",
+          // Constrain width to prevent stretching - w-full ensures it matches column width
+        )}
       >
-        <CardContent className={compact ? "p-2" : "p-4"}>
-          <div className={`space-y-${compact ? '1' : '3'}`}>
-            {/* Title - Clickable Link */}
-            <Link 
-              href={`/projects/${task.project.id}/tasks/${task.id}`}
-              className="block hover:bg-gray-50 rounded p-1 -m-1 transition-colors"
-              onClick={(e) => {
-                // Prevent navigation if dragging
-                if (isDragging) {
-                  e.preventDefault()
-                }
-              }}
-              onContextMenu={(e) => {
-                // Allow context menu to work on the link
-                e.stopPropagation()
-              }}
-            >
-              <h3 className={`font-medium leading-tight text-gray-900 cursor-pointer ${
-                compact ? 'text-xs' : 'text-base'
-              }`}>{task.title}</h3>
-            </Link>
+          <div className="transition-colors">
+            <CardContent className="p-3">
+              <div className="flex items-start gap-2 mb-2">
+                {task.status === 'BLOCKED' && (
+                  <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                )}
+                <p className={`text-sm text-foreground flex-1 ${task.status === 'BLOCKED' ? 'line-through opacity-70' : ''}`}>
+                  {task.title}
+                </p>
+              </div>
+              
+              {/* Epic Pill */}
+              <div className="mb-2">
+                <Badge
+                  variant="outline"
+                  className={`text-xs ${
+                    hasEpic
+                      ? 'bg-blue-100 text-blue-800 border-blue-200'
+                      : 'bg-muted text-muted-foreground border-muted-foreground/20'
+                  }`}
+                  style={hasEpic && task.epic?.color ? {
+                    backgroundColor: `${task.epic.color}15`,
+                    color: task.epic.color,
+                    borderColor: `${task.epic.color}40`,
+                  } : undefined}
+                >
+                  {hasEpic ? task.epic.title : 'No Epic'}
+                </Badge>
+              </div>
 
-            {/* Description - Minimal */}
-            {task.description && !compact && (
-              <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{task.description}</p>
-            )}
-
-            {/* Essential Info - Horizontal Layout */}
-            <div className={`flex items-center justify-between text-xs text-gray-400 ${
-              compact ? 'space-x-1' : 'space-x-3'
-            }`}>
-              <div className={`flex items-center ${compact ? 'space-x-1' : 'space-x-3'}`}>
-                {/* Priority - Enhanced Dot */}
-                <div className={`${compact ? 'w-2 h-2' : 'w-3 h-3'} rounded-full shadow-sm ${
-                  task.priority === 'URGENT' ? 'bg-red-500 ring-2 ring-red-200' :
-                  task.priority === 'HIGH' ? 'bg-orange-500 ring-2 ring-orange-200' :
-                  task.priority === 'MEDIUM' ? 'bg-yellow-500 ring-2 ring-yellow-200' : 'bg-green-500 ring-2 ring-green-200'
-                }`} />
-                
-                {/* Assignee - Enhanced */}
-                {task.assignee && task.assignee.name && !compact && (
-                  <span className="text-gray-600 font-medium">{task.assignee.name}</span>
+              <div className="flex items-center justify-between">
+                <Badge
+                  variant="outline"
+                  className={`text-xs ${getPriorityColor(task.priority)}`}
+                >
+                  {task.priority}
+                </Badge>
+                {task.assignee && task.assignee.name && (
+                  <div className="flex items-center space-x-1">
+                    <User className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">{task.assignee.name}</span>
+                  </div>
                 )}
               </div>
-
-              {/* Due Date - Enhanced */}
-              {task.dueDate && (
-                <span className={`text-xs font-medium ${compact ? 'px-1 py-0.5' : 'px-2 py-1'} rounded-full ${
-                  new Date(task.dueDate) < new Date() 
-                    ? 'text-red-600 bg-red-50 border border-red-200' 
-                    : 'text-gray-500 bg-gray-50 border border-gray-200'
-                }`}>
-                  {compact 
-                    ? new Date(task.dueDate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })
-                    : new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                  }
-                </span>
+              {task.dependsOn && task.dependsOn.length > 0 && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Depends on {task.dependsOn.length} task{task.dependsOn.length > 1 ? 's' : ''}
+                </div>
               )}
-            </div>
+            </CardContent>
+          </div>
+        </Card>
+    )
+  }
 
-            {/* Dependencies - Enhanced */}
-            {task.dependsOn && task.dependsOn.length > 0 && !compact && (
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full ring-1 ring-blue-200" />
-                <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full border border-blue-200">
-                  {task.dependsOn.length} dependency{task.dependsOn.length > 1 ? 'ies' : ''}
-                </span>
+  return (
+    <ContextMenu items={menuItems}>
+      {/* 
+        Draggable root: Keep this element simple with no transforms/transitions.
+        The DnD library applies its own transform, and any transition: 'all' or 
+        transform/scale classes here can cause the drag ghost to stretch abnormally.
+        Height is determined by content, not forced via flex-1 or h-full.
+        Critical: When @dnd-kit clones this element for the drag preview, it preserves
+        computed styles. We must ensure NO height constraints, flex-grow, or transforms
+        that could cause the cloned element to stretch when positioned absolutely.
+      */}
+      <div
+        ref={(node) => {
+          setNodeRef(node)
+          containerRef.current = node
+        }}
+        style={style}
+        className={`w-full flex-shrink-0 ${
+          isDragging 
+            ? 'opacity-50 shadow-lg ring-2 ring-primary/20 z-20' 
+            : ''
+        }`}
+        {...attributes}
+        {...listeners}
+      >
+        <Card
+          style={{
+            borderLeftWidth: '4px',
+            borderLeftColor: epicColor,
+          }}
+          className="w-full border-border bg-card cursor-pointer"
+          onClick={(e) => {
+            // Allow clicking to open sidebar, but prevent navigation if dragging
+            if (!isDragging) {
+              open(task.id)
+            }
+          }}
+        >
+        {/* 
+          Inner wrapper: Hover effects and transitions go here, not on the draggable root.
+          When dragging, we explicitly disable scale to prevent visual issues.
+        */}
+        <div
+          className={`transition-colors ${
+            isDragging 
+              ? '' 
+              : 'hover:bg-muted/50'
+          }`}
+        >
+          <CardContent className="p-3">
+          <div className="flex items-start gap-2 mb-2">
+            {task.status === 'BLOCKED' && (
+              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+            )}
+            <p className={`text-sm text-foreground flex-1 ${task.status === 'BLOCKED' ? 'line-through opacity-70' : ''}`}>
+              {task.title}
+            </p>
+          </div>
+          
+          {/* Epic Pill */}
+          <div className="mb-2">
+            <Badge
+              variant="outline"
+              className={`text-xs ${
+                hasEpic
+                  ? 'bg-blue-100 text-blue-800 border-blue-200'
+                  : 'bg-muted text-muted-foreground border-muted-foreground/20'
+              }`}
+              style={hasEpic && task.epic?.color ? {
+                backgroundColor: `${task.epic.color}15`,
+                color: task.epic.color,
+                borderColor: `${task.epic.color}40`,
+              } : undefined}
+            >
+              {hasEpic ? task.epic.title : 'No Epic'}
+            </Badge>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Badge
+              variant="outline"
+              className={`text-xs ${getPriorityColor(task.priority)}`}
+            >
+              {task.priority}
+            </Badge>
+            {task.assignee && task.assignee.name && (
+              <div className="flex items-center space-x-1">
+                <User className="w-3 h-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">{task.assignee.name}</span>
               </div>
             )}
-
-            {/* Drag Handle - Small area for dragging */}
-            <div 
-              className="flex justify-end mt-2"
-              {...attributes}
-              {...listeners}
-            >
-              <div className="w-6 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing opacity-30 hover:opacity-60 transition-opacity">
-                <div className="w-4 h-4 grid grid-cols-2 gap-0.5">
-                  <div className="w-1 h-1 bg-gray-400 rounded-sm"></div>
-                  <div className="w-1 h-1 bg-gray-400 rounded-sm"></div>
-                  <div className="w-1 h-1 bg-gray-400 rounded-sm"></div>
-                  <div className="w-1 h-1 bg-gray-400 rounded-sm"></div>
-                </div>
-              </div>
-            </div>
           </div>
-        </CardContent>
-      </Card>
+          {task.dependsOn && task.dependsOn.length > 0 && (
+            <div className="mt-2 text-xs text-muted-foreground">
+              Depends on {task.dependsOn.length} task{task.dependsOn.length > 1 ? 's' : ''}
+            </div>
+          )}
+          </CardContent>
+        </div>
+        </Card>
+      </div>
     </ContextMenu>
   )
 }

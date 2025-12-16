@@ -11,7 +11,7 @@ import Link from "next/link"
 export default function EmbedDemoPage() {
   const [content, setContent] = useState(`
     <h1>Embed Demo Page</h1>
-    <p>This page demonstrates the new embedding functionality in Lumi Work OS.</p>
+    <p>This page demonstrates the new embedding functionality in Loopwell Work OS.</p>
     
     <h2>How to Use Embeds</h2>
     <p>In the editor below, you can:</p>
@@ -46,7 +46,7 @@ export default function EmbedDemoPage() {
         </Link>
         <h1 className="text-3xl font-bold">Embed Demo</h1>
         <p className="text-muted-foreground mt-2">
-          Test the new embedding functionality in Lumi Work OS
+          Test the new embedding functionality in Loopwell Work OS
         </p>
       </div>
 

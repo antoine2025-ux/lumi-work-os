@@ -1,10 +1,11 @@
 "use client"
 
 import { useSession, signOut } from "next-auth/react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { clearUserStatusCache } from "@/hooks/use-user-status"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -17,68 +18,89 @@ import {
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/theme-provider"
 import { useWorkspace } from "@/lib/workspace-context"
-import { Breadcrumbs } from "@/components/layout/breadcrumbs"
-import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target, Network } from "lucide-react"
+import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher"
+import { Bell, Sparkles, Home, BookOpen, Bot, Users, Building2, Settings, Target, LayoutDashboard, FolderKanban, Brain, Network, Sliders } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Logo } from "@/components/logo"
 
+// Prefetch common routes on mount for instant navigation
+function prefetchRoutes() {
+  const commonRoutes = [
+    '/wiki/home',
+    '/ask',
+    '/settings',
+    '/org'
+  ]
+  
+  commonRoutes.forEach(route => {
+    // Use dynamic import to prefetch in background
+    if (typeof window !== 'undefined') {
+      const router = require('next/router').default
+      router.prefetch(route).catch(() => {
+        // Silently fail if route doesn't exist yet
+      })
+    }
+  })
+}
+
+// Navigation items - hrefs will be made slug-aware in the component
 const navigationItems = [
   {
     name: "Dashboard",
-    href: "/",
-    icon: Home,
+    href: "/", // Will be prefixed with /w/[slug] in component
+    icon: LayoutDashboard,
     description: "Overview and quick actions"
   },
   {
     name: "Projects",
-    href: "/projects",
-    icon: Target,
-    description: "Project management and task tracking"
+    href: "/projects", // Will be prefixed with /w/[slug] in component
+    icon: FolderKanban,
+    description: "Project management and tasks"
   },
   {
-    name: "Wiki",
-    href: "/wiki",
-    icon: BookOpen,
-    description: "Knowledge base and documentation"
-  },
-  {
-    name: "Ask AI",
-    href: "/ask",
-    icon: Bot,
+    name: "LoopBrain",
+    href: "/ask", // Will be prefixed with /w/[slug] in component
+    icon: Brain,
     description: "AI-powered assistance"
   },
   {
-    name: "Onboarding",
-    href: "/onboarding",
-    icon: Users,
-    description: "Team onboarding and training"
-  },
-  {
     name: "Org",
-    href: "/org",
-    icon: Building2,
+    href: "/org", // Will be prefixed with /w/[slug] in component
+    icon: Network,
     description: "Organization chart and structure"
   },
   {
     name: "Settings",
-    href: "/settings",
-    icon: Settings,
+    href: "/settings", // Will be prefixed with /w/[slug] in component
+    icon: Sliders,
     description: "Workspace configuration"
-  },
-  {
-    name: "Architecture",
-    href: "/architecture",
-    icon: Network,
-    description: "System architecture and documentation"
   }
 ]
 
 export function Header() {
   const { data: session } = useSession()
   const pathname = usePathname()
+  const router = useRouter()
   const { themeConfig } = useTheme()
   const { currentWorkspace, userRole } = useWorkspace()
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+
+  // Prefetch all common routes on mount for instant navigation
+  useEffect(() => {
+    if (currentWorkspace?.slug) {
+      const commonRoutes = [
+        `/w/${currentWorkspace.slug}`,
+        `/w/${currentWorkspace.slug}/projects`,
+        `/w/${currentWorkspace.slug}/ask`,
+        `/w/${currentWorkspace.slug}/settings`,
+        `/w/${currentWorkspace.slug}/org`
+      ]
+      commonRoutes.forEach(route => {
+        router.prefetch(route)
+      })
+    }
+  }, [router, currentWorkspace])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -102,51 +124,58 @@ export function Header() {
   return (
     <TooltipProvider>
       <header className={cn(
-        "h-16 border-b transition-transform duration-300 ease-in-out sticky top-0 z-50",
+        "h-16 transition-transform duration-300 ease-in-out sticky top-0 z-50 bg-card border-b border-border",
         isVisible ? "translate-y-0" : "-translate-y-full"
       )}
-      style={{ backgroundColor: themeConfig.background }}
       >
         <div className="flex h-full items-center px-6">
           {/* Logo */}
           <div className="flex items-center space-x-2">
-            <div 
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ 
-                background: `linear-gradient(135deg, ${themeConfig.primary}, ${themeConfig.accent})` 
-              }}
-            >
-              <Sparkles className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-semibold text-gray-900">Lumi</span>
+            <Logo 
+              width={32} 
+              height={32} 
+              className="w-8 h-8"
+              priority
+            />
+            <span className="text-xl font-semibold text-foreground">Loopwell</span>
+          </div>
+          
+          {/* Workspace Switcher */}
+          <div className="ml-6">
+            <WorkspaceSwitcher />
           </div>
           
           {/* Navigation Items - Centered */}
           <div className="flex-1 flex items-center justify-center">
             <div className="flex items-center space-x-1">
             {navigationItems.map((item) => {
-              const isActive = pathname === item.href || 
-                (item.href !== "/" && pathname?.startsWith(item.href))
+              // Build slug-aware href
+              const slugHref = currentWorkspace?.slug 
+                ? `/w/${currentWorkspace.slug}${item.href === '/' ? '' : item.href}`
+                : item.href // Fallback to original if no workspace
+              
+              // Check if current pathname matches the navigation item
+              // Support both slug-based and legacy paths for active state
+              const isActive = pathname === slugHref || 
+                pathname === item.href ||
+                (item.href !== "/" && (pathname?.startsWith(slugHref) || pathname?.startsWith(item.href)))
               
               return (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={slugHref}
+                  prefetch={true}
                   className={cn(
                     "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out group relative overflow-hidden",
                     isActive
-                      ? "text-primary-foreground border min-w-[120px]"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 min-w-[44px] hover:min-w-[120px]"
+                      ? "text-white bg-primary border border-primary min-w-[120px]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted min-w-[44px] hover:min-w-[120px]"
                   )}
-                  style={isActive ? {
-                    backgroundColor: themeConfig.primary,
-                    borderColor: themeConfig.primary
-                  } : {}}
                   title={item.description}
                 >
                   <item.icon className={cn(
                     "h-4 w-4 transition-colors flex-shrink-0",
-                    isActive ? "text-primary-foreground" : "text-gray-500 group-hover:text-gray-700"
+                    isActive ? "text-white" : "text-muted-foreground group-hover:text-foreground"
                   )} />
                   
                   {/* Page title with smooth animation */}
@@ -162,8 +191,7 @@ export function Header() {
                   {/* Active indicator */}
                   {isActive && (
                     <div 
-                      className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full"
-                      style={{ backgroundColor: themeConfig.primary }}
+                      className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
                     />
                   )}
                 </Link>
@@ -174,16 +202,16 @@ export function Header() {
           
           {/* User Controls */}
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted">
               <Bell className="h-5 w-5" />
             </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:bg-muted">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
-                    <AvatarFallback>
+                    <AvatarFallback className="bg-muted text-foreground">
                       {session?.user?.name?.charAt(0) || "U"}
                     </AvatarFallback>
                   </Avatar>
@@ -211,7 +239,70 @@ export function Header() {
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut()}>
+                <DropdownMenuItem onClick={async () => {
+                  // STEP 1: Clear user status cache immediately
+                  clearUserStatusCache()
+                  
+                  // STEP 2: Sign out from NextAuth first (this clears server-side session)
+                  try {
+                    await signOut({ redirect: false })
+                  } catch (e) {
+                    console.log('Sign out error (continuing anyway):', e)
+                  }
+                  
+                  // STEP 3: Set logout flag BEFORE clearing storage
+                  sessionStorage.setItem('__logout_flag__', 'true')
+                  
+                  // STEP 4: Clear all local storage (except the logout flag)
+                  localStorage.clear()
+                  // Don't clear sessionStorage completely - we need the flag!
+                  // But clear other items
+                  Object.keys(sessionStorage).forEach(key => {
+                    if (key !== '__logout_flag__') {
+                      sessionStorage.removeItem(key)
+                    }
+                  })
+                  
+                  // STEP 5: Clear all cookies including NextAuth and Google OAuth cookies
+                  const cookies = document.cookie.split(";")
+                  cookies.forEach(function(c) { 
+                    const eqPos = c.indexOf('=')
+                    const name = eqPos > -1 ? c.substr(0, eqPos).trim() : c.trim()
+                    // Clear all cookies
+                    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+                    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`
+                    // Try to clear Google cookies (may not work due to cross-domain, but worth trying)
+                    if (name.includes('google') || name.includes('gid') || name.includes('GA') || name.includes('oauth')) {
+                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.google.com`
+                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.googleapis.com`
+                    }
+                  })
+                  
+                  // STEP 6: Clear NextAuth session storage
+                  try {
+                    // Clear any NextAuth session data
+                    if (typeof window !== 'undefined') {
+                      // Clear indexedDB if used by NextAuth
+                      if ('indexedDB' in window) {
+                        indexedDB.databases().then(databases => {
+                          databases.forEach(db => {
+                            if (db.name && db.name.includes('next-auth')) {
+                              indexedDB.deleteDatabase(db.name)
+                            }
+                          })
+                        }).catch(() => {})
+                      }
+                    }
+                  } catch (e) {
+                    console.log('Could not clear indexedDB:', e)
+                  }
+                  
+                  // STEP 7: Force redirect to login immediately
+                  // Add a small delay to ensure cookies are cleared
+                  setTimeout(() => {
+                    window.location.href = '/login'
+                  }, 100)
+                }}>
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -219,11 +310,6 @@ export function Header() {
           </div>
         </div>
       </header>
-      
-      {/* Breadcrumbs */}
-      <div className="border-b bg-gray-50/50 px-6 py-2">
-        <Breadcrumbs />
-      </div>
     </TooltipProvider>
   )
 }

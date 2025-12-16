@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useWorkspace } from "@/lib/workspace-context"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,6 +37,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     switchWorkspace, 
     isLoading 
   } = useWorkspace()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
 
   const getRoleIcon = (role: string) => {
@@ -73,7 +75,8 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     )
   }
 
-  if (!currentWorkspace) {
+  // No workspaces - show create button
+  if (!currentWorkspace || workspaces.length === 0) {
     return (
       <div className={cn("flex items-center space-x-2", className)}>
         <WorkspaceCreationModal>
@@ -86,6 +89,25 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     )
   }
 
+  // Single workspace - show name only (no dropdown)
+  if (workspaces.length === 1) {
+    return (
+      <div className={cn("flex items-center space-x-2", className)}>
+        <Building2 className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium truncate max-w-[200px]">{currentWorkspace.name}</span>
+        {userRole && (
+          <Badge 
+            variant="outline" 
+            className={cn("text-xs px-1.5 py-0.5", getRoleColor(userRole))}
+          >
+            {userRole}
+          </Badge>
+        )}
+      </div>
+    )
+  }
+
+  // Multiple workspaces - show dropdown
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
@@ -151,6 +173,8 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
               key={workspace.id}
               onClick={() => {
                 switchWorkspace(workspace.id)
+                // Navigate to slug-based URL for the selected workspace
+                router.push(`/w/${workspace.slug}`)
                 setIsOpen(false)
               }}
               className="flex items-center space-x-2 p-2"
@@ -162,6 +186,14 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
                   {workspace.description || `@${workspace.slug}`}
                 </div>
               </div>
+              {workspace.userRole && (
+                <Badge 
+                  variant="outline" 
+                  className={cn("text-xs px-1.5 py-0.5", getRoleColor(workspace.userRole))}
+                >
+                  {workspace.userRole}
+                </Badge>
+              )}
             </DropdownMenuItem>
           ))}
 

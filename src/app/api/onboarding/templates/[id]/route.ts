@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 
 const updateTemplateSchema = z.object({
   name: z.string().min(1).max(80).optional(),
@@ -21,11 +20,12 @@ const updateTemplateSchema = z.object({
 // GET /api/onboarding/templates/[id]
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const template = await prisma.onboardingTemplate.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       include: {
         tasks: {
           orderBy: { order: 'asc' },
@@ -56,15 +56,16 @@ export async function GET(
 // PATCH /api/onboarding/templates/[id]
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const body = await request.json()
     const validatedData = updateTemplateSchema.parse(body)
 
     // Check if template exists
     const existingTemplate = await prisma.onboardingTemplate.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
     })
 
     if (!existingTemplate) {
@@ -86,7 +87,7 @@ export async function PATCH(
     if (validatedData.tasks) {
       // Delete existing tasks
       await prisma.templateTask.deleteMany({
-        where: { templateId: params.id },
+        where: { templateId: resolvedParams.id },
       })
 
       // Create new tasks
@@ -101,7 +102,7 @@ export async function PATCH(
     }
 
     const template = await prisma.onboardingTemplate.update({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       data: updateData,
       include: {
         tasks: {
@@ -133,12 +134,13 @@ export async function PATCH(
 // DELETE /api/onboarding/templates/[id]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     // Check if template exists
     const existingTemplate = await prisma.onboardingTemplate.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
     })
 
     if (!existingTemplate) {
@@ -150,7 +152,7 @@ export async function DELETE(
 
     // Delete template (tasks will be cascade deleted)
     await prisma.onboardingTemplate.delete({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
     })
 
     return NextResponse.json({ success: true })
@@ -162,6 +164,16 @@ export async function DELETE(
     )
   }
 }
+
+
+
+
+
+
+
+
+
+
 
 
 

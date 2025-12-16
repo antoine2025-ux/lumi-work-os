@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useTheme } from "@/components/theme-provider"
+import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 
 // Mock data for demo
 const mockMeetings = [
@@ -168,7 +169,7 @@ export default function DashboardCompactPage() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h1 className="text-lg font-semibold" style={{ color: themeConfig.foreground }}>Lumi</h1>
+              <h1 className="text-lg font-semibold" style={{ color: themeConfig.foreground }}>Loopwell</h1>
               <div className="flex items-center space-x-3">
                 <span className="text-sm" style={{ color: themeConfig.mutedForeground }}>Personal Space</span>
                 <Badge variant="outline" className="text-xs">OWNER</Badge>
@@ -188,10 +189,10 @@ export default function DashboardCompactPage() {
           {/* Compact Navigation */}
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center space-x-5">
-              <Link href="/" className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Dashboard</Link>
+              <Link href="/home" className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Dashboard</Link>
               <Link href="/projects" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Projects</Link>
               <Link href="/wiki" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Wiki</Link>
-              <Link href="/ask" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Ask AI</Link>
+              <Link href="/ask" className="text-sm" style={{ color: themeConfig.mutedForeground }}>LoopBrain</Link>
               <Link href="/onboarding" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Onboarding</Link>
               <Link href="/org" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Org</Link>
               <Link href="/settings" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Settings</Link>
@@ -204,7 +205,7 @@ export default function DashboardCompactPage() {
               </Button>
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-8">
                 <Zap className="h-3 w-3 mr-1" />
-                Ask AI
+                LoopBrain
               </Button>
             </div>
           </div>
@@ -336,7 +337,7 @@ export default function DashboardCompactPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {mockTasks.map((task) => (
-                    <div key={task.id} className="flex items-center space-x-2 p-2 rounded hover:bg-gray-50 transition-colors">
+                    <div key={task.id} className="flex items-center space-x-2 p-2 rounded hover:bg-muted transition-colors">
                       <div className={`w-3 h-3 rounded-full border ${
                         task.completed ? 'bg-green-500 border-green-500' : 'border-gray-300'
                       }`} />
@@ -369,7 +370,7 @@ export default function DashboardCompactPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {mockMeetings.map((meeting) => (
-                    <div key={meeting.id} className="flex items-center space-x-2 p-2 rounded hover:bg-gray-50 transition-colors">
+                    <div key={meeting.id} className="flex items-center space-x-2 p-2 rounded hover:bg-muted transition-colors">
                       <div className="flex-shrink-0">
                         {meeting.type === 'video' ? (
                           <Video className="h-3 w-3 text-blue-600" />
@@ -488,7 +489,7 @@ export default function DashboardCompactPage() {
                           {metric.value}{metric.unit || '%'}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div className="w-full bg-muted rounded-full h-1.5">
                         <div 
                           className={`h-1.5 rounded-full ${metric.color}`}
                           style={{ width: `${metric.value}%` }}
@@ -588,6 +589,9 @@ export default function DashboardCompactPage() {
           </Card>
         </div>
       </div>
+
+      {/* Global Loopbrain Assistant */}
+      <LoopbrainAssistantLauncher mode="dashboard" />
     </div>
   )
 }

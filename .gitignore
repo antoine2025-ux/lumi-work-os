@@ -10,6 +10,9 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+!.env.template
+!.env.example
 
 # Next.js
 .next/
@@ -95,3 +98,8 @@ jspm_packages/
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+.vercel
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+*.tsbuildinfo

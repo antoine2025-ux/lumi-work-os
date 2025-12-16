@@ -115,7 +115,7 @@ export function ContextMenu({ children, items, className }: ContextMenuProps) {
       {isOpen && (
         <div
           ref={menuRef}
-          className="fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[200px]"
+          className="fixed z-50 bg-popover rounded-lg shadow-lg border border-border py-2 min-w-[200px]"
           style={{
             left: position.x,
             top: position.y,
@@ -124,7 +124,7 @@ export function ContextMenu({ children, items, className }: ContextMenuProps) {
           {items.map((item, index) => {
             if (item.separator) {
               return (
-                <div key={`separator-${index}`} className="border-t border-gray-100 my-1" />
+                <div key={`separator-${index}`} className="border-t border-border my-1" />
               )
             }
 
@@ -134,13 +134,13 @@ export function ContextMenu({ children, items, className }: ContextMenuProps) {
                 onClick={() => handleItemClick(item)}
                 disabled={item.disabled}
                 className={cn(
-                  "w-full flex items-center px-3 py-2 text-sm text-left hover:bg-gray-50 transition-colors",
+                  "w-full flex items-center px-3 py-2 text-sm text-left hover:bg-muted transition-colors text-popover-foreground",
                   item.disabled && "opacity-50 cursor-not-allowed",
-                  item.destructive && "text-red-600 hover:bg-red-50"
+                  item.destructive && "text-destructive hover:bg-destructive/10"
                 )}
               >
                 {item.icon && (
-                  <item.icon className="h-4 w-4 mr-3 text-gray-400" />
+                  <item.icon className="h-4 w-4 mr-3 text-muted-foreground" />
                 )}
                 <span>{item.label}</span>
               </button>

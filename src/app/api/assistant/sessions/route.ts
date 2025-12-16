@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 
 // POST /api/assistant/sessions - Create a new assistant session
 export async function POST(request: NextRequest) {
   try {
-    const { intent, target = 'wiki_page', workspaceId = 'workspace-1' } = await request.json()
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const { intent, target = 'wiki_page' } = await request.json()
     
     if (!intent || !['doc_gen', 'assist'].includes(intent)) {
       return NextResponse.json({ error: 'Invalid intent. Must be "doc_gen" or "assist"' }, { status: 400 })
@@ -16,8 +22,8 @@ export async function POST(request: NextRequest) {
         intent,
         target,
         phase: 'idle',
-        workspaceId,
-        userId: 'dev-user-1' // TODO: Get from session
+        workspaceId: auth.workspaceId,
+        userId: auth.user.userId
       }
     })
 
@@ -31,17 +37,40 @@ export async function POST(request: NextRequest) {
 // GET /api/assistant/sessions - Get all assistant sessions
 export async function GET(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    
+    // Return empty array if no workspace (public routes)
+    if (!auth.workspaceId) {
+      return NextResponse.json([])
+    }
+    
     const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    const hasDraft = searchParams.get('hasDraft') === 'true'
+    
+    const whereClause: any = {
+      workspaceId: auth.workspaceId,
+      userId: auth.user.userId
+    }
+    
+    if (hasDraft) {
+      whereClause.draftTitle = { not: null }
+      whereClause.draftBody = { not: null }
+      whereClause.phase = { not: 'published' }
+    }
+    
+    // Set workspace context for Prisma middleware
+    const { setWorkspaceContext } = await import('@/lib/prisma/scopingMiddleware')
+    setWorkspaceContext(auth.workspaceId)
     
     const sessions = await prisma.chatSession.findMany({
-      where: {
-        workspaceId,
-        userId: 'dev-user-1' // TODO: Get from session
-      },
+      where: whereClause,
       orderBy: {
         updatedAt: 'desc'
-      }
+      },
+      take: hasDraft ? 10 : 50
     })
 
     return NextResponse.json(sessions)

@@ -25,10 +25,34 @@ export default function NewWikiPage() {
   const [content, setContent] = useState("")
   const [category, setCategory] = useState("general")
   const [error, setError] = useState<string | null>(null)
+  const [workspaceId, setWorkspaceId] = useState<string>('')
+
+  // Get workspace ID from user status
+  useEffect(() => {
+    const fetchWorkspaceId = async () => {
+      try {
+        const response = await fetch('/api/auth/user-status')
+        if (response.ok) {
+          const userStatus = await response.json()
+          if (userStatus.workspaceId) {
+            setWorkspaceId(userStatus.workspaceId)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching workspace ID:', error)
+      }
+    }
+    fetchWorkspaceId()
+  }, [])
 
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
       setError("Please enter both title and content")
+      return
+    }
+
+    if (!workspaceId) {
+      setError("Workspace not found")
       return
     }
 
@@ -41,7 +65,7 @@ export default function NewWikiPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          workspaceId: 'cmgl0f0wa00038otlodbw5jhn', // TODO: Get from context/session
+          workspaceId: workspaceId,
           title: title.trim(),
           content: content.trim(),
           tags: [],

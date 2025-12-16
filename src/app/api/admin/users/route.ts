@@ -1,74 +1,108 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { logger } from '@/lib/logger'
+import { buildLogContextFromRequest } from '@/lib/request-context'
+
+// Helper to hash workspaceId for logging (privacy/correlation protection)
+function hashWorkspaceId(workspaceId: string | null): string | undefined {
+  if (!workspaceId) return undefined
+  return workspaceId.slice(-6)
+}
 
 // GET /api/admin/users - Get all users for admin management
 export async function GET(request: NextRequest) {
+  const startTime = performance.now()
+  const baseContext = await buildLogContextFromRequest(request)
+  
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
+    const authStartTime = performance.now()
+    const auth = await getUnifiedAuth(request)
+    const authDurationMs = performance.now() - authStartTime
     
-    // Get workspace members with their details
-    const workspaceMembers = await prisma.workspaceMember.findMany({
+    // Assert workspace access (admin only)
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['ADMIN', 'OWNER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
+    const dbStartTime = performance.now()
+    const users = await prisma.user.findMany({
       where: {
-        workspaceId
+        workspaceMemberships: {
+          some: {
+            workspaceId: auth.workspaceId
+          }
+        }
       },
-      include: {
-        user: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true,
+        bio: true,
+        skills: true,
+        currentGoals: true,
+        interests: true,
+        timezone: true,
+        location: true,
+        phone: true,
+        linkedinUrl: true,
+        githubUrl: true,
+        personalWebsite: true,
+        workspaceMemberships: {
+          where: {
+            workspaceId: auth.workspaceId
+          },
           select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            createdAt: true
+            role: true,
+            joinedAt: true
           }
         }
       },
       orderBy: {
-        joinedAt: 'desc'
+        name: 'asc'
       }
     })
+    const dbDurationMs = performance.now() - dbStartTime
+    const totalDurationMs = performance.now() - startTime
 
-    // Get org positions for each user
-    const usersWithPositions = await Promise.all(
-      workspaceMembers.map(async (member) => {
-        const position = await prisma.orgPosition.findFirst({
-          where: {
-            workspaceId,
-            userId: member.user.id,
-            isActive: true
-          },
-          select: {
-            id: true,
-            title: true,
-            department: true
-          }
-        })
+    logger.info('admin/users GET', {
+      ...baseContext,
+      durationMs: Math.round(totalDurationMs * 100) / 100,
+      authDurationMs: Math.round(authDurationMs * 100) / 100,
+      dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+      resultCount: users.length,
+      workspaceIdHash: hashWorkspaceId(auth.workspaceId)
+    })
 
-        return {
-          id: member.user.id,
-          name: member.user.name,
-          email: member.user.email,
-          image: member.user.image,
-          role: member.role,
-          department: position?.department || null,
-          position: position?.title || null,
-          isActive: true, // For now, all workspace members are considered active
-          createdAt: member.user.createdAt.toISOString(),
-          lastLoginAt: null // Field doesn't exist in current schema
-        }
+    if (totalDurationMs > 500) {
+      logger.warn('admin/users GET (slow)', {
+        ...baseContext,
+        durationMs: Math.round(totalDurationMs * 100) / 100,
+        authDurationMs: Math.round(authDurationMs * 100) / 100,
+        dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+        resultCount: users.length,
+        workspaceIdHash: hashWorkspaceId(auth.workspaceId)
       })
-    )
+    }
 
-    return NextResponse.json(usersWithPositions)
+    return NextResponse.json(users)
   } catch (error) {
-    console.error('Error fetching admin users:', error)
+    const totalDurationMs = performance.now() - startTime
+    logger.error('admin/users GET (error)', {
+      ...baseContext,
+      durationMs: Math.round(totalDurationMs * 100) / 100
+    }, error instanceof Error ? error : new Error(String(error)))
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
   }
 }
@@ -76,109 +110,72 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/users - Create a new user
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access (admin only)
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['ADMIN', 'OWNER'] 
+    })
 
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
     const body = await request.json()
     const { 
-      workspaceId, 
-      name, 
+      workspaceId = auth.workspaceId,
       email, 
+      name, 
       role = 'MEMBER',
-      department,
-      positionId,
-      isActive = true,
-      createOrgPosition = false,
-      orgPositionTitle,
-      orgPositionLevel = 3,
-      orgPositionParentId
+      bio,
+      skills = [],
+      currentGoals = [],
+      interests = [],
+      timezone,
+      location,
+      phone,
+      linkedinUrl,
+      githubUrl,
+      personalWebsite
     } = body
 
-    if (!workspaceId || !name || !email) {
+    if (!email || !name) {
       return NextResponse.json({ 
-        error: 'Missing required fields: workspaceId, name, email' 
+        error: 'Missing required fields: email, name' 
       }, { status: 400 })
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
+    // Create the user
+    const newUser = await prisma.user.create({
+      data: {
+        email,
+        name,
+        emailVerified: new Date(),
+        bio,
+        skills,
+        currentGoals,
+        interests,
+        timezone,
+        location,
+        phone,
+        linkedinUrl,
+        githubUrl,
+        personalWebsite
+      }
     })
 
-    let userId: string
-
-    if (existingUser) {
-      // User exists, add them to workspace
-      userId = existingUser.id
-      
-      // Check if they're already in this workspace
-      const existingMember = await prisma.workspaceMember.findUnique({
-        where: {
-          workspaceId_userId: {
-            workspaceId,
-            userId
-          }
-        }
-      })
-
-      if (!existingMember) {
-        await prisma.workspaceMember.create({
-          data: {
-            workspaceId,
-            userId,
-            role: role as any
-          }
-        })
+    // Add user to workspace
+    await prisma.workspaceMember.create({
+      data: {
+        userId: newUser.id,
+        workspaceId,
+        role: role as 'OWNER' | 'ADMIN' | 'MEMBER',
+        joinedAt: new Date(),
       }
-    } else {
-      // Create new user
-      const newUser = await prisma.user.create({
-        data: {
-          name,
-          email,
-          emailVerified: new Date() // For admin-created users
-        }
-      })
-      userId = newUser.id
+    })
 
-      // Add to workspace
-      await prisma.workspaceMember.create({
-        data: {
-          workspaceId,
-          userId,
-          role: role as any
-        }
-      })
-    }
-
-    // Handle org position assignment
-    if (createOrgPosition && orgPositionTitle) {
-      // Create new org position
-      const newPosition = await prisma.orgPosition.create({
-        data: {
-          workspaceId,
-          title: orgPositionTitle,
-          department,
-          level: orgPositionLevel,
-          parentId: orgPositionParentId || null,
-          userId,
-          order: 0
-        }
-      })
-    } else if (positionId && positionId !== 'none') {
-      // Assign to existing position
-      await prisma.orgPosition.update({
-        where: { id: positionId },
-        data: { userId }
-      })
-    }
-
-    return NextResponse.json({ 
-      message: 'User created successfully',
-      userId 
-    }, { status: 201 })
+    return NextResponse.json(newUser, { status: 201 })
   } catch (error) {
     console.error('Error creating user:', error)
     return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })

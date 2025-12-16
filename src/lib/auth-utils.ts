@@ -43,38 +43,8 @@ export async function getAuthenticatedUser(): Promise<AuthResult> {
       }
     }
 
-    // Development fallback - create or get default user
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔧 Development mode: Using fallback user')
-      
-      let devUser = await prisma.user.findFirst({
-        where: { email: 'dev@lumi.local' }
-      })
-
-      if (!devUser) {
-        devUser = await prisma.user.create({
-          data: {
-            email: 'dev@lumi.local',
-            name: 'Development User',
-            image: null
-          }
-        })
-        console.log('✅ Created development user:', devUser.id)
-      }
-
-      return {
-        user: {
-          id: devUser.id,
-          email: devUser.email,
-          name: devUser.name || undefined
-        },
-        isAuthenticated: false,
-        isDevelopment: true
-      }
-    }
-
-    // Production - no session, no fallback
-    throw new Error('No authenticated session found')
+    // No session found - require Google OAuth authentication
+    throw new Error('No authenticated session found. Please log in through Google OAuth.')
     
   } catch (error) {
     console.error('❌ Authentication error:', error)
@@ -100,8 +70,8 @@ export async function getWorkspaceId(userId: string, requestedWorkspaceId?: stri
     }
   }
 
-  // Get user's first workspace or create default one
-  let workspace = await prisma.workspace.findFirst({
+  // Get user's first workspace
+  const workspace = await prisma.workspace.findFirst({
     where: {
       members: {
         some: { userId }
@@ -110,21 +80,9 @@ export async function getWorkspaceId(userId: string, requestedWorkspaceId?: stri
   })
 
   if (!workspace) {
-    // Create default workspace for user
-    workspace = await prisma.workspace.create({
-      data: {
-        name: 'My Workspace',
-        slug: `workspace-${userId.slice(-8)}`,
-        ownerId: userId,
-        members: {
-          create: {
-            userId,
-            role: 'OWNER'
-          }
-        }
-      }
-    })
-    console.log('✅ Created default workspace:', workspace.id)
+    // No workspace found - user needs to create one
+    // Don't auto-create workspace, let the frontend handle this
+    throw new Error('No workspace found - user needs to create a workspace')
   }
 
   return workspace.id

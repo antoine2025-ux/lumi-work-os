@@ -2,17 +2,19 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { useSession } from "next-auth/react"
+import { useUserStatus } from '@/hooks/use-user-status'
 
-export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER'
+export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
 export type ProjectRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
 
-export interface Workspace {
+export interface WorkspaceWithRole {
   id: string
   name: string
   slug: string
-  description?: string
+  description?: string | null
   createdAt: Date
   updatedAt: Date
+  userRole: WorkspaceRole
 }
 
 export interface UserWorkspaceRole {
@@ -23,9 +25,9 @@ export interface UserWorkspaceRole {
 }
 
 export interface WorkspaceContextType {
-  currentWorkspace: Workspace | null
+  currentWorkspace: WorkspaceWithRole | null
   userRole: WorkspaceRole | null
-  workspaces: Workspace[]
+  workspaces: WorkspaceWithRole[]
   isLoading: boolean
   switchWorkspace: (workspaceId: string) => void
   canManageWorkspace: boolean
@@ -53,52 +55,106 @@ interface WorkspaceProviderProps {
 
 export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   const { data: session } = useSession()
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
+  const { userStatus, loading: userStatusLoading } = useUserStatus()
+  
+  // SSR-safe initial state: All state initialized as null/empty to avoid hydration mismatches
+  // Workspace selection happens client-side only in useEffect after mount
+  const [currentWorkspace, setCurrentWorkspace] = useState<WorkspaceWithRole | null>(null)
   const [userRole, setUserRole] = useState<WorkspaceRole | null>(null)
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
+  const [workspaces, setWorkspaces] = useState<WorkspaceWithRole[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // Load user's workspaces and current workspace
+  // SSR-safe: This useEffect runs client-side only, after initial render
+  // All localStorage access is guarded with typeof window !== 'undefined'
   useEffect(() => {
     const loadWorkspaces = async () => {
       try {
         setIsLoading(true)
         
+        // Wait for user status to be loaded
+        if (userStatusLoading || !userStatus) {
+          return
+        }
+        
+        // Skip workspace loading if we're on an invite page
+        // Users need to accept the invite first, which will create the workspace membership
+        if (typeof window !== 'undefined') {
+          const isInvitePage = window.location.pathname.startsWith('/invites/')
+          if (isInvitePage) {
+            console.log('On invite page, skipping workspace load until invite is accepted')
+            setWorkspaces([])
+            setCurrentWorkspace(null)
+            setUserRole(null)
+            setIsLoading(false)
+            return
+          }
+        }
+        
+        // If user is first-time or has no workspace, don't load workspaces
+        if (userStatus.isFirstTime || !userStatus.workspaceId) {
+          console.log('First-time user or no workspace, skipping workspace load')
+          setWorkspaces([])
+          setCurrentWorkspace(null)
+          setUserRole(null)
+          setIsLoading(false)
+          return
+        }
+        
         // Load user's workspaces
-        const workspacesResponse = await fetch('/api/workspaces')
+        const fetchOptions = {
+          credentials: 'include' as RequestCredentials,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+        
+        const workspacesResponse = await fetch('/api/workspaces', fetchOptions)
         if (workspacesResponse.ok) {
           const workspacesData = await workspacesResponse.json()
-          const workspacesList = workspacesData.workspaces || []
+          const workspacesList: WorkspaceWithRole[] = workspacesData.workspaces || []
           setWorkspaces(workspacesList)
           
-          // Set current workspace (first one for now, or from localStorage)
-          const savedWorkspaceId = localStorage.getItem('currentWorkspaceId')
-          const workspace = workspacesList.find((w: Workspace) => 
-            savedWorkspaceId ? w.id === savedWorkspaceId : true
-          ) || workspacesList[0]
+          // Choose current workspace with precedence:
+          // 1. localStorage.currentWorkspaceId (if valid and exists in workspaces)
+          // 2. First workspace in array
+          // 3. null if no workspaces
+          let selectedWorkspace: WorkspaceWithRole | null = null
           
-          if (workspace) {
-            setCurrentWorkspace(workspace)
-            localStorage.setItem('currentWorkspaceId', workspace.id)
-            
-            // Load user's role in the workspace
-            try {
-              const roleResponse = await fetch(`/api/workspaces/${workspace.id}/user-role`)
-              if (roleResponse.ok) {
-                const roleData = await roleResponse.json()
-                setUserRole(roleData.role)
-              } else if (roleResponse.status === 401) {
-                // User not authenticated, set default role for development
-                console.log('User not authenticated, using default OWNER role for development')
-                setUserRole('OWNER')
-              } else {
-                // If role fetch fails, set default role for development
-                console.log('Failed to load user role, using default OWNER role for development')
-                setUserRole('OWNER')
+          if (workspacesList.length > 0) {
+            // SSR-safe: localStorage access only on client-side
+            // Check for saved workspaceId preference (from previous session)
+            if (typeof window !== 'undefined') {
+              const savedWorkspaceId = localStorage.getItem('currentWorkspaceId')
+              if (savedWorkspaceId) {
+                const savedWorkspace = workspacesList.find(w => w.id === savedWorkspaceId)
+                if (savedWorkspace) {
+                  // Valid saved workspace - use it
+                  selectedWorkspace = savedWorkspace
+                }
+                // If saved workspaceId is invalid (user removed from workspace), fall through to default
               }
-            } catch (roleError) {
-              console.error('Failed to load user role:', roleError)
-              setUserRole('OWNER')
+            }
+            
+            // Fallback to first workspace if no valid saved workspace
+            if (!selectedWorkspace) {
+              selectedWorkspace = workspacesList[0]
+            }
+            
+            setCurrentWorkspace(selectedWorkspace)
+            setUserRole(selectedWorkspace.userRole) // Use role from API response (no separate fetch needed)
+            
+            // SSR-safe: Persist to localStorage (client-side only, after state update)
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('currentWorkspaceId', selectedWorkspace.id)
+            }
+          } else {
+            // No workspaces - user needs to create one
+            setCurrentWorkspace(null)
+            setUserRole(null)
+            // SSR-safe: Clear localStorage (client-side only)
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('currentWorkspaceId')
             }
           }
         } else {
@@ -107,61 +163,50 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         }
       } catch (error) {
         console.error('Failed to load workspaces:', error)
-        // Set fallback workspace for development
-        const fallbackWorkspace: Workspace = {
-          id: 'cmgl0f0wa00038otlodbw5jhn',
-          name: 'Default Workspace',
-          slug: 'default',
-          description: 'Default development workspace',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-        setWorkspaces([fallbackWorkspace])
-        setCurrentWorkspace(fallbackWorkspace)
-        setUserRole('OWNER')
+        // Don't set fallback workspace - let the error propagate
+        setWorkspaces([])
+        setCurrentWorkspace(null)
+        setUserRole(null)
       } finally {
         setIsLoading(false)
       }
     }
 
     loadWorkspaces()
-  }, []) // Remove session dependency entirely for development
+  }, [session, userStatus, userStatusLoading])
 
-  const switchWorkspace = async (workspaceId: string) => {
+  const switchWorkspace = (workspaceId: string) => {
+    // Validate workspaceId exists in workspaces array
     const workspace = workspaces.find(w => w.id === workspaceId)
-    if (workspace) {
-      setCurrentWorkspace(workspace)
-      localStorage.setItem('currentWorkspaceId', workspaceId)
-      
-      // Load user's role in the new workspace
-      try {
-        const roleResponse = await fetch(`/api/workspaces/${workspaceId}/user-role`)
-        if (roleResponse.ok) {
-          const roleData = await roleResponse.json()
-          setUserRole(roleData.role)
-        } else if (roleResponse.status === 401) {
-          // User not authenticated, set default role for development
-          console.log('User not authenticated, using default OWNER role for development')
-          setUserRole('OWNER')
-        } else {
-          console.log('Failed to load user role, using default OWNER role for development')
-          setUserRole('OWNER')
-        }
-      } catch (error) {
-        console.error('Failed to load user role:', error)
-        setUserRole('OWNER')
+    if (!workspace) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`Workspace ${workspaceId} not found in user's workspaces. Available:`, workspaces.map(w => w.id))
       }
+      return
     }
+    
+    // Update current workspace and role from cached data (no API call needed)
+    setCurrentWorkspace(workspace)
+    setUserRole(workspace.userRole) // Use role from cached workspace data
+    
+    // SSR-safe: Persist to localStorage (client-side only)
+    // This ensures workspace selection survives browser sessions
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('currentWorkspaceId', workspaceId)
+    }
+    
+    // Components using useWorkspace() will automatically react to state changes
+    // No manual refresh needed - React's reactivity handles updates
   }
 
-  // Permission helpers
-  const canManageWorkspace = userRole === 'OWNER' || userRole === 'ADMIN'
-  const canManageUsers = userRole === 'OWNER' || userRole === 'ADMIN'
-  const canManageSettings = userRole === 'OWNER' || userRole === 'ADMIN'
-  const canViewAnalytics = userRole === 'OWNER' || userRole === 'ADMIN'
-  const canManageProjects = userRole === 'OWNER' || userRole === 'ADMIN' || userRole === 'MEMBER'
-  const canCreateProjects = userRole === 'OWNER' || userRole === 'ADMIN' || userRole === 'MEMBER'
-  const canViewProjects = true // All roles can view projects
+  // Permission helpers - return false if no workspace or role (graceful degradation)
+  const canManageWorkspace = currentWorkspace !== null && userRole !== null && (userRole === 'OWNER' || userRole === 'ADMIN')
+  const canManageUsers = currentWorkspace !== null && userRole !== null && (userRole === 'OWNER' || userRole === 'ADMIN')
+  const canManageSettings = currentWorkspace !== null && userRole !== null && (userRole === 'OWNER' || userRole === 'ADMIN')
+  const canViewAnalytics = currentWorkspace !== null && userRole !== null && (userRole === 'OWNER' || userRole === 'ADMIN')
+  const canManageProjects = currentWorkspace !== null && userRole !== null && (userRole === 'OWNER' || userRole === 'ADMIN' || userRole === 'MEMBER')
+  const canCreateProjects = currentWorkspace !== null && userRole !== null && (userRole === 'OWNER' || userRole === 'ADMIN' || userRole === 'MEMBER')
+  const canViewProjects = currentWorkspace !== null // All roles can view projects if workspace exists
 
   const value: WorkspaceContextType = {
     currentWorkspace,

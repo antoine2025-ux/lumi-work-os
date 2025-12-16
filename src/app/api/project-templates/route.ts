@@ -1,77 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 // GET /api/project-templates - Get all project templates
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
-    const category = searchParams.get('category')
-
-    // Ensure workspace exists for development
-    const ownerId = 'dev-user-1'
+    const auth = await getUnifiedAuth(request)
     
-    let workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
     })
-    
-    if (!workspace) {
-      workspace = await prisma.workspace.create({
-        data: {
-          id: workspaceId,
-          name: 'Development Workspace',
-          slug: 'dev-workspace',
-          description: 'Development workspace',
-          ownerId: ownerId
-        }
-      })
-    }
 
-    const where: any = { 
-      OR: [
-        { workspaceId },
-        { isPublic: true }
-      ]
-    }
-    
-    if (category) {
-      where.category = category
-    }
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
 
     const templates = await prisma.projectTemplate.findMany({
-      where,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      },
-      orderBy: [
-        { isDefault: 'desc' },
-        { createdAt: 'desc' }
-      ]
+      where: { workspaceId: auth.workspaceId },
+      orderBy: { createdAt: 'desc' }
     })
 
     return NextResponse.json(templates)
   } catch (error) {
     console.error('Error fetching project templates:', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch project templates' 
-    }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to fetch project templates' },
+      { status: 500 }
+    )
   }
 }
 
 // POST /api/project-templates - Create a new project template
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+
     const body = await request.json()
     const { 
-      workspaceId = 'workspace-1',
       name, 
       description,
       category,
@@ -86,80 +67,26 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Use hardcoded user ID for development
-    const createdById = 'dev-user-1'
-
-    // Ensure user and workspace exist for development
-    let user = await prisma.user.findUnique({
-      where: { id: createdById }
-    })
-    
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          id: createdById,
-          email: 'dev@lumi.com',
-          name: 'Development User'
-        }
-      })
-    }
-
-    let workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
-    })
-    
-    if (!workspace) {
-      workspace = await prisma.workspace.create({
-        data: {
-          id: workspaceId,
-          name: 'Development Workspace',
-          slug: 'dev-workspace',
-          description: 'Development workspace',
-          ownerId: createdById
-        }
-      })
-    }
-
-    // If this is set as default, unset other defaults
-    if (isDefault) {
-      await prisma.projectTemplate.updateMany({
-        where: { 
-          workspaceId,
-          isDefault: true 
-        },
-        data: { isDefault: false }
-      })
-    }
-
-    // Create the template
+    // Create project template
     const template = await prisma.projectTemplate.create({
       data: {
-        workspaceId,
+        workspaceId: auth.workspaceId,
         name,
         description,
-        category: category || 'General',
+        category,
         isDefault,
         isPublic,
         templateData,
-        createdById
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
+        createdById: auth.user.userId
       }
     })
 
     return NextResponse.json(template)
   } catch (error) {
     console.error('Error creating project template:', error)
-    return NextResponse.json({ 
-      error: 'Failed to create project template',
-      details: error.message 
-    }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to create project template' },
+      { status: 500 }
+    )
   }
 }

@@ -176,7 +176,7 @@ export default function DashboardOriginalPage() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-6">
-              <h1 className="text-xl font-semibold" style={{ color: themeConfig.foreground }}>Lumi</h1>
+              <h1 className="text-xl font-semibold" style={{ color: themeConfig.foreground }}>Loopwell</h1>
               <div className="flex items-center space-x-4">
                 <span className="text-sm" style={{ color: themeConfig.mutedForeground }}>Personal Space</span>
                 <Badge variant="outline" className="text-xs">OWNER</Badge>
@@ -196,10 +196,10 @@ export default function DashboardOriginalPage() {
           {/* Navigation */}
           <div className="flex items-center justify-between mt-4">
             <div className="flex items-center space-x-6">
-              <Link href="/" className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Dashboard</Link>
+              <Link href="/home" className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Dashboard</Link>
               <Link href="/projects" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Projects</Link>
               <Link href="/wiki" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Wiki</Link>
-              <Link href="/ask" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Ask AI</Link>
+                <Link href="/ask" className="text-sm" style={{ color: themeConfig.mutedForeground }}>LoopBrain</Link>
               <Link href="/onboarding" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Onboarding</Link>
               <Link href="/org" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Org</Link>
               <Link href="/settings" className="text-sm" style={{ color: themeConfig.mutedForeground }}>Settings</Link>
@@ -212,7 +212,7 @@ export default function DashboardOriginalPage() {
               </Button>
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                 <Zap className="h-4 w-4 mr-2" />
-                Ask AI
+                LoopBrain
               </Button>
             </div>
           </div>

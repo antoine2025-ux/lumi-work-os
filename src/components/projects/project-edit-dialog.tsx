@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, User, Calendar, Palette } from "lucide-react"
+import { Loader2, User, Calendar, Palette, X } from "lucide-react"
+import { getProjectSlackHints, setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
 
 interface User {
   id: string
@@ -40,6 +41,12 @@ interface Project {
   ownerId?: string
   assignees: ProjectAssignee[]
   owner?: ProjectOwner
+  projectSpace?: {
+    id: string
+    name: string
+    visibility: 'PUBLIC' | 'TARGETED'
+  }
+  projectSpaceId?: string | null
 }
 
 interface ProjectEditDialogProps {
@@ -47,6 +54,7 @@ interface ProjectEditDialogProps {
   onClose: () => void
   project: Project | null
   onSave: (updatedProject: Project) => void
+  workspaceId: string
 }
 
 const statusOptions = [
@@ -74,9 +82,12 @@ const colorOptions = [
   { value: '#84cc16', label: 'Lime', color: '#84cc16' }
 ]
 
-export function ProjectEditDialog({ isOpen, onClose, project, onSave }: ProjectEditDialogProps) {
+export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceId }: ProjectEditDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
+  const [workspaceMembers, setWorkspaceMembers] = useState<Array<{ id: string; name: string; email: string }>>([])
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'TARGETED'>('PUBLIC')
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -86,19 +97,29 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave }: ProjectE
     endDate: '',
     color: '#3b82f6',
     ownerId: '',
-    assigneeIds: [] as string[]
+    assigneeIds: [] as string[],
+    slackChannelHints: [] as string[]
   })
+  
+  // Channel input state for UI
+  const [channelInput, setChannelInput] = useState('')
 
   // Load users when dialog opens
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && workspaceId) {
       loadUsers()
+      loadWorkspaceMembers()
     }
-  }, [isOpen])
+  }, [isOpen, workspaceId])
 
   // Update form data when project changes
   useEffect(() => {
     if (project) {
+      // Determine current visibility
+      const currentVisibility = project.projectSpace?.visibility || 
+                                (project.projectSpaceId ? 'TARGETED' : 'PUBLIC')
+      
+      setVisibility(currentVisibility)
       setFormData({
         name: project.name,
         description: project.description || '',
@@ -108,14 +129,52 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave }: ProjectE
         endDate: project.endDate ? project.endDate.split('T')[0] : '',
         color: project.color || '#3b82f6',
         ownerId: project.ownerId || 'none',
-        assigneeIds: project.assignees?.map(a => a.user.id) || []
+        assigneeIds: project.assignees?.map(a => a.user.id) || [],
+        // Load channel hints from localStorage (fallback) or from project if it exists
+        slackChannelHints: (project as any).slackChannelHints || getProjectSlackHints(project.id) || []
       })
+      setChannelInput('')
+      
+      // Load ProjectSpace members if TARGETED
+      if (currentVisibility === 'TARGETED' && project.projectSpaceId) {
+        loadProjectSpaceMembers(project.projectSpaceId)
+      } else {
+        setSelectedMemberIds([])
+      }
     }
   }, [project])
 
+  const loadWorkspaceMembers = async () => {
+    try {
+      const response = await fetch(`/api/workspaces/${workspaceId}/members`)
+      if (response.ok) {
+        const data = await response.json()
+        setWorkspaceMembers(data.members?.map((m: any) => ({
+          id: m.userId,
+          name: m.user?.name || m.user?.email || 'Unknown',
+          email: m.user?.email || ''
+        })) || [])
+      }
+    } catch (error) {
+      console.error('Error loading workspace members:', error)
+    }
+  }
+
+  const loadProjectSpaceMembers = async (projectSpaceId: string) => {
+    try {
+      const response = await fetch(`/api/project-spaces/${projectSpaceId}/members`)
+      if (response.ok) {
+        const data = await response.json()
+        setSelectedMemberIds(data.members?.map((m: any) => m.userId) || [])
+      }
+    } catch (error) {
+      console.error('Error loading ProjectSpace members:', error)
+    }
+  }
+
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/org/users?workspaceId=workspace-1')
+      const response = await fetch(`/api/org/users?workspaceId=${workspaceId}`)
       if (response.ok) {
         const userData = await response.json()
         setUsers(userData)
@@ -144,33 +203,106 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave }: ProjectE
   const handleSave = async () => {
     if (!project) return
 
+    // Validate required fields
+    if (!formData.name || !formData.name.trim()) {
+      alert('Project name is required')
+      return
+    }
+
     try {
       setIsLoading(true)
+      
+      // Prepare request body - format dates properly for Zod validation
+      const requestBody: Record<string, unknown> = {
+        name: formData.name.trim(),
+        status: formData.status,
+        priority: formData.priority,
+      }
+      
+      // Description - send as string or undefined (not empty string or null)
+      // Schema: z.string().optional() means string | undefined
+      if (formData.description !== undefined && formData.description !== null && formData.description.trim()) {
+        requestBody.description = formData.description.trim()
+      }
+      
+      // Dates - convert YYYY-MM-DD to ISO datetime format (required by schema)
+      // Schema: z.string().datetime().optional() - must be valid ISO datetime or undefined
+      if (formData.startDate && formData.startDate.trim()) {
+        const dateStr = formData.startDate.trim()
+        requestBody.startDate = dateStr.includes('T') 
+          ? dateStr 
+          : `${dateStr}T00:00:00.000Z`
+      }
+      
+      if (formData.endDate && formData.endDate.trim()) {
+        const dateStr = formData.endDate.trim()
+        requestBody.endDate = dateStr.includes('T')
+          ? dateStr
+          : `${dateStr}T23:59:59.999Z`
+      }
+      
+      // Color - only if valid format (schema has regex: /^#[0-9A-Fa-f]{6}$/)
+      if (formData.color && formData.color.trim()) {
+        const colorStr = formData.color.trim()
+        if (/^#[0-9A-Fa-f]{6}$/.test(colorStr)) {
+          requestBody.color = colorStr
+        }
+      }
+      
+      // Owner ID - only if not 'none' (schema: z.string().optional())
+      if (formData.ownerId && formData.ownerId !== 'none' && formData.ownerId.trim()) {
+        requestBody.ownerId = formData.ownerId.trim()
+      }
+      
+      // Include assigneeIds separately (not in schema, extracted before validation)
+      if (formData.assigneeIds && Array.isArray(formData.assigneeIds)) {
+        requestBody.assigneeIds = formData.assigneeIds
+      }
+      
+      // Include visibility and memberUserIds if visibility changed
+      const currentVisibility = project.projectSpace?.visibility || 
+                                (project.projectSpaceId ? 'TARGETED' : 'PUBLIC')
+      if (visibility !== currentVisibility) {
+        requestBody.visibility = visibility
+        if (visibility === 'TARGETED' && selectedMemberIds.length > 0) {
+          requestBody.memberUserIds = selectedMemberIds
+        }
+      }
+      
+      // Include slackChannelHints (client-side only, not persisted to DB but returned in response)
+      if (formData.slackChannelHints && Array.isArray(formData.slackChannelHints)) {
+        requestBody.slackChannelHints = formData.slackChannelHints
+      }
       
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.description,
-          status: formData.status,
-          priority: formData.priority,
-          startDate: formData.startDate || null,
-          endDate: formData.endDate || null,
-          color: formData.color,
-          ownerId: formData.ownerId === 'none' ? null : formData.ownerId || null,
-          assigneeIds: formData.assigneeIds
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (response.ok) {
         const updatedProject = await response.json()
+        // Save slackChannelHints to localStorage before calling onSave
+        // This ensures they persist even if the API response doesn't include them
+        if (formData.slackChannelHints && formData.slackChannelHints.length > 0) {
+          const { setProjectSlackHints } = await import('@/lib/client-state/project-slack-hints')
+          setProjectSlackHints(project.id, formData.slackChannelHints)
+        }
         onSave(updatedProject)
         onClose()
       } else {
-        console.error('Failed to update project')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update project' }))
+        console.error('Failed to update project:', errorData)
+        
+        // Show detailed validation errors if available
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const errorMessages = errorData.details.map((d: any) => `${d.path || 'field'}: ${d.message}`).join('\n')
+          alert(`Validation error:\n${errorMessages}`)
+        } else {
+          alert(errorData.error || 'Failed to update project. Please check your permissions.')
+        }
       }
     } catch (error) {
       console.error('Error updating project:', error)
@@ -216,6 +348,150 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave }: ProjectE
                 rows={3}
               />
             </div>
+
+            {/* Slack Channels - sent in request body but not persisted to DB */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Relevant Slack Channels (optional)</Label>
+              <p className="text-xs text-muted-foreground">
+                Add Slack channel names to help Loopbrain fetch relevant conversations. These are sent with the request but not stored in the database.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {formData.slackChannelHints.map((channel, idx) => (
+                  <Badge
+                    key={idx}
+                    variant="outline"
+                    className="flex items-center gap-1"
+                  >
+                    #{channel}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = formData.slackChannelHints.filter((_, i) => i !== idx)
+                        setFormData({ ...formData, slackChannelHints: updated })
+                      }}
+                      className="ml-1 hover:opacity-70"
+                      disabled={isLoading}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add channel (e.g. loopbrain-architecture)"
+                  value={channelInput}
+                  onChange={(e) => setChannelInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const channel = channelInput.trim().replace(/^#/, '')
+                      if (channel && !formData.slackChannelHints.includes(channel)) {
+                        setFormData({
+                          ...formData,
+                          slackChannelHints: [...formData.slackChannelHints, channel]
+                        })
+                        setChannelInput('')
+                      }
+                    }
+                  }}
+                  className="flex-1"
+                  disabled={isLoading}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const channel = channelInput.trim().replace(/^#/, '')
+                    if (channel && !formData.slackChannelHints.includes(channel)) {
+                      setFormData({
+                        ...formData,
+                        slackChannelHints: [...formData.slackChannelHints, channel]
+                      })
+                      setChannelInput('')
+                    }
+                  }}
+                  disabled={isLoading || !channelInput.trim()}
+                >
+                  Add
+                </Button>
+              </div>
+            </div>
+
+            {/* Visibility Control */}
+            <div className="space-y-2">
+              <Label>Visibility</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value="PUBLIC"
+                    checked={visibility === 'PUBLIC'}
+                    onChange={(e) => setVisibility(e.target.value as 'PUBLIC' | 'TARGETED')}
+                    disabled={isLoading}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Public</span>
+                  <Badge variant="default" className="text-xs">All workspace members</Badge>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value="TARGETED"
+                    checked={visibility === 'TARGETED'}
+                    onChange={(e) => setVisibility(e.target.value as 'PUBLIC' | 'TARGETED')}
+                    disabled={isLoading}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Private</span>
+                  <Badge variant="secondary" className="text-xs">Selected members only</Badge>
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {visibility === 'PUBLIC' 
+                  ? 'All workspace members can view and access this project.'
+                  : 'Only selected members can view and access this project.'}
+              </p>
+            </div>
+
+            {/* Member Picker (only for Private) */}
+            {visibility === 'TARGETED' && (
+              <div className="space-y-2">
+                <Label>Project Members</Label>
+                {workspaceMembers.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">Loading members...</div>
+                ) : (
+                  <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                    {workspaceMembers.map((member) => (
+                      <label key={member.id} className="flex items-center space-x-2 cursor-pointer hover:bg-muted p-2 rounded">
+                        <input
+                          type="checkbox"
+                          checked={selectedMemberIds.includes(member.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedMemberIds([...selectedMemberIds, member.id])
+                            } else {
+                              setSelectedMemberIds(selectedMemberIds.filter(id => id !== member.id))
+                            }
+                          }}
+                          disabled={isLoading}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">{member.name}</span>
+                        {member.email && (
+                          <span className="text-xs text-muted-foreground">({member.email})</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Select workspace members who should have access to this private project.
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

@@ -24,9 +24,10 @@ interface WikiSearchProps {
   placeholder?: string
   onResultClick?: (result: SearchResult) => void
   className?: string
+  workspaceId?: string
 }
 
-export function WikiSearch({ placeholder = "Search wiki...", onResultClick, className = "" }: WikiSearchProps) {
+export function WikiSearch({ placeholder = "Search wiki...", onResultClick, className = "", workspaceId }: WikiSearchProps) {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -34,7 +35,7 @@ export function WikiSearch({ placeholder = "Search wiki...", onResultClick, clas
 
   // Perform search
   const performSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
+    if (!searchQuery.trim() || !workspaceId) {
       setResults([])
       setShowResults(false)
       return
@@ -45,7 +46,7 @@ export function WikiSearch({ placeholder = "Search wiki...", onResultClick, clas
     try {
       const params = new URLSearchParams({
         q: searchQuery,
-        workspaceId: 'cmgl0f0wa00038otlodbw5jhn', // TODO: Get from context/session
+        workspaceId: workspaceId,
       })
 
       const response = await fetch(`/api/wiki/search?${params}`)

@@ -1,22 +1,33 @@
 // Enhanced Wiki Layout Component
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { RichTextEditor } from "@/components/wiki/rich-text-editor"
+import { WikiAIAssistant } from "@/components/wiki/wiki-ai-assistant"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { 
   Search, 
   Plus, 
   Home,
-  BookOpen,
   FileText,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Upload,
   Users,
   Archive,
@@ -35,10 +46,16 @@ import {
   Loader2,
   MessageSquare,
   MoreHorizontal,
-  Folder
+  Folder,
+  Trash2,
+  Globe,
+  Target
 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Image from "next/image"
+import { usePathname, useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
+import { AILogo } from "@/components/ai-logo"
 
 interface WikiLayoutProps {
   children: React.ReactNode
@@ -51,11 +68,13 @@ interface WikiLayoutProps {
     viewCount?: number
     tags?: string[]
   }
+  workspaceId?: string
 }
 
 interface WikiWorkspace {
   id: string
   name: string
+  description?: string
   type: 'personal' | 'team' | 'project'
   color: string
   icon: string
@@ -68,14 +87,30 @@ interface RecentPage {
   slug: string
   updatedAt: string
   author: string
+  permissionLevel?: string
+  workspace_type?: string
 }
 
-export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
+interface Project {
+  id: string
+  name: string
+  description?: string
+  status: string
+  color?: string
+}
+
+export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId }: WikiLayoutProps) {
+  const router = useRouter()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [workspaceId, setWorkspaceId] = useState<string>(propWorkspaceId || '')
+  const [isAISidebarOpen, setIsAISidebarOpen] = useState(false)
+  const [aiDisplayMode, setAiDisplayMode] = useState<'sidebar' | 'floating'>('sidebar')
   const [workspaces, setWorkspaces] = useState<WikiWorkspace[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [recentPages, setRecentPages] = useState<RecentPage[]>([])
   const [favoritePages, setFavoritePages] = useState<RecentPage[]>([])
+  const [pageCounts, setPageCounts] = useState<Record<string, number>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [isCreatingPage, setIsCreatingPage] = useState(false)
   const [newPageTitle, setNewPageTitle] = useState("")
@@ -83,25 +118,226 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
   const [newPageCategory, setNewPageCategory] = useState("general")
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const pathname = usePathname()
+  const [isPersonalPage, setIsPersonalPage] = useState(false)
+  const [expandedWorkspaces, setExpandedWorkspaces] = useState<Record<string, boolean>>({})
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false)
+  const [newWorkspaceName, setNewWorkspaceName] = useState('')
+  const [newWorkspaceDescription, setNewWorkspaceDescription] = useState('')
+  const [isSavingWorkspace, setIsSavingWorkspace] = useState(false)
+  const [showWorkspaceSelectDialog, setShowWorkspaceSelectDialog] = useState(false)
+  const [selectedWorkspaceForPage, setSelectedWorkspaceForPage] = useState<string | null>(null)
+  const pathname = usePathname() || ''
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed)
+  const toggleWorkspace = (workspaceId: string) => {
+    setExpandedWorkspaces(prev => ({
+      ...prev,
+      [workspaceId]: !prev[workspaceId]
+    }))
   }
 
-  const handleCreatePage = () => {
+  const handleCreateWorkspace = async () => {
+    if (!newWorkspaceName.trim()) {
+      setError('Workspace name is required')
+      return
+    }
+
+    try {
+      setIsSavingWorkspace(true)
+      setError(null)
+
+      const response = await fetch('/api/wiki/workspaces', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newWorkspaceName.trim(),
+          description: newWorkspaceDescription.trim()
+          // Don't specify type - let it be created as a custom workspace (null type)
+          // This ensures each workspace is independent and doesn't duplicate Team Workspace
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create workspace')
+      }
+
+      const newWorkspace = await response.json()
+      
+      // Close dialog and reset form
+      setIsCreatingWorkspace(false)
+      setNewWorkspaceName('')
+      setNewWorkspaceDescription('')
+
+      // Refresh workspaces list
+      const workspacesResponse = await fetch('/api/wiki/workspaces')
+      if (workspacesResponse.ok) {
+        const workspacesData = await workspacesResponse.json()
+        setWorkspaces(workspacesData)
+      }
+
+      // Add to expanded state
+      setExpandedWorkspaces(prev => ({
+        ...prev,
+        [newWorkspace.id]: false
+      }))
+
+      // Redirect to the new workspace
+      router.push(`/wiki/workspace/${newWorkspace.id}`)
+    } catch (error) {
+      console.error('Error creating workspace:', error)
+      setError(error instanceof Error ? error.message : 'Failed to create workspace')
+    } finally {
+      setIsSavingWorkspace(false)
+    }
+  }
+
+  const handleDeleteWorkspace = async (workspaceIdToDelete: string, workspaceName: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    // Prevent deletion of Personal Space (ONLY default workspace)
+    if (workspaceIdToDelete.startsWith('personal-space-')) {
+      alert('Personal Space is a default workspace and cannot be deleted')
+      return
+    }
+    
+    if (!confirm(`Are you sure you want to delete the workspace "${workspaceName}"? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/wiki/workspaces?id=${workspaceIdToDelete}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete workspace')
+      }
+
+      // Refresh workspaces list
+      const workspacesResponse = await fetch('/api/wiki/workspaces')
+      if (workspacesResponse.ok) {
+        const workspacesData = await workspacesResponse.json()
+        setWorkspaces(workspacesData)
+      }
+
+      // Redirect to Personal Space if we deleted the current workspace
+      if (pathname.includes(`/wiki/workspace/${workspaceIdToDelete}`)) {
+        router.push('/wiki/personal-space')
+      }
+    } catch (error) {
+      console.error('Error deleting workspace:', error)
+      alert(error instanceof Error ? error.message : 'Failed to delete workspace. Please try again.')
+    }
+  }
+
+  const handleDeletePage = async (pageId: string, e: React.MouseEvent, workspaceType?: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (!confirm('Are you sure you want to delete this page?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/wiki/pages/${pageId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete page')
+      }
+
+      // Dispatch event to refresh pages
+      window.dispatchEvent(new CustomEvent('pageDeleted'))
+
+      // Refresh recent pages
+      const recentResponse = await fetch('/api/wiki/recent-pages')
+      if (recentResponse.ok) {
+        const recentData = await recentResponse.json()
+        setRecentPages(recentData)
+      }
+
+      // Redirect to the appropriate workspace
+      if (workspaceType === 'personal' || workspaceType === 'personal-space') {
+        router.push('/wiki/personal-space')
+      } else if (workspaceType === 'team' || workspaceType === 'team-workspace') {
+        router.push('/wiki/team-workspace')
+      } else if (workspaceType && workspaceType !== 'team' && workspaceType !== 'personal') {
+        // Custom workspace
+        router.push(`/wiki/workspace/${workspaceType}`)
+      } else {
+        // Default to home
+        router.push('/wiki')
+      }
+    } catch (error) {
+      console.error('Error deleting page:', error)
+      alert('Failed to delete page. Please try again.')
+    }
+  }
+
+  // Check if we're on personal space page
+  useEffect(() => {
+    const isPersonal = pathname.includes('/wiki/personal-space')
+    setIsPersonalPage(isPersonal)
+  }, [pathname])
+
+  const handleWorkspaceSelected = useCallback((workspaceId: string) => {
+    setSelectedWorkspaceForPage(workspaceId)
+    setShowWorkspaceSelectDialog(false)
+    
+    // Now open the page creation dialog
     setIsCreatingPage(true)
     setNewPageTitle("")
     setNewPageContent("")
     setNewPageCategory("general")
     setError(null)
+  }, [])
+
+  // Memoize handleCreatePage to prevent unnecessary re-creations
+  const memoizedHandleCreatePage = useCallback(() => {
+    setShowWorkspaceSelectDialog(true)
+  }, [])
+
+  // Function to create page with a specific workspace
+  const createPageWithWorkspace = useCallback((workspaceId: string) => {
+    handleWorkspaceSelected(workspaceId)
+  }, [handleWorkspaceSelected])
+
+  // Expose global trigger functions
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).triggerCreatePage = () => {
+        setShowWorkspaceSelectDialog(true)
+      }
+      (window as any).triggerCreatePageWithWorkspace = createPageWithWorkspace
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).triggerCreatePage
+        delete (window as any).triggerCreatePageWithWorkspace
+      }
+    }
+  }, [createPageWithWorkspace])
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed)
   }
+
+  const handleCreatePage = useCallback(() => {
+    // Show workspace selection dialog for sidebar button
+    setShowWorkspaceSelectDialog(true)
+  }, [])
 
   const handleCancelCreate = () => {
     setIsCreatingPage(false)
     setNewPageTitle("")
     setNewPageContent("")
     setNewPageCategory("general")
+    setSelectedWorkspaceForPage(null)
     setError(null)
   }
 
@@ -111,20 +347,28 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
       
       if (isCurrentlyFavorite) {
         // Remove from favorites
-        await fetch(`/api/wiki/pages/${page.id}/favorite`, {
+        const response = await fetch(`/api/wiki/pages/${page.id}/favorite`, {
           method: 'DELETE'
         })
-        setFavoritePages(prev => prev.filter(fav => fav.id !== page.id))
+        if (response.ok) {
+          setFavoritePages(prev => prev.filter(fav => fav.id !== page.id))
+          // Dispatch event to refresh favorites in other components
+          window.dispatchEvent(new CustomEvent('favoritesChanged'))
+        }
       } else {
         // Add to favorites
-        await fetch(`/api/wiki/pages/${page.id}/favorite`, {
+        const response = await fetch(`/api/wiki/pages/${page.id}/favorite`, {
           method: 'POST'
         })
-        // Refresh favorites list from server
-        const response = await fetch('/api/wiki/favorites')
         if (response.ok) {
-          const favoritesData = await response.json()
-          setFavoritePages(favoritesData)
+          // Refresh favorites list from server
+          const favoritesResponse = await fetch('/api/wiki/favorites')
+          if (favoritesResponse.ok) {
+            const favoritesData = await favoritesResponse.json()
+            setFavoritePages(Array.isArray(favoritesData) ? favoritesData : [])
+            // Dispatch event to refresh favorites in other components
+            window.dispatchEvent(new CustomEvent('favoritesChanged'))
+          }
         }
       }
     } catch (error) {
@@ -133,34 +377,103 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
   }
 
   const handleSavePage = async () => {
-    if (!newPageTitle.trim() || !newPageContent.trim()) {
-      setError("Please enter both title and content")
+    console.log('Save button clicked!', { newPageTitle, hasContent: !!newPageContent.trim(), workspaceId })
+    
+    // Allow saving with just a title, don't require content
+    if (!newPageTitle.trim()) {
+      setError("Please enter a title")
+      return
+    }
+
+    if (!workspaceId) {
+      console.error('Workspace ID is missing!')
+      setError("Workspace not found")
       return
     }
 
     try {
       setIsSaving(true)
       setError(null)
+      
+      // Ensure we have at least a space for content since API requires it
+      const content = newPageContent.trim() || ' '
+      
+      // Determine workspace_type based on selected workspace
+      let workspaceType = 'team'
+      if (selectedWorkspaceForPage) {
+        // Handle special cases like 'personal-space' or 'team-workspace' strings
+        if (selectedWorkspaceForPage === 'personal-space') {
+          // Find the personal workspace by type
+          const personalWorkspace = workspaces.find(w => w.type === 'personal' || w.id?.startsWith('personal-space-'))
+          if (personalWorkspace) {
+            workspaceType = 'personal'
+            console.log('✅ Setting workspace_type to personal (from personal-space string)')
+          }
+        } else if (selectedWorkspaceForPage === 'team-workspace') {
+          // Handle team-workspace string - explicitly set to 'team'
+          workspaceType = 'team'
+          console.log('✅ Setting workspace_type to team (from team-workspace string)')
+        } else {
+          const selectedWorkspace = workspaces.find(w => w.id === selectedWorkspaceForPage)
+          console.log('🔍 Selected workspace:', selectedWorkspace)
+          
+          if (selectedWorkspace?.type === 'personal') {
+            workspaceType = 'personal'
+          } else if (selectedWorkspace?.type === 'team') {
+            workspaceType = 'team'
+          } else if (selectedWorkspace?.id) {
+            // For custom workspaces, use the workspace ID
+            workspaceType = selectedWorkspace.id
+            console.log('✅ Setting workspace_type to custom workspace ID:', workspaceType)
+          }
+        }
+      } else {
+        // If no workspace selected, determine from current path
+        if (pathname.includes('/wiki/personal-space')) {
+          workspaceType = 'personal'
+          console.log('✅ Setting workspace_type to personal (from pathname)')
+        } else if (pathname.includes('/wiki/team-workspace')) {
+          workspaceType = 'team'
+          console.log('✅ Setting workspace_type to team (from pathname)')
+        } else if (pathname.includes('/wiki/workspace/')) {
+          // Extract workspace ID from pathname for custom workspaces
+          const match = pathname.match(/\/wiki\/workspace\/([^\/]+)/)
+          if (match && match[1]) {
+            workspaceType = match[1]
+            console.log('✅ Setting workspace_type to custom workspace ID from pathname:', workspaceType)
+          }
+        }
+      }
+      
+      console.log('💾 Saving page with title:', newPageTitle, 'content length:', content.length, 'workspaceId:', workspaceId, 'workspaceType:', workspaceType)
+      
       const response = await fetch('/api/wiki/pages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          workspaceId: 'cmgl0f0wa00038otlodbw5jhn',
           title: newPageTitle.trim(),
-          content: newPageContent.trim(),
+          content: content,
           tags: [],
-          category: newPageCategory
+          category: newPageCategory,
+          permissionLevel: isPersonalPage ? 'personal' : 'team',
+          workspace_type: workspaceType
         })
       })
 
+      console.log('Response status:', response.status, response.ok)
+
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.log('Error data:', errorData)
         throw new Error(errorData.error || 'Failed to create page')
       }
 
       const newPage = await response.json()
+      console.log('✅ Page created successfully:', newPage)
+      console.log('📌 Page workspace_type:', newPage.workspace_type)
+      
       setIsCreatingPage(false)
       setNewPageTitle("")
       setNewPageContent("")
@@ -173,8 +486,19 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
         setRecentPages(recentData)
       }
       
-      // Navigate to the new page
-      window.location.href = `/wiki/${newPage.slug}`
+      // Refresh page counts
+      const countsResponse = await fetch('/api/wiki/page-counts')
+      if (countsResponse.ok) {
+        const countsData = await countsResponse.json()
+        setPageCounts(countsData)
+      }
+      
+      // Dispatch events to refresh workspace pages and page counts
+      window.dispatchEvent(new CustomEvent('workspacePagesRefreshed'))
+      window.dispatchEvent(new CustomEvent('pageCreated'))
+      
+      // Navigate to the new page using router (no full page reload)
+      router.push(`/wiki/${newPage.slug}`)
     } catch (error) {
       console.error('Error creating page:', error)
       setError(error instanceof Error ? error.message : 'Failed to create page. Please try again.')
@@ -183,29 +507,157 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
     }
   }
 
-  // Load workspaces and recent pages
+  // Fetch workspace ID from user status
   useEffect(() => {
-    const loadData = async () => {
+    const fetchWorkspaceId = async () => {
+      if (workspaceId) return // Already have workspaceId from prop
+      
       try {
-        // Load workspaces
-        const workspacesResponse = await fetch('/api/wiki/workspaces')
+        const response = await fetch('/api/auth/user-status')
+        if (response.ok) {
+          const userStatus = await response.json()
+          if (userStatus.workspaceId) {
+            console.log('Fetched workspaceId:', userStatus.workspaceId)
+            setWorkspaceId(userStatus.workspaceId)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching workspace ID:', error)
+      }
+    }
+    
+    fetchWorkspaceId()
+  }, [workspaceId])
+
+  // Load workspaces and page counts - always load regardless of workspaceId
+  useEffect(() => {
+    const loadWorkspaces = async () => {
+      try {
+        const [workspacesResponse, countsResponse] = await Promise.all([
+          fetch('/api/wiki/workspaces'),
+          fetch('/api/wiki/page-counts')
+        ])
+        
         if (workspacesResponse.ok) {
           const workspacesData = await workspacesResponse.json()
-          setWorkspaces(workspacesData)
+          
+          // Ensure workspacesData is an array with valid data
+          if (!Array.isArray(workspacesData)) {
+            console.error('❌ Workspaces response is not an array:', workspacesData)
+            setWorkspaces([])
+          } else {
+            // Filter out empty objects and validate data
+            const validWorkspaces = workspacesData.filter((w: any) => w && (w.id || w.name))
+            
+            if (validWorkspaces.length === 0 && workspacesData.length > 0) {
+              console.error('❌ All workspaces are empty objects:', workspacesData)
+            }
+            
+            // Normalize workspace names on the frontend
+            const normalizedWorkspaces = validWorkspaces.map((w: any) => {
+              // Check if this is a default Personal Space
+              if (w.id?.startsWith('personal-space-')) {
+                return { ...w, name: 'Personal Space' }
+              }
+              // For all other workspaces (including Team Workspace if it exists), keep their original names
+              return w
+            })
+            
+            console.log('✨ Normalized workspaces:', normalizedWorkspaces.map((w: any) => ({ id: w.id, name: w.name, type: w.type })))
+            
+            setWorkspaces(normalizedWorkspaces)
+          }
+        } else {
+          console.error('❌ Failed to fetch workspaces:', workspacesResponse.status, workspacesResponse.statusText)
         }
 
-        // Load recent pages
-        const recentResponse = await fetch('/api/wiki/recent-pages')
+        if (countsResponse.ok) {
+          const countsData = await countsResponse.json()
+          console.log('📊 Page counts loaded:', countsData)
+          setPageCounts(countsData)
+        } else {
+          const errorData = await countsResponse.json().catch(() => ({}))
+          console.error('❌ Failed to fetch page counts:', countsResponse.status, countsResponse.statusText, errorData)
+          // Don't fail completely - just log the error and continue with empty counts
+          setPageCounts({})
+        }
+      } catch (error) {
+        console.error('Error loading workspaces:', error)
+      }
+    }
+
+    loadWorkspaces()
+  }, []) // Load once on mount
+
+  // Load favorites and page counts - these don't depend on workspaceId
+  useEffect(() => {
+    const loadGlobalData = async () => {
+      try {
+        const [favoritesResponse, countsResponse] = await Promise.all([
+          fetch('/api/wiki/favorites'),
+          fetch('/api/wiki/page-counts')
+        ])
+
+        if (favoritesResponse.ok) {
+          const favoritesData = await favoritesResponse.json()
+          console.log('⭐ Favorites loaded:', favoritesData.length, 'favorites', favoritesData)
+          setFavoritePages(Array.isArray(favoritesData) ? favoritesData : [])
+        } else {
+          console.error('Failed to load favorites:', favoritesResponse.status)
+        }
+
+        if (countsResponse.ok) {
+          const countsData = await countsResponse.json()
+          console.log('📊 Page counts refreshed:', countsData)
+          setPageCounts(countsData)
+        } else {
+          console.error('❌ Failed to fetch page counts:', countsResponse.status, countsResponse.statusText)
+          // Don't fail completely - just log the error and continue with empty counts
+          setPageCounts({})
+        }
+      } catch (error) {
+        console.error('Error loading global wiki data:', error)
+      }
+    }
+
+    loadGlobalData()
+  }, []) // Load once on mount
+
+  // Load recent pages and projects - depends on workspaceId
+  useEffect(() => {
+    if (!workspaceId) {
+      setIsLoading(false)
+      return // Don't load pages until we have workspaceId
+    }
+    
+    const loadData = async () => {
+      try {
+        // Load all data in parallel for better performance
+        // Note: We fetch all pages here for the sidebar, but each workspace will filter its own pages
+        // The filtering happens client-side based on workspace_type to avoid multiple API calls
+        const [recentResponse, projectsResponse] = await Promise.all([
+          fetch('/api/wiki/recent-pages?limit=100'),
+          fetch(`/api/projects?workspaceId=${workspaceId}`)
+        ])
+
+        // Process responses
         if (recentResponse.ok) {
           const recentData = await recentResponse.json()
+          console.log('📄 All recent pages loaded:', recentData.map((p: any) => ({ 
+            title: p.title, 
+            workspace_type: p.workspace_type, 
+            permissionLevel: p.permissionLevel 
+          })))
           setRecentPages(recentData)
         }
 
-        // Load favorite pages
-        const favoritesResponse = await fetch('/api/wiki/favorites')
-        if (favoritesResponse.ok) {
-          const favoritesData = await favoritesResponse.json()
-          setFavoritePages(favoritesData)
+        if (projectsResponse.ok) {
+          const projectsResult = await projectsResponse.json()
+          // Handle new response shape: { projects: Project[], contextObjects: ContextObject[] }
+          const projectsData = Array.isArray(projectsResult) 
+            ? projectsResult 
+            : (projectsResult.projects || [])
+          setProjects(Array.isArray(projectsData) ? projectsData : [])
         }
       } catch (error) {
         console.error('Error loading wiki data:', error)
@@ -215,7 +667,7 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
     }
 
     loadData()
-  }, [])
+  }, [workspaceId])
 
   // Reset creation state when navigating to existing pages
   useEffect(() => {
@@ -224,7 +676,7 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
     }
   }, [pathname])
 
-  // Listen for favorites changes
+  // Listen for favorites changes - memoize callbacks
   useEffect(() => {
     const handleFavoritesChanged = async () => {
       try {
@@ -238,10 +690,39 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
       }
     }
 
+    const handlePageDeleted = async () => {
+      // Refresh recent pages and page counts when a page is deleted
+      const [recentResponse, countsResponse] = await Promise.all([
+        fetch('/api/wiki/recent-pages'),
+        fetch('/api/wiki/page-counts')
+      ])
+      if (recentResponse.ok) {
+        const recentData = await recentResponse.json()
+        setRecentPages(recentData)
+      }
+      if (countsResponse.ok) {
+        const countsData = await countsResponse.json()
+        setPageCounts(countsData)
+      }
+    }
+
+    const handlePageCreated = async () => {
+      // Refresh page counts when a page is created
+      const countsResponse = await fetch('/api/wiki/page-counts')
+      if (countsResponse.ok) {
+        const countsData = await countsResponse.json()
+        setPageCounts(countsData)
+      }
+    }
+
     window.addEventListener('favoritesChanged', handleFavoritesChanged)
+    window.addEventListener('pageDeleted', handlePageDeleted)
+    window.addEventListener('pageCreated', handlePageCreated)
     
     return () => {
       window.removeEventListener('favoritesChanged', handleFavoritesChanged)
+      window.removeEventListener('pageDeleted', handlePageDeleted)
+      window.removeEventListener('pageCreated', handlePageCreated)
     }
   }, [])
 
@@ -289,38 +770,32 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
           background: #9ca3af;
         }
       `}</style>
-      <div className="h-screen bg-gray-50 flex">
+      <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Sidebar */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-72'} bg-white transition-all duration-300 flex flex-col border-r border-gray-200 shadow-sm h-screen overflow-hidden`}>
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-60'} bg-card transition-all duration-300 flex flex-col border-r border-border shadow-sm h-screen overflow-hidden flex-shrink-0`}>
         {/* Top Section - Search and AI Button */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-3 border-b border-border">
           {!sidebarCollapsed && (
             <>
               {/* Search */}
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   placeholder="Explore knowledge..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="pl-10 bg-muted/50 border-border text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
 
               {/* AI Assistant Button */}
               <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white mb-3">
-                <Brain className="h-4 w-4 mr-2" />
-                Ask Lumi AI
-              </Button>
-
-              {/* Create New Page Button */}
-              <Button 
-                variant="outline" 
-                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 mb-4"
-                onClick={handleCreatePage}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create New Page
+                <AILogo 
+                  width={16} 
+                  height={16} 
+                  className="w-4 h-4 mr-2"
+                />
+                LoopBrain
               </Button>
             </>
           )}
@@ -328,56 +803,260 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
 
         {/* Main Navigation */}
         <div className="flex-1 overflow-y-auto sidebar-scroll">
-          <div className="p-4">
+          <div className="p-3">
             {!sidebarCollapsed && (
               <>
 
-                {/* Knowledge Base */}
-                <Link
-                  href="/wiki/knowledge-base"
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg mb-6 transition-colors ${
-                    pathname.startsWith('/wiki/knowledge-base') 
-                      ? 'bg-indigo-50 text-indigo-700' 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                >
-                  <BookOpen className="h-4 w-4" />
-                  <span className="font-medium">Knowledge Base</span>
-                </Link>
+                {/* Home Section */}
+                <div className="mb-3">
+                  <Link
+                    href="/wiki/home"
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
+                      (pathname || '') === '/wiki/home' || (pathname || '') === '/wiki' || (pathname || '') === '/spaces'
+                        ? 'bg-muted text-foreground' 
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <Home className="h-4 w-4" />
+                    <span className="font-medium">Home</span>
+                  </Link>
+                </div>
 
                 {/* Workspaces Section */}
-                <div className="mb-4">
-                  <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">WORKSPACES</h3>
+                <div className="mb-3">
+                  <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">WORKSPACES</h3>
                   
                   {isLoading ? (
                     <div className="space-y-2">
-                      <div className="h-8 bg-gray-100 rounded animate-pulse"></div>
-                      <div className="h-8 bg-gray-100 rounded animate-pulse"></div>
+                      <div className="h-8 bg-muted rounded animate-pulse"></div>
+                      <div className="h-8 bg-muted rounded animate-pulse"></div>
                     </div>
                   ) : (
                     <>
-                      {workspaces.map((workspace) => (
-                        <Link
-                          key={workspace.id}
-                          href={`/wiki/workspace/${workspace.id}`}
-                          className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg mb-2"
-                        >
-                          <Circle className="h-2 w-2" style={{ color: workspace.color }} />
-                          <div 
-                            className="w-4 h-4 rounded-md flex items-center justify-center"
-                            style={{ backgroundColor: workspace.color + '20' }}
-                          >
-                            <FileText className="h-2 w-2" style={{ color: workspace.color }} />
+                      {workspaces
+                        .sort((a, b) => {
+                          // Sort: Personal Space first, then all other workspaces alphabetically
+                          if (a.type === 'personal') return -1
+                          if (b.type === 'personal') return 1
+                          return a.name.localeCompare(b.name)
+                        })
+                        .map((workspace) => {
+                        // Map workspace types to their actual routes
+                        const workspaceRoute = workspace.type === 'personal' 
+                          ? '/wiki/personal-space'
+                          : workspace.type === 'team'
+                          ? '/wiki/team-workspace'
+                          : `/wiki/workspace/${workspace.id}`
+                        
+                        // Determine workspace type
+                        // Only Personal Space is a default workspace - everything else (including Team Workspace) is a regular workspace
+                        const isPersonalSpace = workspace.type === 'personal'
+                        const isTeamWorkspace = workspace.type === 'team'
+                        // Custom workspaces are any that aren't personal (including Team Workspace and null-type workspaces)
+                        const isCustomWorkspace = !isPersonalSpace
+                        const personalPages = recentPages.filter(p => p.permissionLevel === 'personal')
+                        const teamPages = recentPages.filter(p => p.permissionLevel !== 'personal')
+                        
+                        // Filter pages by workspace_type - STRICT filtering to ensure pages only show in their correct workspace
+                        let workspacePages: typeof recentPages = []
+                        if (isPersonalSpace) {
+                          // Personal Space: Show pages explicitly marked as 'personal' OR legacy pages with permissionLevel='personal'
+                          workspacePages = recentPages.filter(p => {
+                            const pageWorkspaceType = (p as any).workspace_type
+                            const pagePermissionLevel = p.permissionLevel
+                            
+                            // Primary match: workspace_type is explicitly 'personal'
+                            if (pageWorkspaceType === 'personal') {
+                              return true
+                            }
+                            
+                            // Legacy match: If workspace_type is null/undefined, check permissionLevel
+                            // This handles old pages created before workspace_type was implemented
+                            if (!pageWorkspaceType || pageWorkspaceType === null || pageWorkspaceType === undefined || pageWorkspaceType === '') {
+                              return pagePermissionLevel === 'personal'
+                            }
+                            
+                            // If workspace_type is explicitly set to something else (team or custom), don't include
+                            return false
+                          })
+                        } else if (isTeamWorkspace) {
+                          // Team Workspace: Show pages marked as 'team' OR unset/null, BUT exclude personal pages AND custom workspace pages
+                          workspacePages = recentPages.filter(p => {
+                            const pageWorkspaceType = (p as any).workspace_type
+                            const pagePermissionLevel = p.permissionLevel
+                            
+                            // Exclude personal pages explicitly - highest priority
+                            if (pageWorkspaceType === 'personal') {
+                              return false
+                            }
+                            
+                            // Exclude custom workspace pages - they should only show in their own workspace
+                            // Custom workspace IDs don't match 'team' or 'personal' and are not null/empty
+                            if (pageWorkspaceType && 
+                                pageWorkspaceType !== 'team' && 
+                                pageWorkspaceType !== 'personal' &&
+                                pageWorkspaceType !== null &&
+                                pageWorkspaceType !== undefined &&
+                                pageWorkspaceType !== '') {
+                              return false
+                            }
+                            
+                            // Exclude if permissionLevel is 'personal' (unless workspace_type is explicitly 'team')
+                            if (pagePermissionLevel === 'personal' && pageWorkspaceType !== 'team') {
+                              return false
+                            }
+                            
+                            // Include if workspace_type is 'team'
+                            if (pageWorkspaceType === 'team') {
+                              return true
+                            }
+                            
+                            // Include legacy pages (null/undefined workspace_type) if not personal
+                            if (!pageWorkspaceType || pageWorkspaceType === null || pageWorkspaceType === undefined || pageWorkspaceType === '') {
+                              return pagePermissionLevel !== 'personal'
+                            }
+                            
+                            // Don't include anything else
+                            return false
+                          })
+                        } else if (isCustomWorkspace) {
+                          // Custom Workspace: STRICTLY ONLY show pages with workspace_type matching this workspace ID
+                          // Exclude 'team', 'personal', null, or any other value
+                          workspacePages = recentPages.filter(p => {
+                            const pageWorkspaceType = (p as any).workspace_type
+                            // Only include if workspace_type exactly matches this workspace ID
+                            // This ensures pages from team/personal workspaces don't leak into custom workspaces
+                            return pageWorkspaceType === workspace.id && 
+                                   pageWorkspaceType !== 'team' && 
+                                   pageWorkspaceType !== 'personal' &&
+                                   pageWorkspaceType !== null &&
+                                   pageWorkspaceType !== undefined &&
+                                   pageWorkspaceType !== ''
+                          })
+                        }
+                        
+                        const isExpanded = expandedWorkspaces[workspace.id] || false
+                        // Use page counts from API instead of filtering recentPages
+                        const pageCount = pageCounts[workspace.id] || 0
+                        const hasPages = pageCount > 0
+                        
+                        return (
+                          <div key={workspace.id} className="group relative mb-2">
+                            <div className="relative flex items-center px-3 py-2 text-foreground hover:text-foreground hover:bg-muted rounded-lg">
+                              <Link
+                                href={workspaceRoute}
+                                className="flex items-center gap-3 flex-1"
+                              >
+                              <Circle className="h-2 w-2" style={{ color: workspace.color }} />
+                                <span className="text-sm flex-1">{workspace.name}</span>
+                              </Link>
+                              <div className="flex items-center gap-1 ml-auto">
+                                {hasPages ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      toggleWorkspace(workspace.id)
+                                    }}
+                                    className="text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded px-1 py-0.5 transition-colors"
+                                  >
+                                    ({pageCount})
+                                  </button>
+                                ) : (
+                                  <span className="text-xs text-slate-400">({pageCount})</span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Show personal pages nested under Personal Space */}
+                            {isPersonalSpace && isExpanded && (
+                              <div className="ml-6 mt-1 space-y-1 mb-2">
+                                {workspacePages.slice(0, 5).map((page) => (
+                                  <div
+                                    key={page.id}
+                                    className="group flex items-center gap-3 px-3 py-2 text-foreground hover:text-foreground hover:bg-muted rounded-lg"
+                                  >
+                                    <Link href={`/wiki/${page.slug}`} className="flex items-center gap-3 flex-1 min-w-0">
+                                      <FileText className="h-3 w-3 text-indigo-600" />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm truncate">{page.title}</div>
+                                        <div className="text-xs text-gray-500">{formatDate(page.updatedAt)}</div>
+                                      </div>
+                                    </Link>
+                                    <button
+                                      onClick={(e) => handleDeletePage(page.id, e, page.permissionLevel)}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded"
+                                      title="Delete page"
+                                    >
+                                      <Trash2 className="h-3 w-3 text-red-600" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Show team pages nested under Team Workspace */}
+                            {isTeamWorkspace && isExpanded && (
+                              <div className="ml-6 mt-1 space-y-1 mb-2">
+                                {workspacePages.slice(0, 5).map((page) => (
+                                  <div
+                                    key={page.id}
+                                    className="group flex items-center gap-3 px-3 py-2 text-foreground hover:text-foreground hover:bg-muted rounded-lg"
+                                  >
+                                    <Link href={`/wiki/${page.slug}`} className="flex items-center gap-3 flex-1 min-w-0">
+                                      <FileText className="h-3 w-3 text-slate-400" />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm truncate">{page.title}</div>
+                                        <div className="text-xs text-slate-400">{formatDate(page.updatedAt)}</div>
+                                      </div>
+                                    </Link>
+                                    <button
+                                      onClick={(e) => handleDeletePage(page.id, e, page.permissionLevel)}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded"
+                                      title="Delete page"
+                                    >
+                                      <Trash2 className="h-3 w-3 text-red-600" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Show pages nested under Custom Workspace */}
+                            {isCustomWorkspace && isExpanded && (
+                              <div className="ml-6 mt-1 space-y-1 mb-2">
+                                {workspacePages.slice(0, 5).map((page) => (
+                                  <div
+                                    key={page.id}
+                                    className="group flex items-center gap-3 px-3 py-2 text-foreground hover:text-foreground hover:bg-muted rounded-lg"
+                                  >
+                                    <Link href={`/wiki/${page.slug}`} className="flex items-center gap-3 flex-1 min-w-0">
+                                      <FileText className="h-3 w-3 text-slate-400" />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm truncate">{page.title}</div>
+                                        <div className="text-xs text-slate-400">{formatDate(page.updatedAt)}</div>
+                                      </div>
+                                    </Link>
+                                    <button
+                                      onClick={(e) => handleDeletePage(page.id, e, page.permissionLevel)}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded"
+                                      title="Delete page"
+                                    >
+                                      <Trash2 className="h-3 w-3 text-red-600" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          <span className="text-sm">{workspace.name}</span>
-                          <span className="text-xs text-gray-400 ml-auto">({workspace.pageCount})</span>
-                        </Link>
-                      ))}
+                        )
+                      })}
                       
                       {/* Create Workspace Button */}
                       <Button 
                         variant="ghost" 
-                        className="w-full justify-start text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                        className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted"
+                        onClick={() => setIsCreatingWorkspace(true)}
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         New Workspace
@@ -386,22 +1065,69 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
                   )}
                 </div>
 
-                {/* Recent Pages */}
-                {recentPages.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">RECENT PAGES</h3>
+                {/* Projects Section */}
+                <div className="mb-3">
+                  <Link href="/projects">
+                    <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 hover:text-slate-100 cursor-pointer">PROJECTS</h3>
+                  </Link>
+                  
+                  {projects.length > 0 ? (
+                    <div className="space-y-1">
+                      {projects.map((project) => (
+                        <Link
+                          key={project.id}
+                          href={`/projects/${project.id}`}
+                          className="flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg group"
+                        >
+                          <div 
+                            className="w-2 h-2 rounded-full" 
+                            style={{ backgroundColor: project.color || '#3B82F6' }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm truncate">{project.name}</div>
+                          </div>
+                        </Link>
+                      ))}
+                      
+                      {/* New Project Button */}
+                      <Link
+                        href="/projects/new"
+                        className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span className="text-sm">New Project</span>
+                      </Link>
+                    </div>
+                  ) : (
+                    <Link
+                      href="/projects/new"
+                      className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:text-slate-100 hover:bg-slate-900 rounded-lg"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="text-sm">New Project</span>
+                    </Link>
+                  )}
+                </div>
+
+                {/* Recent Pages - Filter out personal pages */}
+                {recentPages.filter(p => p.permissionLevel !== 'personal').length > 0 && (
+                  <div className="mb-3">
+                    <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">RECENT PAGES</h3>
                     
                     <div className="space-y-1">
-                      {recentPages.slice(0, 5).map((page) => (
+                      {recentPages
+                        .filter(p => p.permissionLevel !== 'personal')
+                        .slice(0, 5)
+                        .map((page) => (
                         <Link
                           key={page.id}
                           href={`/wiki/${page.slug}`}
-                          className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                          className="flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg"
                         >
-                          <FileText className="h-3 w-3 text-gray-500" />
+                          <FileText className="h-3 w-3 text-slate-400" />
                           <div className="flex-1 min-w-0">
                             <div className="text-sm truncate">{page.title}</div>
-                            <div className="text-xs text-gray-500">{formatDate(page.updatedAt)}</div>
+                            <div className="text-xs text-slate-400">{formatDate(page.updatedAt)}</div>
                           </div>
                         </Link>
                       ))}
@@ -410,8 +1136,8 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
                 )}
 
                 {/* Favorites */}
-                <div className="mb-4">
-                  <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">FAVORITES</h3>
+                  <div className="mb-3">
+                    <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">FAVORITES</h3>
                   
                   {favoritePages.length > 0 ? (
                     <div className="space-y-1">
@@ -419,27 +1145,27 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
                         <Link
                           key={page.id}
                           href={`/wiki/${page.slug}`}
-                          className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg group"
+                          className="flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg group"
                         >
                           <Star className="h-3 w-3 text-yellow-500 fill-current" />
                           <div className="flex-1 min-w-0">
                             <div className="text-sm truncate">{page.title}</div>
-                            <div className="text-xs text-gray-500">{formatDate(page.updatedAt)}</div>
+                            <div className="text-xs text-slate-400">{formatDate(page.updatedAt)}</div>
                           </div>
                           <button
                             onClick={(e) => {
                               e.preventDefault()
                               toggleFavorite(page)
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded"
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded"
                           >
-                            <X className="h-3 w-3 text-gray-400" />
+                            <X className="h-3 w-3 text-slate-400" />
                           </button>
                         </Link>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500">No favorites yet</p>
+                    <p className="text-sm text-slate-400">No favorites yet</p>
                   )}
                 </div>
               </>
@@ -451,42 +1177,42 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
                 <>
                   <Link
                     href="/wiki/ai-insights"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Lightbulb className="h-4 w-4" />
                     <span className="text-sm">AI Insights</span>
                   </Link>
                   <Link
                     href="/wiki/team"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Users className="h-4 w-4" />
                     <span className="text-sm">Team Members</span>
                   </Link>
                   <Link
                     href="/wiki/import"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Upload className="h-4 w-4" />
                     <span className="text-sm">Import Data</span>
                   </Link>
                   <Link
                     href="/wiki/templates"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Grid3X3 className="h-4 w-4" />
                     <span className="text-sm">Templates</span>
                   </Link>
                   <Link
                     href="/wiki/shared"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Share2 className="h-4 w-4" />
                     <span className="text-sm">Shared Content</span>
                   </Link>
                   <Link
                     href="/wiki/archive"
-                    className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   >
                     <Archive className="h-4 w-4" />
                     <span className="text-sm">Archive</span>
@@ -503,7 +1229,7 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
             variant="ghost"
             size="sm"
             onClick={toggleSidebar}
-            className="w-full text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            className="w-full text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </Button>
@@ -511,39 +1237,70 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 bg-white overflow-y-auto h-screen">
+      <div className={cn(
+        "flex-1 bg-background overflow-y-auto overflow-x-hidden h-screen transition-all duration-500 min-w-0",
+        isAISidebarOpen && aiDisplayMode === 'sidebar' ? "mr-[384px]" : ""
+      )}>
         {isCreatingPage ? (
           /* Minimalistic Page Editor */
-          <div className="h-full bg-white min-h-screen">
+          <div className="h-full bg-background min-h-screen w-full min-w-0 relative">
+            {/* Floating Vertical Sidebar - Right Side */}
+            <div className={cn(
+              "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-500 ease-in-out",
+              isAISidebarOpen && aiDisplayMode === 'floating' 
+                ? "right-[540px]" // Slide left when AI chat is open in floating mode (500px width + 40px gap)
+                : isAISidebarOpen && aiDisplayMode === 'sidebar'
+                ? "right-[400px]" // Slide left when AI chat is open in sidebar mode (384px width + 16px gap)
+                : "right-8" // Default position
+            )}>
+              <Button 
+                onClick={handleSavePage} 
+                disabled={isSaving || !newPageTitle.trim()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10 rounded-full flex items-center justify-center p-0"
+                title={isSaving ? 'Saving...' : 'Save'}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+              </Button>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Share">
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Favorite">
+                <Star className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="View">
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Comments">
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="AI Assistant">
+                <Brain className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="More options">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </div>
+
             {/* Main Editor Area - Clean Document */}
-            <div className="flex-1 p-8 bg-white min-h-screen">
-              <div className="max-w-4xl mx-auto">
-                {/* Page Info and Actions */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
-                      <Share2 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
-                      <Star className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
-                      <MessageSquare className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
-                      <Brain className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 p-2 h-auto">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="text-sm text-gray-500">
+            <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen w-full min-w-0">
+              <div className="max-w-4xl mx-auto w-full min-w-0">
+                {/* Page Info */}
+                <div className="flex items-center justify-between gap-4 mb-6 w-full min-w-0">
+                  <div className="text-sm text-gray-500 whitespace-nowrap flex-shrink-0">
                     New document
                   </div>
                 </div>
+
+                {/* Error Display */}
+                {error && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+                    {error}
+                  </div>
+                )}
 
                 {/* Title Input - Like Slite */}
                 <div className="mb-8">
@@ -567,44 +1324,115 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
                 </div>
 
                 {/* Action Suggestions - Only show when editing */}
-                <div className="flex items-center gap-6 text-sm text-gray-500 mt-8">
-                  <button className="flex items-center gap-2 hover:text-gray-700">
-                    <Grid3X3 className="h-4 w-4" />
+                <div className="flex items-center gap-3 sm:gap-6 text-sm text-gray-500 mt-8 flex-wrap overflow-x-auto w-full">
+                  <button className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap">
+                    <Grid3X3 className="h-4 w-4 flex-shrink-0" />
                     <span>Use a template</span>
                   </button>
-                  <button className="flex items-center gap-2 hover:text-gray-700">
-                    <Upload className="h-4 w-4" />
+                  <button className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap">
+                    <Upload className="h-4 w-4 flex-shrink-0" />
                     <span>Import</span>
                   </button>
-                  <button className="flex items-center gap-2 hover:text-gray-700">
-                    <Plus className="h-4 w-4" />
+                  <button className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap">
+                    <Plus className="h-4 w-4 flex-shrink-0" />
                     <span>New subdoc</span>
                   </button>
-                  <button className="flex items-center gap-2 hover:text-gray-700">
-                    <Folder className="h-4 w-4" />
+                  <button className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap">
+                    <Folder className="h-4 w-4 flex-shrink-0" />
                     <span>Convert to collection</span>
                   </button>
                 </div>
 
-                {/* Auto-save indicator */}
-                {(newPageTitle.trim() || newPageContent.trim()) && (
-                  <div className="fixed bottom-6 right-6">
-                    <Button 
-                      onClick={handleSavePage} 
-                      disabled={isSaving}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg"
-                    >
-                      {isSaving ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4 mr-2" />
-                      )}
-                      {isSaving ? 'Saving...' : 'Save'}
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
+
+            {/* AI Assistant - Bottom bar mode when creating/editing */}
+            <WikiAIAssistant 
+              currentTitle={newPageTitle}
+              currentContent={newPageContent}
+              onContentUpdate={setNewPageContent}
+              onTitleUpdate={setNewPageTitle}
+              workspaces={workspaces}
+              recentPages={recentPages}
+              onCreatePage={async (title, content, selectedWorkspaceId) => {
+                // Create blank draft page first, then insert content after navigation
+                if (!selectedWorkspaceId) {
+                  throw new Error("Please select a workspace")
+                }
+                
+                setIsSaving(true)
+                setError(null)
+                
+                // Determine workspace_type based on selected workspace
+                const selectedWorkspace = workspaces.find(w => w.id === selectedWorkspaceId)
+                let workspaceType = 'team'
+                
+                if (selectedWorkspace?.type === 'personal') {
+                  workspaceType = 'personal'
+                } else if (selectedWorkspace?.type === 'team') {
+                  workspaceType = 'team'
+                } else if (selectedWorkspace?.id) {
+                  workspaceType = selectedWorkspace.id
+                }
+                
+                try {
+                  // Create blank draft page first
+                  const response = await fetch('/api/wiki/pages', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      title: title.trim(),
+                      content: ' ', // Blank content initially
+                      tags: [],
+                      category: newPageCategory,
+                      permissionLevel: selectedWorkspace?.type === 'personal' ? 'personal' : 'team',
+                      workspace_type: workspaceType
+                    })
+                  })
+                  
+                  if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+                    throw new Error(errorData.error || 'Failed to create page')
+                  }
+                  
+                  const newPage = await response.json()
+                  
+                  // Refresh recent pages
+                  const recentResponse = await fetch('/api/wiki/recent-pages')
+                  if (recentResponse.ok) {
+                    const recentData = await recentResponse.json()
+                    setRecentPages(recentData)
+                  }
+                  
+                  // Dispatch event to refresh workspace pages
+                  window.dispatchEvent(new CustomEvent('workspacePagesRefreshed'))
+                  
+                  // Note: Draft info should already be stored by the AI assistant component
+                  // Just navigate to the new page - it will detect pendingPageDraft and start streaming
+                  
+                  // Small delay to ensure page is committed to database before navigation
+                  await new Promise(resolve => setTimeout(resolve, 200))
+                  
+                  // Navigate to the new blank draft page with AI assistant open
+                  router.push(`/wiki/${newPage.slug}?edit=true&ai=open`)
+                } catch (error) {
+                  console.error('Error creating page:', error)
+                  throw error
+                } finally {
+                  setIsSaving(false)
+                }
+              }}
+              onStartCreatingPage={() => {
+                if (!isCreatingPage) {
+                  setIsCreatingPage(true)
+                }
+              }}
+              onOpenChange={setIsAISidebarOpen}
+              onDisplayModeChange={setAiDisplayMode}
+              mode="bottom-bar"
+            />
           </div>
         ) : (
           /* Regular Page Content */
@@ -614,6 +1442,127 @@ export function WikiLayout({ children, currentPage }: WikiLayoutProps) {
         )}
       </div>
     </div>
+
+    {/* Workspace Selection Dialog for New Page */}
+    <Dialog open={showWorkspaceSelectDialog} onOpenChange={setShowWorkspaceSelectDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-light text-2xl">Select Workspace</DialogTitle>
+          <DialogDescription className="text-base font-light">
+            Choose which workspace this page should be created in
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="py-4">
+          <Input
+            placeholder="Search workspaces..."
+            className="mb-4"
+            onChange={(e) => {
+              const searchValue = e.target.value.toLowerCase()
+              // We could add search filtering here if needed
+            }}
+          />
+          
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {workspaces.map((workspace) => {
+              const getIcon = () => {
+                if (workspace.type === 'personal') {
+                  return <FileText className="h-5 w-5 text-indigo-600" />
+                } else if (workspace.type === 'team') {
+                  return <Users className="h-5 w-5 text-blue-600" />
+                } else {
+                  return <Globe className="h-5 w-5 text-blue-600" />
+                }
+              }
+
+              return (
+                <button
+                  key={workspace.id}
+                  onClick={() => {
+                    console.log('Clicked workspace:', workspace.id)
+                    handleWorkspaceSelected(workspace.id)
+                  }}
+                  className="w-full flex items-center gap-3 p-4 border rounded-lg hover:bg-accent hover:border-blue-300 transition-colors text-left"
+                >
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    {getIcon()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-light text-foreground">{workspace.name}</div>
+                    {workspace.description && (
+                      <div className="text-sm text-muted-foreground font-light">{workspace.description}</div>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowWorkspaceSelectDialog(false)} className="font-light">
+            Cancel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Create Workspace Dialog */}
+    <Dialog open={isCreatingWorkspace} onOpenChange={setIsCreatingWorkspace}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New Workspace</DialogTitle>
+          <DialogDescription>
+            Create a custom workspace to organize your wiki pages
+          </DialogDescription>
+        </DialogHeader>
+        
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="workspace-name">Workspace Name</Label>
+            <Input
+              id="workspace-name"
+              placeholder="e.g., Project Documentation"
+              value={newWorkspaceName}
+              onChange={(e) => setNewWorkspaceName(e.target.value)}
+            />
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="workspace-description">Description (Optional)</Label>
+            <Textarea
+              id="workspace-description"
+              placeholder="Brief description of this workspace's purpose"
+              value={newWorkspaceDescription}
+              onChange={(e) => setNewWorkspaceDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setIsCreatingWorkspace(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleCreateWorkspace} disabled={isSavingWorkspace || !newWorkspaceName.trim()}>
+            {isSavingWorkspace ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Workspace'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   )
 }

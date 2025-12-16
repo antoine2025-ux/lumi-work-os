@@ -173,7 +173,7 @@ export default function DashboardSidebarPage() {
     { icon: Home, label: "Dashboard", href: "/", active: true },
     { icon: Building2, label: "Projects", href: "/projects" },
     { icon: BookOpen, label: "Wiki", href: "/wiki" },
-    { icon: Bot, label: "Ask AI", href: "/ask" },
+    { icon: Bot, label: "LoopBrain", href: "/ask" },
     { icon: Users, label: "Onboarding", href: "/onboarding" },
     { icon: Activity, label: "Org", href: "/org" },
     { icon: Settings, label: "Settings", href: "/settings" }
@@ -188,7 +188,7 @@ export default function DashboardSidebarPage() {
           {/* Logo */}
           <div className="flex items-center justify-between mb-8">
             {!sidebarCollapsed && (
-              <h1 className="text-lg font-semibold" style={{ color: themeConfig.foreground }}>Lumi</h1>
+              <h1 className="text-lg font-semibold" style={{ color: themeConfig.foreground }}>Loopwell</h1>
             )}
             <Button 
               variant="ghost" 
@@ -260,7 +260,7 @@ export default function DashboardSidebarPage() {
               </Button>
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                 <Zap className="h-4 w-4 mr-2" />
-                Ask AI
+                LoopBrain
               </Button>
             </div>
           </div>

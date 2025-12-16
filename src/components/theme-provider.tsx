@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, ReactNode } from 'react'
 import { ThemeColor, themeConfigs } from '@/types/theme'
 
 interface ThemeContextType {
@@ -11,25 +11,29 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
+// Force dark mode - theme is always 'dark' and cannot be changed
+const FORCED_THEME: ThemeColor = 'dark'
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeColor>('light-blue')
+  // Always use dark theme - no state needed
+  const theme: ThemeColor = FORCED_THEME
 
-  // Load theme from localStorage on mount
+  // Apply dark theme on mount and ensure consistency
   useEffect(() => {
-    const savedTheme = localStorage.getItem('lumi-theme') as ThemeColor
-    if (savedTheme && themeConfigs[savedTheme]) {
-      setThemeState(savedTheme)
+    // Clean up any existing 'light' theme preference
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('lumi-theme')
+      if (savedTheme === 'light') {
+        localStorage.removeItem('lumi-theme')
+      }
     }
-  }, [])
-
-  const setTheme = (newTheme: ThemeColor) => {
-    setThemeState(newTheme)
-    localStorage.setItem('lumi-theme', newTheme)
     
-    // Apply theme to CSS custom properties
-    const config = themeConfigs[newTheme]
+    // Always apply dark theme
+    const config = themeConfigs[theme]
     const root = document.documentElement
-    const body = document.body
+    
+    // Ensure dark class is present
+    root.classList.add('dark')
     
     // Apply all theme variables
     root.style.setProperty('--primary', config.primary)
@@ -51,16 +55,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--popover-foreground', config.popoverForeground)
     root.style.setProperty('--destructive', config.destructive)
     root.style.setProperty('--destructive-foreground', config.destructiveForeground)
-    
-    // Apply background color to body
-    body.style.backgroundColor = config.background
-    body.style.color = config.foreground
-  }
+  }, [])
 
-  // Apply theme on mount and when theme changes
-  useEffect(() => {
-    setTheme(theme)
-  }, [theme])
+  // No-op setTheme function - theme cannot be changed
+  const setTheme = (_newTheme: ThemeColor) => {
+    // Theme is forced to dark, do nothing
+    // This function exists for backward compatibility with components that might call it
+  }
 
   const value = {
     theme,

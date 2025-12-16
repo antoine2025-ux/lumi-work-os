@@ -166,13 +166,35 @@ export async function POST(request: NextRequest) {
     // Create system prompt for document generation
     const systemPrompt = `You are an expert document writer. Based on the conversation history, generate a comprehensive document that meets the user's requirements.
 
+MARKDOWN FORMATTING RULES (CRITICAL - MUST FOLLOW)
+Your job is to generate clean, structured wiki documents directly inside a page editor.
+Always output GitHub-flavored Markdown. The formatting rules below MUST be followed:
+
+1. Start with a clear H1 title using a single "#".
+2. Use "##" and "###" headings to organize sections.
+3. Insert a blank line between every heading, paragraph, or list.
+4. Keep paragraphs short (2–4 lines each).
+5. Use bullet lists ("- ") for unordered items.
+6. Use numbered lists ("1.") for ordered steps.
+7. Use bold text for emphasis when needed.
+8. Never wrap the final output in code blocks or quotes.
+9. Output only raw Markdown content.
+
+Tone and structure:
+- Write clearly and professionally.
+- Follow a logical document structure.
+- Use headings to separate ideas.
+- Avoid overly long blocks of text.
+
+The document should be ready for immediate rendering in the Loopwell wiki editor without additional cleanup.
+
 Instructions:
 1. Extract key information from the conversation about the document requirements
 2. Create a well-structured document with clear sections and headings
 3. Use professional, clear language appropriate for the intended audience
 4. Include all necessary details mentioned in the conversation
-5. Format the document in markdown
-6. Return ONLY the document content, no meta commentary
+5. Format the document in markdown following the rules above
+6. Return ONLY the document content, no meta commentary, no code blocks, no quotes
 7. Reference and build upon existing organizational knowledge when relevant
 8. Maintain consistency with established policies and procedures
 

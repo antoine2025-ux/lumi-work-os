@@ -1,0 +1,1 @@
+SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('workspace_members', 'wiki_pages', 'projects', 'chat_sessions', 'tasks', 'wiki_favorites', 'wiki_comments', 'wiki_workspaces') ORDER BY table_name, ordinal_position;

@@ -22,7 +22,7 @@ class Logger {
   private isDevelopment = process.env.NODE_ENV === 'development'
   private isProduction = process.env.NODE_ENV === 'production'
 
-  private formatMessage(level: LogLevel, message: string, context?: LogContext, error?: Error) {
+  private formatMessage(level: LogLevel, message: string, context?: LogContext, error?: Error | undefined) {
     const timestamp = new Date().toISOString()
     const logEntry = {
       timestamp,
@@ -62,12 +62,14 @@ class Logger {
     }
   }
 
-  error(message: string, context?: LogContext, error?: Error) {
-    return this.formatMessage(LogLevel.ERROR, message, context, error)
+  error(message: string, context?: LogContext, error?: unknown) {
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    return this.formatMessage(LogLevel.ERROR, message, context, errorObj)
   }
 
-  warn(message: string, context?: LogContext) {
-    return this.formatMessage(LogLevel.WARN, message, context)
+  warn(message: string, context?: LogContext, error?: unknown) {
+    const errorObj = error instanceof Error ? error : (error ? new Error(String(error)) : undefined)
+    return this.formatMessage(LogLevel.WARN, message, context, errorObj)
   }
 
   info(message: string, context?: LogContext) {

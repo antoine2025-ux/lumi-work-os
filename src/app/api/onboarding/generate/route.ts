@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import OpenAI from 'openai'
 import { getWikiContext } from '@/lib/wiki'
+import { prisma } from '@/lib/db'
 
-const prisma = new PrismaClient()
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
@@ -79,7 +78,7 @@ export async function POST(request: NextRequest) {
     const wikiContext = getWikiContext()
 
     // Create OpenAI prompt
-    const systemPrompt = `You are Lumi's AI onboarding designer. Given the role, seniority, department, and duration, along with company context, output a concise onboarding plan as strict JSON:
+    const systemPrompt = `You are Loopwell's AI onboarding designer. Given the role, seniority, department, and duration, along with company context, output a concise onboarding plan as strict JSON:
 
 {
   "planName": "Role - Duration Day Plan",

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 // GET /api/wiki/pages/[id] - Get a specific wiki page by ID or slug
 export async function GET(
@@ -7,7 +10,26 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    if (!auth.workspaceId) {
+      console.error('No workspace ID found in auth')
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 400 })
+    }
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+    
     const resolvedParams = await params
+    console.log('Fetching page with ID/slug:', resolvedParams.id, 'in workspace:', auth.workspaceId)
     // Try to find by ID first, then by slug
     let page = await prisma.wikiPage.findUnique({
       where: {
@@ -77,11 +99,12 @@ export async function GET(
       }
     })
 
-    // If not found by ID, try to find by slug
+    // If not found by ID, try to find by slug (must be in the same workspace)
     if (!page) {
       page = await prisma.wikiPage.findFirst({
         where: {
-          slug: resolvedParams.id
+          slug: resolvedParams.id,
+          workspaceId: auth.workspaceId
         },
         include: {
           createdBy: {
@@ -155,7 +178,13 @@ export async function GET(
     return NextResponse.json(page)
   } catch (error) {
     console.error('Error fetching wiki page:', error)
-    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('Error details:', { errorMessage, errorStack, error })
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: errorMessage 
+    }, { status: 500 })
   }
 }
 
@@ -165,31 +194,22 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+    
     const resolvedParams = await params
     const body = await request.json()
     const { title, content, parentId, tags, isPublished, permissionLevel, category } = body
-
-    // For now, create a mock user - in production this would come from auth
-    const mockUser = {
-      id: 'user-1',
-      email: 'demo@example.com',
-      name: 'Demo User'
-    }
-
-    // Check if user exists, create if not
-    let user = await prisma.user.findUnique({
-      where: { email: mockUser.email }
-    })
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          id: mockUser.id,
-          email: mockUser.email,
-          name: mockUser.name
-        }
-      })
-    }
 
     // Get current page to check permissions and get version info
     const currentPage = await prisma.wikiPage.findUnique({
@@ -270,7 +290,7 @@ export async function PUT(
           pageId: resolvedParams.id,
           content,
           version: nextVersion,
-          createdById: user.id
+          createdById: auth.user.userId
         }
       })
     }
@@ -291,6 +311,19 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    
+    // Assert workspace access
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['MEMBER'] 
+    })
+
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(auth.workspaceId)
+    
     const resolvedParams = await params
     // Check if page exists
     const page = await prisma.wikiPage.findUnique({

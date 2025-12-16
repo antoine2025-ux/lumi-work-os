@@ -1,20 +1,25 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    return NextResponse.json({ 
-      message: "Auth test endpoint working",
-      env: {
-        hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
-        hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
-        hasNextAuthUrl: !!process.env.NEXTAUTH_URL,
-        hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
-      }
+    const session = await getServerSession(authOptions)
+    
+    return NextResponse.json({
+      hasSession: !!session,
+      session: session ? {
+        user: session.user,
+        expires: session.expires
+      } : null,
+      timestamp: new Date().toISOString()
     })
   } catch (error) {
-    return NextResponse.json({ 
-      error: "Auth test failed",
-      message: error instanceof Error ? error.message : "Unknown error"
-    }, { status: 500 })
+    console.error('Auth test error:', error)
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Unknown error',
+      hasSession: false,
+      timestamp: new Date().toISOString()
+    })
   }
 }

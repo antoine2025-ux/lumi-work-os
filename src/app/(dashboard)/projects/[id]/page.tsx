@@ -6,6 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { 
   ArrowLeft, 
   Target, 
@@ -25,23 +29,45 @@ import {
   ExternalLink,
   Maximize2,
   Search,
-  X
+  X,
+  BarChart3
 } from "lucide-react"
 import Link from "next/link"
+import { useWorkspace } from "@/lib/workspace-context"
+import dynamic from "next/dynamic"
+import { useTheme } from "@/components/theme-provider"
+import { useProjectSlackHints, setProjectSlackHints, getProjectSlackHints } from "@/lib/client-state/project-slack-hints"
+
+// Keep essential imports at top for faster initial render
 import ReactMarkdown from "react-markdown"
 import TaskList from "@/components/tasks/task-list"
-import { KanbanBoard } from "@/components/kanban/kanban-board"
-import { InlineWikiViewer } from "@/components/projects/inline-wiki-viewer"
-import { EmbedContentRenderer } from "@/components/wiki/embed-content-renderer"
-import { ProjectEditDialog } from "@/components/projects/project-edit-dialog"
-import { LiveTaskList } from "@/components/realtime/live-task-list"
-import { PresenceIndicator } from "@/components/realtime/presence-indicator"
-import { NotificationToast, NotificationBell } from "@/components/realtime/notification-toast"
-import { ConnectionStatus } from "@/components/realtime/connection-status"
-import { useTheme } from "@/components/theme-provider"
-import { Celebration } from "@/components/ui/celebration"
-import { TaskSearchFilter } from "@/components/search/task-search-filter"
-import { ProjectHeader } from "@/components/projects/project-header"
+import type { ViewMode } from "@/components/tasks/view-switcher"
+import { ViewSwitcher } from "@/components/tasks/view-switcher"
+import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
+
+// Dynamic imports for heavy components to reduce initial bundle size
+const KanbanBoard = dynamic(() => import("@/components/kanban/kanban-board").then(mod => ({ default: mod.KanbanBoard })), { ssr: false })
+const InlineWikiViewer = dynamic(() => import("@/components/projects/inline-wiki-viewer").then(mod => ({ default: mod.InlineWikiViewer })), { ssr: false })
+const EmbedContentRenderer = dynamic(() => import("@/components/wiki/embed-content-renderer").then(mod => ({ default: mod.EmbedContentRenderer })), { ssr: false })
+const ProjectEditDialog = dynamic(() => import("@/components/projects/project-edit-dialog").then(mod => ({ default: mod.ProjectEditDialog })), { ssr: false })
+const LiveTaskList = dynamic(() => import("@/components/realtime/live-task-list").then(mod => ({ default: mod.LiveTaskList })), { ssr: false })
+const PresenceIndicator = dynamic(() => import("@/components/realtime/presence-indicator").then(mod => ({ default: mod.PresenceIndicator })), { ssr: false })
+const NotificationToast = dynamic(() => import("@/components/realtime/notification-toast").then(mod => ({ default: mod.NotificationToast })), { ssr: false })
+const NotificationBell = dynamic(() => import("@/components/realtime/notification-toast").then(mod => ({ default: mod.NotificationBell })), { ssr: false })
+const ConnectionStatus = dynamic(() => import("@/components/realtime/connection-status").then(mod => ({ default: mod.ConnectionStatus })), { ssr: false })
+const Celebration = dynamic(() => import("@/components/ui/celebration").then(mod => ({ default: mod.Celebration })), { ssr: false })
+const TaskSearchFilter = dynamic(() => import("@/components/search/task-search-filter").then(mod => ({ default: mod.TaskSearchFilter })), { ssr: false })
+const ProjectHeader = dynamic(() => import("@/components/projects/project-header").then(mod => ({ default: mod.ProjectHeader })), { ssr: false })
+const ProjectSpaceBadge = dynamic(() => import("@/components/projects/project-space-badge").then(mod => ({ default: mod.ProjectSpaceBadge })), { ssr: false })
+const AccessDenied = dynamic(() => import("@/components/projects/access-denied").then(mod => ({ default: mod.AccessDenied })), { ssr: false })
+const ProjectSpaceMembersModal = dynamic(() => import("@/components/projects/project-space-members-modal").then(mod => ({ default: mod.ProjectSpaceMembersModal })), { ssr: false })
+const CalendarView = dynamic(() => import("@/components/tasks/calendar-view"), { ssr: false })
+const TimelineView = dynamic(() => import("@/components/tasks/timeline-view"), { ssr: false })
+const EpicsView = dynamic(() => import("@/components/projects/epics-view").then(mod => ({ default: mod.EpicsView })), { ssr: false })
+const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mod => ({ default: mod.WikiLayout })), { ssr: false })
+const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
+const LoopbrainAssistantLauncher = dynamic(() => import("@/components/loopbrain/assistant-launcher").then(mod => ({ default: mod.LoopbrainAssistantLauncher })), { ssr: false })
+const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
 
 interface Project {
   id: string
@@ -103,6 +129,14 @@ interface Project {
     content?: string
     updatedAt: string
   }
+  workspaceId: string
+  projectSpaceId?: string | null
+  projectSpace?: {
+    id: string
+    name: string
+    visibility: 'PUBLIC' | 'TARGETED'
+  }
+  slackChannelHints?: string[] // From API (not persisted, but returned in response)
 }
 
 export default function ProjectDetailPage() {
@@ -110,8 +144,51 @@ export default function ProjectDetailPage() {
   const router = useRouter()
   const projectId = params?.id as string
   const { themeConfig } = useTheme()
+  const { currentWorkspace, userRole } = useWorkspace()
   
   const [project, setProject] = useState<Project | null>(null)
+  const [accessDenied, setAccessDenied] = useState(false)
+  const [accessDeniedProjectSpace, setAccessDeniedProjectSpace] = useState<{ name: string } | null>(null)
+  const [accessDeniedProjectSpaceId, setAccessDeniedProjectSpaceId] = useState<string | null>(null)
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false)
+  
+  // Get channel hints from project (API response) or fallback to client-side store
+  const { hints: localStorageHints, setHints: setLocalStorageHints } = useProjectSlackHints(projectId)
+  const channelHints = project?.slackChannelHints || localStorageHints || []
+  
+  // Debug logging - always log to help troubleshoot
+  useEffect(() => {
+    if (projectId && project) {
+      console.log('[ProjectPage] channelHints debug:', {
+        projectId,
+        'project?.slackChannelHints': project?.slackChannelHints,
+        localStorageHints,
+        'localStorageHints.length': localStorageHints?.length || 0,
+        channelHints,
+        'channelHints.length': channelHints.length,
+        'Will render channels?': channelHints.length > 0
+      })
+      
+      // Also check localStorage directly
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('project-slack-hints')
+          const parsed = stored ? JSON.parse(stored) : {}
+          const allProjectIds = Object.keys(parsed)
+          console.log('[ProjectPage] localStorage check:', {
+            'project-slack-hints': parsed,
+            'for this projectId': parsed[projectId] || 'not found',
+            'current projectId': projectId,
+            'all stored projectIds': allProjectIds,
+            'projectId type': typeof projectId,
+            'matches?': allProjectIds.includes(projectId)
+          })
+        } catch (e) {
+          console.error('[ProjectPage] Error reading localStorage:', e)
+        }
+      }
+    }
+  }, [projectId, project, project?.slackChannelHints, localStorageHints, channelHints])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isUpdatingWiki, setIsUpdatingWiki] = useState(false)
@@ -121,11 +198,21 @@ export default function ProjectDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isTaskListFullscreen, setIsTaskListFullscreen] = useState(false)
   const [taskViewMode, setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
+  const [currentView, setCurrentView] = useState<ViewMode>('board')
+  const [headerView, setHeaderView] = useState<'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'>('board')
   const [showCelebration, setShowCelebration] = useState(false)
   const [wasCompleted, setWasCompleted] = useState(false)
   const [filteredTasks, setFilteredTasks] = useState<any[]>([])
   const [isFiltered, setIsFiltered] = useState(false)
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
+  const [selectedEpicId, setSelectedEpicId] = useState<string | undefined>(undefined)
+  const [epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false)
+  const [newEpicTitle, setNewEpicTitle] = useState('')
+  const [newEpicDescription, setNewEpicDescription] = useState('')
+  const [newEpicColor, setNewEpicColor] = useState('#3B82F6')
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
 
   // Use theme-based colors
   const colors = {
@@ -150,21 +237,84 @@ export default function ProjectDetailPage() {
   const loadProject = async () => {
     try {
       setIsLoading(true)
+      console.log('[ProjectPage] loading project', projectId, 'workspaceId:', currentWorkspace?.id, 'projectId type:', typeof projectId)
       const response = await fetch(`/api/projects/${projectId}`)
+      
+      console.log('[ProjectPage] API response status:', response.status)
       
       if (response.ok) {
         const data = await response.json()
-        setProject(data)
+        console.log('[ProjectPage] project loaded successfully', {
+          'data.id': data.id,
+          'data.id type': typeof data.id,
+          'projectId from URL': projectId,
+          'projectId type': typeof projectId,
+          'ids match?': data.id === projectId
+        })
+        // Merge slackChannelHints from localStorage into project data
+        // The GET endpoint doesn't return slackChannelHints (they're client-side only)
+        // So we need to merge them from localStorage to keep them visible
+        const storedHints = getProjectSlackHints(projectId)
+        const projectWithHints = {
+          ...data,
+          slackChannelHints: data.slackChannelHints || storedHints || []
+        }
+        console.log('[ProjectPage] Merged slackChannelHints:', {
+          'from API': data.slackChannelHints,
+          'from localStorage': storedHints,
+          'merged': projectWithHints.slackChannelHints
+        })
+        setProject(projectWithHints)
       } else if (response.status === 404) {
+        console.log('[ProjectPage] project not found (404), setting error')
         setError('Project not found')
+      } else if (response.status === 403) {
+        console.log('[ProjectPage] forbidden (403) - insufficient permissions')
+        // Try to get project info even on 403 to extract projectSpaceId
+        try {
+          // Try to fetch project with minimal fields to get projectSpaceId
+          const projectResponse = await fetch(`/api/projects/${projectId}`, {
+            headers: { 'Accept': 'application/json' }
+          })
+          if (projectResponse.ok) {
+            const projectData = await projectResponse.json()
+            if (projectData.projectSpaceId) {
+              setAccessDeniedProjectSpaceId(projectData.projectSpaceId)
+              // Fetch project space info
+              const spaceResponse = await fetch(`/api/project-spaces/${projectData.projectSpaceId}`)
+              if (spaceResponse.ok) {
+                const spaceData = await spaceResponse.json()
+                setAccessDeniedProjectSpace({ name: spaceData.name })
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching project space info:', e)
+        }
+        setAccessDenied(true)
+        setError(null) // Don't show generic error, show AccessDenied component
       } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.log('[ProjectPage] failed to load project', response.status, errorData)
         setError('Failed to load project')
       }
     } catch (error) {
-      console.error('Error loading project:', error)
+      console.error('[ProjectPage] error loading project:', error)
       setError('Failed to load project')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadEpics = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/epics`)
+      if (response.ok) {
+        const data = await response.json()
+        setEpics(data)
+      }
+    } catch (error) {
+      console.error('Error loading epics:', error)
     }
   }
 
@@ -212,8 +362,53 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const handleProjectUpdate = (updatedProject: any) => {
+  const handleProjectUpdate = async (updatedProject: any) => {
+    console.log('[ProjectPage] handleProjectUpdate called with:', {
+      'updatedProject.slackChannelHints': updatedProject.slackChannelHints,
+      'isArray': Array.isArray(updatedProject.slackChannelHints),
+      'length': updatedProject.slackChannelHints?.length
+    })
+    
+    // Save slackChannelHints to localStorage FIRST (before reloading project)
+    if (updatedProject.slackChannelHints && Array.isArray(updatedProject.slackChannelHints) && updatedProject.slackChannelHints.length > 0) {
+      console.log('[ProjectPage] Saving slackChannelHints to localStorage:', updatedProject.slackChannelHints)
+      // Use the hook's setter to update both localStorage and component state
+      setLocalStorageHints(updatedProject.slackChannelHints)
+    }
+    
     setProject(updatedProject)
+    // Reload project to get fresh data (this will clear project.slackChannelHints, but localStorage should have it)
+    await loadProject()
+  }
+
+  const handleDeleteProject = async () => {
+    if (!project) return
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${project.name}"? This action cannot be undone and will delete all tasks, epics, and other project data.`
+    )
+    
+    if (!confirmed) return
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        // Remove channel hints from localStorage
+        setProjectSlackHints(project.id, [])
+        
+        // Redirect to projects list
+        router.push('/projects')
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        alert(errorData.error || 'Failed to delete project')
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error)
+      alert('An error occurred while deleting the project')
+    }
   }
 
   // More menu handlers
@@ -258,37 +453,50 @@ export default function ProjectDetailPage() {
     alert('Project sharing feature coming soon!')
   }
 
-  const handleDeleteProject = async () => {
-    if (!project) return
-    
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${project.name}"? This action cannot be undone and will delete all tasks, comments, and project data.`
-    )
-    
-    if (confirmed) {
-      try {
-        const response = await fetch(`/api/projects/${projectId}`, {
-          method: 'DELETE',
-        })
-
-        if (response.ok) {
-          // Successfully deleted, redirect to projects page
-          router.push('/projects')
-        } else {
-          const errorData = await response.json()
-          console.error('Failed to delete project:', errorData)
-          alert(`Failed to delete project: ${errorData.error || 'Unknown error'}`)
-        }
-      } catch (error) {
-        console.error('Error deleting project:', error)
-        alert('Failed to delete project. Please try again.')
-      }
-    }
-  }
-
   const handleFilterChange = (filteredTasks: any[]) => {
     setFilteredTasks(filteredTasks)
     setIsFiltered(true)
+  }
+
+  const handleCreateTask = () => {
+    setIsCreateTaskOpen(true)
+  }
+
+  const handleCreateEpic = () => {
+    setIsCreateEpicOpen(true)
+  }
+
+  const createEpic = async () => {
+    if (!newEpicTitle.trim()) return
+    
+    try {
+      const response = await fetch(`/api/projects/${projectId}/epics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: newEpicTitle,
+          description: newEpicDescription,
+          color: newEpicColor,
+        }),
+      })
+
+      if (response.ok) {
+        const newEpic = await response.json()
+        setEpics(prev => [...prev, newEpic])
+        setNewEpicTitle('')
+        setNewEpicDescription('')
+        setNewEpicColor('#3B82F6')
+        setIsCreateEpicOpen(false)
+        await loadProject()
+        await loadEpics()
+      } else {
+        console.error('Failed to create epic')
+      }
+    } catch (error) {
+      console.error('Error creating epic:', error)
+    }
   }
 
   const handleFilterReset = () => {
@@ -299,12 +507,34 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     if (projectId) {
       loadProject()
+      loadEpics()
     }
   }, [projectId])
 
   useEffect(() => {
     checkProjectCompletion()
   }, [project])
+
+  // Sync slackChannelHints from project response to localStorage when project loads
+  // Only sync if project has slackChannelHints (from PUT response) and they're different from localStorage
+  useEffect(() => {
+    if (project?.slackChannelHints && Array.isArray(project.slackChannelHints) && project.slackChannelHints.length > 0) {
+      // Only update if different to avoid unnecessary re-renders
+      const currentHints = localStorageHints || []
+      const projectHints = project.slackChannelHints
+      if (JSON.stringify(currentHints.sort()) !== JSON.stringify(projectHints.sort())) {
+        console.log('[ProjectPage] Syncing slackChannelHints from project response to localStorage:', projectHints)
+        setLocalStorageHints(projectHints)
+      }
+    }
+  }, [project?.slackChannelHints, setLocalStorageHints, localStorageHints])
+
+  // Sync headerView with currentView
+  useEffect(() => {
+    if (currentView === 'board') setHeaderView('board')
+    else if (currentView === 'calendar') setHeaderView('calendar')
+    else if (currentView === 'list') setHeaderView('tasks')
+  }, [currentView])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -382,7 +612,31 @@ export default function ProjectDetailPage() {
     )
   }
 
+  // Show access denied UI if 403 error
+  if (accessDenied) {
+    const isAdminOrOwner = userRole === 'ADMIN' || userRole === 'OWNER'
+    return (
+      <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+        <AccessDenied
+          projectName={project?.name}
+          projectSpaceName={accessDeniedProjectSpace?.name}
+          isAdminOrOwner={isAdminOrOwner}
+          onManageMembers={isAdminOrOwner && accessDeniedProjectSpaceId ? () => setIsMembersModalOpen(true) : undefined}
+        />
+        {isAdminOrOwner && accessDeniedProjectSpaceId && (
+          <ProjectSpaceMembersModal
+            isOpen={isMembersModalOpen}
+            onClose={() => setIsMembersModalOpen(false)}
+            projectSpaceId={accessDeniedProjectSpaceId}
+            projectName={project?.name || 'Project'}
+          />
+        )}
+      </div>
+    )
+  }
+
   if (error || !project) {
+    console.log('[ProjectPage] rendering error state - error:', error, 'project:', project)
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background }}>
         <div className="text-center">
@@ -403,29 +657,52 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
-      <Celebration 
-        isVisible={showCelebration} 
-        onComplete={() => setShowCelebration(false)}
-      />
+    <WikiLayout>
+      {/* ProjectSpace Members Modal */}
+      {project && (project.projectSpaceId || project.projectSpace?.id) && (userRole === 'ADMIN' || userRole === 'OWNER') && (
+        <ProjectSpaceMembersModal
+          isOpen={isMembersModalOpen}
+          onClose={() => setIsMembersModalOpen(false)}
+          projectSpaceId={project.projectSpaceId || project.projectSpace?.id || ''}
+          projectName={project.name}
+          onMemberAdded={() => {
+            // Reload project to refresh assignee list
+            if (projectId) {
+              loadProject()
+            }
+          }}
+        />
+      )}
+      <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+        <Celebration 
+          isVisible={showCelebration} 
+          onComplete={() => setShowCelebration(false)}
+        />
       
       {/* Conditional Header Layout */}
       {true ? (
-        <ProjectHeader
-          project={project}
-          tasks={project?.tasks || []}
-          colors={colors}
-          onTaskDrawerOpen={() => {/* TODO: Implement */}}
-          onKanbanOptionsOpen={() => setIsSearchExpanded(!isSearchExpanded)}
-          onNotificationsOpen={() => {/* TODO: Implement */}}
-          onMoreMenuOpen={() => {/* TODO: Implement */}}
-          onCommandPaletteOpen={() => {/* TODO: Implement */}}
-          onProjectSettings={() => setIsEditDialogOpen(true)}
-          onExportCSV={() => handleExportCSV()}
-          onDuplicateProject={() => handleDuplicateProject()}
-          onShareProject={() => handleShareProject()}
-          onDeleteProject={() => handleDeleteProject()}
-        />
+        <>
+          <ProjectHeader
+            project={project}
+            tasks={project?.tasks || []}
+            colors={colors}
+            currentView={headerView}
+            channelHints={channelHints}
+            onViewChange={(view) => {
+              setHeaderView(view)
+              // Map header views to ViewMode for compatibility
+              if (view === 'board') setCurrentView('board')
+              else if (view === 'calendar') setCurrentView('calendar')
+              else if (view === 'tasks') setCurrentView('list')
+              // TODO: Handle epics, timeline, files views
+            }}
+            onEdit={() => {
+              setIsEditDialogOpen(true)
+            }}
+            onDelete={handleDeleteProject}
+          />
+          
+        </>
       ) : (
         /* Original Professional Header Layout */
         <div className="max-w-[1600px] mx-auto px-6 py-8">
@@ -435,13 +712,28 @@ export default function ProjectDetailPage() {
             <div className="flex items-center space-x-3 mb-3">
               <div 
                 className="w-3 h-3 rounded-full" 
-                style={{ backgroundColor: project.color || colors.primary }}
+                style={{ backgroundColor: project?.color || colors.primary }}
               />
-              <h1 className="text-3xl font-semibold" style={{ color: colors.text }}>{project.name}</h1>
+              <h1 className="text-3xl font-semibold" style={{ color: colors.text }}>{project?.name}</h1>
+              {project?.projectSpace && (
+                <ProjectSpaceBadge visibility={project.projectSpace.visibility} />
+              )}
             </div>
-            <p className="text-base leading-relaxed" style={{ color: colors.textSecondary }}>
-              {project.description || 'No description available'}
+            <p className="text-base leading-relaxed mb-3" style={{ color: colors.textSecondary }}>
+              {project?.description || 'No description available'}
             </p>
+            {channelHints.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {channelHints.map((channel) => (
+                  <span
+                    key={channel}
+                    className="px-3 py-1 text-sm rounded-full bg-slate-800 text-slate-100 border border-slate-700"
+                  >
+                    #{channel}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Right Side - Project Details */}
@@ -453,7 +745,7 @@ export default function ProjectDetailPage() {
                   <div className="text-center">
                     <h3 className="text-sm font-medium mb-3" style={{ color: colors.text }}>Team</h3>
                     <div className="space-y-2">
-                      {project.members.slice(0, 3).map((member) => (
+                      {project?.members.slice(0, 3).map((member) => (
                         <div key={member.id} className="flex items-center space-x-2">
                           <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.borderLight }}>
                             <User className="h-3 w-3" style={{ color: colors.textSecondary }} />
@@ -464,7 +756,7 @@ export default function ProjectDetailPage() {
                           </div>
                         </div>
                       ))}
-                      {project.members.length > 3 && (
+                      {project && project.members && project.members.length > 3 && (
                         <p className="text-xs" style={{ color: colors.textSecondary }}>
                           +{project.members.length - 3} more
                         </p>
@@ -483,22 +775,22 @@ export default function ProjectDetailPage() {
                       <div 
                         className="h-2 rounded-full" 
                         style={{ 
-                          backgroundColor: project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
+                          backgroundColor: project && project._count && project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
                             ? colors.success 
                             : colors.primary, 
-                          width: `${project._count.tasks > 0 ? (getTaskStatusCount('DONE') / project._count.tasks) * 100 : 0}%` 
+                          width: `${project && project._count && project._count.tasks > 0 ? (getTaskStatusCount('DONE') / project._count.tasks) * 100 : 0}%` 
                         }}
                       ></div>
                     </div>
                     <p className="text-xs" style={{ color: colors.textSecondary }}>
-                      {getTaskStatusCount('DONE')} of {project._count.tasks}
+                      {getTaskStatusCount('DONE')} of {project?._count.tasks || 0}
                     </p>
                     <p className="text-xs font-medium mt-1" style={{ 
-                      color: project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
+                      color: project && project._count && project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
                         ? colors.success 
                         : colors.primary 
                     }}>
-                      {project._count.tasks > 0 ? Math.round((getTaskStatusCount('DONE') / project._count.tasks) * 100) : 0}%
+                      {project && project._count && project._count.tasks > 0 ? Math.round((getTaskStatusCount('DONE') / project._count.tasks) * 100) : 0}%
                     </p>
                   </div>
                 </CardContent>
@@ -540,191 +832,83 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Main Content - Option B Layout */}
+      {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-6 pb-8">
-        {/* Primary Focus: Kanban Board (70% width) */}
-        <div className="mb-6">
-          <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-medium" style={{ color: colors.text }}>
-                  Tasks
-                </CardTitle>
-                <div className="flex items-center space-x-2">
-                  {/* View Mode Buttons - Only visible when Kanban button is clicked */}
+        <div className="space-y-6">
+          {/* Tasks Section */}
+          <>
+            {headerView === 'epics' ? (
+              <div>
+                <EpicsView 
+                  projectId={projectId} 
+                  workspaceId={currentWorkspace?.id || 'workspace-1'}
+                  colors={colors}
+                  onCreateEpic={handleCreateEpic}
+                />
+              </div>
+            ) : (
+              <Card className="bg-background border-0 shadow-none rounded-none">
+                <CardContent className="p-0">
+                  {/* Collapsible Search Bar */}
                   {isSearchExpanded && (
-                    <div className="flex items-center space-x-1 rounded-lg p-1" style={{ backgroundColor: colors.borderLight }}>
-                      <Button
-                        variant={taskViewMode === 'kanban' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setTaskViewMode('kanban')}
-                        className="h-7 px-3 text-xs"
-                        style={{ backgroundColor: taskViewMode === 'kanban' ? colors.primary : 'transparent' }}
-                      >
-                        Board
-                      </Button>
-                      <Button
-                        variant={taskViewMode === 'live' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setTaskViewMode('live')}
-                        className="h-7 px-3 text-xs"
-                        style={{ backgroundColor: taskViewMode === 'live' ? colors.primary : 'transparent' }}
-                      >
-                        Live
-                      </Button>
+                    <div className="p-4 border-b" style={{ borderColor: colors.border }}>
+                      <TaskSearchFilter
+                        tasks={project?.tasks || []}
+                        onFilterChange={handleFilterChange}
+                        onFilterReset={handleFilterReset}
+                      />
                     </div>
                   )}
-                  {/* Minimalistic Fullscreen Button - Always visible */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsTaskListFullscreen(true)}
-                    className="h-8 w-8 p-0"
-                    style={{ borderColor: colors.border }}
-                  >
-                    <Maximize2 className="h-3 w-3" />
-                  </Button>
-                  {/* Collapsible Search Button - Only visible when Kanban button is clicked */}
-                  {isSearchExpanded && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-                      className="h-8 px-3 text-xs"
-                      style={{ borderColor: colors.border }}
-                    >
-                      <Search className="h-3 w-3 mr-1" />
-                      Search
-                    </Button>
+                  
+                  {/* Render appropriate view based on headerView */}
+                  {headerView === 'board' && (
+                    <KanbanBoard 
+                      projectId={projectId} 
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                      onTasksUpdated={loadProject}
+                      filteredTasks={isFiltered ? filteredTasks : undefined}
+                      epicId={selectedEpicId}
+                    />
                   )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {/* Collapsible Search Bar */}
-              {isSearchExpanded && (
-                <div className="p-4 border-b" style={{ borderColor: colors.border }}>
-                  <TaskSearchFilter
-                    tasks={project?.tasks || []}
-                    onFilterChange={handleFilterChange}
-                    onFilterReset={handleFilterReset}
-                  />
-                </div>
-              )}
-              
-              {taskViewMode === 'kanban' ? (
-                <KanbanBoard 
-                  projectId={projectId} 
-                  workspaceId="workspace-1"
-                  onTasksUpdated={loadProject}
-                  filteredTasks={isFiltered ? filteredTasks : undefined}
-                />
-              ) : (
-                <LiveTaskList 
-                  projectId={projectId}
-                  className="min-h-[400px]"
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                  
+                  {headerView === 'tasks' && (
+                    <TaskList 
+                      projectId={projectId} 
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                      isFullscreen={false}
+                      onToggleFullscreen={() => setIsTaskListFullscreen(true)}
+                    />
+                  )}
+                  
+                  {headerView === 'calendar' && (
+                    <CalendarView 
+                      projectId={projectId} 
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                    />
+                  )}
+                  
+                  {headerView === 'timeline' && (
+                    <TimelineView 
+                      projectId={projectId} 
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                    />
+                  )}
+                  
+                  {headerView === 'files' && project && currentWorkspace && (
+                    <div className="px-6 pt-3 pb-6">
+                      <ProjectDocumentationSection 
+                        projectId={project.id} 
+                        workspaceId={project.workspaceId || currentWorkspace.id} 
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
-        {/* Documentation Section - Full Width */}
-        <div className="mb-6">
-          <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-medium" style={{ color: colors.text }}>
-                  Documentation
-                </CardTitle>
-                <div className="flex items-center space-x-2">
-                  {project.wikiPage ? (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsWikiDialogOpen(true)}
-                        className="h-8 px-3 text-xs"
-                        style={{ borderColor: colors.border }}
-                      >
-                        <LinkIcon className="h-3 w-3 mr-1" />
-                        Change Page
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsFullscreen(true)}
-                        className="h-8 px-3 text-xs"
-                        style={{ borderColor: colors.border }}
-                      >
-                        <Maximize2 className="h-3 w-3 mr-1" />
-                        Fullscreen
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsWikiDialogOpen(true)}
-                      className="h-8 px-3 text-xs"
-                      style={{ borderColor: colors.border }}
-                    >
-                      <LinkIcon className="h-3 w-3 mr-1" />
-                      Add Documentation
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              {project.wikiPage ? (
-                <div className="prose prose-lg max-w-none">
-                  <div style={{ color: colors.text }}>
-                    <ReactMarkdown 
-                      components={{
-                        // Custom components to handle HTML tags properly
-                        p: ({ children }) => <p className="mb-4 leading-relaxed text-base" style={{ color: colors.text }}>{children}</p>,
-                        ul: ({ children }) => <ul className="mb-6 pl-6 space-y-2">{children}</ul>,
-                        ol: ({ children }) => <ol className="mb-6 pl-6 space-y-2">{children}</ol>,
-                        li: ({ children }) => <li className="leading-relaxed text-base" style={{ color: colors.text }}>{children}</li>,
-                        h1: ({ children }) => <h1 className="text-2xl font-bold mb-6 mt-8 border-b-2 pb-3" style={{ color: colors.text, borderColor: colors.border }}>{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-xl font-bold mb-4 mt-8" style={{ color: colors.text }}>{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-lg font-bold mb-3 mt-6" style={{ color: colors.textSecondary }}>{children}</h3>,
-                        strong: ({ children }) => <strong className="font-bold" style={{ color: colors.text }}>{children}</strong>,
-                        em: ({ children }) => <em className="italic" style={{ color: colors.textSecondary }}>{children}</em>,
-                        code: ({ children }) => <code className="px-2 py-1 rounded text-sm font-mono font-semibold" style={{ backgroundColor: colors.borderLight, color: colors.primary }}>{children}</code>,
-                        pre: ({ children }) => <pre className="border rounded-lg p-4 my-6 overflow-x-auto" style={{ backgroundColor: colors.borderLight, borderColor: colors.border }}>{children}</pre>,
-                        blockquote: ({ children }) => <blockquote className="border-l-4 pl-4 italic my-6" style={{ borderColor: colors.primary, color: colors.textSecondary }}>{children}</blockquote>,
-                        hr: () => <hr className="my-8" style={{ borderColor: colors.border }} />
-                      }}
-                    >
-                      {cleanContent(project.wikiPage.content || '')}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 border-2 border-dashed rounded-lg mx-auto flex items-center justify-center mb-4" style={{ borderColor: colors.border }}>
-                    <FileText className="h-8 w-8" style={{ color: colors.textSecondary }} />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2" style={{ color: colors.text }}>No Documentation Yet</h3>
-                  <p className="text-sm mb-6" style={{ color: colors.textSecondary }}>
-                    Add a wiki page to provide project documentation, guidelines, and important information for your team.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsWikiDialogOpen(true)}
-                    className="h-8 px-4 text-sm"
-                    style={{ borderColor: colors.border }}
-                  >
-                    <LinkIcon className="h-4 w-4 mr-2" />
-                    Add Documentation
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            </>
+
+
         </div>
       </div>
 
@@ -796,6 +980,7 @@ export default function ProjectDetailPage() {
         onClose={() => setIsEditDialogOpen(false)}
         project={project}
         onSave={handleProjectUpdate}
+        workspaceId={currentWorkspace?.id || 'workspace-1'}
       />
 
       {/* Fullscreen Task List */}
@@ -803,15 +988,86 @@ export default function ProjectDetailPage() {
         <div className="fixed inset-0 z-50 overflow-auto p-4" style={{ backgroundColor: colors.background }}>
           <TaskList 
             projectId={projectId} 
-            workspaceId="workspace-1" 
+            workspaceId={currentWorkspace?.id || 'workspace-1'} 
             isFullscreen={isTaskListFullscreen}
             onToggleFullscreen={() => setIsTaskListFullscreen(!isTaskListFullscreen)}
           />
         </div>
       )}
 
-      {/* Real-time Notifications */}
-      <NotificationToast />
-    </div>
+        {/* Real-time Notifications */}
+        <NotificationToast />
+        
+        {/* Create Item Dialog */}
+        <CreateItemDialog
+          isOpen={isCreateDialogOpen}
+          onClose={() => setIsCreateDialogOpen(false)}
+          onCreateTask={handleCreateTask}
+          onCreateEpic={handleCreateEpic}
+        />
+        
+        {/* Create Epic Dialog */}
+        <Dialog open={isCreateEpicOpen} onOpenChange={setIsCreateEpicOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Epic</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="epic-title">Title</Label>
+                <Input
+                  id="epic-title"
+                  value={newEpicTitle}
+                  onChange={(e) => setNewEpicTitle(e.target.value)}
+                  placeholder="Epic title"
+                />
+              </div>
+              <div>
+                <Label htmlFor="epic-description">Description</Label>
+                <Textarea
+                  id="epic-description"
+                  value={newEpicDescription}
+                  onChange={(e) => setNewEpicDescription(e.target.value)}
+                  placeholder="Epic description"
+                />
+              </div>
+              <div>
+                <Label htmlFor="epic-color">Color</Label>
+                <Input
+                  id="epic-color"
+                  type="color"
+                  value={newEpicColor}
+                  onChange={(e) => setNewEpicColor(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setIsCreateEpicOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={createEpic} disabled={!newEpicTitle.trim()}>
+                  Create Epic
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Global Loopbrain Assistant */}
+      <LoopbrainAssistantLauncher 
+        mode="spaces" 
+        anchors={{ projectId }} 
+      />
+
+      {/* Create Task Dialog */}
+      <CreateTaskDialog
+        open={isCreateTaskOpen}
+        onOpenChange={setIsCreateTaskOpen}
+        projectId={projectId}
+        onTaskCreated={() => {
+          loadProject()
+        }}
+      />
+    </WikiLayout>
   )
 }
