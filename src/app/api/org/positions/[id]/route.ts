@@ -3,6 +3,12 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { emitEvent } from '@/lib/events/emit'
+import { ORG_EVENTS, OrgPositionUpdatedEvent, OrgPersonUpdatedEvent } from '@/lib/events/orgEvents'
+import {
+  onOrgPositionDeleted,
+} from '@/lib/org/liveUpdateHooks'
+import { safeRebuildOrgContext } from '@/lib/org/org-context-service'
 
 // GET /api/org/positions/[id] - Get a specific org position
 export async function GET(
@@ -203,6 +209,67 @@ export async function PUT(
       }
     })
 
+    // Emit position updated event
+    await emitEvent<OrgPositionUpdatedEvent>(ORG_EVENTS.POSITION_UPDATED, {
+      workspaceId: auth.workspaceId,
+      positionId: position.id,
+      teamId: position.teamId,
+      userId: position.userId,
+      data: {
+        id: position.id,
+        title: position.title,
+        level: position.level,
+        isActive: position.isActive,
+        workspaceId: position.workspaceId,
+        teamId: position.teamId,
+        userId: position.userId,
+        createdAt: position.createdAt,
+        updatedAt: position.updatedAt,
+      },
+    });
+
+    // If userId changed, emit person updated event
+    const oldUserId = existingPosition.userId;
+    const newUserId = position.userId;
+    if (oldUserId !== newUserId) {
+      if (oldUserId) {
+        // Person was unassigned
+        await emitEvent<OrgPersonUpdatedEvent>(ORG_EVENTS.PERSON_UPDATED, {
+          workspaceId: auth.workspaceId,
+          userId: oldUserId,
+          positionId: null,
+          teamId: null,
+          departmentId: null,
+          data: {
+            id: oldUserId,
+            name: null,
+            email: '',
+            updatedAt: new Date(),
+          },
+        });
+      }
+      if (newUserId && position.user) {
+        // Person was assigned
+        await emitEvent<OrgPersonUpdatedEvent>(ORG_EVENTS.PERSON_UPDATED, {
+          workspaceId: auth.workspaceId,
+          userId: newUserId,
+          positionId: position.id,
+          teamId: position.teamId,
+          departmentId: position.team?.department?.id ?? null,
+          data: {
+            id: newUserId,
+            name: position.user.name,
+            email: position.user.email,
+            updatedAt: position.user.updatedAt ?? new Date(),
+          },
+        });
+      }
+    }
+
+    // Keep Loopbrain org context in sync
+    // Fire-and-forget: don't await to avoid blocking the response
+    void safeRebuildOrgContext(auth.workspaceId);
+
     return NextResponse.json(position)
   } catch (error: any) {
     console.error('Error updating org position:', error)
@@ -259,10 +326,75 @@ export async function DELETE(
     }
 
     // Soft delete by setting isActive to false
-    await prisma.orgPosition.update({
+    const position = await prisma.orgPosition.update({
       where: { id: resolvedParams.id },
-      data: { isActive: false }
-    })
+      data: { isActive: false },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        team: {
+          select: {
+            id: true,
+            department: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Emit position updated event (soft delete)
+    await emitEvent<OrgPositionUpdatedEvent>(ORG_EVENTS.POSITION_UPDATED, {
+      workspaceId: auth.workspaceId,
+      positionId: position.id,
+      teamId: position.teamId,
+      userId: position.userId,
+      data: {
+        id: position.id,
+        title: position.title,
+        level: position.level,
+        isActive: false,
+        workspaceId: position.workspaceId,
+        teamId: position.teamId,
+        userId: position.userId,
+        createdAt: position.createdAt,
+        updatedAt: position.updatedAt,
+      },
+    });
+
+    // If position had a user assigned, emit person updated event
+    if (position.userId && position.user) {
+      await emitEvent<OrgPersonUpdatedEvent>(ORG_EVENTS.PERSON_UPDATED, {
+        workspaceId: auth.workspaceId,
+        userId: position.userId,
+        positionId: null,
+        teamId: null,
+        departmentId: null,
+        data: {
+          id: position.userId,
+          name: position.user.name,
+          email: position.user.email,
+          updatedAt: position.user.updatedAt ?? new Date(),
+        },
+      });
+    }
+
+    // Archive role ContextItem in Context Store
+    await onOrgPositionDeleted({
+      workspaceId: auth.workspaceId,
+      positionId: position.id,
+    });
+
+    // Keep Loopbrain org context in sync
+    // Fire-and-forget: don't await to avoid blocking the response
+    void safeRebuildOrgContext(auth.workspaceId);
 
     return NextResponse.json({ message: 'Position deleted successfully' })
   } catch (error) {

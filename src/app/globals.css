@@ -540,3 +540,23 @@ img[src*="transparent"] {
   background-color: rgb(30, 41, 59);
   font-weight: 600;
 }
+
+/* Org Center polish utilities */
+
+/* Hover card effect for interactive cards */
+.hover-card {
+  transition: all 0.15s ease;
+}
+
+.hover-card:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.10);
+  transform: translateY(-1px);
+}
+
+/* Focus ring for accessibility */
+.focus-ring:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stop Redirect Loop</title>
+  <meta http-equiv="refresh" content="0;url=/home?stop_redirect=true">
+  <script>
+    // Immediately set everything to stop the loop
+    sessionStorage.setItem('__workspace_id__', 'ws_1765020555_4662b211');
+    sessionStorage.setItem('__has_workspace__', 'true');
+    sessionStorage.setItem('__redirect_stopped__', 'true');
+    sessionStorage.removeItem('__redirect_attempted__');
+    sessionStorage.removeItem('__redirect_count__');
+    
+    // Redirect immediately
+    window.location.replace('/home?stop_redirect=true');
+  </script>
+</head>
+<body>
+  <p>Stopping redirect loop and redirecting...</p>
+</body>
+</html>
+

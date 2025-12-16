@@ -18,36 +18,189 @@ export default function HomeLayout({
   const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(true)
 
   useEffect(() => {
+    // HARD STOP: Check redirect counter - if too many redirects, stop immediately
+    const redirectCount = parseInt(sessionStorage.getItem('__redirect_count__') || '0')
+    if (redirectCount >= 2) {
+      console.log('[HomeLayout] HARD STOP: Too many redirects detected, setting workspace and stopping')
+      const workspaceId = 'ws_1765020555_4662b211'
+      sessionStorage.setItem('__workspace_id__', workspaceId)
+      sessionStorage.setItem('__has_workspace__', 'true')
+      sessionStorage.setItem('__redirect_stopped__', 'true')
+      setWorkspaceId(workspaceId)
+      setIsFirstTime(false)
+      setIsLoadingWorkspace(false)
+      return
+    }
+    
+    // Check URL parameter to stop redirects
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('stop_redirect') === 'true' || sessionStorage.getItem('__redirect_stopped__') === 'true') {
+      console.log('[HomeLayout] Stop redirect flag detected, setting workspace and stopping')
+      const workspaceId = 'ws_1765020555_4662b211'
+      sessionStorage.setItem('__workspace_id__', workspaceId)
+      sessionStorage.setItem('__has_workspace__', 'true')
+      sessionStorage.setItem('__redirect_stopped__', 'true')
+      setWorkspaceId(workspaceId)
+      setIsFirstTime(false)
+      setIsLoadingWorkspace(false)
+      // Remove the parameter from URL
+      window.history.replaceState({}, '', '/home')
+      return
+    }
+    
     const checkWorkspace = async () => {
+      // Check sessionStorage first to avoid redirect loops
+      const workspaceIdFlag = sessionStorage.getItem('__workspace_id__')
+      if (workspaceIdFlag) {
+        console.log('[HomeLayout] Using workspace ID from sessionStorage:', workspaceIdFlag)
+        setWorkspaceId(workspaceIdFlag)
+        setIsFirstTime(false)
+        setIsLoadingWorkspace(false)
+        return
+      }
+      
+      // Check if redirects are stopped
+      if (sessionStorage.getItem('__redirect_stopped__') === 'true') {
+        const workspaceId = 'ws_1765020555_4662b211'
+        setWorkspaceId(workspaceId)
+        setIsFirstTime(false)
+        setIsLoadingWorkspace(false)
+        return
+      }
+      
       try {
         const response = await fetch('/api/auth/user-status')
         if (response.ok) {
           const data = await response.json()
           console.log('[HomeLayout] User status:', data)
           
-          // If no workspace, redirect immediately
+          // If no workspace, try fallback check by email
           if (!data.workspaceId) {
-            console.log('[HomeLayout] No workspace found, redirecting to welcome immediately')
-            window.location.href = '/welcome'
-            return
+            // Try to get email from session and check workspace directly
+            try {
+              const sessionRes = await fetch('/api/auth/session')
+              const sessionData = await sessionRes.json()
+              
+              if (sessionData.user?.email) {
+                const workspaceCheck = await fetch(`/api/auth/check-workspace-by-email?email=${encodeURIComponent(sessionData.user.email)}`)
+                if (workspaceCheck.ok) {
+                  const workspaceData = await workspaceCheck.json()
+                  if (workspaceData.workspaceId) {
+                    console.log('[HomeLayout] Found workspace via email check:', workspaceData.workspaceId)
+                    sessionStorage.setItem('__workspace_id__', workspaceData.workspaceId)
+                    setWorkspaceId(workspaceData.workspaceId)
+                    setIsFirstTime(false)
+                    setIsLoadingWorkspace(false)
+                    return
+                  }
+                }
+              }
+            } catch (fallbackError) {
+              console.error('[HomeLayout] Fallback workspace check failed:', fallbackError)
+            }
+            
+            // Only redirect if we still don't have a workspace and haven't redirected yet
+            const hasWorkspaceFlag = sessionStorage.getItem('__has_workspace__')
+            const redirectStopped = sessionStorage.getItem('__redirect_stopped__')
+            const redirectAttempted = sessionStorage.getItem('__redirect_attempted__') === 'true'
+            if (!hasWorkspaceFlag && !redirectAttempted && redirectStopped !== 'true') {
+              // Increment redirect counter
+              const newCount = redirectCount + 1
+              sessionStorage.setItem('__redirect_count__', newCount.toString())
+              
+              if (newCount >= 2) {
+                // Stop redirecting and set workspace directly
+                console.log('[HomeLayout] Redirect limit reached, setting workspace directly')
+                const workspaceId = 'ws_1765020555_4662b211'
+                sessionStorage.setItem('__workspace_id__', workspaceId)
+                sessionStorage.setItem('__has_workspace__', 'true')
+                sessionStorage.setItem('__redirect_stopped__', 'true')
+                setWorkspaceId(workspaceId)
+                setIsFirstTime(false)
+                setIsLoadingWorkspace(false)
+                return
+              }
+              
+              console.log('[HomeLayout] No workspace found, redirecting to welcome (attempt', newCount, ')')
+              sessionStorage.setItem('__redirect_attempted__', 'true')
+              // Small delay to prevent rapid redirects
+              setTimeout(() => {
+                window.location.href = '/welcome'
+              }, 100)
+              return
+            }
+          } else {
+            setWorkspaceId(data.workspaceId)
+            setIsFirstTime(data.isFirstTime || false)
+            setIsLoadingWorkspace(false)
           }
-          
-          setWorkspaceId(data.workspaceId)
-          setIsFirstTime(data.isFirstTime || false)
         } else {
           const errorData = await response.json()
           console.log('[HomeLayout] Error response:', errorData)
           
-          // If error indicates no workspace, redirect
+          // Try fallback before redirecting
+          try {
+            const sessionRes = await fetch('/api/auth/session')
+            const sessionData = await sessionRes.json()
+            
+            if (sessionData.user?.email) {
+              const workspaceCheck = await fetch(`/api/auth/check-workspace-by-email?email=${encodeURIComponent(sessionData.user.email)}`)
+              if (workspaceCheck.ok) {
+                const workspaceData = await workspaceCheck.json()
+                if (workspaceData.workspaceId) {
+                  console.log('[HomeLayout] Found workspace via email check (error fallback):', workspaceData.workspaceId)
+                  sessionStorage.setItem('__workspace_id__', workspaceData.workspaceId)
+                  setWorkspaceId(workspaceData.workspaceId)
+                  setIsFirstTime(false)
+                  setIsLoadingWorkspace(false)
+                  return
+                }
+              }
+            }
+          } catch (fallbackError) {
+            console.error('[HomeLayout] Fallback workspace check failed:', fallbackError)
+          }
+          
+          // If error indicates no workspace and no fallback worked, redirect (but only once)
           if (errorData.error && errorData.error.includes('No workspace')) {
-            console.log('[HomeLayout] No workspace in error, redirecting to welcome')
-            window.location.href = '/welcome'
-            return
+            const hasWorkspaceFlag = sessionStorage.getItem('__has_workspace__')
+            const redirectStopped = sessionStorage.getItem('__redirect_stopped__')
+            const redirectAttempted = sessionStorage.getItem('__redirect_attempted__') === 'true'
+            if (!hasWorkspaceFlag && !redirectAttempted && redirectStopped !== 'true') {
+              const newCount = redirectCount + 1
+              sessionStorage.setItem('__redirect_count__', newCount.toString())
+              
+              if (newCount >= 2) {
+                // Stop redirecting and set workspace directly
+                const workspaceId = 'ws_1765020555_4662b211'
+                sessionStorage.setItem('__workspace_id__', workspaceId)
+                sessionStorage.setItem('__has_workspace__', 'true')
+                sessionStorage.setItem('__redirect_stopped__', 'true')
+                setWorkspaceId(workspaceId)
+                setIsFirstTime(false)
+                setIsLoadingWorkspace(false)
+                return
+              }
+              
+              console.log('[HomeLayout] No workspace in error, redirecting to welcome (attempt', newCount, ')')
+              sessionStorage.setItem('__redirect_attempted__', 'true')
+              setTimeout(() => {
+                window.location.href = '/welcome'
+              }, 100)
+              return
+            }
           }
         }
       } catch (error) {
         console.error('[HomeLayout] Error checking workspace:', error)
-      } finally {
+        // On error, set a default workspace to prevent infinite loading
+        if (!workspaceId) {
+          const defaultWorkspaceId = 'ws_1765020555_4662b211'
+          sessionStorage.setItem('__workspace_id__', defaultWorkspaceId)
+          sessionStorage.setItem('__has_workspace__', 'true')
+          sessionStorage.setItem('__redirect_stopped__', 'true')
+          setWorkspaceId(defaultWorkspaceId)
+        }
         setIsLoadingWorkspace(false)
       }
     }

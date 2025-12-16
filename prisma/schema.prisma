@@ -5,7 +5,8 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // directUrl temporarily commented out - using same URL for both
+  // directUrl = env("DIRECT_URL")
 }
 
 model Account {
@@ -61,6 +62,8 @@ model User {
   chatSessions         ChatSession[]
   onboarding_plans     OnboardingPlan[]
   orgAuditLogs         OrgAuditLog[]
+  orgAuditActorLogs    OrgAuditLog[]            @relation("OrgAuditActor")
+  orgAuditTargetLogs   OrgAuditLog[]            @relation("OrgAuditTargetUser")
   orgPositions         OrgPosition[]
   projectAssignees     ProjectAssignee[]      @relation("ProjectAssignee")
   projectMemberships   ProjectMember[]
@@ -89,6 +92,12 @@ model User {
   workspaceMemberships WorkspaceMember[]
   ownedWorkspaces      Workspace[]            @relation("WorkspaceOwner")
   onboarding_tasks     OnboardingTask[]       @relation("OnboardingTaskToUser")
+  orgLoopbrainQueryLogs OrgLoopbrainQueryLog[]
+  orgLoopbrainQueries    OrgLoopbrainQuery[]
+  orgInvitations        OrgInvitation[]       @relation("InvitedBy")
+  orgActivityExports     OrgActivityExport[]
+  availability          PersonAvailability[]
+  allocations           ProjectAllocation[]
 
   @@map("users")
 }
@@ -111,6 +120,7 @@ model Workspace {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   ownerId             String
+  orgCenterOnboardingCompletedAt DateTime? // Org Center onboarding completion timestamp
   chatSessions        ChatSession[]
   featureFlags        FeatureFlag[]
   integrations        Integration[]
@@ -120,7 +130,11 @@ model Workspace {
   orgAuditLogs        OrgAuditLog[]
   orgDepartments      OrgDepartment[]
   orgPositions        OrgPosition[]
+  orgQnaLogs          OrgQnaLog[]
+  orgLoopbrainQueryLogs OrgLoopbrainQueryLog[]
+  orgLoopbrainQueries    OrgLoopbrainQuery[]
   orgTeams            OrgTeam[]
+  orgActivityExports  OrgActivityExport[]
   projectTemplates    ProjectTemplate[]
   projects            Project[]
   roleCards           RoleCard[]
@@ -132,6 +146,8 @@ model Workspace {
   workflowInstances   WorkflowInstance[]
   workflows           Workflow[]
   members             WorkspaceMember[]
+  orgInvitations      OrgInvitation[]
+  orgCustomRoles      OrgCustomRole[]
   owner               User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@map("workspaces")
@@ -143,13 +159,40 @@ model WorkspaceMember {
   userId      String
   role        WorkspaceRole @default(MEMBER)
   joinedAt    DateTime      @default(now())
+  customRoleId String?
+  customRole   OrgCustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  preferences Json?          // User-level org preferences (filters, view settings, etc.)
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, userId])
   @@index([userId], map: "idx_workspace_members_user")
   @@index([userId, workspaceId], map: "idx_workspace_members_user_workspace")
+  @@index([workspaceId, customRoleId])
+  @@index([workspaceId, role], map: "idx_workspace_members_workspace_role")
+  @@index([workspaceId, joinedAt(sort: Desc)], map: "idx_workspace_members_workspace_joined")
   @@map("workspace_members")
+}
+
+model OrgCustomRole {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  key         String   // short slug, e.g. "people-ops"
+  name        String   // display label, e.g. "People Ops"
+  description String?
+
+  // JSON array of capability strings, e.g. ["org:member:invite", "org:insights:view"]
+  capabilities Json
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships WorkspaceMember[]
+
+  @@unique([workspaceId, key])
+  @@map("org_custom_roles")
 }
 
 model WikiPage {
@@ -428,9 +471,9 @@ model OrgPosition {
   id                 String        @id @default(cuid())
   workspaceId        String
   userId             String?
-  title              String
+  title              String?        // Made optional to support incomplete modeling
   level              Int           @default(1)
-  parentId           String?
+  parentId           String?       // managerId - nullable for incomplete modeling
   order              Int           @default(0)
   isActive           Boolean       @default(true)
   createdAt          DateTime      @default(now())
@@ -444,6 +487,9 @@ model OrgPosition {
   budget             String?
   reportingStructure String?
   teamId             String?
+  archivedAt         DateTime?
+  archivedReason     String?
+  mergedIntoId       String?       // canonical position id when merged
   parent             OrgPosition?  @relation("OrgHierarchy", fields: [parentId], references: [id])
   children           OrgPosition[] @relation("OrgHierarchy")
   team               OrgTeam?      @relation(fields: [teamId], references: [id])
@@ -452,26 +498,51 @@ model OrgPosition {
   roleCard           RoleCard?
 
   @@index([workspaceId])
+  @@index([workspaceId, isActive], map: "idx_org_positions_workspace_active")
+  @@index([workspaceId, userId], map: "idx_org_positions_workspace_user")
+  @@index([workspaceId, archivedAt])
+  @@index([workspaceId, mergedIntoId])
   @@index([teamId])
   @@index([level])
   @@map("org_positions")
 }
 
 model OrgAuditLog {
-  id          String    @id @default(cuid())
-  workspaceId String
-  userId      String
-  action      String
-  entityType  String
-  entityId    String
-  oldValues   Json?
-  newValues   Json?
-  metadata    Json?
-  createdAt   DateTime  @default(now())
-  user        User      @relation(fields: [userId], references: [id])
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id            String            @id @default(cuid())
+  workspaceId  String
+  userId       String
+  action       String
+  entityType   String
+  entityId     String
+  oldValues    Json?
+  newValues    Json?
+  metadata     Json?
+  createdAt    DateTime          @default(now())
+  user         User              @relation(fields: [userId], references: [id])
+  workspace    Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  // New fields for org-specific audit events
+  actor        User?             @relation("OrgAuditActor", fields: [actorUserId], references: [id])
+  actorUserId  String?
+  target       User?             @relation("OrgAuditTargetUser", fields: [targetUserId], references: [id])
+  targetUserId String?
+  event        OrgAuditEventType?
 
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_org_audit_log_workspace_created")
+  @@index([workspaceId, event], map: "idx_org_audit_log_workspace_event")
+  @@index([workspaceId, actorUserId], map: "idx_org_audit_log_workspace_actor")
   @@map("org_audit_log")
+}
+
+model OrgActivityExport {
+  id        String   @id @default(cuid())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@index([workspaceId, userId, createdAt])
+  @@map("org_activity_exports")
 }
 
 model Workflow {
@@ -602,6 +673,7 @@ model ChatMessage {
 model Project {
   id                  String                @id @default(cuid())
   workspaceId         String
+  orgId               String?               // Org identifier (same as workspaceId for v1, optional for backward compatibility)
   name                String
   description         String?
   status              ProjectStatus         @default(ACTIVE)
@@ -625,6 +697,8 @@ model Project {
   dailySummaries      ProjectDailySummary[]
   members             ProjectMember[]
   watchers            ProjectWatcher[]
+  accountability      ProjectAccountability?
+  allocations         ProjectAllocation[]
   createdBy           User                  @relation(fields: [createdById], references: [id], onDelete: Cascade)
   owner               User?                 @relation("ProjectOwner", fields: [ownerId], references: [id])
   wikiPage            WikiPage?             @relation(fields: [wikiPageId], references: [id])
@@ -633,7 +707,39 @@ model Project {
 
   @@index([workspaceId, status], map: "idx_projects_workspace_status")
   @@index([updatedAt(sort: Desc)], map: "idx_projects_updated_at")
+  @@index([orgId])
   @@map("projects")
+}
+
+model ProjectAccountability {
+  id               String   @id @default(cuid())
+  projectId        String   @unique
+
+  // Ownership
+  ownerPersonId    String?
+  ownerRole        String?
+
+  // Decision authority
+  decisionPersonId String?
+  decisionRole     String?
+
+  // Escalation
+  escalationPersonId String?
+  escalationRole     String?
+
+  // v1.1 coverage (explicit backups)
+  backupOwnerPersonId    String?
+  backupOwnerRole        String?
+  backupDecisionPersonId String?
+  backupDecisionRole     String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("project_accountability")
 }
 
 model Task {
@@ -1023,6 +1129,15 @@ enum WorkspaceRole {
   VIEWER
 }
 
+enum OrgAuditEventType {
+  ORG_CREATED
+  ORG_DELETED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  MEMBER_ROLE_CHANGED
+  ORG_OWNERSHIP_TRANSFERRED
+}
+
 enum OnboardingStatus {
   ACTIVE
   COMPLETED
@@ -1198,4 +1313,463 @@ model ContextSummary {
   // Indexes for efficient multi-tenant queries
   @@index([workspaceId], map: "idx_context_summaries_workspace")
   @@map("context_summaries")
+}
+
+/**
+ * OrgQnaLog - Logs all Org Q&A requests for analytics and audit
+ * Tracks questions asked, location, and metadata for future Loopbrain quality evaluation
+ */
+model OrgQnaLog {
+  id          String   @id @default(uuid())
+  workspaceId String
+  question    String
+  location    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  // Relation
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Indexes for efficient multi-tenant queries
+  @@index([workspaceId, createdAt], map: "idx_org_qna_log_workspace_created")
+  @@index([workspaceId, location], map: "idx_org_qna_log_workspace_location")
+  @@map("org_qna_log")
+}
+
+/**
+ * OrgLoopbrainQueryLog - Logs Org-aware Loopbrain queries for analytics
+ * Tracks questions, answers, and context usage to analyze Org intelligence usage patterns
+ */
+model OrgLoopbrainQueryLog {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  userId            String?
+  question          String
+  answerPreview     String   // trimmed snippet of the answer
+  contextItemsCount Int
+  metadata          Json?
+  createdAt         DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id])
+
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_org_lb_query_workspace_created")
+  @@index([userId, createdAt(sort: Desc)], map: "idx_org_lb_query_user_created")
+  @@map("org_loopbrain_query_logs")
+}
+
+/**
+ * OrgLoopbrainQuery - Telemetry for Org Loopbrain queries
+ * Tracks question types, context usage, and referenced tags for analytics
+ */
+model OrgLoopbrainQuery {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  userId          String?
+  question        String
+  questionType    String   // headcount | reporting | risk | generic | unknown
+  contextType     String   // org.headcount | org.reporting | org.risk | org.generic
+  hasOrgRoot      Boolean
+  peopleCount     Int
+  teamCount       Int
+  departmentCount Int
+  roleCount       Int
+  referencedTags  String[] @default([]) // e.g. ["org_health_label:stable", "org_depth:3"]
+  createdAt       DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id])
+
+  @@index([workspaceId, createdAt], map: "idx_org_lb_query_telemetry_workspace_created")
+  @@index([workspaceId, questionType], map: "idx_org_lb_query_telemetry_workspace_qtype")
+  @@map("org_loopbrain_queries")
+}
+
+model OrgInvitation {
+  id           String           @id @default(cuid())
+  workspace    Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId  String?
+  org          Org?             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId        String?
+  email        String
+  role         OrgRole?         @default(VIEWER)
+  status       String           @default("PENDING") // PENDING | ACCEPTED | DECLINED | EXPIRED (using String for new org system)
+  invitedBy    User?            @relation("InvitedBy", fields: [invitedById], references: [id])
+  invitedById  String?
+  token        String           @unique @default(cuid())
+  inviteUrl    String?
+  createdAt    DateTime         @default(now())
+  acceptedAt   DateTime?
+  expiresAt    DateTime?
+
+  @@unique([workspaceId, email])
+  @@index([workspaceId])
+  @@index([workspaceId, status], map: "idx_org_invitations_workspace_status")
+  @@index([orgId, status])
+  @@index([email])
+  @@index([token])
+  @@map("org_invitations")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REJECTED
+}
+
+model Org {
+  id        String         @id @default(cuid())
+  name      String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  memberships OrgMembership[]
+  invitations OrgInvitation[]
+  audit       AuditLogEntry[]
+  roles       Role[]
+
+  @@index([name])
+  @@map("orgs")
+}
+
+
+enum OrgRole {
+  VIEWER
+  EDITOR
+  ADMIN
+}
+
+model SavedView {
+  id            String   @id @default(cuid())
+  orgId         String
+  userId        String?      // null when system/shared
+  name          String
+  scope         String       // e.g. "people"
+  state         Json         // filters, sort, query, fixQueue
+  shared        Boolean  @default(false)
+  pinned        Boolean  @default(false)
+  defaultForRole OrgRole?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([orgId, scope])
+  @@index([orgId, userId])
+  @@index([orgId, pinned])
+  @@map("saved_views")
+}
+
+model OrgPersonIssue {
+  id         String   @id @default(cuid())
+  orgId      String
+  personId   String
+  type       String   // e.g. "MISSING_MANAGER"
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([orgId, personId, type])
+  @@index([orgId, type, resolvedAt])
+  @@map("org_person_issues")
+}
+
+model OrgDuplicateCandidate {
+  id          String   @id @default(cuid())
+  orgId       String
+  personAId   String
+  personBId   String
+  confidence  Float
+  reason      String?  // e.g. "email_exact", "name_similar", "email_prefix+name"
+  features    Json?
+  status      String   @default("OPEN") // OPEN | DISMISSED | MERGED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([orgId, personAId, personBId])
+  @@index([orgId, status, confidence])
+  @@map("org_duplicate_candidates")
+}
+
+model OrgPersonMergeLog {
+  id                   String   @id @default(cuid())
+  orgId                String
+  canonicalId          String
+  mergedId             String
+  snapshot             Json     // copy of merged record before merge (for undo)
+  reportRewireSnapshot Json?    // ids of reports rewired from merged -> canonical
+  appliedAt            DateTime @default(now())
+  undoneAt             DateTime?
+  actorUserId          String?
+  actorLabel           String
+
+  @@index([orgId, appliedAt])
+  @@unique([orgId, canonicalId, mergedId, undoneAt])
+  @@map("org_person_merge_logs")
+}
+
+model OrgSuggestionRun {
+  id        String   @id @default(cuid())
+  orgId     String
+  scope     String   // e.g. "people_issues"
+  inputHash String
+  output    Json
+  engineId  String?
+  modelId   String?
+  createdAt DateTime @default(now())
+
+  @@index([orgId, scope, createdAt])
+  @@index([orgId, engineId, createdAt])
+  @@map("org_suggestion_runs")
+}
+
+model OrgLoopBrainConfig {
+  id        String   @id @default(cuid())
+  orgId     String
+  scope     String   // "people_issues"
+  engineId  String   // e.g. "heuristic-v1"
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, scope])
+  @@index([orgId, scope, enabled])
+  @@map("org_loop_brain_configs")
+}
+
+model LoopBrainModel {
+  id        String   @id @default(cuid())
+  name      String   // e.g. "heuristic-v1", "llm-v0.1"
+  scope     String   // e.g. "people_issues"
+  active    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([scope, active])
+  @@map("loop_brain_models")
+}
+
+model LoopBrainFeedback {
+  id               String   @id @default(cuid())
+  orgId            String
+  personId         String?
+  suggestionRunId  String?
+  modelId          String?
+  scope            String
+  confidence       Float?
+  accepted         Boolean?
+  partiallyApplied Boolean?
+  feedback         String?   // free-text (optional)
+  createdAt        DateTime @default(now())
+
+  @@index([orgId, scope, createdAt])
+  @@map("loop_brain_feedback")
+}
+
+model LoopBrainOutcome {
+  id              String   @id @default(cuid())
+  orgId           String
+  suggestionRunId String
+  scope           String
+  beforeMetrics   Json     // e.g. { missingManagerCount: 14 }
+  afterMetrics    Json     // e.g. { missingManagerCount: 6 }
+  improved        Boolean
+  measuredAt      DateTime @default(now())
+
+  @@index([orgId, scope, measuredAt])
+  @@map("loop_brain_outcomes")
+}
+
+model OrgLoopBrainRollout {
+  id        String   @id @default(cuid())
+  orgId     String
+  scope     String           // "people_issues"
+  mode      String           // "ALL" | "ADMIN_ONLY" | "MANAGERS_ONLY" | "TEAM"
+  teamName  String?          // used when mode === "TEAM"
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, scope])
+  @@map("org_loop_brain_rollouts")
+}
+
+model OrgHealthSnapshot {
+  id        String   @id @default(cuid())
+  orgId     String
+  score     Float
+  metrics   Json
+  createdAt DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@map("org_health_snapshots")
+}
+
+model OrgFixEvent {
+  id          String   @id @default(cuid())
+  orgId       String
+  personId   String?
+  fixType     String   // e.g. ASSIGN_MANAGER, ASSIGN_TEAM, ASSIGN_ROLE
+  beforeState Json
+  afterState  Json
+  impactScore Int
+  createdAt   DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@map("org_fix_events")
+}
+
+model SavedOrgView {
+  id          String   @id @default(cuid())
+  orgId       String
+  key         String   // e.g. "leadership_structure"
+  title       String
+  description String?
+  persona     String   // EXECUTIVE | HR | MANAGER
+  config      Json     // filters, sort, issueTypes, layout hints
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([orgId, key])
+  @@index([orgId, persona])
+  @@map("saved_org_views")
+}
+
+model OrgDefaultView {
+  id        String   @id @default(cuid())
+  orgId     String
+  role      String   // EXECUTIVE | HR | MANAGER | MEMBER
+  viewKey   String   // SavedOrgView.key
+  createdAt DateTime @default(now())
+
+  @@unique([orgId, role])
+  @@map("org_default_views")
+}
+
+model OrgHealthDigest {
+  id         String   @id @default(cuid())
+  orgId      String
+  cadence    String   // WEEKLY
+  lastSentAt DateTime?
+  enabled    Boolean  @default(true)
+  recipients Json     // array of { role, userId? }
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([orgId])
+  @@map("org_health_digests")
+}
+
+model AuditLogEntry {
+  id          String   @id @default(cuid())
+  orgId       String
+  actorUserId String?
+  actorLabel  String   // fallback display name if user not resolvable
+  action      String
+  targetCount Int
+  summary     String
+  createdAt   DateTime @default(now())
+
+  org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@map("audit_log_entries")
+}
+
+model OrgMembership {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrgRole  @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([orgId, role])
+  @@map("org_memberships")
+}
+
+model PersonAvailability {
+  id        String            @id @default(cuid())
+  personId  String            // References User.id (person in Org context)
+  type      AvailabilityType
+  startDate DateTime
+  endDate   DateTime?
+  fraction  Float?            // 0.0–1.0, used only for PARTIAL
+  note      String?
+
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  person    User              @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([personId, startDate])
+  @@map("person_availability")
+}
+
+enum AvailabilityType {
+  UNAVAILABLE   // vacation, sick leave, parental leave
+  PARTIAL       // e.g. 50% capacity
+}
+
+model ProjectAllocation {
+  id          String   @id @default(cuid())
+  orgId       String
+  projectId   String
+  personId    String
+
+  // fraction of a person's working capacity, e.g. 0.2 = 20%
+  fraction    Float
+
+  startDate   DateTime
+  endDate     DateTime?
+
+  note        String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  person  User   @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, projectId])
+  @@index([personId, startDate])
+  @@map("project_allocations")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String   // e.g. "Product Manager"
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org             Org                  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  responsibilities RoleResponsibility[]
+
+  @@index([orgId])
+  @@map("roles")
+}
+
+model RoleResponsibility {
+  id        String              @id @default(cuid())
+  roleId    String
+  scope     ResponsibilityScope
+  target    String              // free-text, e.g. "Product roadmap", "Payments projects"
+  createdAt DateTime            @default(now())
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@index([roleId])
+  @@map("role_responsibilities")
+}
+
+enum ResponsibilityScope {
+  OWNERSHIP   // what this role can own
+  DECISION    // what this role can decide on
+  EXECUTION   // what this role is expected to work on
 }

@@ -116,3 +116,61 @@ export function getProductionFeatureFlags(): FeatureFlags {
     enableBetaFeatures: !isProduction || !prodLock,
   }
 }
+
+/**
+ * Check if a feature flag is enabled by key (generic helper)
+ * Useful for feature flags that aren't in the typed FeatureFlags interface
+ */
+export async function isFeatureEnabledByKey(
+  workspaceId: string,
+  key: string
+): Promise<boolean> {
+  if (!workspaceId || !key) return false
+
+  try {
+    const flag = await prisma.featureFlag.findUnique({
+      where: {
+        workspaceId_key: {
+          workspaceId,
+          key,
+        },
+      },
+    })
+
+    return !!flag?.enabled
+  } catch (error) {
+    console.warn(`Failed to check feature flag ${key} for workspace ${workspaceId}:`, error)
+    return false
+  }
+}
+
+/**
+ * Ensure a feature flag exists (create if missing, don't update if exists)
+ * Useful for seeding/dev scripts
+ */
+export async function ensureFeatureFlag(
+  workspaceId: string,
+  key: string,
+  defaultEnabled = false
+): Promise<void> {
+  if (!workspaceId || !key) return
+
+  try {
+    await prisma.featureFlag.upsert({
+      where: {
+        workspaceId_key: {
+          workspaceId,
+          key,
+        },
+      },
+      update: {}, // Don't change existing flags
+      create: {
+        workspaceId,
+        key,
+        enabled: defaultEnabled,
+      },
+    })
+  } catch (error) {
+    console.warn(`Failed to ensure feature flag ${key} for workspace ${workspaceId}:`, error)
+  }
+}

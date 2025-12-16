@@ -3,9 +3,15 @@ import { prisma } from '@/lib/db'
 import OpenAI from 'openai'
 import { searchWikiKnowledge, formatWikiKnowledgeForAI } from '@/lib/wiki-knowledge'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization to avoid build-time errors when API key is missing
+function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured')
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+}
 
 // Mock response function for testing when OpenAI is not available
 function getMockResponse(session: any, message: string, messageCount: number): string {
@@ -296,6 +302,7 @@ Be conversational, helpful, and guide them through the project creation process 
         setTimeout(() => reject(new Error('OpenAI API timeout')), 30000)
       )
       
+      const openai = getOpenAIClient()
       const completion = await Promise.race([
         openai.chat.completions.create({
           model: "gpt-4-turbo-preview", // Use GPT-4 Turbo for better performance

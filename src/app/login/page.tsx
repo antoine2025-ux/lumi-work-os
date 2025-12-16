@@ -5,14 +5,28 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookOpen, ArrowRight } from "lucide-react"
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [hasGoogleAuth, setHasGoogleAuth] = useState(true)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Check for auth error in URL params
+    const errorParam = searchParams.get('error')
+    if (errorParam) {
+      const errorMessages: Record<string, string> = {
+        Configuration: 'Google OAuth is not configured. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env.local',
+        AccessDenied: 'Access denied. You may not have permission to sign in.',
+        Verification: 'The verification token has expired or has already been used.',
+        Default: 'An authentication error occurred. Please check your Google OAuth configuration.',
+      }
+      setAuthError(errorMessages[errorParam] || errorMessages.Default)
+    }
+
     // Clear logout flag when login page loads
     // This ensures fresh OAuth attempts don't get blocked
     const logoutFlag = sessionStorage.getItem('__logout_flag__')
@@ -25,18 +39,29 @@ export default function LoginPage() {
     // Users should explicitly sign in, not be auto-redirected
     console.log('🔵 Login page loaded - no auto-redirect, user must click sign in')
 
-    // Check if Google OAuth is available
+    // Check if Google OAuth is available via providers API
+    // The API will check server-side env vars (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
+    // and return providers accordingly
     fetch('/api/auth/providers')
       .then(res => res.json())
       .then(providers => {
         console.log('Available providers:', providers)
-        setHasGoogleAuth(!!providers.google)
+        const googleAvailable = !!providers.google
+        setHasGoogleAuth(googleAvailable)
+        
+        // In dev mode, if no Google provider but we expect it, log a warning
+        if (!googleAvailable && process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ Google OAuth not available. Check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local')
+          if (!authError) {
+            setAuthError('Google OAuth is not configured. Please replace REPLACE_WITH_GOOGLE_CLIENT_ID and REPLACE_WITH_GOOGLE_CLIENT_SECRET in .env.local with your actual Google OAuth credentials.')
+          }
+        }
       })
-      .catch(() => {
-        console.log('Error fetching providers')
+      .catch((err) => {
+        console.error('Error fetching providers:', err)
         setHasGoogleAuth(false)
       })
-  }, [router])
+  }, [router, searchParams, authError])
 
   const handleGoogleSignIn = async () => {
     console.log('🟢 [login] Google sign-in button clicked')
@@ -65,13 +90,16 @@ export default function LoginPage() {
       console.log('Note: Could not clear Google cookies (may be cross-domain)', e)
     }
     
+    // Get callbackUrl from query params if provided (e.g. from invite links)
+    const callbackUrl = searchParams.get('callbackUrl') || '/home'
+    
     setIsLoading(true)
     try {
       console.log('🟢 [login] Calling signIn("google") with account selection forced')
       // Force account selection by passing authorizationParams
       // This will override the default and ensure Google shows account picker
       const result = await signIn('google', { 
-        callbackUrl: '/home',
+        callbackUrl,
         redirect: true,
       })
       console.log('🟢 [login] signIn result:', result)
@@ -102,6 +130,12 @@ export default function LoginPage() {
             <div className="text-center text-sm text-muted-foreground mb-6">
               Sign in to access your wiki, workflows, and team collaboration tools
             </div>
+            
+            {authError && (
+              <div className="text-center text-sm text-destructive bg-destructive/10 p-3 rounded-lg border border-destructive/20">
+                <strong>Authentication Error:</strong> {authError}
+              </div>
+            )}
             
             <div className="space-y-3">
               {hasGoogleAuth ? (

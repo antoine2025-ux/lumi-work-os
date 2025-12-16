@@ -181,6 +181,31 @@ export async function GET(
     const errorMessage = error instanceof Error ? error.message : String(error)
     const errorStack = error instanceof Error ? error.stack : undefined
     console.error('Error details:', { errorMessage, errorStack, error })
+    
+    // Handle specific error cases
+    if (error instanceof Error) {
+      if (error.message.includes('Unauthorized') || error.message.includes('No session')) {
+        return NextResponse.json({ 
+          error: 'Unauthorized', 
+          details: errorMessage 
+        }, { status: 401 })
+      }
+      
+      if (error.message.includes('No workspace found')) {
+        return NextResponse.json({ 
+          error: 'No workspace found', 
+          details: 'Please create a workspace first' 
+        }, { status: 400 })
+      }
+      
+      if (error.message.includes('Forbidden')) {
+        return NextResponse.json({ 
+          error: 'Forbidden', 
+          details: errorMessage 
+        }, { status: 403 })
+      }
+    }
+    
     return NextResponse.json({ 
       error: 'Internal server error', 
       details: errorMessage 

@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { MigrationModal } from "@/components/migrations/migration-modal"
 import { useUserStatus } from '@/hooks/use-user-status'
+import { useApiAction } from "@/hooks/useApiAction"
+import { useToast } from "@/components/ui/use-toast"
 import { 
   Settings, 
   User, 
@@ -56,6 +58,7 @@ export default function SettingsPage() {
   const { userStatus, loading: userStatusLoading } = useUserStatus()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("workspace")
   const [workspaceData, setWorkspaceData] = useState<WorkspaceData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -70,6 +73,14 @@ export default function SettingsPage() {
   const [slackIntegration, setSlackIntegration] = useState<SlackIntegration | null>(null)
   const [slackLoading, setSlackLoading] = useState(false)
   const [slackMessage, setSlackMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  const updateWorkspaceAction = useApiAction<WorkspaceData, { name: string; description?: string; slug?: string }>({
+    url: workspaceData ? `/api/workspaces/${workspaceData.id}` : "",
+    method: "PUT",
+    defaultErrorMessage: "Failed to update workspace.",
+    errorToastTitle: "Could not update workspace",
+    disableErrorToast: true, // We handle errors manually with setError
+  })
 
   // Fetch workspace data
   useEffect(() => {
@@ -199,30 +210,29 @@ export default function SettingsPage() {
   const handleSave = async () => {
     if (!workspaceData) return
     
+    setSaving(true)
+    setError(null)
+    
     try {
-      setSaving(true)
-      setError(null)
-      
-      const response = await fetch(`/api/workspaces/${workspaceData.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
+      const { data, error: actionError } = await updateWorkspaceAction.run({
+        name: formData.name,
+        description: formData.description || undefined,
+        slug: formData.slug || undefined,
       })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update workspace')
+
+      if (actionError) {
+        setError(actionError.message ?? 'Failed to update workspace')
+        return
       }
-      
-      const updatedWorkspace = await response.json()
-      setWorkspaceData(updatedWorkspace)
-      setEditMode(false)
-      
-      // Show success message (you could add a toast notification here)
-      console.log('Workspace updated successfully')
-      
+
+      if (data) {
+        setWorkspaceData(data)
+        setEditMode(false)
+        toast({
+          title: "Workspace updated",
+          description: "Your workspace settings have been saved.",
+        })
+      }
     } catch (err) {
       console.error('Error updating workspace:', err)
       setError(err instanceof Error ? err.message : 'Failed to update workspace')
@@ -512,13 +522,13 @@ export default function SettingsPage() {
                   
                   {editMode && (
                     <div className="flex space-x-2">
-                      <Button onClick={handleSave} disabled={saving}>
-                        {saving ? (
+                      <Button onClick={handleSave} disabled={saving || updateWorkspaceAction.loading}>
+                        {saving || updateWorkspaceAction.loading ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                           <Save className="mr-2 h-4 w-4" />
                         )}
-                        {saving ? 'Saving...' : 'Save Changes'}
+                        {saving || updateWorkspaceAction.loading ? 'Saving...' : 'Save Changes'}
                       </Button>
                       <Button 
                         variant="outline" 

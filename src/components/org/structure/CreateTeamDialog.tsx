@@ -1,0 +1,290 @@
+"use client";
+
+import * as React from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import { OrgCapabilityGate } from "@/components/org/OrgCapabilityGate";
+import { useOrgPermissions } from "@/components/org/OrgPermissionsContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+
+type CreateTeamFormValues = {
+  name: string;
+  departmentId?: string;
+  description?: string;
+};
+
+type CreateTeamDialogProps = {
+  // Optional: preselected department (e.g. when coming from a filtered view)
+  defaultDepartmentId?: string;
+
+  // Optional: list of departments to choose from (id + name)
+  departments?: { id: string; name: string }[];
+
+  // Called when the form is submitted successfully.
+  // This will be wired to a mutation later.
+  onCreateTeam?: (values: CreateTeamFormValues) => Promise<void> | void;
+};
+
+export function CreateTeamDialog(props: CreateTeamDialogProps) {
+  const { defaultDepartmentId, departments, onCreateTeam } = props;
+
+  const router = useRouter();
+  const { toast } = useToast();
+  const perms = useOrgPermissions();
+
+  const [open, setOpen] = useState(false);
+  const [values, setValues] = useState<CreateTeamFormValues>({
+    name: "",
+    departmentId: defaultDepartmentId,
+    description: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function resetForm() {
+    setValues({
+      name: "",
+      departmentId: defaultDepartmentId,
+      description: "",
+    });
+    setError(null);
+  }
+
+  async function createTeamViaApi(payload: CreateTeamFormValues) {
+    const res = await fetch("/api/org/teams", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const message =
+        data?.error?.message ||
+        data?.error ||
+        data?.message ||
+        "Something went wrong while creating the team.";
+      throw new Error(message);
+    }
+
+    return res.json();
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+
+    if (!values.name.trim()) {
+      setError("Team name is required.");
+      return;
+    }
+
+    // Department is required by the schema, but we allow it to be optional in the UI
+    // Show a helpful error if no department is selected
+    if (!values.departmentId) {
+      if (!departments || departments.length === 0) {
+        setError("Please create a department first, then create a team.");
+        return;
+      } else {
+        setError("Please select a department for this team.");
+        return;
+      }
+    }
+
+    try {
+      setSubmitting(true);
+
+      const payload: CreateTeamFormValues = {
+        name: values.name.trim(),
+        departmentId: values.departmentId || undefined,
+        description: values.description?.trim() || undefined,
+      };
+
+      let createdTeamId: string | undefined;
+
+      if (onCreateTeam) {
+        await onCreateTeam(payload);
+      } else {
+        const result = await createTeamViaApi(payload);
+        createdTeamId = result?.data?.id;
+      }
+
+      toast({
+        title: "✓ Success",
+        description: `"${payload.name}" was created.`,
+      });
+
+      // Navigate with created badge, then refresh
+      if (createdTeamId) {
+        router.push(`/org/structure?tab=teams&created=${createdTeamId}`);
+      }
+      router.refresh();
+
+      setSubmitting(false);
+      setOpen(false);
+      resetForm();
+    } catch (err: any) {
+      console.error("[CreateTeamDialog] Failed to create team:", err);
+      setSubmitting(false);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while creating the team. Please try again."
+      );
+    }
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      resetForm();
+    }
+    setOpen(nextOpen);
+  }
+
+  return (
+    <OrgCapabilityGate
+      capability="org:team:create"
+      permissions={perms}
+      fallback={null}
+    >
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger asChild>
+          <Button
+            size="sm"
+            className="rounded-full bg-slate-100 px-4 py-1.5 text-[13px] font-medium text-slate-900 hover:bg-white"
+          >
+            New team
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-md border border-slate-800 bg-[#020617] text-slate-100">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold text-slate-50">
+            Create team
+          </DialogTitle>
+          <DialogDescription className="text-xs text-slate-400">
+            Add a new team to your organization. A department is required to create a team.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-medium text-slate-300">
+              Team name
+            </label>
+            <Input
+              autoFocus
+              value={values.name}
+              onChange={(e) =>
+                setValues((prev) => ({ ...prev, name: e.target.value }))
+              }
+              placeholder="e.g. Onboarding squad"
+              className="h-8 rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100 placeholder:text-slate-500"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-medium text-slate-300">
+              Department
+              <span className="ml-1 text-[11px] font-normal text-slate-500">
+                (required)
+              </span>
+            </label>
+            {departments && departments.length > 0 ? (
+              <select
+                value={values.departmentId ?? ""}
+                onChange={(e) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    departmentId: e.target.value || undefined,
+                  }))
+                }
+                className={cn(
+                  "h-8 w-full rounded-md border border-slate-700 bg-[#020617] px-2 text-[13px] text-slate-100",
+                  "outline-none transition-colors duration-150",
+                  "hover:border-slate-500 focus-visible:ring-2 focus-visible:ring-[#5CA9FF] focus-visible:ring-offset-0"
+                )}
+              >
+                <option value="">No department</option>
+                {departments.map((dep) => (
+                  <option key={dep.id} value={dep.id}>
+                    {dep.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="text-[11px] text-red-400">
+                No departments available yet. Please create a department first before creating a team.
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-medium text-slate-300">
+              Description
+              <span className="ml-1 text-[11px] font-normal text-slate-500">
+                (optional)
+              </span>
+            </label>
+            <Textarea
+              value={values.description ?? ""}
+              onChange={(e) =>
+                setValues((prev) => ({ ...prev, description: e.target.value }))
+              }
+              placeholder="Short description of what this team is responsible for."
+              className="min-h-[72px] rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100 placeholder:text-slate-500"
+            />
+          </div>
+
+          {error && (
+            <div className="text-[11px] text-red-400">
+              {error}
+            </div>
+          )}
+
+          <DialogFooter className="mt-2 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-[13px] text-slate-400 hover:text-slate-100"
+              onClick={() => handleOpenChange(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={submitting}
+              className="rounded-full bg-slate-100 px-4 py-1.5 text-[13px] font-medium text-slate-900 hover:bg-white"
+            >
+              {submitting ? "Creating…" : "Create team"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+      </Dialog>
+    </OrgCapabilityGate>
+  );
+}
+
+export function CreateTeamDialogInlineTrigger(props: CreateTeamDialogProps) {
+  // Convenience component in case you want a simpler import name at call sites.
+  return <CreateTeamDialog {...props} />;
+}
+

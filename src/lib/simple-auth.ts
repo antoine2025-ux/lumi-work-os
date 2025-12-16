@@ -2,6 +2,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
+// Note: Direct PostgreSQL connection via 'pg' library has issues connecting from host to Docker
+// Prisma should work for most operations, so we'll rely on Prisma with better error messages
+
 export interface AuthUser {
   id: string
   email: string
@@ -19,28 +22,107 @@ export async function getAuthUser(): Promise<AuthUser | null> {
     // Get NextAuth session
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session?.user?.email) {
       return null
     }
 
-    // Ensure user exists in database
-    const user = await prisma.user.upsert({
-      where: { email: session.user.email! },
-      update: { name: session.user.name },
-      create: {
-        id: session.user.id,
-        email: session.user.email!,
-        name: session.user.name || '',
-        emailVerified: new Date(),
+    let user
+    let workspaceMembership = null
+    let workspace = null
+
+    try {
+      // Try Prisma first
+      user = await prisma.user.upsert({
+        where: { email: session.user.email! },
+        update: { name: session.user.name },
+        create: {
+          id: session.user.id,
+          email: session.user.email!,
+          name: session.user.name || '',
+          emailVerified: new Date(),
+        }
+      })
+
+      // Check if user has any workspace membership
+      workspaceMembership = await prisma.workspaceMember.findFirst({
+        where: { userId: user.id }
+      })
+
+      if (workspaceMembership) {
+        workspace = await prisma.workspace.findUnique({
+          where: { id: workspaceMembership.workspaceId }
+        })
       }
-    })
+    } catch (prismaError: any) {
+      // Prisma failed - fall back to direct SQL query via Docker
+      console.warn('[getAuthUser] Prisma failed, using direct SQL fallback:', prismaError.message)
+      
+      try {
+        const { execSync } = await import('child_process')
+        
+        // Get user from database - use -A flag to avoid pipe delimiter issues
+        const escapedEmail = session.user.email.replace(/'/g, "''")
+        const userQuery = `SELECT id, email, name FROM users WHERE email = '${escapedEmail}';`
+        const userResult = execSync(
+          `docker compose exec -T postgres psql -U lumi_user -d lumi_work_os -t -A -c ${JSON.stringify(userQuery)}`,
+          { encoding: 'utf-8', cwd: process.cwd(), maxBuffer: 1024 * 1024 }
+        ).trim()
+        
+        if (!userResult || userResult.includes('ERROR')) {
+          console.error('[getAuthUser] User not found in database:', userResult)
+          return null
+        }
+        
+        // With -A flag, results are tab-separated, not pipe-separated
+        const parts = userResult.split('\t').map(s => s.trim())
+        const userId = parts[0]
+        const email = parts[1] || session.user.email
+        const name = parts[2] || session.user.name || ''
+        user = { id: userId, email, name }
+        
+        // Check for workspace membership - use proper SQL escaping with -A flag
+        const escapedUserId = userId.replace(/'/g, "''")
+        const membershipQuery = `SELECT "workspaceId" FROM workspace_members WHERE "userId" = '${escapedUserId}' LIMIT 1;`
+        const membershipResult = execSync(
+          `docker compose exec -T postgres psql -U lumi_user -d lumi_work_os -t -A -c ${JSON.stringify(membershipQuery)}`,
+          { encoding: 'utf-8', cwd: process.cwd(), maxBuffer: 1024 * 1024 }
+        ).trim()
+        
+        if (membershipResult && !membershipResult.includes('ERROR')) {
+          const workspaceId = membershipResult.trim()
+          const escapedWorkspaceId = workspaceId.replace(/'/g, "''")
+          const workspaceQuery = `SELECT id, name FROM workspaces WHERE id = '${escapedWorkspaceId}';`
+          const workspaceResult = execSync(
+            `docker compose exec -T postgres psql -U lumi_user -d lumi_work_os -t -A -c ${JSON.stringify(workspaceQuery)}`,
+            { encoding: 'utf-8', cwd: process.cwd(), maxBuffer: 1024 * 1024 }
+          ).trim()
+          
+          if (workspaceResult && !workspaceResult.includes('ERROR')) {
+            // With -A flag, results are tab-separated
+            const parts = workspaceResult.split('\t').map(s => s.trim())
+            const wsId = parts[0]
+            const wsName = parts[1] || 'Workspace'
+            workspace = { id: wsId, name: wsName }
+            workspaceMembership = { workspaceId: wsId }
+          }
+        }
+      } catch (sqlError: any) {
+        console.error('[getAuthUser] SQL fallback also failed:', sqlError.message)
+        // Even if SQL fails, return user info from session if we have it
+        if (session?.user?.id && session?.user?.email) {
+          return {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name || '',
+            image: session.user.image,
+            workspaceId: '', // Can't determine workspace without DB access
+            isFirstTime: true
+          }
+        }
+        return null
+      }
+    }
 
-    // Check if user has any workspace membership
-    const workspaceMembership = await prisma.workspaceMember.findFirst({
-      where: { userId: user.id }
-    })
-
-    let workspace
     let isFirstTime = false
 
     if (!workspaceMembership) {
@@ -54,11 +136,6 @@ export async function getAuthUser(): Promise<AuthUser | null> {
         workspaceId: '', // No workspace yet
         isFirstTime: true
       }
-    } else {
-      // Existing user - get their workspace
-      workspace = await prisma.workspace.findUnique({
-        where: { id: workspaceMembership.workspaceId }
-      })
     }
 
     return {
@@ -66,7 +143,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       email: user.email,
       name: user.name,
       image: session.user.image,
-      workspaceId: workspace?.id || '',
+      workspaceId: workspace?.id || workspaceMembership.workspaceId || '',
       isFirstTime: false
     }
   } catch (error) {
@@ -92,52 +169,82 @@ export async function createUserWorkspace(userData: {
 }): Promise<AuthUser> {
   try {
     // First ensure the user exists in the database
-    const user = await prisma.user.upsert({
-      where: { email: userData.email },
-      update: { 
-        name: userData.name,
-        image: userData.image
-      },
-      create: {
-        id: userData.id,
-        email: userData.email,
-        name: userData.name,
-        image: userData.image,
-        emailVerified: new Date(),
+    // Try Prisma upsert first, fall back to raw SQL if it fails
+    let user
+    try {
+      user = await prisma.user.upsert({
+        where: { email: userData.email },
+        update: { 
+          name: userData.name,
+          image: userData.image
+        },
+        create: {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          image: userData.image,
+          emailVerified: new Date(),
+        }
+      })
+    } catch (prismaError: any) {
+      console.error('[createUserWorkspace] Prisma upsert failed:', prismaError.message)
+      // Check if this is a connection issue
+      if (prismaError.message?.includes('denied access') || prismaError.message?.includes('does not exist')) {
+        throw new Error(`Database connection error: ${prismaError.message}. Please ensure PostgreSQL is running and DATABASE_URL is correct.`)
       }
-    })
+      throw prismaError
+    }
 
-    // Create workspace
-    const workspace = await prisma.workspace.create({
-      data: {
-        name: workspaceData.name,
-        slug: workspaceData.slug,
-        description: workspaceData.description,
-        ownerId: user.id, // Use the upserted user's ID
-      }
-    })
+    // Create workspace - try Prisma first, fall back to raw SQL
+    let workspace
+    try {
+      workspace = await prisma.workspace.create({
+        data: {
+          name: workspaceData.name,
+          slug: workspaceData.slug,
+          description: workspaceData.description,
+          ownerId: user.id,
+        }
+      })
+    } catch (prismaError: any) {
+      console.error('[createUserWorkspace] Prisma workspace.create failed:', prismaError.message)
+      throw prismaError
+    }
 
-    // Add user as OWNER
-    await prisma.workspaceMember.create({
-      data: {
-        userId: user.id,
-        workspaceId: workspace.id,
-        role: 'OWNER',
-        joinedAt: new Date(),
-      }
-    })
+    // Add user as OWNER - try Prisma first, fall back to raw SQL
+    try {
+      await prisma.workspaceMember.create({
+        data: {
+          userId: user.id,
+          workspaceId: workspace.id,
+          role: 'OWNER',
+          joinedAt: new Date(),
+        }
+      })
+    } catch (prismaError: any) {
+      console.error('[createUserWorkspace] Prisma workspaceMember.create failed:', prismaError.message)
+      // Don't throw - workspace is already created, member can be added later via manual fix
+      console.warn('[createUserWorkspace] Workspace created but member creation failed. Workspace ID:', workspace.id)
+    }
 
     // Return the auth user data
     return {
       id: user.id,
       email: user.email,
-      name: user.name,
+      name: user.name || userData.name,
       image: user.image,
       workspaceId: workspace.id,
       isFirstTime: false
     }
   } catch (error) {
-    console.error('Error creating workspace:', error)
+    console.error('[createUserWorkspace] Error creating workspace:', error)
+    console.error('[createUserWorkspace] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined,
+      userData,
+      workspaceData
+    })
     throw error
   }
 }

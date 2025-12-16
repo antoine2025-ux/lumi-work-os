@@ -72,6 +72,20 @@ const navigationItems = [
     href: "/settings",
     icon: Sliders,
     description: "Workspace configuration"
+  },
+  {
+    name: "Members",
+    href: "/org/settings/members",
+    icon: Users,
+    description: "Manage org members and roles",
+    requiresAdmin: true
+  },
+  {
+    name: "Invitations",
+    href: "/org/settings/invitations",
+    icon: Users,
+    description: "Manage org invitations",
+    requiresAdmin: true
   }
 ]
 
@@ -83,6 +97,28 @@ export function Header() {
   const { currentWorkspace, userRole } = useWorkspace()
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const [userRoleFromPermissions, setUserRoleFromPermissions] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  // Fetch user permissions to check admin role
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/org/permissions", { cache: "no-store" });
+        const data = await res.json();
+        if (data?.ok) {
+          setUserRoleFromPermissions(data.role);
+        }
+      } catch {
+        // Silently fail
+      }
+    })();
+  }, []);
+
+  // Set mounted state to prevent hydration mismatch with Radix UI
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Prefetch all common routes on mount for instant navigation
   useEffect(() => {
@@ -134,10 +170,16 @@ export function Header() {
           <div className="flex-1 flex items-center justify-center">
             <div className="flex items-center space-x-1">
             {navigationItems.map((item) => {
+              // Hide admin-only items if user is not admin
+              if (item.requiresAdmin && userRoleFromPermissions !== "ADMIN") {
+                return null;
+              }
+
               // Check if current pathname matches the navigation item
               // For routes other than dashboard, also check if pathname starts with href
+              // This ensures sub-routes (e.g., /org/departments) highlight the parent nav item
               const isActive = pathname === item.href || 
-                (item.href !== "/home" && pathname?.startsWith(item.href))
+                (item.href !== "/home" && pathname?.startsWith(item.href + "/"))
               
               return (
                 <Link
@@ -185,107 +227,118 @@ export function Header() {
               <Bell className="h-5 w-5" />
             </Button>
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:bg-muted">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
-                    <AvatarFallback className="bg-muted text-foreground">
-                      {session?.user?.name?.charAt(0) || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{session?.user?.name || "Demo User"}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {session?.user?.email || "demo@example.com"}
-                    </p>
-                    {userRole && (
+            {mounted ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:bg-muted">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
+                      <AvatarFallback className="bg-muted text-foreground">
+                        {session?.user?.name?.charAt(0) || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{session?.user?.name || "Demo User"}</p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {currentWorkspace?.name} • {userRole}
+                        {session?.user?.email || "demo@example.com"}
                       </p>
-                    )}
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={async () => {
-                  // STEP 1: Clear user status cache immediately
-                  clearUserStatusCache()
-                  
-                  // STEP 2: Sign out from NextAuth first (this clears server-side session)
-                  try {
-                    await signOut({ redirect: false })
-                  } catch (e) {
-                    console.log('Sign out error (continuing anyway):', e)
-                  }
-                  
-                  // STEP 3: Set logout flag BEFORE clearing storage
-                  sessionStorage.setItem('__logout_flag__', 'true')
-                  
-                  // STEP 4: Clear all local storage (except the logout flag)
-                  localStorage.clear()
-                  // Don't clear sessionStorage completely - we need the flag!
-                  // But clear other items
-                  Object.keys(sessionStorage).forEach(key => {
-                    if (key !== '__logout_flag__') {
-                      sessionStorage.removeItem(key)
+                      {userRole && (
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {currentWorkspace?.name} • {userRole}
+                        </p>
+                      )}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={async () => {
+                    // STEP 1: Clear user status cache immediately
+                    clearUserStatusCache()
+                    
+                    // STEP 2: Sign out from NextAuth first (this clears server-side session)
+                    try {
+                      await signOut({ redirect: false })
+                    } catch (e) {
+                      console.log('Sign out error (continuing anyway):', e)
                     }
-                  })
-                  
-                  // STEP 5: Clear all cookies including NextAuth and Google OAuth cookies
-                  const cookies = document.cookie.split(";")
-                  cookies.forEach(function(c) { 
-                    const eqPos = c.indexOf('=')
-                    const name = eqPos > -1 ? c.substr(0, eqPos).trim() : c.trim()
-                    // Clear all cookies
-                    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
-                    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`
-                    // Try to clear Google cookies (may not work due to cross-domain, but worth trying)
-                    if (name.includes('google') || name.includes('gid') || name.includes('GA') || name.includes('oauth')) {
-                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.google.com`
-                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.googleapis.com`
-                    }
-                  })
-                  
-                  // STEP 6: Clear NextAuth session storage
-                  try {
-                    // Clear any NextAuth session data
-                    if (typeof window !== 'undefined') {
-                      // Clear indexedDB if used by NextAuth
-                      if ('indexedDB' in window) {
-                        indexedDB.databases().then(databases => {
-                          databases.forEach(db => {
-                            if (db.name && db.name.includes('next-auth')) {
-                              indexedDB.deleteDatabase(db.name)
-                            }
-                          })
-                        }).catch(() => {})
+                    
+                    // STEP 3: Set logout flag BEFORE clearing storage
+                    sessionStorage.setItem('__logout_flag__', 'true')
+                    
+                    // STEP 4: Clear all local storage (except the logout flag)
+                    localStorage.clear()
+                    // Don't clear sessionStorage completely - we need the flag!
+                    // But clear other items
+                    Object.keys(sessionStorage).forEach(key => {
+                      if (key !== '__logout_flag__') {
+                        sessionStorage.removeItem(key)
                       }
+                    })
+                    
+                    // STEP 5: Clear all cookies including NextAuth and Google OAuth cookies
+                    const cookies = document.cookie.split(";")
+                    cookies.forEach(function(c) { 
+                      const eqPos = c.indexOf('=')
+                      const name = eqPos > -1 ? c.substr(0, eqPos).trim() : c.trim()
+                      // Clear all cookies
+                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`
+                      // Try to clear Google cookies (may not work due to cross-domain, but worth trying)
+                      if (name.includes('google') || name.includes('gid') || name.includes('GA') || name.includes('oauth')) {
+                        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.google.com`
+                        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.googleapis.com`
+                      }
+                    })
+                    
+                    // STEP 6: Clear NextAuth session storage
+                    try {
+                      // Clear any NextAuth session data
+                      if (typeof window !== 'undefined') {
+                        // Clear indexedDB if used by NextAuth
+                        if ('indexedDB' in window) {
+                          indexedDB.databases().then(databases => {
+                            databases.forEach(db => {
+                              if (db.name && db.name.includes('next-auth')) {
+                                indexedDB.deleteDatabase(db.name)
+                              }
+                            })
+                          }).catch(() => {})
+                        }
+                      }
+                    } catch (e) {
+                      console.log('Could not clear indexedDB:', e)
                     }
-                  } catch (e) {
-                    console.log('Could not clear indexedDB:', e)
-                  }
-                  
-                  // STEP 7: Force redirect to login immediately
-                  // Add a small delay to ensure cookies are cleared
-                  setTimeout(() => {
-                    window.location.href = '/login'
-                  }, 100)
-                }}>
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    
+                    // STEP 7: Force redirect to login immediately
+                    // Add a small delay to ensure cookies are cleared
+                    setTimeout(() => {
+                      window.location.href = '/login'
+                    }, 100)
+                  }}>
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:bg-muted">
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
+                  <AvatarFallback className="bg-muted text-foreground">
+                    {session?.user?.name?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            )}
           </div>
         </div>
       </header>

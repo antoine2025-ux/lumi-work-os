@@ -4,9 +4,15 @@ import OpenAI from 'openai'
 import { getWikiContext } from '@/lib/wiki'
 import { prisma } from '@/lib/db'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization to avoid build-time errors when API key is missing
+function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured')
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+}
 
 const generatePlanSchema = z.object({
   role: z.string().min(1).max(100),
@@ -113,6 +119,7 @@ Generate a comprehensive onboarding plan for this role.`
 
     try {
       // Use OpenAI API to generate the plan with timeout
+      const openai = getOpenAIClient()
       const completion = await Promise.race([
         openai.chat.completions.create({
           model: 'gpt-4',

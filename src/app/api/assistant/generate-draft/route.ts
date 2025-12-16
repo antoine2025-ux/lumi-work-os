@@ -3,9 +3,15 @@ import { prisma } from '@/lib/db'
 import OpenAI from 'openai'
 import { searchWikiKnowledge, formatWikiKnowledgeForAI } from '@/lib/wiki-knowledge'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization to avoid build-time errors when API key is missing
+function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured')
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+}
 
 // Mock draft content for testing when OpenAI is not available
 function getMockDraftContent(): string {
@@ -204,6 +210,7 @@ The document should be production-ready and comprehensive.${wikiContext}`
     let draftContent = "Failed to generate draft."
     
     try {
+      const openai = getOpenAIClient()
       const completion = await openai.chat.completions.create({
         model: "gpt-4",
         messages: [

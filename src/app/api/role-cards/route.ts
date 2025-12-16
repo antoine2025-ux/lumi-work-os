@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { onRoleCardChanged } from '@/lib/org/liveUpdateHooks'
 
 // GET /api/role-cards - Get all role cards for a workspace
 export async function GET(request: NextRequest) {
@@ -139,6 +140,12 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+
+    // Update role ContextItem in Context Store
+    await onRoleCardChanged({
+      workspaceId: auth.workspaceId,
+      roleCardId: roleCard.id,
+    });
 
     return NextResponse.json({ roleCard })
   } catch (error) {

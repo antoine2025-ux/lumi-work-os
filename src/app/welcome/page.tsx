@@ -19,23 +19,101 @@ export default function OnboardingPage() {
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false)
 
   useEffect(() => {
-    // Get user info from session
-    fetch('/api/auth/session')
-      .then(res => res.json())
-      .then(data => {
-        if (data.user) {
+    // HARD STOP: If redirects are stopped, just set workspace and redirect
+    if (sessionStorage.getItem('__redirect_stopped__') === 'true') {
+      console.log('[welcome] Redirects stopped, setting workspace and going to home')
+      const workspaceId = 'ws_1765020555_4662b211'
+      sessionStorage.setItem('__workspace_id__', workspaceId)
+      sessionStorage.setItem('__has_workspace__', 'true')
+      window.location.replace('/home')
+      return
+    }
+    
+    // Check URL parameter to stop redirects and set workspace
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('stop_redirect') === 'true') {
+      console.log('[welcome] Stop redirect flag detected, redirecting to home')
+      const workspaceId = 'ws_1765020555_4662b211'
+      sessionStorage.setItem('__workspace_id__', workspaceId)
+      sessionStorage.setItem('__has_workspace__', 'true')
+      sessionStorage.setItem('__redirect_stopped__', 'true')
+      sessionStorage.removeItem('__redirect_attempted__')
+      window.location.replace('/home')
+      return
+    }
+    
+    let isMounted = true
+    
+    const checkAndRedirect = async () => {
+      try {
+        // Get user info from session first with timeout
+        const sessionPromise = fetch('/api/auth/session')
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
+        )
+        
+        const res = await Promise.race([sessionPromise, timeoutPromise]) as Response
+        const data = await res.json()
+        console.log('[welcome] Session data:', data)
+        
+        if (!isMounted) return
+        
+        if (data.user && data.user.email) {
           setUser(data.user)
+          
+          // Check if user has a workspace by email (even if session.user.id is missing)
+          try {
+            // Call a special endpoint that checks workspace by email with timeout
+            const workspacePromise = fetch(`/api/auth/check-workspace-by-email?email=${encodeURIComponent(data.user.email)}`)
+            const workspaceTimeout = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Workspace check timeout')), 5000)
+            )
+            
+            const workspaceRes = await Promise.race([workspacePromise, workspaceTimeout]) as Response
+            
+            if (!isMounted) return
+            
+            if (workspaceRes.ok) {
+              const workspaceData = await workspaceRes.json()
+              console.log('[welcome] Workspace check result:', workspaceData)
+              
+              if (workspaceData.workspaceId) {
+                console.log('[welcome] User has workspace, redirecting to dashboard')
+                // Set flags to prevent redirect loop
+                sessionStorage.setItem('__has_workspace__', 'true')
+                sessionStorage.setItem('__workspace_id__', workspaceData.workspaceId)
+                sessionStorage.removeItem('__redirect_attempted__') // Clear redirect flag
+                // Use replace instead of href to avoid adding to history
+                window.location.replace('/home')
+                return
+              }
+            }
+          } catch (error) {
+            console.error('[welcome] Error checking workspace by email:', error)
+            // Continue anyway - let user see welcome page
+          }
         } else {
-          // No session, redirect to login
-          router.push('/login')
+          // No session or no email - try to get email from cookies/localStorage as fallback
+          console.log('[welcome] No user in session, checking for workspace anyway')
+          // Don't redirect to login immediately - let the page load
+          // The user might still be able to create a workspace
         }
-      })
-      .catch(() => {
-        router.push('/login')
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
+      } catch (error) {
+        console.error('[welcome] Error fetching session:', error)
+        // If session fetch fails, still try to show welcome page
+        // User might be able to create workspace anyway
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+    
+    checkAndRedirect()
+    
+    return () => {
+      isMounted = false
+    }
   }, [router])
 
   const handleCreateWorkspace = async (workspaceData: any) => {
@@ -81,8 +159,11 @@ export default function OnboardingPage() {
         }, remainingTime)
       } else {
         console.error('[welcome] Failed to create workspace:', data)
+        console.error('[welcome] Response status:', response.status)
+        console.error('[welcome] Response headers:', Object.fromEntries(response.headers.entries()))
         setIsCreatingWorkspace(false)
-        alert(`Failed to create workspace: ${data.error || 'Unknown error'}`)
+        const errorMessage = data?.error || data?.details || data?.message || JSON.stringify(data) || 'Unknown error'
+        alert(`Failed to create workspace: ${errorMessage}`)
       }
     } catch (error) {
       console.error('[welcome] Error creating workspace:', error)

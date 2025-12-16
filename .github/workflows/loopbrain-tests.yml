@@ -1,0 +1,93 @@
+name: Loopbrain Tests
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/loopbrain/**'
+      - 'src/app/api/loopbrain/**'
+      - 'prisma/seed/loopbrain_fixtures.ts'
+      - 'scripts/sweep-loopbrain.mjs'
+      - '.github/workflows/loopbrain-tests.yml'
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'src/lib/loopbrain/**'
+      - 'src/app/api/loopbrain/**'
+      - 'prisma/seed/loopbrain_fixtures.ts'
+      - 'scripts/sweep-loopbrain.mjs'
+      - '.github/workflows/loopbrain-tests.yml'
+
+jobs:
+  loopbrain-snapshots:
+    name: Loopbrain Snapshot Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Setup database
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate
+      
+      - name: Seed Loopbrain fixtures
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          SEED_LOOPBRAIN_FIXTURES: 'true'
+          ALLOW_DEV_LOGIN: 'true'
+          PROD_LOCK: 'false'
+        run: npm run seed:loopbrain
+      
+      - name: Start dev server
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          NODE_ENV: test
+        run: |
+          npm run build
+          npm start &
+          sleep 10
+          # Wait for server to be ready
+          timeout 60 bash -c 'until curl -f http://localhost:3000/api/health 2>/dev/null; do sleep 2; done' || true
+      
+      - name: Run snapshot tests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          BASE_URL: http://localhost:3000
+        run: npm run test:loopbrain:snap
+      
+      - name: Upload snapshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: loopbrain-snapshots
+          path: src/lib/loopbrain/__tests__/__snapshots__/
+          retention-days: 7
+

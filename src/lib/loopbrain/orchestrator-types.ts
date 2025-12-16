@@ -43,6 +43,8 @@ export interface LoopbrainRequest {
   roleId?: string
   /** Team ID (for Org mode) */
   teamId?: string
+  /** Person ID (for Org mode) */
+  personId?: string
   
   // Optional flags
   /** Whether to use semantic search for RAG augmentation */

@@ -15,11 +15,38 @@
  */
 
 import { contextEngine, getWorkspaceContextObjects, getPersonalSpaceDocs, getOrgPeopleContext, getProjectContextObject, getEpicContextObject, getProjectEpicsContext, getProjectTasksContext } from './context-engine'
+import { fetchOrgContextSliceForWorkspace } from './org-context-reader'
+import { getOrgContextForLoopbrain } from './orgContextForLoopbrain'
+import { buildOrgPromptContext, buildOrgContextText, type OrgPromptContext } from './orgPromptContextBuilder'
+import {
+  getOrgHeadcountContextForLoopbrain,
+  getOrgReportingContextForLoopbrain,
+  getOrgRiskContextForLoopbrain,
+  type OrgHeadcountContext,
+  type OrgReportingContext,
+  type OrgRiskContext,
+} from './orgSubContexts'
+import { ORG_GUARDRAILS, ORG_OUTPUT_FORMAT_RULES } from './promptBlocks/orgGuardrails'
+import { validateOrgResponse } from './postProcessors/orgValidator'
+import {
+  expandPersonContext,
+  expandTeamContext,
+  expandDepartmentContext,
+  expandHealthAnalysisContext,
+  expandOrgBundleByType,
+} from './org-bundle-expander'
+import type { ContextObject } from './context-types'
+import {
+  inferOrgQuestionTypeFromRequest,
+  type OrgQuestionContext,
+} from './org-question-types'
 import { prisma } from '@/lib/db'
 import { buildEpicContext, type EpicWithRelations } from './context-sources/pm/epics'
 import { searchSimilarContextItems } from './embedding-service'
 import { generateAIResponse } from '@/lib/ai/providers'
 import { logger } from '@/lib/logger'
+import { ORG_SYSTEM_PROMPT } from './prompts/org-system-prompt'
+import type { OrgQuestionContext } from './org-question-types'
 import {
   LoopbrainRequest,
   LoopbrainResponse,
@@ -31,11 +58,40 @@ import {
 import { ContextType } from './context-types'
 import { isSlackAvailable, loopbrainSendSlackMessage, loopbrainReadSlackChannel } from './slack-helper'
 import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
+import { buildOrgLoopbrainContextBundleForWorkspace } from './org/buildOrgLoopbrainContextBundle'
+import { buildOrgPromptSectionFromBundle } from './org/buildOrgPromptSection'
+import { buildOrgSystemAddendum } from './org/buildOrgSystemAddendum'
+import { buildOrgFewShotExamples } from './org/buildOrgFewShotExamples'
+import { isOrgQuestion } from './org/isOrgQuestion'
+import { recordOrgRoutingEvent } from './org/telemetry'
+import type { OrgDebugSnapshot } from '@/types/loopbrain-org-debug'
+import { detectOrgQuestionType as detectOrgQuestionTypeFromModule } from './orgQuestionType'
+import { logOrgLoopbrainQuery } from './orgTelemetry'
 
 /**
  * Default LLM model for Loopbrain
  */
 const DEFAULT_LOOPBRAIN_MODEL = 'gpt-4-turbo'
+
+/**
+ * Dev-only: Track last Org debug snapshot for debugging routing decisions
+ */
+let lastOrgDebugSnapshot: OrgDebugSnapshot | null = null
+
+/**
+ * Set Org debug snapshot (dev-only)
+ */
+function setOrgDebugSnapshot(snapshot: OrgDebugSnapshot) {
+  if (process.env.NODE_ENV !== "development") return
+  lastOrgDebugSnapshot = snapshot
+}
+
+/**
+ * Get last Org debug snapshot (dev-only)
+ */
+export function getLastOrgDebugSnapshot(): OrgDebugSnapshot | null {
+  return lastOrgDebugSnapshot
+}
 
 /**
  * Main orchestrator function
@@ -367,23 +423,221 @@ async function handleOrgMode(
     // Don't fail the request if org people fail to load
   }
   
-  // Build prompt (include Slack availability)
-  const prompt = buildOrgPrompt(req, contextSummary, slackAvailable)
+  // 1) Determine if this is actually an Org question (guardrail)
+  const wantsOrg = isOrgQuestion(req.query, {
+    requestedMode: req.mode === 'org' ? 'org' : null
+  })
   
-  // Call LLM
-  const llmResponse = await callLoopbrainLLM(prompt)
+  // 2) Load Org context from ContextStore for enhanced Org graph context
+  // Use intent-based routing to select appropriate sub-context
+  let orgGraphContextSection: string | null = null
+  let orgPromptContext: OrgPromptContext | null = null
+  let orgContextForPrompt: Awaited<ReturnType<typeof buildOrgContextForPrompt>> | null = null
+  let hasOrgContext = false
+  let orgContextError: string | null = null
+  
+  if (wantsOrg) {
+    try {
+      // Detect question type and build appropriate context
+      orgContextForPrompt = await buildOrgContextForPrompt(req.workspaceId, req.query)
+      
+      // Also build generic context for fallback and logging
+      orgPromptContext = await buildOrgPromptContext(req.workspaceId)
+      
+      // Build generic context text for fallback
+      orgGraphContextSection = buildOrgContextText(orgPromptContext, {
+        maxPeople: 20,
+        maxTeams: 15,
+        maxDepartments: 10,
+        maxRoles: 10,
+      })
+      
+      hasOrgContext = true
+      
+      logger.debug('Org prompt context loaded successfully from ContextStore', {
+        workspaceId: req.workspaceId,
+        questionType: orgContextForPrompt.type,
+        org: orgPromptContext.org ? 'present' : 'missing',
+        people: orgPromptContext.people.length,
+        teams: orgPromptContext.teams.length,
+        departments: orgPromptContext.departments.length,
+        roles: orgPromptContext.roles.length,
+      })
+      
+      // Also try to build legacy bundle for backward compatibility
+      // (some code may still depend on buildOrgLoopbrainContextBundleForWorkspace)
+      try {
+        const orgBundle = await buildOrgLoopbrainContextBundleForWorkspace(req.workspaceId)
+        const legacySection = buildOrgPromptSectionFromBundle(orgBundle)
+        // Prefer ContextStore-based section, but keep legacy as fallback
+        if (!orgGraphContextSection) {
+          orgGraphContextSection = legacySection
+        }
+      } catch (legacyError) {
+        // Ignore legacy bundle errors if ContextStore version works
+        logger.debug('Legacy org bundle build failed (using ContextStore version)', {
+          workspaceId: req.workspaceId,
+          error: legacyError instanceof Error ? legacyError.message : String(legacyError)
+        })
+      }
+    } catch (error) {
+      logger.error('Failed to build org prompt context from ContextStore', {
+        workspaceId: req.workspaceId,
+        error
+      })
+      // Fallback: try legacy bundle builder
+      try {
+        const orgBundle = await buildOrgLoopbrainContextBundleForWorkspace(req.workspaceId)
+        orgGraphContextSection = buildOrgPromptSectionFromBundle(orgBundle)
+        hasOrgContext = true
+        logger.debug('Fell back to legacy org bundle builder', {
+          workspaceId: req.workspaceId,
+          nodeCount: Object.keys(orgBundle.byId).length
+        })
+      } catch (fallbackError) {
+        // Both methods failed
+        orgGraphContextSection = null
+        hasOrgContext = false
+        orgContextError = error instanceof Error
+          ? error.message
+          : typeof error === "string"
+          ? error
+          : "Unknown Org context error"
+      }
+    }
+  }
+  
+  // 3) Determine if we should use Org-mode (only if question is Org-related AND context loaded)
+  const inOrgMode = wantsOrg && hasOrgContext
+  
+  // Log routing decision for debugging
+  logger.debug('[Loopbrain] Org-mode routing decision', {
+    workspaceId: req.workspaceId,
+    query: req.query.substring(0, 100),
+    wantsOrg,
+    hasOrgContext,
+    inOrgMode,
+    requestedMode: req.mode
+  })
+  
+  // 4) Capture debug snapshot (dev-only)
+  if (process.env.NODE_ENV === "development") {
+    const preview =
+      orgGraphContextSection && orgGraphContextSection.length > 800
+        ? orgGraphContextSection.slice(0, 800) + "\n\n[...truncated...]"
+        : orgGraphContextSection ?? null
+
+    setOrgDebugSnapshot({
+      question: req.query,
+      mode: inOrgMode ? "org" : "generic",
+      wantsOrg,
+      hasOrgContext,
+      workspaceId: req.workspaceId ?? null,
+      timestamp: new Date().toISOString(),
+      orgContextPreview: preview,
+      orgContextLength: orgGraphContextSection?.length ?? 0,
+      error: orgContextError,
+    })
+  }
+  
+  // 5) Record telemetry event (dev-only)
+  if (process.env.NODE_ENV === "development") {
+    recordOrgRoutingEvent({
+      question: req.query,
+      mode: inOrgMode ? "org" : "generic",
+      wantsOrg,
+      hasOrgContext: !!orgGraphContextSection,
+      workspaceId: req.workspaceId ?? null,
+      timestamp: new Date().toISOString(),
+    })
+  }
+  
+  // Build prompt (include Slack availability and Org graph context)
+  const prompt = buildOrgPrompt(req, contextSummary, slackAvailable, orgGraphContextSection, orgContextForPrompt || undefined)
+  
+  // Build system prompt - use Org-specific only if inOrgMode is true
+  let systemPrompt: string
+  if (inOrgMode) {
+    // Build Org-specific system prompt with addendum, few-shot examples, and guardrails
+    // Order: 1) Base system prompt, 2) Org System Addendum, 3) Org Few-Shot Examples, 4) Guardrails
+    systemPrompt = ORG_SYSTEM_PROMPT + '\n\n' + buildOrgSystemAddendum() + '\n\n' + buildOrgFewShotExamples() + '\n\n' + ORG_GUARDRAILS + '\n\n' + ORG_OUTPUT_FORMAT_RULES
+  } else {
+    // Fall back to generic system prompt if Org context is missing or question isn't Org-related
+    systemPrompt = ORG_SYSTEM_PROMPT
+  }
+  
+  // Call LLM with appropriate system prompt
+  // Use Org-specific config if in org mode
+  const llmResponse = inOrgMode
+    ? await callLoopbrainLLM(prompt, systemPrompt, {
+        model: process.env.LOOPBRAIN_ORG_MODEL || process.env.LOOPBRAIN_MODEL || DEFAULT_LOOPBRAIN_MODEL,
+        maxTokens: Number(process.env.LOOPBRAIN_ORG_MAX_TOKENS || "700"),
+      })
+    : await callLoopbrainLLM(prompt, systemPrompt)
+  
+  // Validate org response to prevent hallucination
+  let validatedAnswer = llmResponse.content
+  if (inOrgMode && orgContextForPrompt) {
+    // Extract context for validation
+    const validationContext = orgContextForPrompt.type === "org.headcount"
+      ? orgContextForPrompt.context
+      : orgContextForPrompt.type === "org.reporting"
+      ? orgContextForPrompt.context
+      : orgContextForPrompt.type === "org.risk"
+      ? orgContextForPrompt.context
+      : orgContextForPrompt.context
+    
+    // Pass both validation context and orgPromptContext for footer generation
+    validatedAnswer = validateOrgResponse(
+      llmResponse.content,
+      validationContext,
+      orgContextForPrompt
+    )
+  }
   
   // Check if LLM response contains Slack action requests and execute them
   // Only if explicitly requested or if LLM included Slack commands
   // This will replace [SLACK_READ:...] commands with actual messages
-  const updatedContent = await handleSlackActions(req, llmResponse.content, slackAvailable, contextSummary)
+  // Use validated answer instead of raw LLM response
+  const updatedContent = await handleSlackActions(req, validatedAnswer, slackAvailable, contextSummary)
+  
+  // Extract footer for telemetry (if present)
+  const footerIndex = updatedContent.lastIndexOf("\n---");
+  let footer = "";
+  if (footerIndex !== -1) {
+    footer = updatedContent.slice(footerIndex).trim();
+  }
+
+  // Log telemetry for org mode queries (fire-and-forget)
+  if (inOrgMode && orgContextForPrompt && orgPromptContext) {
+    // Build context summary for telemetry
+    // Use orgPromptContext for counts (it has the full structure)
+    const orgContextSummary = {
+      type: orgContextForPrompt.type,
+      hasOrgRoot: !!orgPromptContext.org,
+      peopleCount: orgPromptContext.people?.length || 0,
+      teamCount: orgPromptContext.teams?.length || 0,
+      departmentCount: orgPromptContext.departments?.length || 0,
+      roleCount: orgPromptContext.roles?.length || 0,
+    };
+
+    // Log telemetry (fire-and-forget)
+    void logOrgLoopbrainQuery({
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      question: req.query,
+      orgContext: orgContextForPrompt as any,
+      orgContextSummary,
+      referencedContextFooter: footer,
+    });
+  }
   
   // Build suggestions
   const suggestions = buildOrgSuggestions(slackAvailable)
   
   // Build response
   return {
-    mode: 'org',
+    mode: 'org', // Keep as 'org' since that's what was requested; routing metadata shows actual behavior
     workspaceId: req.workspaceId,
     userId: req.userId,
     query: req.query,
@@ -393,7 +647,19 @@ async function handleOrgMode(
     metadata: {
       model: llmResponse.model,
       tokens: llmResponse.usage,
-      retrievedCount: contextSummary.retrievedItems?.length || 0
+      retrievedCount: contextSummary.retrievedItems?.length || 0,
+      // Include routing metadata for debugging
+      routing: {
+        wantsOrg,
+        hasOrgContext,
+        inOrgMode,
+        requestedMode: req.mode,
+        // Additional routing debug info
+        contextType: inOrgMode ? 'org' : 'generic',
+        confidence: hasOrgContext ? 0.9 : (wantsOrg ? 0.3 : 0.1), // High if has context, low if wanted but missing, very low if not wanted
+        itemCount: contextSummary.retrievedItems?.length || 0,
+        usedFallback: wantsOrg && !hasOrgContext
+      } as any // Type assertion since metadata type doesn't include routing yet
     }
   }
 }
@@ -686,16 +952,178 @@ async function loadSpacesContextForRequest(
 
 /**
  * Load context for Org mode
+ * Enhanced with relation-based expansion for Category B bundling improvements.
  */
 async function loadOrgContextForRequest(
   req: LoopbrainRequest
 ): Promise<LoopbrainContextSummary> {
   const summary: LoopbrainContextSummary = {}
 
-  // Load org context
-  const orgContext = await contextEngine.getOrgContext(req.workspaceId)
-  if (orgContext) {
-    summary.primaryContext = orgContext
+  // Load org context from ContextStore (preferred method)
+  // This reads all org-related ContextItems (org, person, team, department, role)
+  const loopbrainOrgBundle = await getOrgContextForLoopbrain(req.workspaceId)
+  
+  // Set primary context to org root if available
+  if (loopbrainOrgBundle.org) {
+    // Convert ContextObject to the format expected by summary.primaryContext
+    summary.primaryContext = {
+      id: loopbrainOrgBundle.org.id,
+      type: loopbrainOrgBundle.org.type as any,
+      title: loopbrainOrgBundle.org.title,
+      summary: loopbrainOrgBundle.org.summary,
+      tags: loopbrainOrgBundle.org.tags,
+      relations: loopbrainOrgBundle.org.relations.map(rel => ({
+        type: rel.type as any,
+        sourceId: rel.sourceId,
+        targetId: rel.targetId,
+        label: rel.label,
+      })),
+      owner: loopbrainOrgBundle.org.owner,
+      status: loopbrainOrgBundle.org.status as any,
+      updatedAt: new Date(loopbrainOrgBundle.org.updatedAt),
+      workspaceId: req.workspaceId,
+    }
+  }
+
+  // Also load legacy org slice for backward compatibility
+  // (some code may still depend on fetchOrgContextSliceForWorkspace)
+  const orgSlice = await fetchOrgContextSliceForWorkspace(req.workspaceId)
+  
+  // Use the Loopbrain org bundle's byId map (preferred)
+  // This includes all org-related ContextObjects from ContextStore
+  const byId: Record<string, ContextObject> = loopbrainOrgBundle.byId
+  const allOrgObjects: ContextObject[] = [
+    ...(loopbrainOrgBundle.org ? [loopbrainOrgBundle.org] : []),
+    ...loopbrainOrgBundle.related,
+  ]
+  
+  // Also merge in any items from legacy orgSlice that might not be in ContextStore yet
+  // (for backward compatibility during migration)
+  for (const obj of orgSlice.all) {
+    if (!byId[obj.id]) {
+      const contextObj: ContextObject = {
+        id: obj.id,
+        type: obj.type as any,
+        title: obj.title,
+        summary: obj.summary,
+        tags: obj.tags,
+        relations: obj.relations.map(rel => ({
+          type: rel.type as any,
+          sourceId: rel.sourceId,
+          targetId: rel.targetId,
+          label: rel.label,
+        })),
+        owner: obj.owner,
+        status: obj.status as any,
+        updatedAt: new Date(obj.updatedAt),
+        workspaceId: req.workspaceId,
+      }
+      byId[obj.id] = contextObj
+      allOrgObjects.push(contextObj)
+    }
+  }
+
+  // Infer Org question type from request (pass workspaceId for canonical role ID building)
+  const orgQuestion = inferOrgQuestionTypeFromRequest({
+    ...req,
+    workspaceId: req.workspaceId,
+  })
+
+  // Determine primary context object
+  let primary: ContextObject | null = null
+  if (orgQuestion?.type === "org.health") {
+    // For health-focused queries, use org object as primary but mark as health focus
+    if (orgQuestion.orgId && byId[orgQuestion.orgId]) {
+      primary = byId[orgQuestion.orgId]
+    } else if (orgSlice.root) {
+      const rootObj = orgSlice.all.find(obj => obj.id === orgSlice.root?.id)
+      if (rootObj) {
+        primary = byId[rootObj.id] ?? null
+      }
+    }
+  } else if (orgQuestion?.roleId && byId[orgQuestion.roleId]) {
+    primary = byId[orgQuestion.roleId]
+  } else if (orgQuestion?.personId && byId[orgQuestion.personId]) {
+    primary = byId[orgQuestion.personId]
+  } else if (orgQuestion?.teamId && byId[orgQuestion.teamId]) {
+    primary = byId[orgQuestion.teamId]
+  } else if (orgQuestion?.departmentId && byId[orgQuestion.departmentId]) {
+    primary = byId[orgQuestion.departmentId]
+  } else if (orgQuestion?.orgId && byId[orgQuestion.orgId]) {
+    primary = byId[orgQuestion.orgId]
+  } else if (orgSlice.root) {
+    // Fallback to root org object
+    const rootObj = orgSlice.all.find(obj => obj.id === orgSlice.root?.id)
+    if (rootObj) {
+      primary = byId[rootObj.id] ?? null
+    }
+  }
+
+  // Use type-specific expansion strategy
+  const { related } = expandOrgBundleByType({
+    orgQuestion,
+    primary,
+    byId,
+    allObjects: allOrgObjects,
+  })
+
+  // Combine primary and related for structuredContext
+  const expandedObjects: ContextObject[] = []
+  if (primary) {
+    expandedObjects.push(primary)
+  }
+  expandedObjects.push(...related)
+
+  // Store expanded org context
+  summary.structuredContext = expandedObjects
+  
+  // Store org question context for prompt building
+  ;(summary as any).orgQuestion = orgQuestion
+
+  // Fetch org people (for backward compatibility and prompt building)
+  try {
+    const orgPeople = await getOrgPeopleContext({
+      workspaceId: req.workspaceId,
+      limit: 200 // Increased limit for health analysis questions
+    })
+    summary.orgPeople = orgPeople
+  } catch (error) {
+    logger.error('Error fetching org people for Org mode', {
+      workspaceId: req.workspaceId,
+      error
+    })
+  }
+
+  // Compute and include org health signals (including role risks)
+  try {
+    const { computeOrgHealthSignals } = await import('@/lib/org/healthService')
+    const people = allOrgObjects.filter(obj => obj.type === 'person')
+    const teams = allOrgObjects.filter(obj => obj.type === 'team')
+    const departments = allOrgObjects.filter(obj => obj.type === 'department')
+    const roles = allOrgObjects.filter(obj => obj.type === 'role')
+    
+    // Estimate tree depth (simplified)
+    const treeDepth = Math.max(
+      departments.length > 0 ? 2 : 1,
+      teams.length > 0 ? 3 : 1
+    )
+    
+    const health = computeOrgHealthSignals({
+      people,
+      teams,
+      departments,
+      roles,
+      treeDepth,
+    })
+    
+    // Store health in context summary for prompt building
+    ;(summary as any).orgHealth = health
+  } catch (error) {
+    logger.error('Error computing org health signals', {
+      workspaceId: req.workspaceId,
+      error
+    })
+    // Don't fail if health computation fails
   }
 
   // Optional semantic search (filter by org type)
@@ -1143,20 +1571,224 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
 }
 
 /**
+ * Detect org question type from query text.
+ * Simple heuristic-based classifier for routing to appropriate sub-context.
+ * 
+ * @deprecated Use detectOrgQuestionType from ./orgQuestionType instead
+ */
+function detectOrgQuestionType(
+  query: string
+): "headcount" | "reporting" | "risk" | "generic" {
+  const q = query.toLowerCase();
+
+  if (
+    q.includes("headcount") ||
+    q.includes("how many people") ||
+    q.includes("how many employees") ||
+    q.includes("how many teammates") ||
+    q.includes("staff count") ||
+    q.includes("team size") ||
+    q.includes("department size") ||
+    q.includes("how many are in")
+  ) {
+    return "headcount";
+  }
+
+  if (
+    q.includes("report to") ||
+    q.includes("manager of") ||
+    q.includes("who manages") ||
+    q.includes("line manager") ||
+    q.includes("org chart") ||
+    q.includes("reporting line") ||
+    q.includes("reports to") ||
+    q.includes("direct reports") ||
+    q.includes("who does") && q.includes("report")
+  ) {
+    return "reporting";
+  }
+
+  if (
+    q.includes("risk") ||
+    q.includes("single point") ||
+    q.includes("single-point") ||
+    q.includes("overloaded manager") ||
+    q.includes("span of control") ||
+    q.includes("org health") ||
+    q.includes("bottleneck") ||
+    q.includes("gaps") ||
+    q.includes("issues") ||
+    q.includes("problems") ||
+    q.includes("concerns")
+  ) {
+    return "risk";
+  }
+
+  return "generic";
+}
+
+/**
+ * Build org context for prompt based on question type.
+ * Routes to appropriate sub-context helper based on detected intent.
+ */
+async function buildOrgContextForPrompt(
+  workspaceId: string,
+  query: string
+): Promise<
+  | { type: "org.headcount"; context: OrgHeadcountContext }
+  | { type: "org.reporting"; context: OrgReportingContext }
+  | { type: "org.risk"; context: OrgRiskContext }
+  | { type: "org.generic"; context: OrgPromptContext }
+> {
+  const orgQuestionType = detectOrgQuestionTypeFromModule(query);
+
+  if (orgQuestionType === "headcount") {
+    const ctx = await getOrgHeadcountContextForLoopbrain(workspaceId);
+    return {
+      type: "org.headcount",
+      context: ctx,
+    };
+  }
+
+  if (orgQuestionType === "reporting") {
+    const ctx = await getOrgReportingContextForLoopbrain(workspaceId);
+    return {
+      type: "org.reporting",
+      context: ctx,
+    };
+  }
+
+  if (orgQuestionType === "risk") {
+    const ctx = await getOrgRiskContextForLoopbrain(workspaceId);
+    return {
+      type: "org.risk",
+      context: ctx,
+    };
+  }
+
+  // Fallback: generic org context
+  const generic = await buildOrgPromptContext(workspaceId);
+  return {
+    type: "org.generic",
+    context: generic,
+  };
+}
+
+/**
  * Build prompt for Org mode
  */
 function buildOrgPrompt(
   req: LoopbrainRequest,
   ctx: LoopbrainContextSummary,
-  slackAvailable: boolean = false
+  slackAvailable: boolean = false,
+  orgGraphContextSection: string | null = null,
+  orgContextForPrompt?: ReturnType<typeof buildOrgContextForPrompt> extends Promise<infer T> ? T : never
 ): string {
+  const orgQuestion = (ctx as any).orgQuestion as OrgQuestionContext | undefined
   const sections: string[] = []
 
-  // System guidance
-  sections.push(`You are Loopbrain, Loopwell's Virtual COO assistant operating in Org mode.
-Your role is to help users understand and manage organizational structure, teams, roles, and hierarchy.
-You have access to contextual information about teams, departments, roles, and organizational structure.
-Be helpful, concise, and focused on organizational clarity.`)
+  // Note: System prompt is now handled separately via ORG_SYSTEM_PROMPT in callLoopbrainLLM
+  // This prompt section focuses on context and instructions
+
+  // Inject Org context from ContextStore (authoritative org graph)
+  // Use specialized context if available, otherwise use generic section
+  if (orgContextForPrompt) {
+    const { type, context } = orgContextForPrompt;
+
+    if (type === "org.headcount") {
+      sections.push(`\n## Org Context (Headcount & Composition Focus)`);
+      if (context.org) {
+        const orgSummary = context.org.summary || "Organization structure";
+        sections.push(`Org: ${context.org.title} | ${orgSummary}`);
+      }
+      sections.push(``);
+      sections.push(`### Teams (${context.teams.length} total):`);
+      context.teams.slice(0, 25).forEach((team) => {
+        sections.push(`- ${team.title} | ${team.summary || "No summary"}`);
+      });
+      sections.push(``);
+      sections.push(`### Departments (${context.departments.length} total):`);
+      context.departments.slice(0, 25).forEach((dept) => {
+        sections.push(`- ${dept.title} | ${dept.summary || "No summary"}`);
+      });
+      sections.push(``);
+      sections.push(`Use this context to answer headcount and composition questions. Return concrete numbers when possible.`);
+    } else if (type === "org.reporting") {
+      sections.push(`\n## Org Context (Reporting Lines Focus)`);
+      if (context.org) {
+        const orgSummary = context.org.summary || "Organization structure";
+        sections.push(`Org: ${context.org.title} | ${orgSummary}`);
+      }
+      sections.push(``);
+      sections.push(`### People (${context.people.length} total, showing up to 40):`);
+      context.people.slice(0, 40).forEach((person) => {
+        const reportsTo = person.relations.find((r) => r.type === "reports_to");
+        const reportsToInfo = reportsTo ? ` | Reports to: ${reportsTo.targetId}` : "";
+        sections.push(`- ${person.title}${reportsToInfo} | ${person.summary || "No summary"}`);
+      });
+      sections.push(``);
+      sections.push(`Use the "reports_to" relations to answer reporting line questions. If a relationship is not present, say you don't know.`);
+    } else if (type === "org.risk") {
+      sections.push(`\n## Org Context (Risk Analysis Focus)`);
+      if (context.org) {
+        const orgSummary = context.org.summary || "Organization structure";
+        const healthTags = context.org.tags.filter((t) => t.startsWith("org_health"));
+        const healthInfo = healthTags.length > 0 ? ` | Health: ${healthTags.join(", ")}` : "";
+        sections.push(`Org: ${context.org.title} | ${orgSummary}${healthInfo}`);
+      }
+      sections.push(``);
+      sections.push(`### Teams (${context.teams.length} total):`);
+      context.teams.slice(0, 25).forEach((team) => {
+        sections.push(`- ${team.title} | ${team.summary || "No summary"}`);
+      });
+      sections.push(``);
+      sections.push(`Use org health tags (org_health_score, org_health_label, org_depth, org_single_point_teams, org_overloaded_managers) and team summaries to evaluate risk. Do not invent risks not justified by the data.`);
+    } else {
+      // Generic org context (use existing section)
+      if (orgGraphContextSection) {
+        sections.push(`\n## Org Context (Authoritative Organizational Structure from ContextStore)`);
+        sections.push(orgGraphContextSection);
+        sections.push(``);
+      }
+    }
+  } else if (orgGraphContextSection) {
+    // Fallback to generic section if specialized context not available
+    sections.push(`\n## Org Context (Authoritative Organizational Structure from ContextStore)`);
+    sections.push(orgGraphContextSection);
+    sections.push(``);
+  }
+
+  // Add Org Health signals (including role risks) if available
+  const orgHealth = (ctx as any).orgHealth
+  if (orgHealth) {
+    sections.push(`\n## Org Health Signals`)
+    sections.push(`Overall Health Score: ${orgHealth.score}/100 (${orgHealth.label})`)
+    sections.push(``)
+    sections.push(`Org Structure:`)
+    sections.push(`- Tree Depth: ${orgHealth.orgShape.depth}`)
+    sections.push(`- Centralized: ${orgHealth.orgShape.centralized ? 'Yes' : 'No'}`)
+    sections.push(``)
+    sections.push(`Span of Control:`)
+    sections.push(`- Overloaded Managers (>7 reports): ${orgHealth.spanOfControl.overloadedManagers}`)
+    sections.push(`- Underloaded Managers (<2 reports): ${orgHealth.spanOfControl.underloadedManagers}`)
+    sections.push(``)
+    sections.push(`Team Balance:`)
+    sections.push(`- Single-Person Teams: ${orgHealth.teamBalance.singlePointTeams}`)
+    sections.push(`- Largest Team Size: ${orgHealth.teamBalance.largestTeamSize}`)
+    sections.push(``)
+    
+    if (orgHealth.roles?.summary) {
+      const roleSummary = orgHealth.roles.summary
+      sections.push(`Role Risks (Gaps in Role Structure):`)
+      sections.push(`- Roles without Owner: ${roleSummary.rolesWithoutOwner}`)
+      sections.push(`- Roles without Responsibilities: ${roleSummary.rolesWithoutResponsibilities}`)
+      sections.push(`- Roles without Team: ${roleSummary.rolesWithoutTeam}`)
+      sections.push(`- Roles without Department: ${roleSummary.rolesWithoutDepartment}`)
+      sections.push(``)
+      sections.push(`Use these role risk signals to answer questions about organizational gaps, missing ownership, undefined responsibilities, and role structure issues.`)
+      sections.push(``)
+    }
+  }
 
   // Slack integration info - only mention if explicitly requested or for Slack-specific queries
   if (slackAvailable && (req.sendToSlack || req.query.toLowerCase().includes('slack'))) {
@@ -1205,55 +1837,122 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
     })
   }
 
-  // Org People ContextObjects (users with their roles/positions)
-  if (ctx.orgPeople && ctx.orgPeople.length > 0) {
-    const orgPeopleSlice = ctx.orgPeople.slice(0, 50) // Limit to top 50
+  // Org ContextObjects (expanded via relations) - Category B bundling improvements
+  if (ctx.structuredContext && ctx.structuredContext.length > 0) {
+    // Group by type for better organization
+    const people = ctx.structuredContext.filter(obj => obj.type === 'person')
+    const teams = ctx.structuredContext.filter(obj => obj.type === 'team')
+    const departments = ctx.structuredContext.filter(obj => obj.type === 'department')
+    const positions = ctx.structuredContext.filter(obj => obj.type === 'role')
+    
+    sections.push(`\n## Org ContextObjects (JSON, ${ctx.structuredContext.length} total):`)
+    sections.push(`The following structured context objects represent the organizational structure. Use relations to traverse the graph (e.g., follow "reports_to" to find direct reports, follow "has_person" to find team members).`)
+    
+    if (departments.length > 0) {
+      sections.push(`\n### Departments (${departments.length}):`)
+      sections.push(`\`\`\`json`)
+      sections.push(JSON.stringify(departments.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        title: obj.title,
+        summary: obj.summary,
+        relations: obj.relations,
+      })), null, 2))
+      sections.push(`\`\`\``)
+    }
+    
+    if (teams.length > 0) {
+      sections.push(`\n### Teams (${teams.length}):`)
+      sections.push(`\`\`\`json`)
+      sections.push(JSON.stringify(teams.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        title: obj.title,
+        summary: obj.summary,
+        relations: obj.relations,
+      })), null, 2))
+      sections.push(`\`\`\``)
+    }
+    
+    if (positions.length > 0) {
+      sections.push(`\n### Positions/Roles (${positions.length}):`)
+      sections.push(`\`\`\`json`)
+      sections.push(JSON.stringify(positions.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        title: obj.title,
+        summary: obj.summary,
+        relations: obj.relations,
+      })), null, 2))
+      sections.push(`\`\`\``)
+    }
+    
+    if (people.length > 0) {
+      sections.push(`\n### People (${people.length}):`)
+      sections.push(`\`\`\`json`)
+      sections.push(JSON.stringify(people.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        title: obj.title,
+        summary: obj.summary,
+        relations: obj.relations,
+      })), null, 2))
+      sections.push(`\`\`\``)
+    }
+    
+    // Add type-specific reasoning hint
+    const reasoningHint = buildOrgReasoningHint(orgQuestion)
+    if (reasoningHint) {
+      sections.push(`\n**Question Type Focus:**`)
+      sections.push(reasoningHint)
+      sections.push(``)
+    }
+
+    sections.push(`\n**Critical Instructions for Org Questions:**`)
+    sections.push(`- You MUST use the relations array to traverse the organizational graph.`)
+    sections.push(`- Do NOT guess, invent, or hallucinate organizational structure.`)
+    sections.push(`- If information is not in the context, explicitly say "I don't see that information in the current org data."`)
+    sections.push(``)
+    sections.push(`**Specific Question Patterns:**`)
+    sections.push(`- "Who reports to X?": Find person X's id, then find ALL people whose "reports_to" relation has targetId = X's id.`)
+    sections.push(`- "Who manages X?": Find person X, then follow their "reports_to" relation to find their manager.`)
+    sections.push(`- "Which team is X in?": Find person X, then follow their "member_of_team" relation.`)
+    sections.push(`- "Which teams are in department Y?": Find department Y, then follow ALL "has_team" relations from Y.`)
+    sections.push(`- "Who is in team Z?": Find team Z, then follow ALL "has_person" relations from Z.`)
+    sections.push(`- "What roles exist in department Y?": Find department Y → follow "has_team" → find teams → follow relations to positions/roles.`)
+    sections.push(`- "Are there any single-person teams?": For each team, count "has_person" relations. If count = 1, that's a single-person team.`)
+    sections.push(`- "Which manager has the most direct reports?": For each person, count how many people have "reports_to" pointing to them. Find the maximum.`)
+    sections.push(``)
+    sections.push(`**Answer Format:**`)
+    sections.push(`- Always list actual names/titles from the context objects.`)
+    sections.push(`- Use clear markdown formatting (bullet lists, bold for emphasis).`)
+    sections.push(`- Include role/title and team/department when listing people.`)
+    sections.push(`- Example: "**People in Engineering:**\n- Jane Doe — Senior Engineer — Platform Team\n- John Smith — Engineering Manager — AI & Loopbrain Team"`)
+  }
+  
+  // Fallback: Org People ContextObjects (for backward compatibility)
+  if (ctx.orgPeople && ctx.orgPeople.length > 0 && (!ctx.structuredContext || ctx.structuredContext.length === 0)) {
+    const orgPeopleSlice = ctx.orgPeople.slice(0, 200) // Increased limit
     
     sections.push(`\n## Org People ContextObjects (JSON, ${ctx.orgPeople.length} total, showing top ${orgPeopleSlice.length}):`)
-    sections.push(`The following structured context objects represent people in the organization with their roles, teams, and departments. When the user asks "who works in my organization" or "who is on my team", use this data to list people with their roles and teams.`)
+    sections.push(`The following structured context objects represent people in the organization with their roles, teams, and departments.`)
     sections.push(`\n\`\`\`json`)
     
     const simplifiedOrgPeople = orgPeopleSlice.map(obj => ({
       id: obj.id,
       type: obj.type,
-      title: obj.title, // This is the role/position title
-      summary: obj.summary, // Contains person name, role, team info
+      title: obj.title,
+      summary: obj.summary,
       status: obj.status,
-      tags: obj.tags.slice(0, 5), // Limit tags
-      ownerId: obj.ownerId, // This is the userId (person occupying the role)
-      updatedAt: obj.updatedAt.toISOString(),
-      metadata: {
-        level: obj.metadata?.level || undefined,
-        team: obj.relations?.find(rel => rel.type === 'team')?.id || undefined,
-        teamName: obj.summary.match(/team\s+([^)]+)/i)?.[1] || undefined,
-        department: obj.summary.match(/department\s+([^)]+)/i)?.[1] || undefined
-      },
-      relations: obj.relations
-        .filter(rel => rel.type === 'person' || rel.type === 'team')
-        .map(rel => ({
-          type: rel.type,
-          id: rel.id,
-          label: rel.label
-        }))
+      tags: obj.tags.slice(0, 5),
+      relations: obj.relations,
     }))
     
     sections.push(JSON.stringify(simplifiedOrgPeople, null, 2))
     sections.push(`\`\`\``)
-    sections.push(`\n**Instructions for org people questions:**`)
-    sections.push(`- When the user asks "who works in my organization", "who is on my team", "who is on the [team name] team", or similar questions, you MUST list the people from the Org People ContextObjects above.`)
-    sections.push(`- For each person, include: name (from summary), role/position (from title), and team (from metadata or summary).`)
-    sections.push(`- Format as a clear list, for example:`)
-    sections.push(`  **People in your organization:**`)
-    sections.push(`  - Jane Doe — role: Senior Engineer — team: Backend Team`)
-    sections.push(`  - John Smith — role: Product Manager — team: Product Team`)
-    sections.push(`- If the user asks about a specific team, filter to only show people from that team.`)
-    sections.push(`- Do NOT invent names that aren't present in the Org People ContextObjects.`)
-    sections.push(`- If there are no people in the data, say so clearly: "I don't see any people in your organization yet."`)
-    sections.push(`- Do NOT use Slack for these org-people questions unless the user explicitly asks to send something to Slack.`)
-  } else {
-    // Even if there are no org people, add a note so the LLM knows to check
-    sections.push(`\n## Org People ContextObjects:`)
-    sections.push(`The organization has 0 people with assigned roles. If the user asks about people in the organization, inform them that no people are currently assigned to roles.`)
+  } else if (!ctx.structuredContext || ctx.structuredContext.length === 0) {
+    sections.push(`\n## Org ContextObjects:`)
+    sections.push(`The organization has 0 entities. If the user asks about organizational structure, inform them that no data is available.`)
   }
 
   // User question
@@ -1263,12 +1962,79 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
   // Instructions
   sections.push(`\n## Instructions:`)
   sections.push(`- Provide a clear answer about organizational structure, roles, or teams.
-- **For people questions:** Always list actual people by name from the Org People ContextObjects, including their role and team. Do not just say "you have N people" - name them explicitly.
+- **For people questions:** Always list actual people by name from the Org ContextObjects, including their role and team. Do not just say "you have N people" - name them explicitly.
+- **Use relations:** Traverse the relations graph to find answers (e.g., follow "reports_to" to find direct reports).
 - Use markdown formatting for readability.
 - If the context doesn't contain enough information, say so clearly.
 - Focus on clarity about who does what and how teams are structured.`)
 
   return sections.join('\n')
+}
+
+/**
+ * Build type-specific reasoning hint for Org questions.
+ */
+function buildOrgReasoningHint(
+  orgQuestion?: OrgQuestionContext | null
+): string | null {
+  if (!orgQuestion) return null;
+
+  switch (orgQuestion.type) {
+    case "org.person":
+      return (
+        "Focus on the person identified in the context. " +
+        "Use 'reports_to' to find their manager, reverse 'reports_to' to find their direct reports, " +
+        "and 'member_of_team'/'member_of_department' to determine team and department membership."
+      );
+
+    case "org.team":
+      return (
+        "Focus on the team identified in the context. " +
+        "Use 'has_person' to list people in the team, and 'member_of_department' " +
+        "to connect the team to its department."
+      );
+
+    case "org.department":
+      return (
+        "Focus on the department identified in the context. " +
+        "Use 'has_team' to identify teams in this department, and 'has_person' (if present) " +
+        "to identify people. Use 'member_of_department' from teams or people when needed."
+      );
+
+    case "org.role":
+      return (
+        "Focus on the role identified in the context. " +
+        "Use the role's summary and tags (especially 'responsibilities:<count>') to understand what this role is accountable for. " +
+        "Use 'owned_by' or 'owner' to find the person holding this role. " +
+        "Use 'member_of_team' and 'member_of_department' to understand where this role sits in the organization. " +
+        "Use 'reports_to' to find the parent role if this role reports to another role."
+      );
+
+    case "org.health":
+      return (
+        "Focus on explaining the org health score and key risks. Use health.score, health.label, " +
+        "health.spanOfControl (overloaded/underloaded managers), health.teamBalance (single-point teams, largest team size), " +
+        "health.orgShape (depth, centralized), and health.roles.summary (role risks) to provide a concise executive summary " +
+        "with key drivers and 3-5 prioritized next actions."
+      );
+
+    case "org.health":
+      return (
+        "Focus on explaining the org health score and key risks. Use health.score, health.label, " +
+        "health.spanOfControl (overloaded/underloaded managers), health.teamBalance (single-point teams, largest team size), " +
+        "health.orgShape (depth, centralized), and health.roles.summary (role risks) to provide a concise executive summary " +
+        "with key drivers and 3-5 prioritized next actions."
+      );
+
+    case "org.org":
+      return (
+        "Focus on the overall org structure. Use 'has_department', 'has_team', 'has_person', " +
+        "and aggregate metrics from the org-level ContextObject to answer high-level org questions."
+      );
+
+    default:
+      return null;
+  }
 }
 
 /**
@@ -1634,7 +2400,15 @@ function formatContextObject(ctx: any): string {
 /**
  * Call LLM via existing AI provider
  */
-async function callLoopbrainLLM(prompt: string): Promise<{
+export async function callLoopbrainLLM(
+  prompt: string,
+  systemPrompt?: string,
+  options?: {
+    model?: string
+    maxTokens?: number
+    timeoutMs?: number
+  }
+): Promise<{
   content: string
   model: string
   usage?: {
@@ -1643,13 +2417,14 @@ async function callLoopbrainLLM(prompt: string): Promise<{
     totalTokens?: number
   }
 }> {
-  const model = process.env.LOOPBRAIN_MODEL || DEFAULT_LOOPBRAIN_MODEL
+  const model = options?.model || process.env.LOOPBRAIN_MODEL || DEFAULT_LOOPBRAIN_MODEL
+  const maxTokens = options?.maxTokens || 2000
 
   try {
     const response = await generateAIResponse(prompt, model, {
-      systemPrompt: 'You are Loopbrain, Loopwell\'s Virtual COO assistant.',
+      systemPrompt: systemPrompt || 'You are Loopbrain, Loopwell\'s Virtual COO assistant.',
       temperature: 0.7,
-      maxTokens: 2000
+      maxTokens
     })
 
     return {

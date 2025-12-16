@@ -1,0 +1,16 @@
+{
+  "orgId": "cmj8scj97000dx6aahtihenof",
+  "workspaceId": "cmj8scj93000cx6aae573z4ch",
+  "people": {
+    "alexId": "cmj8secwp000zx69ncz2yfg1j",
+    "samId": "cmj8secwr0010x69ndauvbxyt",
+    "danaId": "cmj8secws0011x69nud39io7y",
+    "chrisId": "cmj8secwt0012x69no65vx06r"
+  },
+  "projects": {
+    "paymentsId": "fixture-payments-migration",
+    "incidentId": "fixture-incident-hardening",
+    "expansionId": "fixture-market-expansion",
+    "cleanupId": "fixture-legacy-cleanup"
+  }
+}

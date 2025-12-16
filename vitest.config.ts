@@ -6,6 +6,9 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
+    env: {
+      BASE_URL: process.env.BASE_URL || 'http://localhost:3000',
+    },
   },
   resolve: {
     alias: {

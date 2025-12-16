@@ -29,6 +29,8 @@ export interface LoopbrainAssistantParams {
   roleId?: string
   /** Team ID (for Org mode) */
   teamId?: string
+  /** Person ID (for Org mode) */
+  personId?: string
   /** Whether to use semantic search (default: true) */
   useSemanticSearch?: boolean
   /** Maximum number of context items to retrieve (default: 10) */
@@ -73,6 +75,7 @@ export async function callLoopbrainAssistant(
     taskId,
     roleId,
     teamId,
+    personId,
     useSemanticSearch = true,
     maxContextItems = 10
   } = params
@@ -115,6 +118,7 @@ export async function callLoopbrainAssistant(
     taskId,
     roleId,
     teamId,
+    personId,
     useSemanticSearch,
     maxContextItems,
     ...(Object.keys(clientMetadata).length > 0 && { clientMetadata }),

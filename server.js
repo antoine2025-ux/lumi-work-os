@@ -4,6 +4,35 @@ const next = require('next')
 const { Server: SocketIOServer } = require('socket.io')
 const cron = require('node-cron')
 
+// Initialize event listeners for org context updates
+// This ensures listeners are registered before any API routes handle requests
+try {
+  require('./src/lib/events/init')
+} catch (error) {
+  // In dev mode, TypeScript files may not be compiled yet - this is OK
+  // The listeners will be initialized when Next.js compiles the routes
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[Events] Skipping init.ts require in dev mode (TypeScript not compiled)')
+  } else {
+    console.error('[Events] Failed to require init:', error)
+  }
+}
+
+// Initialize Org context nightly rebuild job
+// This runs once per night to rebuild Org context for all workspaces
+try {
+  const { registerOrgContextNightlyJob, isOrgContextNightlyJobEnabled } = require('./src/jobs/orgContextNightlyJob')
+  if (isOrgContextNightlyJobEnabled()) {
+    console.log('[OrgContext] Nightly job enabled – registering...')
+    registerOrgContextNightlyJob()
+  } else {
+    console.log('[OrgContext] Nightly job disabled (ORG_CONTEXT_NIGHTLY_ENABLED !== \'true\')')
+  }
+} catch (error) {
+  console.error('[OrgContext] Failed to register nightly job:', error)
+  // Don't crash the server if job registration fails
+}
+
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = 'localhost'
 const port = process.env.PORT || 3000

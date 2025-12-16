@@ -23,6 +23,7 @@ import remarkGfm from "remark-gfm"
 import { callLoopbrainAssistant } from "@/lib/loopbrain/client"
 import { useLoopbrainAssistant } from "./assistant-context"
 import type { LoopbrainResponse, LoopbrainSuggestion, LoopbrainMode } from "@/lib/loopbrain/orchestrator-types"
+import { OrgRoutingBadge } from "@/components/debug/OrgRoutingBadge"
 
 interface Message {
   id: string
@@ -34,13 +35,14 @@ interface Message {
 export interface LoopbrainAssistantPanelProps {
   /** Operating mode */
   mode: LoopbrainMode
-  /** Context anchors (pageId, projectId, taskId, roleId, teamId) */
+  /** Context anchors (pageId, projectId, taskId, roleId, teamId, personId) */
   anchors?: {
     pageId?: string
     projectId?: string
     taskId?: string
     roleId?: string
     teamId?: string
+    personId?: string
   }
   /** Whether panel is open (controlled) */
   open?: boolean
@@ -154,6 +156,7 @@ export function LoopbrainAssistantPanel({
         taskId: anchors.taskId,
         roleId: anchors.roleId,
         teamId: anchors.teamId,
+        personId: anchors.personId,
         useSemanticSearch: true,
         maxContextItems: 10
       })
@@ -265,7 +268,17 @@ export function LoopbrainAssistantPanel({
 
       {/* Chat Messages - Only visible when open and not minimized */}
       {isOpen && !isMinimized && (
-        <div className="flex-1 overflow-y-auto min-h-0 bg-background">
+        <div className="flex-1 overflow-y-auto min-h-0 bg-background relative">
+          {/* Org Routing Debug Badge - Only visible in dev mode */}
+          {lastLoopbrainResponse?.metadata?.routing && (
+            <OrgRoutingBadge
+              contextType={(lastLoopbrainResponse.metadata.routing as any)?.contextType || 'unknown'}
+              confidence={(lastLoopbrainResponse.metadata.routing as any)?.confidence || 0}
+              itemCount={lastLoopbrainResponse.metadata.retrievedCount || 0}
+              usedFallback={(lastLoopbrainResponse.metadata.routing as any)?.usedFallback || false}
+              enabled={process.env.NODE_ENV !== "production"}
+            />
+          )}
           {messages.length === 0 ? (
             <div className="flex flex-col items-start p-6 max-w-3xl mx-auto">
               {/* Large Loopwell Logo Avatar */}

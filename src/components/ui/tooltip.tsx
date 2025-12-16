@@ -27,7 +27,7 @@ const Tooltip = ({ children, content, side = "bottom", className }: TooltipProps
       {isOpen && (
         <div
           className={cn(
-            "absolute z-50 px-2 py-1 text-xs text-popover-foreground bg-popover rounded shadow-lg whitespace-nowrap border border-border",
+            "absolute z-50 px-2.5 py-1.5 text-[12px] text-slate-200 bg-slate-900 rounded-lg shadow-lg whitespace-normal max-w-xs border border-white/10",
             side === "top" && "bottom-full left-1/2 transform -translate-x-1/2 mb-1",
             side === "bottom" && "top-full left-1/2 transform -translate-x-1/2 mt-1",
             side === "left" && "right-full top-1/2 transform -translate-y-1/2 mr-1",

@@ -1,136 +1,129 @@
-import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
-import { getUnifiedAuth } from "@/lib/unified-auth"
-import { assertAccess } from "@/lib/auth/assertAccess"
-import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import {
+  assertOrgCapability,
+  getOrgPermissionContext,
+  mapPermissionErrorToStatus,
+} from "@/lib/org/permissions.server";
+import { logOrgAudit } from "@/lib/orgAudit";
 
-// GET /api/org/departments - List all departments for a workspace
-export async function GET(request: NextRequest) {
+type CreateDepartmentBody = {
+  name: string;
+  description?: string | null;
+};
+
+export async function POST(req: NextRequest) {
   try {
-    const auth = await getUnifiedAuth(request)
-    
-    // Assert workspace access
-    await assertAccess({ 
-      userId: auth.user.userId, 
-      workspaceId: auth.workspaceId, 
-      scope: 'workspace', 
-      requireRole: ['MEMBER'] 
-    })
-
-    // Set workspace context for Prisma middleware
-    setWorkspaceContext(auth.workspaceId)
-
-    const departments = await prisma.orgDepartment.findMany({
-      where: {
-        workspaceId: auth.workspaceId,
-        isActive: true
-      },
-      include: {
-        teams: {
-          where: { isActive: true },
-          orderBy: { order: 'asc' }
-        },
-        _count: {
-          select: { teams: true }
-        }
-      },
-      orderBy: { order: 'asc' }
-    })
-
-    return NextResponse.json(departments)
-  } catch (error: any) {
-    console.error('Error fetching departments:', error)
-    return NextResponse.json({ 
-      error: error.message || 'Failed to fetch departments' 
-    }, { status: 500 })
-  }
-}
-
-// POST /api/org/departments - Create a new department
-export async function POST(request: NextRequest) {
-  try {
-    const auth = await getUnifiedAuth(request)
-    
-    // Assert workspace access (require ADMIN or OWNER to create departments)
-    await assertAccess({ 
-      userId: auth.user.userId, 
-      workspaceId: auth.workspaceId, 
-      scope: 'workspace', 
-      requireRole: ['ADMIN', 'OWNER'] 
-    })
-
-    // Set workspace context for Prisma middleware
-    setWorkspaceContext(auth.workspaceId)
-
-    const body = await request.json()
-    const { 
-      name, 
-      description, 
-      color,
-      order = 0
-    } = body
+    const body = (await req.json()) as CreateDepartmentBody;
+    const name = body.name?.trim();
 
     if (!name) {
-      return NextResponse.json({ 
-        error: 'Missing required field: name' 
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "INVALID_NAME",
+            message: "Department name is required.",
+          },
+        },
+        { status: 400 }
+      );
     }
 
-    // Check if department with same name already exists
-    // Use findFirst instead of findUnique for better compatibility
-    const existing = await prisma.orgDepartment.findFirst({
+    const context = await getOrgPermissionContext(req);
+
+    try {
+      assertOrgCapability(context, "org:department:create");
+    } catch (permError) {
+      const status = mapPermissionErrorToStatus(permError);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: status === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+            message: "Not allowed to create departments in this org.",
+          },
+        },
+        { status }
+      );
+    }
+
+    const orgId = context!.orgId;
+
+    if (!prisma) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "DATABASE_ERROR",
+            message: "Database connection unavailable.",
+          },
+        },
+        { status: 500 }
+      );
+    }
+
+    // Check for duplicate department name
+    const existingDepartment = await prisma.orgDepartment.findFirst({
       where: {
-        workspaceId: auth.workspaceId,
-        name: name.trim(),
-        isActive: true
-      }
-    })
+        workspaceId: orgId,
+        name,
+      },
+    });
 
-    if (existing) {
-      return NextResponse.json({ 
-        error: 'A department with this name already exists' 
-      }, { status: 409 })
+    if (existingDepartment) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "DEPARTMENT_EXISTS",
+            message: "A department with this name already exists.",
+          },
+        },
+        { status: 409 }
+      );
     }
 
-    // Create the department
+    // TODO: adjust model/field names as needed.
     const department = await prisma.orgDepartment.create({
       data: {
-        workspaceId: auth.workspaceId,
-        name: name.trim(),
-        description: description?.trim() || null,
-        color: color || null,
-        order
+        workspaceId: orgId,
+        name,
+        description: body.description?.trim() || null,
+        isActive: true,
       },
-      include: {
-        _count: {
-          select: { teams: true }
-        }
-      }
-    })
+    });
 
-    return NextResponse.json(department, { status: 201 })
-  } catch (error: any) {
-    console.error('Error creating department:', error)
-    
-    // Handle Prisma errors
-    if (error.code === 'P2002') {
-      return NextResponse.json({ 
-        error: 'A department with this name already exists' 
-      }, { status: 409 })
-    }
-    
-    // Handle table doesn't exist error
-    if (error.code === 'P2021' || error.message?.includes('does not exist') || error.message?.includes('org_departments')) {
-      console.error('Database table missing. Migration should run automatically on next deployment.')
-      return NextResponse.json({ 
-        error: 'Database tables are being created. Please try again in a moment, or contact support if the issue persists.',
-        code: 'MIGRATION_REQUIRED'
-      }, { status: 500 })
-    }
-    
-    return NextResponse.json({ 
-      error: error.message || 'Failed to create department' 
-    }, { status: 500 })
+    // Audit log
+    await logOrgAudit(
+      {
+        orgId,
+        action: "DEPARTMENT_CREATED",
+        targetType: "DEPARTMENT",
+        targetId: department.id,
+        meta: {
+          name: department.name,
+          description: department.description,
+        },
+      },
+      req
+    );
+
+    return NextResponse.json({
+      ok: true,
+      data: department,
+    });
+  } catch (error) {
+    console.error("[POST /api/org/departments] Error creating department:", error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Something went wrong while creating the department.",
+        },
+      },
+      { status: 500 }
+    );
   }
 }
-

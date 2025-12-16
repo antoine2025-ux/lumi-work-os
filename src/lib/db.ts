@@ -62,8 +62,12 @@ if (process.env.NODE_ENV === 'development') {
       // Ignore
     }
   }
-  // Clear the cached instance
+  // Clear the cached instance - FORCE fresh client
   globalForPrisma.prisma = undefined
+  // Also clear from globalThis to be thorough
+  if (typeof globalThis !== 'undefined') {
+    (globalThis as any).prisma = undefined
+  }
 }
 
 let prisma = globalForPrisma.prisma

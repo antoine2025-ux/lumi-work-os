@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "PORT=3000 next dev",
     "dev:turbo": "next dev --turbo",
     "dev:realtime": "node server.js",
     "postinstall": "prisma generate",
@@ -17,13 +17,25 @@
     "seed:dev": "tsx scripts/seed-dev.ts",
     "test:auth": "ts-node scripts/test-auth.ts",
     "test": "vitest",
+    "test:run": "vitest --run",
     "test:ui": "vitest --ui",
     "phase2:check": "./scripts/phase2-safety-check.sh",
     "phase2:staging-test": "./scripts/phase2-staging-test.sh",
     "phase3:verify": "./scripts/phase3-production-verify.sh",
-    "phase3:deploy": "npm run build && npm start && npm run phase3:verify"
+    "phase3:deploy": "npm run build && npm start && npm run phase3:verify",
+    "org:qa:sync-baseline": "tsx scripts/sync-org-qa-baseline.ts",
+    "org:inspect": "tsx scripts/inspect-org-context.ts",
+    "dev:seed-org": "tsx scripts/seed-org-sample-data.ts",
+    "test:q4": "node scripts/test-q4.mjs",
+    "test:q4:demo": "BASE_URL=http://localhost:3000 node scripts/test-q4.mjs --projectId YOUR_PROJECT_ID --end 2026-01-31T00:00:00.000Z",
+    "seed:loopbrain": "SEED_LOOPBRAIN_FIXTURES=true npm run seed",
+    "sweep:loopbrain": "node scripts/sweep-loopbrain.mjs",
+    "test:loopbrain": "npm run seed:loopbrain && npm run sweep:loopbrain",
+    "test:loopbrain:snap": "vitest run src/lib/loopbrain/__tests__/loopbrain.snapshots.test.ts",
+    "test:loopbrain:snap:update": "vitest run src/lib/loopbrain/__tests__/loopbrain.snapshots.test.ts -u"
   },
   "dependencies": {
+    "resend": "^4.0.0",
     "@auth/prisma-adapter": "^2.11.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
@@ -111,6 +123,7 @@
     "eslint-config-next": "15.5.4",
     "tailwindcss": "^3.4.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
     "typescript": "^5",
     "vitest": "^2.1.8"
   }
