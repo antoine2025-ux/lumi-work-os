@@ -1,77 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-<<<<<<< HEAD
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-
-// GET /api/org/positions - Get all org positions for a workspace
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId') || 'workspace-1'
-    
-    const positions = await prisma.orgPosition.findMany({
-      where: {
-        workspaceId,
-        isActive: true
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true
-          }
-        },
-        parent: {
-          select: {
-            id: true,
-            title: true,
-            user: {
-              select: {
-                name: true
-              }
-            }
-          }
-        },
-        children: {
-          where: {
-            isActive: true
-          },
-          select: {
-            id: true,
-            title: true,
-            department: true,
-            level: true,
-            user: {
-              select: {
-                name: true,
-                email: true
-              }
-            }
-          },
-          orderBy: {
-            order: 'asc'
-          }
-        }
-      },
-      orderBy: [
-        { level: 'asc' },
-        { order: 'asc' }
-      ]
-    })
-
-    return NextResponse.json(positions)
-  } catch (error) {
-    console.error('Error fetching org positions:', error)
-    return NextResponse.json({ error: 'Failed to fetch org positions' }, { status: 500 })
-=======
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
@@ -477,56 +405,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Failed to fetch org positions' 
     }, { status: 500 })
->>>>>>> enhanced-pm-features
   }
 }
 
 // POST /api/org/positions - Create a new org position
 export async function POST(request: NextRequest) {
   try {
-<<<<<<< HEAD
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const { 
-      workspaceId, 
-      title, 
-      department, 
-      level = 1,
-      parentId,
-      userId,
-      order = 0
-    } = body
-
-    if (!workspaceId || !title) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: workspaceId, title' 
-      }, { status: 400 })
-    }
-
-    // Get user ID
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    // Create the org position
-    const position = await prisma.orgPosition.create({
-      data: {
-        workspaceId,
-        title,
-        department,
-        level,
-        parentId: parentId || null,
-        userId: userId || null,
-        order
-=======
     const auth = await getUnifiedAuth(request)
     
     // Assert workspace access
@@ -582,7 +466,6 @@ export async function POST(request: NextRequest) {
         teamSize,
         budget,
         reportingStructure
->>>>>>> enhanced-pm-features
       },
       include: {
         user: {
@@ -590,9 +473,6 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             email: true,
-<<<<<<< HEAD
-            image: true
-=======
             image: true,
             bio: true,
             skills: true,
@@ -604,7 +484,6 @@ export async function POST(request: NextRequest) {
             linkedinUrl: true,
             githubUrl: true,
             personalWebsite: true
->>>>>>> enhanced-pm-features
           }
         },
         parent: {
@@ -626,8 +505,4 @@ export async function POST(request: NextRequest) {
     console.error('Error creating org position:', error)
     return NextResponse.json({ error: 'Failed to create org position' }, { status: 500 })
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> enhanced-pm-features
