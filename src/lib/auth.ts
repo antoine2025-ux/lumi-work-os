@@ -78,18 +78,77 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session?.user && token?.sub) {
         session.user.id = token.sub
+        // Pass workspace data from token to session (avoids API calls on client)
+        session.user.workspaceId = token.workspaceId as string | undefined
+        session.user.role = token.role as string | undefined
+        session.user.isFirstTime = token.isFirstTime as boolean | undefined
         session.accessToken = token.accessToken
         session.refreshToken = token.refreshToken
         session.expiresAt = token.expiresAt
       }
       return session
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       if (user) {
         token.id = user.id
         token.email = user.email
         token.name = user.name
+        
+        // Fetch workspace membership on initial login (when user object exists)
+        // This eliminates the need for /api/auth/user-status calls on every page
+        try {
+          const dbUser = await prismaUnscoped.user.findUnique({
+            where: { email: user.email! },
+            select: { id: true }
+          })
+          
+          if (dbUser) {
+            const membership = await prismaUnscoped.workspaceMember.findFirst({
+              where: { userId: dbUser.id },
+              orderBy: { joinedAt: 'asc' },
+              select: { workspaceId: true, role: true }
+            })
+            
+            if (membership) {
+              token.workspaceId = membership.workspaceId
+              token.role = membership.role
+              token.isFirstTime = false
+            } else {
+              token.isFirstTime = true
+            }
+          }
+        } catch (error) {
+          console.error('[NextAuth] Error fetching workspace membership:', error)
+          // Don't fail auth - workspace will be fetched via API fallback
+        }
       }
+      
+      // Handle session update trigger (e.g., after workspace switch)
+      if (trigger === 'update' && token.email) {
+        try {
+          const dbUser = await prismaUnscoped.user.findUnique({
+            where: { email: token.email as string },
+            select: { id: true }
+          })
+          
+          if (dbUser) {
+            const membership = await prismaUnscoped.workspaceMember.findFirst({
+              where: { userId: dbUser.id },
+              orderBy: { joinedAt: 'asc' },
+              select: { workspaceId: true, role: true }
+            })
+            
+            if (membership) {
+              token.workspaceId = membership.workspaceId
+              token.role = membership.role
+              token.isFirstTime = false
+            }
+          }
+        } catch (error) {
+          console.error('[NextAuth] Error updating workspace in token:', error)
+        }
+      }
+      
       if (account) {
         token.accessToken = account.access_token
         token.refreshToken = account.refresh_token

@@ -3,7 +3,7 @@
 import React from 'react'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { calculateOrgPermissions, PermissionContext as PermissionContextType } from '@/lib/permissions'
-import { useUserStatus } from './use-user-status'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 interface PermissionHookContext {
   context: PermissionContextType | null
@@ -20,7 +20,9 @@ const PermissionHookContext = createContext<PermissionHookContext>({
 })
 
 export function PermissionProvider({ children }: { children: React.ReactNode }) {
-  const { userStatus, loading: userStatusLoading } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const userStatus = useUserStatusContext()
+  const userStatusLoading = userStatus.isLoading
   const [context, setContext] = useState<PermissionContextType | null>(null)
   const [permissions, setPermissions] = useState<ReturnType<typeof calculateOrgPermissions> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -30,7 +32,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     async function loadPermissions() {
       try {
         // Wait for user status to be loaded
-        if (userStatusLoading || !userStatus) {
+        if (userStatusLoading || !userStatus.isAuthenticated) {
           return
         }
         
@@ -43,7 +45,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         const userRole = userStatus.role || 'MEMBER'
         
         const permissionContext: PermissionContextType = {
-          userId: userStatus.user.id,
+          userId: userStatus.user?.id || '',
           workspaceId: userStatus.workspaceId,
           userRole: userRole,
           isOwner: userRole === 'OWNER',
@@ -64,7 +66,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     }
 
     loadPermissions()
-  }, [userStatus, userStatusLoading])
+  }, [userStatus.isAuthenticated, userStatus.workspaceId, userStatus.role, userStatus.user?.id, userStatusLoading])
 
   return (
     <PermissionHookContext.Provider value={{ context, permissions, loading, error }}>

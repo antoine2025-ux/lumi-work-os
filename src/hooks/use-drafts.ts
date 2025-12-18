@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useUserStatus } from './use-user-status'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 export interface Draft {
   id: string
@@ -11,19 +11,20 @@ export interface Draft {
 }
 
 export function useDrafts() {
-  const { userStatus } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId } = useUserStatusContext()
 
   return useQuery({
-    queryKey: ['drafts', userStatus?.workspaceId],
+    queryKey: ['drafts', workspaceId],
     queryFn: async (): Promise<Draft[]> => {
-      if (!userStatus?.workspaceId) return []
+      if (!workspaceId) return []
 
       // Fetch unpublished pages and draft sessions in parallel
       // Only fetch assistant sessions if we have a workspaceId
       const [unpublishedRes, sessionsRes] = await Promise.all([
         fetch('/api/wiki/pages?isPublished=false&limit=10').catch(() => null),
-        userStatus.workspaceId 
-          ? fetch(`/api/assistant/sessions?workspaceId=${userStatus.workspaceId}&hasDraft=true`).catch(() => null)
+        workspaceId 
+          ? fetch(`/api/assistant/sessions?workspaceId=${workspaceId}&hasDraft=true`).catch(() => null)
           : Promise.resolve(null)
       ])
 
@@ -64,7 +65,7 @@ export function useDrafts() {
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       ).slice(0, 6)
     },
-    enabled: !!userStatus?.workspaceId,
+    enabled: !!workspaceId,
     staleTime: 1 * 60 * 1000, // 1 minute - drafts change frequently
     gcTime: 3 * 60 * 1000,
     refetchOnWindowFocus: false,

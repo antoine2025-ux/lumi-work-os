@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
-import { useUserStatus } from '@/hooks/use-user-status'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 import { useSession } from 'next-auth/react'
 import { LoadingInitializer } from '@/components/auth/loading-initializer'
 
@@ -14,7 +14,17 @@ interface AuthWrapperProps {
 export function AuthWrapper({ children }: AuthWrapperProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const { userStatus, loading, error } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const userStatusCtx = useUserStatusContext()
+  const userStatus = {
+    isAuthenticated: userStatusCtx.isAuthenticated,
+    isFirstTime: userStatusCtx.isFirstTime,
+    workspaceId: userStatusCtx.workspaceId,
+    error: userStatusCtx.error,
+    pendingInvite: userStatusCtx.pendingInvite,
+  }
+  const loading = userStatusCtx.isLoading
+  const error = userStatusCtx.error
   const { data: session, status: sessionStatus } = useSession()
   const hasRedirected = useRef(false)
   const [showLoader, setShowLoader] = useState(false)

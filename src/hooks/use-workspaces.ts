@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useUserStatus } from './use-user-status'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 export interface WikiWorkspace {
   id: string
@@ -13,16 +13,17 @@ export interface WikiWorkspace {
 }
 
 export function useWorkspaces() {
-  const { userStatus } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId } = useUserStatusContext()
 
   return useQuery({
-    queryKey: ['workspaces', userStatus?.workspaceId],
+    queryKey: ['workspaces', workspaceId],
     queryFn: async () => {
       const response = await fetch('/api/wiki/workspaces')
       if (!response.ok) throw new Error('Failed to fetch workspaces')
       return response.json() as Promise<WikiWorkspace[]>
     },
-    enabled: !!userStatus?.workspaceId,
+    enabled: !!workspaceId,
     staleTime: 5 * 60 * 1000, // 5 minutes - workspaces don't change often
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: false,

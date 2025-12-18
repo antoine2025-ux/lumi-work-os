@@ -8,7 +8,7 @@ import { RichTextEditor } from "@/components/wiki/rich-text-editor"
 import { WikiEditorShell } from "@/components/wiki/wiki-editor-shell"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 import { WikiPageBody } from "@/components/wiki/wiki-page-body"
-import { useUserStatus } from '@/hooks/use-user-status'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 import { JSONContent } from '@tiptap/core'
 import { 
   Edit3,
@@ -59,7 +59,8 @@ interface WikiPageProps {
 }
 
 export default function WikiPageDetail({ params }: WikiPageProps) {
-  const { userStatus } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const userStatus = useUserStatusContext()
   const router = useRouter()
   const [resolvedParams, setResolvedParams] = useState<{ slug: string } | null>(null)
   const searchParams = useSearchParams()

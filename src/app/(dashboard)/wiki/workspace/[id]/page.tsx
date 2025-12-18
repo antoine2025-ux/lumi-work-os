@@ -12,7 +12,7 @@ import {
   Shield
 } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
-import { useUserStatus } from "@/hooks/use-user-status"
+import { useUserStatusContext } from "@/providers/user-status-provider"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
@@ -36,7 +36,8 @@ interface WorkspaceItem {
 export default function WorkspacePage({ params }: WorkspacePageProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const { userStatus } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const userStatus = useUserStatusContext()
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [workspace, setWorkspace] = useState<any>(null)

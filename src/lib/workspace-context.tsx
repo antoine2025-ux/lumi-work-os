@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { useSession } from "next-auth/react"
-import { useUserStatus } from '@/hooks/use-user-status'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
 export type ProjectRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
@@ -55,7 +55,8 @@ interface WorkspaceProviderProps {
 
 export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   const { data: session } = useSession()
-  const { userStatus, loading: userStatusLoading } = useUserStatus()
+  // Use the centralized UserStatusContext - no separate API call needed
+  const userStatus = useUserStatusContext()
   
   // SSR-safe initial state: All state initialized as null/empty to avoid hydration mismatches
   // Workspace selection happens client-side only in useEffect after mount
@@ -72,8 +73,8 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
       try {
         setIsLoading(true)
         
-        // Wait for user status to be loaded
-        if (userStatusLoading || !userStatus) {
+        // Wait for user status to be loaded (from UserStatusContext)
+        if (userStatus.isLoading || !userStatus.isAuthenticated) {
           return
         }
         
@@ -173,7 +174,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
     }
 
     loadWorkspaces()
-  }, [session, userStatus, userStatusLoading])
+  }, [session, userStatus.isLoading, userStatus.isAuthenticated, userStatus.isFirstTime, userStatus.workspaceId])
 
   const switchWorkspace = (workspaceId: string) => {
     // Validate workspaceId exists in workspaces array

@@ -9,41 +9,26 @@ import { CommandPalette } from "@/components/ui/command-palette"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { AuthWrapper } from "@/components/auth-wrapper"
 import { DataPrefetcher } from "@/components/data-prefetcher"
-import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
+import { UserStatusProvider, useUserStatusContext } from "@/providers/user-status-provider"
+import { useState } from "react"
 
+/**
+ * SocketWrapper - Provides real-time socket connection
+ * Now uses UserStatusContext instead of making a separate API call
+ */
 function SocketWrapper({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession()
-  const [workspaceId, setWorkspaceId] = useState<string>('')
+  // Use the centralized user status context - no API call needed
+  const { user, workspaceId, isLoading } = useUserStatusContext()
   
-  useEffect(() => {
-    const fetchWorkspaceId = async () => {
-      try {
-        const response = await fetch('/api/auth/user-status')
-        if (response.ok) {
-          const userStatus = await response.json()
-          if (userStatus.workspaceId) {
-            setWorkspaceId(userStatus.workspaceId)
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching workspace ID:', error)
-      }
-    }
-    
-    if (session?.user) {
-      fetchWorkspaceId()
-    }
-  }, [session?.user])
-  
-  if (!session?.user || !workspaceId) {
+  // Don't connect socket until we have user and workspace data
+  if (isLoading || !user || !workspaceId) {
     return <>{children}</>
   }
 
   return (
     <SocketProvider
-      userId={session.user.id || 'anonymous'}
-      userName={session.user.name || 'Anonymous User'}
+      userId={user.id || 'anonymous'}
+      userName={user.name || 'Anonymous User'}
       workspaceId={workspaceId}
     >
       {children}
@@ -75,19 +60,22 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider refetchOnWindowFocus={false} refetchInterval={0}>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthWrapper>
-            <WorkspaceProvider>
-              <SocketWrapper>
-                <KeyboardShortcutsWrapper>
-                  <DataPrefetcher />
-                  {children}
-                  <CommandPalette />
-                </KeyboardShortcutsWrapper>
-              </SocketWrapper>
-            </WorkspaceProvider>
-          </AuthWrapper>
-        </ThemeProvider>
+        {/* UserStatusProvider must be inside QueryClientProvider and SessionProvider */}
+        <UserStatusProvider>
+          <ThemeProvider>
+            <AuthWrapper>
+              <WorkspaceProvider>
+                <SocketWrapper>
+                  <KeyboardShortcutsWrapper>
+                    <DataPrefetcher />
+                    {children}
+                    <CommandPalette />
+                  </KeyboardShortcutsWrapper>
+                </SocketWrapper>
+              </WorkspaceProvider>
+            </AuthWrapper>
+          </ThemeProvider>
+        </UserStatusProvider>
       </QueryClientProvider>
     </SessionProvider>
   )

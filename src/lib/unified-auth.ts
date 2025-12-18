@@ -107,9 +107,21 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
   }
 
   const dbStartTime = performance.now()
-  // OPTIMIZED: Get or create user (single query with upsert-like pattern)
+  // OPTIMIZED: Get user with workspace membership in a single query
+  // This reduces 2 database round-trips to 1
   let user = await prisma.user.findUnique({
-    where: { email: session.user.email }
+    where: { email: session.user.email },
+    include: {
+      workspaceMemberships: {
+        take: 1,
+        orderBy: { joinedAt: 'asc' },
+        include: {
+          workspace: {
+            select: { id: true, slug: true }
+          }
+        }
+      }
+    }
   })
 
   if (!user) {
@@ -118,14 +130,49 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
         email: session.user.email,
         name: session.user.name || 'Unknown User',
         emailVerified: new Date()
+      },
+      include: {
+        workspaceMemberships: {
+          take: 1,
+          orderBy: { joinedAt: 'asc' },
+          include: {
+            workspace: {
+              select: { id: true, slug: true }
+            }
+          }
+        }
       }
     })
   }
   const userQueryDurationMs = performance.now() - dbStartTime
 
   const workspaceStartTime = performance.now()
-  // Resolve active workspace and get member in one optimized call
-  const { workspaceId: activeWorkspaceId, workspaceMember } = await resolveActiveWorkspaceIdWithMember(user.id, request)
+  // Use workspace from combined query if available, otherwise resolve from request
+  let activeWorkspaceId: string
+  let workspaceMember: any
+  
+  // Check if URL specifies a different workspace (slug or query param)
+  const hasExplicitWorkspace = request && (
+    new URL(request.url).pathname.match(/^\/w\/([^\/]+)/) ||
+    new URL(request.url).searchParams.get('workspaceId') ||
+    new URL(request.url).searchParams.get('projectId') ||
+    request.headers.get('x-workspace-id')
+  )
+  
+  if (hasExplicitWorkspace) {
+    // URL specifies workspace - resolve it (may be different from default)
+    const result = await resolveActiveWorkspaceIdWithMember(user.id, request)
+    activeWorkspaceId = result.workspaceId
+    workspaceMember = result.workspaceMember
+  } else if (user.workspaceMemberships.length > 0 && user.workspaceMemberships[0].workspace) {
+    // Use default workspace from combined query (no extra DB call!)
+    const defaultMembership = user.workspaceMemberships[0]
+    activeWorkspaceId = defaultMembership.workspaceId
+    workspaceMember = defaultMembership
+  } else {
+    // No workspace - user needs to create one
+    throw new Error('No workspace found - user needs to create a workspace')
+  }
   const workspaceQueryDurationMs = performance.now() - workspaceStartTime
 
   const roles = workspaceMember ? [workspaceMember.role] : []

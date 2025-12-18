@@ -1,5 +1,28 @@
 import { useState, useEffect, useRef } from 'react'
 
+/**
+ * @deprecated This hook makes redundant API calls. Use `useUserStatusContext()` from 
+ * `@/providers/user-status-provider` instead, which reads from the NextAuth session JWT 
+ * directly and eliminates unnecessary network requests.
+ * 
+ * Migration guide:
+ * 
+ * BEFORE:
+ * ```tsx
+ * import { useUserStatus } from '@/hooks/use-user-status'
+ * const { userStatus, loading, error, refetch } = useUserStatus()
+ * ```
+ * 
+ * AFTER:
+ * ```tsx
+ * import { useUserStatusContext } from '@/providers/user-status-provider'
+ * const { isLoading, error, workspaceId, role, user, refetch } = useUserStatusContext()
+ * ```
+ * 
+ * The new provider reads workspace data from the session JWT (set during login),
+ * avoiding the need for /api/auth/user-status API calls on every page load.
+ */
+
 interface UserStatus {
   isAuthenticated: boolean
   isFirstTime: boolean
@@ -41,6 +64,10 @@ let userStatusCache: {
 
 const CACHE_DURATION = 5000 // 5 seconds - shorter cache to detect logout faster
 
+/**
+ * @deprecated Use `useUserStatusContext()` from `@/providers/user-status-provider` instead.
+ * This hook makes a redundant API call. The new provider reads from session JWT.
+ */
 export function useUserStatus(): UseUserStatusReturn {
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null)
   const [loading, setLoading] = useState(true)

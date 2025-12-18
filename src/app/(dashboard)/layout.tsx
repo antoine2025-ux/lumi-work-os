@@ -3,10 +3,10 @@
 import { useSession } from "next-auth/react"
 import { useRouter, usePathname } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
-import { useQuery } from "@tanstack/react-query"
 import dynamic from "next/dynamic"
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context"
 import { TaskSidebar } from "@/components/tasks/task-sidebar"
+import { useUserStatusContext } from "@/providers/user-status-provider"
 
 // Lazy load Header to reduce initial bundle size and improve LCP
 const Header = dynamic(() => import("@/components/layout/header").then(mod => ({ default: mod.Header })), {
@@ -23,34 +23,18 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const [isFirstTime, setIsFirstTime] = useState(false)
   
-  // Use React Query for user status - automatic caching and no sequential delays
-  const { data: userStatus, isLoading: isLoadingWorkspace, isError: isUserStatusError } = useQuery({
-    queryKey: ['user-status'],
-    queryFn: async () => {
-      const response = await fetch('/api/auth/user-status')
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to fetch user status')
-      }
-      return response.json()
-    },
-    enabled: status === 'authenticated',
-    staleTime: 30 * 1000, // 30 seconds
-    refetchOnWindowFocus: false,
-    retry: (failureCount, error: any) => {
-      // Don't retry if no workspace (redirect instead)
-      if (error?.message?.includes('No workspace')) return false
-      return failureCount < 2
-    },
-  })
-
-  const workspaceId = userStatus?.workspaceId || null
+  // Use centralized UserStatusContext - no separate API call needed
+  // This reads from session JWT directly, eliminating redundant fetches
+  const userStatus = useUserStatusContext()
+  const isLoadingWorkspace = userStatus.isLoading
+  const workspaceId = userStatus.workspaceId
+  const isUserStatusError = !!userStatus.error
 
   // Handle workspace redirect
   // Skip redirect if user is on an invite page - they need to accept the invite first
   useEffect(() => {
     // Resilience: Don't redirect if user-status query failed - prevents infinite redirects
-    if (status === 'authenticated' && !isLoadingWorkspace && !workspaceId && userStatus && !isUserStatusError) {
+    if (status === 'authenticated' && !isLoadingWorkspace && !workspaceId && userStatus.isAuthenticated && !isUserStatusError) {
       const workspaceJustCreated = sessionStorage.getItem('__workspace_just_created__') === 'true'
       const isInvitePage = pathname?.startsWith('/invites') || pathname === '/invites'
       
@@ -65,7 +49,7 @@ export default function DashboardLayout({
       }
       
       // Check for pending invite first
-      if (userStatus?.pendingInvite?.token) {
+      if (userStatus.pendingInvite?.token) {
         if (process.env.NODE_ENV === 'development') {
           console.log('[DashboardLayout] No workspace found but pending invite exists, redirecting to invite:', userStatus.pendingInvite.token)
         }
@@ -82,7 +66,7 @@ export default function DashboardLayout({
       }
     }
     
-    if (userStatus) {
+    if (userStatus.isAuthenticated) {
       setIsFirstTime(userStatus.isFirstTime || false)
       // Clear workspace creation flag if workspace is found
       if (workspaceId) {
@@ -90,7 +74,7 @@ export default function DashboardLayout({
         sessionStorage.removeItem('__skip_loader__')
       }
     }
-  }, [status, isLoadingWorkspace, workspaceId, userStatus, pathname])
+  }, [status, isLoadingWorkspace, workspaceId, userStatus.isAuthenticated, userStatus.isFirstTime, userStatus.pendingInvite, isUserStatusError, pathname])
 
   // Re-enable auth redirect - but only check once per mount or when session actually changes
   const hasCheckedAuth = useRef(false)

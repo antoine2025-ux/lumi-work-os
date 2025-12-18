@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
-import { useUserStatus } from '@/hooks/use-user-status'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 import { prefetchRoute, prefetchPageContent } from '@/lib/prefetch'
 import { useCallback } from 'react'
 
@@ -26,10 +26,11 @@ export function PrefetchLink({
   ...props 
 }: PrefetchLinkProps) {
   const queryClient = useQueryClient()
-  const { userStatus } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId } = useUserStatusContext()
 
   const handleMouseEnter = useCallback(() => {
-    if (!prefetchOnHover || !userStatus?.workspaceId || typeof href !== 'string') return
+    if (!prefetchOnHover || !workspaceId || typeof href !== 'string') return
 
     // If this is a specific page link, prefetch the page content (the "most likely next" page)
     if (pageIdOrSlug && href.startsWith('/wiki/') && href !== '/wiki/home') {
@@ -38,9 +39,9 @@ export function PrefetchLink({
       prefetchPageContent(slug, queryClient)
     } else {
       // Otherwise, prefetch route metadata
-      prefetchRoute(href, queryClient, userStatus.workspaceId)
+      prefetchRoute(href, queryClient, workspaceId)
     }
-  }, [href, prefetchOnHover, userStatus?.workspaceId, queryClient, pageIdOrSlug])
+  }, [href, prefetchOnHover, workspaceId, queryClient, pageIdOrSlug])
 
   return (
     <Link

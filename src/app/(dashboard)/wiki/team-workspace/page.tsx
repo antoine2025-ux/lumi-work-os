@@ -11,7 +11,7 @@ import {
   Target
 } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
-import { useUserStatus } from "@/hooks/use-user-status"
+import { useUserStatusContext } from "@/providers/user-status-provider"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
@@ -29,7 +29,9 @@ interface WorkspaceItem {
 export default function TeamWorkspacePage() {
   const router = useRouter()
   const pathname = usePathname()
-  const { userStatus, loading: userStatusLoading } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const userStatus = useUserStatusContext()
+  const userStatusLoading = userStatus.isLoading
   const [isLoading, setIsLoading] = useState(true)
   const [teamPages, setTeamPages] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
