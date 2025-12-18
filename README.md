@@ -2,6 +2,8 @@
 
 **The most intelligent internal documentation platform on the market**
 
+> Performance optimized with centralized authentication state management.
+
 A comprehensive workplace operating system that centralizes knowledge management, AI-powered documentation creation, and team collaboration tools. Built with Next.js 15, TypeScript, Prisma, PostgreSQL, and OpenAI GPT-4.
 
 ## 🚀 Current Implementation Status
