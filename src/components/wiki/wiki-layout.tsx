@@ -396,7 +396,6 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
       setError(null)
       
       // Ensure we have at least a space for content since API requires it
-      const content = newPageContent.trim() || ' '
       
       // Determine workspace_type based on selected workspace
       let workspaceType = 'team'
@@ -445,32 +444,19 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
         }
       }
       
-      console.log('💾 Saving page with title:', newPageTitle, 'content length:', content.length, 'workspaceId:', workspaceId, 'workspaceType:', workspaceType)
+      console.log('💾 Saving page with title:', newPageTitle, 'content length:', newPageContent.length, 'workspaceId:', workspaceId, 'workspaceType:', workspaceType)
       
-      const response = await fetch('/api/wiki/pages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: newPageTitle.trim(),
-          content: content,
-          tags: [],
-          category: newPageCategory,
-          permissionLevel: isPersonalPage ? 'personal' : 'team',
-          workspace_type: workspaceType
-        })
+      // Use centralized helper to create page
+      const { createWikiPage } = await import('@/lib/wiki/create-page')
+      const newPage = await createWikiPage({
+        workspaceId,
+        title: newPageTitle.trim(),
+        tags: [],
+        category: newPageCategory,
+        permissionLevel: isPersonalPage ? 'personal' : 'team',
+        workspace_type: workspaceType
       })
 
-      console.log('Response status:', response.status, response.ok)
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.log('Error data:', errorData)
-        throw new Error(errorData.error || 'Failed to create page')
-      }
-
-      const newPage = await response.json()
       console.log('✅ Page created successfully:', newPage)
       console.log('📌 Page workspace_type:', newPage.workspace_type)
       
@@ -497,8 +483,8 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
       window.dispatchEvent(new CustomEvent('workspacePagesRefreshed'))
       window.dispatchEvent(new CustomEvent('pageCreated'))
       
-      // Navigate to the new page using router (no full page reload)
-      router.push(`/wiki/${newPage.slug}`)
+      // Navigate to the new page in edit mode so content persists immediately
+      router.push(`/wiki/${newPage.slug}?edit=true&ai=open`)
     } catch (error) {
       console.error('Error creating page:', error)
       setError(error instanceof Error ? error.message : 'Failed to create page. Please try again.')
@@ -1375,6 +1361,9 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                   workspaceType = selectedWorkspace.id
                 }
                 
+                // Import empty doc constant for JSON format
+                const { EMPTY_TIPTAP_DOC } = await import('@/lib/wiki/constants')
+                
                 try {
                   // Create blank draft page first
                   const response = await fetch('/api/wiki/pages', {
@@ -1384,7 +1373,8 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                     },
                     body: JSON.stringify({
                       title: title.trim(),
-                      content: ' ', // Blank content initially
+                      contentJson: EMPTY_TIPTAP_DOC, // Use JSON format
+                      contentFormat: 'JSON',
                       tags: [],
                       category: newPageCategory,
                       permissionLevel: selectedWorkspace?.type === 'personal' ? 'personal' : 'team',

@@ -295,3 +295,4 @@ If migration needs to be rolled back:
 - **Backward compatibility**: Migration handles existing data gracefully by backfilling from related entities
 - **Safety**: Orphaned activities are deleted to ensure tenant isolation
 - **Performance**: Indexes added for efficient workspace-scoped queries
+

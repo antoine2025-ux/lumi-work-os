@@ -52,3 +52,4 @@ If the error persists:
 
 ## Files Modified
 - `src/lib/db.ts` - Added WorkspaceInvite model verification and table existence check
+

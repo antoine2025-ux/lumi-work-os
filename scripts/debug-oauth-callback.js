@@ -115,3 +115,4 @@ console.log('4. Network tab - /api/auth/callback/google request details');
 console.log('5. Cookies present after callback (list them)');
 
 console.log('\n');
+

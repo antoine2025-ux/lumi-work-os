@@ -47,3 +47,4 @@ To ensure both databases stay in sync:
 ## Files Created
 - `scripts/create-workspace-invites-in-dev-db.js` - Script to create table in dev database
 - `scripts/check-database-connection.js` - Diagnostic script to check database state
+

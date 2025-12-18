@@ -147,3 +147,4 @@ describe('Workspace Scoping Sanity Tests', () => {
  *    - Expected: Tests verify scoping is enforced
  *    - Critical models throw errors without workspace context
  */
+

@@ -224,3 +224,4 @@ ALTER TABLE "workspace_invites" DROP COLUMN IF EXISTS "createdByRole";
 DROP TYPE IF EXISTS "ViewerScopeType";
 ```
 
+

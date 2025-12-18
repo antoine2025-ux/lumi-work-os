@@ -25,9 +25,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const pagination = parsePaginationParams(searchParams)
+    const spaceId = searchParams.get('spaceId') // Phase 1: Optional spaceId filter
+    const includeLegacy = searchParams.get('includeLegacy') === 'true' // Include pages without spaceId
     
     // OPTIMIZED: Check cache first (non-blocking with timeout)
-    const cacheKey = `wiki_pages_${auth.workspaceId}_${pagination.page || 1}_${pagination.limit || 10}_${pagination.sortBy || 'order'}_${pagination.sortOrder || 'asc'}`
+    const cacheKey = `wiki_pages_${auth.workspaceId}_${spaceId || 'all'}_${pagination.page || 1}_${pagination.limit || 10}_${pagination.sortBy || 'order'}_${pagination.sortOrder || 'asc'}`
     const cachePromise = cache.get(cacheKey)
     const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 50)) // 50ms timeout
     
@@ -47,21 +49,35 @@ export async function GET(request: NextRequest) {
     // Check if we need full content or just metadata
     const includeContent = searchParams.get('includeContent') === 'true'
     
+    // Build where clause with optional spaceId filter
+    const baseWhere: any = {
+      workspaceId: auth.workspaceId,
+      isPublished: true
+    }
+    
+    // Phase 1: Filter by spaceId if provided
+    if (spaceId) {
+      if (includeLegacy) {
+        // Include pages with matching spaceId OR pages without spaceId (legacy)
+        baseWhere.OR = [
+          { spaceId },
+          { spaceId: null }
+        ]
+      } else {
+        // Only pages with matching spaceId
+        baseWhere.spaceId = spaceId
+      }
+    }
+    
     // Get total count and pages in parallel
     // OPTIMIZED: Use select instead of include for metadata-only responses
     // This reduces payload size by 80-90% for list views
     const [total, pages] = await Promise.all([
       prisma.wikiPage.count({
-        where: {
-          workspaceId: auth.workspaceId,
-          isPublished: true
-        }
+        where: baseWhere
       }),
       prisma.wikiPage.findMany({
-        where: {
-          workspaceId: auth.workspaceId,
-          isPublished: true
-        },
+        where: baseWhere,
         select: {
           // Only select metadata - no full content unless explicitly requested
           id: true,
@@ -70,6 +86,7 @@ export async function GET(request: NextRequest) {
           excerpt: true,
           permissionLevel: true,
           workspace_type: true,
+          spaceId: true, // Phase 1: Canonical Space ID
           category: true,
           tags: true,
           updatedAt: true,
@@ -172,15 +189,32 @@ export async function POST(request: NextRequest) {
 
     logger.info('Creating new wiki page')
     const body = await request.json()
-    console.log('📝 Request body:', { workspaceId: auth.workspaceId, title: body.title, contentLength: body.content?.length, workspace_type: body.workspace_type, permissionLevel: body.permissionLevel })
+    console.log('📝 Request body:', { workspaceId: auth.workspaceId, title: body.title, contentFormat: body.contentFormat, workspace_type: body.workspace_type, permissionLevel: body.permissionLevel })
     
-    const { title, content, parentId, tags = [], category = 'general', permissionLevel, workspace_type } = body
+    const { title, content, contentJson, contentFormat, parentId, tags = [], category = 'general', permissionLevel, workspace_type } = body
     
-    console.log('🔍 Extracted workspace_type:', workspace_type, 'permissionLevel:', permissionLevel)
+    // Enforce JSON format for all new pages created via POST /api/wiki/pages
+    // This ensures all new pages use the TipTap editor (Stage 1 requirement)
+    // Internal flows (AI assistant, wiki-layout) should also send contentJson + contentFormat='JSON'
+    // Legacy HTML creation is not supported for new pages (existing HTML pages remain unchanged)
+    const finalContentFormat: 'HTML' | 'JSON' = 'JSON'
+    
+    console.log('🔍 Extracted workspace_type:', workspace_type, 'permissionLevel:', permissionLevel, 'contentFormat:', finalContentFormat)
 
-    if (!title || !content) {
-      console.log('❌ Missing required fields')
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (!title) {
+      console.log('❌ Missing required field: title')
+      return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    }
+
+    // Import constants and validation
+    const { EMPTY_TIPTAP_DOC } = await import('@/lib/wiki/constants')
+    const { isValidProseMirrorJSON } = await import('@/lib/wiki/text-extract')
+    
+    // For JSON format, use provided contentJson or default to empty doc
+    let finalContentJson = contentJson
+    if (!finalContentJson || !isValidProseMirrorJSON(finalContentJson)) {
+      console.log('⚠️ Invalid or missing contentJson, using EMPTY_TIPTAP_DOC')
+      finalContentJson = EMPTY_TIPTAP_DOC
     }
 
     // Generate slug from title
@@ -233,20 +267,43 @@ export async function POST(request: NextRequest) {
       console.log('⚠️ No workspace_type provided, defaulting to team. This may cause incorrect classification.')
     }
     
-    console.log('💾 Saving page with workspace_type:', finalWorkspaceType, 'permissionLevel:', finalPermissionLevel)
+    console.log('💾 Saving page with workspace_type:', finalWorkspaceType, 'permissionLevel:', finalPermissionLevel, 'contentFormat:', finalContentFormat)
+    
+    // Phase 1: Determine canonical spaceId
+    let spaceId: string | null = null
+    if (finalWorkspaceType === 'personal') {
+      // Map to user's PERSONAL space
+      const { getOrCreatePersonalSpace } = await import('@/lib/spaces/canonical-space-helpers')
+      spaceId = await getOrCreatePersonalSpace(auth.workspaceId, auth.user.userId)
+    } else {
+      // Default to TEAM space
+      const { getOrCreateTeamSpace } = await import('@/lib/spaces/canonical-space-helpers')
+      spaceId = await getOrCreateTeamSpace(auth.workspaceId)
+    }
+    
+    // Import text extraction utility
+    const { extractTextFromProseMirror } = await import('@/lib/wiki/text-extract')
+    
+    // Extract text content from JSON
+    const textContent = extractTextFromProseMirror(finalContentJson)
+    const excerpt = textContent.substring(0, 200) + (textContent.length > 200 ? '...' : '')
     
     const page = await prisma.wikiPage.create({
       data: {
         workspaceId: auth.workspaceId,
         title,
         slug,
-        content,
-        excerpt: content.substring(0, 200) + (content.length > 200 ? '...' : ''),
+        content: '', // Empty string for JSON pages (backward compatibility)
+        contentJson: finalContentJson,
+        contentFormat: finalContentFormat,
+        textContent,
+        excerpt,
         parentId: parentId || null,
         tags,
         category,
         permissionLevel: finalPermissionLevel,
         workspace_type: finalWorkspaceType,
+        spaceId: spaceId, // Phase 1: Canonical Space assignment
         createdById: auth.user.userId
       },
       include: {

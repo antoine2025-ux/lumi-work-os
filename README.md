@@ -137,6 +137,11 @@ npx prisma generate
 npx prisma db push
 ```
 
+**Which Database Am I Using?**
+- Check runtime DB: `curl http://localhost:3000/api/debug/db` (when dev server is running)
+- Check Prisma CLI DB: `npm run print-db`
+- See [Database Connection Debugging Guide](./docs/DB_CONNECTION_DEBUG.md) for troubleshooting
+
 6. Run the development server:
 ```bash
 npm run dev

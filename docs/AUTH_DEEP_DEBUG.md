@@ -199,3 +199,4 @@ Sometimes browser extensions or cached data cause issues:
 2. Go to `http://localhost:3000/login`
 3. Try OAuth flow
 4. If it works in incognito, it's a browser cache/extension issue
+

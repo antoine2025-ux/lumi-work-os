@@ -118,3 +118,4 @@
 - **Performance**: No extra API calls (role from main response)
 - **UX**: Clean, minimal UI that adapts to workspace count
 - **Safety**: Validates workspaceId before using it
+

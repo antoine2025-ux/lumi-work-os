@@ -47,3 +47,4 @@ EXCEPTION
     WHEN OTHERS THEN
         RAISE EXCEPTION 'Error during deletion: %', SQLERRM;
 END $$;
+

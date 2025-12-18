@@ -56,3 +56,4 @@ WHERE id = 'YOUR_USER_ID';
 -- ============================================
 -- SELECT COUNT(*) FROM workspaces WHERE id = 'YOUR_WORKSPACE_ID';
 -- SELECT COUNT(*) FROM users WHERE id = 'YOUR_USER_ID';
+

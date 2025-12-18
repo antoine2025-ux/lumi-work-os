@@ -88,3 +88,4 @@ If login still fails:
 - `src/lib/auth.ts` - Use prismaUnscoped, added error handling
 - `src/app/(dashboard)/w/[workspaceSlug]/settings/page.tsx` - Fixed navigation
 - `src/app/api/workspaces/[workspaceId]/invites/route.ts` - Improved error handling
+

@@ -53,3 +53,4 @@ WHERE NOT EXISTS (
 2. **Test invites** - should work now!
 
 The table exists, so once Prisma knows the migration is applied, everything will work.
+

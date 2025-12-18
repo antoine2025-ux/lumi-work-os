@@ -73,3 +73,4 @@ Already had a check to prevent redirect to `/welcome` on invite pages, but added
 - The invite page is intentionally inside the `(dashboard)` route group to share the layout
 - But it needs special handling to bypass workspace requirements
 - This fix ensures invite pages work correctly while maintaining the shared layout
+

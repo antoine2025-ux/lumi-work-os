@@ -429,6 +429,36 @@ export async function POST(request: NextRequest) {
       projectSpaceId: projectSpaceId // Now determined by visibility logic above
     }
 
+    // Phase 1: Get canonical spaceId (default to TEAM space)
+    let spaceId: string | null = null
+    if (projectSpaceId) {
+      // If projectSpaceId exists, try to find mapped canonical Space
+      try {
+        const mappedSpace = await prisma.space.findFirst({
+          where: {
+            workspaceId: auth.workspaceId,
+            legacySource: {
+              path: ['projectSpaceId'],
+              equals: projectSpaceId
+            }
+          },
+          select: { id: true }
+        })
+        if (mappedSpace) {
+          spaceId = mappedSpace.id
+        }
+      } catch (error) {
+        // Legacy source query may fail if JSON path not supported, fallback to TEAM
+        console.warn('Could not find mapped Space for ProjectSpace, defaulting to TEAM:', error)
+      }
+    }
+    
+    // If no mapped space found, default to TEAM space
+    if (!spaceId) {
+      const { getOrCreateTeamSpace } = await import('@/lib/spaces/canonical-space-helpers')
+      spaceId = await getOrCreateTeamSpace(auth.workspaceId)
+    }
+
     // Create the project and creator's membership atomically in a transaction
     // This guarantees immediate access for the creator and avoids race conditions with assertProjectAccess
     const project = await prisma.$transaction(async (tx) => {
@@ -447,7 +477,8 @@ export async function POST(request: NextRequest) {
           team: cleanData.team,
           ownerId: cleanData.ownerId || auth.user.userId, // Use provided owner or default to creator
           wikiPageId: cleanData.wikiPageId,
-          projectSpaceId: cleanData.projectSpaceId, // NEW: ProjectSpace assignment
+          projectSpaceId: cleanData.projectSpaceId, // Legacy: ProjectSpace assignment
+          spaceId: spaceId, // Phase 1: Canonical Space assignment
           dailySummaryEnabled,
           createdById: auth.user.userId // 3. Use userId from auth
         },

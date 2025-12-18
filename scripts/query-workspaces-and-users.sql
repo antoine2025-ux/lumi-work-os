@@ -41,3 +41,4 @@ INNER JOIN "workspace_members" wm ON wm."workspaceId" = w.id
 INNER JOIN "users" u ON u.id = wm."userId"
 ORDER BY w.name, wm.role, u.email;
 */
+

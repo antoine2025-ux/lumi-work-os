@@ -929,32 +929,22 @@ export function WikiAIAssistant({
               
               console.log('🔍 Creating page with workspace_type:', workspaceType, 'workspaceId:', workspaceId)
               
-              const response = await fetch('/api/wiki/pages', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  title: pendingPageTitle.trim(),
-                  content: ' ',
-                  tags: [],
-                  category: 'general',
-                  permissionLevel: permissionLevel,
-                  workspace_type: workspaceType
-                })
+              // Use centralized helper to create page
+              const { createWikiPage } = await import('@/lib/wiki/create-page')
+              const newPage = await createWikiPage({
+                workspaceId,
+                title: pendingPageTitle.trim(),
+                tags: [],
+                category: 'general',
+                permissionLevel: permissionLevel,
+                workspace_type: workspaceType
               })
               
-              if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-                throw new Error(errorData.error || 'Failed to create page')
-              }
-              
-              const newPage = await response.json()
               console.log('✅ Page created successfully via API:', newPage)
               
-              // Navigate to the new page
+              // Navigate to the new page in edit mode
               if (newPage.slug) {
-                window.location.href = `/wiki/${newPage.slug}`
+                window.location.href = `/wiki/${newPage.slug}?edit=1`
               }
               
               const successMessage: Message = {

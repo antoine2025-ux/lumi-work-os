@@ -389,3 +389,4 @@ The codebase has **workspace-scoped data models** and **application-level access
 ---
 
 **End of Architecture Summary**
+

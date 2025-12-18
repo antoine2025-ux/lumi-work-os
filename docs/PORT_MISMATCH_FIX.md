@@ -62,3 +62,4 @@ When port 3000 was in use, Next.js automatically used port 3003. But `NEXTAUTH_U
    ```
    🔐 [NextAuth] signIn callback triggered
    ```
+

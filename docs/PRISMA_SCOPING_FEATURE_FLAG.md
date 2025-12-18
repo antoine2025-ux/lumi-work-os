@@ -157,3 +157,4 @@ The scoping middleware catches bugs where `setWorkspaceContext()` is forgotten, 
 
 - `docs/MULTI_TENANT_HARDENING.md` - Overall multi-tenant architecture
 - `ARCHITECTURE_SUMMARY.md` - Current architecture overview
+

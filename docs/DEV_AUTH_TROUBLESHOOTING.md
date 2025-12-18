@@ -231,3 +231,4 @@ If issue persists:
 - Check server logs for specific error messages
 - Verify all environment variables are loaded (run diagnostic script)
 - Ensure Google Cloud Console redirect URI matches exactly
+

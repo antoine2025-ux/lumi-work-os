@@ -56,3 +56,4 @@ When a user accepts a workspace invite, instead of being taken to the invited wo
 - The cache TTL is 30 seconds, so even if cache clearing fails, it will refresh within 30 seconds
 - Using `window.location.href` ensures a complete page reload, clearing all client-side state
 - The workspace slug in the URL ensures `getUnifiedAuth()` uses Priority 1 (URL path slug) instead of falling back to default workspace
+

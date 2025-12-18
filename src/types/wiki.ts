@@ -25,6 +25,12 @@ export interface WikiPage {
   title: string
   slug: string
   content: string
+  /// ProseMirror JSON document structure (TipTap format). Null for legacy HTML pages.
+  contentJson?: Record<string, unknown> | null
+  /// Content storage format: 'HTML' (legacy) or 'JSON' (new structured format).
+  contentFormat?: 'HTML' | 'JSON'
+  /// Plain text extraction for search indexing and LoopBrain context.
+  textContent?: string | null
   excerpt: string | null
   category: string
   tags: string[]
@@ -61,6 +67,12 @@ export interface WikiVersion {
   id: string
   pageId: string
   content: string
+  /// ProseMirror JSON document structure for this version (if contentFormat is JSON).
+  contentJson?: Record<string, unknown> | null
+  /// Content format at time of version creation ('HTML' or 'JSON').
+  contentFormat: 'HTML' | 'JSON'
+  /// Plain text extraction of version content for search indexing and LoopBrain context.
+  textContent?: string | null
   version: number
   createdById: string
   createdAt: string

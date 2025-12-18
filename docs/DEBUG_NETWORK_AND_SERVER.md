@@ -99,3 +99,4 @@ Please provide:
 2. **Server Logs:** Copy/paste logs from terminal after clicking "Allow"
 3. **What happens:** Describe what you see after clicking "Allow"
 4. **Cookies:** List any `next-auth.*` cookies present after callback attempt
+

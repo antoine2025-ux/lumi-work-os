@@ -90,6 +90,8 @@ model User {
   createdInvites          WorkspaceInvite[]      @relation("InviteCreator")
   workspaceMemberships    WorkspaceMember[]
   ownedWorkspaces         Workspace[]            @relation("WorkspaceOwner")
+  ownedSpaces             Space[]                @relation("SpaceOwner")
+  spaceMemberships        SpaceMember[]
   onboarding_tasks        OnboardingTask[]       @relation("OnboardingTaskToUser")
 
   @@map("users")
@@ -126,6 +128,7 @@ model Workspace {
   projectTemplates    ProjectTemplate[]
   projects            Project[]
   projectSpaces       ProjectSpace[]
+  spaces              Space[]
   roleCards           RoleCard[]
   taskTemplates       TaskTemplate[]
   tasks               Task[]
@@ -190,6 +193,15 @@ model WikiPage {
   title                String
   slug                 String
   content              String
+  /// ProseMirror JSON document structure (TipTap format). Used for structured editor content.
+  /// Null for legacy HTML pages. Populated when page is upgraded to JSON format.
+  contentJson          Json?
+  /// Content storage format: HTML (legacy) or JSON (new structured format).
+  /// Defaults to HTML for backward compatibility. Set to JSON when using TipTap editor.
+  contentFormat        ContentFormat          @default(HTML)
+  /// Plain text extraction of document content for search indexing and LoopBrain context.
+  /// Derived from contentJson or content on save. Enables full-text search without parsing JSON/HTML.
+  textContent          String?
   excerpt              String?
   parentId             String?
   order                Int                    @default(0)
@@ -203,6 +215,7 @@ model WikiPage {
   view_count           Int?                   @default(0)
   is_featured          Boolean?               @default(false)
   workspace_type       String?                @default("team") @db.VarChar(50)
+  spaceId              String?                // Canonical Space FK (Phase 1: nullable)
   last_viewed_at       DateTime?              @db.Timestamp(6)
   ai_analysis          Json?
   quality_score        Decimal?               @db.Decimal(3, 2)
@@ -220,6 +233,7 @@ model WikiPage {
   parent               WikiPage?              @relation("WikiPageHierarchy", fields: [parentId], references: [id])
   children             WikiPage[]             @relation("WikiPageHierarchy")
   workspace            Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  space                Space?                 @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   versions             WikiVersion[]
 
   @@unique([workspaceId, slug])
@@ -230,6 +244,7 @@ model WikiPage {
   @@index([workspaceId, updatedAt], map: "idx_wiki_pages_workspace_updated")
   @@index([workspaceId, isPublished], map: "idx_wiki_pages_workspace_published")
   @@index([workspaceId, workspace_type], map: "idx_wiki_pages_workspace_type_alt")
+  @@index([workspaceId, spaceId], map: "idx_wiki_pages_workspace_space")
   @@index([updatedAt(sort: Desc)], map: "idx_wiki_pages_updated_at")
   @@map("wiki_pages")
 }
@@ -277,14 +292,23 @@ model WikiComment {
 }
 
 model WikiVersion {
-  id          String   @id @default(cuid())
-  pageId      String
-  content     String
-  version     Int
-  createdAt   DateTime @default(now())
-  createdById String
-  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  page        WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  id            String         @id @default(cuid())
+  pageId        String
+  content       String
+  /// ProseMirror JSON document structure for this version (if contentFormat is JSON).
+  /// Null for legacy HTML versions. Preserves structured content in version history.
+  contentJson   Json?
+  /// Content format at time of version creation (HTML or JSON).
+  /// Tracks format for proper rendering when viewing historical versions.
+  contentFormat ContentFormat @default(HTML)
+  /// Plain text extraction of version content for search indexing and LoopBrain context.
+  /// Derived from contentJson or content when version is created. Enables full-text search on version history.
+  textContent   String?
+  version       Int
+  createdAt     DateTime       @default(now())
+  createdById   String
+  createdBy     User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  page          WikiPage       @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   @@index([pageId, version], map: "idx_wiki_versions_page_version")
   @@map("wiki_versions")
@@ -651,6 +675,45 @@ model ProjectSpace {
   @@map("project_spaces")
 }
 
+model Space {
+  id          String          @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  type        SpaceType
+  visibility  SpaceVisibility @default(PUBLIC)
+  ownerId     String?
+  /// JSON field storing legacy source mapping (e.g., { projectSpaceId: "...", wikiWorkspaceId: "..." })
+  legacySource Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner       User?           @relation("SpaceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  members     SpaceMember[]
+  projects    Project[]
+  wikiPages   WikiPage[]
+
+  @@index([workspaceId, type], map: "idx_spaces_workspace_type")
+  @@index([workspaceId, visibility], map: "idx_spaces_workspace_visibility")
+  @@index([ownerId], map: "idx_spaces_owner")
+  @@map("spaces")
+}
+
+model SpaceMember {
+  id        String   @id @default(cuid())
+  spaceId   String
+  userId    String
+  role      String?  // Optional role (e.g., "admin", "member")
+  joinedAt DateTime  @default(now())
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, userId])
+  @@index([userId], map: "idx_space_members_user")
+  @@index([spaceId], map: "idx_space_members_space")
+  @@map("space_members")
+}
+
 model ProjectSpaceMember {
   id             String       @id @default(cuid())
   projectSpaceId String
@@ -681,6 +744,7 @@ model Project {
   wikiPageId          String?
   ownerId             String?
   projectSpaceId      String?
+  spaceId             String?               // Canonical Space FK (Phase 1: nullable)
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
   createdById         String
@@ -698,11 +762,13 @@ model Project {
   wikiPage            WikiPage?              @relation("ProjectPrimaryWiki", fields: [wikiPageId], references: [id])
   workspace           Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   projectSpace        ProjectSpace?          @relation(fields: [projectSpaceId], references: [id], onDelete: SetNull)
+  space                Space?                 @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   tasks               Task[]
 
   @@index([workspaceId, status], map: "idx_projects_workspace_status")
   @@index([updatedAt(sort: Desc)], map: "idx_projects_updated_at")
   @@index([projectSpaceId], map: "idx_projects_project_space")
+  @@index([workspaceId, spaceId], map: "idx_projects_workspace_space")
   @@map("projects")
 }
 
@@ -1233,6 +1299,11 @@ enum TaskTemplateCategory {
   GENERAL
 }
 
+enum ContentFormat {
+  HTML
+  JSON
+}
+
 enum ProjectTaskStatus {
   TODO
   IN_PROGRESS
@@ -1277,4 +1348,16 @@ enum BlogPostCategory {
 enum ProjectSpaceVisibility {
   PUBLIC
   TARGETED
+}
+
+enum SpaceType {
+  PERSONAL
+  TEAM
+  CUSTOM
+}
+
+enum SpaceVisibility {
+  PUBLIC
+  TARGETED
+  PRIVATE
 }

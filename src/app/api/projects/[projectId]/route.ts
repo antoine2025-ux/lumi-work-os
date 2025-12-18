@@ -22,6 +22,17 @@ export async function GET(
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
     }
 
+    // Phase A: Log database connection info when debugging (DEV ONLY)
+    if (process.env.NODE_ENV === 'development' && process.env.DEBUG_DB === 'true') {
+      try {
+        const dbInfo = await prisma.$queryRaw<Array<{ current_database: string }>>`SELECT current_database()`
+        console.log(`[GET /api/projects/${projectId}] Database: ${dbInfo[0]?.current_database}`)
+        console.log(`[GET /api/projects/${projectId}] DATABASE_URL: ${process.env.DATABASE_URL?.replace(/:[^@]+@/, ':***@') || 'NOT SET'}`)
+      } catch (e) {
+        console.error(`[GET /api/projects/${projectId}] Could not query DB info:`, e)
+      }
+    }
+
     // Check project access
     // Convert UnifiedAuthUser to NextAuth User format
     const nextAuthUser = {
@@ -54,6 +65,7 @@ export async function GET(
         createdById: true,
         workspaceId: true,
         projectSpaceId: true,
+        spaceId: true, // Phase 1: Canonical Space ID
         projectSpace: {
           select: {
             id: true,
