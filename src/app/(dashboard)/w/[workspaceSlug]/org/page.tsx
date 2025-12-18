@@ -17,6 +17,7 @@ import { OrgCleanSlate } from "@/components/org/org-clean-slate"
 import { InviteUserDialog } from "@/components/org/invite-user-dialog"
 import { PositionInviteDialog } from "@/components/org/position-invite-dialog"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
+import { useUserStatusContext } from '@/providers/user-status-provider'
 import { 
   Users, 
   Plus, 
@@ -94,6 +95,8 @@ interface OrgPosition {
 
 export default function OrgChartPage() {
   const router = useRouter()
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId: contextWorkspaceId, role: contextRole, isLoading: userStatusLoading } = useUserStatusContext()
   const [orgData, setOrgData] = useState<OrgPosition[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [departments, setDepartments] = useState<any[]>([])
@@ -110,36 +113,12 @@ export default function OrgChartPage() {
   const [editingPosition, setEditingPosition] = useState<OrgPosition | null>(null)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [assigningToRole, setAssigningToRole] = useState<OrgPosition | null>(null)
-  const [workspaceId, setWorkspaceId] = useState<string>('')
-  const [userRole, setUserRole] = useState<'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'>('MEMBER')
-  const [userRoleLoaded, setUserRoleLoaded] = useState(false)
   const [orgAccessDenied, setOrgAccessDenied] = useState(false)
 
-  // Get workspace ID and role from user status (no separate API call needed)
-  useEffect(() => {
-    const fetchUserStatus = async () => {
-      try {
-        const response = await fetch('/api/auth/user-status')
-        if (response.ok) {
-          const userStatus = await response.json()
-          if (userStatus.workspaceId) {
-            setWorkspaceId(userStatus.workspaceId)
-            
-            // Use role from userStatus if available, otherwise default to MEMBER
-            const role = userStatus.role || 'MEMBER'
-            setUserRole(role as 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER')
-            setUserRoleLoaded(true)
-          }
-        }
-      } catch (error) {
-        // Error handling - don't log sensitive data
-        // Default to MEMBER if fetch fails
-        setUserRole('MEMBER')
-        setUserRoleLoaded(true)
-      }
-    }
-    fetchUserStatus()
-  }, [])
+  // Derive workspaceId and userRole from context
+  const workspaceId = contextWorkspaceId || ''
+  const userRole = (contextRole as 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER') || 'MEMBER'
+  const userRoleLoaded = !userStatusLoading
 
   // Load org data on component mount (only after workspaceId and userRole are loaded)
   useEffect(() => {

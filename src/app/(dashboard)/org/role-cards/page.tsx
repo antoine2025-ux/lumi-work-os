@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CreateRoleCardDialog } from '@/components/org/create-role-card-dialog'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 import { 
   Building, 
   ArrowLeft,
@@ -38,30 +39,13 @@ interface RoleCard {
 
 export default function RoleCardsPage() {
   const router = useRouter()
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId } = useUserStatusContext()
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [loading, setLoading] = useState(false)
   const [roleCards, setRoleCards] = useState<RoleCard[]>([])
   const [loadingCards, setLoadingCards] = useState(true)
-  const [workspaceId, setWorkspaceId] = useState<string>('')
-
-  // Get workspace ID from user status
-  useEffect(() => {
-    const fetchWorkspaceId = async () => {
-      try {
-        const response = await fetch('/api/auth/user-status')
-        if (response.ok) {
-          const userStatus = await response.json()
-          if (userStatus.workspaceId) {
-            setWorkspaceId(userStatus.workspaceId)
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching workspace ID:', error)
-      }
-    }
-    fetchWorkspaceId()
-  }, [])
 
   const loadRoleCards = async () => {
     if (!workspaceId) return

@@ -133,16 +133,8 @@ export async function prefetchAllData(options: PrefetchOptions) {
       staleTime: 1 * 60 * 1000,
     }).then(() => console.log('[Prefetch] ✓ Drafts metadata cached')),
 
-    // User status
-    queryClient.prefetchQuery({
-      queryKey: ['user-status'],
-      queryFn: async () => {
-        const response = await fetch('/api/auth/user-status')
-        if (!response.ok) throw new Error('Failed to fetch user status')
-        return response.json()
-      },
-      staleTime: 30 * 1000,
-    }).then(() => console.log('[Prefetch] ✓ User status cached')),
+    // NOTE: User status is now provided by UserStatusContext from the session
+    // No need to prefetch it separately - this eliminates a redundant API call
   ]
 
   // Wait for all prefetches to complete (or fail silently)

@@ -56,6 +56,7 @@ import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { AILogo } from "@/components/ai-logo"
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 interface WikiLayoutProps {
   children: React.ReactNode
@@ -101,9 +102,11 @@ interface Project {
 
 export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId }: WikiLayoutProps) {
   const router = useRouter()
+  // Use centralized UserStatusContext as fallback if no prop provided
+  const { workspaceId: contextWorkspaceId } = useUserStatusContext()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [workspaceId, setWorkspaceId] = useState<string>(propWorkspaceId || '')
+  const [workspaceId, setWorkspaceId] = useState<string>(propWorkspaceId || contextWorkspaceId || '')
   const [isAISidebarOpen, setIsAISidebarOpen] = useState(false)
   const [aiDisplayMode, setAiDisplayMode] = useState<'sidebar' | 'floating'>('sidebar')
   const [workspaces, setWorkspaces] = useState<WikiWorkspace[]>([])
@@ -493,27 +496,12 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     }
   }
 
-  // Fetch workspace ID from user status
+  // Update workspaceId when context changes (no API call needed)
   useEffect(() => {
-    const fetchWorkspaceId = async () => {
-      if (workspaceId) return // Already have workspaceId from prop
-      
-      try {
-        const response = await fetch('/api/auth/user-status')
-        if (response.ok) {
-          const userStatus = await response.json()
-          if (userStatus.workspaceId) {
-            console.log('Fetched workspaceId:', userStatus.workspaceId)
-            setWorkspaceId(userStatus.workspaceId)
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching workspace ID:', error)
-      }
+    if (!workspaceId && contextWorkspaceId) {
+      setWorkspaceId(contextWorkspaceId)
     }
-    
-    fetchWorkspaceId()
-  }, [workspaceId])
+  }, [workspaceId, contextWorkspaceId])
 
   // Load workspaces and page counts - always load regardless of workspaceId
   useEffect(() => {

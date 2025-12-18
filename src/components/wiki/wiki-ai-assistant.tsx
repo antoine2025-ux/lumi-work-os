@@ -32,6 +32,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { callSpacesLoopbrainAssistant } from "@/lib/loopbrain/client"
 import type { LoopbrainResponse, LoopbrainSuggestion } from "@/lib/loopbrain/orchestrator-types"
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 interface Message {
   id: string
@@ -140,6 +141,8 @@ export function WikiAIAssistant({
   onDisplayModeChange,
   mode = 'bottom-bar' // Default to bottom-bar for wiki pages
 }: WikiAIAssistantProps) {
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId: contextWorkspaceId } = useUserStatusContext()
   const [isOpen, setIsOpen] = useState(false)
   
   // Debug: Log when workspaces change
@@ -193,17 +196,8 @@ export function WikiAIAssistant({
   // Stream content generation for a page
   const streamContentToPage = async (pageId: string, prompt: string, initialContent?: string) => {
     try {
-      // Get workspace ID - try to get from user status or use first workspace
-      let workspaceId = ''
-      try {
-        const statusResponse = await fetch('/api/auth/user-status')
-        if (statusResponse.ok) {
-          const userStatus = await statusResponse.json()
-          workspaceId = userStatus.workspaceId || ''
-        }
-      } catch (e) {
-        console.warn('Could not fetch workspace ID:', e)
-      }
+      // Get workspace ID from context or fall back to first workspace
+      let workspaceId = contextWorkspaceId || ''
       
       if (!workspaceId && workspaces.length > 0) {
         workspaceId = workspaces[0].id

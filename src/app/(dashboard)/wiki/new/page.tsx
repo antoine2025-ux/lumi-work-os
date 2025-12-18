@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,9 +18,12 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { JSONContent } from '@tiptap/core'
 import { createWikiPage } from '@/lib/wiki/create-page'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 export default function NewWikiPage() {
   const router = useRouter()
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId } = useUserStatusContext()
   const [isSaving, setIsSaving] = useState(false)
   const [title, setTitle] = useState("")
   const [contentJson, setContentJson] = useState<JSONContent | null>({
@@ -29,25 +32,6 @@ export default function NewWikiPage() {
   })
   const [category, setCategory] = useState("general")
   const [error, setError] = useState<string | null>(null)
-  const [workspaceId, setWorkspaceId] = useState<string>('')
-
-  // Get workspace ID from user status
-  useEffect(() => {
-    const fetchWorkspaceId = async () => {
-      try {
-        const response = await fetch('/api/auth/user-status')
-        if (response.ok) {
-          const userStatus = await response.json()
-          if (userStatus.workspaceId) {
-            setWorkspaceId(userStatus.workspaceId)
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching workspace ID:', error)
-      }
-    }
-    fetchWorkspaceId()
-  }, [])
 
   const handleSave = async (jsonContent: JSONContent) => {
     if (!title.trim()) {
@@ -61,7 +45,7 @@ export default function NewWikiPage() {
       
       // Use centralized helper to create page
       const newPage = await createWikiPage({
-        workspaceId,
+        workspaceId: workspaceId || '',
         title: title.trim(),
         contentJson: jsonContent,
         tags: [],

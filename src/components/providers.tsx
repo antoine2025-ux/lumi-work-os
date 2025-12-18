@@ -62,19 +62,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         {/* UserStatusProvider must be inside QueryClientProvider and SessionProvider */}
         <UserStatusProvider>
-          <ThemeProvider>
-            <AuthWrapper>
-              <WorkspaceProvider>
-                <SocketWrapper>
-                  <KeyboardShortcutsWrapper>
-                    <DataPrefetcher />
-                    {children}
-                    <CommandPalette />
-                  </KeyboardShortcutsWrapper>
-                </SocketWrapper>
-              </WorkspaceProvider>
-            </AuthWrapper>
-          </ThemeProvider>
+        <ThemeProvider>
+          <AuthWrapper>
+            <WorkspaceProvider>
+              <SocketWrapper>
+                <KeyboardShortcutsWrapper>
+                  <DataPrefetcher />
+                  {children}
+                  <CommandPalette />
+                </KeyboardShortcutsWrapper>
+              </SocketWrapper>
+            </WorkspaceProvider>
+          </AuthWrapper>
+        </ThemeProvider>
         </UserStatusProvider>
       </QueryClientProvider>
     </SessionProvider>
