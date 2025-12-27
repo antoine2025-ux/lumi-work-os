@@ -68,6 +68,10 @@ export function TaskTodosSection({ taskId, className }: TaskTodosSectionProps) {
     queryClient.setQueriesData<Todo[]>(
       { queryKey: ['todos'] },
       (oldData = []) => {
+        // Ensure oldData is an array before calling .some()
+        if (!Array.isArray(oldData)) {
+          return oldData
+        }
         // Check if todo already exists (in case of duplicate calls)
         if (oldData.some(t => t.id === newTodo.id)) {
           return oldData

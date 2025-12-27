@@ -151,6 +151,10 @@ export default function TodosPage() {
     queryClient.setQueriesData<Todo[]>(
       { queryKey: ['todos'] },
       (oldData = []) => {
+        // Ensure oldData is an array before calling .some()
+        if (!Array.isArray(oldData)) {
+          return oldData
+        }
         if (oldData.some(t => t.id === newTodo.id)) {
           return oldData
         }
