@@ -70,14 +70,14 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   // All localStorage access is guarded with typeof window !== 'undefined'
   useEffect(() => {
     const loadWorkspaces = async () => {
+      // Wait for user status to be loaded (from UserStatusContext)
+      // IMPORTANT: Do NOT proceed (and do NOT set isLoading=false) until userStatus is ready
+      // This prevents race conditions where workspaces array is empty but isLoading is false
+      if (userStatus.isLoading || !userStatus.isAuthenticated) {
+        return
+      }
+      
       try {
-        setIsLoading(true)
-        
-        // Wait for user status to be loaded (from UserStatusContext)
-        if (userStatus.isLoading || !userStatus.isAuthenticated) {
-          return
-        }
-        
         // Skip workspace loading if we're on an invite page
         // Users need to accept the invite first, which will create the workspace membership
         if (typeof window !== 'undefined') {
@@ -87,7 +87,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
             setWorkspaces([])
             setCurrentWorkspace(null)
             setUserRole(null)
-            setIsLoading(false)
+            // setIsLoading(false) is handled in finally block
             return
           }
         }
@@ -98,7 +98,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
           setWorkspaces([])
           setCurrentWorkspace(null)
           setUserRole(null)
-          setIsLoading(false)
+          // setIsLoading(false) is handled in finally block
           return
         }
         

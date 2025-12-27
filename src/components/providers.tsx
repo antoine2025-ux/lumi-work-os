@@ -57,6 +57,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     },
   }))
 
+  // Expose queryClient globally in dev mode for cache clearing
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    (window as any).__queryClient = queryClient
+  }
+
   return (
     <SessionProvider refetchOnWindowFocus={false} refetchInterval={0}>
       <QueryClientProvider client={queryClient}>

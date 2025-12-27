@@ -17,7 +17,8 @@ import {
   BarChart3,
   Calendar,
   Clock,
-  Workflow
+  Workflow,
+  CheckSquare
 } from "lucide-react"
 
 // Core navigation items (always visible)
@@ -27,6 +28,13 @@ const coreNavigationItems = [
     href: "/",
     icon: Home,
     description: "Overview and quick actions",
+    roles: ['OWNER', 'ADMIN', 'MEMBER']
+  },
+  {
+    name: "To-dos",
+    href: "/todos",
+    icon: CheckSquare,
+    description: "Personal and team to-dos",
     roles: ['OWNER', 'ADMIN', 'MEMBER']
   },
   {

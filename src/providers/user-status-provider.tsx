@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useMemo, ReactNode } from 'react'
+import React, { createContext, useContext, useMemo, useEffect, useRef, ReactNode } from 'react'
 import { useSession } from 'next-auth/react'
 import { useQuery } from '@tanstack/react-query'
 
@@ -136,6 +136,41 @@ export function UserStatusProvider({ children }: UserStatusProviderProps) {
       }
     }
   }, [status, session, apiStatus, isApiFetching, shouldFetchFromApi, updateSession, apiRefetch])
+
+  // Auto-capture user's timezone from browser (once)
+  const timezoneCapturedRef = useRef(false)
+  
+  useEffect(() => {
+    // Only run once, when user is authenticated and we have a user ID
+    if (!userStatus.isAuthenticated || !userStatus.user?.id) return
+    if (timezoneCapturedRef.current) return
+    
+    // Check if we already captured timezone in this session
+    const captureKey = `tz_captured_${userStatus.user.id}`
+    if (typeof window !== 'undefined' && localStorage.getItem(captureKey)) {
+      timezoneCapturedRef.current = true
+      return
+    }
+    
+    // Get browser timezone
+    const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (!browserTimezone) return
+    
+    // Mark as captured to prevent repeated calls
+    timezoneCapturedRef.current = true
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(captureKey, 'true')
+    }
+    
+    // Send to API (fire and forget - don't block UI)
+    fetch('/api/users/timezone', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timezone: browserTimezone })
+    }).catch(() => {
+      // Silent fail - timezone capture is non-critical
+    })
+  }, [userStatus.isAuthenticated, userStatus.user?.id])
 
   return (
     <UserStatusContext.Provider value={userStatus}>

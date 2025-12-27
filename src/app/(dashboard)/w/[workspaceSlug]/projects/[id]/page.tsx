@@ -65,6 +65,7 @@ const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mo
 const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
 const LoopbrainAssistantLauncher = dynamic(() => import("@/components/loopbrain/assistant-launcher").then(mod => ({ default: mod.LoopbrainAssistantLauncher })), { ssr: false })
 const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
+const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
 
 interface Project {
   id: string
@@ -818,6 +819,10 @@ export default function ProjectDetailPage() {
 
             </>
 
+          {/* Project To-dos Section */}
+          {project && (
+            <ProjectTodosSection projectId={projectId} />
+          )}
 
         </div>
       </div>

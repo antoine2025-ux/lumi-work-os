@@ -49,7 +49,8 @@ import {
   Folder,
   Trash2,
   Globe,
-  Target
+  Target,
+  CheckSquare
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -1081,6 +1082,20 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                       <span className="text-sm">New Project</span>
                     </Link>
                   )}
+                </div>
+
+                {/* To-dos Section */}
+                <div className="mb-3">
+                  <Link href="/todos">
+                    <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 hover:text-slate-100 cursor-pointer">TO-DOS</h3>
+                  </Link>
+                  <Link
+                    href="/todos"
+                    className="flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg"
+                  >
+                    <CheckSquare className="h-4 w-4" />
+                    <span className="text-sm">To-do list</span>
+                  </Link>
                 </div>
 
                 {/* Recent Pages - Filter out personal pages */}
