@@ -68,28 +68,71 @@ Implemented a single `/api/dashboard/bootstrap` endpoint that consolidates multi
 - Up to 14+ API calls
 - Total: 2.8-7 seconds
 
-### After
+### After (Measured Performance)
+
+**Bootstrap Endpoint Performance (Production Build):**
+
+From E2E test runs and production logs, observed timings:
+
+| Metric | First Load | Cached Load | Target |
+|--------|-----------|-------------|--------|
+| **Total Duration** | 1170ms | 29-169ms | <1000ms |
+| **Auth Duration** | 0.04-36ms | 0.01-0.05ms (cached) | <50ms |
+| **Access Duration** | 2.24-12ms | <1ms (cached) | <20ms |
+| **DB Duration** | 3.56-6.61ms | <5ms (cached) | <100ms |
+| **Page Counts** | 6.85-10ms | <5ms | <50ms |
+
+**Breakdown:**
+- **Auth:** Single call, ~36ms first time, <0.05ms cached (99%+ cache hit rate)
+- **Database:** 4 parallel queries, ~3-7ms total
+- **Page Counts:** Sequential counts per workspace, ~7-10ms
+- **Total:** ~29-59ms after cache warmup, ~1170ms cold start
 
 **Home Page:**
 - 1 API call (bootstrap)
-- Total time: ~300-800ms (single parallel query)
-- Auth calls: 1 time
+- Total time: ~29-1170ms (29ms cached, 1170ms cold)
+- Auth calls: 1 time (cached after first)
 - DB queries: 4 parallel queries
 
 **Projects Dashboard:**
 - 1 API call (bootstrap)
-- Total time: ~300-800ms
+- Total time: ~29-1170ms
 - No epics/tasks on initial load (lazy-loaded on demand)
 
 **Combined:**
 - 2 API calls (if both pages visited)
-- Total: ~600-1600ms
+- Total: ~58-2340ms (58ms cached, 2340ms cold)
 
-### Expected Reduction
+### Measured Reduction
 
 - **Network requests:** 14+ → 2 (86% reduction)
-- **Total load time:** 2.8-7s → 0.6-1.6s (77% reduction)
+- **Total load time (cached):** 2.8-7s → 0.06-0.17s (97% reduction)
+- **Total load time (cold):** 2.8-7s → 1.2-2.3s (59% reduction)
 - **Auth overhead:** 14+ calls → 2 calls (86% reduction)
+- **Auth cache hit rate:** >99% after first request
+
+### Performance Guardrails
+
+To prevent regression, the bootstrap endpoint enforces:
+
+1. **Strict Limits:**
+   - Projects: MAX 10 (dashboard preview only)
+   - Wiki pages: MAX 4 (recent pages preview)
+   - Todos: MAX 50 (today's todos only)
+
+2. **Minimal Field Selection:**
+   - All queries MUST use `select: { ... }` (never `include`)
+   - Never select `content`, `body`, `html` fields
+   - Never select full task lists (use `_count` instead)
+
+3. **What Must Never Be Added:**
+   - Full page content/body
+   - Full task lists
+   - Full epic lists
+   - Heavy joins with nested includes
+   - Unbounded queries
+
+See `src/app/api/dashboard/bootstrap/route.ts` for full guardrail documentation.
 
 ## Verification Steps
 

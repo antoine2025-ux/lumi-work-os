@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { supabaseAdmin } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 
 /**
@@ -39,16 +39,26 @@ export async function GET(request: NextRequest) {
 
     if (code) {
       try {
-        // Exchange code for Supabase session
+        // Exchange code for Supabase session (only if admin is configured)
         const cookieStore = await cookies()
-        const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.exchangeCodeForSession(code)
+        let supabaseAdmin
+        try {
+          supabaseAdmin = getSupabaseAdmin()
+        } catch (adminError) {
+          // Admin not configured - skip Supabase code exchange, use NextAuth only
+          console.log('Supabase admin not configured, skipping code exchange')
+        }
         
-        if (sessionError) {
-          console.error('Error exchanging code for session:', sessionError)
-          // Fall through to NextAuth check
-        } else if (sessionData?.user?.email) {
-          userEmail = sessionData.user.email
-          console.log('✅ Supabase session created for:', userEmail)
+        if (supabaseAdmin) {
+          const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.exchangeCodeForSession(code)
+          
+          if (sessionError) {
+            console.error('Error exchanging code for session:', sessionError)
+            // Fall through to NextAuth check
+          } else if (sessionData?.user?.email) {
+            userEmail = sessionData.user.email
+            console.log('✅ Supabase session created for:', userEmail)
+          }
         }
       } catch (supabaseError) {
         console.error('Error with Supabase code exchange:', supabaseError)

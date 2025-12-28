@@ -69,7 +69,7 @@ interface Project {
       email: string
     }
   }>
-  tasks: Array<{
+  tasks?: Array<{
     id: string
     title: string
     status: 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED'
@@ -107,6 +107,20 @@ interface Epic {
   taskCount: number
   completedTasks: number
   color?: string
+  tasks?: Array<{
+    id: string
+    title: string
+    status: 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED'
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+    dueDate?: string
+    assignee?: {
+      id: string
+      name: string
+    }
+  }>
+  _count?: {
+    tasks: number
+  }
 }
 
 interface Task {
@@ -390,13 +404,13 @@ export default function ProjectsDashboard() {
                               className="h-1 rounded-full transition-all duration-300" 
                               style={{ 
                                 backgroundColor: colors.primary, 
-                                width: `${project._count.tasks > 0 ? (project.tasks.filter(t => t.status === 'DONE').length / project._count.tasks) * 100 : 0}%` 
+                                width: `${project._count.tasks > 0 && project.tasks ? (project.tasks.filter(t => t.status === 'DONE').length / project._count.tasks) * 100 : 0}%` 
                               }}
                             ></div>
                           </div>
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-xs" style={{ color: colors.textSecondary }}>
-                              {project.tasks.filter(t => t.status === 'DONE').length} of {project._count.tasks} tasks
+                              {project.tasks ? project.tasks.filter(t => t.status === 'DONE').length : 0} of {project._count.tasks} tasks
                             </span>
                             <Badge className={`text-xs ${getStatusColor(project.status)}`}>
                               {project.status}
@@ -619,13 +633,13 @@ export default function ProjectsDashboard() {
                               className="h-1 rounded-full transition-all duration-300" 
                               style={{ 
                                 backgroundColor: colors.primary, 
-                                width: `${epic._count.tasks > 0 ? (epic.tasks.filter(t => t.status === 'DONE').length / epic._count.tasks) * 100 : 0}%` 
+                                width: `${epic._count && epic._count.tasks > 0 && epic.tasks ? (epic.tasks.filter(t => t.status === 'DONE').length / epic._count.tasks) * 100 : 0}%` 
                               }}
                             ></div>
                           </div>
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-xs" style={{ color: colors.textSecondary }}>
-                              {epic.tasks.filter(t => t.status === 'DONE').length} of {epic._count.tasks} tasks
+                              {epic.tasks ? epic.tasks.filter(t => t.status === 'DONE').length : 0} of {epic._count?.tasks || 0} tasks
                             </span>
                             <Badge className={`text-xs ${getStatusColor(epic.status)}`}>
                               {epic.status}

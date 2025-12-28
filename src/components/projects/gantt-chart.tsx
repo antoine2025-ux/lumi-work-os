@@ -36,7 +36,7 @@ interface Project {
   name: string
   startDate?: string
   endDate?: string
-  tasks: Task[]
+  tasks?: Task[]
 }
 
 interface GanttChartProps {
@@ -82,14 +82,14 @@ export default function GanttChart({ project, onTaskUpdate }: GanttChartProps) {
   // Debug logging
   useEffect(() => {
     console.log('GanttChart - Project data:', project)
-    console.log('GanttChart - Tasks count:', project.tasks.length)
+    console.log('GanttChart - Tasks count:', project.tasks?.length || 0)
   }, [project])
 
   // Calculate project timeline
   const projectTimeline = useMemo(() => {
     if (!project.startDate && !project.endDate) {
       // If no project dates, use task dates or current date
-      const taskDates = project.tasks
+      const taskDates = (project.tasks || [])
         .map(task => task.dueDate ? new Date(task.dueDate) : null)
         .filter(Boolean) as Date[]
       

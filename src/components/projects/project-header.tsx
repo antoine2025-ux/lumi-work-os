@@ -29,7 +29,7 @@ interface ProjectHeaderProps {
     }>
     _count: { tasks: number }
   }
-  tasks: Array<{ status: string }>
+  tasks?: Array<{ status: string }>
   colors: {
     primary: string
     background: string
@@ -62,6 +62,7 @@ export function ProjectHeader({
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
 
   const getTaskStatusCount = (status: string) => {
+    if (!tasks) return 0
     return tasks.filter(task => task.status === status).length
   }
 

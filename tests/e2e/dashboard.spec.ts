@@ -52,5 +52,30 @@ test.describe('Dashboard', () => {
     const header = page.locator('header')
     await expect(header).toBeVisible()
   })
+
+  test('dashboard makes only one bootstrap API call on initial load', async ({ page }) => {
+    // Track all network requests to /api/dashboard/bootstrap
+    const bootstrapRequests: string[] = []
+    
+    page.on('request', (request) => {
+      const url = request.url()
+      if (url.includes('/api/dashboard/bootstrap')) {
+        bootstrapRequests.push(url)
+      }
+    })
+    
+    // Navigate to dashboard (fresh page load)
+    await page.goto('/home')
+    await expect(page.getByTestId('dashboard-container')).toBeVisible({ timeout: 10000 })
+    
+    // Wait for network to settle
+    await page.waitForLoadState('networkidle')
+    
+    // Should have exactly 1 bootstrap call (not 10+ like before)
+    expect(
+      bootstrapRequests.length,
+      `Expected 1 bootstrap call, but found ${bootstrapRequests.length}. This indicates a regression to the old multi-call pattern.`
+    ).toBe(1)
+  })
 })
 

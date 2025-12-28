@@ -106,7 +106,7 @@ interface Project {
     name: string
     email: string
   }
-  tasks: Array<{
+  tasks?: Array<{
     id: string
     title: string
     status: 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED'
@@ -238,7 +238,12 @@ export default function ProjectDetailPage() {
           'projectId type': typeof projectId,
           'ids match?': data.id === projectId
         })
-        setProject(data)
+        // Ensure tasks is always an array (even if empty)
+        const projectWithTasks = {
+          ...data,
+          tasks: data.tasks || []
+        }
+        setProject(projectWithTasks)
       } else if (response.status === 404) {
         console.log('[ProjectPage] project not found (404), setting error')
         setError('Project not found')
@@ -509,12 +514,12 @@ export default function ProjectDetailPage() {
   }
 
   const getTaskStatusCount = (status: string) => {
-    if (!project) return 0
+    if (!project || !project.tasks) return 0
     return project.tasks.filter(task => task.status === status).length
   }
 
   const checkProjectCompletion = () => {
-    if (!project) return
+    if (!project || !project._count) return
     
     const isCompleted = project._count.tasks > 0 && 
       (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100
@@ -598,7 +603,7 @@ export default function ProjectDetailPage() {
         <>
           <ProjectHeader
             project={project}
-            tasks={project?.tasks || []}
+            tasks={project?.tasks}
             colors={colors}
             currentView={headerView}
             channelHints={channelHints}
