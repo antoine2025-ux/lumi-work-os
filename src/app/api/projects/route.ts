@@ -24,14 +24,16 @@ import { buildLogContextFromRequest } from '@/lib/request-context'
  * project data and the new ContextObject format. Consumers should read from `response.projects`.
  */
 export async function GET(request: NextRequest) {
-  const startTime = Date.now()
+  const startTime = performance.now()
   const baseContext = await buildLogContextFromRequest(request)
   
   logger.info('Incoming request /api/projects', baseContext)
   
   try {
     // 1. Get authenticated user with workspace context
+    const authStart = performance.now()
     const auth = await getUnifiedAuth(request)
+    const authDurationMs = performance.now() - authStart
     
     console.log('[PROJECTS API] Auth context:', {
       userId: auth.user.userId,
@@ -40,6 +42,7 @@ export async function GET(request: NextRequest) {
     })
     
     // 2. Assert workspace access (VIEWER can see projects)
+    const accessStart = performance.now()
     try {
       await assertAccess({ 
         userId: auth.user.userId, 
@@ -48,6 +51,7 @@ export async function GET(request: NextRequest) {
         requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
       })
     } catch (accessError: any) {
+      const accessDurationMs = performance.now() - accessStart
       console.error('[PROJECTS API] Access check failed:', {
         userId: auth.user.userId,
         workspaceId: auth.workspaceId,
@@ -71,6 +75,7 @@ export async function GET(request: NextRequest) {
       
       throw accessError
     }
+    const accessDurationMs = performance.now() - accessStart
 
     // 3. Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
@@ -105,11 +110,12 @@ export async function GET(request: NextRequest) {
       response.headers.set('X-Cache', 'HIT')
       
       // Log completion (cached)
-      const durationMs = Date.now() - startTime
+      const totalDurationMs = performance.now() - startTime
       logger.info('Projects fetch completed (cached)', {
         ...baseContext,
         projectCount: cachedProjects.length,
-        durationMs,
+        authDurationMs: Math.round(authDurationMs * 100) / 100,
+        totalDurationMs: Math.round(totalDurationMs * 100) / 100,
         cacheHit: true,
       })
       
@@ -153,6 +159,7 @@ export async function GET(request: NextRequest) {
     // Optimized query: Use select instead of include, limit tasks loaded
     console.log('[PROJECTS API] About to query Prisma with where:', JSON.stringify(where, null, 2))
     console.log('[PROJECTS API] User ID:', auth.user.userId, 'Workspace ID:', auth.workspaceId)
+    const dbStart = performance.now()
     const projects = await prisma.project.findMany({
       where,
       select: {
@@ -237,6 +244,7 @@ export async function GET(request: NextRequest) {
         createdAt: 'desc'
       }
     })
+    const dbDurationMs = performance.now() - dbStart
 
     console.log('[PROJECTS API] Found projects:', projects.length)
     if (projects.length === 0) {
@@ -296,28 +304,34 @@ export async function GET(request: NextRequest) {
     response.headers.set('X-Cache', 'MISS')
     
     // Log completion
-    const durationMs = Date.now() - startTime
+    const totalDurationMs = performance.now() - startTime
     logger.info('Projects fetch completed', {
       ...baseContext,
       projectCount: projects.length,
-      durationMs,
+      authDurationMs: Math.round(authDurationMs * 100) / 100,
+      accessDurationMs: Math.round(accessDurationMs * 100) / 100,
+      dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+      totalDurationMs: Math.round(totalDurationMs * 100) / 100,
       cacheHit: false,
     })
 
     // Log slow requests
-    if (durationMs > 500) {
+    if (totalDurationMs > 500) {
       logger.warn('Slow request /api/projects', {
         ...baseContext,
-        durationMs,
+        authDurationMs: Math.round(authDurationMs * 100) / 100,
+        accessDurationMs: Math.round(accessDurationMs * 100) / 100,
+        dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+        totalDurationMs: Math.round(totalDurationMs * 100) / 100,
       })
     }
     
     return response
   } catch (error: any) {
-    const durationMs = Date.now() - startTime
+    const totalDurationMs = performance.now() - startTime
     logger.error('Error in /api/projects', {
       ...baseContext,
-      durationMs,
+      totalDurationMs: Math.round(totalDurationMs * 100) / 100,
     }, error)
     
     // Handle auth errors

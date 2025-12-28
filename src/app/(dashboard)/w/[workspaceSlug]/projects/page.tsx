@@ -170,51 +170,37 @@ export default function ProjectsDashboard() {
     borderLight: 'var(--muted)'
   }
 
-  // Load data from API
+  // Load data from bootstrap endpoint (single API call)
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoading(true)
-        const wsId = currentWorkspace?.id || 'workspace-1'
         
-        // Load projects
-        const projectsResponse = await fetch(`/api/projects?workspaceId=${wsId}`)
-        if (projectsResponse.ok) {
-          const projectsResult = await projectsResponse.json()
-          // Handle new response shape: { projects: Project[], contextObjects: ContextObject[] }
-          const projectsData = Array.isArray(projectsResult) 
-            ? projectsResult 
-            : (projectsResult.projects || projectsResult.data || [])
-          setProjects(Array.isArray(projectsData) ? projectsData : [])
+        if (!currentWorkspace?.id) {
+          setIsLoading(false)
+          return
         }
-
-        // Load epics for all projects
-        const epicsPromises = projects.map(project => 
-          fetch(`/api/projects/${project.id}/epics`)
-            .then(res => res.ok ? res.json() : [])
-            .catch(() => [])
-        )
-        const epicsResults = await Promise.all(epicsPromises)
-        const allEpics = epicsResults.flat().map(epic => ({
-          ...epic,
-          projectName: projects.find(p => p.id === epic.projectId)?.name || 'Unknown Project'
-        }))
-        setEpics(allEpics)
-
-        // Load tasks for all projects
-        const tasksPromises = projects.map(project => 
-          fetch(`/api/projects/${project.id}/tasks`)
-            .then(res => res.ok ? res.json() : [])
-            .catch(() => [])
-        )
-        const tasksResults = await Promise.all(tasksPromises)
-        const allTasks = tasksResults.flat().map(task => ({
-          ...task,
-          projectName: projects.find(p => p.id === task.projectId)?.name || 'Unknown Project',
-          epicTitle: allEpics.find(e => e.id === task.epicId)?.title
-        }))
-        setTasks(allTasks)
-
+        
+        // Use bootstrap endpoint for initial load
+        const response = await fetch('/api/dashboard/bootstrap')
+        if (!response.ok) {
+          console.error('Failed to load bootstrap data:', response.status)
+          setIsLoading(false)
+          return
+        }
+        
+        const bootstrap = await response.json()
+        
+        // Set projects from bootstrap (epics/tasks loaded on-demand when viewing project detail)
+        if (bootstrap.projects) {
+          setProjects(bootstrap.projects)
+        }
+        
+        // Epics and tasks are NOT loaded on initial dashboard load
+        // They should be lazy-loaded when user navigates to a specific project detail page
+        setEpics([])
+        setTasks([])
+        
       } catch (error) {
         console.error('Error loading data:', error)
       } finally {

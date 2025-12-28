@@ -8,6 +8,7 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useWorkspace } from "@/lib/workspace-context"
+import { DashboardBootstrap } from "@/lib/types/dashboard-bootstrap"
 import dynamic from "next/dynamic"
 import {
   Plus,
@@ -110,68 +111,30 @@ export default function HomePage() {
     return "Good evening!"
   }
 
-  // Use React Query for automatic caching, deduplication, and better performance
-  const { data: pagesData, isLoading: isLoadingRecentPages } = useQuery({
-    queryKey: ['wiki-pages', currentWorkspace?.id],
+  // Use bootstrap endpoint for initial dashboard load (single API call)
+  const { data: bootstrapData, isLoading: isLoadingBootstrap } = useQuery({
+    queryKey: ['dashboard-bootstrap', currentWorkspace?.id],
     queryFn: async () => {
-      if (!currentWorkspace) return []
-      const response = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace.id}`)
-      if (!response.ok) return []
-      const result = await response.json()
-      const data = result.data || result
-      if (Array.isArray(data)) {
-        return data
-          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .slice(0, 4)
-      }
-      return []
+      if (!currentWorkspace) return null
+      const response = await fetch('/api/dashboard/bootstrap')
+      if (!response.ok) throw new Error('Bootstrap failed')
+      return response.json() as Promise<DashboardBootstrap>
     },
     enabled: !!currentWorkspace,
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchOnWindowFocus: false,
   })
 
-  const { data: projectsData, isLoading: isLoadingProjects } = useQuery({
-    queryKey: ['projects', currentWorkspace?.id],
-    queryFn: async () => {
-      if (!currentWorkspace) return []
-      const response = await fetch(`/api/projects?workspaceId=${currentWorkspace.id}`)
-      if (!response.ok) return []
-      const result = await response.json()
-      // Handle new response shape: { projects: Project[], contextObjects: ContextObject[] }
-      const data = Array.isArray(result) 
-        ? result 
-        : (result.projects || result.data || [])
-      if (Array.isArray(data)) {
-        return data
-          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .slice(0, 6)
-      }
-      return []
-    },
-    enabled: !!currentWorkspace,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchOnWindowFocus: false,
-  })
-
-  // Fetch today's todos for progress gauge
-  const { data: todaysTodos = [] } = useQuery({
-    queryKey: ['todos', 'today', currentWorkspace?.id],
-    queryFn: async () => {
-      if (!currentWorkspace) return []
-      const response = await fetch('/api/todos?view=today')
-      if (!response.ok) return []
-      return response.json()
-    },
-    enabled: !!currentWorkspace,
-    staleTime: 30 * 1000, // 30 seconds
-    refetchOnWindowFocus: true,
-  })
-
-  const recentPages = (pagesData || []) as RecentPage[]
-  const recentProjects = (projectsData || []) as Project[]
+  // Extract data from bootstrap response
+  const recentPages = (bootstrapData?.wikiPages || []) as RecentPage[]
+  const recentProjects = (bootstrapData?.projects || []) as Project[]
+  const todaysTodos = bootstrapData?.todos || []
   const completedTodos = todaysTodos.filter((todo: any) => todo.status === 'DONE').length
   const totalTodos = todaysTodos.length
+  
+  // Loading state combines all bootstrap data
+  const isLoadingRecentPages = isLoadingBootstrap
+  const isLoadingProjects = isLoadingBootstrap
 
   // Helper function to format time ago
   const getTimeAgo = (dateString: string) => {
@@ -307,7 +270,7 @@ export default function HomePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 max-h-[340px] overflow-y-auto dashboard-card-scroll">
-              {isLoadingProjects ? (
+              {(isLoadingProjects || isLoadingBootstrap) ? (
                 <div className="space-y-2">
                   {[...Array(3)].map((_, index) => (
                     <div key={index} className="space-y-2">

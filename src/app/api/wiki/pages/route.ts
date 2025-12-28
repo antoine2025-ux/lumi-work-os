@@ -9,16 +9,23 @@ import { cache } from '@/lib/cache'
 
 // GET /api/wiki/pages - List all wiki pages for a workspace
 export async function GET(request: NextRequest) {
+  const startTime = performance.now()
+  const route = '/api/wiki/pages'
+  
   try {
+    const authStart = performance.now()
     const auth = await getUnifiedAuth(request)
+    const authDurationMs = performance.now() - authStart
     
     // Assert workspace access
+    const accessStart = performance.now()
     await assertAccess({ 
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       scope: 'workspace', 
       requireRole: ['MEMBER'] 
     })
+    const accessDurationMs = performance.now() - accessStart
 
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
@@ -72,6 +79,7 @@ export async function GET(request: NextRequest) {
     // Get total count and pages in parallel
     // OPTIMIZED: Use select instead of include for metadata-only responses
     // This reduces payload size by 80-90% for list views
+    const dbStart = performance.now()
     const [total, pages] = await Promise.all([
       prisma.wikiPage.count({
         where: baseWhere
@@ -139,6 +147,7 @@ export async function GET(request: NextRequest) {
         take: Math.min(pagination.limit || 10, 50) // Cap at 50 to prevent huge responses
       })
     ])
+    const dbDurationMs = performance.now() - dbStart
 
     const result = createPaginationResult(pages, total, pagination.page!, pagination.limit!)
     
@@ -148,15 +157,30 @@ export async function GET(request: NextRequest) {
     // Cache the result for 5 minutes
     cache.set(cacheKey, result, 300)
     
-    logger.info('Wiki pages fetched', { workspaceId: auth.workspaceId, total, page: pagination.page, limit: pagination.limit })
+    const totalDurationMs = performance.now() - startTime
+    logger.info('Wiki pages fetched', { 
+      route,
+      workspaceId: auth.workspaceId, 
+      total, 
+      page: pagination.page, 
+      limit: pagination.limit,
+      authDurationMs: Math.round(authDurationMs * 100) / 100,
+      accessDurationMs: Math.round(accessDurationMs * 100) / 100,
+      dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+      totalDurationMs: Math.round(totalDurationMs * 100) / 100
+    })
     
     // Add HTTP caching headers for better performance
     const response = NextResponse.json(result)
     response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120')
     return response
   } catch (error) {
+    const totalDurationMs = performance.now() - startTime
     const workspaceId = (error as any)?.workspaceId || 'unknown'
-    logger.error('Error fetching wiki pages', error instanceof Error ? error : undefined)
+    logger.error('Error fetching wiki pages', {
+      route,
+      totalDurationMs: Math.round(totalDurationMs * 100) / 100
+    }, error instanceof Error ? error : undefined)
     
     // Handle auth errors
     if (error instanceof Error && error.message.includes('Unauthorized')) {

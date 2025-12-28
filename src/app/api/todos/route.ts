@@ -5,6 +5,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getTodayWindow, getWeekWindow } from '@/lib/datetime'
+import { logger } from '@/lib/logger'
 
 // Schema for creating a todo
 const TodoCreateSchema = z.object({
@@ -24,17 +25,24 @@ type ScheduleFilter = 'today' | 'inbox' | 'upcoming' | 'thisWeek' | 'all'
 
 // GET /api/todos - Get todos with filters
 export async function GET(request: NextRequest) {
+  const startTime = performance.now()
+  const route = '/api/todos'
+  
   try {
     // 1. Get authenticated user with workspace context
+    const authStart = performance.now()
     const auth = await getUnifiedAuth(request)
+    const authDurationMs = performance.now() - authStart
     
     // 2. Assert workspace access
+    const accessStart = performance.now()
     await assertAccess({ 
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       scope: 'workspace', 
       requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
     })
+    const accessDurationMs = performance.now() - accessStart
 
     // 3. Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
@@ -55,11 +63,13 @@ export async function GET(request: NextRequest) {
     const createdByMe = searchParams.get('createdByMe') === 'true' // For completed view toggle
 
     // Get user's timezone for date filtering
+    const userTimezoneStart = performance.now()
     const user = await prisma.user.findUnique({
       where: { id: auth.user.userId },
       select: { timezone: true }
     })
     const userTimezone = user?.timezone || null
+    const userTimezoneDurationMs = performance.now() - userTimezoneStart
 
     // Build where clause
     const where: Record<string, unknown> = {
@@ -192,6 +202,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const dbStart = performance.now()
     const todos = await prisma.todo.findMany({
       where,
       select: {
@@ -232,11 +243,30 @@ export async function GET(request: NextRequest) {
       ],
       take: 100
     })
+    const dbDurationMs = performance.now() - dbStart
+
+    const totalDurationMs = performance.now() - startTime
+    logger.info('Todos fetched', {
+      route,
+      workspaceId: auth.workspaceId,
+      view: view || 'all',
+      todoCount: todos.length,
+      authDurationMs: Math.round(authDurationMs * 100) / 100,
+      accessDurationMs: Math.round(accessDurationMs * 100) / 100,
+      userTimezoneDurationMs: Math.round(userTimezoneDurationMs * 100) / 100,
+      dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+      totalDurationMs: Math.round(totalDurationMs * 100) / 100
+    })
 
     const response = NextResponse.json(todos)
     response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
     return response
   } catch (error) {
+    const totalDurationMs = performance.now() - startTime
+    logger.error('Error fetching todos', {
+      route,
+      totalDurationMs: Math.round(totalDurationMs * 100) / 100
+    }, error instanceof Error ? error : undefined)
     console.error('Error fetching todos:', error)
     
     if (error instanceof Error) {
