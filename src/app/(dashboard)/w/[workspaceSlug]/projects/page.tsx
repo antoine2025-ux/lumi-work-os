@@ -377,7 +377,7 @@ export default function ProjectsDashboard() {
           >
             {/* My Projects View */}
             {viewMode === 'projects' && (
-              <div className="space-y-6">
+              <div className="space-y-6" data-testid="projects-list">
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {filteredProjects.map((project) => (
                     <Card 
@@ -385,6 +385,7 @@ export default function ProjectsDashboard() {
                       className="hover:shadow-lg transition-all duration-200 cursor-pointer border-0 rounded-xl overflow-hidden group" 
                       style={{ backgroundColor: colors.surface }}
                       onClick={() => window.location.href = `/projects/${project.id}`}
+                      data-testid={`project-card-${project.id}`}
                     >
                       <CardContent className="p-6">
                         <div className="flex items-center space-x-3 mb-4">

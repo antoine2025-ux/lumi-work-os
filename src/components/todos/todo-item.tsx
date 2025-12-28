@@ -130,6 +130,8 @@ export function TodoItem({
         isDone && "opacity-60"
       )}
       onClick={() => onClick?.(todo)}
+      data-testid={`todo-item-${todo.id}`}
+      data-completed={isDone ? "true" : "false"}
     >
       <div 
         className="flex-shrink-0 pt-0.5"

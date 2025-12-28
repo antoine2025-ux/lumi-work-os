@@ -137,7 +137,7 @@ export function TaskTodosSection({ taskId, className }: TaskTodosSectionProps) {
 
           {/* Completed Section */}
           {completedTodos.length > 0 && (
-            <div>
+            <div data-testid="todo-completed-section">
               <Button 
                 variant="ghost" 
                 size="sm" 

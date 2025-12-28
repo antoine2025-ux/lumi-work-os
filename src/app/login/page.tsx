@@ -138,6 +138,7 @@ function LoginPageContent() {
                   disabled={isLoading}
                   className="w-full h-12 text-base"
                   size="lg"
+                  data-testid="login-google-btn"
                 >
                   {isLoading ? (
                     <div className="flex items-center space-x-2">

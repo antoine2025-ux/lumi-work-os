@@ -83,6 +83,7 @@ export function TodoQuickAdd({
           placeholder={placeholder}
           className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
           disabled={isSubmitting}
+          data-testid="todo-quick-add-input"
         />
       </div>
       
