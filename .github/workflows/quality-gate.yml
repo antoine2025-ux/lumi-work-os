@@ -140,15 +140,36 @@ jobs:
         run: npm run seed:e2e
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        continue-on-error: false
+      
+      - name: Verify E2E seed
+        run: |
+          echo "E2E seed verification..."
+          echo "✅ Seed script completed successfully"
       
       - name: Build application
         run: npm run build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        continue-on-error: false
+      
+      - name: Verify build output
+        run: |
+          echo "Checking build artifacts..."
+          ls -la .next/standalone 2>/dev/null || echo "No standalone build (normal for Next.js)"
+          ls -la .next/static 2>/dev/null && echo "✅ Static assets built" || echo "⚠️ No static assets"
+          echo "Build check complete"
       
       - name: Run E2E tests
         run: npm run test:e2e
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          E2E_AUTH_ENABLED: "true"
+          E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
+          NEXTAUTH_URL: http://localhost:3000
+        continue-on-error: false
       
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -190,6 +211,42 @@ jobs:
     needs: [e2e-tests, security-deps, security-secrets]
     if: always()
     steps:
+      - name: Show core job results
+        run: |
+          echo "=== Core Job Results ==="
+          echo "E2E job result: ${{ needs.e2e-tests.result }}"
+          echo "Dependency audit job result: ${{ needs.security-deps.result }}"
+          echo "Secret scan job result: ${{ needs.security-secrets.result }}"
+      
+      - name: Download Playwright report (when E2E failed)
+        if: needs.e2e-tests.result != 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          continue-on-error: true
+      
+      - name: Print E2E diagnostics (when E2E failed)
+        if: needs.e2e-tests.result != 'success'
+        run: |
+          echo "=== E2E Test Failure Diagnostics ==="
+          if [ -d playwright-report ]; then
+            echo "✅ Playwright report downloaded"
+            ls -la playwright-report/ || true
+            if [ -f playwright-report/index.html ]; then
+              echo "📊 Full report available at: playwright-report/index.html"
+            fi
+          else
+            echo "⚠️ Playwright report not available (tests may have failed before completion)"
+          fi
+          echo ""
+          echo "Common E2E failure causes:"
+          echo "1. Build failed - check build step logs"
+          echo "2. Server startup timeout - check webServer config"
+          echo "3. Authentication failed - verify E2E_AUTH_SECRET is set"
+          echo "4. Database connection failed - verify DATABASE_URL is set"
+          echo "5. Test assertions failed - check test expectations"
+      
       - name: Check job results
         run: |
           echo "## Quality Gate Results" >> $GITHUB_STEP_SUMMARY
