@@ -61,9 +61,9 @@ async function seedE2EUser() {
     // 3. Ensure user is a member with OWNER role
     const existingMembership = await prisma.workspaceMember.findUnique({
       where: {
-        userId_workspaceId: {
-          userId: user.id,
+        workspaceId_userId: {
           workspaceId: workspace.id,
+          userId: user.id,
         },
       },
     })
