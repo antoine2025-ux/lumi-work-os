@@ -24,6 +24,19 @@ const E2E_WORKSPACE_SLUG = 'e2e-test-workspace'
 async function seedE2EUser() {
   console.log('🌱 Seeding E2E test user...')
   
+  // Check DATABASE_URL is set before attempting connection
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl || databaseUrl.trim() === '') {
+    console.error('❌ CRITICAL: DATABASE_URL environment variable is not set!')
+    console.error('   This script requires DATABASE_URL to be set in the environment')
+    console.error('   In CI: Check GitHub repository secrets (Settings > Secrets > Actions)')
+    console.error('   Locally: Check your .env or .env.local file')
+    process.exit(1)
+  }
+  
+  console.log('📊 Environment check:')
+  console.log(`   DATABASE_URL: ${databaseUrl.substring(0, 30)}... (${databaseUrl.length} chars)`)
+  
   // Verify database connection and log which database we're using
   try {
     const dbInfo = await prisma.$queryRaw<Array<{ current_database: string; inet_server_addr: string | null }>>`
