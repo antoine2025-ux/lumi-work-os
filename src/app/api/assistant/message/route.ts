@@ -3,9 +3,14 @@ import { prisma } from '@/lib/db'
 import OpenAI from 'openai'
 import { searchWikiKnowledge, formatWikiKnowledgeForAI } from '@/lib/wiki-knowledge'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization - only create client when needed
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    return null
+  }
+  return new OpenAI({ apiKey })
+}
 
 // Mock response function for testing when OpenAI is not available
 function getMockResponse(session: any, message: string, messageCount: number): string {
@@ -282,22 +287,27 @@ Be conversational, helpful, and guide them through the project creation process 
     // Get AI response from OpenAI with fallback to mock responses
     let aiResponse = "I'm sorry, I couldn't process your request."
     
-    try {
-      console.log('🤖 Sending to OpenAI:')
-      console.log('🔑 OpenAI API Key exists:', !!process.env.OPENAI_API_KEY)
-      console.log('🔑 API Key length:', process.env.OPENAI_API_KEY?.length || 0)
-      console.log('📝 System prompt length:', systemPrompt.length)
-      console.log('📝 Wiki results count:', wikiResults.length)
-      console.log('📝 System prompt preview:', systemPrompt.substring(0, 500) + '...')
-      console.log('💬 Conversation history length:', conversationHistory.length)
-      
-      // Create timeout promise for OpenAI call - increased to 30 seconds
-      const openaiTimeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('OpenAI API timeout')), 30000)
-      )
-      
-      const completion = await Promise.race([
-        openai.chat.completions.create({
+    const openai = getOpenAIClient()
+    if (!openai) {
+      console.log('OpenAI API key not set, using mock response')
+      aiResponse = getMockResponse(session, userMessage, conversationHistory.length)
+    } else {
+      try {
+        console.log('🤖 Sending to OpenAI:')
+        console.log('🔑 OpenAI API Key exists:', !!process.env.OPENAI_API_KEY)
+        console.log('🔑 API Key length:', process.env.OPENAI_API_KEY?.length || 0)
+        console.log('📝 System prompt length:', systemPrompt.length)
+        console.log('📝 Wiki results count:', wikiResults.length)
+        console.log('📝 System prompt preview:', systemPrompt.substring(0, 500) + '...')
+        console.log('💬 Conversation history length:', conversationHistory.length)
+        
+        // Create timeout promise for OpenAI call - increased to 30 seconds
+        const openaiTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('OpenAI API timeout')), 30000)
+        )
+        
+        const completion = await Promise.race([
+          openai.chat.completions.create({
           model: "gpt-4-turbo-preview", // Use GPT-4 Turbo for better performance
           messages: [
             { role: "system", content: systemPrompt },
@@ -334,20 +344,21 @@ Be conversational, helpful, and guide them through the project creation process 
         openaiTimeout
       ]) as any
 
-      aiResponse = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process your request."
-      console.log('✅ AI response received, length:', aiResponse.length)
-    } catch (error: any) {
-      console.error('❌ OpenAI API error:', error.message || error)
-      console.error('❌ Error details:', error.response?.data || error)
-      
-      // Try to provide a more helpful fallback response
-      if (error.message?.includes('timeout')) {
-        aiResponse = "I apologize, but I'm experiencing a delay in processing your request. This might be due to high demand. Please try rephrasing your question or ask me something more specific, and I'll do my best to help you quickly."
-      } else if (error.message?.includes('rate limit')) {
-        aiResponse = "I'm currently experiencing high demand. Please wait a moment and try again, or feel free to ask a simpler question in the meantime."
-      } else {
-        console.log('⚠️ Falling back to mock response due to API error')
-        aiResponse = getMockResponse(session, message, conversationHistory.length)
+        aiResponse = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process your request."
+        console.log('✅ AI response received, length:', aiResponse.length)
+      } catch (error: any) {
+        console.error('❌ OpenAI API error:', error.message || error)
+        console.error('❌ Error details:', error.response?.data || error)
+        
+        // Try to provide a more helpful fallback response
+        if (error.message?.includes('timeout')) {
+          aiResponse = "I apologize, but I'm experiencing a delay in processing your request. This might be due to high demand. Please try rephrasing your question or ask me something more specific, and I'll do my best to help you quickly."
+        } else if (error.message?.includes('rate limit')) {
+          aiResponse = "I'm currently experiencing high demand. Please wait a moment and try again, or feel free to ask a simpler question in the meantime."
+        } else {
+          console.log('⚠️ Falling back to mock response due to API error')
+          aiResponse = getMockResponse(session, message, conversationHistory.length)
+        }
       }
     }
 

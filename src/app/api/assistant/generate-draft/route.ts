@@ -3,9 +3,14 @@ import { prisma } from '@/lib/db'
 import OpenAI from 'openai'
 import { searchWikiKnowledge, formatWikiKnowledgeForAI } from '@/lib/wiki-knowledge'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization - only create client when needed
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    return null
+  }
+  return new OpenAI({ apiKey })
+}
 
 // Mock draft content for testing when OpenAI is not available
 function getMockDraftContent(): string {
@@ -203,8 +208,13 @@ The document should be production-ready and comprehensive.${wikiContext}`
     // Get AI response from OpenAI with fallback to mock content
     let draftContent = "Failed to generate draft."
     
-    try {
-      const completion = await openai.chat.completions.create({
+    const openai = getOpenAIClient()
+    if (!openai) {
+      console.log('OpenAI API key not set, using mock draft content')
+      draftContent = getMockDraftContent()
+    } else {
+      try {
+        const completion = await openai.chat.completions.create({
         model: "gpt-4",
         messages: [
           { role: "system", content: systemPrompt },
@@ -214,12 +224,13 @@ The document should be production-ready and comprehensive.${wikiContext}`
         max_tokens: 2000,
       })
 
-      draftContent = completion.choices[0]?.message?.content || "Failed to generate draft."
-    } catch (error) {
-      console.error('OpenAI API error:', error)
-      console.log('Falling back to mock draft content due to API error')
-      // Fall back to mock content when API fails
-      draftContent = getMockDraftContent()
+        draftContent = completion.choices[0]?.message?.content || "Failed to generate draft."
+      } catch (error) {
+        console.error('OpenAI API error:', error)
+        console.log('Falling back to mock draft content due to API error')
+        // Fall back to mock content when API fails
+        draftContent = getMockDraftContent()
+      }
     }
 
     // Extract title from first line or generate one
