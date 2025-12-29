@@ -52,6 +52,9 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     continue-on-error: true  # Known pre-existing failures
+    env:
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-secret-for-unit-tests-only' }}
+      NEXTAUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       

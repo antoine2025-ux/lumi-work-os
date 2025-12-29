@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET as getProjects, POST as createProject } from '@/app/api/projects/route'
 import { GET as getTasks, POST as createTask } from '@/app/api/tasks/route'
-import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 
 // Mock NextAuth
@@ -218,7 +218,7 @@ describe('Auth Utilities', () => {
     })
 
     const request = new NextRequest('http://localhost:3000/api/projects?workspaceId=workspace-1')
-    const user = await getAuthenticatedUser(request)
+    const user = await getUnifiedAuth(request)
     
     expect(user.userId).toBe('user-1')
     expect(user.activeWorkspaceId).toBe('workspace-1')
@@ -248,7 +248,7 @@ describe('Auth Utilities', () => {
     })
 
     const request = new NextRequest('http://localhost:3000/api/projects')
-    const user = await getAuthenticatedUser(request)
+    const user = await getUnifiedAuth(request)
     
     expect(user.userId).toBe('dev-user-1')
     expect(user.isDev).toBe(true)

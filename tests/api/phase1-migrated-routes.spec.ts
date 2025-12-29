@@ -4,6 +4,11 @@ import { GET as getProjects, POST as createProject } from '@/app/api/projects/ro
 import { GET as getTasks, POST as createTask } from '@/app/api/tasks/route'
 import { GET as getEpics, POST as createEpic } from '@/app/api/projects/[projectId]/epics/route'
 
+// Mock NextAuth getServerSession
+vi.mock('next-auth/next', () => ({
+  getServerSession: vi.fn(),
+}))
+
 // Mock auth utilities
 vi.mock('@/lib/auth/getAuthenticatedUser', () => ({
   getAuthenticatedUser: vi.fn()
