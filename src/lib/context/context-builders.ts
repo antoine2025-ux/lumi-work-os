@@ -9,6 +9,13 @@
 import { Prisma } from '@prisma/client'
 import { ContextObject, ContextObjectType, ContextRelation } from './context-types'
 
+export type WorkloadStats = {
+  tasksAssignedTotal: number
+  tasksInProgress: number
+  tasksOverdue: number
+  tasksDueNext7Days: number
+}
+
 // Type aliases for Prisma models with common includes
 type ProjectModel = Prisma.ProjectGetPayload<{
   include: {
@@ -539,7 +546,151 @@ export function roleToContext(
   }
 }
 
+/**
+ * Convert a User (person) to a ContextObject
+ */
+export function personToContext(
+  user: UserModel,
+  options?: {
+    role?: RoleModel | null
+    team?: TeamModel | null
+    workloadStats?: {
+      tasksAssignedTotal: number
+      tasksInProgress: number
+      tasksOverdue: number
+      tasksDueNext7Days: number
+    }
+    timeOff?: { startDate: Date; endDate: Date; type: string } | null
+  }
+): ContextObject {
+  const relations: ContextRelation[] = []
 
+  // Relation to role
+  if (options?.role?.id) {
+    relations.push({
+      type: 'role',
+      id: options.role.id,
+      label: 'role',
+      direction: 'out'
+    })
+  }
 
+  // Relation to team
+  if (options?.team?.id) {
+    relations.push({
+      type: 'team',
+      id: options.team.id,
+      label: 'team',
+      direction: 'out'
+    })
+  }
 
+  const tags: string[] = ['person']
+  if (options?.workloadStats) {
+    if (options.workloadStats.tasksOverdue > 0) {
+      tags.push('overloaded')
+    }
+    if (options.workloadStats.tasksInProgress > 5) {
+      tags.push('busy')
+    }
+  }
+  if (options?.timeOff) {
+    tags.push('on-leave')
+  }
+
+  return {
+    id: user.id,
+    type: 'person',
+    title: user.name || user.email || 'Unknown User',
+    summary: `User: ${user.name || user.email || 'Unknown'}`,
+    tags,
+    ownerId: user.id,
+    status: 'active',
+    updatedAt: user.updatedAt,
+    relations,
+    metadata: {
+      email: user.email || undefined,
+      image: user.image || undefined,
+      workloadStats: options?.workloadStats || undefined,
+      timeOff: options?.timeOff ? {
+        startDate: options.timeOff.startDate.toISOString(),
+        endDate: options.timeOff.endDate.toISOString(),
+        type: options.timeOff.type
+      } : undefined
+    }
+  }
+}
+
+/**
+ * Convert a Team to a ContextObject
+ */
+export function teamToContext(
+  team: TeamModel
+): ContextObject {
+  const relations: ContextRelation[] = []
+
+  return {
+    id: team.id,
+    type: 'team',
+    title: team.name,
+    summary: `Team: ${team.name}`,
+    tags: ['team'],
+    status: 'active',
+    updatedAt: team.updatedAt,
+    relations,
+    metadata: {
+      description: team.description || undefined
+    }
+  }
+}
+
+/**
+ * Convert a TimeOff entry to a ContextObject
+ */
+export function timeOffToContext(
+  timeOff: {
+    id: string
+    userId: string
+    startDate: Date
+    endDate: Date
+    type: string
+    status: string
+    updatedAt: Date
+  }
+): ContextObject {
+  const relations: ContextRelation[] = []
+
+  // Relation to person
+  if (timeOff.userId) {
+    relations.push({
+      type: 'person',
+      id: timeOff.userId,
+      label: 'person',
+      direction: 'out'
+    })
+  }
+
+  const tags: string[] = ['time-off', timeOff.type.toLowerCase()]
+  if (timeOff.status === 'approved') {
+    tags.push('approved')
+  }
+
+  return {
+    id: timeOff.id,
+    type: 'time_off',
+    title: `${timeOff.type} - ${timeOff.startDate.toISOString().split('T')[0]} to ${timeOff.endDate.toISOString().split('T')[0]}`,
+    summary: `${timeOff.type} time off from ${timeOff.startDate.toISOString().split('T')[0]} to ${timeOff.endDate.toISOString().split('T')[0]}`,
+    tags,
+    ownerId: timeOff.userId,
+    status: timeOff.status === 'approved' ? 'active' : 'pending',
+    updatedAt: timeOff.updatedAt,
+    relations,
+    metadata: {
+      startDate: timeOff.startDate.toISOString(),
+      endDate: timeOff.endDate.toISOString(),
+      type: timeOff.type,
+      status: timeOff.status
+    }
+  }
+}
 
