@@ -140,7 +140,7 @@ jobs:
       - name: Verify required secrets
         run: |
           echo "Checking required secrets..."
-          # Secrets verified: DATABASE_URL, NEXTAUTH_SECRET, E2E_AUTH_SECRET
+          # Secrets verified: DATABASE_URL (IPv4 compatible), NEXTAUTH_SECRET, E2E_AUTH_SECRET
           if [ -z "${{ secrets.DATABASE_URL }}" ]; then
             echo "❌ ERROR: DATABASE_URL secret is not set in GitHub repository secrets"
             echo "   Go to: Settings > Secrets and variables > Actions"
