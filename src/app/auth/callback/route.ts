@@ -50,14 +50,14 @@ export async function GET(request: NextRequest) {
         }
         
         if (supabaseAdmin) {
-          const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.exchangeCodeForSession(code)
-          
-          if (sessionError) {
-            console.error('Error exchanging code for session:', sessionError)
-            // Fall through to NextAuth check
-          } else if (sessionData?.user?.email) {
-            userEmail = sessionData.user.email
-            console.log('✅ Supabase session created for:', userEmail)
+        const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.exchangeCodeForSession(code)
+        
+        if (sessionError) {
+          console.error('Error exchanging code for session:', sessionError)
+          // Fall through to NextAuth check
+        } else if (sessionData?.user?.email) {
+          userEmail = sessionData.user.email
+          console.log('✅ Supabase session created for:', userEmail)
           }
         }
       } catch (supabaseError) {

@@ -17,10 +17,37 @@ if (!process.env.NEXTAUTH_URL && process.env.NODE_ENV === 'production') {
   console.warn('⚠️ NEXTAUTH_URL is not set in production. Authentication may not work correctly.')
 }
 
+// Determine the correct base URL for NextAuth
+// In development: always use localhost unless NEXTAUTH_URL is explicitly set to localhost
+// In production: NEXTAUTH_URL > VERCEL_URL > default
+const getBaseUrl = () => {
+  // In development, always use localhost unless NEXTAUTH_URL is explicitly set to localhost
+  if (process.env.NODE_ENV === 'development') {
+    // If NEXTAUTH_URL is set and points to localhost, use it (allows custom ports)
+    if (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL.includes('localhost')) {
+      return process.env.NEXTAUTH_URL
+    }
+    // Otherwise, always default to localhost:3000 in development
+    return 'http://localhost:3000'
+  }
+  
+  // In production, use NEXTAUTH_URL or VERCEL_URL
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
+  }
+  // Fallback (shouldn't happen in production)
+  return 'http://localhost:3000'
+}
+
+const baseUrl = getBaseUrl()
+console.log('🔐 [NextAuth] Base URL for callbacks:', baseUrl)
+console.log('🔐 [NextAuth] Expected callback URL:', `${baseUrl}/api/auth/callback/google`)
+
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  // Don't set 'url' here - it affects all NextAuth operations
-  // We'll handle OAuth callback URL in the provider config instead
   callbacks: {
     async signIn({ user, account, profile }) {
       console.log('🔐 [NextAuth] signIn callback triggered', {

@@ -77,11 +77,36 @@ export async function GET(request: NextRequest) {
           isExpired: session.expiresAt ? Date.now() > session.expiresAt * 1000 : 'unknown'
         })
 
+    // Determine the correct base URL for OAuth callback
+    // In development: always use localhost unless NEXTAUTH_URL is explicitly set to localhost
+    // In production: NEXTAUTH_URL > VERCEL_URL > default
+    const getBaseUrl = () => {
+      if (process.env.NODE_ENV === 'development') {
+        // If NEXTAUTH_URL is set and points to localhost, use it (allows custom ports)
+        if (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL.includes('localhost')) {
+          return process.env.NEXTAUTH_URL
+        }
+        // Otherwise, always default to localhost:3000 in development
+        return 'http://localhost:3000'
+      }
+      
+      // In production, use NEXTAUTH_URL or VERCEL_URL
+      if (process.env.NEXTAUTH_URL) {
+        return process.env.NEXTAUTH_URL
+      }
+      if (process.env.VERCEL_URL) {
+        return `https://${process.env.VERCEL_URL}`
+      }
+      return 'http://localhost:3000'
+    }
+
+    const baseUrl = getBaseUrl()
+    
     // Create OAuth2 client
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.NEXTAUTH_URL + '/api/auth/callback/google'
+      `${baseUrl}/api/auth/callback/google`
     )
 
     // Set credentials

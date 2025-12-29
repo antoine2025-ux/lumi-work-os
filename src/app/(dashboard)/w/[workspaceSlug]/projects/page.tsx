@@ -60,7 +60,7 @@ interface Project {
     name: string
     email: string
   }
-  members: Array<{
+  members?: Array<{
     id: string
     role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
     user: {
@@ -205,9 +205,26 @@ export default function ProjectsDashboard() {
         
         const bootstrap = await response.json()
         
+        // #region agent log
+        if (typeof window !== 'undefined') {
+          try {
+            fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:206',message:'Bootstrap data received',data:{hasBootstrap:!!bootstrap,hasProjects:!!bootstrap?.projects,projectsCount:bootstrap?.projects?.length,projectsType:typeof bootstrap?.projects},timestamp:Date.now(),sessionId:'debug-session',runId:'server-error',hypothesisId:'O'})}).catch(()=>{});
+          } catch(e) {}
+        }
+        // #endregion
+        
         // Set projects from bootstrap (epics/tasks loaded on-demand when viewing project detail)
-        if (bootstrap.projects) {
+        if (bootstrap?.projects && Array.isArray(bootstrap.projects)) {
           setProjects(bootstrap.projects)
+        } else {
+          // #region agent log
+          if (typeof window !== 'undefined') {
+            try {
+              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:214',message:'Bootstrap projects invalid',data:{bootstrapType:typeof bootstrap,bootstrapKeys:Object.keys(bootstrap || {}),projectsType:typeof bootstrap?.projects},timestamp:Date.now(),sessionId:'debug-session',runId:'server-error',hypothesisId:'P'})}).catch(()=>{});
+            } catch(e) {}
+          }
+          // #endregion
+          setProjects([])
         }
         
         // Epics and tasks are NOT loaded on initial dashboard load
@@ -215,8 +232,15 @@ export default function ProjectsDashboard() {
         setEpics([])
         setTasks([])
         
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error loading data:', error)
+        // #region agent log
+        if (typeof window !== 'undefined') {
+          try {
+            fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:218',message:'Error loading bootstrap data',data:{errorMessage:error?.message,errorName:error?.name,errorStack:error?.stack?.split('\n').slice(0,3).join('|')},timestamp:Date.now(),sessionId:'debug-session',runId:'server-error',hypothesisId:'Q'})}).catch(()=>{});
+          } catch(e) {}
+        }
+        // #endregion
       } finally {
         setIsLoading(false)
       }
@@ -264,21 +288,21 @@ export default function ProjectsDashboard() {
     }
   }
 
-  // Filter data based on search
-  const filteredProjects = projects.filter(project => 
-    project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  // Filter data based on search (with safe guards)
+  const filteredProjects = (projects || []).filter(project => 
+    project?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (project?.description && project.description.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
-  const filteredEpics = epics.filter(epic => 
-    epic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    epic.projectName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredEpics = (epics || []).filter(epic => 
+    epic?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    epic?.projectName?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredTasks = tasks.filter(task => 
-    task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    task.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (task.epicTitle && task.epicTitle.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredTasks = (tasks || []).filter(task => 
+    task?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (task?.projectName && task.projectName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (task?.epicTitle && task.epicTitle.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
   // Get top 5 tasks sorted by due date and priority
@@ -332,19 +356,19 @@ export default function ProjectsDashboard() {
       <div className="px-16 mb-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="text-center">
-            <div className="text-3xl font-light mb-2" style={{ color: colors.text }}>{projects.length}</div>
+            <div className="text-3xl font-light mb-2" style={{ color: colors.text }}>{(projects || []).length}</div>
             <div className="text-sm" style={{ color: colors.textSecondary }}>Total Projects</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-light mb-2" style={{ color: colors.success }}>{projects.filter(p => p.status === 'ACTIVE').length}</div>
+            <div className="text-3xl font-light mb-2" style={{ color: colors.success }}>{(projects || []).filter(p => p?.status === 'ACTIVE').length}</div>
             <div className="text-sm" style={{ color: colors.textSecondary }}>Active</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-light mb-2" style={{ color: colors.primary }}>{epics.length}</div>
+            <div className="text-3xl font-light mb-2" style={{ color: colors.primary }}>{(epics || []).length}</div>
             <div className="text-sm" style={{ color: colors.textSecondary }}>Epics</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-light mb-2" style={{ color: colors.text }}>{tasks.length}</div>
+            <div className="text-3xl font-light mb-2" style={{ color: colors.text }}>{(tasks || []).length}</div>
             <div className="text-sm" style={{ color: colors.textSecondary }}>Total Tasks</div>
           </div>
         </div>
@@ -379,7 +403,22 @@ export default function ProjectsDashboard() {
             {viewMode === 'projects' && (
               <div className="space-y-6" data-testid="projects-list">
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredProjects.map((project) => (
+                  {filteredProjects.map((project) => {
+                    // Guard: Skip if project is undefined/null
+                    if (!project) {
+                      // #region agent log
+                      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:382',message:'Project is null/undefined',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix2',hypothesisId:'A'})}).catch(()=>{});
+                      // #endregion
+                      return null;
+                    }
+                    
+                    // #region agent log
+                    try {
+                      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:382',message:'Project map entry',data:{projectId:project?.id,hasProject:!!project,hasCount:!!project?._count,countTasks:project?._count?.tasks,hasTasks:!!project?.tasks,tasksLength:project?.tasks?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix2',hypothesisId:'A'})}).catch(()=>{});
+                    } catch(e) {}
+                    // #endregion
+                    
+                    return (
                     <Card 
                       key={project.id}
                       className="hover:shadow-lg transition-all duration-200 cursor-pointer border-0 rounded-xl overflow-hidden group" 
@@ -399,30 +438,61 @@ export default function ProjectsDashboard() {
                         </div>
 
                         <div className="mb-4">
-                          <div className="w-full rounded-full h-1" style={{ backgroundColor: colors.border }}>
-                            <div 
-                              className="h-1 rounded-full transition-all duration-300" 
-                              style={{ 
-                                backgroundColor: colors.primary, 
-                                width: `${project._count.tasks > 0 && project.tasks ? (project.tasks.filter(t => t.status === 'DONE').length / project._count.tasks) * 100 : 0}%` 
-                              }}
-                            ></div>
-                          </div>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs" style={{ color: colors.textSecondary }}>
-                              {project.tasks ? project.tasks.filter(t => t.status === 'DONE').length : 0} of {project._count.tasks} tasks
-                            </span>
-                            <Badge className={`text-xs ${getStatusColor(project.status)}`}>
-                              {project.status}
-                            </Badge>
-                          </div>
+                          {(() => {
+                            // Safe calculation with intermediate variables (no inline ternaries)
+                            const total = project?._count?.tasks ?? 0;
+                            const tasks = project?.tasks ?? [];
+                            const done = tasks.filter(t => t.status === 'DONE').length;
+                            const width = total > 0 ? (done / total) * 100 : 0;
+                            
+                            // #region agent log
+                            try {
+                              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:426',message:'Project progress calc (fixed)',data:{total,hasTasks:!!tasks,tasksLength:tasks.length,done,width},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+                            } catch(e) {
+                              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:426',message:'Project progress calc error (fixed)',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'C'})}).catch(()=>{});
+                            }
+                            // #endregion
+                            
+                            return (
+                              <>
+                                <div className="w-full rounded-full h-1" style={{ backgroundColor: colors.border }}>
+                                  <div 
+                                    className="h-1 rounded-full transition-all duration-300" 
+                                    style={{ 
+                                      backgroundColor: colors.primary, 
+                                      width: `${width}%` 
+                                    }}
+                                  ></div>
+                                </div>
+                                <div className="flex items-center justify-between mt-2">
+                                  <span className="text-xs" style={{ color: colors.textSecondary }}>
+                                    {done} of {total} tasks
+                                  </span>
+                                  <Badge className={`text-xs ${getStatusColor(project.status)}`}>
+                                    {project.status}
+                                  </Badge>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-1">
                             <Users className="h-3 w-3" style={{ color: colors.textSecondary }} />
                             <span className="text-xs" style={{ color: colors.textSecondary }}>
-                              {project.members.length}
+                              {(() => {
+                                // Safe access to members array
+                                const memberCount = project.members?.length ?? 0;
+                                
+                                // #region agent log
+                                try {
+                                  fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:460',message:'Project members count (fixed)',data:{projectId:project?.id,hasMembers:!!project?.members,memberCount},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix5',hypothesisId:'N'})}).catch(()=>{});
+                                } catch(e) {}
+                                // #endregion
+                                
+                                return memberCount;
+                              })()}
                             </span>
                           </div>
                           <div className="flex items-center space-x-1">
@@ -434,7 +504,8 @@ export default function ProjectsDashboard() {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Future Placeholder Cards */}
@@ -476,7 +547,11 @@ export default function ProjectsDashboard() {
             {viewMode === 'epics' && (
               <div className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredEpics.map((epic) => (
+                  {filteredEpics.map((epic) => {
+                    // Guard: Skip if epic is undefined/null
+                    if (!epic) return null;
+                    
+                    return (
                     <Card 
                       key={epic.id}
                       className="hover:shadow-lg transition-all duration-200 cursor-pointer border-0 rounded-xl overflow-hidden group" 
@@ -494,23 +569,40 @@ export default function ProjectsDashboard() {
                         </div>
 
                         <div className="mb-4">
-                          <div className="w-full rounded-full h-1" style={{ backgroundColor: colors.border }}>
-                            <div 
-                              className="h-1 rounded-full transition-all duration-300" 
-                              style={{ 
-                                backgroundColor: colors.primary, 
-                                width: `${epic.progress}%` 
-                              }}
-                            ></div>
-                          </div>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs" style={{ color: colors.textSecondary }}>
-                              {epic.completedTasks} of {epic.taskCount} tasks
-                            </span>
-                            <span className="text-xs font-medium" style={{ color: colors.primary }}>
-                              {epic.progress}%
-                            </span>
-                          </div>
+                          {(() => {
+                            // Safe access to epic progress properties
+                            const progress = epic?.progress ?? 0;
+                            const completedTasks = epic?.completedTasks ?? 0;
+                            const taskCount = epic?.taskCount ?? 0;
+                            
+                            // #region agent log
+                            try {
+                              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:536',message:'Epic progress display (fixed)',data:{progress,completedTasks,taskCount},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix4',hypothesisId:'M'})}).catch(()=>{});
+                            } catch(e) {}
+                            // #endregion
+                            
+                            return (
+                              <>
+                                <div className="w-full rounded-full h-1" style={{ backgroundColor: colors.border }}>
+                                  <div 
+                                    className="h-1 rounded-full transition-all duration-300" 
+                                    style={{ 
+                                      backgroundColor: colors.primary, 
+                                      width: `${progress}%` 
+                                    }}
+                                  ></div>
+                                </div>
+                                <div className="flex items-center justify-between mt-2">
+                                  <span className="text-xs" style={{ color: colors.textSecondary }}>
+                                    {completedTasks} of {taskCount} tasks
+                                  </span>
+                                  <span className="text-xs font-medium" style={{ color: colors.primary }}>
+                                    {progress}%
+                                  </span>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex items-center justify-between">
@@ -531,7 +623,8 @@ export default function ProjectsDashboard() {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -610,7 +703,22 @@ export default function ProjectsDashboard() {
             {viewMode === 'my-epics' && (
               <div className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredEpics.map((epic) => (
+                  {filteredEpics.map((epic) => {
+                    // Guard: Skip if epic is undefined/null
+                    if (!epic) {
+                      // #region agent log
+                      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:653',message:'Epic is null/undefined',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix2',hypothesisId:'D'})}).catch(()=>{});
+                      // #endregion
+                      return null;
+                    }
+                    
+                    // #region agent log
+                    try {
+                      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:653',message:'Epic map entry',data:{epicId:epic?.id,hasEpic:!!epic,hasCount:!!epic?._count,countTasks:epic?._count?.tasks,hasTasks:!!epic?.tasks,tasksLength:epic?.tasks?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix2',hypothesisId:'D'})}).catch(()=>{});
+                    } catch(e) {}
+                    // #endregion
+                    
+                    return (
                     <Card 
                       key={epic.id}
                       className="hover:shadow-lg transition-all duration-200 cursor-pointer border-0 rounded-xl overflow-hidden group" 
@@ -628,23 +736,43 @@ export default function ProjectsDashboard() {
                         </div>
 
                         <div className="mb-4">
-                          <div className="w-full rounded-full h-1" style={{ backgroundColor: colors.border }}>
-                            <div 
-                              className="h-1 rounded-full transition-all duration-300" 
-                              style={{ 
-                                backgroundColor: colors.primary, 
-                                width: `${epic._count && epic._count.tasks > 0 && epic.tasks ? (epic.tasks.filter(t => t.status === 'DONE').length / epic._count.tasks) * 100 : 0}%` 
-                              }}
-                            ></div>
-                          </div>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs" style={{ color: colors.textSecondary }}>
-                              {epic.tasks ? epic.tasks.filter(t => t.status === 'DONE').length : 0} of {epic._count?.tasks || 0} tasks
-                            </span>
-                            <Badge className={`text-xs ${getStatusColor(epic.status)}`}>
-                              {epic.status}
-                            </Badge>
-                          </div>
+                          {(() => {
+                            // Safe calculation with intermediate variables (no inline ternaries)
+                            const total = epic?._count?.tasks ?? 0;
+                            const tasks = epic?.tasks ?? [];
+                            const done = tasks.filter(t => t.status === 'DONE').length;
+                            const width = total > 0 ? (done / total) * 100 : 0;
+                            
+                            // #region agent log
+                            try {
+                              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:675',message:'Epic progress calc (fixed)',data:{total,hasTasks:!!tasks,tasksLength:tasks.length,done,width},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'E'})}).catch(()=>{});
+                            } catch(e) {
+                              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:675',message:'Epic progress calc error (fixed)',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
+                            }
+                            // #endregion
+                            
+                            return (
+                              <>
+                                <div className="w-full rounded-full h-1" style={{ backgroundColor: colors.border }}>
+                                  <div 
+                                    className="h-1 rounded-full transition-all duration-300" 
+                                    style={{ 
+                                      backgroundColor: colors.primary, 
+                                      width: `${width}%` 
+                                    }}
+                                  ></div>
+                                </div>
+                                <div className="flex items-center justify-between mt-2">
+                                  <span className="text-xs" style={{ color: colors.textSecondary }}>
+                                    {done} of {total} tasks
+                                  </span>
+                                  <Badge className={`text-xs ${getStatusColor(epic.status)}`}>
+                                    {epic.status}
+                                  </Badge>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex items-center justify-between">
@@ -663,7 +791,8 @@ export default function ProjectsDashboard() {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -748,11 +877,11 @@ export default function ProjectsDashboard() {
         </AnimatePresence>
 
           {/* Empty State */}
-          {((viewMode === 'projects' && filteredProjects.length === 0) ||
-            (viewMode === 'epics' && filteredEpics.length === 0) ||
-            (viewMode === 'my-epics' && filteredEpics.length === 0) ||
-            (viewMode === 'tasks' && filteredTasks.length === 0) ||
-            (viewMode === 'my-tasks' && filteredTasks.length === 0)) && (
+          {((viewMode === 'projects' && (filteredProjects || []).length === 0) ||
+            (viewMode === 'epics' && (filteredEpics || []).length === 0) ||
+            (viewMode === 'my-epics' && (filteredEpics || []).length === 0) ||
+            (viewMode === 'tasks' && (filteredTasks || []).length === 0) ||
+            (viewMode === 'my-tasks' && (filteredTasks || []).length === 0)) && (
           <div className="text-center py-16">
             <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: colors.borderLight }}>
               <Target className="h-8 w-8" style={{ color: colors.textSecondary }} />
