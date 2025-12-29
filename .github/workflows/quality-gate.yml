@@ -116,6 +116,7 @@ jobs:
       E2E_AUTH_ENABLED: "true"
       E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
       NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
       NEXTAUTH_URL: http://localhost:3000
     steps:

@@ -14,7 +14,35 @@
 
 import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient()
+// Configure Prisma client with proper pooler settings for Supabase
+// Prefer DIRECT_URL if available (better for migrations/seeding), otherwise use DATABASE_URL
+const databaseUrl = process.env.DIRECT_URL || process.env.DATABASE_URL || ''
+const isUsingPooler = databaseUrl.includes('pooler.supabase.com') || databaseUrl.includes('pgbouncer=true')
+
+// Ensure DATABASE_URL has required pooler params if using pooler
+let finalDatabaseUrl = databaseUrl
+if (isUsingPooler) {
+  const separator = databaseUrl.includes('?') ? '&' : '?'
+  const params = []
+  
+  // Add required pooler params
+  if (!databaseUrl.includes('pgbouncer=true')) params.push('pgbouncer=true')
+  if (!databaseUrl.includes('sslmode=')) params.push('sslmode=require')
+  // CRITICAL: Disable prepared statements for PgBouncer transaction mode
+  if (!databaseUrl.includes('prepared_statements=')) params.push('prepared_statements=false')
+  
+  if (params.length > 0) {
+    finalDatabaseUrl = `${databaseUrl}${separator}${params.join('&')}`
+  }
+}
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: finalDatabaseUrl,
+    },
+  },
+})
 
 const E2E_USER_EMAIL = 'e2e@loopwell.test'
 const E2E_USER_NAME = 'E2E Test User'
@@ -36,6 +64,10 @@ async function seedE2EUser() {
   
   console.log('📊 Environment check:')
   console.log(`   DATABASE_URL: ${databaseUrl.substring(0, 30)}... (${databaseUrl.length} chars)`)
+  console.log(`   Using pooler: ${isUsingPooler}`)
+  if (isUsingPooler) {
+    console.log(`   Final URL params: ${finalDatabaseUrl.includes('pgbouncer=true') ? 'pgbouncer=true' : ''} ${finalDatabaseUrl.includes('sslmode=') ? 'sslmode=require' : ''} ${finalDatabaseUrl.includes('prepared_statements=false') ? 'prepared_statements=false' : ''}`)
+  }
   
   // Verify database connection and log which database we're using
   try {
@@ -73,7 +105,26 @@ async function seedE2EUser() {
       }
     }
   } catch (error) {
-    console.warn('⚠️  Could not verify database connection:', error instanceof Error ? error.message : String(error))
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.warn('⚠️  Could not verify database connection:', errorMessage)
+    
+    // Provide helpful diagnostics for authentication errors
+    if (errorMessage.includes('Authentication failed') || errorMessage.includes('password authentication failed')) {
+      console.error('')
+      console.error('❌ AUTHENTICATION ERROR:')
+      console.error('   The database credentials are invalid or the database is not accessible.')
+      console.error('   Please verify:')
+      console.error('   1. The DATABASE_URL secret in GitHub Actions is correct')
+      console.error('   2. The password matches your Supabase project')
+      console.error('   3. Supabase allows connections from GitHub Actions IPs (check Network Restrictions)')
+      console.error('   4. The username format is correct: postgres.{project-ref}')
+      console.error('')
+      console.error('   To get the correct connection string:')
+      console.error('   - Go to Supabase Dashboard → Project Settings → Database')
+      console.error('   - Copy the "Connection string" → "Transaction mode" (for pooler)')
+      console.error('   - Or use "Direct connection" if pooler doesn\'t work')
+      console.error('')
+    }
   }
   
   try {
