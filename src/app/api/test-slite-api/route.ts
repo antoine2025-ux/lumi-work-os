@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       notesCount: finalNotesCount
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('=== SLITE API TEST ERROR ===')
     console.error('Error:', error)
     console.error('=== SLITE API TEST ERROR END ===')
@@ -118,8 +118,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: false,
       error: 'Slite API test failed', 
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      details: error instanceof Error ? error.message : String(error),
+      stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
     }, { status: 500 })
   }
 }

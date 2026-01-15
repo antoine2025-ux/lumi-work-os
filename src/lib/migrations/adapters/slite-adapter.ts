@@ -14,7 +14,7 @@ export class SliteAdapter {
 
     do {
       // Try different query approaches - the one without query parameter works best
-      const url = cursor 
+      const url: string = cursor 
         ? `${this.baseUrl}/search-notes?cursor=${cursor}`
         : `${this.baseUrl}/search-notes`
         

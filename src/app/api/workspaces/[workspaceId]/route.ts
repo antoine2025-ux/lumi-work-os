@@ -159,14 +159,28 @@ export async function PUT(
       }
     }
 
+    // Build update data - explicitly exclude ownerId
+    const updateData: Record<string, unknown> = {}
+    
+    if (name) {
+      updateData.name = name.trim()
+    }
+    
+    if (description !== undefined) {
+      updateData.description = description || null
+    }
+    
+    if (slug) {
+      updateData.slug = slug
+    }
+
+    // IMPORTANT: never set ownerId here.
+    // Ownership changes must go through the dedicated transfer endpoint.
+
     // Update workspace
     const updatedWorkspace = await prisma.workspace.update({
       where: { id: workspaceId },
-      data: {
-        name,
-        description: description || null,
-        slug: slug || undefined
-      }
+      data: updateData
     })
 
     return NextResponse.json(updatedWorkspace)

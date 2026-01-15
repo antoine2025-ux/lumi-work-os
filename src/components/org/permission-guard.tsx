@@ -12,7 +12,7 @@ interface PermissionGuardProps {
 export function PermissionGuard({ children, permission, fallback = null }: PermissionGuardProps) {
   const { permissions } = usePermissionContext()
   
-  if (!permissions[permission]) {
+  if (!permissions || !permissions[permission]) {
     return <>{fallback}</>
   }
   
@@ -28,7 +28,7 @@ interface RoleGuardProps {
 export function RoleGuard({ children, allowedRoles, fallback = null }: RoleGuardProps) {
   const { context } = usePermissionContext()
   
-  if (!allowedRoles.includes(context.userRole)) {
+  if (!context || !allowedRoles.includes(context.userRole)) {
     return <>{fallback}</>
   }
   

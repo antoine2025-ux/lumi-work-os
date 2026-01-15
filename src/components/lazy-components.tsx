@@ -27,7 +27,7 @@ export const TaskList = dynamic(
 )
 
 export const WikiEditor = dynamic(
-  () => import('@/components/wiki/rich-text-editor'),
+  () => import('@/components/wiki/rich-text-editor').then(mod => mod.RichTextEditor),
   {
     loading: () => <div className="animate-pulse bg-gray-100 h-64 rounded-lg" />,
     ssr: false
@@ -35,7 +35,7 @@ export const WikiEditor = dynamic(
 )
 
 export const AIAssistant = dynamic(
-  () => import('@/components/ai/assistant'),
+  () => import('@/components/wiki/wiki-ai-assistant').then(mod => mod.WikiAIAssistant),
   {
     loading: () => <div className="animate-pulse bg-gray-100 h-32 rounded-lg" />,
     ssr: false
@@ -43,7 +43,7 @@ export const AIAssistant = dynamic(
 )
 
 export const ProjectAnalytics = dynamic(
-  () => import('@/components/projects/project-analytics'),
+  () => import('@/components/projects/project-reports').then(mod => mod.ProjectReports),
   {
     loading: () => <div className="animate-pulse bg-gray-100 h-48 rounded-lg" />,
     ssr: false
@@ -52,7 +52,7 @@ export const ProjectAnalytics = dynamic(
 
 // Chart components (usually heavy)
 export const ProjectCharts = dynamic(
-  () => import('@/components/charts/project-charts'),
+  () => import('@/components/projects/gantt-chart'),
   {
     loading: () => <div className="animate-pulse bg-gray-100 h-64 rounded-lg" />,
     ssr: false
@@ -61,7 +61,7 @@ export const ProjectCharts = dynamic(
 
 // Real-time components
 export const LiveTaskList = dynamic(
-  () => import('@/components/realtime/live-task-list'),
+  () => import('@/components/realtime/live-task-list').then(mod => mod.LiveTaskList),
   {
     loading: () => <div className="animate-pulse bg-gray-100 h-32 rounded-lg" />,
     ssr: false
@@ -69,7 +69,7 @@ export const LiveTaskList = dynamic(
 )
 
 export const PresenceIndicator = dynamic(
-  () => import('@/components/realtime/presence-indicator'),
+  () => import('@/components/realtime/presence-indicator').then(mod => mod.PresenceIndicator),
   {
     loading: () => <div className="animate-pulse bg-gray-100 h-8 w-8 rounded-full" />,
     ssr: false
@@ -87,7 +87,7 @@ export const CalendarView = dynamic(
 
 // Search components
 export const AdvancedSearch = dynamic(
-  () => import('@/components/search/advanced-search'),
+  () => import('@/components/search/task-search-filter').then(mod => mod.TaskSearchFilter),
   {
     loading: () => <div className="animate-pulse bg-gray-100 h-12 rounded-lg" />,
     ssr: false

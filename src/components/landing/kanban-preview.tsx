@@ -11,7 +11,13 @@ interface Task {
   assignee?: string
 }
 
-const columns = [
+interface Column {
+  id: string
+  title: string
+  tasks: Task[]
+}
+
+const columns: Column[] = [
   {
     id: "todo",
     title: "To Do",

@@ -40,12 +40,20 @@ export async function POST(
     }
 
     // Get the template
-    const template = await prisma.projectTemplate.findUnique({
+    // Note: templateData relation requires prisma generate to be recognized in types
+    const template = await (prisma.projectTemplate.findUnique as Function)({
       where: { id: templateId },
       include: {
         templateData: true
       }
-    })
+    }) as {
+      id: string;
+      name: string;
+      description: string | null;
+      isPublic: boolean;
+      workspaceId: string;
+      templateData: { tasks: any[] } | null;
+    } | null
 
     if (!template) {
       return NextResponse.json({ 
@@ -118,12 +126,12 @@ export async function POST(
           try {
             await prisma.epic.create({
               data: {
+                workspaceId: auth.workspaceId,
                 projectId: project.id,
                 title: epicTemplate.title || 'Untitled Epic',
                 description: epicTemplate.description || '',
-                status: epicTemplate.status || 'ACTIVE',
-                priority: epicTemplate.priority || 'MEDIUM',
-                createdById: createdById
+                color: epicTemplate.color || null,
+                order: epicTemplate.order || 0,
               }
             })
           } catch (error) {
@@ -138,12 +146,11 @@ export async function POST(
           try {
             await prisma.milestone.create({
               data: {
+                workspaceId: auth.workspaceId,
                 projectId: project.id,
                 title: milestoneTemplate.title || 'Untitled Milestone',
                 description: milestoneTemplate.description || '',
-                targetDate: milestoneTemplate.targetDate ? new Date(milestoneTemplate.targetDate) : null,
-                status: milestoneTemplate.status || 'PENDING',
-                createdById: createdById
+                endDate: milestoneTemplate.targetDate ? new Date(milestoneTemplate.targetDate) : null,
               }
             })
           } catch (error) {

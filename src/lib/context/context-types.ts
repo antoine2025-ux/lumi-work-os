@@ -54,6 +54,8 @@ export interface ContextObject {
   id: string
   /** Type of the entity */
   type: ContextObjectType
+  /** Workspace this entity belongs to */
+  workspaceId: string
   /** Human-readable title/name of the entity */
   title: string
   /** Short, human-readable summary built from key fields */

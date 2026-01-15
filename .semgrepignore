@@ -1,0 +1,37 @@
+# Semgrep ignore patterns
+# Files and directories to exclude from security scanning
+
+# Dependencies
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Test files (different security context)
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+tests/
+
+# Configuration files
+*.config.js
+*.config.ts
+*.config.mjs
+
+# Generated files
+prisma/client/
+*.d.ts
+
+# Documentation
+docs/
+*.md
+
+# Assets
+public/
+assets/
+
+# Migration files (legacy code)
+prisma/migrations/
+

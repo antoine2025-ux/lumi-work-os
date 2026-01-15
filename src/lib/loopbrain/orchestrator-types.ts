@@ -43,6 +43,8 @@ export interface LoopbrainRequest {
   roleId?: string
   /** Team ID (for Org mode) */
   teamId?: string
+  /** Person ID (for Org mode) */
+  personId?: string
   
   // Optional flags
   /** Whether to use semantic search for RAG augmentation */
@@ -147,6 +149,12 @@ export interface LoopbrainResponse {
       total?: number
     }
     retrievedCount?: number
+    routing?: {
+      contextType: string
+      confidence: number
+      itemCount: number
+      usedFallback: boolean
+    }
   }
 }
 

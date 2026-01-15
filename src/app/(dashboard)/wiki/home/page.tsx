@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { useUserStatus } from "@/hooks/use-user-status"
+import { useUserStatusContext } from "@/providers/user-status-provider"
 import { useWorkspaces } from "@/hooks/use-workspaces"
 import { useRecentPages } from "@/hooks/use-wiki-pages"
 import { useProjects } from "@/hooks/use-projects"
@@ -76,7 +76,9 @@ interface AISuggestion {
 
 export default function SpacesHomePage() {
   const router = useRouter()
-  const { userStatus, loading: userStatusLoading } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const userStatus = useUserStatusContext()
+  const userStatusLoading = userStatus.isLoading
   
   // Use React Query hooks for instant, cached data fetching
   const { data: workspacesData = [], isLoading: workspacesLoading } = useWorkspaces()

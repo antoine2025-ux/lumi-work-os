@@ -210,3 +210,4 @@ END $$;
 -- SELECT COUNT(*) as remaining_memberships FROM workspace_members WHERE workspace_id = 'WORKSPACE_ID_HERE' OR user_id = 'USER_ID_HERE';
 -- SELECT COUNT(*) as remaining_projects FROM projects WHERE workspace_id = 'WORKSPACE_ID_HERE' OR created_by_id = 'USER_ID_HERE';
 -- SELECT COUNT(*) as remaining_tasks FROM tasks WHERE workspace_id = 'WORKSPACE_ID_HERE' OR created_by_id = 'USER_ID_HERE' OR assignee_id = 'USER_ID_HERE';
+

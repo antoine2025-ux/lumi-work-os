@@ -58,14 +58,13 @@ export async function middleware(request: NextRequest) {
   // Add request ID to response headers
   response.headers.set('x-request-id', context.requestId!)
   
-  // Log response after processing
+  // Log response after processing (synchronous to avoid browser API usage)
   const endTime = Date.now()
   const responseTime = endTime - startTime
   
-  // Use setTimeout to log after response is sent
-  setTimeout(() => {
-    logger.logResponse(request, response.status, responseTime, context)
-  }, 0)
+  // Log synchronously - middleware should be fast and synchronous
+  // Avoid setTimeout as it can cause webpack to bundle browser code
+  logger.logResponse(request, response.status, responseTime, context)
   
   return response
 }

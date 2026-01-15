@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
 
     // Search tasks
     if (operators.in.length === 0 || operators.in.includes("task")) {
-      const tasks = await prisma.task.findMany({
+      const tasks = await (prisma.task.findMany as Function)({
         where: {
           workspaceId: auth.workspaceId,
           OR: [
@@ -99,7 +99,14 @@ export async function GET(request: NextRequest) {
           }
         },
         take: 5
-      })
+      }) as Array<{
+        id: string
+        title: string
+        description: string | null
+        status: string
+        priority: string
+        project: { name: string; color: string | null; id?: string }
+      }>
 
       results.push(...tasks.map(task => ({
         id: task.id,

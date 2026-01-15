@@ -156,8 +156,10 @@ export function EnhancedRichTextEditor({
   }
 
   // Handle embed palette selection
-  const handleEmbedSelect = (embed: EmbedData) => {
-    insertEmbed(embed)
+  const handleEmbedSelect = (embed: Partial<EmbedData>) => {
+    if (embed.id && embed.provider) {
+      insertEmbed(embed as EmbedData)
+    }
     setShowEmbedPalette(false)
   }
 
@@ -355,7 +357,8 @@ export function EnhancedRichTextEditor({
       {/* Embed Command Palette */}
       {showEmbedPalette && (
         <EmbedCommandPalette
-          onSelect={handleEmbedSelect}
+          isOpen={true}
+          onEmbed={handleEmbedSelect}
           onClose={() => setShowEmbedPalette(false)}
         />
       )}

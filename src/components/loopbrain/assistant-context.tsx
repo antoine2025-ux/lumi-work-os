@@ -21,6 +21,7 @@ interface AssistantState {
     taskId?: string
     roleId?: string
     teamId?: string
+    personId?: string
   }
 }
 

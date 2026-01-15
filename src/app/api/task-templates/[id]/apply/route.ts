@@ -50,12 +50,19 @@ export async function POST(
     }
 
     // Get the template
-    const template = await prisma.taskTemplate.findUnique({
+    const template = await (prisma.taskTemplate.findUnique as Function)({
       where: { id: templateId },
       include: {
         templateData: true
       }
-    })
+    }) as {
+      id: string
+      name: string
+      description: string | null
+      workspaceId: string
+      isPublic: boolean
+      templateData: any
+    } | null
 
     if (!template) {
       return NextResponse.json({ 

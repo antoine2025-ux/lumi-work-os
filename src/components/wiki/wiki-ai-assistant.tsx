@@ -32,6 +32,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { callSpacesLoopbrainAssistant } from "@/lib/loopbrain/client"
 import type { LoopbrainResponse, LoopbrainSuggestion } from "@/lib/loopbrain/orchestrator-types"
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 interface Message {
   id: string
@@ -140,6 +141,8 @@ export function WikiAIAssistant({
   onDisplayModeChange,
   mode = 'bottom-bar' // Default to bottom-bar for wiki pages
 }: WikiAIAssistantProps) {
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId: contextWorkspaceId } = useUserStatusContext()
   const [isOpen, setIsOpen] = useState(false)
   
   // Debug: Log when workspaces change
@@ -193,17 +196,8 @@ export function WikiAIAssistant({
   // Stream content generation for a page
   const streamContentToPage = async (pageId: string, prompt: string, initialContent?: string) => {
     try {
-      // Get workspace ID - try to get from user status or use first workspace
-      let workspaceId = ''
-      try {
-        const statusResponse = await fetch('/api/auth/user-status')
-        if (statusResponse.ok) {
-          const userStatus = await statusResponse.json()
-          workspaceId = userStatus.workspaceId || ''
-        }
-      } catch (e) {
-        console.warn('Could not fetch workspace ID:', e)
-      }
+      // Get workspace ID from context or fall back to first workspace
+      let workspaceId = contextWorkspaceId || ''
       
       if (!workspaceId && workspaces.length > 0) {
         workspaceId = workspaces[0].id
@@ -898,7 +892,7 @@ export function WikiAIAssistant({
               // For standard workspaces, it should be 'team' or 'personal'
               const selectedWorkspace = workspacesToUse.find(w => w.id === workspaceId)
               let workspaceType: string
-              let permissionLevel: string
+              let permissionLevel: 'team' | 'personal'
               
               if (selectedWorkspace) {
                 // We have workspace info
@@ -929,32 +923,22 @@ export function WikiAIAssistant({
               
               console.log('🔍 Creating page with workspace_type:', workspaceType, 'workspaceId:', workspaceId)
               
-              const response = await fetch('/api/wiki/pages', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  title: pendingPageTitle.trim(),
-                  content: ' ',
-                  tags: [],
-                  category: 'general',
-                  permissionLevel: permissionLevel,
-                  workspace_type: workspaceType
-                })
+              // Use centralized helper to create page
+              const { createWikiPage } = await import('@/lib/wiki/create-page')
+              const newPage = await createWikiPage({
+                workspaceId,
+                title: pendingPageTitle.trim(),
+                tags: [],
+                category: 'general',
+                permissionLevel: permissionLevel,
+                workspace_type: workspaceType
               })
               
-              if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-                throw new Error(errorData.error || 'Failed to create page')
-              }
-              
-              const newPage = await response.json()
               console.log('✅ Page created successfully via API:', newPage)
               
-              // Navigate to the new page
+              // Navigate to the new page in edit mode
               if (newPage.slug) {
-                window.location.href = `/wiki/${newPage.slug}`
+                window.location.href = `/wiki/${newPage.slug}?edit=1`
               }
               
               const successMessage: Message = {
@@ -1512,35 +1496,6 @@ export function WikiAIAssistant({
                           // TODO: Handle extract_tasks and tag_pages
                           setPendingPreview(null)
                         }
-                      }}
-                      onOverwrite={() => {
-                        // Overwrite existing page
-                        if (pendingPreview.preview?.markdown && onContentUpdate) {
-                          const cleanedMarkdown = cleanMarkdownContent(pendingPreview.preview.markdown)
-                          onContentUpdate(cleanedMarkdown)
-                        }
-                        setPendingPreview(null)
-                      }}
-                      onRename={(newTitle) => {
-                        // Rename and create new page
-                        if (pendingPreview.preview?.markdown) {
-                          setPendingPageTitle(newTitle)
-                          setPendingPageContent(cleanMarkdownContent(pendingPreview.preview.markdown))
-                          setShowWorkspaceSelectDialog(true)
-                        }
-                        setPendingPreview(null)
-                      }}
-                      onAppend={() => {
-                        // Append to existing page
-                        if (pendingPreview.preview?.markdown && onContentUpdate) {
-                          const cleanedMarkdown = cleanMarkdownContent(pendingPreview.preview.markdown)
-                          const existingContent = currentContent || ''
-                          const newContent = existingContent.trim() 
-                            ? `${existingContent}\n\n${cleanedMarkdown}`
-                            : cleanedMarkdown
-                          onContentUpdate(newContent)
-                        }
-                        setPendingPreview(null)
                       }}
                       onOverwrite={() => {
                         // Overwrite existing page

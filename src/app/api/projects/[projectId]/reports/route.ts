@@ -53,26 +53,27 @@ export async function GET(
     }
 
     return NextResponse.json(reports)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching project reports:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     
     // Handle RBAC errors
-    if (error.message === 'Unauthorized: User not authenticated.' || 
-        error.message === 'User not found.') {
+    if (errorMessage === 'Unauthorized: User not authenticated.' || 
+        errorMessage === 'User not found.') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message === 'Project not found.') {
+    if (errorMessage === 'Project not found.') {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
     
-    if (error.message === 'Forbidden: Insufficient project permissions.') {
+    if (errorMessage === 'Forbidden: Insufficient project permissions.') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     
     return NextResponse.json({
       error: 'Failed to fetch project reports',
-      details: error.message
+      details: errorMessage
     }, { status: 500 })
   }
 }
@@ -305,7 +306,7 @@ function calculateBurnDownData(tasks: any[], startDate: Date | null, endDate: Da
   const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
   
   // Create ideal burn-down line (linear decrease)
-  const idealBurnDown = []
+  const idealBurnDown: Array<{ day: number; ideal: number; actual: number }> = []
   for (let i = 0; i <= daysDiff; i++) {
     const idealRemaining = totalPoints - (totalPoints * i / daysDiff)
     idealBurnDown.push({

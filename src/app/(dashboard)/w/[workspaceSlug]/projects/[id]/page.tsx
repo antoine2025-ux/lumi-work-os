@@ -65,6 +65,7 @@ const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mo
 const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
 const LoopbrainAssistantLauncher = dynamic(() => import("@/components/loopbrain/assistant-launcher").then(mod => ({ default: mod.LoopbrainAssistantLauncher })), { ssr: false })
 const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
+const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
 
 interface Project {
   id: string
@@ -105,7 +106,7 @@ interface Project {
     name: string
     email: string
   }
-  tasks: Array<{
+  tasks?: Array<{
     id: string
     title: string
     status: 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED'
@@ -237,7 +238,12 @@ export default function ProjectDetailPage() {
           'projectId type': typeof projectId,
           'ids match?': data.id === projectId
         })
-        setProject(data)
+        // Ensure tasks is always an array (even if empty)
+        const projectWithTasks = {
+          ...data,
+          tasks: data.tasks || []
+        }
+        setProject(projectWithTasks)
       } else if (response.status === 404) {
         console.log('[ProjectPage] project not found (404), setting error')
         setError('Project not found')
@@ -508,15 +514,17 @@ export default function ProjectDetailPage() {
   }
 
   const getTaskStatusCount = (status: string) => {
-    if (!project) return 0
+    if (!project || !project.tasks) return 0
     return project.tasks.filter(task => task.status === status).length
   }
 
   const checkProjectCompletion = () => {
     if (!project) return
     
-    const isCompleted = project._count.tasks > 0 && 
-      (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100
+    // Safe calculation with intermediate variables
+    const total = project?._count?.tasks ?? 0;
+    const done = getTaskStatusCount('DONE');
+    const isCompleted = total > 0 && (done / total) * 100 === 100
     
     // Trigger celebration if project just became completed
     if (isCompleted && !wasCompleted) {
@@ -597,7 +605,7 @@ export default function ProjectDetailPage() {
         <>
           <ProjectHeader
             project={project}
-            tasks={project?.tasks || []}
+            tasks={project?.tasks}
             colors={colors}
             currentView={headerView}
             channelHints={channelHints}
@@ -681,27 +689,43 @@ export default function ProjectDetailPage() {
                 <CardContent className="p-4">
                   <div className="text-center">
                     <h3 className="text-sm font-medium mb-3" style={{ color: colors.text }}>Progress</h3>
-                    <div className="w-full rounded-full h-2 mb-2" style={{ backgroundColor: colors.border }}>
-                      <div 
-                        className="h-2 rounded-full" 
-                        style={{ 
-                          backgroundColor: project && project._count && project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
-                            ? colors.success 
-                            : colors.primary, 
-                          width: `${project && project._count && project._count.tasks > 0 ? (getTaskStatusCount('DONE') / project._count.tasks) * 100 : 0}%` 
-                        }}
-                      ></div>
-                    </div>
-                    <p className="text-xs" style={{ color: colors.textSecondary }}>
-                      {getTaskStatusCount('DONE')} of {project?._count.tasks || 0}
-                    </p>
-                    <p className="text-xs font-medium mt-1" style={{ 
-                      color: project && project._count && project._count.tasks > 0 && (getTaskStatusCount('DONE') / project._count.tasks) * 100 === 100 
-                        ? colors.success 
-                        : colors.primary 
-                    }}>
-                      {project && project._count && project._count.tasks > 0 ? Math.round((getTaskStatusCount('DONE') / project._count.tasks) * 100) : 0}%
-                    </p>
+                    {(() => {
+                      // Safe calculation with intermediate variables (no inline ternaries)
+                      const total = project?._count?.tasks ?? 0;
+                      const done = getTaskStatusCount('DONE');
+                      const width = total > 0 ? (done / total) * 100 : 0;
+                      const isCompleted = total > 0 && width === 100;
+                      
+                      // #region agent log
+                      try {
+                        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/[id]/page.tsx:686',message:'Project detail progress calc (fixed)',data:{total,done,width,isCompleted},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix3',hypothesisId:'I'})}).catch(()=>{});
+                      } catch(e) {
+                        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/[id]/page.tsx:686',message:'Project detail progress calc error (fixed)',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix3',hypothesisId:'J'})}).catch(()=>{});
+                      }
+                      // #endregion
+                      
+                      return (
+                        <>
+                          <div className="w-full rounded-full h-2 mb-2" style={{ backgroundColor: colors.border }}>
+                            <div 
+                              className="h-2 rounded-full" 
+                              style={{ 
+                                backgroundColor: isCompleted ? colors.success : colors.primary, 
+                                width: `${width}%` 
+                              }}
+                            ></div>
+                          </div>
+                          <p className="text-xs" style={{ color: colors.textSecondary }}>
+                            {done} of {total}
+                          </p>
+                          <p className="text-xs font-medium mt-1" style={{ 
+                            color: isCompleted ? colors.success : colors.primary 
+                          }}>
+                            {total > 0 ? Math.round(width) : 0}%
+                          </p>
+                        </>
+                      );
+                    })()}
                   </div>
                 </CardContent>
               </Card>
@@ -818,6 +842,10 @@ export default function ProjectDetailPage() {
 
             </>
 
+          {/* Project To-dos Section */}
+          {project && (
+            <ProjectTodosSection projectId={projectId} />
+          )}
 
         </div>
       </div>

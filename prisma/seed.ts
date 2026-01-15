@@ -1,4 +1,13 @@
 import { PrismaClient } from '@prisma/client'
+import { config } from 'dotenv'
+import { resolve, join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+// Load environment variables from .env.local
+config({ path: resolve(process.cwd(), '.env.local') })
 
 const prisma = new PrismaClient()
 
@@ -81,6 +90,21 @@ async function main() {
     },
   })
 
+  // Find or create a dev user for workspace ownership
+  let devUser = await prisma.user.findFirst({
+    where: { email: 'dev@lumi.work' },
+  })
+
+  if (!devUser) {
+    devUser = await prisma.user.create({
+      data: {
+        email: 'dev@lumi.work',
+        name: 'Dev User',
+        emailVerified: new Date(),
+      },
+    })
+  }
+
   // Create workspace
   const workspace = await prisma.workspace.upsert({
     where: { id: 'cmgl0f0wa00038otlodbw5jhn' },
@@ -153,7 +177,6 @@ async function main() {
       id: 'senior-engineer-role',
       workspaceId: workspace.id,
       title: 'Senior Software Engineer',
-      department: 'Engineering',
       level: 4,
       order: 1,
       isActive: true,
@@ -187,7 +210,6 @@ async function main() {
       id: 'product-manager-role',
       workspaceId: workspace.id,
       title: 'Product Manager',
-      department: 'Product',
       level: 3,
       order: 2,
       isActive: true,
@@ -222,7 +244,6 @@ async function main() {
       id: 'frontend-developer-role',
       workspaceId: workspace.id,
       title: 'Frontend Developer',
-      department: 'Engineering',
       level: 5,
       order: 3,
       isActive: true,
@@ -285,6 +306,24 @@ async function main() {
   console.log(`📊 Created workspace: ${workspace.name}`)
   console.log(`👤 Created user: ${devUser.email}`)
   console.log(`📁 Created project: ${project.name}`)
+  
+  // Run golden path seed if enabled
+  if (process.env.SEED_GOLDEN_PATH === 'true') {
+    console.log('')
+    console.log('🌱 Running Org Golden Path seed...')
+    const { seedGoldenPath } = await import('./seed/org_golden_path.js')
+    await seedGoldenPath()
+  }
+
+  // Run Loopbrain fixtures seed if enabled
+  if (process.env.SEED_LOOPBRAIN_FIXTURES === 'true') {
+    console.log('')
+    console.log('🌱 Running Loopbrain Fixtures seed...')
+    // Use dynamic import with full path for ts-node compatibility
+    const modulePath = join(__dirname, 'seed', 'loopbrain_fixtures.ts')
+    const { seedLoopbrainFixtures } = await import(modulePath)
+    await seedLoopbrainFixtures()
+  }
 }
 
 main()

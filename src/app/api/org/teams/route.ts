@@ -1,168 +1,164 @@
-import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
-import { getUnifiedAuth } from "@/lib/unified-auth"
-import { assertAccess } from "@/lib/auth/assertAccess"
-import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import {
+  assertOrgCapability,
+  getOrgPermissionContext,
+  mapPermissionErrorToStatus,
+} from "@/lib/org/permissions.server";
+import { logOrgAudit } from "@/lib/orgAudit";
 
-// GET /api/org/teams - List all teams for a workspace
-export async function GET(request: NextRequest) {
+type CreateTeamBody = {
+  name: string;
+  departmentId?: string | null;
+  description?: string | null;
+};
+
+export async function POST(req: NextRequest) {
   try {
-    const auth = await getUnifiedAuth(request)
-    const { searchParams } = new URL(request.url)
-    const departmentId = searchParams.get('departmentId')
-    
-    // Assert workspace access (VIEWER can read org structure)
-    await assertAccess({ 
-      userId: auth.user.userId, 
-      workspaceId: auth.workspaceId, 
-      scope: 'workspace', 
-      requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
-    })
-
-    setWorkspaceContext(auth.workspaceId)
-
-    const where: any = {
-      workspaceId: auth.workspaceId,
-      isActive: true
-    }
-
-    if (departmentId) {
-      where.departmentId = departmentId
-    }
-
-    const teams = await prisma.orgTeam.findMany({
-      where,
-      include: {
-        department: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
-        _count: {
-          select: { positions: true }
-        }
-      },
-      orderBy: [
-        { department: { order: 'asc' } },
-        { order: 'asc' }
-      ]
-    })
-
-    return NextResponse.json(teams)
-  } catch (error: any) {
-    console.error('Error fetching teams:', error)
-    return NextResponse.json({ 
-      error: error.message || 'Failed to fetch teams' 
-    }, { status: 500 })
-  }
-}
-
-// POST /api/org/teams - Create a new team
-export async function POST(request: NextRequest) {
-  try {
-    const auth = await getUnifiedAuth(request)
-    
-    // Assert workspace access (require ADMIN or OWNER to create teams)
-    await assertAccess({ 
-      userId: auth.user.userId, 
-      workspaceId: auth.workspaceId, 
-      scope: 'workspace', 
-      requireRole: ['ADMIN', 'OWNER'] 
-    })
-
-    setWorkspaceContext(auth.workspaceId)
-
-    const body = await request.json()
-    const { 
-      name, 
-      description, 
-      departmentId,
-      color,
-      order = 0
-    } = body
+    const body = (await req.json()) as CreateTeamBody;
+    const name = body.name?.trim();
 
     if (!name) {
-      return NextResponse.json({ 
-        error: 'Missing required field: name' 
-      }, { status: 400 })
-    }
-
-    if (!departmentId) {
-      return NextResponse.json({ 
-        error: 'Missing required field: departmentId' 
-      }, { status: 400 })
-    }
-
-    // Verify department exists and belongs to workspace
-    const department = await prisma.orgDepartment.findFirst({
-      where: {
-        id: departmentId,
-        workspaceId: auth.workspaceId
-      }
-    })
-
-    if (!department) {
-      return NextResponse.json({ 
-        error: 'Department not found' 
-      }, { status: 404 })
-    }
-
-    // Check if team with same name already exists in this department
-    const existing = await prisma.orgTeam.findUnique({
-      where: {
-        workspaceId_departmentId_name: {
-          workspaceId: auth.workspaceId,
-          departmentId,
-          name: name.trim()
-        }
-      }
-    })
-
-    if (existing) {
-      return NextResponse.json({ 
-        error: 'A team with this name already exists in this department' 
-      }, { status: 409 })
-    }
-
-    // Create the team
-    const team = await prisma.orgTeam.create({
-      data: {
-        workspaceId: auth.workspaceId,
-        departmentId,
-        name: name.trim(),
-        description: description?.trim() || null,
-        color: color || null,
-        order
-      },
-      include: {
-        department: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "INVALID_NAME",
+            message: "Team name is required.",
+          },
         },
-        _count: {
-          select: { positions: true }
-        }
-      }
-    })
-
-    return NextResponse.json(team, { status: 201 })
-  } catch (error) {
-    console.error('Error creating team:', error)
-    
-    if (error.code === 'P2002') {
-      return NextResponse.json({ 
-        error: 'A team with this name already exists in this department' 
-      }, { status: 409 })
+        { status: 400 }
+      );
     }
-    
-    return NextResponse.json({ 
-      error: 'Failed to create team' 
-    }, { status: 500 })
+
+    const context = await getOrgPermissionContext(req);
+
+    try {
+      assertOrgCapability(context, "org:team:create");
+    } catch (permError) {
+      const status = mapPermissionErrorToStatus(permError);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: status === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+            message: "Not allowed to create teams in this org.",
+          },
+        },
+        { status }
+      );
+    }
+
+    // At this point, context is guaranteed non-null & authorized
+    const orgId = context!.orgId;
+
+    // DepartmentId is optional - teams can be unassigned (departmentId = null)
+    // This allows teams to exist temporarily without a department
+
+    if (!prisma) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "DATABASE_ERROR",
+            message: "Database connection unavailable.",
+          },
+        },
+        { status: 500 }
+      );
+    }
+
+    // If departmentId is provided, verify it exists and belongs to this org
+    if (body.departmentId) {
+      const department = await prisma.orgDepartment.findFirst({
+        where: {
+          id: body.departmentId,
+          workspaceId: orgId,
+        },
+      });
+
+      if (!department) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: {
+              code: "INVALID_DEPARTMENT",
+              message: "Department not found or does not belong to this organization.",
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Check for duplicate team name in the same department (or unassigned)
+    const existingTeam = await (prisma.orgTeam.findFirst as Function)({
+      where: {
+        workspaceId: orgId,
+        departmentId: body.departmentId ?? null,
+        name,
+      },
+    }) as { id: string } | null;
+
+    if (existingTeam) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "TEAM_EXISTS",
+            message: body.departmentId 
+              ? "A team with this name already exists in this department."
+              : "A team with this name already exists (unassigned).",
+          },
+        },
+        { status: 409 }
+      );
+    }
+
+    // Create team (departmentId can be null for unassigned teams)
+    // Note: departmentId is nullable in schema but types are stale - run prisma generate
+    const team = await (prisma.orgTeam.create as Function)({
+      data: {
+        workspaceId: orgId,
+        departmentId: body.departmentId ?? null,
+        name,
+        description: body.description?.trim() || null,
+        isActive: true,
+      },
+    }) as { id: string; name: string; departmentId: string | null; description: string | null };
+
+    // Audit log
+    await logOrgAudit(
+      {
+        orgId,
+        action: "TEAM_CREATED",
+        targetType: "TEAM",
+        targetId: team.id,
+        meta: {
+          name: team.name,
+          departmentId: team.departmentId,
+          description: team.description,
+        },
+      },
+      req
+    );
+
+    return NextResponse.json({
+      ok: true,
+      data: team,
+    });
+  } catch (error) {
+    console.error("[POST /api/org/teams] Error creating team:", error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Something went wrong while creating the team.",
+        },
+      },
+      { status: 500 }
+    );
   }
 }
 

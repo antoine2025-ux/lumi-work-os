@@ -61,6 +61,8 @@ model User {
   chatSessions            ChatSession[]
   onboarding_plans        OnboardingPlan[]
   orgAuditLogs            OrgAuditLog[]
+  orgAuditActorLogs       OrgAuditLog[]          @relation("OrgAuditActor")
+  orgAuditTargetLogs      OrgAuditLog[]          @relation("OrgAuditTargetUser")
   orgPositions            OrgPosition[]
   projectAssignees        ProjectAssignee[]      @relation("ProjectAssignee")
   projectMemberships      ProjectMember[]
@@ -90,7 +92,17 @@ model User {
   createdInvites          WorkspaceInvite[]      @relation("InviteCreator")
   workspaceMemberships    WorkspaceMember[]
   ownedWorkspaces         Workspace[]            @relation("WorkspaceOwner")
+  ownedSpaces             Space[]                @relation("SpaceOwner")
+  spaceMemberships        SpaceMember[]
   onboarding_tasks        OnboardingTask[]       @relation("OnboardingTaskToUser")
+  orgLoopbrainQueryLogs   OrgLoopbrainQueryLog[]
+  orgLoopbrainQueries     OrgLoopbrainQuery[]
+  orgInvitations          OrgInvitation[]        @relation("InvitedBy")
+  orgActivityExports      OrgActivityExport[]
+  availability            PersonAvailability[]
+  allocations             ProjectAllocation[]
+  createdTodos            Todo[]                 @relation("TodoCreator")
+  assignedTodos           Todo[]                 @relation("TodoAssignee")
 
   @@map("users")
 }
@@ -113,6 +125,7 @@ model Workspace {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   ownerId             String
+  orgCenterOnboardingCompletedAt DateTime? // Org Center onboarding completion timestamp
   chatSessions        ChatSession[]
   featureFlags        FeatureFlag[]
   integrations        Integration[]
@@ -122,12 +135,21 @@ model Workspace {
   orgAuditLogs        OrgAuditLog[]
   orgDepartments      OrgDepartment[]
   orgPositions        OrgPosition[]
+  orgQnaLogs          OrgQnaLog[]
+  orgLoopbrainQueryLogs OrgLoopbrainQueryLog[]
+  orgLoopbrainQueries    OrgLoopbrainQuery[]
   orgTeams            OrgTeam[]
-  projectTemplates    ProjectTemplate[]
-  projects            Project[]
+  orgActivityExports  OrgActivityExport[]
   projectSpaces       ProjectSpace[]
-  roleCards           RoleCard[]
-  taskTemplates       TaskTemplate[]
+  spaces              Space[]
+  orgSavedViews                OrgSavedView[]
+  orgIntelligenceSnapshots     OrgIntelligenceSnapshot[]
+  orgIntelligenceSettings      OrgIntelligenceSettings?
+  orgUiPreferences             OrgUiPreference[]
+  projectTemplates             ProjectTemplate[]
+  projects                 Project[]
+  roleCards                RoleCard[]
+  taskTemplates            TaskTemplate[]
   tasks               Task[]
   wikiChunks          WikiChunk[]
   wikiPages           WikiPage[]
@@ -136,7 +158,14 @@ model Workspace {
   workflows           Workflow[]
   invites             WorkspaceInvite[]
   members             WorkspaceMember[]
+  orgInvitations      OrgInvitation[]
+  orgCustomRoles      OrgCustomRole[]
   owner               User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  personAvailabilities PersonAvailability[]
+  personAvailabilityHealth PersonAvailabilityHealth[]
+  ownerAssignments    OwnerAssignment[]
+  personManagerLinks  PersonManagerLink[]
+  todos               Todo[]
 
   @@map("workspaces")
 }
@@ -147,13 +176,55 @@ model WorkspaceMember {
   userId      String
   role        WorkspaceRole @default(MEMBER)
   joinedAt    DateTime      @default(now())
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  customRoleId String?
+  customRole   OrgCustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  preferences  Json? // User-level org preferences (filters, view settings, etc.)
+
+  // Phase 2: Employment status for HRIS-lite tracking
+  employmentStatus    EmploymentStatus @default(ACTIVE)
+  employmentStartDate DateTime? // Start date of employment
+  employmentEndDate   DateTime? // End date (for terminated/contractor)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, userId])
   @@index([userId], map: "idx_workspace_members_user")
   @@index([userId, workspaceId], map: "idx_workspace_members_user_workspace")
+  @@index([workspaceId, customRoleId])
+  @@index([workspaceId, role], map: "idx_workspace_members_workspace_role")
+  @@index([workspaceId, joinedAt(sort: Desc)], map: "idx_workspace_members_workspace_joined")
+  @@index([workspaceId, employmentStatus])
   @@map("workspace_members")
+}
+
+// Phase 2: Employment status for HRIS-lite tracking
+enum EmploymentStatus {
+  ACTIVE // Currently employed and working
+  ON_LEAVE // On extended leave but still employed
+  TERMINATED // No longer employed
+  CONTRACTOR // External contractor
+}
+
+model OrgCustomRole {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  key         String   // short slug, e.g. "people-ops"
+  name        String   // display label, e.g. "People Ops"
+  description String?
+
+  // JSON array of capability strings, e.g. ["org:member:invite", "org:insights:view"]
+  capabilities Json
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships WorkspaceMember[]
+
+  @@unique([workspaceId, key])
+  @@map("org_custom_roles")
 }
 
 model WorkspaceInvite {
@@ -190,6 +261,15 @@ model WikiPage {
   title                String
   slug                 String
   content              String
+  /// ProseMirror JSON document structure (TipTap format). Used for structured editor content.
+  /// Null for legacy HTML pages. Populated when page is upgraded to JSON format.
+  contentJson          Json?
+  /// Content storage format: HTML (legacy) or JSON (new structured format).
+  /// Defaults to HTML for backward compatibility. Set to JSON when using TipTap editor.
+  contentFormat        ContentFormat          @default(HTML)
+  /// Plain text extraction of document content for search indexing and LoopBrain context.
+  /// Derived from contentJson or content on save. Enables full-text search without parsing JSON/HTML.
+  textContent          String?
   excerpt              String?
   parentId             String?
   order                Int                    @default(0)
@@ -203,6 +283,7 @@ model WikiPage {
   view_count           Int?                   @default(0)
   is_featured          Boolean?               @default(false)
   workspace_type       String?                @default("team") @db.VarChar(50)
+  spaceId              String?                // Canonical Space FK (Phase 1: nullable)
   last_viewed_at       DateTime?              @db.Timestamp(6)
   ai_analysis          Json?
   quality_score        Decimal?               @db.Decimal(3, 2)
@@ -220,6 +301,7 @@ model WikiPage {
   parent               WikiPage?              @relation("WikiPageHierarchy", fields: [parentId], references: [id])
   children             WikiPage[]             @relation("WikiPageHierarchy")
   workspace            Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  space                Space?                 @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   versions             WikiVersion[]
 
   @@unique([workspaceId, slug])
@@ -230,6 +312,7 @@ model WikiPage {
   @@index([workspaceId, updatedAt], map: "idx_wiki_pages_workspace_updated")
   @@index([workspaceId, isPublished], map: "idx_wiki_pages_workspace_published")
   @@index([workspaceId, workspace_type], map: "idx_wiki_pages_workspace_type_alt")
+  @@index([workspaceId, spaceId], map: "idx_wiki_pages_workspace_space")
   @@index([updatedAt(sort: Desc)], map: "idx_wiki_pages_updated_at")
   @@map("wiki_pages")
 }
@@ -277,14 +360,23 @@ model WikiComment {
 }
 
 model WikiVersion {
-  id          String   @id @default(cuid())
-  pageId      String
-  content     String
-  version     Int
-  createdAt   DateTime @default(now())
-  createdById String
-  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  page        WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  id            String         @id @default(cuid())
+  pageId        String
+  content       String
+  /// ProseMirror JSON document structure for this version (if contentFormat is JSON).
+  /// Null for legacy HTML versions. Preserves structured content in version history.
+  contentJson   Json?
+  /// Content format at time of version creation (HTML or JSON).
+  /// Tracks format for proper rendering when viewing historical versions.
+  contentFormat ContentFormat @default(HTML)
+  /// Plain text extraction of version content for search indexing and LoopBrain context.
+  /// Derived from contentJson or content when version is created. Enables full-text search on version history.
+  textContent   String?
+  version       Int
+  createdAt     DateTime       @default(now())
+  createdById   String
+  createdBy     User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  page          WikiPage       @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   @@index([pageId, version], map: "idx_wiki_versions_page_version")
   @@map("wiki_versions")
@@ -393,42 +485,68 @@ model OnboardingPlan {
 }
 
 model OrgDepartment {
-  id          String    @id @default(cuid())
-  workspaceId String
-  name        String
-  description String?
-  color       String?
-  order       Int       @default(0)
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  teams       OrgTeam[]
+  id            String    @id @default(cuid())
+  workspaceId   String
+  name          String
+  description   String?
+  color         String?
+  order         Int       @default(0)
+  isActive      Boolean   @default(true)
+  ownerPersonId String?   // Person (via OrgPosition.userId) who owns this department
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  teams         OrgTeam[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
+  @@index([ownerPersonId])
   @@map("org_departments")
 }
 
 model OrgTeam {
-  id           String        @id @default(cuid())
-  workspaceId  String
-  departmentId String
-  name         String
-  description  String?
-  color        String?
-  order        Int           @default(0)
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  positions    OrgPosition[]
-  department   OrgDepartment @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id            String         @id @default(cuid())
+  workspaceId   String
+  departmentId  String? // Nullable: teams can be unassigned (unassigned is a STATE, not an ENTITY)
+  name          String
+  description   String?
+  color         String?
+  order         Int            @default(0)
+  isActive      Boolean        @default(true)
+  ownerPersonId String? // Person (via OrgPosition.userId) who owns this team
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  positions     OrgPosition[]
+  department    OrgDepartment? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, departmentId, name])
+  // Note: Unique constraint removed because Prisma doesn't support unique constraints with nullable fields
+  // Uniqueness is enforced at the application level for teams within the same department
   @@index([workspaceId])
   @@index([departmentId])
+  @@index([ownerPersonId])
   @@map("org_teams")
+}
+
+model OrgPersonProfileOverride {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  userId       String
+
+  title        String?
+  availability String?
+  departmentId String?
+  teamIds      String[] // store multiple teams until native membership exists
+  skills       String[]
+  notes        String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("org_person_profile_overrides")
 }
 
 model RoleCard {
@@ -443,12 +561,15 @@ model RoleCard {
   createdById      String
   keyMetrics       String[]     @default([])
   positionId       String?      @unique
-  preferredSkills  String[]     @default([])
-  requiredSkills   String[]     @default([])
+  preferredSkills  String[]     @default([]) // Legacy: string array (Phase 3 migrates to Skill entities)
+  requiredSkills   String[]     @default([]) // Legacy: string array (Phase 3 migrates to Skill entities)
   responsibilities String[]     @default([])
   createdBy        User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
   position         OrgPosition? @relation(fields: [positionId], references: [id])
   workspace        Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Phase 3: Normalized skill relations (filter by type for required vs preferred)
+  skillRefs RoleCardSkill[]
 
   @@index([workspaceId])
   @@index([positionId])
@@ -461,9 +582,9 @@ model OrgPosition {
   id                 String            @id @default(cuid())
   workspaceId        String
   userId             String?
-  title              String
+  title              String?        // Made optional to support incomplete modeling
   level              Int               @default(1)
-  parentId           String?
+  parentId           String?       // managerId - nullable for incomplete modeling
   order              Int               @default(0)
   isActive           Boolean           @default(true)
   createdAt          DateTime          @default(now())
@@ -477,16 +598,29 @@ model OrgPosition {
   budget             String?
   reportingStructure String?
   teamId             String?
-  parent             OrgPosition?      @relation("OrgHierarchy", fields: [parentId], references: [id])
-  children           OrgPosition[]     @relation("OrgHierarchy")
-  team               OrgTeam?          @relation(fields: [teamId], references: [id])
-  user               User?             @relation(fields: [userId], references: [id])
-  workspace          Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  roleCard           RoleCard?
+  archivedAt         DateTime?
+  archivedById       String?       // User ID of who archived this position
+  archivedReason     String?
+  mergedIntoId       String? // canonical position id when merged
+
+  // Phase 1: Intentional absence tracking for structural integrity
+  // When true, LoopBrain will not flag missing team/manager as issues
+  teamIntentionallyUnassigned    Boolean @default(false)
+  managerIntentionallyUnassigned Boolean @default(false)
+
+  parent    OrgPosition?  @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children  OrgPosition[] @relation("OrgHierarchy")
+  team      OrgTeam?      @relation(fields: [teamId], references: [id])
+  user      User?         @relation(fields: [userId], references: [id])
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  roleCard  RoleCard?
   invites            WorkspaceInvite[]
 
   @@index([workspaceId])
   @@index([workspaceId, isActive], map: "idx_org_positions_workspace_active")
+  @@index([workspaceId, userId], map: "idx_org_positions_workspace_user")
+  @@index([workspaceId, archivedAt])
+  @@index([workspaceId, mergedIntoId])
   @@index([teamId])
   @@index([level])
   @@index([parentId], map: "idx_org_positions_parent_id")
@@ -494,20 +628,57 @@ model OrgPosition {
 }
 
 model OrgAuditLog {
+  id            String            @id @default(cuid())
+  workspaceId  String
+  userId       String
+  action       String
+  entityType   String
+  entityId     String
+  oldValues    Json?
+  newValues    Json?
+  metadata     Json?
+  createdAt    DateTime          @default(now())
+  user         User              @relation(fields: [userId], references: [id])
+  workspace    Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  // New fields for org-specific audit events
+  actor        User?             @relation("OrgAuditActor", fields: [actorUserId], references: [id])
+  actorUserId  String?
+  target       User?             @relation("OrgAuditTargetUser", fields: [targetUserId], references: [id])
+  targetUserId String?
+  event        OrgAuditEventType?
+
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_org_audit_log_workspace_created")
+  @@index([workspaceId, event], map: "idx_org_audit_log_workspace_event")
+  @@index([workspaceId, actorUserId], map: "idx_org_audit_log_workspace_actor")
+  @@map("org_audit_log")
+}
+
+model OrgSavedView {
   id          String    @id @default(cuid())
   workspaceId String
-  userId      String
-  action      String
-  entityType  String
-  entityId    String
-  oldValues   Json?
-  newValues   Json?
-  metadata    Json?
+  scope       String    // "people" (future: "projects", "org_chart")
+  name        String
+  key         String    // stable slug-like key, e.g. "org_issues"
+  filters     Json
   createdAt   DateTime  @default(now())
-  user        User      @relation(fields: [userId], references: [id])
+  updatedAt   DateTime  @updatedAt
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@map("org_audit_log")
+  @@unique([workspaceId, scope, key])
+  @@index([workspaceId, scope])
+  @@map("org_saved_views")
+}
+
+model OrgActivityExport {
+  id        String   @id @default(cuid())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@index([workspaceId, userId, createdAt])
+  @@map("org_activity_exports")
 }
 
 model Workflow {
@@ -651,6 +822,45 @@ model ProjectSpace {
   @@map("project_spaces")
 }
 
+model Space {
+  id          String          @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  type        SpaceType
+  visibility  SpaceVisibility @default(PUBLIC)
+  ownerId     String?
+  /// JSON field storing legacy source mapping (e.g., { projectSpaceId: "...", wikiWorkspaceId: "..." })
+  legacySource Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner       User?           @relation("SpaceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  members     SpaceMember[]
+  projects    Project[]
+  wikiPages   WikiPage[]
+
+  @@index([workspaceId, type], map: "idx_spaces_workspace_type")
+  @@index([workspaceId, visibility], map: "idx_spaces_workspace_visibility")
+  @@index([ownerId], map: "idx_spaces_owner")
+  @@map("spaces")
+}
+
+model SpaceMember {
+  id        String   @id @default(cuid())
+  spaceId   String
+  userId    String
+  role      String?  // Optional role (e.g., "admin", "member")
+  joinedAt DateTime  @default(now())
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, userId])
+  @@index([userId], map: "idx_space_members_user")
+  @@index([spaceId], map: "idx_space_members_space")
+  @@map("space_members")
+}
+
 model ProjectSpaceMember {
   id             String       @id @default(cuid())
   projectSpaceId String
@@ -668,6 +878,7 @@ model ProjectSpaceMember {
 model Project {
   id                  String                 @id @default(cuid())
   workspaceId         String
+  orgId               String?               // Org identifier (same as workspaceId for v1, optional for backward compatibility)
   name                String
   description         String?
   status              ProjectStatus          @default(ACTIVE)
@@ -681,6 +892,7 @@ model Project {
   wikiPageId          String?
   ownerId             String?
   projectSpaceId      String?
+  spaceId             String?               // Canonical Space FK (Phase 1: nullable)
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
   createdById         String
@@ -693,17 +905,53 @@ model Project {
   documentationLinks  ProjectDocumentation[]
   members             ProjectMember[]
   watchers            ProjectWatcher[]
+  accountability      ProjectAccountability?
+  allocations         ProjectAllocation[]
   createdBy           User                   @relation(fields: [createdById], references: [id], onDelete: Cascade)
   owner               User?                  @relation("ProjectOwner", fields: [ownerId], references: [id])
   wikiPage            WikiPage?              @relation("ProjectPrimaryWiki", fields: [wikiPageId], references: [id])
   workspace           Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   projectSpace        ProjectSpace?          @relation(fields: [projectSpaceId], references: [id], onDelete: SetNull)
+  space                Space?                 @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   tasks               Task[]
 
   @@index([workspaceId, status], map: "idx_projects_workspace_status")
   @@index([updatedAt(sort: Desc)], map: "idx_projects_updated_at")
+  @@index([orgId])
   @@index([projectSpaceId], map: "idx_projects_project_space")
+  @@index([workspaceId, spaceId], map: "idx_projects_workspace_space")
   @@map("projects")
+}
+
+model ProjectAccountability {
+  id               String   @id @default(cuid())
+  projectId        String   @unique
+
+  // Ownership
+  ownerPersonId    String?
+  ownerRole        String?
+
+  // Decision authority
+  decisionPersonId String?
+  decisionRole     String?
+
+  // Escalation
+  escalationPersonId String?
+  escalationRole     String?
+
+  // v1.1 coverage (explicit backups)
+  backupOwnerPersonId    String?
+  backupOwnerRole        String?
+  backupDecisionPersonId String?
+  backupDecisionRole     String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("project_accountability")
 }
 
 model Task {
@@ -1156,11 +1404,645 @@ model ContextSummary {
   @@map("context_summaries")
 }
 
+/**
+ * OrgQnaLog - Logs all Org Q&A requests for analytics and audit
+ * Tracks questions asked, location, and metadata for future Loopbrain quality evaluation
+ */
+model OrgQnaLog {
+  id          String   @id @default(uuid())
+  workspaceId String
+  question    String
+  location    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  // Relation
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Indexes for efficient multi-tenant queries
+  @@index([workspaceId, createdAt], map: "idx_org_qna_log_workspace_created")
+  @@index([workspaceId, location], map: "idx_org_qna_log_workspace_location")
+  @@map("org_qna_log")
+}
+
+/**
+ * OrgLoopbrainQueryLog - Logs Org-aware Loopbrain queries for analytics
+ * Tracks questions, answers, and context usage to analyze Org intelligence usage patterns
+ */
+model OrgLoopbrainQueryLog {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  userId            String?
+  question          String
+  answerPreview     String   // trimmed snippet of the answer
+  contextItemsCount Int
+  metadata          Json?
+  createdAt         DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id])
+
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_org_lb_query_workspace_created")
+  @@index([userId, createdAt(sort: Desc)], map: "idx_org_lb_query_user_created")
+  @@map("org_loopbrain_query_logs")
+}
+
+/**
+ * OrgLoopbrainQuery - Telemetry for Org Loopbrain queries
+ * Tracks question types, context usage, and referenced tags for analytics
+ */
+model OrgLoopbrainQuery {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  userId          String?
+  question        String
+  questionType    String   // headcount | reporting | risk | generic | unknown
+  contextType     String   // org.headcount | org.reporting | org.risk | org.generic
+  hasOrgRoot      Boolean
+  peopleCount     Int
+  teamCount       Int
+  departmentCount Int
+  roleCount       Int
+  referencedTags  String[] @default([]) // e.g. ["org_health_label:stable", "org_depth:3"]
+  createdAt       DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id])
+
+  @@index([workspaceId, createdAt], map: "idx_org_lb_query_telemetry_workspace_created")
+  @@index([workspaceId, questionType], map: "idx_org_lb_query_telemetry_workspace_qtype")
+  @@map("org_loopbrain_queries")
+}
+
+model OrgInvitation {
+  id           String           @id @default(cuid())
+  workspace    Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId  String?
+  org          Org?             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId        String?
+  email        String
+  role         OrgRole?         @default(VIEWER)
+  status       String           @default("PENDING") // PENDING | ACCEPTED | DECLINED | EXPIRED (using String for new org system)
+  invitedBy    User?            @relation("InvitedBy", fields: [invitedById], references: [id])
+  invitedById  String?
+  token        String           @unique @default(cuid())
+  inviteUrl    String?
+  createdAt    DateTime         @default(now())
+  acceptedAt   DateTime?
+  expiresAt    DateTime?
+
+  @@unique([workspaceId, email])
+  @@index([workspaceId])
+  @@index([workspaceId, status], map: "idx_org_invitations_workspace_status")
+  @@index([orgId, status])
+  @@index([email])
+  @@index([token])
+  @@map("org_invitations")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REJECTED
+}
+
+// ORG DATA MODEL FROZEN (Phase D)
+// UX/UI changes only beyond this point.
+
+model Org {
+  id        String         @id @default(cuid())
+  name      String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  memberships OrgMembership[]
+  invitations OrgInvitation[]
+  audit       AuditLogEntry[]
+  roles       Role[]
+
+  @@index([name])
+  @@map("orgs")
+}
+
+
+enum OrgRole {
+  VIEWER
+  EDITOR
+  ADMIN
+}
+
+model SavedView {
+  id            String   @id @default(cuid())
+  orgId         String
+  userId        String?      // null when system/shared
+  name          String
+  scope         String       // e.g. "people"
+  state         Json         // filters, sort, query, fixQueue
+  shared        Boolean  @default(false)
+  pinned        Boolean  @default(false)
+  defaultForRole OrgRole?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([orgId, scope])
+  @@index([orgId, userId])
+  @@index([orgId, pinned])
+  @@map("saved_views")
+}
+
+model OrgPersonIssue {
+  id         String   @id @default(cuid())
+  orgId      String
+  personId   String
+  type       String   // e.g. "MISSING_MANAGER"
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  resolvedAt  DateTime?
+
+  // Phase 1: Issue resolution tracking for LoopBrain reasoning
+  resolution     IssueResolution @default(PENDING)
+  resolutionNote String? // Optional explanation for ACKNOWLEDGED/FALSE_POSITIVE
+  resolvedById   String? // User who resolved the issue
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, personId, type])
+  @@index([orgId, type, resolvedAt])
+  @@index([orgId, resolution])
+  @@map("org_person_issues")
+}
+
+// Phase 1: Issue resolution states for structural integrity tracking
+enum IssueResolution {
+  PENDING // Issue not yet addressed
+  ACKNOWLEDGED // Issue is known and intentional
+  FALSE_POSITIVE // Issue was incorrectly flagged
+  RESOLVED // Issue has been fixed
+}
+
+model OrgDuplicateCandidate {
+  id          String   @id @default(cuid())
+  orgId       String
+  personAId   String
+  personBId   String
+  confidence  Float
+  reason      String?  // e.g. "email_exact", "name_similar", "email_prefix+name"
+  features    Json?
+  status      String   @default("OPEN") // OPEN | DISMISSED | MERGED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([orgId, personAId, personBId])
+  @@index([orgId, status, confidence])
+  @@map("org_duplicate_candidates")
+}
+
+model OrgPersonMergeLog {
+  id                   String   @id @default(cuid())
+  orgId                String
+  canonicalId          String
+  mergedId             String
+  snapshot             Json     // copy of merged record before merge (for undo)
+  reportRewireSnapshot Json?    // ids of reports rewired from merged -> canonical
+  appliedAt            DateTime @default(now())
+  undoneAt             DateTime?
+  actorUserId          String?
+  actorLabel           String
+
+  @@unique([orgId, canonicalId, mergedId, undoneAt])
+  @@index([orgId, appliedAt])
+  @@map("org_person_merge_logs")
+}
+
+model OrgSuggestionRun {
+  id        String   @id @default(cuid())
+  orgId     String
+  scope     String   // e.g. "people_issues"
+  inputHash String
+  output    Json
+  engineId  String?
+  modelId   String?
+  createdAt DateTime @default(now())
+
+  @@index([orgId, scope, createdAt])
+  @@index([orgId, engineId, createdAt])
+  @@map("org_suggestion_runs")
+}
+
+model OrgLoopBrainConfig {
+  id        String   @id @default(cuid())
+  orgId     String
+  scope     String   // "people_issues"
+  engineId  String   // e.g. "heuristic-v1"
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, scope])
+  @@index([orgId, scope, enabled])
+  @@map("org_loop_brain_configs")
+}
+
+model LoopBrainModel {
+  id        String   @id @default(cuid())
+  name      String   // e.g. "heuristic-v1", "llm-v0.1"
+  scope     String   // e.g. "people_issues"
+  active    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([scope, active])
+  @@map("loop_brain_models")
+}
+
+model LoopBrainFeedback {
+  id               String   @id @default(cuid())
+  orgId            String
+  personId         String?
+  suggestionRunId  String?
+  modelId          String?
+  scope            String
+  confidence       Float?
+  accepted         Boolean?
+  partiallyApplied Boolean?
+  feedback         String?   // free-text (optional)
+  createdAt        DateTime @default(now())
+
+  @@index([orgId, scope, createdAt])
+  @@map("loop_brain_feedback")
+}
+
+model LoopBrainOutcome {
+  id              String   @id @default(cuid())
+  orgId           String
+  suggestionRunId String
+  scope           String
+  beforeMetrics   Json     // e.g. { missingManagerCount: 14 }
+  afterMetrics    Json     // e.g. { missingManagerCount: 6 }
+  improved        Boolean
+  measuredAt      DateTime @default(now())
+
+  @@index([orgId, scope, measuredAt])
+  @@map("loop_brain_outcomes")
+}
+
+model OrgLoopBrainRollout {
+  id        String   @id @default(cuid())
+  orgId     String
+  scope     String           // "people_issues"
+  mode      String           // "ALL" | "ADMIN_ONLY" | "MANAGERS_ONLY" | "TEAM"
+  teamName  String?          // used when mode === "TEAM"
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, scope])
+  @@map("org_loop_brain_rollouts")
+}
+
+model OrgIntelligenceSnapshot {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  createdAt    DateTime @default(now())
+  source       String   // e.g. "on_demand", "nightly"
+  findingCount Int
+  findingsJson Json     // Full array of findings for durability + reindex
+  rollupsJson  Json?    // Computed rollups (bySignal, bySeverity, totals)
+
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@map("org_intelligence_snapshots")
+}
+
+model OrgIntelligenceSettings {
+  id          String   @id @default(cuid())
+  workspaceId String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Management load thresholds
+  mgmtMediumDirectReports Int @default(5)
+  mgmtHighDirectReports   Int @default(9)
+
+  // Availability staleness window (days)
+  availabilityStaleDays Int @default(14)
+
+  // Snapshot freshness policy (minutes)
+  snapshotFreshMinutes Int @default(1440)  // 24h recommended freshness window
+  snapshotWarnMinutes  Int @default(2880)  // 48h warn threshold
+
+  // Snapshot schema version (for future migrations)
+  schemaVersion Int @default(1)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("org_intelligence_settings")
+}
+
+model OrgUiPreference {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  key         String
+  valueJson   Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId, key])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("org_ui_preferences")
+}
+
+model OrgHealthSnapshot {
+  id            String   @id @default(cuid())
+  orgId         String
+  capturedAt    DateTime @default(now())
+
+  capacityScore Float?
+  ownershipScore Float?
+  balanceScore  Float?
+  managementScore Float?
+  dataQualityScore Float?
+  phaseCVersion String?
+
+  createdAt     DateTime @default(now())
+
+  @@index([orgId, capturedAt])
+  @@map("org_health_snapshots")
+}
+
+model OrgHealthSignal {
+  id          String   @id @default(cuid())
+  orgId       String
+
+  // Stable identity for dedupe + lifecycle
+  signalKey   String
+
+  type        OrgHealthSignalType
+  severity    OrgHealthSeverity
+  title       String
+  description String
+
+  contextType String?
+  contextId   String?
+  contextLabel String?
+  href        String?
+
+  // Phase 5: Structured metadata for LoopBrain reasoning
+  // Contains signal-specific context (e.g. directReportCount, affectedSkills, etc.)
+  signalMetadata Json?
+
+  // Phase 5: Change detection
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+  dismissedAt DateTime?
+
+  @@index([orgId, type])
+  @@index([orgId, signalKey])
+  @@index([orgId, severity])
+  @@index([orgId, firstSeenAt])
+  @@map("org_health_signals")
+}
+
+enum OrgHealthSignalType {
+  // Existing signal types
+  CAPACITY
+  OWNERSHIP
+  STRUCTURE
+  MANAGEMENT_LOAD
+  DATA_QUALITY
+
+  // Phase 5: Extended intelligence signal types
+  MANAGEMENT_OVERLOAD // Manager has >8 direct reports
+  MANAGEMENT_UNDERLOAD // Manager has <2 direct reports
+  SINGLE_POINT_FAILURE // Team has 1 person with critical skill
+  OWNERSHIP_GAP // Entity has no owner
+  COVERAGE_GAP // No backup for critical role
+  AVAILABILITY_CRUNCH // >50% of team unavailable
+  SKILL_GAP // Required skill not present on team
+  STALE_DATA // Availability data older than threshold
+  ORPHAN_POSITION // Position with no person assigned
+  CYCLE_DETECTED // Circular reporting chain
+}
+
+enum OrgHealthSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model OrgFixEvent {
+  id          String   @id @default(cuid())
+  orgId       String
+  personId   String?
+  fixType     String   // e.g. ASSIGN_MANAGER, ASSIGN_TEAM, ASSIGN_ROLE
+  beforeState Json
+  afterState  Json
+  impactScore Int
+  createdAt   DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@map("org_fix_events")
+}
+
+model SavedOrgView {
+  id          String   @id @default(cuid())
+  orgId       String
+  key         String   // e.g. "leadership_structure"
+  title       String
+  description String?
+  persona     String   // EXECUTIVE | HR | MANAGER
+  config      Json     // filters, sort, issueTypes, layout hints
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([orgId, key])
+  @@index([orgId, persona])
+  @@map("saved_org_views")
+}
+
+model OrgDefaultView {
+  id        String   @id @default(cuid())
+  orgId     String
+  role      String   // EXECUTIVE | HR | MANAGER | MEMBER
+  viewKey   String   // SavedOrgView.key
+  createdAt DateTime @default(now())
+
+  @@unique([orgId, role])
+  @@map("org_default_views")
+}
+
+model OrgHealthDigest {
+  id         String   @id @default(cuid())
+  orgId      String
+  cadence    String   // WEEKLY
+  lastSentAt DateTime?
+  enabled    Boolean  @default(true)
+  recipients Json     // array of { role, userId? }
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([orgId])
+  @@map("org_health_digests")
+}
+
+model AuditLogEntry {
+  id          String   @id @default(cuid())
+  orgId       String
+  actorUserId String?
+  actorLabel  String   // fallback display name if user not resolvable
+  action      String
+  targetCount Int
+  summary     String
+  createdAt   DateTime @default(now())
+
+  org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@map("audit_log_entries")
+}
+
+model OrgMembership {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrgRole  @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([orgId, role])
+  @@map("org_memberships")
+}
+
+model PersonAvailability {
+  id           String            @id @default(cuid())
+  workspaceId  String            // Workspace scoping (Phase 1: schema truth)
+  personId     String            // References User.id (person in Org context)
+  type         AvailabilityType
+  startDate    DateTime
+  endDate      DateTime?
+  fraction     Float?            // 0.0–1.0, used only for PARTIAL
+  note         String?
+
+  // Phase 2: Structured availability reason for LoopBrain reasoning
+  reason             AvailabilityReason?
+  expectedReturnDate DateTime? // When capacity is expected to return
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  person       User              @relation(fields: [personId], references: [id], onDelete: Cascade)
+  workspace    Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, personId])
+  @@index([personId, startDate])
+  @@index([workspaceId])
+  @@index([workspaceId, reason])
+  @@map("person_availability")
+}
+
+enum AvailabilityType {
+  UNAVAILABLE // vacation, sick leave, parental leave
+  PARTIAL // e.g. 50% capacity
+}
+
+// Phase 2: Structured reasons for absence/reduced availability
+enum AvailabilityReason {
+  VACATION
+  SICK_LEAVE
+  PARENTAL_LEAVE
+  SABBATICAL
+  JURY_DUTY
+  BEREAVEMENT
+  TRAINING
+  OTHER
+}
+
+model ProjectAllocation {
+  id          String   @id @default(cuid())
+  orgId       String
+  projectId   String
+  personId    String
+
+  // fraction of a person's working capacity, e.g. 0.2 = 20%
+  fraction    Float
+
+  startDate   DateTime
+  endDate     DateTime?
+
+  note        String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  person  User   @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, projectId])
+  @@index([personId, startDate])
+  @@map("project_allocations")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String   // e.g. "Product Manager"
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org             Org                  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  responsibilities RoleResponsibility[]
+
+  @@index([orgId])
+  @@map("roles")
+}
+
+model RoleResponsibility {
+  id        String              @id @default(cuid())
+  roleId    String
+  scope     ResponsibilityScope
+  target    String              // free-text, e.g. "Product roadmap", "Payments projects"
+  createdAt DateTime            @default(now())
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@index([roleId])
+  @@map("role_responsibilities")
+}
+
+enum ResponsibilityScope {
+  OWNERSHIP   // what this role can own
+  DECISION    // what this role can decide on
+  EXECUTION   // what this role is expected to work on
+}
+
 enum WorkspaceRole {
   OWNER
   ADMIN
   MEMBER
   VIEWER
+}
+
+enum OrgAuditEventType {
+  ORG_CREATED
+  ORG_DELETED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  MEMBER_ROLE_CHANGED
+  ORG_OWNERSHIP_TRANSFERRED
 }
 
 enum ViewerScopeType {
@@ -1233,6 +2115,11 @@ enum TaskTemplateCategory {
   GENERAL
 }
 
+enum ContentFormat {
+  HTML
+  JSON
+}
+
 enum ProjectTaskStatus {
   TODO
   IN_PROGRESS
@@ -1277,4 +2164,370 @@ enum BlogPostCategory {
 enum ProjectSpaceVisibility {
   PUBLIC
   TARGETED
+}
+
+enum SpaceType {
+  PERSONAL
+  TEAM
+  CUSTOM
+}
+
+enum SpaceVisibility {
+  PUBLIC
+  TARGETED
+  PRIVATE
+}
+
+model PersonCapacity {
+  id           String   @id @default(cuid())
+  orgId        String
+  personId     String
+
+  // 1.0 = full-time; 0.5 = half-time
+  fte          Float    @default(1.0)
+
+  // 0..100 (e.g., 25 means 25% shrinkage: meetings, PTO, overhead)
+  shrinkagePct Float    @default(20.0)
+
+  // Optional: when the capacity profile was last reviewed
+  reviewedAt   DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([orgId, personId])
+  @@index([orgId, personId])
+  @@map("person_capacity")
+}
+
+model CapacityAllocation {
+  id        String   @id @default(cuid())
+  orgId     String
+  personId  String
+
+  // Optional targets — keep flexible for now
+  teamId    String?
+  projectId String?
+
+  // 0..100 (% of person's working time allocated)
+  percent   Float
+
+  note      String?
+
+  startsAt  DateTime?
+  endsAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, personId])
+  @@index([orgId, teamId])
+  @@index([orgId, projectId])
+  @@map("capacity_allocations")
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  LIMITED
+  UNAVAILABLE
+}
+
+model PersonAvailabilityHealth {
+  id         String   @id @default(cuid())
+  workspaceId String  // Phase 1: migrated from orgId to workspaceId
+  personId   String
+
+  status     AvailabilityStatus @default(AVAILABLE)
+  // Optional: "PTO", "Sick", "Parental leave", "Meetings-heavy", etc.
+  reason     String?
+
+  // Optional time window
+  startsAt   DateTime?
+  endsAt     DateTime?
+
+  // Phase 2: Expected return date for LoopBrain capacity planning
+  expectedReturnDate DateTime?
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, personId])
+  @@index([workspaceId, personId])
+  @@index([workspaceId, status])
+  @@map("person_availability_health")
+}
+
+// ============================================================================
+// Phase 3: Skills and Competencies
+// ============================================================================
+
+// Skill taxonomy - first-class skill entities for LoopBrain reasoning
+model Skill {
+  id          String  @id @default(cuid())
+  workspaceId String
+  name        String // e.g. "Python", "Product Management", "UI Design"
+  category    String? // e.g. "Engineering", "Design", "Management"
+  description String?
+
+  // Skill relationships
+  personSkills   PersonSkill[]
+  roleCardSkills RoleCardSkill[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@index([workspaceId, category])
+  @@map("skills")
+}
+
+// Person-skill assignment with proficiency level
+model PersonSkill {
+  id          String @id @default(cuid())
+  workspaceId String
+  personId    String // References User.id
+  skillId     String
+
+  // Proficiency: 1 (beginner) to 5 (expert)
+  proficiency Int @default(3)
+
+  // Verification tracking
+  verifiedAt   DateTime?
+  verifiedById String? // User who verified this skill
+
+  // Self-reported vs externally validated
+  source SkillSource @default(SELF_REPORTED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, personId, skillId])
+  @@index([workspaceId, personId])
+  @@index([workspaceId, skillId])
+  @@index([skillId, proficiency])
+  @@map("person_skills")
+}
+
+// Junction table for RoleCard skill requirements
+model RoleCardSkill {
+  id         String            @id @default(cuid())
+  roleCardId String
+  skillId    String
+  type       RoleCardSkillType // REQUIRED or PREFERRED
+
+  // Minimum proficiency level required (1-5)
+  minProficiency Int @default(3)
+
+  createdAt DateTime @default(now())
+
+  roleCard RoleCard @relation(fields: [roleCardId], references: [id], onDelete: Cascade)
+  skill    Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([roleCardId, skillId, type])
+  @@index([roleCardId])
+  @@index([skillId])
+  @@index([type])
+  @@map("role_card_skills")
+}
+
+enum SkillSource {
+  SELF_REPORTED // Person added this skill themselves
+  MANAGER_ADDED // Manager assigned this skill
+  VERIFIED // Externally verified (e.g. certification)
+  INFERRED // Derived from role/project history
+}
+
+enum RoleCardSkillType {
+  REQUIRED // Must have this skill
+  PREFERRED // Nice to have
+}
+
+model PersonRoleAssignment {
+  id        String   @id @default(cuid())
+  orgId     String
+  personId  String
+
+  // Flexible role labels for now (e.g., "Engineer", "PM", "Designer", "QA")
+  role      String
+
+  // 0..100 share of role if multi-role
+  percent   Float    @default(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, personId, role])
+  @@index([orgId, personId])
+  @@index([orgId, role])
+  @@map("person_role_assignments")
+}
+
+enum OwnedEntityType {
+  TEAM
+  DEPARTMENT
+  DOMAIN
+  PROJECT
+  SYSTEM
+}
+
+model OwnerAssignment {
+  id            String   @id @default(cuid())
+  workspaceId   String   // Phase 1: migrated from orgId to workspaceId
+
+  entityType    OwnedEntityType
+  entityId      String
+  entityLabel   String?
+
+  // Person responsible (or future: group)
+  ownerPersonId String
+
+  // Optional: distinguishes primary/secondary coverage later
+  isPrimary     Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, entityType, entityId]) // One owner per entity per workspace
+  @@index([workspaceId, entityType])
+  @@index([workspaceId, entityType, entityId])
+  @@index([workspaceId, ownerPersonId])
+  @@map("owner_assignments")
+}
+
+model Domain {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, name])
+  @@map("domains")
+}
+
+model SystemEntity {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, name])
+  @@map("system_entities")
+}
+
+model PersonManagerLink {
+  id         String   @id @default(cuid())
+  workspaceId String  // Phase 1: migrated from orgId to workspaceId
+  personId   String
+  managerId  String
+
+  // Optional time window
+  startsAt   DateTime?
+  endsAt     DateTime?
+
+  // Phase 1: Intentional absence tracking for structural integrity
+  // When true, LoopBrain will not flag this as MISSING_MANAGER
+  intentionallyUnassigned Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, personId, managerId])
+  @@index([workspaceId, personId])
+  @@index([workspaceId, managerId])
+  @@map("person_manager_links")
+}
+
+model ManagerProfile {
+  id         String   @id @default(cuid())
+  orgId      String
+  personId   String
+
+  // Optional: "people manager" flag (vs IC)
+  isManager  Boolean  @default(true)
+
+  createdAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, personId])
+  @@map("manager_profiles")
+}
+
+model OrgRoleTaxonomy {
+  id        String   @id @default(cuid())
+  orgId     String
+  label     String
+  createdAt DateTime @default(now())
+
+  @@unique([orgId, label])
+  @@index([orgId])
+  @@map("org_role_taxonomy")
+}
+
+model OrgSkillTaxonomy {
+  id        String   @id @default(cuid())
+  orgId     String
+  label     String
+  createdAt DateTime @default(now())
+
+  @@unique([orgId, label])
+  @@index([orgId])
+  @@map("org_skill_taxonomy")
+}
+
+enum TodoStatus {
+  OPEN
+  DONE
+}
+
+enum TodoPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TodoAnchorType {
+  NONE
+  PROJECT
+  TASK
+  PAGE
+}
+
+model Todo {
+  id            String          @id @default(cuid())
+  workspaceId   String
+  title         String
+  note          String?
+  status        TodoStatus      @default(OPEN)
+  dueAt         DateTime?
+  priority      TodoPriority?
+  createdById   String
+  assignedToId  String
+  anchorType    TodoAnchorType  @default(NONE)
+  anchorId      String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy     User            @relation("TodoCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  assignedTo    User            @relation("TodoAssignee", fields: [assignedToId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, assignedToId, status, dueAt], map: "idx_todos_workspace_assignee_status_due")
+  @@index([workspaceId, anchorType, anchorId], map: "idx_todos_workspace_anchor")
+  @@index([workspaceId, createdById], map: "idx_todos_workspace_creator")
+  @@map("todos")
 }

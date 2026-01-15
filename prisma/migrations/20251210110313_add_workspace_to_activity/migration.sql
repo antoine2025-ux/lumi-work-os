@@ -31,3 +31,4 @@ CREATE INDEX "idx_activities_workspace" ON "activities"("workspaceId");
 
 -- CreateIndex
 CREATE INDEX "idx_activities_workspace_created" ON "activities"("workspaceId", "createdAt" DESC);
+

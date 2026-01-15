@@ -80,3 +80,4 @@ If invites still fail:
 ## Files Modified
 
 - `src/app/api/workspaces/[workspaceId]/invites/route.ts` - Use prismaUnscoped, enhanced error logging
+

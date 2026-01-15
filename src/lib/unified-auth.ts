@@ -25,6 +25,17 @@ export interface AuthContext {
 }
 
 /**
+ * Custom error class for "no workspace found" case
+ * Allows callers to check error type instead of message string
+ */
+export class NoWorkspaceError extends Error {
+  constructor(message: string = 'No workspace found - user needs to create a workspace') {
+    super(message)
+    this.name = 'NoWorkspaceError'
+  }
+}
+
+/**
  * Unified authentication system that handles both development and production
  * Consolidates all authentication logic into a single, consistent interface
  * 
@@ -107,9 +118,21 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
   }
 
   const dbStartTime = performance.now()
-  // OPTIMIZED: Get or create user (single query with upsert-like pattern)
+  // OPTIMIZED: Get user with workspace membership in a single query
+  // This reduces 2 database round-trips to 1
   let user = await prisma.user.findUnique({
-    where: { email: session.user.email }
+    where: { email: session.user.email },
+    include: {
+      workspaceMemberships: {
+        take: 1,
+        orderBy: { joinedAt: 'asc' },
+        include: {
+          workspace: {
+            select: { id: true, slug: true }
+          }
+        }
+      }
+    }
   })
 
   if (!user) {
@@ -118,14 +141,53 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
         email: session.user.email,
         name: session.user.name || 'Unknown User',
         emailVerified: new Date()
+      },
+      include: {
+        workspaceMemberships: {
+          take: 1,
+          orderBy: { joinedAt: 'asc' },
+          include: {
+            workspace: {
+              select: { id: true, slug: true }
+            }
+          }
+        }
       }
     })
   }
   const userQueryDurationMs = performance.now() - dbStartTime
 
   const workspaceStartTime = performance.now()
-  // Resolve active workspace and get member in one optimized call
-  const { workspaceId: activeWorkspaceId, workspaceMember } = await resolveActiveWorkspaceIdWithMember(user.id, request)
+  // Use workspace from combined query if available, otherwise resolve from request
+  let activeWorkspaceId: string
+  let workspaceMember: any
+  
+  // Check if URL specifies a different workspace (slug or query param)
+  const hasExplicitWorkspace = request && (
+    new URL(request.url).pathname.match(/^\/w\/([^\/]+)/) ||
+    new URL(request.url).searchParams.get('workspaceId') ||
+    new URL(request.url).searchParams.get('projectId') ||
+    request.headers.get('x-workspace-id')
+  )
+  
+  if (hasExplicitWorkspace) {
+    // URL specifies workspace - resolve it (may be different from default)
+    const result = await resolveActiveWorkspaceIdWithMember(user.id, request)
+    if (!result) {
+      // No workspace found - throw NoWorkspaceError for callers to handle
+      throw new NoWorkspaceError('No workspace found - user needs to create a workspace')
+    }
+    activeWorkspaceId = result.workspaceId
+    workspaceMember = result.workspaceMember
+  } else if (user.workspaceMemberships.length > 0 && user.workspaceMemberships[0].workspace) {
+    // Use default workspace from combined query (no extra DB call!)
+    const defaultMembership = user.workspaceMemberships[0]
+    activeWorkspaceId = defaultMembership.workspaceId
+    workspaceMember = defaultMembership
+  } else {
+    // No workspace - user needs to create one
+    throw new Error('No workspace found - user needs to create a workspace')
+  }
   const workspaceQueryDurationMs = performance.now() - workspaceStartTime
 
   const roles = workspaceMember ? [workspaceMember.role] : []
@@ -180,6 +242,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
 /**
  * Resolve active workspace ID and member in one optimized call
  * Returns both workspaceId and workspaceMember to avoid duplicate queries
+ * Returns null if no workspace is found (instead of throwing)
  * 
  * Priority order:
  * 1. URL path slug (/w/[workspaceSlug]/...) - highest priority
@@ -190,7 +253,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
 async function resolveActiveWorkspaceIdWithMember(
   userId: string, 
   request?: NextRequest
-): Promise<{ workspaceId: string; workspaceMember: any }> {
+): Promise<{ workspaceId: string; workspaceMember: any } | null> {
   const startTime = performance.now()
   const requestId = request?.headers.get('x-request-id') || 'no-request-id'
   
@@ -348,7 +411,8 @@ async function resolveActiveWorkspaceIdWithMember(
     durationMs: Math.round(totalDurationMs * 100) / 100,
     dbDurationMs: Math.round(dbDurationMs * 100) / 100
   })
-  throw new Error('No workspace found - user needs to create a workspace')
+  // Return null instead of throwing to prevent Next.js from logging during SSR
+  return null
 }
 
 /**

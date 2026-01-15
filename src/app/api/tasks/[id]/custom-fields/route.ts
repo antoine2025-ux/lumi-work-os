@@ -41,7 +41,7 @@ export async function POST(
     }
 
     // Get task with project info
-    const task = await prisma.task.findUnique({
+    const task = await (prisma.task.findUnique as Function)({
       where: { id: taskId },
       include: { 
         project: true,
@@ -51,7 +51,12 @@ export async function POST(
           }
         }
       }
-    })
+    }) as {
+      id: string
+      projectId: string
+      project: any
+      customFields: Array<{ fieldId: string; field: any; value: any }>
+    } | null
 
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
@@ -108,7 +113,7 @@ export async function POST(
             break
           case 'select':
             if (fieldDef.options) {
-              const options = JSON.parse(fieldDef.options)
+              const options = JSON.parse(String(fieldDef.options))
               if (!options.includes(value)) {
                 return NextResponse.json({ 
                   error: `Invalid option "${value}" for field ${fieldDef.label}. Valid options: ${options.join(', ')}` 
@@ -141,14 +146,20 @@ export async function POST(
       // Log history for the change
       const oldValue = task.customFields.find(cf => cf.fieldId === fieldId)?.value
       if (oldValue !== JSON.stringify(validatedValue)) {
-        await logTaskHistory(taskId, session.user.id, `customField.${fieldDef.key}`, oldValue, JSON.stringify(validatedValue))
+        await logTaskHistory({
+          taskId,
+          actorId: session.user.id,
+          field: `customField.${fieldDef.key}`,
+          from: oldValue,
+          to: JSON.stringify(validatedValue)
+        })
       }
 
       results.push(customFieldValue)
     }
 
     // Emit Socket.IO event
-    emitProjectEvent(task.projectId, 'taskUpdated', {
+    emitProjectEvent(task.projectId, 'taskUpdated' as any, {
       taskId,
       updates: { customFields: validatedData.customFields },
       userId: session.user.id
@@ -158,18 +169,18 @@ export async function POST(
       message: 'Custom fields updated successfully',
       customFields: results 
     })
-  } catch (error) {
-    if (error.name === 'ZodError') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json({ 
         error: 'Validation error',
-        details: error.errors 
+        details: (error as any).issues 
       }, { status: 400 })
     }
 
     console.error('Error updating task custom fields:', error)
     return NextResponse.json({ 
       error: 'Failed to update custom fields',
-      details: error.message 
+      details: error instanceof Error ? error.message : String(error)
     }, { status: 500 })
   }
 }

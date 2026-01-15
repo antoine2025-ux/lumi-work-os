@@ -360,3 +360,4 @@ Example:
 - `docs/MULTI_TENANT_HARDENING.md` - Multi-tenant security
 - `docs/MULTI_WORKSPACE_UX.md` - Workspace UX behavior
 - `ARCHITECTURE_SUMMARY.md` - Overall architecture
+

@@ -5,6 +5,8 @@ import { emitProjectEvent } from '@/lib/pm/events'
 import { prisma } from '@/lib/db'
 import { upsertEpicContext } from '@/lib/loopbrain/context-engine'
 import { logger } from '@/lib/logger'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { ProjectRole } from '@prisma/client'
 
 
 // GET /api/projects/[projectId]/epics/[epicId] - Get a specific epic
@@ -13,14 +15,17 @@ export async function GET(
   { params }: { params: Promise<{ projectId: string; epicId: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const resolvedParams = await params
     const { projectId, epicId } = resolvedParams
 
     // Check project access
-    const accessResult = await assertProjectAccess(projectId)
-    if (!accessResult.hasAccess) {
-      return NextResponse.json({ error: accessResult.error }, { status: 403 })
-    }
+    const nextAuthUser = { id: auth.user.userId, email: auth.user.email, name: auth.user.name } as any
+    await assertProjectAccess(nextAuthUser, projectId, ProjectRole.VIEWER, auth.workspaceId)
 
     const epic = await prisma.epic.findFirst({
       where: { 
@@ -72,14 +77,17 @@ export async function PATCH(
   { params }: { params: Promise<{ projectId: string; epicId: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const resolvedParams = await params
     const { projectId, epicId } = resolvedParams
 
     // Check write access
-    const accessResult = await assertProjectWriteAccess(projectId)
-    if (!accessResult.hasAccess) {
-      return NextResponse.json({ error: accessResult.error }, { status: 403 })
-    }
+    const nextAuthUser = { id: auth.user.userId, email: auth.user.email, name: auth.user.name } as any
+    const accessResult = await assertProjectWriteAccess(nextAuthUser, projectId, auth.workspaceId)
 
     const body = await request.json()
     
@@ -143,11 +151,11 @@ export async function PATCH(
       .catch((error) => logger.error('Failed to upsert epic context after update', { epicId, error }))
 
     return NextResponse.json(epic)
-  } catch (error) {
-    if (error.name === 'ZodError') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json({ 
         error: 'Validation error',
-        details: error.errors 
+        details: (error as any).issues 
       }, { status: 400 })
     }
 
@@ -164,14 +172,17 @@ export async function DELETE(
   { params }: { params: Promise<{ projectId: string; epicId: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const resolvedParams = await params
     const { projectId, epicId } = resolvedParams
 
     // Check write access
-    const accessResult = await assertProjectWriteAccess(projectId)
-    if (!accessResult.hasAccess) {
-      return NextResponse.json({ error: accessResult.error }, { status: 403 })
-    }
+    const nextAuthUser = { id: auth.user.userId, email: auth.user.email, name: auth.user.name } as any
+    const accessResult = await assertProjectWriteAccess(nextAuthUser, projectId, auth.workspaceId)
 
     // Check if epic exists
     const existingEpic = await prisma.epic.findFirst({

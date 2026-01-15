@@ -20,7 +20,10 @@ export function NotificationToast({
   maxNotifications = 5
 }: NotificationToastProps) {
   // Check if we're in a socket context before using the hook
-  let notifications, clearNotification, clearAllNotifications
+  type Notification = { id: string; type: string; message: string; data?: any; timestamp: Date }
+  let notifications: Notification[]
+  let clearNotification: (id: string) => void
+  let clearAllNotifications: () => void
   
   try {
     const notificationHook = useNotifications()
@@ -189,7 +192,8 @@ export function NotificationToast({
 // Notification Bell Component
 export function NotificationBell({ className }: { className?: string }) {
   // Check if we're in a socket context before using the hook
-  let notifications
+  type Notification = { id: string; type: string; message: string; data?: any; timestamp: Date }
+  let notifications: Notification[]
   
   try {
     const notificationHook = useNotifications()

@@ -61,6 +61,15 @@ export function Sidebar() {
             </Link>
           )
         })}
+        {/* DEV ONLY shortcut */}
+        {process.env.NODE_ENV === "development" && (
+          <Link
+            href="/org/dev/loopbrain-status"
+            className="text-xs text-muted-foreground hover:text-foreground block px-3 py-2"
+          >
+            Org QA (Dev)
+          </Link>
+        )}
       </nav>
       
       <div className="p-4 border-t">

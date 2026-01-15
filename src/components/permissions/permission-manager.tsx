@@ -11,7 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { PermissionLevel, PermissionService } from "@/lib/permissions"
+import { PermissionLevel as BasePermissionLevel } from "@/types/permissions"
+
+// Extended permission level for this component (includes 'restricted')
+type PermissionLevel = BasePermissionLevel | 'restricted'
+
+function getPermissionLevelDisplay(level: PermissionLevel): string {
+  return level.charAt(0).toUpperCase() + level.slice(1)
+}
 import { X, Users, Shield, Lock, Globe } from "lucide-react"
 
 interface PermissionManagerProps {
@@ -113,7 +120,7 @@ export function PermissionManager({
         <div className="p-3 bg-muted rounded-lg">
           <div className="flex items-center space-x-2 mb-2">
             {getLevelIcon(selectedLevel)}
-            <span className="font-medium">{PermissionService.getPermissionLevelDisplay(selectedLevel)}</span>
+            <span className="font-medium">{getPermissionLevelDisplay(selectedLevel)}</span>
           </div>
           <p className="text-sm text-muted-foreground">
             {getLevelDescription(selectedLevel)}

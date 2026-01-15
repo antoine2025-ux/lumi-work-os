@@ -31,6 +31,8 @@ interface Task {
   assigneeId?: string
   dueDate?: string
   tags: string[]
+  dependsOn: string[]
+  blocks: string[]
   createdAt: string
   updatedAt: string
   epicId?: string
@@ -179,7 +181,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
       const initialValues: Record<string, any> = {}
       if (task.customFields) {
         task.customFields.forEach(cf => {
-          initialValues[cf.fieldId] = cf.value
+          initialValues[cf.field.id] = cf.value
         })
       }
       setCustomFieldValues(initialValues)

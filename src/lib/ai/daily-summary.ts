@@ -153,7 +153,7 @@ export async function generateDailySummary(projectId: string, date: string): Pro
         from: history.from,
         to: history.to,
         timestamp: history.at.toISOString(),
-        actor: history.actor.name
+        actor: history.actor.name || 'Unknown'
       })
     })
 
@@ -167,8 +167,8 @@ export async function generateDailySummary(projectId: string, date: string): Pro
           id: taskId,
           title: task?.title || 'Unknown Task',
           status: task?.status || 'UNKNOWN',
-          priority: task?.priority || 'MEDIUM',
-          assignee: task?.assignee?.name,
+          priority: String(task?.priority || 'MEDIUM'),
+          assignee: task?.assignee?.name ?? undefined,
           changes: changes.map(c => ({
             field: c.field,
             from: c.from,
@@ -180,9 +180,9 @@ export async function generateDailySummary(projectId: string, date: string): Pro
       newTasks: newTasks.map(task => ({
         id: task.id,
         title: task.title,
-        status: task.status,
-        priority: task.priority,
-        assignee: task.assignee?.name
+        status: String(task.status),
+        priority: String(task.priority),
+        assignee: task.assignee?.name ?? undefined
       })),
       completedTasks: completedTasks.map(task => ({
         id: task.id,
@@ -192,7 +192,7 @@ export async function generateDailySummary(projectId: string, date: string): Pro
       comments: comments.map(comment => ({
         id: comment.id,
         content: comment.content,
-        author: comment.user.name,
+        author: comment.user.name || 'Unknown',
         taskTitle: comment.task.title,
         timestamp: comment.createdAt.toISOString()
       }))

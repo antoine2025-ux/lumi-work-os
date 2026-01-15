@@ -24,14 +24,16 @@ import { buildLogContextFromRequest } from '@/lib/request-context'
  * project data and the new ContextObject format. Consumers should read from `response.projects`.
  */
 export async function GET(request: NextRequest) {
-  const startTime = Date.now()
+  const startTime = performance.now()
   const baseContext = await buildLogContextFromRequest(request)
   
   logger.info('Incoming request /api/projects', baseContext)
   
   try {
     // 1. Get authenticated user with workspace context
+    const authStart = performance.now()
     const auth = await getUnifiedAuth(request)
+    const authDurationMs = performance.now() - authStart
     
     console.log('[PROJECTS API] Auth context:', {
       userId: auth.user.userId,
@@ -40,6 +42,7 @@ export async function GET(request: NextRequest) {
     })
     
     // 2. Assert workspace access (VIEWER can see projects)
+    const accessStart = performance.now()
     try {
       await assertAccess({ 
         userId: auth.user.userId, 
@@ -48,6 +51,7 @@ export async function GET(request: NextRequest) {
         requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
       })
     } catch (accessError: any) {
+      const accessDurationMs = performance.now() - accessStart
       console.error('[PROJECTS API] Access check failed:', {
         userId: auth.user.userId,
         workspaceId: auth.workspaceId,
@@ -71,6 +75,7 @@ export async function GET(request: NextRequest) {
       
       throw accessError
     }
+    const accessDurationMs = performance.now() - accessStart
 
     // 3. Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
@@ -91,8 +96,8 @@ export async function GET(request: NextRequest) {
       // Build ContextObjects for cached projects
       const cachedProjects = cached as typeof projects
       const cachedContextObjects = cachedProjects.map(project => {
-        return projectToContext(project, {
-          owner: project.owner || null,
+        return projectToContext(project as any, {
+          owner: project.owner as any || null,
           team: null
         })
       })
@@ -105,11 +110,12 @@ export async function GET(request: NextRequest) {
       response.headers.set('X-Cache', 'HIT')
       
       // Log completion (cached)
-      const durationMs = Date.now() - startTime
+      const totalDurationMs = performance.now() - startTime
       logger.info('Projects fetch completed (cached)', {
         ...baseContext,
         projectCount: cachedProjects.length,
-        durationMs,
+        authDurationMs: Math.round(authDurationMs * 100) / 100,
+        totalDurationMs: Math.round(totalDurationMs * 100) / 100,
         cacheHit: true,
       })
       
@@ -153,6 +159,7 @@ export async function GET(request: NextRequest) {
     // Optimized query: Use select instead of include, limit tasks loaded
     console.log('[PROJECTS API] About to query Prisma with where:', JSON.stringify(where, null, 2))
     console.log('[PROJECTS API] User ID:', auth.user.userId, 'Workspace ID:', auth.workspaceId)
+    const dbStart = performance.now()
     const projects = await prisma.project.findMany({
       where,
       select: {
@@ -237,6 +244,7 @@ export async function GET(request: NextRequest) {
         createdAt: 'desc'
       }
     })
+    const dbDurationMs = performance.now() - dbStart
 
     console.log('[PROJECTS API] Found projects:', projects.length)
     if (projects.length === 0) {
@@ -273,8 +281,8 @@ export async function GET(request: NextRequest) {
 
     // Build ContextObjects for each project
     const contextObjects = projects.map(project => {
-      return projectToContext(project, {
-        owner: project.owner || null,
+      return projectToContext(project as any, {
+        owner: project.owner as any || null,
         team: null // Team is stored as string in Project model, not a relation
       })
     })
@@ -296,28 +304,34 @@ export async function GET(request: NextRequest) {
     response.headers.set('X-Cache', 'MISS')
     
     // Log completion
-    const durationMs = Date.now() - startTime
+    const totalDurationMs = performance.now() - startTime
     logger.info('Projects fetch completed', {
       ...baseContext,
       projectCount: projects.length,
-      durationMs,
+      authDurationMs: Math.round(authDurationMs * 100) / 100,
+      accessDurationMs: Math.round(accessDurationMs * 100) / 100,
+      dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+      totalDurationMs: Math.round(totalDurationMs * 100) / 100,
       cacheHit: false,
     })
 
     // Log slow requests
-    if (durationMs > 500) {
+    if (totalDurationMs > 500) {
       logger.warn('Slow request /api/projects', {
         ...baseContext,
-        durationMs,
+        authDurationMs: Math.round(authDurationMs * 100) / 100,
+        accessDurationMs: Math.round(accessDurationMs * 100) / 100,
+        dbDurationMs: Math.round(dbDurationMs * 100) / 100,
+        totalDurationMs: Math.round(totalDurationMs * 100) / 100,
       })
     }
     
     return response
   } catch (error: any) {
-    const durationMs = Date.now() - startTime
+    const totalDurationMs = performance.now() - startTime
     logger.error('Error in /api/projects', {
       ...baseContext,
-      durationMs,
+      totalDurationMs: Math.round(totalDurationMs * 100) / 100,
     }, error)
     
     // Handle auth errors
@@ -411,11 +425,11 @@ export async function POST(request: NextRequest) {
         name,
         auth.user.userId,
         memberUserIds
-      )
+      ) ?? undefined
     } else {
       // Default: PUBLIC - use General space
       const { getOrCreateGeneralProjectSpace } = await import('@/lib/pm/project-space-helpers')
-      projectSpaceId = await getOrCreateGeneralProjectSpace(auth.workspaceId)
+      projectSpaceId = await getOrCreateGeneralProjectSpace(auth.workspaceId) ?? undefined
       // If migration not run, projectSpaceId will be null - that's OK, project will work without it (legacy mode)
     }
 
@@ -429,11 +443,41 @@ export async function POST(request: NextRequest) {
       projectSpaceId: projectSpaceId // Now determined by visibility logic above
     }
 
+    // Phase 1: Get canonical spaceId (default to TEAM space)
+    let spaceId: string | null = null
+    if (projectSpaceId) {
+      // If projectSpaceId exists, try to find mapped canonical Space
+      try {
+        const mappedSpace = await (prisma as any).space.findFirst({
+          where: {
+            workspaceId: auth.workspaceId,
+            legacySource: {
+              path: ['projectSpaceId'],
+              equals: projectSpaceId
+            }
+          },
+          select: { id: true }
+        })
+        if (mappedSpace) {
+          spaceId = mappedSpace.id
+        }
+      } catch (error) {
+        // Legacy source query may fail if JSON path not supported, fallback to TEAM
+        console.warn('Could not find mapped Space for ProjectSpace, defaulting to TEAM:', error)
+      }
+    }
+    
+    // If no mapped space found, default to TEAM space
+    if (!spaceId) {
+      const { getOrCreateTeamSpace } = await import('@/lib/spaces/canonical-space-helpers')
+      spaceId = await getOrCreateTeamSpace(auth.workspaceId)
+    }
+
     // Create the project and creator's membership atomically in a transaction
     // This guarantees immediate access for the creator and avoids race conditions with assertProjectAccess
     const project = await prisma.$transaction(async (tx) => {
       // Create the project
-      const createdProject = await tx.project.create({
+      const createdProject = await (tx.project.create as Function)({
         data: {
           workspaceId: auth.workspaceId, // 5. Use activeWorkspaceId
           name,
@@ -447,7 +491,8 @@ export async function POST(request: NextRequest) {
           team: cleanData.team,
           ownerId: cleanData.ownerId || auth.user.userId, // Use provided owner or default to creator
           wikiPageId: cleanData.wikiPageId,
-          projectSpaceId: cleanData.projectSpaceId, // NEW: ProjectSpace assignment
+          projectSpaceId: cleanData.projectSpaceId, // Legacy: ProjectSpace assignment
+          spaceId: spaceId, // Phase 1: Canonical Space assignment
           dailySummaryEnabled,
           createdById: auth.user.userId // 3. Use userId from auth
         },
@@ -548,30 +593,31 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(project)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating project:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
-      console.error('Validation errors:', error.errors)
+      console.error('Validation errors:', error.issues)
       return NextResponse.json({
         error: 'Validation error',
-        details: error.errors
+        details: error.issues
       }, { status: 400 })
     }
     
     // Handle auth errors
-    if (error.message.includes('Unauthorized')) {
+    if (errorMessage.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message.includes('Forbidden')) {
+    if (errorMessage.includes('Forbidden')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     
     return NextResponse.json({ 
       error: 'Failed to create project',
-      details: error.message 
+      details: errorMessage
     }, { status: 500 })
   }
 }

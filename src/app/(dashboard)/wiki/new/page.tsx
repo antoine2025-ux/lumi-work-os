@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,89 +8,56 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { WikiNavigation } from "@/components/wiki/wiki-navigation"
-import { RichTextEditor } from "@/components/wiki/rich-text-editor"
+import { WikiEditorShell } from "@/components/wiki/wiki-editor-shell"
 import { 
   ArrowLeft,
-  Save,
   X,
   Loader2
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { JSONContent } from '@tiptap/core'
+import { createWikiPage } from '@/lib/wiki/create-page'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 export default function NewWikiPage() {
   const router = useRouter()
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId } = useUserStatusContext()
   const [isSaving, setIsSaving] = useState(false)
   const [title, setTitle] = useState("")
-  const [content, setContent] = useState("")
+  const [contentJson, setContentJson] = useState<JSONContent | null>({
+    type: 'doc',
+    content: [{ type: 'paragraph' }],
+  })
   const [category, setCategory] = useState("general")
   const [error, setError] = useState<string | null>(null)
-  const [workspaceId, setWorkspaceId] = useState<string>('')
 
-  // Get workspace ID from user status
-  useEffect(() => {
-    const fetchWorkspaceId = async () => {
-      try {
-        const response = await fetch('/api/auth/user-status')
-        if (response.ok) {
-          const userStatus = await response.json()
-          if (userStatus.workspaceId) {
-            setWorkspaceId(userStatus.workspaceId)
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching workspace ID:', error)
-      }
-    }
-    fetchWorkspaceId()
-  }, [])
-
-  const handleSave = async () => {
-    if (!title.trim() || !content.trim()) {
-      setError("Please enter both title and content")
-      return
-    }
-
-    if (!workspaceId) {
-      setError("Workspace not found")
+  const handleSave = async (jsonContent: JSONContent) => {
+    if (!title.trim()) {
+      setError("Please enter a title")
       return
     }
 
     try {
       setIsSaving(true)
       setError(null)
-      const response = await fetch('/api/wiki/pages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          workspaceId: workspaceId,
-          title: title.trim(),
-          content: content.trim(),
-          tags: [],
-          category: category
-        })
+      
+      // Use centralized helper to create page
+      const newPage = await createWikiPage({
+        workspaceId: workspaceId || '',
+        title: title.trim(),
+        contentJson: jsonContent,
+        tags: [],
+        category
       })
 
-      if (!response.ok) {
-        let errorMessage = 'Unknown error'
-        try {
-          const errorData = await response.json()
-          console.error('API Error:', errorData)
-          errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`
-        } catch (parseError) {
-          console.error('Failed to parse error response:', parseError)
-          errorMessage = `HTTP ${response.status}: ${response.statusText}`
-        }
-        throw new Error(`Failed to create page: ${errorMessage}`)
-      }
-
-      const newPage = await response.json()
-      router.push(`/wiki/${newPage.slug}`)
+      // Redirect to edit mode so content persists immediately
+      router.push(`/wiki/${newPage.slug}?edit=1`)
     } catch (error) {
       console.error('Error creating page:', error)
       setError(error instanceof Error ? error.message : 'Failed to create page. Please try again.')
+      throw error // Re-throw for autosave error handling
     } finally {
       setIsSaving(false)
     }
@@ -127,12 +94,13 @@ export default function NewWikiPage() {
               <X className="mr-2 h-4 w-4" />
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={isSaving || !title.trim() || !content.trim()}>
+            <Button 
+              onClick={() => contentJson && handleSave(contentJson)} 
+              disabled={isSaving || !title.trim()}
+            >
               {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
+              ) : null}
               {isSaving ? 'Creating...' : 'Create Page'}
             </Button>
           </div>
@@ -163,9 +131,9 @@ export default function NewWikiPage() {
                 />
               </CardHeader>
               <CardContent>
-                <RichTextEditor
-                  content={content}
-                  onChange={setContent}
+                <WikiEditorShell
+                  initialContent={contentJson}
+                  onSave={handleSave}
                   placeholder="Start writing your page content..."
                 />
               </CardContent>

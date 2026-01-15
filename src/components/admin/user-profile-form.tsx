@@ -117,8 +117,7 @@ export function UserProfileForm({
 
   const availablePositions = existingPositions.filter(pos => !pos.user)
   const availableParents = existingPositions.filter(pos => 
-    pos.level < formData.orgPositionLevel &&
-    pos.isActive
+    pos.level < formData.orgPositionLevel
   )
 
   const getRoleColor = (role: string) => {

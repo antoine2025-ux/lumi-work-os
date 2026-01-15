@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { safeRebuildOrgContext } from '@/lib/org/org-context-service'
 
 // GET /api/admin/users/[id] - Get a specific user
 export async function GET(
@@ -80,7 +81,14 @@ export async function PUT(
       data: {
         name,
         email
-      }
+      },
+      include: {
+        workspaceMemberships: {
+          select: {
+            workspaceId: true,
+          },
+        },
+      },
     })
 
     // Update workspace member role
@@ -96,8 +104,22 @@ export async function PUT(
       })
     }
 
+    // If name or email changed, rebuild org context for all workspaces this user belongs to
+    if ((name !== existingUser.name || email !== existingUser.email) && workspaceId) {
+      // Rebuild for the workspace being edited
+      void safeRebuildOrgContext(workspaceId);
+    }
+
     // Handle org position assignment
     if (createOrgPosition && orgPositionTitle && workspaceId) {
+      // Find positions that will be updated (for syncing)
+      const positionsToRemoveFrom = await prisma.orgPosition.findMany({
+        where: {
+          workspaceId,
+          userId: params.id
+        }
+      });
+
       // Remove user from current position
       await prisma.orgPosition.updateMany({
         where: {
@@ -108,7 +130,7 @@ export async function PUT(
       })
 
       // Create new org position
-      await prisma.orgPosition.create({
+      const newPosition = await prisma.orgPosition.create({
         data: {
           workspaceId,
           title: orgPositionTitle,
@@ -119,7 +141,21 @@ export async function PUT(
           order: 0
         }
       })
+
+      // Keep Loopbrain org context in sync
+      // Fire-and-forget: don't await to avoid blocking the response
+      if (workspaceId) {
+        void safeRebuildOrgContext(workspaceId);
+      }
     } else if (positionId && positionId !== 'none' && workspaceId) {
+      // Find positions that will be updated (for syncing)
+      const positionsToRemoveFrom = await prisma.orgPosition.findMany({
+        where: {
+          workspaceId,
+          userId: params.id
+        }
+      });
+
       // Remove user from current position
       await prisma.orgPosition.updateMany({
         where: {
@@ -130,19 +166,147 @@ export async function PUT(
       })
 
       // Assign to new position
-      await prisma.orgPosition.update({
+      const updatedPosition = await prisma.orgPosition.update({
         where: { id: positionId },
-        data: { userId: id }
-      })
+        data: { userId: id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          team: {
+            select: {
+              id: true,
+              department: {
+                select: {
+                  id: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Emit events for position and person updates
+      const { emitEvent } = await import("@/lib/events/emit");
+      const { ORG_EVENTS, OrgPositionUpdatedEvent, OrgPersonUpdatedEvent } = await import("@/lib/events/orgEvents");
+
+      await emitEvent<OrgPositionUpdatedEvent>(ORG_EVENTS.POSITION_UPDATED, {
+        workspaceId,
+        positionId: updatedPosition.id,
+        teamId: updatedPosition.teamId,
+        userId: updatedPosition.userId,
+        data: {
+          id: updatedPosition.id,
+          title: updatedPosition.title,
+          level: updatedPosition.level,
+          isActive: updatedPosition.isActive,
+          workspaceId: updatedPosition.workspaceId,
+          teamId: updatedPosition.teamId,
+          userId: updatedPosition.userId,
+          createdAt: updatedPosition.createdAt,
+          updatedAt: updatedPosition.updatedAt,
+        },
+      });
+
+      if (updatedPosition.user) {
+        await emitEvent<OrgPersonUpdatedEvent>(ORG_EVENTS.PERSON_UPDATED, {
+          workspaceId,
+          userId: updatedPosition.user.id,
+          positionId: updatedPosition.id,
+          teamId: updatedPosition.teamId,
+          departmentId: updatedPosition.team?.department?.id ?? null,
+          data: {
+            id: updatedPosition.user.id,
+            name: updatedPosition.user.name,
+            email: updatedPosition.user.email,
+            updatedAt: updatedPosition.user.updatedAt ?? new Date(),
+          },
+        });
+      }
+
+      // Keep Loopbrain org context in sync
+      // Fire-and-forget: don't await to avoid blocking the response
+      if (workspaceId) {
+        void safeRebuildOrgContext(workspaceId);
+      }
     } else if (positionId === 'none' && workspaceId) {
       // Remove user from any position
+      // Find positions that will be updated
+      const positionsToUpdate = await prisma.orgPosition.findMany({
+        where: {
+          workspaceId,
+          userId: params.id,
+        },
+        include: {
+          team: {
+            select: {
+              id: true,
+              department: {
+                select: {
+                  id: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
       await prisma.orgPosition.updateMany({
         where: {
           workspaceId,
-          userId: params.id
+          userId: params.id,
         },
-        data: { userId: null }
-      })
+        data: { userId: null },
+      });
+
+      // Emit events for each position update
+      const { emitEvent } = await import("@/lib/events/emit");
+      const { ORG_EVENTS, OrgPositionUpdatedEvent, OrgPersonUpdatedEvent } = await import("@/lib/events/orgEvents");
+
+      for (const pos of positionsToUpdate) {
+        await emitEvent<OrgPositionUpdatedEvent>(ORG_EVENTS.POSITION_UPDATED, {
+          workspaceId,
+          positionId: pos.id,
+          teamId: pos.teamId,
+          userId: null,
+          data: {
+            id: pos.id,
+            title: pos.title,
+            level: pos.level,
+            isActive: pos.isActive,
+            workspaceId: pos.workspaceId,
+            teamId: pos.teamId,
+            userId: null,
+            createdAt: pos.createdAt,
+            updatedAt: pos.updatedAt,
+          },
+        });
+      }
+
+      // Emit person updated event
+      await emitEvent<OrgPersonUpdatedEvent>(ORG_EVENTS.PERSON_UPDATED, {
+        workspaceId,
+        userId: params.id,
+        positionId: null,
+        teamId: null,
+        departmentId: null,
+        data: {
+          id: params.id,
+          name: null,
+          email: '',
+          updatedAt: new Date(),
+        },
+      });
+
+      // Keep Loopbrain org context in sync
+      // Fire-and-forget: don't await to avoid blocking the response
+      if (workspaceId) {
+        void safeRebuildOrgContext(workspaceId);
+      }
     }
 
     return NextResponse.json({ 

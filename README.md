@@ -2,6 +2,8 @@
 
 **The most intelligent internal documentation platform on the market**
 
+> Performance optimized with centralized authentication state management and reduced API calls.
+
 A comprehensive workplace operating system that centralizes knowledge management, AI-powered documentation creation, and team collaboration tools. Built with Next.js 15, TypeScript, Prisma, PostgreSQL, and OpenAI GPT-4.
 
 ## 🚀 Current Implementation Status
@@ -136,6 +138,11 @@ SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
 npx prisma generate
 npx prisma db push
 ```
+
+**Which Database Am I Using?**
+- Check runtime DB: `curl http://localhost:3000/api/debug/db` (when dev server is running)
+- Check Prisma CLI DB: `npm run print-db`
+- See [Database Connection Debugging Guide](./docs/DB_CONNECTION_DEBUG.md) for troubleshooting
 
 6. Run the development server:
 ```bash

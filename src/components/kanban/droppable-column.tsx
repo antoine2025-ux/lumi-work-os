@@ -54,7 +54,7 @@ interface DroppableColumnProps {
   tasks: Task[]
   onEditTask?: (task: Task) => void
   onManageDependencies?: (taskId: string) => void
-  onAddTask?: (status: string) => void
+  onAddTask?: (status: string, epicId?: string) => void
   viewDensity?: 'compact' | 'comfortable' | 'spacious'
   screenSize?: 'desktop' | 'tablet' | 'mobile'
   epicId?: string

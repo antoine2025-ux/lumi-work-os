@@ -27,6 +27,8 @@ interface Task {
   }
   dueDate?: string
   tags: string[]
+  dependsOn: string[]
+  blocks: string[]
   createdAt: string
   updatedAt: string
   createdBy: {
@@ -58,6 +60,10 @@ interface Task {
       type: string
     }
   }>
+  _count: {
+    comments: number
+    subtasks: number
+  }
 }
 
 interface CalendarViewProps {
@@ -99,10 +105,10 @@ export default function CalendarView({ projectId, workspaceId }: CalendarViewPro
   const loadTasks = async () => {
     try {
       setIsLoading(true)
-      const params = new URLSearchParams({
-        projectId,
-        workspaceId
-      })
+      const params = new URLSearchParams({ projectId })
+      if (workspaceId) {
+        params.set('workspaceId', workspaceId)
+      }
 
       const response = await fetch(`/api/tasks?${params}`)
       if (response.ok) {
@@ -630,6 +636,7 @@ export default function CalendarView({ projectId, workspaceId }: CalendarViewPro
         onClose={handleCloseEditDialog}
         task={editingTask}
         onSave={handleTaskUpdate}
+        workspaceId={workspaceId ?? ''}
       />
 
       {/* Create Task Dialog */}

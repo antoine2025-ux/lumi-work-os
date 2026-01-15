@@ -127,3 +127,4 @@ This is a safety check to prevent cross-workspace data leaks.
 - **No breaking changes**: API response shape unchanged
 - **Defense-in-depth**: Scoping supplements, doesn't replace `assertAccess()`
 - **Scripts safe**: `prismaUnscoped` available for background jobs
+

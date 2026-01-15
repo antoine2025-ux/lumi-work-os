@@ -12,6 +12,7 @@ function LoginPageContent() {
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [hasGoogleAuth, setHasGoogleAuth] = useState(true)
+  const [authError, setAuthError] = useState<string | null>(null)
   
   // Read callbackUrl from search params, default to '/home'
   // This preserves invite URLs (/invites/[token]) through the authentication flow
@@ -19,6 +20,18 @@ function LoginPageContent() {
   const callbackUrl = searchParams.get('callbackUrl') ?? '/home'
 
   useEffect(() => {
+    // Check for auth error in URL params
+    const errorParam = searchParams.get('error')
+    if (errorParam) {
+      const errorMessages: Record<string, string> = {
+        Configuration: 'Google OAuth is not configured. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env.local',
+        AccessDenied: 'Access denied. You may not have permission to sign in.',
+        Verification: 'The verification token has expired or has already been used.',
+        Default: 'An authentication error occurred. Please check your Google OAuth configuration.',
+      }
+      setAuthError(errorMessages[errorParam] || errorMessages.Default)
+    }
+
     // Clear logout flag when login page loads
     // This ensures fresh OAuth attempts don't get blocked
     const logoutFlag = sessionStorage.getItem('__logout_flag__')
@@ -31,18 +44,29 @@ function LoginPageContent() {
     // Users should explicitly sign in, not be auto-redirected
     console.log('🔵 Login page loaded - no auto-redirect, user must click sign in')
 
-    // Check if Google OAuth is available
+    // Check if Google OAuth is available via providers API
+    // The API will check server-side env vars (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
+    // and return providers accordingly
     fetch('/api/auth/providers')
       .then(res => res.json())
       .then(providers => {
         console.log('Available providers:', providers)
-        setHasGoogleAuth(!!providers.google)
+        const googleAvailable = !!providers.google
+        setHasGoogleAuth(googleAvailable)
+        
+        // In dev mode, if no Google provider but we expect it, log a warning
+        if (!googleAvailable && process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ Google OAuth not available. Check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local')
+          if (!authError) {
+            setAuthError('Google OAuth is not configured. Please replace REPLACE_WITH_GOOGLE_CLIENT_ID and REPLACE_WITH_GOOGLE_CLIENT_SECRET in .env.local with your actual Google OAuth credentials.')
+          }
+        }
       })
-      .catch(() => {
-        console.log('Error fetching providers')
+      .catch((err) => {
+        console.error('Error fetching providers:', err)
         setHasGoogleAuth(false)
       })
-  }, [router])
+    }, [router, searchParams, authError])
 
   const handleGoogleSignIn = async () => {
     console.log('🟢 [login] Google sign-in button clicked')
@@ -70,6 +94,9 @@ function LoginPageContent() {
     } catch (e) {
       console.log('Note: Could not clear Google cookies (may be cross-domain)', e)
     }
+
+    // Get callbackUrl from query params if provided (e.g. from invite links)
+    const callbackUrl = searchParams.get('callbackUrl') || '/home'
     
     setIsLoading(true)
     try {
@@ -130,6 +157,12 @@ function LoginPageContent() {
             <div className="text-center text-sm text-muted-foreground mb-6">
               Sign in to access your wiki, workflows, and team collaboration tools
             </div>
+
+            {authError && (
+              <div className="text-center text-sm text-destructive bg-destructive/10 p-3 rounded-lg border border-destructive/20">
+                <strong>Authentication Error:</strong> {authError}
+              </div>
+            )}
             
             <div className="space-y-3">
               {hasGoogleAuth ? (
@@ -138,6 +171,7 @@ function LoginPageContent() {
                   disabled={isLoading}
                   className="w-full h-12 text-base"
                   size="lg"
+                  data-testid="login-google-btn"
                 >
                   {isLoading ? (
                     <div className="flex items-center space-x-2">
@@ -203,3 +237,33 @@ export default function LoginPage() {
     </Suspense>
   )
 }
+
+function LoginPageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="w-full max-w-md">
+        <Card className="shadow-xl">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center animate-pulse">
+                <BookOpen className="w-8 h-8 text-primary-foreground" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold">Welcome to Loopwell Work OS</CardTitle>
+            <CardDescription className="text-base">
+              Loading...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+// export default function LoginPage() {
+//   return (
+//     <Suspense fallback={<LoginPageFallback />}>
+//       <LoginPageContent />
+//     </Suspense>
+//   )
+// }

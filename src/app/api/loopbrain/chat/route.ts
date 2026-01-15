@@ -14,6 +14,7 @@ import { runLoopbrainQuery } from '@/lib/loopbrain/orchestrator'
 import { LoopbrainMode, LoopbrainRequest } from '@/lib/loopbrain/orchestrator-types'
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
+import { isOrgLoopbrainEnabled } from '@/lib/loopbrain/orgGate'
 
 /**
  * POST /api/loopbrain/chat
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
       epicId?: string
       roleId?: string
       teamId?: string
+      personId?: string
       useSemanticSearch?: boolean
       maxContextItems?: number
       sendToSlack?: boolean
@@ -113,6 +115,21 @@ export async function POST(request: NextRequest) {
       finalMode = 'spaces'
     }
 
+    // Check if Org Loopbrain is enabled (only for org mode)
+    if (finalMode === 'org') {
+      const orgEnabled = await isOrgLoopbrainEnabled(workspaceId)
+      if (!orgEnabled) {
+        return NextResponse.json(
+          {
+            error: 'Org Loopbrain is not enabled for this workspace.',
+            mode: 'org',
+            workspaceId
+          },
+          { status: 403 }
+        )
+      }
+    }
+
     // Build LoopbrainRequest (workspaceId and userId from auth, never from client)
     const loopbrainRequest: LoopbrainRequest = {
       workspaceId, // Always from auth
@@ -125,6 +142,7 @@ export async function POST(request: NextRequest) {
       epicId: body.epicId,
       roleId: body.roleId,
       teamId: body.teamId,
+      personId: body.personId,
       useSemanticSearch: body.useSemanticSearch !== false, // Default to true
       maxContextItems: body.maxContextItems ? Math.min(Math.max(1, body.maxContextItems), 50) : 10,
       sendToSlack: body.sendToSlack === true, // Only true if explicitly set

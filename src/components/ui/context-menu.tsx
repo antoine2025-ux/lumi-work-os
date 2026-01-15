@@ -72,7 +72,7 @@ export function ContextMenu({ children, items, className }: ContextMenuProps) {
   }
 
   const handleItemClick = (item: ContextMenuItem) => {
-    if (!item.disabled) {
+    if (!item.disabled && item.action) {
       item.action()
       setIsOpen(false)
     }

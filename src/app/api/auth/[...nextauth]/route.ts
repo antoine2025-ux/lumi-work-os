@@ -1,8 +1,5 @@
-import NextAuth from "next-auth"
-import { authOptions } from "@/lib/auth"
+import NextAuth from "next-auth";
+import { authOptions } from "@/server/authOptions";
 
-const handler = NextAuth(authOptions)
-
-// Export NextAuth handlers directly for Next.js 15 App Router
-// The handler automatically handles GET and POST requests
-export { handler as GET, handler as POST }
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };

@@ -63,27 +63,27 @@ export function GitHubEmbed({ embed, isEditable = false }: EmbedComponentProps) 
         {/* Repository stats */}
         {!isIssue && !isPullRequest && !isFile && embed.metadata && (
           <div className="flex items-center gap-4 text-xs text-gray-500">
-            {embed.metadata.stargazers_count && (
+            {embed.metadata.stargazers_count != null && (
               <div className="flex items-center gap-1">
                 <Star className="h-3 w-3" />
-                <span>{embed.metadata.stargazers_count}</span>
+                <span>{String(embed.metadata.stargazers_count)}</span>
               </div>
             )}
-            {embed.metadata.forks_count && (
+            {embed.metadata.forks_count != null && (
               <div className="flex items-center gap-1">
                 <GitFork className="h-3 w-3" />
-                <span>{embed.metadata.forks_count}</span>
+                <span>{String(embed.metadata.forks_count)}</span>
               </div>
             )}
-            {embed.metadata.watchers_count && (
+            {embed.metadata.watchers_count != null && (
               <div className="flex items-center gap-1">
                 <Eye className="h-3 w-3" />
-                <span>{embed.metadata.watchers_count}</span>
+                <span>{String(embed.metadata.watchers_count)}</span>
               </div>
             )}
-            {embed.metadata.language && (
+            {embed.metadata.language != null && (
               <span className="px-2 py-1 bg-gray-100 rounded text-xs">
-                {embed.metadata.language}
+                {String(embed.metadata.language)}
               </span>
             )}
           </div>
@@ -94,19 +94,19 @@ export function GitHubEmbed({ embed, isEditable = false }: EmbedComponentProps) 
           <div className="mt-3 p-2 bg-gray-50 rounded text-xs">
             <div className="flex items-center justify-between">
               <span className="text-gray-600">
-                #{embed.metadata.number}
+                #{String(embed.metadata.number ?? '')}
               </span>
               <span className={`px-2 py-1 rounded text-xs ${
                 embed.metadata.state === 'open' 
                   ? 'bg-green-100 text-green-800' 
                   : 'bg-gray-100 text-gray-800'
               }`}>
-                {embed.metadata.state}
+                {String(embed.metadata.state ?? '')}
               </span>
             </div>
-            {embed.metadata.created_at && (
+            {embed.metadata.created_at != null && (
               <div className="text-gray-500 mt-1">
-                Created {new Date(embed.metadata.created_at).toLocaleDateString()}
+                Created {new Date(String(embed.metadata.created_at)).toLocaleDateString()}
               </div>
             )}
           </div>

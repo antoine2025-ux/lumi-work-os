@@ -52,3 +52,4 @@ DATABASE_URL="postgresql://tonyem@localhost:5432/lumi_work_os_dev?schema=public"
 ```
 
 Both should work without errors.
+

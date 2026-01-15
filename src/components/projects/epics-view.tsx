@@ -515,8 +515,7 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
                                   key={task.id}
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    setEditingTask(task)
-                                    setIsEditDialogOpen(true)
+                                    open(task.id)
                                   }}
                                   className="border-b cursor-pointer hover:bg-opacity-50 transition-colors"
                                   style={{ 

@@ -162,3 +162,4 @@ If the 500 persists after these fixes:
 4. **Share the exact error message** from the server console or network response
 
 The enhanced error handling will now reveal the actual root cause instead of hiding it behind a generic 500.
+

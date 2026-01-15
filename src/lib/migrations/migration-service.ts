@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { MigrationSource, MigrationItem, MigrationProgress, MigrationResult } from './types'
 
 export class MigrationService {
@@ -26,7 +27,7 @@ export class MigrationService {
             failed: 0,
             status: 'pending'
           }
-        },
+        } as unknown as Prisma.InputJsonValue,
         isActive: true
       }
     })
@@ -96,7 +97,7 @@ export class MigrationService {
 
       } catch (error) {
         results.failedCount++
-        results.errors.push(`Failed to import "${item.title}": ${error.message}`)
+        results.errors.push(`Failed to import "${item.title}": ${error instanceof Error ? error.message : String(error)}`)
         console.error(`Migration error for item ${item.id}:`, error)
       }
     }

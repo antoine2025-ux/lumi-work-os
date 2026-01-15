@@ -1,0 +1,124 @@
+/**
+ * Scoped styles for TipTap wiki editor (CSS Module)
+ * Prevents code block double background issue
+ * 
+ * Note: TipTap applies 'prose' class directly to the editor element,
+ * so we need to override Tailwind Typography defaults with higher specificity
+ */
+
+.editor {
+  /* Editor wrapper - ensures all styles are scoped */
+  position: relative; /* Required for absolute positioning of gutter */
+}
+
+/* Override Tailwind Typography prose styles for code blocks */
+/* Use :global() to target prose class that TipTap applies to its editor element */
+.editor :global(.prose) pre {
+  background: hsl(var(--muted)) !important;
+  padding: 1rem !important;
+  border-radius: 0.375rem !important;
+  overflow-x: auto !important;
+  margin: 1rem 0 !important;
+}
+
+.editor :global(.prose) pre code {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+
+/* Generic reset: Force ALL descendants inside <pre> to be transparent and flat */
+/* This ensures no per-line "pill blocks" regardless of Highlight.js structure */
+/* Target both direct children and nested within prose class */
+.editor :global(.prose) pre *,
+.editor :global(.prose) pre code * {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Also target without prose for safety (in case structure differs) */
+.editor pre {
+  background: hsl(var(--muted)) !important;
+  padding: 1rem !important;
+  border-radius: 0.375rem !important;
+  overflow-x: auto !important;
+  margin: 1rem 0 !important;
+}
+
+.editor pre code {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+
+.editor pre *,
+.editor pre code * {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Fix Highlight.js layered backgrounds - remove all nested backgrounds */
+/* Highlight.js applies backgrounds to .hljs and its children (spans, line wrappers, etc.) */
+/* Target both within prose and without for maximum coverage */
+.editor :global(.prose) pre code.hljs,
+.editor pre code.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+.editor :global(.prose) .hljs,
+.editor .hljs {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Override ALL Highlight.js descendants to prevent per-line backgrounds */
+/* This is needed because Highlight.js wraps each line/token in spans with backgrounds */
+.editor :global(.prose) .hljs *,
+.editor .hljs * {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Specific overrides for common Highlight.js line wrapper classes */
+.editor :global(.prose) .hljs-line,
+.editor :global(.prose) .hljs-line-number,
+.editor :global(.prose) .hljs-line-numbers,
+.editor .hljs-line,
+.editor .hljs-line-number,
+.editor .hljs-line-numbers {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Inline code styling (not code blocks) */
+.editor :global(.prose) code:not(pre code),
+.editor code:not(pre code) {
+  background: hsl(var(--muted)) !important;
+  padding: 0.125rem 0.25rem !important;
+  border-radius: 0.25rem !important;
+  font-size: 0.875em !important;
+}
+

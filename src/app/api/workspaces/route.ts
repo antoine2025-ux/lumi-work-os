@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { prisma } from "@/lib/db"
 import { WorkspaceRole } from "@prisma/client"
+import { logOrgAuditEvent } from "@/server/audit/orgAudit"
 
 export async function GET(request: NextRequest) {
   try {
@@ -94,29 +95,47 @@ export async function POST(request: NextRequest) {
     
     console.log("Using slug:", finalSlug)
     
-    const workspace = await prisma.workspace.create({
-      data: {
-        name,
-        slug: finalSlug,
-        description,
-        ownerId: auth.user.userId
-      }
-    })
+    // Create workspace and initial OWNER membership in a single transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const workspace = await tx.workspace.create({
+        data: {
+          name,
+          slug: finalSlug,
+          description,
+          ownerId: auth.user.userId
+        }
+      })
 
-    console.log("Workspace created:", workspace.id)
+      console.log("Workspace created:", workspace.id)
 
-    // Add creator as owner
-    console.log("Adding user as workspace member...")
-    await prisma.workspaceMember.create({
-      data: {
+      // Add creator as owner inside transaction
+      const membership = await tx.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: auth.user.userId,
+          role: WorkspaceRole.OWNER
+        }
+      })
+
+      // Log workspace creation
+      await logOrgAuditEvent(tx as any, {
         workspaceId: workspace.id,
-        userId: auth.user.userId,
-        role: WorkspaceRole.OWNER
-      }
+        actorUserId: auth.user.userId,
+        targetUserId: auth.user.userId,
+        event: "ORG_CREATED",
+        metadata: {
+          name: workspace.name,
+          membershipId: membership.id,
+        },
+      })
+
+      return workspace
     })
+
+    console.log("Adding user as workspace member...")
 
     console.log("Workspace creation completed successfully")
-    return NextResponse.json({ workspace })
+    return NextResponse.json({ workspace: result })
   } catch (error) {
     console.error("Error creating workspace:", error)
     return NextResponse.json(

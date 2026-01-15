@@ -206,11 +206,14 @@ export function OrgChartPreview({ positions, users, onRefresh }: OrgChartPreview
                               {position.user.email}
                             </p>
                           )}
-                          {position.children && position.children.length > 0 && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {position.children.length} direct report{position.children.length !== 1 ? 's' : ''}
-                            </p>
-                          )}
+                          {(() => {
+                            const directReports = positions.filter(p => p.parentId === position.id).length
+                            return directReports > 0 ? (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {directReports} direct report{directReports !== 1 ? 's' : ''}
+                              </p>
+                            ) : null
+                          })()}
                           {!position.user && (
                             <Badge variant="outline" className="text-xs mt-1">
                               Open Position

@@ -161,11 +161,11 @@ export async function GET(
         pages: Math.ceil(totalCount / limit)
       }
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching project tasks:', error)
     return NextResponse.json({ 
       error: 'Failed to fetch project tasks',
-      details: error.message 
+      details: error instanceof Error ? error.message : String(error)
     }, { status: 500 })
   }
 }

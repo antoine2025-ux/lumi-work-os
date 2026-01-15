@@ -147,3 +147,4 @@ export interface WorkspaceContextType {
 - User sees their default workspace
 - Can create additional workspaces
 - Switching works correctly
+

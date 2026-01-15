@@ -203,7 +203,7 @@ export function DraggableTaskCard({
                     borderColor: `${task.epic.color}40`,
                   } : undefined}
                 >
-                  {hasEpic ? task.epic.title : 'No Epic'}
+                  {hasEpic ? task.epic?.title : 'No Epic'}
                 </Badge>
               </div>
 
@@ -306,7 +306,7 @@ export function DraggableTaskCard({
                 borderColor: `${task.epic.color}40`,
               } : undefined}
             >
-              {hasEpic ? task.epic.title : 'No Epic'}
+              {hasEpic ? task.epic?.title : 'No Epic'}
             </Badge>
           </div>
 

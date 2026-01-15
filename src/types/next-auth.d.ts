@@ -8,6 +8,10 @@ declare module "next-auth" {
       name?: string | null
       email?: string | null
       image?: string | null
+      // Workspace data embedded in session to avoid API calls
+      workspaceId?: string
+      role?: string
+      isFirstTime?: boolean
     }
     accessToken?: string
     refreshToken?: string
@@ -21,5 +25,9 @@ declare module "next-auth/jwt" {
     accessToken?: string
     refreshToken?: string
     expiresAt?: number
+    // Workspace data stored in JWT for session access
+    workspaceId?: string
+    role?: string
+    isFirstTime?: boolean
   }
 }

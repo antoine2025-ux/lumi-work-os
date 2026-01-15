@@ -26,6 +26,7 @@ import {
 import Link from "next/link"
 import { TaskEditDialog } from "@/components/tasks/task-edit-dialog"
 import { DependencyManager } from "@/components/tasks/dependency-manager"
+import { TaskTodosSection } from "@/components/todos"
 
 interface Task {
   id: string
@@ -505,6 +506,9 @@ export default function TaskDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Task To-dos */}
+          <TaskTodosSection taskId={task.id} />
         </div>
       </div>
 

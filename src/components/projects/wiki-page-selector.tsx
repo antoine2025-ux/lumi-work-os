@@ -56,6 +56,7 @@ interface WikiPageSelectorProps {
   onOpenChange?: (open: boolean) => void
   onSelect?: (page: { id: string; title: string }) => void
   workspaceId?: string
+  spaceId?: string // Phase 1: Optional spaceId filter
   excludePageIds?: string[]
   trigger?: React.ReactNode
 }
@@ -68,6 +69,7 @@ export function WikiPageSelector({
   onOpenChange: controlledOnOpenChange,
   onSelect,
   workspaceId: propWorkspaceId,
+  spaceId: propSpaceId,
   excludePageIds = [],
   trigger
 }: WikiPageSelectorProps) {
@@ -96,7 +98,15 @@ export function WikiPageSelector({
 
       try {
         setIsLoadingPages(true)
-        const response = await fetch(`/api/wiki/pages?workspaceId=${workspaceId}`)
+        // Phase 1: If spaceId is provided, filter by it (but still show legacy pages without spaceId)
+        const url = new URL('/api/wiki/pages', window.location.origin)
+        url.searchParams.set('workspaceId', workspaceId)
+        if (propSpaceId) {
+          url.searchParams.set('spaceId', propSpaceId)
+          url.searchParams.set('includeLegacy', 'true') // Show pages without spaceId too
+        }
+        
+        const response = await fetch(url.toString())
         if (response.ok) {
           const result = await response.json()
           // Handle paginated response - data is in result.data
@@ -119,17 +129,21 @@ export function WikiPageSelector({
     if (isOpen && workspaceId) {
       loadWikiPages()
     }
-  }, [isOpen, workspaceId])
+  }, [isOpen, workspaceId, propSpaceId])
 
   // Get current wiki page
   const currentWikiPage = wikiPages.find(page => page.id === currentWikiPageId)
 
-  // Filter pages based on search, category, and excluded IDs
+  // Filter pages based on search, category, excluded IDs, and spaceId
   const filteredPages = wikiPages.filter(page => {
     // Exclude pages that are already attached
     if (excludePageIds.includes(page.id)) {
       return false
     }
+    
+    // Phase 1: If spaceId filter is provided, prefer pages with matching spaceId
+    // Pages without spaceId (legacy) are still shown but can be visually marked
+    // Note: Server-side filtering already handles this, but we can add visual indicators
     
     const matchesSearch = page.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (page.content && page.content.toLowerCase().includes(searchQuery.toLowerCase()))

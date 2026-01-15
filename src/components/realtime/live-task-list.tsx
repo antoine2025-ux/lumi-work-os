@@ -213,7 +213,7 @@ export function LiveTaskList({ projectId, className, onToggleFullscreen }: LiveT
                     
                     {task.tags && task.tags.length > 0 && (
                       <div className="flex items-center gap-1">
-                        {task.tags.slice(0, 3).map((tag, index) => (
+                        {task.tags.slice(0, 3).map((tag: string, index: number) => (
                           <Badge key={index} variant="outline" className="text-xs">
                             {tag}
                           </Badge>

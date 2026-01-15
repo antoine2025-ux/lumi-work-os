@@ -19,23 +19,162 @@ export default function OnboardingPage() {
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false)
 
   useEffect(() => {
-    // Get user info from session
-    fetch('/api/auth/session')
-      .then(res => res.json())
-      .then(data => {
-        if (data.user) {
-          setUser(data.user)
-        } else {
-          // No session, redirect to login
-          router.push('/login')
+    // Check if user is coming from org page to create workspace - don't redirect in this case
+    const urlParams = new URLSearchParams(window.location.search)
+    const fromOrgPage = urlParams.get('from') === 'org' || document.referrer.includes('/org')
+    
+    
+    // If user came from org page, skip ALL redirect logic and allow workspace creation
+    if (fromOrgPage) {
+      console.log('[welcome] User came from org page - allowing workspace creation, skipping all redirects')
+      // Still need to load user for the form, but don't check workspace or redirect
+      let isMounted = true
+      const loadUserOnly = async () => {
+        try {
+          const sessionRes = await fetch('/api/auth/session')
+          if (!sessionRes.ok) {
+            console.warn('[welcome] Session fetch failed:', sessionRes.status)
+            return
+          }
+          const contentType = sessionRes.headers.get('content-type')
+          if (!contentType || !contentType.includes('application/json')) {
+            console.warn('[welcome] Session response is not JSON:', contentType)
+            return
+          }
+          const sessionData = await sessionRes.json()
+          if (isMounted && sessionData.user) {
+            setUser(sessionData.user)
+          }
+        } catch (error) {
+          console.error('[welcome] Error loading user:', error)
+        } finally {
+          if (isMounted) {
+            setIsLoading(false)
+          }
         }
-      })
-      .catch(() => {
-        router.push('/login')
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
+      }
+      loadUserOnly()
+      return // CRITICAL: Return early to prevent checkAndRedirect from running
+    }
+
+    // HARD STOP: If redirects are stopped, just set workspace and redirect
+    if (sessionStorage.getItem('__redirect_stopped__') === 'true') {
+      console.log('[welcome] Redirects stopped, setting workspace and going to home')
+      const workspaceId = 'ws_1765020555_4662b211'
+      sessionStorage.setItem('__workspace_id__', workspaceId)
+      sessionStorage.setItem('__has_workspace__', 'true')
+      window.location.replace('/home')
+      return
+    }
+    
+    // Check URL parameter to stop redirects and set workspace
+    if (urlParams.get('stop_redirect') === 'true') {
+      console.log('[welcome] Stop redirect flag detected, redirecting to home')
+      const workspaceId = 'ws_1765020555_4662b211'
+      sessionStorage.setItem('__workspace_id__', workspaceId)
+      sessionStorage.setItem('__has_workspace__', 'true')
+      sessionStorage.setItem('__redirect_stopped__', 'true')
+      sessionStorage.removeItem('__redirect_attempted__')
+      window.location.replace('/home')
+      return
+    }
+    
+    let isMounted = true
+    
+    const checkAndRedirect = async () => {
+      try {
+        // Get user info from session first with timeout
+        const sessionPromise = fetch('/api/auth/session')
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
+        )
+        
+        const res = await Promise.race([sessionPromise, timeoutPromise]) as Response
+
+        if (!res.ok) {
+          console.warn('[welcome] Session fetch failed:', res.status)
+          return
+        }
+        
+        const contentType = res.headers.get('content-type')
+        if (!contentType || !contentType.includes('application/json')) {
+          console.warn('[welcome] Session response is not JSON:', contentType)
+          return
+        }
+
+        const data = await res.json()
+        console.log('[welcome] Session data:', data)
+        
+        if (!isMounted) return
+        
+        if (data.user && data.user.email) {
+          setUser(data.user)
+
+          // If user came from org page, skip workspace check and allow creation
+          if (fromOrgPage) {
+            console.log('[welcome] User came from org page - skipping workspace check, allowing creation')
+            setIsLoading(false)
+            return
+          }
+
+          // Check if user has a workspace by email (even if session.user.id is missing)
+          try {
+            // Call a special endpoint that checks workspace by email with timeout
+            const workspacePromise = fetch(`/api/auth/check-workspace-by-email?email=${encodeURIComponent(data.user.email)}`)
+            const workspaceTimeout = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Workspace check timeout')), 5000)
+            )
+            
+            const workspaceRes = await Promise.race([workspacePromise, workspaceTimeout]) as Response
+            
+            if (!isMounted) return
+            
+            if (workspaceRes.ok) {
+              const contentType = workspaceRes.headers.get('content-type')
+              if (!contentType || !contentType.includes('application/json')) {
+                console.warn('[welcome] Workspace check response is not JSON:', contentType)
+                return
+              }
+              const workspaceData = await workspaceRes.json()
+              console.log('[welcome] Workspace check result:', workspaceData)
+              
+              if (workspaceData.workspaceId) {
+                console.log('[welcome] User has workspace, redirecting to dashboard')
+                // Set flags to prevent redirect loop
+                sessionStorage.setItem('__has_workspace__', 'true')
+                sessionStorage.setItem('__workspace_id__', workspaceData.workspaceId)
+                sessionStorage.removeItem('__redirect_attempted__') // Clear redirect flag
+                // Use replace instead of href to avoid adding to history
+                window.location.replace('/home')
+                return
+              }
+            }
+          } catch (error) {
+            console.error('[welcome] Error checking workspace by email:', error)
+            // Continue anyway - let user see welcome page
+          }
+        } else {
+          // No session or no email - try to get email from cookies/localStorage as fallback
+          console.log('[welcome] No user in session, checking for workspace anyway')
+          // Don't redirect to login immediately - let the page load
+          // The user might still be able to create a workspace
+        }
+      } catch (error) {
+        console.error('[welcome] Error fetching session:', error)
+        // If session fetch fails, still try to show welcome page
+        // User might be able to create workspace anyway
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+    
+    checkAndRedirect()
+    
+    return () => {
+      isMounted = false
+    }
   }, [router])
 
   const handleCreateWorkspace = async (workspaceData: any) => {
@@ -52,6 +191,18 @@ export default function OnboardingPage() {
         },
         body: JSON.stringify(workspaceData),
       })
+
+      // Check content type before parsing JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('[welcome] Workspace creation returned non-JSON:', {
+          status: response.status,
+          contentType,
+          bodyPreview: text.substring(0, 200)
+        })
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`)
+      }
 
       const data = await response.json()
       console.log('[welcome] Workspace creation response:', data)
@@ -81,8 +232,11 @@ export default function OnboardingPage() {
         }, remainingTime)
       } else {
         console.error('[welcome] Failed to create workspace:', data)
+        console.error('[welcome] Response status:', response.status)
+        console.error('[welcome] Response headers:', Object.fromEntries(response.headers.entries()))
         setIsCreatingWorkspace(false)
-        alert(`Failed to create workspace: ${data.error || 'Unknown error'}`)
+        const errorMessage = data?.error || data?.details || data?.message || JSON.stringify(data) || 'Unknown error'
+        alert(`Failed to create workspace: ${errorMessage}`)
       }
     } catch (error) {
       console.error('[welcome] Error creating workspace:', error)

@@ -153,7 +153,7 @@ export async function POST(
         taskId,
         userId: session.user.id,
         content: validatedData.content,
-        mentions: validatedData.mentions ? JSON.stringify(validatedData.mentions) : null
+        mentions: validatedData.mentions || undefined
       },
       include: {
         user: {
@@ -167,10 +167,16 @@ export async function POST(
     })
 
     // Log task history
-    await logTaskHistory(taskId, session.user.id, 'comment', null, {
-      commentId: comment.id,
-      content: validatedData.content,
-      mentions: validatedData.mentions
+    await logTaskHistory({
+      taskId,
+      actorId: session.user.id,
+      field: 'comment',
+      from: null,
+      to: {
+        commentId: comment.id,
+        content: validatedData.content,
+        mentions: validatedData.mentions
+      }
     })
 
     // Emit Socket.IO event
@@ -198,11 +204,11 @@ export async function POST(
     }
 
     return NextResponse.json(comment)
-  } catch (error) {
-    if (error.name === 'ZodError') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json({ 
         error: 'Validation error',
-        details: error.errors 
+        details: (error as any).issues 
       }, { status: 400 })
     }
 

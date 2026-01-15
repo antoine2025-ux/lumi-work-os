@@ -165,3 +165,4 @@ CREATE INDEX "idx_activities_workspace_created" ON "activities"("workspaceId", "
 - **Backward compatibility**: Migration handles existing data gracefully
 - **Performance**: Indexes added for efficient workspace-scoped queries
 - **Safety**: Foreign key ensures referential integrity
+

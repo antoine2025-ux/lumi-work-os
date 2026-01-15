@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization - only create client when needed
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    return null
+  }
+  return new OpenAI({ apiKey })
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,9 +22,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Create a streaming response
+    const openai = getOpenAIClient()
+    if (!openai) {
+      return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 503 })
+    }
+
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          const openai = getOpenAIClient()
           const completion = await openai.chat.completions.create({
             model: "gpt-4-turbo-preview",
             messages: [

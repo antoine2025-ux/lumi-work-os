@@ -49,9 +49,9 @@ export async function POST(
     })
 
     return NextResponse.json({ message: 'Page added to favorites', page: updatedPage })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error adding page to favorites:', error)
-    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 })
   }
 }
 
@@ -103,9 +103,9 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: 'Page removed from favorites', page: updatedPage })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error removing page from favorites:', error)
-    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 })
   }
 }
 

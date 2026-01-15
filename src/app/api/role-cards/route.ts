@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { onRoleCardChanged } from '@/lib/org/liveUpdateHooks'
 
 // GET /api/role-cards - Get all role cards for a workspace
 export async function GET(request: NextRequest) {
@@ -40,15 +41,16 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json(roleCards)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching role cards:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     
     // Handle auth errors
-    if (error.message.includes('Unauthorized')) {
+    if (errorMessage.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message.includes('Forbidden')) {
+    if (errorMessage.includes('Forbidden')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     
@@ -140,16 +142,23 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Update role ContextItem in Context Store
+    await onRoleCardChanged({
+      workspaceId: auth.workspaceId,
+      roleCardId: roleCard.id,
+    });
+
     return NextResponse.json({ roleCard })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating role card:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     
     // Handle auth errors
-    if (error.message.includes('Unauthorized')) {
+    if (errorMessage.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message.includes('Forbidden')) {
+    if (errorMessage.includes('Forbidden')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     

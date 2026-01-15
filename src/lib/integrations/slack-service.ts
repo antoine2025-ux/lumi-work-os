@@ -46,7 +46,7 @@ export async function getSlackIntegration(workspaceId: string) {
 
   return {
     id: integration.id,
-    config: integration.config as SlackConfig,
+    config: integration.config as unknown as SlackConfig,
     lastSyncAt: integration.lastSyncAt
   }
 }
@@ -424,7 +424,7 @@ export async function getSlackChannelMessages(
     await Promise.all(userFetchPromises)
 
     // Map messages with resolved user names
-    const messagesWithNames = messages.map((msg) => ({
+    const messagesWithNames = messages.map((msg: { userId?: string; text: string; ts: string; threadTs?: string; replies: number }) => ({
       user: msg.userId ? (userMap.get(msg.userId) || msg.userId) : 'Unknown',
       userId: msg.userId,
       text: msg.text,

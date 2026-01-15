@@ -3,6 +3,8 @@ import { UpdateMilestoneSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { ProjectRole } from '@prisma/client'
 
 
 // GET /api/projects/[projectId]/milestones/[milestoneId] - Get a specific milestone
@@ -11,14 +13,17 @@ export async function GET(
   { params }: { params: Promise<{ projectId: string; milestoneId: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const resolvedParams = await params
     const { projectId, milestoneId } = resolvedParams
 
     // Check project access
-    const accessResult = await assertProjectAccess(projectId)
-    if (!accessResult.hasAccess) {
-      return NextResponse.json({ error: accessResult.error }, { status: 403 })
-    }
+    const nextAuthUser = { id: auth.user.userId, email: auth.user.email, name: auth.user.name } as any
+    await assertProjectAccess(nextAuthUser, projectId, ProjectRole.VIEWER, auth.workspaceId)
 
     const milestone = await prisma.milestone.findFirst({
       where: { 
@@ -70,14 +75,17 @@ export async function PATCH(
   { params }: { params: Promise<{ projectId: string; milestoneId: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const resolvedParams = await params
     const { projectId, milestoneId } = resolvedParams
 
     // Check write access
-    const accessResult = await assertProjectWriteAccess(projectId)
-    if (!accessResult.hasAccess) {
-      return NextResponse.json({ error: accessResult.error }, { status: 403 })
-    }
+    const nextAuthUser = { id: auth.user.userId, email: auth.user.email, name: auth.user.name } as any
+    const accessResult = await assertProjectWriteAccess(nextAuthUser, projectId, auth.workspaceId)
 
     const body = await request.json()
     
@@ -135,11 +143,11 @@ export async function PATCH(
     )
 
     return NextResponse.json(milestone)
-  } catch (error) {
-    if (error.name === 'ZodError') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json({ 
         error: 'Validation error',
-        details: error.errors 
+        details: (error as any).issues 
       }, { status: 400 })
     }
 
@@ -156,14 +164,17 @@ export async function DELETE(
   { params }: { params: Promise<{ projectId: string; milestoneId: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const resolvedParams = await params
     const { projectId, milestoneId } = resolvedParams
 
     // Check write access
-    const accessResult = await assertProjectWriteAccess(projectId)
-    if (!accessResult.hasAccess) {
-      return NextResponse.json({ error: accessResult.error }, { status: 403 })
-    }
+    const nextAuthUser = { id: auth.user.userId, email: auth.user.email, name: auth.user.name } as any
+    const accessResult = await assertProjectWriteAccess(nextAuthUser, projectId, auth.workspaceId)
 
     // Check if milestone exists
     const existingMilestone = await prisma.milestone.findFirst({

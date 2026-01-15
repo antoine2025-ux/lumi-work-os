@@ -31,3 +31,4 @@ ALTER TABLE "workspace_invites" ADD CONSTRAINT "workspace_invites_workspaceId_fk
 
 -- AddForeignKey
 ALTER TABLE "workspace_invites" ADD CONSTRAINT "workspace_invites_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

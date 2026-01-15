@@ -68,18 +68,18 @@ export async function PATCH(
       message: `Daily summaries ${validatedData.dailySummaryEnabled ? 'enabled' : 'disabled'} for project`,
       project: updatedProject
     })
-  } catch (error) {
-    if (error.name === 'ZodError') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json({
         error: 'Validation error',
-        details: error.errors
+        details: (error as any).errors
       }, { status: 400 })
     }
 
     console.error('Error updating daily summary setting:', error)
     return NextResponse.json({
       error: 'Failed to update daily summary setting',
-      details: error.message
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }

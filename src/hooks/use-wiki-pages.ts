@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useUserStatus } from './use-user-status'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 export interface WikiPage {
   id: string
@@ -13,10 +13,11 @@ export interface WikiPage {
 }
 
 export function useRecentPages(limit: number = 20, workspaceType?: string) {
-  const { userStatus } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId } = useUserStatusContext()
 
   return useQuery({
-    queryKey: ['wiki-pages', 'recent', userStatus?.workspaceId, limit, workspaceType],
+    queryKey: ['wiki-pages', 'recent', workspaceId, limit, workspaceType],
     queryFn: async () => {
       const params = new URLSearchParams({ limit: limit.toString() })
       if (workspaceType) params.append('workspace_type', workspaceType)
@@ -25,7 +26,7 @@ export function useRecentPages(limit: number = 20, workspaceType?: string) {
       if (!response.ok) throw new Error('Failed to fetch pages')
       return response.json() as Promise<WikiPage[]>
     },
-    enabled: !!userStatus?.workspaceId,
+    enabled: !!workspaceId,
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     refetchOnWindowFocus: false,

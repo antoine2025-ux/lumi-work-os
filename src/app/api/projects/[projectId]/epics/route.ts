@@ -66,25 +66,27 @@ export async function GET(
     })
 
     return NextResponse.json(epics)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching epics:', error)
     
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
     // Handle auth errors
-    if (error.message.includes('Unauthorized')) {
+    if (errorMessage.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message.includes('Forbidden')) {
+    if (errorMessage.includes('Forbidden')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     
-    if (error.message.includes('Project not found')) {
+    if (errorMessage.includes('Project not found')) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
     
     return NextResponse.json({ 
       error: 'Failed to fetch epics',
-      details: error.message 
+      details: errorMessage 
     }, { status: 500 })
   }
 }
@@ -194,27 +196,29 @@ export async function POST(
       .catch((error) => logger.error('Failed to upsert epic context after creation', { epicId: epic.id, error }))
 
     return NextResponse.json(epic, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating epic:', error)
     
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json({ 
         error: 'Validation error',
-        details: error.errors 
+        details: error.issues 
       }, { status: 400 })
     }
     
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
     // Handle auth errors
-    if (error.message.includes('Unauthorized')) {
+    if (errorMessage.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message.includes('Forbidden')) {
+    if (errorMessage.includes('Forbidden')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     
-    if (error.message.includes('Project not found')) {
+    if (errorMessage.includes('Project not found')) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
     

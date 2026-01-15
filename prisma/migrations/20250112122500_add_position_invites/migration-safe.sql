@@ -102,3 +102,4 @@ END $$;
 CREATE INDEX IF NOT EXISTS "idx_invites_position" ON "workspace_invites"("positionId");
 CREATE INDEX IF NOT EXISTS "idx_invites_pending_lookup" ON "workspace_invites"("workspaceId", "email", "revokedAt", "acceptedAt", "expiresAt");
 CREATE INDEX IF NOT EXISTS "idx_invites_workspace_position" ON "workspace_invites"("workspaceId", "positionId");
+

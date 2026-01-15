@@ -1,0 +1,172 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Loopbrain Q1–Q9 Snapshot Tests > Q1: Who owns this? > should return stable response for healthy project 1`] = `
+{
+  "assumptions": [],
+  "confidence": "low",
+  "constraints": [],
+  "errors": [
+    {
+      "code": "UNAUTHORIZED",
+      "message": "Unauthorized",
+    },
+  ],
+  "owner": {
+    "type": "unset",
+  },
+  "questionId": "Q1",
+  "risks": [],
+}
+`;
+
+exports[`Loopbrain Q1–Q9 Snapshot Tests > Q2: Who decides this? > should return stable response for healthy project 1`] = `
+{
+  "assumptions": [],
+  "confidence": "low",
+  "constraints": [],
+  "decision": {
+    "type": "unset",
+  },
+  "errors": [
+    {
+      "code": "UNAUTHORIZED",
+      "message": "Unauthorized",
+    },
+  ],
+  "escalation": {
+    "type": "unset",
+  },
+  "questionId": "Q2",
+  "risks": [],
+}
+`;
+
+exports[`Loopbrain Q1–Q9 Snapshot Tests > Q3: Who should be working on this? > should return stable response for constrained project 1`] = `
+{
+  "error": "Unauthorized",
+  "ok": false,
+}
+`;
+
+exports[`Loopbrain Q1–Q9 Snapshot Tests > Q4: Do we have capacity in timeframe? > should return stable response for constrained project 1`] = `
+{
+  "errors": [
+    {
+      "code": "UNAUTHORIZED",
+      "message": "Unauthorized",
+    },
+  ],
+}
+`;
+
+exports[`Loopbrain Q1–Q9 Snapshot Tests > Q5: Who is unavailable and when do they return? > should return stable response for unavailable person 1`] = `
+{
+  "activeWindows": [],
+  "assumptions": [],
+  "confidence": "low",
+  "constraints": [],
+  "currentStatus": "available",
+  "errors": [
+    {
+      "code": "UNAUTHORIZED",
+      "message": "Unauthorized",
+    },
+  ],
+  "personId": "",
+  "questionId": "Q5",
+  "risks": [],
+}
+`;
+
+exports[`Loopbrain Q1–Q9 Snapshot Tests > Q6: Who can cover? > should return stable response for healthy project 1`] = `
+{
+  "assumptions": [],
+  "backups": {
+    "backupOwner": {
+      "type": "unset",
+    },
+  },
+  "candidates": [],
+  "confidence": "low",
+  "constraints": [],
+  "errors": [
+    {
+      "code": "UNAUTHORIZED",
+      "message": "Unauthorized",
+    },
+  ],
+  "primaryOwner": {
+    "type": "unset",
+  },
+  "projectId": "",
+  "questionId": "Q6",
+  "risks": [],
+}
+`;
+
+exports[`Loopbrain Q1–Q9 Snapshot Tests > Q7: Is this aligned with role responsibilities? > should return stable response for role-misaligned project 1`] = `
+{
+  "assumptions": [],
+  "confidence": "low",
+  "constraints": [],
+  "errors": [
+    {
+      "code": "UNAUTHORIZED",
+      "message": "Unauthorized",
+    },
+  ],
+  "notes": [],
+  "projectId": "",
+  "questionId": "Q7",
+  "risks": [],
+}
+`;
+
+exports[`Loopbrain Q1–Q9 Snapshot Tests > Q8: Is responsibility clear or fragmented? > should return stable response for fragmented project 1`] = `
+{
+  "assumptions": [],
+  "confidence": "low",
+  "constraints": [],
+  "errors": [
+    {
+      "code": "UNAUTHORIZED",
+      "message": "Unauthorized",
+    },
+  ],
+  "missing": [],
+  "projectId": "",
+  "questionId": "Q8",
+  "risks": [],
+  "status": "unknown",
+}
+`;
+
+exports[`Loopbrain Q1–Q9 Snapshot Tests > Q9: Should we proceed, reassign, delay, or request support? > should return stable response for constrained project 1`] = `
+{
+  "assumptions": [],
+  "confidence": "low",
+  "constraints": [],
+  "decision": {
+    "action": "insufficient_data",
+    "explanation": [
+      "Unauthorized",
+    ],
+  },
+  "errors": [
+    {
+      "code": "UNAUTHORIZED",
+      "message": "Unauthorized",
+    },
+  ],
+  "evidence": {
+    "allocations": "unknown",
+    "availability": "unknown",
+    "decisionAuthority": "missing",
+    "ownership": "missing",
+  },
+  "options": [],
+  "projectId": "",
+  "questionId": "Q9",
+  "risks": [],
+}
+`;

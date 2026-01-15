@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress'
 import { Calendar, User, Clock, Target } from 'lucide-react'
 
 // Mock data for demonstration
-const mockTasks = {
+const mockTasks: Record<string, Task[]> = {
   todo: [
     {
       id: '1',

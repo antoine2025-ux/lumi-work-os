@@ -165,15 +165,16 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.json(tasks)
     response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120')
     return response
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching tasks:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     
     // Handle auth errors
-    if (error.message.includes('Unauthorized')) {
+    if (errorMessage.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message.includes('Forbidden')) {
+    if (errorMessage.includes('Forbidden')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     
@@ -421,7 +422,7 @@ export async function POST(request: NextRequest) {
     )
 
     return NextResponse.json(task)
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating task', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,

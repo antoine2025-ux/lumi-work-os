@@ -1,11 +1,15 @@
 // Example integration for /app/projects/[id]/page.tsx
 // This shows how to integrate the demo components into the existing project page
 
+import { useState } from 'react'
 import { MinimalBoard, FocusBoard } from '@/components/demo/kanban'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 
 // Add this to your existing project page component
+// Note: In actual usage, you would have projectId, currentWorkspace, etc. from your page context
 export function ProjectPageWithDemoBoards() {
-  const [viewMode, setViewMode] = useState<'original' | 'minimal' | 'focus'>('original')
+  const [viewMode, setViewMode] = useState<'minimal' | 'focus'>('minimal')
 
   return (
     <div>
@@ -13,13 +17,6 @@ export function ProjectPageWithDemoBoards() {
       
       {/* Add view mode selector */}
       <div className="flex items-center space-x-2 mb-6">
-        <Button
-          variant={viewMode === 'original' ? 'default' : 'outline'}
-          onClick={() => setViewMode('original')}
-          size="sm"
-        >
-          Original
-        </Button>
         <Button
           variant={viewMode === 'minimal' ? 'default' : 'outline'}
           onClick={() => setViewMode('minimal')}
@@ -36,17 +33,14 @@ export function ProjectPageWithDemoBoards() {
         </Button>
       </div>
 
-      {/* Conditional rendering based on view mode */}
-      {viewMode === 'original' && (
-        // Your existing kanban board implementation
-        <KanbanBoard 
-          projectId={projectId} 
-          workspaceId={currentWorkspace?.id || 'workspace-1'}
-          onTasksUpdated={loadProject}
-          filteredTasks={isFiltered ? filteredTasks : undefined}
-          epicId={selectedEpicId}
-        />
-      )}
+      {/* 
+        In your actual implementation, you can add an 'original' view mode
+        that renders your existing KanbanBoard component with props like:
+        - projectId (from route params)
+        - workspaceId (from currentWorkspace context)
+        - onTasksUpdated (your refresh callback)
+        - filteredTasks, epicId (from your filter state)
+      */}
 
       {viewMode === 'minimal' && (
         <MinimalBoard className="mt-4" />
@@ -68,7 +62,7 @@ export function ProjectPageWithReplacedBoards() {
       {/* Your existing project header and navigation */}
       
       {/* Replace the existing kanban board section with: */}
-      <Card className="border-0 shadow-sm" style={{ backgroundColor: colors.surface }}>
+      <Card className="border-0 shadow-sm bg-card">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">

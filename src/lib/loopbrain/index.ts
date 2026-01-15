@@ -85,3 +85,106 @@ export {
   type SpacesAssistantParams
 } from './client'
 
+// Org Context Builder
+export {
+  buildOrgContextBundleForCurrentWorkspace,
+  type OrgContextBundle
+} from './orgContextBuilder'
+
+// Org Context Mapper
+export {
+  mapDepartmentToContextObject,
+  mapTeamToContextObject,
+  mapPositionToContextObject,
+  mapPersonToContextObject,
+  type OrgDepartmentSource,
+  type OrgTeamSource,
+  type OrgPositionSource,
+  type OrgPersonSource
+} from './orgContextMapper'
+
+// Org IDs
+export {
+  orgId,
+  departmentId,
+  teamId,
+  roleId,
+  personId
+} from './orgIds'
+
+// Legacy Context Types (from contextTypes.ts)
+export type {
+  ContextObject as LegacyContextObject,
+  ContextRelation,
+  ContextStatus,
+  ContextType as LegacyContextType,
+  ContextRelationType
+} from './contextTypes'
+
+// Org Loopbrain Context Bundle
+export {
+  type OrgLoopbrainEntityType,
+  type OrgLoopbrainStatus,
+  type OrgLoopbrainRelation,
+  type OrgLoopbrainContextObject,
+  type OrgLoopbrainContextBundle
+} from './org/types'
+export {
+  buildOrgLoopbrainContextBundleForCurrentWorkspace,
+  buildOrgLoopbrainContextBundleForWorkspace,
+  buildOrgLoopbrainContextBundleFromStore
+} from './org/buildOrgLoopbrainContextBundle'
+
+// Org Context for Loopbrain (from ContextStore)
+export {
+  getOrgContextForLoopbrain,
+  getOrgAndPeopleContextForLoopbrain,
+  type LoopbrainOrgContextBundle,
+  type LoopbrainOrgPeopleContext
+} from './orgContextForLoopbrain'
+
+// Org Prompt Context Builder
+export {
+  buildOrgPromptContext,
+  buildOrgContextText,
+  type OrgPromptContext
+} from './orgPromptContextBuilder'
+
+// Org Sub-Contexts (targeted fetchers)
+export {
+  getOrgHeadcountContextForLoopbrain,
+  getOrgReportingContextForLoopbrain,
+  getOrgRiskContextForLoopbrain,
+  type OrgHeadcountContext,
+  type OrgReportingContext,
+  type OrgRiskContext
+} from './orgSubContexts'
+
+// Org Guardrails
+export {
+  ORG_GUARDRAILS,
+  ORG_OUTPUT_FORMAT_RULES
+} from './promptBlocks/orgGuardrails'
+
+// Org Response Validator
+export {
+  validateOrgResponse
+} from './postProcessors/orgValidator'
+
+// Org Referenced Context
+export {
+  buildReferencedContextSummary,
+  formatReferencedContextFooter,
+  type ReferencedContextSummary
+} from './postProcessors/orgReferencedContext'
+
+// Org Question Type Detection
+export {
+  detectOrgQuestionType
+} from './orgQuestionType'
+
+// Org QA Service
+export {
+  runOrgQa,
+  type OrgQaResult
+} from './orgQaService'

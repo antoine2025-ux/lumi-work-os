@@ -29,7 +29,7 @@ interface ProjectHeaderProps {
     }>
     _count: { tasks: number }
   }
-  tasks: Array<{ status: string }>
+  tasks?: Array<{ status: string }>
   colors: {
     primary: string
     background: string
@@ -62,6 +62,7 @@ export function ProjectHeader({
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
 
   const getTaskStatusCount = (status: string) => {
+    if (!tasks) return 0
     return tasks.filter(task => task.status === status).length
   }
 
@@ -144,23 +145,42 @@ export function ProjectHeader({
         
         {/* Progress bar */}
         <div className="mt-4 max-w-[420px]">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium" style={{ color: colors.textSecondary }}>
-              Progress
-            </span>
-            <span className="text-sm" style={{ color: colors.textSecondary }}>
-              {getTaskStatusCount('DONE')} of {project._count.tasks} tasks
-            </span>
-          </div>
-          <div className="w-full rounded-full h-2" style={{ backgroundColor: colors.border }}>
-            <div 
-              className="h-2 rounded-full" 
-              style={{ 
-                width: `${(getTaskStatusCount('DONE') / project._count.tasks) * 100}%`, 
-                backgroundColor: colors.success 
-              }} 
-            />
-          </div>
+          {(() => {
+            // Safe calculation with intermediate variables (no inline ternaries)
+            const total = project?._count?.tasks ?? 0;
+            const done = getTaskStatusCount('DONE');
+            const width = total > 0 ? (done / total) * 100 : 0;
+            
+            // #region agent log
+            try {
+              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'project-header.tsx:147',message:'Project header progress calc (fixed)',data:{total,done,width},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix3',hypothesisId:'G'})}).catch(()=>{});
+            } catch(e) {
+              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'project-header.tsx:147',message:'Project header progress calc error (fixed)',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix3',hypothesisId:'H'})}).catch(()=>{});
+            }
+            // #endregion
+            
+            return (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium" style={{ color: colors.textSecondary }}>
+                    Progress
+                  </span>
+                  <span className="text-sm" style={{ color: colors.textSecondary }}>
+                    {done} of {total} tasks
+                  </span>
+                </div>
+                <div className="w-full rounded-full h-2" style={{ backgroundColor: colors.border }}>
+                  <div 
+                    className="h-2 rounded-full" 
+                    style={{ 
+                      width: `${width}%`, 
+                      backgroundColor: colors.success 
+                    }} 
+                  />
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Minimalistic Navigation Buttons */}

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { MigrationModal } from "@/components/migrations/migration-modal"
 import { WorkspaceMembers } from "@/components/settings/workspace-members"
-import { useUserStatus } from '@/hooks/use-user-status'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 import { 
   Settings, 
   User, 
@@ -54,7 +54,9 @@ interface SlackIntegration {
 }
 
 export default function SettingsPage() {
-  const { userStatus, loading: userStatusLoading } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const userStatus = useUserStatusContext()
+  const userStatusLoading = userStatus.isLoading
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()

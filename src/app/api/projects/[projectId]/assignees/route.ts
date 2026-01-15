@@ -79,7 +79,7 @@ export async function GET(
             ...projectMemberIds,
             project.createdById,
             project.ownerId
-          ].filter(Boolean))
+          ].filter((id): id is string => Boolean(id)))
         ]
       }
     } else {

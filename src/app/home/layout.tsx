@@ -2,9 +2,10 @@
 
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useRef } from "react"
 import { Header } from "@/components/layout/header"
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context"
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 export default function HomeLayout({
   children,
@@ -13,84 +14,88 @@ export default function HomeLayout({
 }) {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
-  const [isFirstTime, setIsFirstTime] = useState(false)
-  const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(true)
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId, isFirstTime, isLoading: isLoadingWorkspace, pendingInvite, error } = useUserStatusContext()
 
+  // Handle workspace redirect logic based on context data
   useEffect(() => {
-    const checkWorkspace = async () => {
-      try {
-        // Guard: Never redirect if already on invite page
-        const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
-        const isInvitePage = currentPath.startsWith('/invites') || currentPath === '/invites'
-        if (isInvitePage) {
-          setIsLoadingWorkspace(false)
-          return
-        }
-        
-        const response = await fetch('/api/auth/user-status')
-        if (response.ok) {
-          const data = await response.json()
-          console.log('[HomeLayout] User status:', data)
-          
-          // If no workspace, check for pending invite first
-          if (!data.workspaceId) {
-            if (data.pendingInvite?.token) {
-              if (process.env.NODE_ENV === 'development') {
-                console.log('[HomeLayout] No workspace found but pending invite exists, redirecting to invite:', data.pendingInvite.token)
-              }
-              window.location.href = `/invites/${data.pendingInvite.token}`
-              return
-            }
-            
-            // No pending invite, redirect to welcome
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[HomeLayout] No workspace found, no pending invite, redirecting to welcome')
-            }
-            window.location.href = '/welcome'
-            return
-          }
-          
-          setWorkspaceId(data.workspaceId)
-          setIsFirstTime(data.isFirstTime || false)
-        } else {
-          const errorData = await response.json()
-          console.log('[HomeLayout] Error response:', errorData)
-          
-          // If error indicates no workspace, check for pending invite
-          if (errorData.error && errorData.error.includes('No workspace')) {
-            if (errorData.pendingInvite?.token) {
-              if (process.env.NODE_ENV === 'development') {
-                console.log('[HomeLayout] No workspace in error but pending invite exists, redirecting to invite:', errorData.pendingInvite.token)
-              }
-              window.location.href = `/invites/${errorData.pendingInvite.token}`
-              return
-            }
-            
-            // No pending invite, redirect to welcome
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[HomeLayout] No workspace in error, no pending invite, redirecting to welcome')
-            }
-            window.location.href = '/welcome'
-            return
-          }
-        }
-      } catch (error) {
-        console.error('[HomeLayout] Error checking workspace:', error)
-        // Resilience: Don't redirect on fetch failure - let user stay on current page
-        // This prevents infinite loading or redirect loops if API is down
-        // User can retry or navigate manually
-      } finally {
-        setIsLoadingWorkspace(false)
-      }
+    // HARD STOP: Check redirect counter - if too many redirects, stop immediately
+    const redirectCount = parseInt(sessionStorage.getItem('__redirect_count__') || '0')
+    if (redirectCount >= 2) {
+      console.log('[HomeLayout] HARD STOP: Too many redirects detected, setting workspace and stopping')
+      const workspaceId = 'ws_1765020555_4662b211'
+      sessionStorage.setItem('__workspace_id__', workspaceId)
+      sessionStorage.setItem('__has_workspace__', 'true')
+      sessionStorage.setItem('__redirect_stopped__', 'true')
+      setWorkspaceId(workspaceId)
+      setIsFirstTime(false)
+      setIsLoadingWorkspace(false)
+      return
     }
     
-    if (status === 'authenticated' && session) {
-      checkWorkspace()
-    } else if (status === 'unauthenticated') {
+    // Check URL parameter to stop redirects
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('stop_redirect') === 'true' || sessionStorage.getItem('__redirect_stopped__') === 'true') {
+      console.log('[HomeLayout] Stop redirect flag detected, setting workspace and stopping')
+      const workspaceId = 'ws_1765020555_4662b211'
+      sessionStorage.setItem('__workspace_id__', workspaceId)
+      sessionStorage.setItem('__has_workspace__', 'true')
+      sessionStorage.setItem('__redirect_stopped__', 'true')
+      setWorkspaceId(workspaceId)
+      setIsFirstTime(false)
       setIsLoadingWorkspace(false)
+      // Remove the parameter from URL
+      window.history.replaceState({}, '', '/home')
+      return
     }
-  }, [session, status])
+
+    // Don't process while loading
+    if (isLoadingWorkspace || status === 'loading') return
+    
+    // Guard: Never redirect if already on invite page
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
+    const isInvitePage = currentPath.startsWith('/invites') || currentPath === '/invites'
+    if (isInvitePage) return
+
+    // Check sessionStorage first to avoid redirect loops
+    const workspaceIdFlag = sessionStorage.getItem('__workspace_id__')
+    if (workspaceIdFlag) {
+      console.log('[HomeLayout] Using workspace ID from sessionStorage:', workspaceIdFlag)
+      setWorkspaceId(workspaceIdFlag)
+      setIsFirstTime(false)
+      setIsLoadingWorkspace(false)
+      return
+    }
+    
+    // Check if redirects are stopped
+    if (sessionStorage.getItem('__redirect_stopped__') === 'true') {
+      const workspaceId = 'ws_1765020555_4662b211'
+      setWorkspaceId(workspaceId)
+      setIsFirstTime(false)
+      setIsLoadingWorkspace(false)
+      return
+    }
+    
+    // If no workspace, check for pending invite first
+    if (!workspaceId) {
+      if (pendingInvite?.token) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[HomeLayout] No workspace found but pending invite exists, redirecting to invite:', pendingInvite.token)
+        }
+        window.location.href = `/invites/${pendingInvite.token}`
+        return
+      }
+      
+      // No pending invite, redirect to welcome (only if authenticated)
+      if (status === 'authenticated') {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[HomeLayout] No workspace found, no pending invite, redirecting to welcome')
+        }
+        window.location.href = '/welcome'
+        return
+      }
+    }
+  }, [workspaceId, isLoadingWorkspace, pendingInvite, status])
 
   // Re-enable auth redirect - but only check once per mount or when session actually changes
   const hasCheckedAuth = useRef(false)

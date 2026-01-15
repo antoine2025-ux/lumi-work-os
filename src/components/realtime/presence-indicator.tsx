@@ -20,7 +20,8 @@ export function PresenceIndicator({
   maxVisible = 5
 }: PresenceIndicatorProps) {
   // Check if we're in a socket context before using the hook
-  let activeUsers
+  type ActiveUser = { userId: string; userName: string; status: string }
+  let activeUsers: ActiveUser[]
   
   try {
     const taskUpdatesHook = useTaskUpdates(projectId)

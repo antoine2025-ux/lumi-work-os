@@ -13,7 +13,7 @@ interface MigrationModalProps {
   platformIcon: React.ReactNode
   description: string
   features: string[]
-  onStartMigration: (apiKey: string, workspaceId: string, additionalConfig?: any) => Promise<void>
+  onStartMigration: (apiKey: string, workspaceId: string, additionalConfig?: any) => Promise<{ previewUrl?: string } | void>
 }
 
 export function MigrationModal({ 
@@ -46,9 +46,10 @@ export function MigrationModal({
       setStatus("success")
       
       // If there's a preview URL, redirect to it
-      if (result.previewUrl) {
+      if (result && result.previewUrl) {
+        const previewUrl = result.previewUrl
         setTimeout(() => {
-          window.location.href = result.previewUrl
+          window.location.href = previewUrl
         }, 1500)
       } else {
         setTimeout(() => {

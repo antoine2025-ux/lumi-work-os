@@ -277,3 +277,4 @@ If issues arise:
 - `docs/PRISMA_SCOPING_FEATURE_FLAG.md` - Prisma scoping feature flag details
 - `ARCHITECTURE_SUMMARY.md` - Overall architecture overview
 - `ACTIVITY_WORKSPACE_SCOPING_CHANGES.md` - Activity model workspace scoping
+

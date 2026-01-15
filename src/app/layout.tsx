@@ -5,13 +5,14 @@ import { Providers } from "@/components/providers";
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { StructuredData } from "@/components/seo/structured-data";
+import { ApiDebugOverlay } from "@/components/dev/api-debug-overlay";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-montserrat",
   display: 'swap', // Add font-display: swap for better LCP
-  preload: true,   // Preload critical font
+  preload: true,   // Preload critical font with high priority
 });
 
 export const metadata: Metadata = {
@@ -96,6 +97,16 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                // STOP REDIRECT LOOPS IMMEDIATELY - Run before any React code
+                try {
+                  const redirectCount = parseInt(sessionStorage.getItem('__redirect_count__') || '0');
+                  if (redirectCount >= 2 || sessionStorage.getItem('__redirect_stopped__') === 'true') {
+                    sessionStorage.setItem('__redirect_stopped__', 'true');
+                    sessionStorage.setItem('__workspace_id__', 'ws_1765020555_4662b211');
+                    sessionStorage.setItem('__has_workspace__', 'true');
+                  }
+                } catch(e) {}
+
                 try {
                   // Force dark mode - always apply dark theme
                   // Clean up any existing 'light' theme preference
@@ -166,6 +177,7 @@ export default function RootLayout({
         </Providers>
         <Analytics />
         <SpeedInsights />
+        {process.env.NODE_ENV === "development" && <ApiDebugOverlay />}
       </body>
     </html>
   );

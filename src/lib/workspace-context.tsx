@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { useSession } from "next-auth/react"
-import { useUserStatus } from '@/hooks/use-user-status'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
 export type ProjectRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
@@ -55,7 +55,8 @@ interface WorkspaceProviderProps {
 
 export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   const { data: session } = useSession()
-  const { userStatus, loading: userStatusLoading } = useUserStatus()
+  // Use the centralized UserStatusContext - no separate API call needed
+  const userStatus = useUserStatusContext()
   
   // SSR-safe initial state: All state initialized as null/empty to avoid hydration mismatches
   // Workspace selection happens client-side only in useEffect after mount
@@ -69,14 +70,14 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   // All localStorage access is guarded with typeof window !== 'undefined'
   useEffect(() => {
     const loadWorkspaces = async () => {
+      // Wait for user status to be loaded (from UserStatusContext)
+      // IMPORTANT: Do NOT proceed (and do NOT set isLoading=false) until userStatus is ready
+      // This prevents race conditions where workspaces array is empty but isLoading is false
+      if (userStatus.isLoading || !userStatus.isAuthenticated) {
+        return
+      }
+      
       try {
-        setIsLoading(true)
-        
-        // Wait for user status to be loaded
-        if (userStatusLoading || !userStatus) {
-          return
-        }
-        
         // Skip workspace loading if we're on an invite page
         // Users need to accept the invite first, which will create the workspace membership
         if (typeof window !== 'undefined') {
@@ -86,7 +87,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
             setWorkspaces([])
             setCurrentWorkspace(null)
             setUserRole(null)
-            setIsLoading(false)
+            // setIsLoading(false) is handled in finally block
             return
           }
         }
@@ -97,7 +98,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
           setWorkspaces([])
           setCurrentWorkspace(null)
           setUserRole(null)
-          setIsLoading(false)
+          // setIsLoading(false) is handled in finally block
           return
         }
         
@@ -173,7 +174,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
     }
 
     loadWorkspaces()
-  }, [session, userStatus, userStatusLoading])
+  }, [session, userStatus.isLoading, userStatus.isAuthenticated, userStatus.isFirstTime, userStatus.workspaceId])
 
   const switchWorkspace = (workspaceId: string) => {
     // Validate workspaceId exists in workspaces array

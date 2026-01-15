@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUnifiedAuth } from '@/lib/unified-auth'
+import { getAuthUser } from '@/lib/simple-auth'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { cache, CACHE_KEYS } from '@/lib/cache'
@@ -45,7 +45,62 @@ export async function GET(request: NextRequest) {
     }
 
     const authStartTime = performance.now()
-    const auth = await getUnifiedAuth(request)
+    // Use getAuthUser which has SQL fallback when Prisma fails
+    let authUser
+    try {
+      authUser = await getAuthUser()
+    } catch (authError: any) {
+      console.error('[user-status] getAuthUser threw error:', authError?.message || authError)
+      // Even if getAuthUser fails, check if we have a session
+      const session = await getServerSession(authOptions)
+      if (session?.user?.email) {
+        // User has session but getAuthUser failed - return authenticated but with error
+        console.warn('[user-status] Session exists but getAuthUser failed, returning partial auth')
+        return NextResponse.json({
+          isAuthenticated: true, // Still authenticated via session
+          isFirstTime: true,
+          workspaceId: null,
+          error: `Auth check failed: ${authError?.message || 'Unknown error'}`,
+          user: {
+            id: (session.user as any).id || session.user.email,
+            name: session.user.name || '',
+            email: session.user.email
+          }
+        })
+      }
+      // No session either, truly not authenticated
+      return NextResponse.json({
+        isAuthenticated: false,
+        isFirstTime: true,
+        workspaceId: null,
+        error: 'Not authenticated'
+      })
+    }
+    
+    if (!authUser) {
+      // getAuthUser returned null - check session as fallback
+      const session = await getServerSession(authOptions)
+      if (session?.user?.email) {
+        console.warn('[user-status] getAuthUser returned null but session exists')
+        return NextResponse.json({
+          isAuthenticated: true, // Still authenticated via session
+          isFirstTime: true,
+          workspaceId: null,
+          error: 'Workspace lookup failed',
+          user: {
+            id: (session.user as any).id || session.user.email,
+            name: session.user.name || '',
+            email: session.user.email
+          }
+        })
+      }
+      return NextResponse.json({
+        isAuthenticated: false,
+        isFirstTime: true,
+        workspaceId: null,
+        error: 'Not authenticated'
+      })
+    }
     const authDurationMs = performance.now() - authStartTime
     
     // Fetch user role in workspace (if workspace exists)
@@ -92,16 +147,16 @@ export async function GET(request: NextRequest) {
     }
     
     const result = {
-      isAuthenticated: auth.isAuthenticated,
-      isFirstTime: auth.user.isFirstTime,
+      isAuthenticated: true,
+      isFirstTime: authUser.isFirstTime,
       user: {
-        id: auth.user.userId,
-        name: auth.user.name,
-        email: auth.user.email
+        id: authUser.id,
+        name: authUser.name,
+        email: authUser.email
       },
-      workspaceId: auth.workspaceId,
+      workspaceId: authUser.workspaceId || null,
       role: userRole, // Include role in response
-      isDevelopment: auth.isDevelopment
+      isDevelopment: process.env.NODE_ENV === 'development'
     }
 
     // Cache for 30 seconds
@@ -137,6 +192,9 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     const totalDurationMs = performance.now() - startTime
+
+    // Always check for session as fallback - don't assume user is not authenticated
+    const session = await getServerSession(authOptions).catch(() => null)
     
     // Handle "Unauthorized" errors first (before logging)
     if (error instanceof Error && (
@@ -166,9 +224,6 @@ export async function GET(request: NextRequest) {
     
     // If user has no workspace, return appropriate status
     if (error instanceof Error && error.message.includes('No workspace found')) {
-      // Try to get the user at least
-      const session = await getServerSession(authOptions)
-      
       let pendingInvite = null
       
       // Check for pending invites if user is authenticated
@@ -220,14 +275,15 @@ export async function GET(request: NextRequest) {
       }
       
       return NextResponse.json({
-        isAuthenticated: !!session?.user?.email,
+        isAuthenticated: !!session?.user?.email, // Check session even for unauthorized errors
         isFirstTime: true,
         workspaceId: null,
         role: 'MEMBER' as const, // Default role for backward compatibility
-        error: 'No workspace found',
+        error: session?.user?.email ? 'Auth check failed' : 'Not authenticated',
         pendingInvite,
         user: session?.user ? {
           id: (session.user as { id?: string }).id || '',
+          //id: (session.user as any).id,  // TODO: check this row from Org commits
           name: session.user.name,
           email: session.user.email
         } : null
@@ -236,11 +292,16 @@ export async function GET(request: NextRequest) {
     
     // Fallback for any other errors
     return NextResponse.json({ 
-      isAuthenticated: false,
+      isAuthenticated: !!session?.user?.email, // Check session as fallback
       isFirstTime: true,
       workspaceId: null,
       role: 'MEMBER' as const, // Default role for backward compatibility
-      error: 'Failed to check user status'
+      error: session?.user?.email ? `Failed to check user status: ${error instanceof Error ? error.message : 'Unknown error'}` : 'Not authenticated',
+      user: session?.user ? {
+        id: (session.user as any).id,
+        name: session.user.name,
+        email: session.user.email
+      } : null
     }, { status: 500 })
   }
 }

@@ -133,11 +133,11 @@ export async function POST(
     await updateReverseDependencies(taskId, newDependsOn, newBlocks)
 
     return NextResponse.json(updatedTask)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating task dependencies:', error)
     return NextResponse.json({ 
       error: 'Failed to update task dependencies',
-      details: error.message 
+      details: error instanceof Error ? error.message : String(error)
     }, { status: 500 })
   }
 }
@@ -232,11 +232,11 @@ export async function GET(
       dependencies,
       blockedTasks
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching task dependencies:', error)
     return NextResponse.json({ 
       error: 'Failed to fetch task dependencies',
-      details: error.message 
+      details: error instanceof Error ? error.message : String(error)
     }, { status: 500 })
   }
 }

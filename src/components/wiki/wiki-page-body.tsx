@@ -3,12 +3,16 @@
 import { Button } from "@/components/ui/button"
 import { ExternalLink } from "lucide-react"
 import { groupConsecutiveCodeBlocks } from "@/lib/wiki/content-processor"
+import { WikiReadView } from "./wiki-read-view"
+import { JSONContent } from "@tiptap/core"
 
 interface WikiPageBodyProps {
   page: {
     id: string
     title: string
     content: string
+    contentFormat?: 'HTML' | 'JSON'
+    contentJson?: JSONContent | null
     slug: string
     updatedAt: string | Date
     workspace_type?: string | null
@@ -79,9 +83,12 @@ export function WikiPageBody({ page, showOpenButton = false, className = "" }: W
         </h1>
       </div>
 
-      {/* Page Content - Exact same rendering as native wiki page */}
+      {/* Page Content - Render JSON or HTML based on format */}
       <div className="prose prose-foreground max-w-none min-h-[400px] dark:prose-invert">
-        {isHtml ? (
+        {page.contentFormat === 'JSON' && page.contentJson ? (
+          // Render JSON content using TipTap renderer
+          <WikiReadView content={page.contentJson} />
+        ) : isHtml ? (
           <div 
             dangerouslySetInnerHTML={{ __html: processedContent || '<p>No content available.</p>' }}
             className="text-foreground leading-relaxed"

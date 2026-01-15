@@ -74,7 +74,7 @@ class OpenAIProvider implements AIProvider {
     if (!process.env.OPENAI_API_KEY) {
       return {
         content: 'AI features are disabled. Please configure OPENAI_API_KEY environment variable.',
-        tokens: 0
+        model: 'none'
       }
     }
     

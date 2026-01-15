@@ -8,6 +8,31 @@ const globalForPrisma = globalThis as unknown as {
 // Check if we're using Supabase pooler (PgBouncer in transaction mode)
 // PgBouncer doesn't support prepared statements, so we must disable them
 const databaseUrl = process.env.DATABASE_URL || ''
+const directUrl = process.env.DIRECT_URL || ''
+
+// Phase A: Log database connection info at startup (DEV ONLY)
+if (process.env.NODE_ENV === 'development') {
+  try {
+    const url = new URL(databaseUrl || 'missing')
+    const dbName = url.pathname?.replace('/', '') || 'unknown'
+    const dbHost = url.hostname || 'unknown'
+    const dbPort = url.port || '5432'
+    console.log('[DB INIT] 📊 Runtime Database Connection:')
+    console.log(`[DB INIT]   Host: ${dbHost}:${dbPort}`)
+    console.log(`[DB INIT]   Database: ${dbName}`)
+    console.log(`[DB INIT]   DATABASE_URL: postgresql://${url.username}:***@${dbHost}:${dbPort}/${dbName}`)
+    if (directUrl) {
+      const directUrlParsed = new URL(directUrl)
+      console.log(`[DB INIT]   DIRECT_URL: postgresql://${directUrlParsed.username}:***@${directUrlParsed.hostname}:${directUrlParsed.port}/${directUrlParsed.pathname?.replace('/', '')}`)
+    } else {
+      console.log(`[DB INIT]   DIRECT_URL: not set`)
+    }
+  } catch (e) {
+    console.error('[DB INIT] ⚠️  Could not parse DATABASE_URL:', e)
+    console.error('[DB INIT]   DATABASE_URL value:', databaseUrl ? 'set (but invalid)' : 'NOT SET')
+  }
+}
+
 const isUsingPooler = databaseUrl.includes('pooler.supabase.com') || databaseUrl.includes('pgbouncer=true')
 const shouldDisablePreparedStatements = isUsingPooler || process.env.PRISMA_DISABLE_PREPARED_STATEMENTS === 'true'
 
@@ -62,6 +87,10 @@ if (process.env.NODE_ENV === 'development') {
   }
   // Clear the cached instance - FORCE fresh client
   globalForPrisma.prisma = undefined
+  // Also clear from globalThis to be thorough
+  if (typeof globalThis !== 'undefined') {
+    (globalThis as any).prisma = undefined
+  }
   // Also clear from module cache if possible
   if (typeof require !== 'undefined' && require.cache) {
     // Clear Prisma client from require cache
@@ -81,6 +110,65 @@ const WORKSPACE_SCOPING_ENABLED = process.env.PRISMA_WORKSPACE_SCOPING_ENABLED =
 // Base Prisma client (always unscoped) - for scripts/background jobs
 // Scripts should import this directly: import { prismaUnscoped } from '@/lib/db'
 const prismaUnscoped: PrismaClient = globalForPrisma.prisma || createPrismaClient()
+
+// Phase A: Verify database connection and log actual DB name (DEV ONLY)
+// Phase C: Guardrail - detect wrong database and missing DATABASE_URL
+if (process.env.NODE_ENV === 'development') {
+  // Phase C: Check DATABASE_URL is set
+  if (!databaseUrl) {
+    console.error('[DB INIT] ❌ CRITICAL: DATABASE_URL is not set!')
+    console.error('[DB INIT]   Create .env.local with DATABASE_URL="postgresql://..."')
+    console.error('[DB INIT]   See README.md for setup instructions')
+    // Don't throw in dev to allow graceful degradation, but log clearly
+  }
+  
+  prismaUnscoped.$queryRaw<Array<{ current_database: string; inet_server_addr: string | null; current_schema: string }>>`
+    SELECT current_database(), inet_server_addr(), current_schema()
+  `.then((result) => {
+    if (result && result.length > 0) {
+      const dbInfo = result[0]
+      console.log('[DB INIT] ✅ Connected to database:')
+      console.log(`[DB INIT]   Database name: ${dbInfo.current_database}`)
+      console.log(`[DB INIT]   Server address: ${dbInfo.inet_server_addr || 'localhost'}`)
+      console.log(`[DB INIT]   Schema: ${dbInfo.current_schema}`)
+      
+      // Phase C: Guardrail - detect wrong database
+      const dbName = dbInfo.current_database.toLowerCase()
+      const wrongDbPatterns = ['_shadow', '_test', 'test_', 'dev_', '_dev']
+      const isWrongDb = wrongDbPatterns.some(pattern => dbName.includes(pattern))
+      
+      if (isWrongDb) {
+        console.error('[DB INIT] ❌ CRITICAL: Connected to wrong database!')
+        console.error(`[DB INIT]   Database name "${dbInfo.current_database}" matches wrong DB pattern`)
+        console.error('[DB INIT]   Check your DATABASE_URL in .env.local')
+        console.error('[DB INIT]   Run: npm run print-db to verify Prisma CLI connection')
+      }
+      
+      // Phase C: Verify DIRECT_URL points to same DB if set
+      if (directUrl && databaseUrl) {
+        try {
+          const dbUrlParsed = new URL(databaseUrl)
+          const directUrlParsed = new URL(directUrl)
+          const dbMatches = dbUrlParsed.pathname === directUrlParsed.pathname && 
+                           dbUrlParsed.hostname === directUrlParsed.hostname
+          if (!dbMatches) {
+            console.warn('[DB INIT] ⚠️  WARNING: DIRECT_URL points to different database than DATABASE_URL')
+            console.warn(`[DB INIT]   DATABASE_URL DB: ${dbUrlParsed.pathname}`)
+            console.warn(`[DB INIT]   DIRECT_URL DB: ${directUrlParsed.pathname}`)
+            console.warn('[DB INIT]   They should point to the same database (only pooling settings differ)')
+          }
+        } catch (e) {
+          // Ignore parse errors, already logged above
+        }
+      }
+    }
+  }).catch((error) => {
+    console.error('[DB INIT] ⚠️  Could not verify database connection:', error.message)
+    if (error.code === 'P1001') {
+      console.error('[DB INIT]   Could not reach database server. Check DATABASE_URL and ensure PostgreSQL is running.')
+    }
+  })
+}
 
 // Store in global for Next.js hot reload (if we just created it)
 if (!globalForPrisma.prisma && process.env.NODE_ENV !== 'production') {

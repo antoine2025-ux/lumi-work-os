@@ -1,0 +1,110 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { getOrgContext } from "@/server/rbac";
+
+function badRequest(message: string) {
+  return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ ok: false, error: "Unauthenticated" }, { status: 401 });
+    }
+
+    let ctx;
+    try {
+      ctx = await getOrgContext(req);
+    } catch (error) {
+      console.error("[POST /api/org/people/manager] Error getting org context:", error);
+      return NextResponse.json({ ok: false, error: "Failed to get organization context" }, { status: 500 });
+    }
+
+    if (!ctx.orgId) {
+      return NextResponse.json({ ok: false, error: "No organization membership" }, { status: 403 });
+    }
+    if (!ctx.canEdit) {
+      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    }
+
+    const workspaceId = auth.workspaceId;
+    if (!workspaceId) {
+      return NextResponse.json({ ok: false, error: "No workspace" }, { status: 403 });
+    }
+
+    const body = await req.json().catch(() => null);
+    if (!body) return badRequest("Invalid JSON body");
+
+    const { personIds, managerId } = body ?? {};
+
+    if (!Array.isArray(personIds) || personIds.length === 0) {
+      return badRequest("personIds must be a non-empty array");
+    }
+
+    // managerId can be string or null (clear)
+    if (managerId !== null && managerId !== undefined && typeof managerId !== "string") {
+      return badRequest("managerId must be a string or null");
+    }
+
+    // Get positions for the selected people
+    const positions = await prisma.orgPosition.findMany({
+      where: {
+        workspaceId,
+        userId: { in: personIds },
+        isActive: true,
+      },
+      select: {
+        id: true,
+        userId: true,
+      },
+    });
+
+    if (positions.length !== personIds.length) {
+      return badRequest("Some personIds do not belong to this workspace");
+    }
+
+    const positionIds = positions.map((p) => p.id);
+
+    // If manager is set, ensure manager belongs to workspace and isn't in personIds
+    let managerPositionId: string | null = null;
+    if (managerId) {
+      const mgrPosition = await prisma.orgPosition.findFirst({
+        where: {
+          workspaceId,
+          userId: managerId,
+          isActive: true,
+        },
+        select: { id: true, userId: true },
+      });
+
+      if (!mgrPosition) {
+        return badRequest("managerId must reference a person in the same workspace");
+      }
+      if (personIds.includes(managerId)) {
+        return badRequest("managerId cannot be one of the selected people");
+      }
+      managerPositionId = mgrPosition.id;
+    }
+
+    // Update all positions
+    await prisma.orgPosition.updateMany({
+      where: {
+        id: { in: positionIds },
+      },
+      data: {
+        parentId: managerPositionId,
+      },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error: any) {
+    console.error("Error updating managers:", error);
+    return NextResponse.json(
+      { ok: false, error: { code: "INTERNAL_ERROR", message: error.message || "Failed to update managers" } },
+      { status: 500 }
+    );
+  }
+}
+

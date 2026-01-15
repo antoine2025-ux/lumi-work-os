@@ -1,0 +1,151 @@
+/**
+ * GET /api/org/structure/teams/[teamId]
+ * Get team detail with members.
+ * 
+ * Strict auth pattern: getUnifiedAuth → assertAccess → setWorkspaceContext → Prisma
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { prisma } from "@/lib/db";
+
+export async function GET(
+  request: NextRequest,
+  ctx: { params: Promise<{ teamId: string }> }
+) {
+  let userId: string | undefined;
+  let workspaceId: string | undefined;
+
+  try {
+    const auth = await getUnifiedAuth(request);
+    userId = auth?.user?.userId;
+    workspaceId = auth?.workspaceId;
+
+    if (!userId || !workspaceId) {
+      console.error("[GET /api/org/structure/teams/[teamId]] Missing userId or workspaceId", { userId, workspaceId });
+      return NextResponse.json(
+        { 
+          error: "Unauthorized",
+          hint: "Authentication failed. Please ensure you are logged in and have workspace access."
+        },
+        { status: 401 }
+      );
+    }
+
+    await assertAccess({
+      userId,
+      workspaceId,
+      scope: "workspace",
+      requireRole: ["MEMBER"],
+    });
+
+    setWorkspaceContext(workspaceId);
+
+    const { teamId } = await ctx.params;
+
+    const team = await prisma.orgTeam.findUnique({
+      where: { id: teamId },
+      select: {
+        id: true,
+        name: true,
+        departmentId: true,
+        ownerPersonId: true,
+        positions: {
+          where: {
+            userId: { not: null },
+            isActive: true,
+          },
+          select: {
+            id: true,
+            userId: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            // Get person availability via OrgPerson if available
+          },
+        },
+      },
+    });
+
+    if (!team) {
+      return NextResponse.json(
+        { 
+          error: "Team not found",
+          hint: "The requested team does not exist or you don't have access to it."
+        },
+        { status: 404 }
+      );
+    }
+
+    // Build members array - OrgPosition already has userId and we can get title from it
+    // For availability, we'll need to query OrgPerson separately if it exists
+    // For now, return minimal member info
+    const members = team.positions
+      .filter((p) => p.user)
+      .map((p) => {
+        return {
+          personId: p.id,
+          fullName: p.user!.name || p.user!.email || "Unknown",
+          email: p.user!.email,
+          title: null as string | null, // Title would come from OrgPosition.title if needed
+          availabilityStatus: "UNKNOWN" as
+            | "UNKNOWN"
+            | "AVAILABLE"
+            | "PARTIALLY_AVAILABLE"
+            | "UNAVAILABLE",
+        };
+      });
+
+    return NextResponse.json(
+      {
+        team: {
+          id: team.id,
+          name: team.name,
+          departmentId: team.departmentId,
+          ownerPersonId: team.ownerPersonId,
+          members,
+        },
+      },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error("[GET /api/org/structure/teams/[teamId]] Error:", error);
+    console.error("[GET /api/org/structure/teams/[teamId]] Error stack:", error?.stack);
+
+    if (!userId || !workspaceId) {
+      console.error("[GET /api/org/structure/teams/[teamId]] Missing userId or workspaceId in catch", { userId, workspaceId });
+      return NextResponse.json(
+        { 
+          error: "Unauthorized",
+          hint: "Authentication failed. Please ensure you are logged in and have workspace access."
+        },
+        { status: 401 }
+      );
+    }
+
+    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
+      return NextResponse.json(
+        { 
+          error: error.message || "Forbidden",
+          hint: "You don't have permission to access this resource."
+        },
+        { status: 403 }
+      );
+    }
+
+    return NextResponse.json(
+      { 
+        error: "Failed to load team",
+        hint: error?.message || "An unexpected error occurred. Please try again."
+      },
+      { status: 500 }
+    );
+  }
+}
+

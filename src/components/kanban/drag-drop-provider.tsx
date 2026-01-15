@@ -134,7 +134,7 @@ export function DragDropProvider({
       console.log('[DND] Got status from column data', { newStatus })
     } else {
       // Try to extract status from column ID
-      newStatus = statusFromColumnId(over.id)
+      newStatus = statusFromColumnId(String(over.id))
       console.log('[DND] Computed nextStatus from column ID', { columnId: over.id, nextStatus: newStatus })
     }
 

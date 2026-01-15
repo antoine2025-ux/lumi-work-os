@@ -1,7 +1,7 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-import { PermissionLevel } from "@/lib/permissions"
+import { PermissionLevel } from "@/types/permissions"
 
 interface PermissionBadgeProps {
   level: PermissionLevel
@@ -17,8 +17,6 @@ export function PermissionBadge({ level, className = "" }: PermissionBadgeProps)
         return 'Team'
       case 'private':
         return 'Private'
-      case 'restricted':
-        return 'Restricted'
       default:
         return 'Private'
     }
@@ -32,8 +30,6 @@ export function PermissionBadge({ level, className = "" }: PermissionBadgeProps)
         return 'secondary' as const
       case 'private':
         return 'outline' as const
-      case 'restricted':
-        return 'destructive' as const
       default:
         return 'outline' as const
     }

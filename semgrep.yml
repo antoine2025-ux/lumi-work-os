@@ -1,0 +1,110 @@
+# Semgrep configuration for Loopwell (Next.js/TypeScript)
+# Lightweight security rules focusing on common web app issues
+# Run: npm run security:semgrep
+
+rules:
+  # XSS via dangerouslySetInnerHTML
+  - id: react-dangerously-set-innerhtml
+    patterns:
+      - pattern: dangerouslySetInnerHTML={{__html: $X}}
+      - pattern-not: dangerouslySetInnerHTML={{__html: DOMPurify.sanitize($X)}}
+    message: "Potential XSS vulnerability via dangerouslySetInnerHTML. Consider sanitizing with DOMPurify or using a safe alternative."
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-79"
+      owasp: "A7:2017 Cross-Site Scripting (XSS)"
+
+  # Dangerous eval usage
+  - id: no-eval
+    pattern-either:
+      - pattern: eval($X)
+      - pattern: new Function($X)
+    message: "Avoid eval() and new Function() - they execute arbitrary code and pose security risks. Use JSON.parse() or other safe alternatives."
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-94"
+
+  # SQL Injection via string concatenation (Prisma raw queries)
+  - id: prisma-raw-sql-injection
+    patterns:
+      - pattern: $PRISMA.$queryRaw`... ${$VAR} ...`
+      - pattern-not: $PRISMA.$queryRaw`... ${Prisma.sql`$VAR`} ...`
+    message: "Potential SQL injection in Prisma raw query. Use Prisma.sql template tag for parameterized queries."
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-89"
+
+  # Hardcoded secrets
+  - id: hardcoded-api-key
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $KEY = "sk-..."
+          - pattern: |
+              $KEY = "api_..."
+          - pattern: |
+              $KEY = "secret_..."
+          - pattern: |
+              apiKey: "..."
+          - pattern: |
+              secretKey: "..."
+    message: "Potential hardcoded API key or secret. Use environment variables instead."
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-798"
+
+  # Insecure cookie settings
+  - id: insecure-cookie
+    patterns:
+      - pattern: |
+          { ..., httpOnly: false, ... }
+      - pattern-inside: |
+          cookies.set(...)
+    message: "Cookie should have httpOnly: true to prevent XSS attacks from accessing the cookie."
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-1004"
+
+  # Open redirect vulnerability
+  - id: open-redirect
+    patterns:
+      - pattern: redirect($URL)
+      - pattern-not: redirect($URL) where $URL.startsWith("/")
+      - pattern-not-inside: |
+          if (...$URL.startsWith("/")...) { ... }
+    message: "Potential open redirect vulnerability. Validate redirect URLs are relative or from allowed domains."
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-601"
+
+  # Sensitive data in console.log
+  - id: sensitive-console-log
+    patterns:
+      - pattern-either:
+          - pattern: console.log(..., $TOKEN, ...)
+          - pattern: console.log(..., $SECRET, ...)
+          - pattern: console.log(..., $PASSWORD, ...)
+          - pattern: console.log(..., $API_KEY, ...)
+    message: "Avoid logging sensitive data. Consider removing or masking this log statement."
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-532"
+
+  # Prototype pollution
+  - id: prototype-pollution
+    pattern-either:
+      - pattern: $OBJ.__proto__ = ...
+      - pattern: Object.setPrototypeOf($OBJ, ...)
+    message: "Potential prototype pollution. Avoid modifying object prototypes."
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-1321"
+

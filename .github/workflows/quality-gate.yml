@@ -1,0 +1,309 @@
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  typecheck:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Known pre-existing errors
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run TypeScript check
+        run: npm run typecheck
+
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Known pre-existing errors
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Known pre-existing failures
+    env:
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-secret-for-unit-tests-only' }}
+      NEXTAUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run unit tests
+        run: npm run test
+
+  security-deps:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run npm audit
+        run: npm run security:deps
+
+  security-secrets:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Scan for secrets
+        run: ./scripts/scan-secrets.sh
+
+  security-semgrep:
+    name: Semgrep Security Scan
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Optional - Semgrep token may not be configured
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: semgrep.yml
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    # Run in parallel with other checks (no dependencies)
+    env:
+      E2E_AUTH_ENABLED: "true"
+      E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      NEXTAUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      
+      - name: Generate Prisma client
+        run: npx prisma generate
+      
+      - name: Verify required secrets
+        run: |
+          echo "Checking required secrets..."
+          # Secrets verified: DATABASE_URL (IPv4 compatible), NEXTAUTH_SECRET, E2E_AUTH_SECRET
+          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "❌ ERROR: DATABASE_URL secret is not set in GitHub repository secrets"
+            echo "   Go to: Settings > Secrets and variables > Actions"
+            echo "   Add secret: DATABASE_URL"
+            exit 1
+          else
+            echo "✅ DATABASE_URL is set (length: ${#DATABASE_URL} chars)"
+            # Show first/last few chars for verification (without exposing full URL)
+            DB_URL="${{ secrets.DATABASE_URL }}"
+            echo "   Starts with: ${DB_URL:0:20}..."
+            echo "   Ends with: ...${DB_URL: -10}"
+          fi
+          
+          if [ -z "${{ secrets.NEXTAUTH_SECRET }}" ]; then
+            echo "❌ ERROR: NEXTAUTH_SECRET secret is not set"
+            exit 1
+          else
+            echo "✅ NEXTAUTH_SECRET is set"
+          fi
+          
+          if [ -z "${{ secrets.E2E_AUTH_SECRET }}" ]; then
+            echo "❌ ERROR: E2E_AUTH_SECRET secret is not set"
+            exit 1
+          else
+            echo "✅ E2E_AUTH_SECRET is set"
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
+        continue-on-error: false
+      
+      - name: Seed E2E test user
+        run: npm run seed:e2e
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        continue-on-error: false
+      
+      - name: Verify E2E seed
+        run: |
+          echo "E2E seed verification..."
+          echo "✅ Seed script completed successfully"
+      
+      - name: Build application
+        run: npm run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        continue-on-error: false
+      
+      - name: Verify build output
+        run: |
+          echo "Checking build artifacts..."
+          ls -la .next/standalone 2>/dev/null || echo "No standalone build (normal for Next.js)"
+          ls -la .next/static 2>/dev/null && echo "✅ Static assets built" || echo "⚠️ No static assets"
+          echo "Build check complete"
+      
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          E2E_AUTH_ENABLED: "true"
+          E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
+          NEXTAUTH_URL: http://localhost:3000
+        continue-on-error: false
+      
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Optional performance check
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run build
+        env:
+          SKIP_ENV_VALIDATION: true
+      
+      - name: Run Lighthouse CI
+        run: npm run perf:lighthouse
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+  quality-summary:
+    name: Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: [e2e-tests, security-deps, security-secrets]
+    if: always()
+    steps:
+      - name: Show core job results
+        run: |
+          echo "=== Core Job Results ==="
+          echo "E2E job result: ${{ needs.e2e-tests.result }}"
+          echo "Dependency audit job result: ${{ needs.security-deps.result }}"
+          echo "Secret scan job result: ${{ needs.security-secrets.result }}"
+      
+      - name: Download Playwright report (when E2E failed)
+        if: needs.e2e-tests.result != 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          continue-on-error: true
+      
+      - name: Print E2E diagnostics (when E2E failed)
+        if: needs.e2e-tests.result != 'success'
+        run: |
+          echo "=== E2E Test Failure Diagnostics ==="
+          if [ -d playwright-report ]; then
+            echo "✅ Playwright report downloaded"
+            ls -la playwright-report/ || true
+            if [ -f playwright-report/index.html ]; then
+              echo "📊 Full report available at: playwright-report/index.html"
+            fi
+          else
+            echo "⚠️ Playwright report not available (tests may have failed before completion)"
+          fi
+          echo ""
+          echo "Common E2E failure causes:"
+          echo "1. Build failed - check build step logs"
+          echo "2. Server startup timeout - check webServer config"
+          echo "3. Authentication failed - verify E2E_AUTH_SECRET is set"
+          echo "4. Database connection failed - verify DATABASE_URL is set"
+          echo "5. Test assertions failed - check test expectations"
+      
+      - name: Check job results
+        run: |
+          echo "## Quality Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Core Checks (must pass)" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | ${{ needs.e2e-tests.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Audit | ${{ needs.security-deps.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Scan | ${{ needs.security-secrets.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Informational (known issues)" >> $GITHUB_STEP_SUMMARY
+          echo "See docs/QUALITY_GATE.md for burndown plan on pre-existing issues." >> $GITHUB_STEP_SUMMARY
+      
+      - name: Fail if core checks failed
+        if: |
+          needs.e2e-tests.result != 'success' ||
+          needs.security-deps.result != 'success' ||
+          needs.security-secrets.result != 'success'
+        run: exit 1

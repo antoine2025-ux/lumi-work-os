@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { supabaseAdmin } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 // POST /api/admin/invite - Invite a user via Supabase Auth
 export async function POST(request: NextRequest) {
@@ -80,13 +80,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Create redirect URL for the invite
-    // Priority: redirectTo param > NEXT_PUBLIC_APP_URL > VERCEL_URL > NEXTAUTH_URL > localhost
+    // Priority: redirectTo param > NEXT_PUBLIC_APP_URL > (production only: VERCEL_URL) > NEXTAUTH_URL > localhost
+    // In development: always use localhost unless explicitly set
     let baseUrl: string
     if (redirectTo) {
       baseUrl = new URL(redirectTo).origin
     } else if (process.env.NEXT_PUBLIC_APP_URL) {
       baseUrl = process.env.NEXT_PUBLIC_APP_URL
+    } else if (process.env.NODE_ENV === 'development') {
+      // In development, always use localhost unless NEXTAUTH_URL is explicitly set to localhost
+      if (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL.includes('localhost')) {
+        baseUrl = process.env.NEXTAUTH_URL
+      } else {
+        baseUrl = 'http://localhost:3000'
+      }
     } else if (process.env.VERCEL_URL) {
+      // Only use VERCEL_URL in production
       baseUrl = `https://${process.env.VERCEL_URL}`
     } else {
       baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
@@ -97,10 +106,15 @@ export async function POST(request: NextRequest) {
     const inviteRedirectUrl = redirectTo || `${baseUrl}/auth/callback?workspace=${auth.workspaceId}`
 
     // Verify Supabase client is initialized correctly
-    if (!supabaseAdmin) {
-      console.error('Supabase admin client not initialized')
+    // Get Supabase admin client (lazy-loaded, only when needed)
+    let supabaseAdmin
+    try {
+      supabaseAdmin = getSupabaseAdmin()
+    } catch (adminError: any) {
+      console.error('Failed to initialize Supabase admin client:', adminError.message)
       return NextResponse.json({ 
-        error: 'Supabase configuration error' 
+        error: 'Supabase admin not configured',
+        details: adminError.message
       }, { status: 500 })
     }
 
@@ -108,8 +122,6 @@ export async function POST(request: NextRequest) {
     console.log('Attempting to invite user:', email)
     console.log('Redirect URL:', inviteRedirectUrl)
     console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-    console.log('Service role key exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
-    console.log('Service role key length:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length)
 
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       redirectTo: inviteRedirectUrl,

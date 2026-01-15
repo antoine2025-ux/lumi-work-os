@@ -13,13 +13,25 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const resolvedParams = await params
+  const projectId = resolvedParams.projectId
+
+  if (!projectId) {
+    return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
+  }
+
   try {
     const auth = await getUnifiedAuth(request)
-    const resolvedParams = await params
-    const projectId = resolvedParams.projectId
 
-    if (!projectId) {
-      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
+    // Phase A: Log database connection info when debugging (DEV ONLY)
+    if (process.env.NODE_ENV === 'development' && process.env.DEBUG_DB === 'true') {
+      try {
+        const dbInfo = await prisma.$queryRaw<Array<{ current_database: string }>>`SELECT current_database()`
+        console.log(`[GET /api/projects/${projectId}] Database: ${dbInfo[0]?.current_database}`)
+        console.log(`[GET /api/projects/${projectId}] DATABASE_URL: ${process.env.DATABASE_URL?.replace(/:[^@]+@/, ':***@') || 'NOT SET'}`)
+      } catch (e) {
+        console.error(`[GET /api/projects/${projectId}] Could not query DB info:`, e)
+      }
     }
 
     // Check project access
@@ -32,7 +44,7 @@ export async function GET(
     // CRITICAL: Pass workspaceId to ensure workspace isolation
     await assertProjectAccess(nextAuthUser, projectId, ProjectRole.VIEWER, auth.workspaceId)
 
-    const project = await prisma.project.findUnique({
+    const project = await (prisma.project.findUnique as Function)({
       where: { id: projectId },
       select: {
         id: true,
@@ -54,6 +66,7 @@ export async function GET(
         createdById: true,
         workspaceId: true,
         projectSpaceId: true,
+        spaceId: true, // Phase 1: Canonical Space ID
         projectSpace: {
           select: {
             id: true,
@@ -272,7 +285,7 @@ export async function PUT(
       
       if (visibility === 'PUBLIC') {
         // Switch to PUBLIC: move to General space
-        newProjectSpaceId = await getOrCreateGeneralProjectSpace(auth.workspaceId)
+        newProjectSpaceId = await getOrCreateGeneralProjectSpace(auth.workspaceId) ?? undefined
         // If migration not run, newProjectSpaceId will be null - that's OK (legacy mode)
       } else if (visibility === 'TARGETED') {
         // Switch to TARGETED: create new private space or use existing
@@ -299,7 +312,7 @@ export async function PUT(
             existingProject.name,
             auth.user.userId,
             memberUserIds
-          )
+          ) ?? undefined
           // If migration not run, newProjectSpaceId will be null - that's OK (legacy mode)
         }
       }
@@ -426,15 +439,16 @@ export async function PUT(
     }
     
     return NextResponse.json(responseProject)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating project:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
-      console.error('Zod validation error:', error.errors)
+      console.error('Zod validation error:', error.issues)
       return NextResponse.json({
         error: 'Validation error',
-        details: error.errors.map(e => ({
+        details: error.issues.map((e: z.ZodIssue) => ({
           path: e.path.join('.'),
           message: e.message
         }))
@@ -442,16 +456,16 @@ export async function PUT(
     }
     
     // Handle RBAC errors
-    if (error.message === 'Unauthorized: User not authenticated.' || 
-        error.message === 'User not found.') {
+    if (errorMessage === 'Unauthorized: User not authenticated.' || 
+        errorMessage === 'User not found.') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message === 'Project not found.') {
+    if (errorMessage === 'Project not found.') {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
     
-    if (error.message === 'Forbidden: Insufficient project permissions.') {
+    if (errorMessage === 'Forbidden: Insufficient project permissions.') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     

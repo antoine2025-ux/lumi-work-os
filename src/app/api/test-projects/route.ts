@@ -116,11 +116,11 @@ export async function POST(request: NextRequest) {
       message: 'Sample tasks created successfully',
       tasks: createdTasks
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating sample tasks:', error)
     return NextResponse.json({ 
       error: 'Failed to create sample tasks',
-      details: error.message 
+      details: error instanceof Error ? error.message : String(error)
     }, { status: 500 })
   }
 }

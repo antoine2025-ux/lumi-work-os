@@ -8,6 +8,7 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useWorkspace } from "@/lib/workspace-context"
+import { DashboardBootstrap } from "@/lib/types/dashboard-bootstrap"
 import dynamic from "next/dynamic"
 import {
   Plus,
@@ -38,13 +39,21 @@ import {
   BarChart3,
   Grid,
   Search,
-  Filter
+  Filter,
+  CheckSquare,
+  Sun
 } from "lucide-react"
 import { ContextMenu, contextMenuItems } from "@/components/ui/context-menu"
 import { useTheme } from "@/components/theme-provider"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 // Lazy load heavy components for better initial page load
 const MeetingsCard = dynamic(() => import("@/components/dashboard/meetings-card").then(mod => ({ default: mod.MeetingsCard })), {
+  loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />,
+  ssr: false
+})
+
+// Lazy load Todo components
+const TodaysTodosCard = dynamic(() => import("@/components/dashboard/todays-todos-card").then(mod => ({ default: mod.TodaysTodosCard })), {
   loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />,
   ssr: false
 })
@@ -67,35 +76,7 @@ interface Project {
   taskCount?: number
 }
 
-// Mock data for disconnected systems
-
-const mockTasks = [
-  {
-    id: "1",
-    title: "Review Q4 roadmap",
-    priority: "HIGH",
-    category: "Product Strategy",
-    dueDate: "Today",
-    completed: false
-  },
-  {
-    id: "2",
-    title: "Update user documentation",
-    priority: "MEDIUM", 
-    category: "Documentation",
-    dueDate: "Tomorrow",
-    completed: false
-  },
-  {
-    id: "3",
-    title: "Code review for auth module",
-    priority: "HIGH",
-    category: "Authentication", 
-    dueDate: "Friday",
-    completed: false
-  }
-]
-
+// Mock data for analytics (coming soon)
 const mockAnalytics = [
   { label: "Productivity", value: 85, color: "bg-green-500" },
   { label: "Focus Time", value: 6.5, color: "bg-blue-500", unit: "h" },
@@ -130,55 +111,30 @@ export default function HomePage() {
     return "Good evening!"
   }
 
-  const completedTasks = mockTasks.filter(task => task.completed).length
-  const totalTasks = mockTasks.length
-
-  // Use React Query for automatic caching, deduplication, and better performance
-  const { data: pagesData, isLoading: isLoadingRecentPages } = useQuery({
-    queryKey: ['wiki-pages', currentWorkspace?.id],
+  // Use bootstrap endpoint for initial dashboard load (single API call)
+  const { data: bootstrapData, isLoading: isLoadingBootstrap } = useQuery({
+    queryKey: ['dashboard-bootstrap', currentWorkspace?.id],
     queryFn: async () => {
-      if (!currentWorkspace) return []
-      const response = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace.id}`)
-      if (!response.ok) return []
-      const result = await response.json()
-      const data = result.data || result
-      if (Array.isArray(data)) {
-        return data
-          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .slice(0, 4)
-      }
-      return []
+      if (!currentWorkspace) return null
+      const response = await fetch('/api/dashboard/bootstrap')
+      if (!response.ok) throw new Error('Bootstrap failed')
+      return response.json() as Promise<DashboardBootstrap>
     },
     enabled: !!currentWorkspace,
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchOnWindowFocus: false,
   })
 
-  const { data: projectsData, isLoading: isLoadingProjects } = useQuery({
-    queryKey: ['projects', currentWorkspace?.id],
-    queryFn: async () => {
-      if (!currentWorkspace) return []
-      const response = await fetch(`/api/projects?workspaceId=${currentWorkspace.id}`)
-      if (!response.ok) return []
-      const result = await response.json()
-      // Handle new response shape: { projects: Project[], contextObjects: ContextObject[] }
-      const data = Array.isArray(result) 
-        ? result 
-        : (result.projects || result.data || [])
-      if (Array.isArray(data)) {
-        return data
-          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .slice(0, 6)
-      }
-      return []
-    },
-    enabled: !!currentWorkspace,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchOnWindowFocus: false,
-  })
-
-  const recentPages = (pagesData || []) as RecentPage[]
-  const recentProjects = (projectsData || []) as Project[]
+  // Extract data from bootstrap response
+  const recentPages = (bootstrapData?.wikiPages || []) as RecentPage[]
+  const recentProjects = (bootstrapData?.projects || []) as Project[]
+  const todaysTodos = bootstrapData?.todos || []
+  const completedTodos = todaysTodos.filter((todo: any) => todo.status === 'DONE').length
+  const totalTodos = todaysTodos.length
+  
+  // Loading state combines all bootstrap data
+  const isLoadingRecentPages = isLoadingBootstrap
+  const isLoadingProjects = isLoadingBootstrap
 
   // Helper function to format time ago
   const getTimeAgo = (dateString: string) => {
@@ -217,7 +173,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" data-testid="dashboard-container">
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
@@ -249,17 +205,17 @@ export default function HomePage() {
                     stroke="currentColor"
                     strokeWidth="3"
                     fill="none"
-                    strokeDasharray={`${(completedTasks / totalTasks) * 100}, 100`}
+                    strokeDasharray={`${totalTodos > 0 ? (completedTodos / totalTodos) * 100 : 0}, 100`}
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-sm font-medium" style={{ color: themeConfig.foreground }}>
-                    {completedTasks}/{totalTasks}
+                    {completedTodos}/{totalTodos}
                   </span>
                 </div>
               </div>
-              <p className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Tasks</p>
+              <p className="text-sm font-medium" style={{ color: themeConfig.foreground }}>To-dos</p>
               <div className="flex items-center justify-center space-x-1 mt-1">
                 <CheckCircle className="h-3 w-3 text-green-400" />
                 <span className="text-xs" style={{ color: themeConfig.mutedForeground }}>On Track</span>
@@ -302,47 +258,8 @@ export default function HomePage() {
           <MeetingsCard className="lg:col-span-1" />
 
 
-          {/* Today's Tasks - Placeholder */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center justify-between">
-                <span>Today's Tasks</span>
-                <Badge variant="outline" className="text-xs">{mockTasks.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
-              {mockTasks.map((task) => (
-                <div key={task.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors">
-                  <div className="flex-shrink-0">
-                    <div className={`w-4 h-4 rounded-full border-2 ${
-                      task.completed ? 'bg-green-500 border-green-500' : 'border-border'
-                    } flex items-center justify-center`}>
-                      {task.completed && <CheckCircle className="h-3 w-3 text-foreground" />}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: themeConfig.foreground }}>
-                      {task.title}
-                    </p>
-                    <div className="flex items-center space-x-2 text-xs" style={{ color: themeConfig.mutedForeground }}>
-                      <Badge 
-                        variant={task.priority === 'HIGH' ? 'destructive' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {task.priority}
-                      </Badge>
-                      <span>{task.category}</span>
-                      <span>•</span>
-                      <span>{task.dueDate}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div className="text-center py-4">
-                <p className="text-xs text-muted-foreground">Task management coming soon</p>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Today's To-dos */}
+          <TodaysTodosCard className="lg:col-span-1" />
 
           {/* Active Projects - Real Data */}
           <Card className="lg:col-span-1">
@@ -353,7 +270,7 @@ export default function HomePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 max-h-[340px] overflow-y-auto dashboard-card-scroll">
-              {isLoadingProjects ? (
+              {(isLoadingProjects || isLoadingBootstrap) ? (
                 <div className="space-y-2">
                   {[...Array(3)].map((_, index) => (
                     <div key={index} className="space-y-2">
@@ -477,16 +394,18 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-3">
+                <Link href="/todos">
+                  <Button variant="outline" size="sm" className="h-12 w-full">
+                    <CheckSquare className="h-4 w-4 mr-2" />
+                    Add To-do
+                  </Button>
+                </Link>
                 <Link href="/wiki/new">
                   <Button variant="outline" size="sm" className="h-12 w-full">
                     <Plus className="h-4 w-4 mr-2" />
                     New Page
                   </Button>
                 </Link>
-                <Button variant="outline" size="sm" className="h-12" disabled>
-                  <CalendarIcon className="h-4 w-4 mr-2" />
-                  Schedule
-                </Button>
                 <Link href="/ask">
                   <Button variant="outline" size="sm" className="h-12 w-full">
                     <Bot className="h-4 w-4 mr-2" />

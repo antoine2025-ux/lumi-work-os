@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Calendar, User } from 'lucide-react'
 
 // Mock data for demonstration
-const mockTasks = {
+const mockTasks: Record<string, Task[]> = {
   todo: [
     {
       id: '1',

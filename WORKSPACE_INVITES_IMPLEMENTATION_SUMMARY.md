@@ -189,3 +189,4 @@ model WorkspaceInvite {
 - `docs/MULTI_TENANT_INVITES.md` - Complete invite system documentation
 - `docs/MULTI_TENANT_HARDENING.md` - Multi-tenant security
 - `docs/MULTI_WORKSPACE_UX.md` - Workspace UX
+

@@ -1,0 +1,178 @@
+/**
+ * DELETE /api/org/structure/departments/[departmentId]
+ * Hard delete a department.
+ * 
+ * Requires OWNER/ADMIN role.
+ * Strict auth pattern: getUnifiedAuth → assertAccess → setWorkspaceContext → Prisma
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { prisma } from "@/lib/db";
+
+export async function DELETE(
+  request: NextRequest,
+  ctx: { params: Promise<{ departmentId: string }> }
+) {
+  let userId: string | undefined;
+  let workspaceId: string | undefined;
+  
+  try {
+    // Step 1: Get unified auth (includes workspaceId)
+    const auth = await getUnifiedAuth(request);
+    userId = auth?.user?.userId;
+    workspaceId = auth?.workspaceId;
+
+    if (!userId || !workspaceId) {
+      console.error("[DELETE /api/org/structure/departments/[departmentId]] Missing userId or workspaceId", { userId, workspaceId });
+      return NextResponse.json(
+        { 
+          ok: false,
+          error: "UNAUTHORIZED",
+          hint: "Authentication failed. Please ensure you are logged in and have workspace access."
+        },
+        { status: 401 }
+      );
+    }
+
+    // Step 2: Assert OWNER/ADMIN access (only workspace owners/admins can delete departments)
+    await assertAccess({
+      userId,
+      workspaceId,
+      scope: "workspace",
+      requireRole: ["OWNER", "ADMIN"],
+    });
+
+    // Step 3: Set workspace context
+    setWorkspaceContext(workspaceId);
+
+    // Step 4: Get departmentId and verify department exists
+    const { departmentId } = await ctx.params;
+    
+    // Check if department exists and get its name and teams
+    const department = await prisma.orgDepartment.findFirst({
+      where: {
+        id: departmentId,
+        workspaceId: workspaceId,
+      },
+      include: {
+        teams: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    if (!department) {
+      return NextResponse.json(
+        { 
+          ok: false,
+          error: "NOT_FOUND",
+          hint: "The requested department does not exist or you don't have access to it."
+        },
+        { status: 404 }
+      );
+    }
+
+    // Prevent deletion of "Unassigned" department (system bucket)
+    if (department.name?.trim().toLowerCase() === "unassigned") {
+      return NextResponse.json(
+        { 
+          ok: false,
+          error: "FORBIDDEN",
+          hint: "Cannot delete the 'Unassigned' department. It is a system bucket for unplaced teams."
+        },
+        { status: 403 }
+      );
+    }
+
+    // Block deletion if department has teams
+    if (department.teams.length > 0) {
+      return NextResponse.json(
+        { 
+          ok: false,
+          error: "HAS_TEAMS",
+          hint: `Department has ${department.teams.length} team${department.teams.length === 1 ? "" : "s"}. Move or delete teams first.`
+        },
+        { status: 400 }
+      );
+    }
+
+    // Step 5: Delete department (no teams, safe to delete)
+    await prisma.$transaction(async (tx) => {
+      // Delete department owner assignments if they exist
+      await tx.$executeRaw`
+        DELETE FROM owner_assignments
+        WHERE "targetId" = ${departmentId} 
+        AND "workspaceId" = ${workspaceId}
+        AND "entityType" = 'DEPARTMENT'
+      `.catch(() => {
+        // Table might not exist or use different schema, ignore
+      });
+
+      // Finally, delete the department
+      await tx.orgDepartment.delete({
+        where: {
+          id: departmentId,
+        },
+      });
+    });
+
+    console.log(`[DELETE /api/org/structure/departments/[departmentId]] Deleted department ${departmentId} by user ${userId}`);
+
+    return NextResponse.json(
+      { ok: true },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error("[DELETE /api/org/structure/departments/[departmentId]] Error:", error);
+    console.error("[DELETE /api/org/structure/departments/[departmentId]] Error stack:", error?.stack);
+
+    if (!userId || !workspaceId) {
+      return NextResponse.json(
+        { 
+          ok: false,
+          error: "UNAUTHORIZED",
+          hint: "Authentication failed. Please ensure you are logged in and have workspace access."
+        },
+        { status: 401 }
+      );
+    }
+
+    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
+      return NextResponse.json(
+        { 
+          ok: false,
+          error: "FORBIDDEN",
+          hint: "Only workspace owners and admins can delete departments."
+        },
+        { status: 403 }
+      );
+    }
+
+    if (error?.code === "P2025") {
+      // Record not found
+      return NextResponse.json(
+        { 
+          ok: false,
+          error: "NOT_FOUND",
+          hint: "The department may have already been deleted."
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { 
+        ok: false,
+        error: "DELETE_FAILED",
+        hint: error?.message || "An unexpected error occurred. Please try again."
+      },
+      { status: 500 }
+    );
+  }
+}
+

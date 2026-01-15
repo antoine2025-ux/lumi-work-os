@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fix Redirect Loop</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    .info {
+      background: #1e3a8a;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Fix Redirect Loop</h1>
+  <div class="info">
+    <p>This page will:</p>
+    <ol>
+      <li>Set your workspace ID in sessionStorage</li>
+      <li>Clear redirect flags</li>
+      <li>Redirect you to the dashboard</li>
+    </ol>
+  </div>
+  
+  <button onclick="fixAndRedirect()">Fix and Go to Dashboard</button>
+  <button onclick="clearAll()">Clear All Storage</button>
+  
+  <div id="status" style="margin-top: 20px;"></div>
+  
+  <script>
+    const WORKSPACE_ID = 'ws_1765020555_4662b211';
+    
+    function fixAndRedirect() {
+      // Set workspace ID
+      sessionStorage.setItem('__workspace_id__', WORKSPACE_ID);
+      sessionStorage.setItem('__has_workspace__', 'true');
+      sessionStorage.removeItem('__redirect_attempted__');
+      
+      document.getElementById('status').innerHTML = 
+        '<p style="color: #10b981;">✅ Workspace ID set! Redirecting...</p>';
+      
+      setTimeout(() => {
+        window.location.replace('/home');
+      }, 500);
+    }
+    
+    function clearAll() {
+      sessionStorage.clear();
+      localStorage.clear();
+      document.getElementById('status').innerHTML = 
+        '<p style="color: #10b981;">✅ All storage cleared!</p>';
+    }
+    
+    // Auto-fix on load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        fixAndRedirect();
+      }, 1000);
+    });
+  </script>
+</body>
+</html>
+

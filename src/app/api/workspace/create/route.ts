@@ -14,7 +14,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    console.log('[workspace/create] User authenticated:', session.user.email)
+    console.log('[workspace/create] User authenticated:', {
+      email: session.user.email,
+      id: session.user.id,
+      name: session.user.name
+    })
     const body = await request.json()
     const { name, slug, description, teamSize, industry } = body
 
@@ -27,13 +31,37 @@ export async function POST(request: NextRequest) {
 
     // Check if user already has a workspace
     const { prisma } = await import('@/lib/db')
-    const existingWorkspace = await prisma.workspace.findFirst({
-      where: {
-        members: {
-          some: { userId: session.user.id }
+    let existingWorkspace = null
+    try {
+      existingWorkspace = await prisma.workspace.findFirst({
+        where: {
+          members: {
+            some: { userId: session.user.id }
+          }
         }
+      })
+    } catch (error: any) {
+      // If Prisma connection fails, log but continue (might be a connection issue)
+      console.warn('[workspace/create] Could not check existing workspace:', error.message)
+      // Try alternative check using workspaceMember directly (simpler query without nested relations)
+      try {
+        const member = await prisma.workspaceMember.findFirst({
+          where: { userId: session.user.id }
+        })
+        if (member) {
+          // If member exists, fetch the workspace separately
+          const workspace = await prisma.workspace.findUnique({
+            where: { id: member.workspaceId }
+          })
+          if (workspace) {
+            existingWorkspace = workspace
+          }
+        }
+      } catch (e: any) {
+        console.warn('[workspace/create] Alternative check also failed:', e?.message || e)
+        // Continue anyway - worst case we create a duplicate workspace
       }
-    })
+    }
 
     if (existingWorkspace) {
       console.log('[workspace/create] User already has workspace:', existingWorkspace.id)
@@ -69,9 +97,16 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[workspace/create] Error creating workspace:', error)
+    console.error('[workspace/create] Error stack:', error instanceof Error ? error.stack : 'No stack')
+    console.error('[workspace/create] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+      cause: error instanceof Error ? error.cause : undefined
+    })
     return NextResponse.json({ 
       error: 'Failed to create workspace',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
     }, { status: 500 })
   }
 }

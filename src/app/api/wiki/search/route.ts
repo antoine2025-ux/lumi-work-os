@@ -151,8 +151,8 @@ export async function GET(request: NextRequest) {
       total: resultsWithScores.length,
       query
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error searching wiki pages:', error)
-    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 })
   }
 }

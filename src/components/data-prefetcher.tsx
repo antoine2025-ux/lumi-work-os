@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
 import { prefetchAllData } from '@/lib/prefetch'
-import { useUserStatus } from '@/hooks/use-user-status'
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 /**
  * Aggressive data prefetcher component
@@ -15,7 +15,8 @@ import { useUserStatus } from '@/hooks/use-user-status'
 export function DataPrefetcher() {
   const queryClient = useQueryClient()
   const { data: session } = useSession()
-  const { userStatus } = useUserStatus()
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId } = useUserStatusContext()
   const pathname = usePathname()
   const hasPrefetched = useRef(false)
 
@@ -32,28 +33,28 @@ export function DataPrefetcher() {
     if (hasPrefetched.current) return
     
     // Wait for authentication and workspace
-    if (session?.user && userStatus?.workspaceId) {
+    if (session?.user && workspaceId) {
       hasPrefetched.current = true
       
       // Start prefetching immediately - don't block rendering
       // This runs in the background while the user sees the UI
       prefetchAllData({
-        workspaceId: userStatus.workspaceId,
+        workspaceId,
         queryClient,
       }).catch((error) => {
         console.error('[DataPrefetcher] Prefetch error:', error)
         // Don't throw - prefetching failures shouldn't break the app
       })
     }
-  }, [session?.user, userStatus?.workspaceId, queryClient, pathname])
+  }, [session?.user, workspaceId, queryClient, pathname])
 
   // Also prefetch when workspace changes (e.g., user switches workspace)
   useEffect(() => {
-    if (userStatus?.workspaceId && hasPrefetched.current) {
+    if (workspaceId && hasPrefetched.current) {
       // Reset flag to allow prefetching for new workspace
       hasPrefetched.current = false
     }
-  }, [userStatus?.workspaceId])
+  }, [workspaceId])
 
   return null // This component doesn't render anything
 }

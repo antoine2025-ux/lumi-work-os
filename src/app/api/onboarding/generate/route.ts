@@ -4,9 +4,14 @@ import OpenAI from 'openai'
 import { getWikiContext } from '@/lib/wiki'
 import { prisma } from '@/lib/db'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization - only create client when needed
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    return null
+  }
+  return new OpenAI({ apiKey })
+}
 
 const generatePlanSchema = z.object({
   role: z.string().min(1).max(100),
@@ -111,10 +116,23 @@ Generate a comprehensive onboarding plan for this role.`
     let planData
     let tasks
 
-    try {
-      // Use OpenAI API to generate the plan with timeout
-      const completion = await Promise.race([
-        openai.chat.completions.create({
+    const openai = getOpenAIClient()
+    if (!openai) {
+      console.log('OpenAI API key not set, using fallback task generator')
+      // Fallback: Generate a structured plan based on role and duration
+      const roleBasedTasks = generateFallbackTasks(validatedData.role, validatedData.seniority, validatedData.department, validatedData.durationDays)
+      
+      planData = {
+        planName: `${validatedData.role} - ${validatedData.durationDays} Day Plan`,
+        tasks: roleBasedTasks
+      }
+      
+      tasks = roleBasedTasks
+    } else {
+      try {
+        // Use OpenAI API to generate the plan with timeout
+        const completion = await Promise.race([
+          openai.chat.completions.create({
           model: 'gpt-4',
           messages: [
             { role: 'system', content: systemPrompt },
@@ -151,20 +169,21 @@ Generate a comprehensive onboarding plan for this role.`
         throw new Error('Invalid plan structure from AI')
       }
 
-      // Limit tasks to 30 as specified
-      tasks = planData.tasks.slice(0, 30)
-    } catch (openaiError) {
-      console.error('OpenAI API failed, using fallback:', openaiError)
-      
-      // Fallback: Generate a structured plan based on role and duration
-      const roleBasedTasks = generateFallbackTasks(validatedData.role, validatedData.seniority, validatedData.department, validatedData.durationDays)
-      
-      planData = {
-        planName: `${validatedData.role} - ${validatedData.durationDays} Day Plan`,
-        tasks: roleBasedTasks
+        // Limit tasks to 30 as specified
+        tasks = planData.tasks.slice(0, 30)
+      } catch (openaiError) {
+        console.error('OpenAI API failed, using fallback:', openaiError)
+        
+        // Fallback: Generate a structured plan based on role and duration
+        const roleBasedTasks = generateFallbackTasks(validatedData.role, validatedData.seniority, validatedData.department, validatedData.durationDays)
+        
+        planData = {
+          planName: `${validatedData.role} - ${validatedData.durationDays} Day Plan`,
+          tasks: roleBasedTasks
+        }
+        
+        tasks = roleBasedTasks
       }
-      
-      tasks = roleBasedTasks
     }
 
     // Get the workspace and a valid user ID

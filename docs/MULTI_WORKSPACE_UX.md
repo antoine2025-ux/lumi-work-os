@@ -281,3 +281,4 @@ The `WorkspaceSwitcher` component is already integrated in the Header:
 - `ARCHITECTURE_SUMMARY.md` - Overall architecture
 - `docs/MULTI_TENANT_HARDENING.md` - Multi-tenant security
 - `docs/PRISMA_SCOPING_FEATURE_FLAG.md` - Prisma scoping
+

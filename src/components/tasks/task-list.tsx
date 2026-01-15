@@ -107,10 +107,10 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
   const loadTasks = async () => {
     try {
       setIsLoading(true)
-      const params = new URLSearchParams({
-        projectId,
-        workspaceId
-      })
+      const params = new URLSearchParams({ projectId })
+      if (workspaceId) {
+        params.set('workspaceId', workspaceId)
+      }
       
       if (filter !== 'all') {
         params.append('status', filter)
@@ -503,6 +503,7 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
         onClose={handleCloseEditDialog}
         task={editingTask}
         onSave={handleTaskUpdate}
+        workspaceId={workspaceId ?? ''}
       />
 
       {/* Dependency Manager */}

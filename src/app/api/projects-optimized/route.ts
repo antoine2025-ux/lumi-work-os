@@ -74,14 +74,15 @@ export async function GET(request: NextRequest) {
     )
 
     return NextResponse.json(projects)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching projects:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     
-    if (error.message.includes('Unauthorized')) {
+    if (errorMessage.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message.includes('Forbidden')) {
+    if (errorMessage.includes('Forbidden')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     

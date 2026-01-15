@@ -18,12 +18,21 @@ export async function assertAccess(opts: AccessOptions): Promise<void> {
   const { userId, workspaceId, projectId, scope, requireRole = ['MEMBER'] } = opts
 
   // Check workspace access first
+  // Use explicit select to avoid querying non-existent customRoleId column
   const workspaceMember = await prisma.workspaceMember.findUnique({
     where: {
       workspaceId_userId: {
         userId,
         workspaceId
       }
+    },
+    select: {
+      id: true,
+      workspaceId: true,
+      userId: true,
+      role: true,
+      joinedAt: true,
+      // Exclude customRoleId and customRole relation - they may not exist in database
     }
   })
 
@@ -149,12 +158,17 @@ export async function getUserWorkspaceRole(
   userId: string,
   workspaceId: string
 ): Promise<Role | null> {
+  // Use explicit select to avoid querying non-existent customRoleId column
   const workspaceMember = await prisma.workspaceMember.findUnique({
     where: {
       workspaceId_userId: {
         userId,
         workspaceId
       }
+    },
+    select: {
+      role: true,
+      // Exclude customRoleId and customRole relation - they may not exist in database
     }
   })
 

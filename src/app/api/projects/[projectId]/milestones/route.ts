@@ -81,15 +81,15 @@ export async function POST(
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
 
-    // Get session and verify access
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
+    // Get authenticated user with workspace context
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { id: auth.user.userId }
     })
     
     if (!user) {
@@ -97,7 +97,7 @@ export async function POST(
     }
 
     // Check write access
-    const accessResult = await assertProjectWriteAccess(user, projectId)
+    const accessResult = await assertProjectWriteAccess(user, projectId, auth.workspaceId)
     if (!accessResult) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }

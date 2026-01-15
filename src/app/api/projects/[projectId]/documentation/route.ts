@@ -20,6 +20,7 @@ type ProjectDocumentationDto = {
     title: string
     slug: string
     workspace_type: string | null
+    spaceId: string | null // Phase 1: Canonical Space ID
     updatedAt: string
   }
 }
@@ -78,7 +79,8 @@ export async function GET(
       console.error('[ProjectDocumentation] Debug query failed:', debugErr.message)
     }
     
-    const documentationLinks = await prisma.projectDocumentation.findMany({
+    // Note: spaceId field requires prisma generate to be recognized in types
+    const documentationLinks = await (prisma.projectDocumentation.findMany as Function)({
       where: { projectId },
       include: {
         wikiPage: {
@@ -87,6 +89,7 @@ export async function GET(
             title: true,
             slug: true,
             workspace_type: true,
+            spaceId: true, // Phase 1: Include canonical Space ID
             updatedAt: true
           }
         }
@@ -94,7 +97,20 @@ export async function GET(
       orderBy: {
         order: 'asc'
       }
-    })
+    }) as {
+      id: string;
+      wikiPageId: string;
+      order: number;
+      createdAt: Date;
+      wikiPage: {
+        id: string;
+        title: string;
+        slug: string;
+        workspace_type: string;
+        spaceId: string | null;
+        updatedAt: Date;
+      };
+    }[]
     console.log('[ProjectDocumentation] Successfully fetched', documentationLinks.length, 'documentation links')
 
     // Transform to DTO format
@@ -108,6 +124,7 @@ export async function GET(
         title: link.wikiPage.title,
         slug: link.wikiPage.slug,
         workspace_type: link.wikiPage.workspace_type,
+        spaceId: link.wikiPage.spaceId || null, // Phase 1: Include canonical Space ID
         updatedAt: link.wikiPage.updatedAt.toISOString()
       }
     }))
@@ -188,21 +205,38 @@ export async function POST(
     const { wikiPageId } = validatedData
     console.log('[ProjectDocumentation] POST: Validated wikiPageId:', wikiPageId)
 
-    // Verify project exists and get workspaceId
-    const project = await prisma.project.findUnique({
+    // Verify project exists and get workspaceId and spaceId
+    // Note: spaceId field requires prisma generate to be recognized in types
+    const project = await (prisma.project.findUnique as Function)({
       where: { id: projectId },
-      select: { id: true, workspaceId: true }
-    })
+      select: { id: true, workspaceId: true, spaceId: true }
+    }) as { id: string; workspaceId: string; spaceId: string | null } | null
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
     // Verify wiki page exists and belongs to the same workspace
-    const wikiPage = await prisma.wikiPage.findUnique({
+    const wikiPage = await (prisma.wikiPage.findUnique as Function)({
       where: { id: wikiPageId },
-      select: { id: true, workspaceId: true, title: true, slug: true, workspace_type: true, updatedAt: true }
-    })
+      select: { 
+        id: true, 
+        workspaceId: true, 
+        spaceId: true, 
+        title: true, 
+        slug: true, 
+        workspace_type: true, 
+        updatedAt: true 
+      }
+    }) as { 
+      id: string; 
+      workspaceId: string; 
+      spaceId: string | null; 
+      title: string; 
+      slug: string; 
+      workspace_type: string; 
+      updatedAt: Date 
+    } | null
 
     if (!wikiPage) {
       return NextResponse.json({ error: 'Wiki page not found' }, { status: 404 })
@@ -212,6 +246,20 @@ export async function POST(
       return NextResponse.json({ 
         error: 'Wiki page must belong to the same workspace as the project' 
       }, { status: 400 })
+    }
+
+    // Phase 1: Enforce spaceId matching if both are populated
+    // If one/both are null (legacy), allow for now but log a warning
+    if (project.spaceId && wikiPage.spaceId) {
+      if (project.spaceId !== wikiPage.spaceId) {
+        console.warn(`⚠️  Space mismatch: Project ${projectId} has spaceId ${project.spaceId}, WikiPage ${wikiPageId} has spaceId ${wikiPage.spaceId}`)
+        return NextResponse.json({ 
+          error: 'Wiki page must belong to the same space as the project. Project space and wiki page space do not match.' 
+        }, { status: 400 })
+      }
+    } else if (project.spaceId || wikiPage.spaceId) {
+      // One has spaceId, the other doesn't (legacy) - allow but warn
+      console.warn(`⚠️  Legacy space mismatch: Project ${projectId} spaceId=${project.spaceId}, WikiPage ${wikiPageId} spaceId=${wikiPage.spaceId}`)
     }
 
     // Check if already attached (unique constraint will prevent duplicates, but we can handle gracefully)
@@ -226,7 +274,8 @@ export async function POST(
 
     if (existing) {
       // Return existing record
-      const existingWithPage = await prisma.projectDocumentation.findUnique({
+      // Note: spaceId field requires prisma generate to be recognized in types
+      const existingWithPage = await (prisma.projectDocumentation.findUnique as Function)({
         where: { id: existing.id },
         include: {
           wikiPage: {
@@ -235,11 +284,25 @@ export async function POST(
               title: true,
               slug: true,
               workspace_type: true,
+              spaceId: true, // Phase 1: Include canonical Space ID
               updatedAt: true
             }
           }
         }
-      })
+      }) as {
+        id: string;
+        wikiPageId: string;
+        order: number;
+        createdAt: Date;
+        wikiPage: {
+          id: string;
+          title: string;
+          slug: string;
+          workspace_type: string;
+          spaceId: string | null;
+          updatedAt: Date;
+        };
+      } | null
 
       if (existingWithPage) {
         return NextResponse.json({
@@ -252,6 +315,7 @@ export async function POST(
             title: existingWithPage.wikiPage.title,
             slug: existingWithPage.wikiPage.slug,
             workspace_type: existingWithPage.wikiPage.workspace_type,
+            spaceId: existingWithPage.wikiPage.spaceId || null, // Phase 1: Include canonical Space ID
             updatedAt: existingWithPage.wikiPage.updatedAt.toISOString()
           }
         })
@@ -270,7 +334,8 @@ export async function POST(
 
     // Create new documentation link
     console.log('[ProjectDocumentation] POST: Creating documentation link')
-    const newLink = await prisma.projectDocumentation.create({
+    // Note: spaceId field requires prisma generate to be recognized in types
+    const newLink = await (prisma.projectDocumentation.create as Function)({
       data: {
         projectId,
         wikiPageId,
@@ -283,11 +348,25 @@ export async function POST(
             title: true,
             slug: true,
             workspace_type: true,
+            spaceId: true, // Phase 1: Include canonical Space ID
             updatedAt: true
           }
         }
       }
-    })
+    }) as {
+      id: string;
+      wikiPageId: string;
+      order: number;
+      createdAt: Date;
+      wikiPage: {
+        id: string;
+        title: string;
+        slug: string;
+        workspace_type: string;
+        spaceId: string | null;
+        updatedAt: Date;
+      };
+    }
 
     const doc: ProjectDocumentationDto = {
       id: newLink.id,
@@ -299,6 +378,7 @@ export async function POST(
         title: newLink.wikiPage.title,
         slug: newLink.wikiPage.slug,
         workspace_type: newLink.wikiPage.workspace_type,
+        spaceId: newLink.wikiPage.spaceId || null, // Phase 1: Include canonical Space ID
         updatedAt: newLink.wikiPage.updatedAt.toISOString()
       }
     }
@@ -311,7 +391,7 @@ export async function POST(
     if (error instanceof z.ZodError) {
       return NextResponse.json({
         error: 'Validation error',
-        details: error.errors
+        details: error.issues
       }, { status: 400 })
     }
     

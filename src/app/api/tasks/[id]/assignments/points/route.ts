@@ -4,6 +4,7 @@ import { assertProjectWriteAccess } from '@/lib/pm/guards'
 import { logTaskHistory } from '@/lib/pm/history'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 
 
 // PATCH /api/tasks/[id]/assignments/points - Update task story points
@@ -12,11 +13,25 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const resolvedParams = await params
     const taskId = resolvedParams.id
 
     const body = await request.json()
     const validatedData = UpdateTaskPointsSchema.parse(body)
+
+    // Get authenticated user from database
+    const user = await prisma.user.findUnique({
+      where: { id: auth.user.userId }
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
 
     // Get task with project info
     const task = await prisma.task.findUnique({
@@ -28,11 +43,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
-    // Check write access to project
-    const accessResult = await assertProjectWriteAccess(task.projectId)
-    if (!accessResult.hasAccess) {
-      return NextResponse.json({ error: accessResult.error }, { status: 403 })
-    }
+    // Check write access to project (throws on failure)
+    await assertProjectWriteAccess(user, task.projectId, auth.workspaceId)
 
     // Store old value for history
     const oldPoints = task.points
@@ -57,7 +69,7 @@ export async function PATCH(
     // Log history
     await logTaskHistory({
       taskId,
-      actorId: accessResult.user!.id,
+      actorId: user.id,
       field: 'points',
       from: oldPoints,
       to: validatedData.points
@@ -71,16 +83,16 @@ export async function PATCH(
         taskId,
         points: validatedData.points,
         projectId: task.projectId,
-        userId: accessResult.user!.id
+        userId: user.id
       }
     )
 
     return NextResponse.json(updatedTask)
-  } catch (error) {
-    if (error.name === 'ZodError') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json({ 
         error: 'Validation error',
-        details: error.errors 
+        details: (error as any).issues 
       }, { status: 400 })
     }
 

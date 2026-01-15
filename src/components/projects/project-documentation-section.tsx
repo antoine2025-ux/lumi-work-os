@@ -33,9 +33,11 @@ interface WikiPageContent {
   id: string
   title: string
   content: string
+  contentFormat?: 'HTML' | 'JSON'
+  contentJson?: any
   slug: string
   workspace_type: string | null
-  updatedAt?: string
+  updatedAt: string
   createdBy?: {
     id: string
     name: string
@@ -58,6 +60,7 @@ export function ProjectDocumentationSection({
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
   const [selectedPageContent, setSelectedPageContent] = useState<WikiPageContent | null>(null)
   const [isLoadingContent, setIsLoadingContent] = useState(false)
+  const [projectSpaceId, setProjectSpaceId] = useState<string | null>(null) // Phase 1: Project's spaceId
 
   // Load attached documentation
   const loadDocumentation = async () => {
@@ -117,7 +120,9 @@ export function ProjectDocumentationSection({
           setSelectedPageContent({
             id: pageData.id,
             title: pageData.title,
-            content: pageData.content, // WikiPageBody will process code blocks
+            content: pageData.content || '', // Fallback to empty string for JSON pages
+            contentFormat: pageData.contentFormat || 'HTML', // Default to HTML for legacy pages
+            contentJson: pageData.contentJson || null, // Include JSON content for JSON pages
             slug: pageData.slug,
             workspace_type: pageData.workspace_type,
             updatedAt: pageData.updatedAt,
@@ -137,6 +142,25 @@ export function ProjectDocumentationSection({
 
     loadPageContent()
   }, [selectedDocId, documentation])
+
+  // Load project spaceId
+  useEffect(() => {
+    const loadProjectSpaceId = async () => {
+      try {
+        const response = await fetch(`/api/projects/${projectId}`)
+        if (response.ok) {
+          const project = await response.json()
+          setProjectSpaceId(project.spaceId || null)
+        }
+      } catch (error) {
+        console.error('Error loading project spaceId:', error)
+      }
+    }
+    
+    if (projectId) {
+      loadProjectSpaceId()
+    }
+  }, [projectId])
 
   useEffect(() => {
     if (projectId) {
@@ -358,6 +382,7 @@ export function ProjectDocumentationSection({
         onOpenChange={setIsSelectorOpen}
         onSelect={handleAttach}
         workspaceId={workspaceId}
+        spaceId={projectSpaceId || undefined} // Phase 1: Filter by project's spaceId if available
         excludePageIds={documentation.map(doc => doc.wikiPageId)}
       />
     </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { Loader2, CheckCircle2 } from "lucide-react"
 import { useSession } from "next-auth/react"
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 interface LoadingStep {
   id: string
@@ -12,6 +13,8 @@ interface LoadingStep {
 
 export function LoadingInitializer() {
   const { data: session, status: sessionStatus } = useSession()
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId } = useUserStatusContext()
   const [steps, setSteps] = useState<LoadingStep[]>([
     { id: 'session', label: 'Establishing session', status: 'loading' },
     { id: 'workspace', label: 'Loading workspace', status: 'pending' },
@@ -21,7 +24,6 @@ export function LoadingInitializer() {
   ])
   const [startTime] = useState(() => Date.now())
   const [isComplete, setIsComplete] = useState(false)
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
 
   // Prefetch dashboard data in the background and track completion
   const prefetchDashboardData = useCallback(async (wsId: string) => {
@@ -54,29 +56,14 @@ export function LoadingInitializer() {
     }
   }, [])
 
-  // Get workspace ID and prefetch dashboard data
+  // Prefetch dashboard data when workspaceId becomes available
   useEffect(() => {
-    const fetchWorkspaceId = async () => {
-      try {
-        const response = await fetch('/api/auth/user-status')
-        if (response.ok) {
-          const data = await response.json()
-          if (data.workspaceId) {
-            setWorkspaceId(data.workspaceId)
-            // Start prefetching dashboard data in the background
-            // Don't await - let it run in parallel with the loading animation
-            prefetchDashboardData(data.workspaceId)
-          }
-        }
-      } catch (error) {
-        console.error('[LoadingInitializer] Error fetching workspace ID:', error)
-      }
+    if (sessionStatus === 'authenticated' && workspaceId) {
+      // Start prefetching dashboard data in the background
+      // Don't await - let it run in parallel with the loading animation
+      prefetchDashboardData(workspaceId)
     }
-
-    if (sessionStatus === 'authenticated') {
-      fetchWorkspaceId()
-    }
-  }, [sessionStatus, prefetchDashboardData])
+  }, [sessionStatus, workspaceId, prefetchDashboardData])
 
   useEffect(() => {
     const minDuration = 5500 // 5.5 seconds minimum - enough time for APIs to complete

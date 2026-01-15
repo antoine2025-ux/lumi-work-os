@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2, User, Calendar, Tag, X, Settings, MessageSquare, History, Plus, AlertCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { TaskComments } from "./task-comments"
+import { useUserStatusContext } from '@/providers/user-status-provider'
 
 interface User {
   id: string
@@ -118,10 +119,11 @@ export function TaskSidebar() {
   const { isOpen, taskId, close } = useTaskSidebarStore()
   const getStoreState = useTaskSidebarStore.getState
   const router = useRouter()
+  // Use centralized UserStatusContext - no separate API call needed
+  const { workspaceId } = useUserStatusContext()
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingTask, setIsLoadingTask] = useState(false)
   const [task, setTask] = useState<Task | null>(null)
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
   const [milestones, setMilestones] = useState<Array<{id: string, title: string, startDate?: string, endDate?: string}>>([])
@@ -143,24 +145,6 @@ export function TaskSidebar() {
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [subtaskErrors, setSubtaskErrors] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'history'>('details')
-
-  // Load workspaceId
-  useEffect(() => {
-    const fetchWorkspaceId = async () => {
-      try {
-        const response = await fetch('/api/auth/user-status')
-        if (response.ok) {
-          const data = await response.json()
-          setWorkspaceId(data.workspaceId)
-        }
-      } catch (error) {
-        console.error('Error loading workspace ID:', error)
-      }
-    }
-    if (isOpen) {
-      fetchWorkspaceId()
-    }
-  }, [isOpen])
 
   // Load task when sidebar opens
   useEffect(() => {
