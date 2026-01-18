@@ -1,6 +1,7 @@
+"use client";
+
 import { DashboardProviders } from "./DashboardProviders";
 import { DashboardLayoutClient } from "./DashboardLayoutClient";
-import { getActiveOrgContext } from "@/server/orgContext";
 
 import { useSession } from "next-auth/react"
 import { useRouter, usePathname } from "next/navigation"
@@ -15,21 +16,16 @@ const Header = dynamic(() => import("@/components/layout/header").then(mod => ({
   ssr: true, // Keep SSR for header since it's above the fold
 })
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  let ctx;
-  try {
-    ctx = await getActiveOrgContext();
-  } catch (error) {
-    console.error("[DashboardLayout] Error getting org context:", error);
-    // Fallback to null org context if there's an error
-    ctx = { userId: null, orgId: null, orgName: null, role: "VIEWER" as const };
-  }
-  
   const { data: session, status } = useSession()
+  
+  // Get org context from session (client-side)
+  const orgId = (session as any)?.activeOrgId || null;
+  const orgName = null; // orgName not available in session, will be loaded client-side if needed
   const router = useRouter()
   const pathname = usePathname()
   const [isFirstTime, setIsFirstTime] = useState(false)
@@ -166,7 +162,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <DashboardProviders initialOrgId={ctx.orgId} initialOrgName={ctx.orgName}>
+    <DashboardProviders initialOrgId={orgId} initialOrgName={orgName}>
       <DashboardLayoutClient>{children}</DashboardLayoutClient>
     </DashboardProviders>
   );
