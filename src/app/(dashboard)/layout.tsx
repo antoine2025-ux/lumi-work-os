@@ -15,7 +15,7 @@ const Header = dynamic(() => import("@/components/layout/header").then(mod => ({
   ssr: true, // Keep SSR for header since it's above the fold
 })
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
