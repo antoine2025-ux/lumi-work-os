@@ -261,19 +261,168 @@ async function executeTimeOffCreate(
   userId: string,
   requestId: string
 ): Promise<LoopbrainActionResult> {
-  // TODO: TimeOff model not yet implemented in Prisma schema
-  // When implementing, add model TimeOff { id, workspaceId, userId, startDate, endDate, type, status, notes }
-  // and restore the full implementation from git history
-  logger.info('timeoff.create action attempted but not yet implemented', {
+  // Log action parameters (before validation)
+  logger.info('Executing timeoff.create action', {
+    requestId,
+    workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
+    actorUserId: userId ? `${userId.substring(0, 8)}...` : undefined,
+    targetUserId: action.userId ? `${action.userId.substring(0, 8)}...` : undefined,
+    startDate: action.startDate,
+    endDate: action.endDate,
+    timeOffType: action.timeOffType || 'vacation',
+    hasNotes: !!action.notes,
+  })
+
+  // MVP: Only allow users to create time off for themselves
+  if (action.userId !== userId) {
+    throw new LoopbrainError('ACCESS_DENIED', 403, 'You can only create time off for yourself')
+  }
+
+  // Validate dates
+  const startDate = new Date(action.startDate)
+  const endDate = new Date(action.endDate)
+
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    throw new LoopbrainError('BAD_REQUEST', 400, 'Invalid date format')
+  }
+
+  if (startDate >= endDate) {
+    throw new LoopbrainError('BAD_REQUEST', 400, 'Start date must be before end date')
+  }
+
+  // Verify user exists in workspace
+  const user = await prisma.user.findFirst({
+    where: {
+      id: action.userId,
+      workspaceMemberships: {
+        some: {
+          workspaceId,
+        },
+      },
+    },
+  })
+
+  if (!user) {
+    throw new LoopbrainError('BAD_REQUEST', 404, 'User not found in workspace')
+  }
+
+  // Runtime guard: ensure prisma is defined
+  if (!prisma) {
+    logger.error('Prisma client is undefined in executor', {
+      requestId,
+      actionType: 'timeoff.create',
+    })
+    throw new LoopbrainError('INTERNAL_ERROR', 500, 'Prisma client is not available', {
+      isUserSafe: false,
+      details: {
+        requestId,
+        actionType: 'timeoff.create',
+      },
+    })
+  }
+
+  // Create time off
+  logger.debug('Creating time off row', {
     requestId,
     workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
     userId: action.userId ? `${action.userId.substring(0, 8)}...` : undefined,
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    type: action.timeOffType || 'vacation',
   })
-  
-  throw new LoopbrainError('BAD_REQUEST', 501, 'Time off feature is not yet implemented', {
-    isUserSafe: true,
-    details: { requestId, actionType: 'timeoff.create' },
+
+  let timeOff
+  try {
+    timeOff = await prisma.timeOff.create({
+      data: {
+        workspaceId,
+        userId: action.userId,
+        startDate,
+        endDate,
+        type: action.timeOffType || 'vacation',
+        status: 'approved', // MVP: auto-approve
+        notes: action.notes || null,
+      },
+    })
+    logger.debug('Time off row created successfully', {
+      requestId,
+      timeOffId: timeOff.id,
+    })
+  } catch (prismaError) {
+    // Preserve the actual Prisma error
+    logger.error('Failed to create time off row', {
+      requestId,
+      workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
+      userId: action.userId ? `${action.userId.substring(0, 8)}...` : undefined,
+      error: prismaError instanceof Error ? {
+        name: prismaError.name,
+        message: prismaError.message,
+        stack: prismaError.stack,
+      } : String(prismaError),
+    })
+    // Re-throw as LoopbrainError with cause preserved
+    throw new LoopbrainError('INTERNAL_ERROR', 500, 'Failed to create time off entry', {
+      isUserSafe: false,
+      details: {
+        requestId,
+        actionType: 'timeoff.create',
+      },
+      cause: prismaError instanceof Error ? prismaError : new Error(String(prismaError)),
+    })
+  }
+
+  // Index the time off (non-blocking)
+  indexOne({
+    workspaceId,
+    userId,
+    entityType: 'time_off',
+    entityId: timeOff.id,
+    action: 'upsert',
+    reason: 'action:timeoff.create',
+    requestId,
+  }).catch(err => {
+    logger.error('Failed to index time off after creation', {
+      requestId,
+      timeOffId: timeOff.id,
+      error: err,
+    })
   })
+
+  // Index the person (non-blocking)
+  indexOne({
+    workspaceId,
+    userId,
+    entityType: 'person',
+    entityId: action.userId,
+    action: 'upsert',
+    reason: 'action:timeoff.create (person)',
+    requestId,
+  }).catch(err => {
+    logger.error('Failed to index person after time off creation', {
+      requestId,
+      personId: action.userId,
+      error: err,
+    })
+  })
+
+  logger.info('Time off created via action', {
+    requestId,
+    workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
+    timeOffId: timeOff.id,
+    userId: action.userId,
+    startDate: action.startDate,
+    endDate: action.endDate,
+  })
+
+  return {
+    ok: true,
+    result: {
+      actionType: 'timeoff.create',
+      entityId: timeOff.id,
+      message: `Time off created from ${action.startDate} to ${action.endDate}`,
+    },
+    requestId,
+  }
 }
 
 /**
@@ -370,19 +519,18 @@ async function executeCapacityRequest(
     })
 
     // Index the project (non-blocking)
-    const createdProjectId = requestsProject.id
     indexOne({
       workspaceId,
       userId,
       entityType: 'project',
-      entityId: createdProjectId,
+      entityId: requestsProject.id,
       action: 'upsert',
       reason: 'action:capacity.request (project)',
       requestId,
     }).catch(err => {
       logger.error('Failed to index requests project', {
         requestId,
-        projectId: createdProjectId,
+        projectId: requestsProject.id,
         error: err,
       })
     })

@@ -55,13 +55,11 @@ export class DbQueryCounter {
       throw new LoopbrainError(
         'DB_ERROR',
         503,
-        'Workspace is large; please narrow your query.',
+        true,
         {
-          isUserSafe: true,
-          details: {
-            queryCount: this.count,
-            maxQueries: this.maxQueries,
-          },
+          message: 'Workspace is large; please narrow your query.',
+          queryCount: this.count,
+          maxQueries: this.maxQueries,
         }
       )
     }
@@ -105,13 +103,11 @@ export function checkCapacityLimits(
     throw new LoopbrainError(
       'DB_ERROR',
       503,
-      'Workspace is large; please narrow your query.',
+      true,
       {
-        isUserSafe: true,
-        details: {
-          userCount,
-          maxUsers: MAX_CAPACITY_USERS,
-        },
+        message: 'Workspace is large; please narrow your query.',
+        userCount,
+        maxUsers: MAX_CAPACITY_USERS,
       }
     )
   }
@@ -126,13 +122,11 @@ export function checkCapacityLimits(
     throw new LoopbrainError(
       'DB_ERROR',
       503,
-      'Workspace is large; please narrow your query.',
+      true,
       {
-        isUserSafe: true,
-        details: {
-          taskCount,
-          maxTasks: MAX_TASKS_SCANNED_FOR_CAPACITY,
-        },
+        message: 'Workspace is large; please narrow your query.',
+        taskCount,
+        maxTasks: MAX_TASKS_SCANNED_FOR_CAPACITY,
       }
     )
   }

@@ -6,11 +6,9 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
-<<<<<<< HEAD
     env: {
       BASE_URL: process.env.BASE_URL || 'http://localhost:3000',
     },
-=======
     // Exclude E2E tests - they should only run with Playwright
     exclude: [
       '**/node_modules/**',
@@ -19,7 +17,6 @@ export default defineConfig({
       '**/.{idea,git,cache,output,temp}/**',
       '**/tests/e2e/**', // E2E tests use Playwright, not Vitest
     ],
->>>>>>> main
   },
   resolve: {
     alias: {

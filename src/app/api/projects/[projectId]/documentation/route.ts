@@ -206,11 +206,10 @@ export async function POST(
     console.log('[ProjectDocumentation] POST: Validated wikiPageId:', wikiPageId)
 
     // Verify project exists and get workspaceId and spaceId
-    // Note: spaceId field requires prisma generate to be recognized in types
-    const project = await (prisma.project.findUnique as Function)({
+    const project = await prisma.project.findUnique({
       where: { id: projectId },
       select: { id: true, workspaceId: true, spaceId: true }
-    }) as { id: string; workspaceId: string; spaceId: string | null } | null
+    })
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
