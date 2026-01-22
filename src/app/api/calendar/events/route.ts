@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/server/authOptions'
 import { google } from 'googleapis'
 
 // Helper function to extract meeting links from description or location
@@ -100,6 +100,15 @@ export async function GET(request: NextRequest) {
       return 'http://localhost:3000'
     }
 
+    // Check if Google OAuth credentials are configured
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      console.log('Google OAuth credentials not configured')
+      return NextResponse.json({ 
+        error: 'Google Calendar integration not configured',
+        needsAuth: true 
+      }, { status: 503 })
+    }
+
     const baseUrl = getBaseUrl()
     
     // Create OAuth2 client
@@ -109,10 +118,24 @@ export async function GET(request: NextRequest) {
       `${baseUrl}/api/auth/callback/google`
     )
 
-    // Set credentials
+    // Set credentials with automatic token refresh
     oauth2Client.setCredentials({
       access_token: session.accessToken,
       refresh_token: session.refreshToken,
+    })
+
+    // Handle token refresh automatically
+    oauth2Client.on('tokens', (tokens) => {
+      if (tokens.refresh_token) {
+        // Store new refresh token if provided
+        console.log('Token refreshed, new refresh_token provided')
+      }
+      if (tokens.access_token) {
+        // Update session with new access token
+        console.log('Token refreshed, new access_token provided')
+        // Note: In production, you'd want to update the session here
+        // For now, the token will be refreshed automatically on next request
+      }
     })
 
     // Create Calendar API instance

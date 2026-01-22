@@ -1,0 +1,40 @@
+
+ FAIL  tests/api/tasks.auth.spec.ts > Tasks API Auth > should create task with proper workspace scoping
+AssertionError: expected 401 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 401
+
+ ❯ tests/api/tasks.auth.spec.ts:159:29
+    157|     const response = await createTask(request)
+    158|     
+    159|     expect(response.status).toBe(200)
+       |                             ^
+    160|     const data = await response.json()
+    161|     expect(data.workspaceId).toBe('workspace-1')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/20]⎯
+
+ FAIL  tests/api/tasks.auth.spec.ts > Access Control > should allow dev bypass in development
+AssertionError: promise rejected "Error: Forbidden: User not member of work…" instead of resolving
+ ❯ tests/api/tasks.auth.spec.ts:219:7
+    217|       scope: 'workspace',
+    218|       requireRole: ['ADMIN']
+    219|     })).resolves.not.toThrow()
+       |       ^
+    220|   })
+    221| })
+
+Caused by: Error: Forbidden: User not member of workspace
+ ❯ Module.assertAccess src/lib/auth/assertAccess.ts:46:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/20]⎯
+
+ Test Files  4 failed | 11 passed | 1 skipped (16)
+      Tests  19 failed | 98 passed | 1 skipped (118)
+   Start at  11:02:41
+   Duration  3.68s (transform 707ms, setup 658ms, collect 2.16s, tests 3.57s, environment 2ms, prepare 947ms)
+

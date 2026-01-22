@@ -205,25 +205,10 @@ export default function ProjectsDashboard() {
         
         const bootstrap = await response.json()
         
-        // #region agent log
-        if (typeof window !== 'undefined') {
-          try {
-            fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:206',message:'Bootstrap data received',data:{hasBootstrap:!!bootstrap,hasProjects:!!bootstrap?.projects,projectsCount:bootstrap?.projects?.length,projectsType:typeof bootstrap?.projects},timestamp:Date.now(),sessionId:'debug-session',runId:'server-error',hypothesisId:'O'})}).catch(()=>{});
-          } catch(e) {}
-        }
-        // #endregion
-        
         // Set projects from bootstrap (epics/tasks loaded on-demand when viewing project detail)
         if (bootstrap?.projects && Array.isArray(bootstrap.projects)) {
           setProjects(bootstrap.projects)
         } else {
-          // #region agent log
-          if (typeof window !== 'undefined') {
-            try {
-              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:214',message:'Bootstrap projects invalid',data:{bootstrapType:typeof bootstrap,bootstrapKeys:Object.keys(bootstrap || {}),projectsType:typeof bootstrap?.projects},timestamp:Date.now(),sessionId:'debug-session',runId:'server-error',hypothesisId:'P'})}).catch(()=>{});
-            } catch(e) {}
-          }
-          // #endregion
           setProjects([])
         }
         
@@ -234,13 +219,6 @@ export default function ProjectsDashboard() {
         
       } catch (error: any) {
         console.error('Error loading data:', error)
-        // #region agent log
-        if (typeof window !== 'undefined') {
-          try {
-            fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:218',message:'Error loading bootstrap data',data:{errorMessage:error?.message,errorName:error?.name,errorStack:error?.stack?.split('\n').slice(0,3).join('|')},timestamp:Date.now(),sessionId:'debug-session',runId:'server-error',hypothesisId:'Q'})}).catch(()=>{});
-          } catch(e) {}
-        }
-        // #endregion
       } finally {
         setIsLoading(false)
       }
@@ -406,17 +384,8 @@ export default function ProjectsDashboard() {
                   {filteredProjects.map((project) => {
                     // Guard: Skip if project is undefined/null
                     if (!project) {
-                      // #region agent log
-                      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:382',message:'Project is null/undefined',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix2',hypothesisId:'A'})}).catch(()=>{});
-                      // #endregion
                       return null;
                     }
-                    
-                    // #region agent log
-                    try {
-                      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:382',message:'Project map entry',data:{projectId:project?.id,hasProject:!!project,hasCount:!!project?._count,countTasks:project?._count?.tasks,hasTasks:!!project?.tasks,tasksLength:project?.tasks?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix2',hypothesisId:'A'})}).catch(()=>{});
-                    } catch(e) {}
-                    // #endregion
                     
                     return (
                     <Card 
@@ -444,14 +413,6 @@ export default function ProjectsDashboard() {
                             const tasks = project?.tasks ?? [];
                             const done = tasks.filter(t => t.status === 'DONE').length;
                             const width = total > 0 ? (done / total) * 100 : 0;
-                            
-                            // #region agent log
-                            try {
-                              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:426',message:'Project progress calc (fixed)',data:{total,hasTasks:!!tasks,tasksLength:tasks.length,done,width},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
-                            } catch(e) {
-                              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:426',message:'Project progress calc error (fixed)',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'C'})}).catch(()=>{});
-                            }
-                            // #endregion
                             
                             return (
                               <>
@@ -484,12 +445,6 @@ export default function ProjectsDashboard() {
                               {(() => {
                                 // Safe access to members array
                                 const memberCount = project.members?.length ?? 0;
-                                
-                                // #region agent log
-                                try {
-                                  fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:460',message:'Project members count (fixed)',data:{projectId:project?.id,hasMembers:!!project?.members,memberCount},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix5',hypothesisId:'N'})}).catch(()=>{});
-                                } catch(e) {}
-                                // #endregion
                                 
                                 return memberCount;
                               })()}
@@ -574,12 +529,6 @@ export default function ProjectsDashboard() {
                             const progress = epic?.progress ?? 0;
                             const completedTasks = epic?.completedTasks ?? 0;
                             const taskCount = epic?.taskCount ?? 0;
-                            
-                            // #region agent log
-                            try {
-                              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:536',message:'Epic progress display (fixed)',data:{progress,completedTasks,taskCount},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix4',hypothesisId:'M'})}).catch(()=>{});
-                            } catch(e) {}
-                            // #endregion
                             
                             return (
                               <>
@@ -706,17 +655,8 @@ export default function ProjectsDashboard() {
                   {filteredEpics.map((epic) => {
                     // Guard: Skip if epic is undefined/null
                     if (!epic) {
-                      // #region agent log
-                      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:653',message:'Epic is null/undefined',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix2',hypothesisId:'D'})}).catch(()=>{});
-                      // #endregion
                       return null;
                     }
-                    
-                    // #region agent log
-                    try {
-                      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:653',message:'Epic map entry',data:{epicId:epic?.id,hasEpic:!!epic,hasCount:!!epic?._count,countTasks:epic?._count?.tasks,hasTasks:!!epic?.tasks,tasksLength:epic?.tasks?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix2',hypothesisId:'D'})}).catch(()=>{});
-                    } catch(e) {}
-                    // #endregion
                     
                     return (
                     <Card 
@@ -742,14 +682,6 @@ export default function ProjectsDashboard() {
                             const tasks = epic?.tasks ?? [];
                             const done = tasks.filter(t => t.status === 'DONE').length;
                             const width = total > 0 ? (done / total) * 100 : 0;
-                            
-                            // #region agent log
-                            try {
-                              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:675',message:'Epic progress calc (fixed)',data:{total,hasTasks:!!tasks,tasksLength:tasks.length,done,width},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'E'})}).catch(()=>{});
-                            } catch(e) {
-                              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/page.tsx:675',message:'Epic progress calc error (fixed)',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
-                            }
-                            // #endregion
                             
                             return (
                               <>

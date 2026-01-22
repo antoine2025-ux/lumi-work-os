@@ -1,5 +1,5 @@
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/server/authOptions'
 import { prisma } from '@/lib/db'
 
 export interface AuthResult {

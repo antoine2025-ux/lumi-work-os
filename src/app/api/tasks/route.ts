@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-errors'
 import { TaskCreateSchema } from '@/lib/pm/schemas'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
@@ -423,58 +424,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(task)
   } catch (error: unknown) {
-    logger.error('Error creating task', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      body: error instanceof Error ? undefined : error
-    })
-    console.error('Error creating task:', error)
-    
-    // Handle Zod validation errors
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({
-        error: 'Validation error',
-        details: error.issues
-      }, { status: 400 })
-    }
-    
-    // Handle Prisma foreign key constraint errors
-    if ((error as any).code === 'P2003') {
-      return NextResponse.json({ 
-        error: 'Invalid reference. Please check that the epic, project, or assignee exists and you have access to it.',
-        details: (error as any).meta
-      }, { status: 400 })
-    }
-    
-    // Handle Prisma unique constraint errors
-    if ((error as any).code === 'P2002') {
-      return NextResponse.json({ 
-        error: 'A task with this information already exists',
-        details: (error as any).meta
-      }, { status: 409 })
-    }
-    
-    // Handle auth errors
-    if (error instanceof Error && error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Project not found')) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Epic not found')) {
-      return NextResponse.json({ error: 'Epic not found' }, { status: 404 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to create task',
-      details: error instanceof Error ? error.message : String(error),
-      code: (error as any).code || undefined
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

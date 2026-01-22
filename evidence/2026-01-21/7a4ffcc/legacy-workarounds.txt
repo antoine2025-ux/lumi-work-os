@@ -1,0 +1,186 @@
+src/app/home/layout.tsx:62:    const logoutFlag = sessionStorage.getItem('__logout_flag__')
+src/app/home/layout.tsx:64:      sessionStorage.removeItem('__logout_flag__')
+src/app/org/people/PeoplePageClient.tsx:104:      const stored = localStorage.getItem("org.people.viewMode");
+src/app/org/people/PeoplePageClient.tsx:490:        localStorage.setItem("org.people.viewMode", mode);
+src/app/welcome/page.tsx:61:    if (sessionStorage.getItem('__redirect_stopped__') === 'true') {
+src/app/welcome/page.tsx:64:      sessionStorage.setItem('__workspace_id__', workspaceId)
+src/app/welcome/page.tsx:65:      sessionStorage.setItem('__has_workspace__', 'true')
+src/app/welcome/page.tsx:74:      sessionStorage.setItem('__workspace_id__', workspaceId)
+src/app/welcome/page.tsx:75:      sessionStorage.setItem('__has_workspace__', 'true')
+src/app/welcome/page.tsx:76:      sessionStorage.setItem('__redirect_stopped__', 'true')
+src/app/welcome/page.tsx:77:      sessionStorage.removeItem('__redirect_attempted__')
+src/app/welcome/page.tsx:144:                sessionStorage.setItem('__has_workspace__', 'true')
+src/app/welcome/page.tsx:145:                sessionStorage.setItem('__workspace_id__', workspaceData.workspaceId)
+src/app/welcome/page.tsx:146:                sessionStorage.removeItem('__redirect_attempted__') // Clear redirect flag
+src/app/welcome/page.tsx:157:          // No session or no email - try to get email from cookies/localStorage as fallback
+src/app/welcome/page.tsx:219:          sessionStorage.setItem('__skip_loader__', 'true')
+src/app/welcome/page.tsx:220:          sessionStorage.setItem('__workspace_just_created__', 'true')
+src/app/welcome/page.tsx:227:            localStorage.clear()
+src/app/force-workspace.ts:4:  if (sessionStorage.getItem('__redirect_stopped__') === 'true') {
+src/app/force-workspace.ts:5:    const workspaceId = sessionStorage.getItem('__workspace_id__') || 'ws_1765020555_4662b211'
+src/app/force-workspace.ts:6:    sessionStorage.setItem('__workspace_id__', workspaceId)
+src/app/force-workspace.ts:7:    sessionStorage.setItem('__has_workspace__', 'true')
+src/app/force-workspace.ts:11:  const redirectCount = parseInt(sessionStorage.getItem('__redirect_count__') || '0')
+src/app/force-workspace.ts:13:    sessionStorage.setItem('__redirect_stopped__', 'true')
+src/app/force-workspace.ts:14:    sessionStorage.setItem('__workspace_id__', 'ws_1765020555_4662b211')
+src/app/force-workspace.ts:15:    sessionStorage.setItem('__has_workspace__', 'true')
+src/app/layout.tsx:102:                  const redirectCount = parseInt(sessionStorage.getItem('__redirect_count__') || '0');
+src/app/layout.tsx:103:                  if (redirectCount >= 2 || sessionStorage.getItem('__redirect_stopped__') === 'true') {
+src/app/layout.tsx:104:                    sessionStorage.setItem('__redirect_stopped__', 'true');
+src/app/layout.tsx:105:                    sessionStorage.setItem('__workspace_id__', 'ws_1765020555_4662b211');
+src/app/layout.tsx:106:                    sessionStorage.setItem('__has_workspace__', 'true');
+src/app/layout.tsx:113:                  const savedTheme = localStorage.getItem('lumi-theme');
+src/app/layout.tsx:115:                    localStorage.removeItem('lumi-theme');
+src/app/(dashboard)/projects/[id]/page.tsx:157:  const { hints: localStorageHints, setHints: setLocalStorageHints } = useProjectSlackHints(projectId)
+src/app/(dashboard)/projects/[id]/page.tsx:158:  const channelHints = project?.slackChannelHints || localStorageHints || []
+src/app/(dashboard)/projects/[id]/page.tsx:166:        localStorageHints,
+src/app/(dashboard)/projects/[id]/page.tsx:167:        'localStorageHints.length': localStorageHints?.length || 0,
+src/app/(dashboard)/projects/[id]/page.tsx:173:      // Also check localStorage directly
+src/app/(dashboard)/projects/[id]/page.tsx:176:          const stored = localStorage.getItem('project-slack-hints')
+src/app/(dashboard)/projects/[id]/page.tsx:179:          console.log('[ProjectPage] localStorage check:', {
+src/app/(dashboard)/projects/[id]/page.tsx:188:          console.error('[ProjectPage] Error reading localStorage:', e)
+src/app/(dashboard)/projects/[id]/page.tsx:192:  }, [projectId, project, project?.slackChannelHints, localStorageHints, channelHints])
+src/app/(dashboard)/projects/[id]/page.tsx:255:        // Merge slackChannelHints from localStorage into project data
+src/app/(dashboard)/projects/[id]/page.tsx:257:        // So we need to merge them from localStorage to keep them visible
+src/app/(dashboard)/projects/[id]/page.tsx:265:          'from localStorage': storedHints,
+src/app/(dashboard)/projects/[id]/page.tsx:373:    // Save slackChannelHints to localStorage FIRST (before reloading project)
+src/app/(dashboard)/projects/[id]/page.tsx:375:      console.log('[ProjectPage] Saving slackChannelHints to localStorage:', updatedProject.slackChannelHints)
+src/app/(dashboard)/projects/[id]/page.tsx:376:      // Use the hook's setter to update both localStorage and component state
+src/app/(dashboard)/projects/[id]/page.tsx:381:    // Reload project to get fresh data (this will clear project.slackChannelHints, but localStorage should have it)
+src/app/(dashboard)/projects/[id]/page.tsx:400:        // Remove channel hints from localStorage
+src/app/(dashboard)/projects/[id]/page.tsx:519:  // Sync slackChannelHints from project response to localStorage when project loads
+src/app/(dashboard)/projects/[id]/page.tsx:520:  // Only sync if project has slackChannelHints (from PUT response) and they're different from localStorage
+src/app/(dashboard)/projects/[id]/page.tsx:524:      const currentHints = localStorageHints || []
+src/app/(dashboard)/projects/[id]/page.tsx:527:        console.log('[ProjectPage] Syncing slackChannelHints from project response to localStorage:', projectHints)
+src/app/(dashboard)/projects/[id]/page.tsx:531:  }, [project?.slackChannelHints, setLocalStorageHints, localStorageHints])
+src/app/(dashboard)/DashboardLayoutClient.tsx:47:  // Get workspace ID from userStatus OR sessionStorage (for redirect-stopped case)
+src/app/(dashboard)/DashboardLayoutClient.tsx:48:  const workspaceIdFromStorage = typeof window !== 'undefined' ? sessionStorage.getItem('__workspace_id__') : null;
+src/app/(dashboard)/DashboardLayoutClient.tsx:67:        sessionStorage.removeItem('__workspace_just_created__');
+src/app/(dashboard)/DashboardLayoutClient.tsx:68:        sessionStorage.removeItem('__skip_loader__');
+src/app/(dashboard)/DashboardLayoutClient.tsx:101:    const logoutFlag = sessionStorage.getItem('__logout_flag__');
+src/app/(dashboard)/DashboardLayoutClient.tsx:107:      sessionStorage.removeItem('__logout_flag__');
+src/app/(dashboard)/DashboardLayoutClient.tsx:135:  const redirectStopped = typeof window !== 'undefined' && sessionStorage.getItem('__redirect_stopped__') === 'true';
+src/app/(dashboard)/DashboardLayoutClient.tsx:136:  const hasWorkspaceInStorage = typeof window !== 'undefined' && !!sessionStorage.getItem('__workspace_id__');
+src/app/(dashboard)/wiki/[slug]/page.tsx:202:          const pendingDraft = sessionStorage.getItem('pendingPageDraft')
+src/app/(dashboard)/wiki/[slug]/page.tsx:228:                sessionStorage.removeItem('pendingPageDraft')
+src/app/(dashboard)/wiki/[slug]/page.tsx:247:                  sessionStorage.removeItem('pendingPageDraft')
+src/app/(dashboard)/wiki/[slug]/page.tsx:252:              sessionStorage.removeItem('pendingPageDraft')
+src/app/(dashboard)/wiki/[slug]/page.tsx:255:            console.log('ℹ️ No pending draft found in sessionStorage')
+src/app/(dashboard)/org-legacy/people/_components/auditLog.ts:32:  return safeParse(window.sessionStorage.getItem(LS_KEY));
+src/app/(dashboard)/org-legacy/people/_components/auditLog.ts:37:  window.sessionStorage.setItem(LS_KEY, JSON.stringify(entries));
+src/app/(dashboard)/org-legacy/people/_components/savedViews.ts:34:  return safeParse(window.localStorage.getItem(LS_KEY));
+src/app/(dashboard)/org-legacy/people/_components/savedViews.ts:39:  window.localStorage.setItem(LS_KEY, JSON.stringify(views));
+src/app/(dashboard)/invites/[token]/page.tsx:136:        // Clear sessionStorage flags that might interfere
+src/app/(dashboard)/invites/[token]/page.tsx:137:        sessionStorage.removeItem('__workspace_just_created__')
+src/app/(dashboard)/w/[workspaceSlug]/settings/page.tsx:357:      localStorage.removeItem('workspace-data')
+src/app/(dashboard)/w/[workspaceSlug]/settings/page.tsx:358:      sessionStorage.clear()
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:143:  const { hints: localStorageHints, setHints: setLocalStorageHints } = useProjectSlackHints(projectId)
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:144:  const channelHints = project?.slackChannelHints || localStorageHints || []
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:152:        localStorageHints,
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:153:        'localStorageHints.length': localStorageHints?.length || 0,
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:159:      // Also check localStorage directly
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:162:          const stored = localStorage.getItem('project-slack-hints')
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:165:          console.log('[ProjectPage] localStorage check:', {
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:174:          console.error('[ProjectPage] Error reading localStorage:', e)
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:178:  }, [projectId, project, project?.slackChannelHints, localStorageHints, channelHints])
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:329:    // Save slackChannelHints to localStorage FIRST (before reloading project)
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:331:      console.log('[ProjectPage] Saving slackChannelHints to localStorage:', updatedProject.slackChannelHints)
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:332:      // Use the hook's setter to update both localStorage and component state
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:337:    // Reload project to get fresh data (this will clear project.slackChannelHints, but localStorage should have it)
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:356:        // Remove channel hints from localStorage
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:475:  // Sync slackChannelHints from project response to localStorage when project loads
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:476:  // Only sync if project has slackChannelHints (from PUT response) and they're different from localStorage
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:480:      const currentHints = localStorageHints || []
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:483:        console.log('[ProjectPage] Syncing slackChannelHints from project response to localStorage:', projectHints)
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx:487:  }, [project?.slackChannelHints, setLocalStorageHints, localStorageHints])
+src/app/login/page.tsx:37:    const logoutFlag = sessionStorage.getItem('__logout_flag__')
+src/app/login/page.tsx:40:      sessionStorage.removeItem('__logout_flag__')
+src/app/login/page.tsx:76:    sessionStorage.removeItem('__logout_flag__')
+src/providers/user-status-provider.tsx:150:    if (typeof window !== 'undefined' && localStorage.getItem(captureKey)) {
+src/providers/user-status-provider.tsx:162:      localStorage.setItem(captureKey, 'true')
+src/components/theme-provider.tsx:25:      const savedTheme = localStorage.getItem('lumi-theme')
+src/components/theme-provider.tsx:27:        localStorage.removeItem('lumi-theme')
+src/components/auth-wrapper.tsx:51:    if (sessionStorage.getItem('__skip_loader__') === 'true') {
+src/components/auth-wrapper.tsx:52:      sessionStorage.removeItem('__skip_loader__')
+src/components/auth-wrapper.tsx:124:    sessionStorage.getItem('__skip_loader__') === 'true' || 
+src/components/auth-wrapper.tsx:125:    sessionStorage.getItem('__workspace_just_created__') === 'true'
+src/components/org/people/SavedViewsDropdown.tsx:67:    const stored = localStorage.getItem(STORAGE_KEY);
+src/components/org/people/SavedViewsDropdown.tsx:80:    localStorage.setItem(STORAGE_KEY, JSON.stringify(userViews));
+src/components/org/structure/OrganizationStructureSection.tsx:30:  // Load view mode from localStorage after hydration
+src/components/org/structure/OrganizationStructureSection.tsx:33:    const saved = localStorage.getItem("orgStructureViewMode");
+src/components/org/structure/OrganizationStructureSection.tsx:39:  // Persist view mode to localStorage
+src/components/org/structure/OrganizationStructureSection.tsx:42:      localStorage.setItem("orgStructureViewMode", viewMode);
+src/components/loopbrain/assistant-context.tsx:47:    const stored = sessionStorage.getItem(STORAGE_KEY)
+src/components/loopbrain/assistant-context.tsx:72:      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+src/components/loopbrain/assistant-context.tsx:81:      sessionStorage.removeItem(STORAGE_KEY)
+src/components/layout/workspace-account-menu.tsx:133:    sessionStorage.setItem('__logout_flag__', 'true')
+src/components/layout/workspace-account-menu.tsx:136:    localStorage.clear()
+src/components/layout/workspace-account-menu.tsx:137:    // Don't clear sessionStorage completely - we need the flag!
+src/components/layout/workspace-account-menu.tsx:139:    Object.keys(sessionStorage).forEach(key => {
+src/components/layout/workspace-account-menu.tsx:141:        sessionStorage.removeItem(key)
+src/components/layout/header.tsx:288:                  sessionStorage.setItem('__logout_flag__', 'true')
+src/components/layout/header.tsx:291:                  localStorage.clear()
+src/components/layout/header.tsx:292:                  // Don't clear sessionStorage completely - we need the flag!
+src/components/layout/header.tsx:294:                  Object.keys(sessionStorage).forEach(key => {
+src/components/layout/header.tsx:296:                      sessionStorage.removeItem(key)
+src/components/projects/project-sidebar.tsx:174:  // Load collapsed state from localStorage
+src/components/projects/create-project-dialog.tsx:201:        // Save channel hints to localStorage (client-side only)
+src/components/projects/project-edit-dialog.tsx:133:        // Load channel hints from localStorage (fallback) or from project if it exists
+src/components/projects/project-edit-dialog.tsx:287:        // Save slackChannelHints to localStorage before calling onSave
+src/components/wiki/wiki-ai-assistant.tsx:1675:            console.log('💾 Storing draft info in sessionStorage:', pageCreationInfo)
+src/components/wiki/wiki-ai-assistant.tsx:1676:            sessionStorage.setItem('pendingPageDraft', JSON.stringify(pageCreationInfo))
+src/components/wiki/wiki-ai-assistant.tsx:1679:            const stored = sessionStorage.getItem('pendingPageDraft')
+src/components/kanban/kanban-board.tsx:542:      // Persist to localStorage
+src/components/kanban/kanban-board.tsx:551:      localStorage.setItem(`epic-collapse-${projectId}`, JSON.stringify(collapsedArray))
+src/components/kanban/kanban-board.tsx:553:      console.error('Failed to save collapse state to localStorage:', error)
+src/components/kanban/kanban-board.tsx:559:      const saved = localStorage.getItem(`epic-collapse-${projectId}`)
+src/components/kanban/kanban-board.tsx:565:      console.error('Failed to load collapse state from localStorage:', error)
+src/components/onboarding/workspace-onboarding-modal.tsx:140:        sessionStorage.setItem('__workspace_just_created__', 'true')
+src/components/onboarding/workspace-onboarding-modal.tsx:141:        sessionStorage.setItem('__skip_loader__', 'true')
+src/hooks/useShortlists.ts:16: * Persists shortlists to localStorage
+src/hooks/useShortlists.ts:22:  // Load from localStorage on mount (client-side only)
+src/hooks/useShortlists.ts:25:      const stored = localStorage.getItem(STORAGE_KEY);
+src/hooks/useShortlists.ts:40:  // Persist to localStorage (only after hydration)
+src/hooks/useShortlists.ts:44:      localStorage.setItem(STORAGE_KEY, JSON.stringify(shortlists));
+src/hooks/usePeopleSelection.ts:9: * Persists selected IDs to localStorage
+src/hooks/usePeopleSelection.ts:15:  // Load from localStorage on mount (client-side only)
+src/hooks/usePeopleSelection.ts:18:      const stored = localStorage.getItem(STORAGE_KEY);
+src/hooks/usePeopleSelection.ts:30:  // Persist to localStorage (only after hydration)
+src/hooks/usePeopleSelection.ts:35:        localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(selectedIds)));
+src/hooks/usePeopleSelection.ts:37:        localStorage.removeItem(STORAGE_KEY);
+src/hooks/use-feature-flags.tsx:56:    // Store in localStorage for persistence
+src/hooks/use-feature-flags.tsx:57:    localStorage.setItem(`feature_flag_${key}`, value.toString())
+src/hooks/use-feature-flags.tsx:64:  // Load flags from localStorage on mount
+src/hooks/use-feature-flags.tsx:67:      const stored = localStorage.getItem(`feature_flag_${key}`)
+src/lib/dev-cache-reset.ts:72:  // Clear browser localStorage (optional - be careful!)
+src/lib/dev-cache-reset.ts:73:  // Uncomment if you want to clear localStorage too
+src/lib/dev-cache-reset.ts:74:  // localStorage.clear()
+src/lib/dev-cache-reset.ts:75:  // console.log('✅ localStorage cleared')
+src/lib/dev-cache-reset.ts:77:  // Clear browser sessionStorage (optional - be careful!)
+src/lib/dev-cache-reset.ts:78:  // Uncomment if you want to clear sessionStorage too
+src/lib/dev-cache-reset.ts:79:  // sessionStorage.clear()
+src/lib/dev-cache-reset.ts:80:  // console.log('✅ sessionStorage cleared')
+src/lib/workspace-context.test.ts:11:// Mock localStorage for testing
+src/lib/workspace-context.test.ts:12:const localStorageMock = (() => {
+src/lib/workspace-context.test.ts:66:    localStorageMock.clear()
+src/lib/loopbrain/orchestrator-types.ts:58:  /** Client-side metadata (e.g., project Slack channel hints from localStorage) */
+src/lib/loopbrain/client.ts:100:  // Read client-side metadata (e.g., project Slack channel hints from localStorage)
+src/lib/loopbrain/client.ts:109:  // Use slackChannelHints from params if provided, otherwise fallback to localStorage
+src/lib/workspace-context.tsx:70:  // All localStorage access is guarded with typeof window !== 'undefined'
+src/lib/workspace-context.tsx:120:          // 1. localStorage.currentWorkspaceId (if valid and exists in workspaces)
+src/lib/workspace-context.tsx:126:            // SSR-safe: localStorage access only on client-side
+src/lib/workspace-context.tsx:129:              const savedWorkspaceId = localStorage.getItem('currentWorkspaceId')
+src/lib/workspace-context.tsx:148:            // SSR-safe: Persist to localStorage (client-side only, after state update)
+src/lib/workspace-context.tsx:150:              localStorage.setItem('currentWorkspaceId', selectedWorkspace.id)
+src/lib/workspace-context.tsx:156:            // SSR-safe: Clear localStorage (client-side only)
+src/lib/workspace-context.tsx:158:              localStorage.removeItem('currentWorkspaceId')
+src/lib/workspace-context.tsx:193:    // SSR-safe: Persist to localStorage (client-side only)
+src/lib/workspace-context.tsx:196:      localStorage.setItem('currentWorkspaceId', workspaceId)
+src/lib/client-state/project-slack-hints.ts:12: * Get all project hints from localStorage
+src/lib/client-state/project-slack-hints.ts:20:    const stored = localStorage.getItem(STORAGE_KEY)
+src/lib/client-state/project-slack-hints.ts:27:    console.error('Error reading project Slack hints from localStorage:', error)
+src/lib/client-state/project-slack-hints.ts:33: * Save all project hints to localStorage
+src/lib/client-state/project-slack-hints.ts:41:    localStorage.setItem(STORAGE_KEY, JSON.stringify(hints))
+src/lib/client-state/project-slack-hints.ts:43:    console.error('Error saving project Slack hints to localStorage:', error)
+src/lib/client-state/project-slack-hints.ts:81:  // Setter function that updates both state and localStorage
+src/lib/client-state/project-slack-hints.ts:89:      // Update localStorage

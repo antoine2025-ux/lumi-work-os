@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/server/authOptions'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'

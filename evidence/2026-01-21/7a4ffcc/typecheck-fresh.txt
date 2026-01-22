@@ -1,0 +1,100 @@
+
+> loopwell@0.1.0 typecheck
+> tsc --noEmit
+
+.next/types/validator.ts(144,31): error TS2344: Type 'typeof import("/Users/tonyem/lumi-work-os/src/app/(dashboard)/org-legacy/[orgId]/activity/exports/page")' does not satisfy the constraint 'AppPageConfig<"/org-legacy/[orgId]/activity/exports">'.
+  Property 'default' is missing in type 'typeof import("/Users/tonyem/lumi-work-os/src/app/(dashboard)/org-legacy/[orgId]/activity/exports/page")' but required in type 'AppPageConfig<"/org-legacy/[orgId]/activity/exports">'.
+.next/types/validator.ts(899,39): error TS2306: File '/Users/tonyem/lumi-work-os/src/app/org/dev/loopbrain-status/page.tsx' is not a module.
+prisma/seed/loopbrain_fixtures.ts(111,7): error TS2353: Object literal may only specify known properties, and 'workspaceId_departmentId_name' does not exist in type 'OrgTeamWhereUniqueInput'.
+prisma/seed/loopbrain_fixtures.ts(129,7): error TS2353: Object literal may only specify known properties, and 'workspaceId_departmentId_name' does not exist in type 'OrgTeamWhereUniqueInput'.
+prisma/seed/loopbrain_fixtures.ts(389,5): error TS2322: Type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' is not assignable to type '(Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput) | (Without<...> & PersonAvailabilityCreateInput)'.
+  Type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' is not assignable to type 'Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput'.
+    Property 'workspaceId' is missing in type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' but required in type 'PersonAvailabilityUncheckedCreateInput'.
+prisma/seed/loopbrain_fixtures.ts(400,5): error TS2322: Type '{ personId: string; type: "PARTIAL"; startDate: Date; endDate: Date; fraction: number; note: string; }' is not assignable to type '(Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput) | (Without<...> & PersonAvailabilityCreateInput)'.
+  Type '{ personId: string; type: "PARTIAL"; startDate: Date; endDate: Date; fraction: number; note: string; }' is not assignable to type 'Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput'.
+    Property 'workspaceId' is missing in type '{ personId: string; type: "PARTIAL"; startDate: Date; endDate: Date; fraction: number; note: string; }' but required in type 'PersonAvailabilityUncheckedCreateInput'.
+prisma/seed/org_golden_path.ts(244,5): error TS2322: Type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' is not assignable to type '(Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput) | (Without<...> & PersonAvailabilityCreateInput)'.
+  Type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' is not assignable to type 'Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput'.
+    Property 'workspaceId' is missing in type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' but required in type 'PersonAvailabilityUncheckedCreateInput'.
+src/app/(dashboard)/my-tasks/page.tsx(542,11): error TS2719: Type 'Task | null' is not assignable to type 'Task | null'. Two different types with this name exist, but they are unrelated.
+  Type 'Task' is missing the following properties from type 'Task': dependsOn, blocks
+src/app/(dashboard)/org-legacy/api/departments/route.ts(11,9): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"OrgDepartment"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"OrgDepartment"> | undefined'.
+src/app/(dashboard)/org-legacy/api/projects/[projectId]/accountability/route.ts(25,13): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"Project"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"Project"> | undefined'.
+src/app/(dashboard)/org-legacy/api/teams/route.ts(10,16): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"OrgTeam"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"OrgTeam"> | undefined'.
+src/app/(dashboard)/org-legacy/dev/OrgQaSmokePanel.tsx(30,7): error TS2741: Property 'stub' is missing in type '{ pass: string; partial: string; fail: string; }' but required in type 'Record<"fail" | "pass" | "partial" | "stub", string>'.
+src/app/(dashboard)/org-legacy/dev/OrgQaSmokePanel.tsx(36,7): error TS2741: Property 'stub' is missing in type '{ pass: string; partial: string; fail: string; }' but required in type 'Record<"fail" | "pass" | "partial" | "stub", string>'.
+src/app/(dashboard)/org-legacy/dev/OrgQaSmokePanel.tsx(129,15): error TS2322: Type '(questionIdToHighlight?: string | undefined) => Promise<void>' is not assignable to type 'MouseEventHandler<HTMLButtonElement>'.
+  Types of parameters 'questionIdToHighlight' and 'event' are incompatible.
+    Type 'MouseEvent<HTMLButtonElement, MouseEvent>' is not assignable to type 'string'.
+src/app/(dashboard)/org-legacy/members/page.tsx(98,6): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/app/(dashboard)/org-legacy/members/page.tsx(126,14): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/app/(dashboard)/org-legacy/members/page.tsx(446,28): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(250,18): error TS2304: Cannot find name 'onAddAvailability'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(308,8): error TS2304: Cannot find name 'onAddAvailability'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(313,19): error TS2304: Cannot find name 'onAddAvailability'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(318,8): error TS2304: Cannot find name 'onAddAllocation'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(318,37): error TS2304: Cannot find name 'projectOptions'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(322,21): error TS2304: Cannot find name 'projectOptions'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(324,19): error TS2304: Cannot find name 'onAddAllocation'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(143,25): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Type 'IssueRow' is not assignable to type '{ issue: { id: string; type: string; firstSeenAt: string; lastSeenAt: string; resolvedAt: null; }; person: any; impactScore: number; impactReason: string; }'.
+    The types of 'issue.resolvedAt' are incompatible between these types.
+      Type 'string | null' is not assignable to type 'null'.
+        Type 'string' is not assignable to type 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(177,43): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(207,25): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(208,45): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(220,11): error TS2304: Cannot find name 'load'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(304,66): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(339,19): error TS2304: Cannot find name 'setLoading'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(358,21): error TS2304: Cannot find name 'setLoading'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(361,17): error TS17001: JSX elements cannot have multiple attributes with the same name.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(476,42): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(477,50): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(478,37): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(479,53): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(480,46): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(483,36): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(483,67): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(484,19): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(486,21): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(488,21): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(490,21): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(495,25): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(501,38): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(510,58): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(511,44): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(522,28): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(522,45): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(525,29): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(525,47): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(541,22): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(541,53): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(544,35): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(546,26): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(547,93): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(548,30): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(563,40): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(579,55): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(591,40): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(593,60): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(704,25): error TS2304: Cannot find name 'onSyncIssues'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(705,29): error TS2304: Cannot find name 'onSyncIssues'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(843,21): error TS2304: Cannot find name 'setLoading'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(885,23): error TS2304: Cannot find name 'setLoading'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(888,29): error TS2304: Cannot find name 'loading'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(891,20): error TS2304: Cannot find name 'loading'.
+src/app/(dashboard)/org-legacy/people/_components/PersonProfileDrawer.tsx(520,28): error TS2304: Cannot find name 'orgId'.
+src/app/(dashboard)/org-legacy/people/_components/PersonProfileDrawer.tsx(526,45): error TS2304: Cannot find name 'orgId'.
+src/app/(dashboard)/org-legacy/projects/_components/EditProjectAccountabilityDrawer.tsx(43,31): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+src/app/(dashboard)/org-legacy/projects/_components/EditProjectAccountabilityDrawer.tsx(43,61): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+src/app/(dashboard)/org-legacy/projects/_components/EditProjectAccountabilityDrawer.tsx(75,22): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+src/app/(dashboard)/org-legacy/projects/_components/EditProjectAccountabilityDrawer.tsx(90,22): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.

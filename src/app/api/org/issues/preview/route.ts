@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { getOrgContext, requireEdit } from "@/server/rbac";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import crypto from "crypto";

@@ -1,0 +1,1668 @@
+
+> loopwell@0.1.0 build
+> prisma generate && next build
+
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+┌─────────────────────────────────────────────────────────┐
+│  Update available 6.19.1 -> 7.2.0                       │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+
+✔ Generated Prisma Client (v6.19.1) to ./node_modules/@prisma/client in 250ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+
+   ▲ Next.js 15.5.9
+   - Environments: .env.local, .env.production, .env
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+   Creating an optimized production build ...
+ ⚠ Compiled with warnings in 25.5s
+
+./src/components/wiki/tiptap-editor.tsx
+Attempted import error: '@tiptap/extension-table' does not contain a default export (imported as 'Table').
+
+Import trace for requested module:
+./src/components/wiki/tiptap-editor.tsx
+./src/components/wiki/wiki-editor-shell.tsx
+./src/app/(dashboard)/wiki/new/page.tsx
+
+./src/components/wiki/wiki-read-view.tsx
+Attempted import error: '@tiptap/extension-table' does not contain a default export (imported as 'Table').
+
+Import trace for requested module:
+./src/components/wiki/wiki-read-view.tsx
+./src/components/wiki/wiki-page-body.tsx
+./src/app/(dashboard)/wiki/[slug]/page.tsx
+
+./src/components/wiki/tiptap-editor.tsx
+Attempted import error: '@tiptap/extension-table' does not contain a default export (imported as 'Table').
+
+Import trace for requested module:
+./src/components/wiki/tiptap-editor.tsx
+./src/components/wiki/wiki-editor-shell.tsx
+./src/app/(dashboard)/wiki/new/page.tsx
+
+./src/components/wiki/wiki-read-view.tsx
+Attempted import error: '@tiptap/extension-table' does not contain a default export (imported as 'Table').
+
+Import trace for requested module:
+./src/components/wiki/wiki-read-view.tsx
+./src/components/wiki/wiki-page-body.tsx
+./src/app/(dashboard)/wiki/[slug]/page.tsx
+
+./src/app/api/invites/[token]/accept/route.ts
+Module not found: Can't resolve '@/lib/auth' in '/Users/tonyem/lumi-work-os/src/app/api/invites/[token]/accept'
+
+Import trace for requested module:
+./src/app/api/invites/[token]/accept/route.ts
+
+./src/server/mailer.ts
+Module not found: Can't resolve 'resend' in '/Users/tonyem/lumi-work-os/src/server'
+
+Import trace for requested module:
+./src/server/mailer.ts
+./src/app/api/org/invitations/route.ts
+
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+[BLOG DB] ✅ Blog Prisma Client configured for Supabase
+[BLOG DB] ✅ Blog Prisma Client configured for Supabase
+[BLOG DB] ✅ Blog Prisma Client configured for Supabase
+[BLOG DB] ✅ Blog Prisma Client configured for Supabase
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+[BLOG DB] ✅ Blog Prisma Client configured for Supabase
+   Generating static pages (0/323) ...
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+[BLOG DB] ✅ Blog Prisma Client configured for Supabase
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+   Generating static pages (80/323) 
+   Generating static pages (161/323) 
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+   Generating static pages (242/323) 
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+[BLOG DB] ✅ Blog Prisma Client configured for Supabase
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+[BLOG DB] ✅ Blog Prisma Client configured for Supabase
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+{"timestamp":"2026-01-21T08:45:59.204Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":6.89,"sessionDurationMs":6.87}}
+{"timestamp":"2026-01-21T08:45:59.247Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.87,"sessionDurationMs":0.87}}
+{"timestamp":"2026-01-21T08:45:59.253Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.59,"sessionDurationMs":0.59}}
+{"timestamp":"2026-01-21T08:45:59.259Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.75,"sessionDurationMs":0.75}}
+{"timestamp":"2026-01-21T08:45:59.267Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.88,"sessionDurationMs":0.88}}
+{"timestamp":"2026-01-21T08:45:59.278Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.45,"sessionDurationMs":0.45}}
+{"timestamp":"2026-01-21T08:45:59.284Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":1.15,"sessionDurationMs":1.15}}
+{"timestamp":"2026-01-21T08:45:59.327Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.61,"sessionDurationMs":0.61}}
+{"timestamp":"2026-01-21T08:45:59.342Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.38,"sessionDurationMs":0.38}}
+{"timestamp":"2026-01-21T08:45:59.361Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.44,"sessionDurationMs":0.44}}
+{"timestamp":"2026-01-21T08:45:59.362Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.34,"sessionDurationMs":0.33}}
+{"timestamp":"2026-01-21T08:45:59.363Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.31,"sessionDurationMs":0.31}}
+{"timestamp":"2026-01-21T08:45:59.364Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.29,"sessionDurationMs":0.29}}
+{"timestamp":"2026-01-21T08:45:59.366Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.36,"sessionDurationMs":0.36}}
+{"timestamp":"2026-01-21T08:45:59.407Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.41,"sessionDurationMs":0.41}}
+{"timestamp":"2026-01-21T08:45:59.408Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.39,"sessionDurationMs":0.39}}
+{"timestamp":"2026-01-21T08:45:59.410Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.39,"sessionDurationMs":0.39}}
+{"timestamp":"2026-01-21T08:45:59.411Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.32,"sessionDurationMs":0.31}}
+{"timestamp":"2026-01-21T08:45:59.412Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.31,"sessionDurationMs":0.31}}
+{"timestamp":"2026-01-21T08:45:59.414Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.73,"sessionDurationMs":0.73}}
+{"timestamp":"2026-01-21T08:45:59.416Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":1.46,"sessionDurationMs":1.45}}
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+Error getting session: Error: Dynamic server usage: Route /org/dev-smoke couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/dev-smoke couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/dev-smoke couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/dev-smoke couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org/people/new couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/people/new couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async o (.next/server/chunks/8531.js:1:3123)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/people/new couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/people/new couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org/people couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/people couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/people couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/people couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org/qa-visual couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/qa-visual couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async o (.next/server/chunks/8531.js:1:3123)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/qa-visual couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/qa-visual couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org/settings couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/settings couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/settings couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/settings couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org/insights couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/insights couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/insights couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/insights couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/dev/context couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/dev/context couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/dev/context couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/dev/context couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+Error getting session: Error: Dynamic server usage: Route /org/activity couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/activity couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/activity couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/activity couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /dev/loopbrain-q4 couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /dev/loopbrain-q4 couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/dev/org-debug couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/dev/org-debug couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/dev/org-debug couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/dev/org-debug couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/executive couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/executive couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/executive couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/executive couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/dev/org-qa couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/dev/org-qa couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/dev/org-qa couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/dev/org-qa couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/departments couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/departments couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/departments couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/departments couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/projects couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/projects couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/projects couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/projects couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/roles couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/roles couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/roles couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/roles couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/role-cards couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/role-cards couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/role-cards couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/role-cards couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/settings/members couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/settings/members couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/settings/members couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/settings/members couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/test-qna couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/test-qna couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/test-qna couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/test-qna couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/teams couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/teams couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/teams couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/teams couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/settings/archived-people couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/settings/archived-people couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/settings/archived-people couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/settings/archived-people couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /ask couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /ask couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /dashboard-grid couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /dashboard-grid couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /dashboard-minimal couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /dashboard-minimal couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /migrations/review couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /migrations/review couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /dashboard-sidebar couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /dashboard-sidebar couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /dashboard-original couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /dashboard-original couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /projects/new couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /projects/new couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /projects couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /projects couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /my-tasks couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /my-tasks couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /test-context couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /test-context couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /realtime-test couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /realtime-test couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /test-embed couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /test-embed couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /realtime-demo couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /realtime-demo couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /settings couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /settings couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /dashboard-compact couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /dashboard-compact couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /test-search-options couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /test-search-options couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /todos couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /todos couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/settings/invitations couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/settings/invitations couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/settings/invitations couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/settings/invitations couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /wiki/embed-demo couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /wiki/embed-demo couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /org-legacy/settings/loopbrain couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /org-legacy/settings/loopbrain couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org-legacy/settings/loopbrain couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at k (.next/server/chunks/51979.js:1:2957) {
+  description: "Route /org-legacy/settings/loopbrain couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async k (.next/server/chunks/51979.js:1:2943)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /wiki/home couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /wiki/home couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /wiki/search couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /wiki/search couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org/dev/loopbrain-status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/dev/loopbrain-status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async o (.next/server/chunks/8531.js:1:3123)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/dev/loopbrain-status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/dev/loopbrain-status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /wiki/team-workspace couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /wiki/team-workspace couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /wiki/personal-space couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /wiki/personal-space couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org/dev couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/dev couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async o (.next/server/chunks/8531.js:1:3123)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/dev couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/dev couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+{"timestamp":"2026-01-21T08:45:59.419Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.44,"sessionDurationMs":0.44}}
+{"timestamp":"2026-01-21T08:45:59.472Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.44,"sessionDurationMs":0.44}}
+{"timestamp":"2026-01-21T08:45:59.479Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.43,"sessionDurationMs":0.43}}
+{"timestamp":"2026-01-21T08:45:59.491Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.33,"sessionDurationMs":0.33}}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /wiki-enhanced couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /wiki-enhanced couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org/diagnostics couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/diagnostics couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/diagnostics couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/diagnostics couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org/intelligence/drilldowns couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/intelligence/drilldowns couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async o (.next/server/chunks/8531.js:1:3123)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/intelligence/drilldowns couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/intelligence/drilldowns couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error getting session: Error: Dynamic server usage: Route /org/intelligence couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at j (.next/server/chunks/99489.js:1:1107)
+    at e (.next/server/chunks/47189.js:1:2350)
+    at <unknown> (.next/server/chunks/47189.js:1:4617)
+    at o (.next/server/chunks/8531.js:1:3137) {
+  description: "Route /org/intelligence couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getCurrentUserId] Failed to get user ID: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at j (.next/server/chunks/99489.js:1:1387)
+    at async e (.next/server/chunks/47189.js:1:2336)
+    at async (.next/server/chunks/47189.js:1:4604)
+    at async o (.next/server/chunks/8531.js:1:3123)
+[OrgLayout] Unexpected error checking user: Error: Dynamic server usage: Route /org/intelligence couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at o (.next/server/chunks/8531.js:1:3227) {
+  description: "Route /org/intelligence couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+{"timestamp":"2026-01-21T08:45:59.504Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.45,"sessionDurationMs":0.44}}
+{"timestamp":"2026-01-21T08:45:59.511Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.35,"sessionDurationMs":0.35}}
+{"timestamp":"2026-01-21T08:45:59.513Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"server-component","durationMs":0.24,"sessionDurationMs":0.24}}
+ ✓ Generating static pages (323/323)
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /wiki couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /wiki couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[getActiveOrgContext] Error: Error: Dynamic server usage: Route /wiki/new couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at s (.next/server/chunks/95873.js:1:23407)
+    at m (.next/server/chunks/86802.js:1:11078)
+    at h (.next/server/chunks/34963.js:1:2619)
+    at h (.next/server/chunks/91728.js:1:301)
+    at h (.next/server/chunks/91728.js:1:16654)
+    at stringify (<anonymous>) {
+  description: "Route /wiki/new couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                        Size  First Load JS
+┌ ○ /                                                             218 B         858 kB
+├ ○ /_not-found                                                   196 B         858 kB
+├ ○ /about                                                        125 B         858 kB
+├ ƒ /api/admin/invite                                             124 B         858 kB
+├ ƒ /api/admin/users                                              124 B         858 kB
+├ ƒ /api/admin/users/[id]                                         125 B         858 kB
+├ ƒ /api/ai/chat                                                  125 B         858 kB
+├ ƒ /api/ai/chat-sessions                                         125 B         858 kB
+├ ƒ /api/ai/chat-sessions/[id]                                    125 B         858 kB
+├ ƒ /api/ai/chat-sessions/[id]/messages                           125 B         858 kB
+├ ƒ /api/ai/chat-sessions/[id]/regenerate-title                   125 B         858 kB
+├ ƒ /api/ai/chat/stream                                           125 B         858 kB
+├ ƒ /api/ai/draft-page                                            125 B         858 kB
+├ ƒ /api/assistant                                                125 B         858 kB
+├ ƒ /api/assistant/create-project                                 125 B         858 kB
+├ ƒ /api/assistant/generate-draft                                 125 B         858 kB
+├ ƒ /api/assistant/history                                        124 B         858 kB
+├ ƒ /api/assistant/message                                        125 B         858 kB
+├ ƒ /api/assistant/publish                                        125 B         858 kB
+├ ƒ /api/assistant/session                                        125 B         858 kB
+├ ƒ /api/assistant/sessions                                       125 B         858 kB
+├ ƒ /api/assistant/sessions/[id]                                  125 B         858 kB
+├ ƒ /api/assistant/stream                                         125 B         858 kB
+├ ƒ /api/auth/[...nextauth]                                       125 B         858 kB
+├ ƒ /api/auth/check-workspace-by-email                            123 B         858 kB
+├ ○ /api/auth/error                                              1.5 kB         860 kB
+├ ƒ /api/auth/user-status                                         125 B         858 kB
+├ ƒ /api/blog/admin/login                                         125 B         858 kB
+├ ƒ /api/blog/admin/posts                                         125 B         858 kB
+├ ƒ /api/blog/admin/posts/[id]                                    125 B         858 kB
+├ ƒ /api/blog/posts                                               124 B         858 kB
+├ ƒ /api/blog/test/[slug]                                         125 B         858 kB
+├ ƒ /api/calendar/events                                          125 B         858 kB
+├ ƒ /api/dashboard/bootstrap                                      125 B         858 kB
+├ ƒ /api/debug/db                                                 125 B         858 kB
+├ ƒ /api/debug/env                                                125 B         858 kB
+├ ƒ /api/debug/org-department                                     125 B         858 kB
+├ ƒ /api/debug/org-department-fields                              125 B         858 kB
+├ ƒ /api/debug/prisma-models                                      125 B         858 kB
+├ ƒ /api/dev-login                                                125 B         858 kB
+├ ƒ /api/dev/clear-cache                                          125 B         858 kB
+├ ƒ /api/dev/loopbrain-org-context                                164 B         858 kB
+├ ƒ /api/dev/org-context-health                                   125 B         858 kB
+├ ƒ /api/dev/org-context-preview                                  123 B         858 kB
+├ ƒ /api/dev/org-context-sync                                     125 B         858 kB
+├ ƒ /api/dev/org-context-sync-entity                              125 B         858 kB
+├ ƒ /api/dev/org-debug                                            125 B         858 kB
+├ ƒ /api/dev/org-loopbrain/context-snapshot                       125 B         858 kB
+├ ƒ /api/dev/org-loopbrain/relations-debug                        124 B         858 kB
+├ ƒ /api/dev/org-qa                                               125 B         858 kB
+├ ƒ /api/dev/org-self-test                                        124 B         858 kB
+├ ƒ /api/dev/org-telemetry                                        125 B         858 kB
+├ ƒ /api/dev/org/qa-export                                        125 B         858 kB
+├ ƒ /api/dev/org/roles                                            125 B         858 kB
+├ ƒ /api/e2e-auth                                                 125 B         858 kB
+├ ƒ /api/embeds/airtable                                          125 B         858 kB
+├ ƒ /api/embeds/asana                                             125 B         858 kB
+├ ƒ /api/embeds/drawio                                            125 B         858 kB
+├ ƒ /api/embeds/figma                                             125 B         858 kB
+├ ƒ /api/embeds/generic                                           125 B         858 kB
+├ ƒ /api/embeds/github                                            124 B         858 kB
+├ ƒ /api/embeds/link-card                                         124 B         858 kB
+├ ƒ /api/embeds/miro                                              125 B         858 kB
+├ ƒ /api/feature-flags                                            125 B         858 kB
+├ ƒ /api/health                                                   125 B         858 kB
+├ ƒ /api/integrations/slack                                       125 B         858 kB
+├ ƒ /api/integrations/slack/callback                              125 B         858 kB
+├ ƒ /api/integrations/slack/channels                              125 B         858 kB
+├ ƒ /api/integrations/slack/connect                               125 B         858 kB
+├ ƒ /api/integrations/slack/send                                  125 B         858 kB
+├ ƒ /api/internal/org-context-diagnostics                         125 B         858 kB
+├ ƒ /api/invites/[token]/accept                                   125 B         858 kB
+├ ƒ /api/loopbrain/actions                                        125 B         858 kB
+├ ƒ /api/loopbrain/chat                                           125 B         858 kB
+├ ƒ /api/loopbrain/context                                        125 B         858 kB
+├ ƒ /api/loopbrain/index-health                                   125 B         858 kB
+├ ƒ /api/loopbrain/org/ask                                        125 B         858 kB
+├ ƒ /api/loopbrain/org/context/bundle                             125 B         858 kB
+├ ƒ /api/loopbrain/org/context/sync                               125 B         858 kB
+├ ƒ /api/loopbrain/org/debug                                      124 B         858 kB
+├ ƒ /api/loopbrain/org/prompt-compose                             125 B         858 kB
+├ ƒ /api/loopbrain/org/prompt-debug                               125 B         858 kB
+├ ƒ /api/loopbrain/org/q3                                         125 B         858 kB
+├ ƒ /api/loopbrain/org/q4                                         125 B         858 kB
+├ ƒ /api/loopbrain/org/qa/run/[id]                                125 B         858 kB
+├ ƒ /api/loopbrain/org/qa/smoke                                   125 B         858 kB
+├ ƒ /api/loopbrain/org/qna                                        125 B         858 kB
+├ ƒ /api/loopbrain/org/qna/history                                125 B         858 kB
+├ ƒ /api/loopbrain/q1                                             125 B         858 kB
+├ ƒ /api/loopbrain/q2                                             125 B         858 kB
+├ ƒ /api/loopbrain/q5                                             125 B         858 kB
+├ ƒ /api/loopbrain/q6                                             125 B         858 kB
+├ ƒ /api/loopbrain/q7                                             125 B         858 kB
+├ ƒ /api/loopbrain/q8                                             124 B         858 kB
+├ ƒ /api/loopbrain/q9                                             124 B         858 kB
+├ ƒ /api/loopbrain/search                                         125 B         858 kB
+├ ƒ /api/migrations                                               125 B         858 kB
+├ ƒ /api/migrations/blog                                          125 B         858 kB
+├ ƒ /api/migrations/import                                        125 B         858 kB
+├ ƒ /api/migrations/sessions                                      125 B         858 kB
+├ ƒ /api/my-tasks                                                 125 B         858 kB
+├ ƒ /api/newsletter/subscribe                                     125 B         858 kB
+├ ƒ /api/onboarding/generate                                      125 B         858 kB
+├ ƒ /api/onboarding/plans                                         125 B         858 kB
+├ ƒ /api/onboarding/plans/[id]                                    125 B         858 kB
+├ ƒ /api/onboarding/tasks/[id]                                    125 B         858 kB
+├ ƒ /api/onboarding/templates                                     125 B         858 kB
+├ ƒ /api/onboarding/templates/[id]                                125 B         858 kB
+├ ƒ /api/ops/client-error                                         124 B         858 kB
+├ ƒ /api/org/activity                                             125 B         858 kB
+├ ƒ /api/org/activity/export                                      125 B         858 kB
+├ ƒ /api/org/audit                                                124 B         858 kB
+├ ƒ /api/org/chart                                                125 B         858 kB
+├ ƒ /api/org/contracts/snapshot-v1                                125 B         858 kB
+├ ƒ /api/org/current                                              125 B         858 kB
+├ ƒ /api/org/custom-roles                                         125 B         858 kB
+├ ƒ /api/org/custom-roles/[roleId]                                124 B         858 kB
+├ ƒ /api/org/danger                                               125 B         858 kB
+├ ƒ /api/org/data-quality/adjust-allocation                       125 B         858 kB
+├ ƒ /api/org/data-quality/refresh-availability                    125 B         858 kB
+├ ƒ /api/org/data-quality/resolve-manager-conflicts               125 B         858 kB
+├ ƒ /api/org/debug-permissions                                    124 B         858 kB
+├ ƒ /api/org/debug/full                                           125 B         858 kB
+├ ƒ /api/org/default-view                                         125 B         858 kB
+├ ƒ /api/org/delete                                               125 B         858 kB
+├ ƒ /api/org/departments                                          125 B         858 kB
+├ ƒ /api/org/departments/[id]                                     125 B         858 kB
+├ ƒ /api/org/digest/config                                        125 B         858 kB
+├ ƒ /api/org/digest/preview                                       125 B         858 kB
+├ ƒ /api/org/domains                                              125 B         858 kB
+├ ƒ /api/org/duplicates                                           125 B         858 kB
+├ ƒ /api/org/duplicates/dismiss                                   124 B         858 kB
+├ ƒ /api/org/duplicates/merge                                     125 B         858 kB
+├ ƒ /api/org/duplicates/sync                                      125 B         858 kB
+├ ƒ /api/org/duplicates/undo                                      124 B         858 kB
+├ ƒ /api/org/entities                                             125 B         858 kB
+├ ƒ /api/org/fix-events                                           125 B         858 kB
+├ ƒ /api/org/flags                                                125 B         858 kB
+├ ƒ /api/org/guidance                                             125 B         858 kB
+├ ƒ /api/org/health                                               125 B         858 kB
+├ ƒ /api/org/health/capacity                                      125 B         858 kB
+├ ƒ /api/org/health/management-load                               123 B         858 kB
+├ ƒ /api/org/health/measure                                       125 B         858 kB
+├ ƒ /api/org/health/minimal                                       125 B         858 kB
+├ ƒ /api/org/health/ownership                                     125 B         858 kB
+├ ƒ /api/org/health/setup                                         125 B         858 kB
+├ ƒ /api/org/health/signals/[id]                                  124 B         858 kB
+├ ƒ /api/org/import/apply                                         125 B         858 kB
+├ ƒ /api/org/import/preview                                       125 B         858 kB
+├ ƒ /api/org/insights                                             125 B         858 kB
+├ ƒ /api/org/insights/overview                                    125 B         858 kB
+├ ƒ /api/org/integrity                                            125 B         858 kB
+├ ƒ /api/org/integrity/resolution                                 125 B         858 kB
+├ ƒ /api/org/intelligence                                         125 B         858 kB
+├ ƒ /api/org/intelligence/recommendations/latest                  125 B         858 kB
+├ ƒ /api/org/intelligence/settings                                125 B         858 kB
+├ ƒ /api/org/intelligence/snapshots                               125 B         858 kB
+├ ƒ /api/org/intelligence/snapshots/[snapshotId]                  125 B         858 kB
+├ ƒ /api/org/intelligence/snapshots/create                        125 B         858 kB
+├ ƒ /api/org/intelligence/snapshots/latest                        125 B         858 kB
+├ ƒ /api/org/invitations                                          125 B         858 kB
+├ ƒ /api/org/invitations/accept                                   124 B         858 kB
+├ ƒ /api/org/invitations/cancel                                   124 B         858 kB
+├ ƒ /api/org/invitations/create                                   125 B         858 kB
+├ ƒ /api/org/invitations/resend                                   124 B         858 kB
+├ ƒ /api/org/invitations/resolve                                  125 B         858 kB
+├ ƒ /api/org/invitations/respond                                  124 B         858 kB
+├ ƒ /api/org/invitations/revoke                                   125 B         858 kB
+├ ƒ /api/org/issues                                               125 B         858 kB
+├ ƒ /api/org/issues/apply                                         125 B         858 kB
+├ ƒ /api/org/issues/preview                                       125 B         858 kB
+├ ƒ /api/org/issues/sync                                          125 B         858 kB
+├ ƒ /api/org/list                                                 125 B         858 kB
+├ ƒ /api/org/loopbrain/context                                    125 B         858 kB
+├ ƒ /api/org/loopbrain/engines                                    125 B         858 kB
+├ ƒ /api/org/loopbrain/feedback                                   125 B         858 kB
+├ ƒ /api/org/loopbrain/health                                     125 B         858 kB
+├ ƒ /api/org/loopbrain/metrics                                    124 B         858 kB
+├ ƒ /api/org/loopbrain/rollout                                    125 B         858 kB
+├ ƒ /api/org/maintenance/dedup                                    125 B         858 kB
+├ ƒ /api/org/management/link                                      125 B         858 kB
+├ ƒ /api/org/members                                              125 B         858 kB
+├ ƒ /api/org/members/[memberId]/custom-role                       125 B         858 kB
+├ ƒ /api/org/members/leave                                        125 B         858 kB
+├ ƒ /api/org/members/remove                                       125 B         858 kB
+├ ƒ /api/org/members/update-role                                  125 B         858 kB
+├ ƒ /api/org/merges                                               125 B         858 kB
+├ ƒ /api/org/onboarding/complete                                  125 B         858 kB
+├ ƒ /api/org/overview                                             125 B         858 kB
+├ ƒ /api/org/ownership                                            125 B         858 kB
+├ ƒ /api/org/ownership/assign                                     125 B         858 kB
+├ ƒ /api/org/ownership/bulk-assign                                125 B         858 kB
+├ ƒ /api/org/ownership/transfer                                   125 B         858 kB
+├ ƒ /api/org/ownership/unowned                                    125 B         858 kB
+├ ƒ /api/org/people                                               125 B         858 kB
+├ ƒ /api/org/people/[personId]                                    124 B         858 kB
+├ ƒ /api/org/people/[personId]/archive                            125 B         858 kB
+├ ƒ /api/org/people/[personId]/availability                       125 B         858 kB
+├ ƒ /api/org/people/[personId]/availability-derived               125 B         858 kB
+├ ƒ /api/org/people/[personId]/availability-windows               124 B         858 kB
+├ ƒ /api/org/people/[personId]/availability-windows/[windowId]    125 B         858 kB
+├ ƒ /api/org/people/[personId]/employment                         125 B         858 kB
+├ ƒ /api/org/people/[personId]/manager                            125 B         858 kB
+├ ƒ /api/org/people/[personId]/name                               125 B         858 kB
+├ ƒ /api/org/people/[personId]/skills                             125 B         858 kB
+├ ƒ /api/org/people/[personId]/skills/[personSkillId]             125 B         858 kB
+├ ƒ /api/org/people/[personId]/team                               125 B         858 kB
+├ ƒ /api/org/people/[personId]/title                              124 B         858 kB
+├ ƒ /api/org/people/[personId]/unarchive                          125 B         858 kB
+├ ƒ /api/org/people/[personId]/update                             125 B         858 kB
+├ ƒ /api/org/people/archived                                      125 B         858 kB
+├ ƒ /api/org/people/archived/restore                              124 B         858 kB
+├ ƒ /api/org/people/availability                                  125 B         858 kB
+├ ƒ /api/org/people/bulk                                          125 B         858 kB
+├ ƒ /api/org/people/create                                        125 B         858 kB
+├ ƒ /api/org/people/directory                                     125 B         858 kB
+├ ƒ /api/org/people/export                                        125 B         858 kB
+├ ƒ /api/org/people/health                                        125 B         858 kB
+├ ƒ /api/org/people/manager                                       125 B         858 kB
+├ ƒ /api/org/people/manager/edge                                  125 B         858 kB
+├ ƒ /api/org/people/profile                                       125 B         858 kB
+├ ƒ /api/org/people/roles                                         125 B         858 kB
+├ ƒ /api/org/people/structure                                     125 B         858 kB
+├ ƒ /api/org/people/structure/detail                              125 B         858 kB
+├ ƒ /api/org/people/structure/validate                            125 B         858 kB
+├ ƒ /api/org/people/update                                        125 B         858 kB
+├ ƒ /api/org/people/update-profile                                123 B         858 kB
+├ ƒ /api/org/permissions                                          125 B         858 kB
+├ ƒ /api/org/positions                                            125 B         858 kB
+├ ƒ /api/org/positions/[id]                                       125 B         858 kB
+├ ƒ /api/org/positions/[id]/invite                                125 B         858 kB
+├ ƒ /api/org/preferences                                          125 B         858 kB
+├ ƒ /api/org/preferences/get                                      125 B         858 kB
+├ ƒ /api/org/preferences/update                                   125 B         858 kB
+├ ƒ /api/org/projects                                             125 B         858 kB
+├ ƒ /api/org/rankings                                             125 B         858 kB
+├ ƒ /api/org/readiness                                            125 B         858 kB
+├ ƒ /api/org/role-cards/[id]/position                             125 B         858 kB
+├ ƒ /api/org/role-cards/[id]/skills                               124 B         858 kB
+├ ƒ /api/org/role-cards/[id]/skills/[roleCardSkillId]             125 B         858 kB
+├ ƒ /api/org/roles                                                124 B         858 kB
+├ ƒ /api/org/roles/[id]                                           125 B         858 kB
+├ ƒ /api/org/roles/assign                                         125 B         858 kB
+├ ƒ /api/org/roles/capabilities                                   125 B         858 kB
+├ ƒ /api/org/setup-status                                         125 B         858 kB
+├ ƒ /api/org/skills                                               125 B         858 kB
+├ ƒ /api/org/skills/[skillId]                                     125 B         858 kB
+├ ƒ /api/org/structure                                            125 B         858 kB
+├ ƒ /api/org/structure/availability                               125 B         858 kB
+├ ƒ /api/org/structure/departments                                125 B         858 kB
+├ ƒ /api/org/structure/departments/[departmentId]                 125 B         858 kB
+├ ƒ /api/org/structure/departments/[departmentId]/owner           125 B         858 kB
+├ ƒ /api/org/structure/departments/create                         123 B         858 kB
+├ ƒ /api/org/structure/teams/[teamId]                             125 B         858 kB
+├ ƒ /api/org/structure/teams/[teamId]/members/add                 125 B         858 kB
+├ ƒ /api/org/structure/teams/[teamId]/members/remove              125 B         858 kB
+├ ƒ /api/org/structure/teams/[teamId]/owner                       125 B         858 kB
+├ ƒ /api/org/structure/teams/create                               125 B         858 kB
+├ ƒ /api/org/switch                                               124 B         858 kB
+├ ƒ /api/org/systems                                              125 B         858 kB
+├ ƒ /api/org/taxonomy/roles                                       125 B         858 kB
+├ ƒ /api/org/taxonomy/skills                                      125 B         858 kB
+├ ƒ /api/org/taxonomy/upsert                                      125 B         858 kB
+├ ƒ /api/org/teams                                                125 B         858 kB
+├ ƒ /api/org/teams/[id]                                           125 B         858 kB
+├ ƒ /api/org/teams/[id]/department                                125 B         858 kB
+├ ƒ /api/org/teams/reorder                                        125 B         858 kB
+├ ƒ /api/org/teams/roles                                          125 B         858 kB
+├ ƒ /api/org/track                                                125 B         858 kB
+├ ƒ /api/org/users                                                125 B         858 kB
+├ ƒ /api/org/views                                                125 B         858 kB
+├ ƒ /api/org/views/[viewId]                                       125 B         858 kB
+├ ƒ /api/org/views/default                                        125 B         858 kB
+├ ƒ /api/org/views/pin                                            124 B         858 kB
+├ ƒ /api/project-spaces                                           124 B         858 kB
+├ ƒ /api/project-spaces/[id]                                      125 B         858 kB
+├ ƒ /api/project-spaces/[id]/members                              125 B         858 kB
+├ ƒ /api/project-spaces/[id]/members/[userId]                     125 B         858 kB
+├ ƒ /api/project-templates                                        125 B         858 kB
+├ ƒ /api/project-templates/[id]/apply                             125 B         858 kB
+├ ƒ /api/projects                                                 125 B         858 kB
+├ ƒ /api/projects-optimized                                       125 B         858 kB
+├ ƒ /api/projects/[projectId]                                     124 B         858 kB
+├ ƒ /api/projects/[projectId]/assignees                           125 B         858 kB
+├ ƒ /api/projects/[projectId]/custom-fields                       124 B         858 kB
+├ ƒ /api/projects/[projectId]/custom-fields/[fieldId]             124 B         858 kB
+├ ƒ /api/projects/[projectId]/daily-summaries                     125 B         858 kB
+├ ƒ /api/projects/[projectId]/daily-summary-settings              125 B         858 kB
+├ ƒ /api/projects/[projectId]/documentation                       125 B         858 kB
+├ ƒ /api/projects/[projectId]/documentation/[docId]               124 B         858 kB
+├ ƒ /api/projects/[projectId]/epics                               125 B         858 kB
+├ ƒ /api/projects/[projectId]/epics/[epicId]                      125 B         858 kB
+├ ƒ /api/projects/[projectId]/milestones                          125 B         858 kB
+├ ƒ /api/projects/[projectId]/milestones/[milestoneId]            125 B         858 kB
+├ ƒ /api/projects/[projectId]/reports                             125 B         858 kB
+├ ƒ /api/projects/[projectId]/tasks                               125 B         858 kB
+├ ƒ /api/role-cards                                               123 B         858 kB
+├ ƒ /api/search                                                   125 B         858 kB
+├ ƒ /api/socket                                                   125 B         858 kB
+├ ƒ /api/socketio                                                 125 B         858 kB
+├ ƒ /api/spaces                                                   125 B         858 kB
+├ ƒ /api/task-templates                                           125 B         858 kB
+├ ƒ /api/task-templates/[id]                                      125 B         858 kB
+├ ƒ /api/task-templates/[id]/apply                                125 B         858 kB
+├ ƒ /api/tasks                                                    124 B         858 kB
+├ ƒ /api/tasks/[id]                                               123 B         858 kB
+├ ƒ /api/tasks/[id]/assignments/epic                              125 B         858 kB
+├ ƒ /api/tasks/[id]/assignments/milestone                         125 B         858 kB
+├ ƒ /api/tasks/[id]/assignments/points                            125 B         858 kB
+├ ƒ /api/tasks/[id]/comments                                      125 B         858 kB
+├ ƒ /api/tasks/[id]/custom-fields                                 125 B         858 kB
+├ ƒ /api/tasks/[id]/dependencies                                  125 B         858 kB
+├ ƒ /api/tasks/[id]/subtasks                                      125 B         858 kB
+├ ƒ /api/test-auth                                                125 B         858 kB
+├ ƒ /api/test-db                                                  125 B         858 kB
+├ ƒ /api/test-projects                                            125 B         858 kB
+├ ƒ /api/test-slite-api                                           125 B         858 kB
+├ ƒ /api/test/workspace-creation                                  125 B         858 kB
+├ ƒ /api/todos                                                    125 B         858 kB
+├ ƒ /api/todos/[id]                                               125 B         858 kB
+├ ƒ /api/users                                                    125 B         858 kB
+├ ƒ /api/users/timezone                                           125 B         858 kB
+├ ƒ /api/waitlist/subscribe                                       125 B         858 kB
+├ ƒ /api/wiki/favorites                                           125 B         858 kB
+├ ƒ /api/wiki/favorites/check                                     125 B         858 kB
+├ ƒ /api/wiki/page-counts                                         125 B         858 kB
+├ ƒ /api/wiki/pages                                               125 B         858 kB
+├ ƒ /api/wiki/pages/[id]                                          125 B         858 kB
+├ ƒ /api/wiki/pages/[id]/favorite                                 125 B         858 kB
+├ ƒ /api/wiki/pages/[id]/upgrade                                  125 B         858 kB
+├ ƒ /api/wiki/pages/[id]/versions                                 125 B         858 kB
+├ ƒ /api/wiki/recent-pages                                        125 B         858 kB
+├ ƒ /api/wiki/search                                              123 B         858 kB
+├ ƒ /api/wiki/workspaces                                          125 B         858 kB
+├ ƒ /api/workspace-onboarding                                     125 B         858 kB
+├ ƒ /api/workspace-onboarding/templates/[id]                      124 B         858 kB
+├ ƒ /api/workspace/create                                         124 B         858 kB
+├ ƒ /api/workspaces                                               125 B         858 kB
+├ ƒ /api/workspaces/[workspaceId]                                 125 B         858 kB
+├ ƒ /api/workspaces/[workspaceId]/invites                         125 B         858 kB
+├ ƒ /api/workspaces/[workspaceId]/invites/[inviteId]              125 B         858 kB
+├ ƒ /api/workspaces/[workspaceId]/members                         125 B         858 kB
+├ ƒ /api/workspaces/[workspaceId]/user-role                       125 B         858 kB
+├ ƒ /ask                                                          485 B         859 kB
+├ ƒ /auth/callback                                                125 B         858 kB
+├ ○ /blog                                                        2.5 kB         861 kB
+├ ƒ /blog/[slug]                                                  125 B         858 kB
+├ ƒ /blog/admin                                                 1.47 kB         859 kB
+├ ƒ /blog/admin/[id]                                            2.04 kB         860 kB
+├ ƒ /blog/admin/new                                             1.94 kB         860 kB
+├ ○ /blog/dev-login                                             1.01 kB         859 kB
+├ ○ /cookie-policy                                                125 B         858 kB
+├ ƒ /dashboard-compact                                          3.33 kB         861 kB
+├ ƒ /dashboard-grid                                             3.35 kB         861 kB
+├ ƒ /dashboard-minimal                                          2.47 kB         860 kB
+├ ƒ /dashboard-original                                         3.42 kB         861 kB
+├ ƒ /dashboard-sidebar                                          3.66 kB         862 kB
+├ ○ /demo                                                       3.99 kB         862 kB
+├ ƒ /dev/loopbrain-q4                                             443 B         858 kB
+├ ○ /dev/loopbrain/org-context                                  1.87 kB         860 kB
+├ ƒ /dev/loopbrain/org-graph                                      125 B         858 kB
+├ ○ /dev/loopbrain/org-inspector                                2.77 kB         861 kB
+├ ○ /docs/org/getting-started                                     125 B         858 kB
+├ ○ /docs/org/insights                                            125 B         858 kB
+├ ○ /docs/org/roles                                               125 B         858 kB
+├ ○ /docs/org/structure                                           125 B         858 kB
+├ ○ /home                                                        3.3 kB         861 kB
+├ ƒ /invite/[token]                                               125 B         858 kB
+├ ƒ /invites/[token]                                            1.69 kB         860 kB
+├ ○ /landing                                                      163 B         858 kB
+├ ○ /landing-lab                                                7.65 kB         866 kB
+├ ○ /login                                                      2.54 kB         861 kB
+├ ƒ /migrations/review                                          2.29 kB         860 kB
+├ ƒ /my-tasks                                                   2.81 kB         861 kB
+├ ƒ /ops                                                        1.61 kB         860 kB
+├ ƒ /org                                                         3.9 kB         862 kB
+├ ƒ /org-legacy                                                   478 B         859 kB
+├ ƒ /org-legacy/[orgId]/activity                                  124 B         858 kB
+├ ƒ /org-legacy/[orgId]/activity/exports                          163 B         858 kB
+├ ƒ /org-legacy/api/departments                                   125 B         858 kB
+├ ƒ /org-legacy/api/dev/context                                   125 B         858 kB
+├ ƒ /org-legacy/api/dev/context/sync                              125 B         858 kB
+├ ƒ /org-legacy/api/projects/[projectId]/accountability           125 B         858 kB
+├ ƒ /org-legacy/api/teams                                         125 B         858 kB
+├ ƒ /org-legacy/chart                                           1.29 kB         859 kB
+├ ƒ /org-legacy/departments                                     1.44 kB         859 kB
+├ ƒ /org-legacy/departments/[id]                                1.01 kB         859 kB
+├ ƒ /org-legacy/dev/context                                     2.04 kB         860 kB
+├ ƒ /org-legacy/dev/org-debug                                   3.53 kB         862 kB
+├ ƒ /org-legacy/dev/org-qa                                      1.76 kB         860 kB
+├ ƒ /org-legacy/executive                                       1.49 kB         860 kB
+├ ƒ /org-legacy/invite/[token]                                  1.62 kB         860 kB
+├ ƒ /org-legacy/members                                         1.72 kB         860 kB
+├ ƒ /org-legacy/people/[id]                                     2.37 kB         860 kB
+├ ƒ /org-legacy/positions                                         125 B         858 kB
+├ ƒ /org-legacy/positions/[id]                                  1.22 kB         859 kB
+├ ƒ /org-legacy/projects                                        3.13 kB         861 kB
+├ ƒ /org-legacy/role-cards                                        125 B         858 kB
+├ ƒ /org-legacy/roles                                           2.01 kB         860 kB
+├ ƒ /org-legacy/settings/activity                                 124 B         858 kB
+├ ƒ /org-legacy/settings/archived-people                         1.6 kB         860 kB
+├ ƒ /org-legacy/settings/invitations                            2.52 kB         861 kB
+├ ƒ /org-legacy/settings/loopbrain                              2.81 kB         861 kB
+├ ƒ /org-legacy/settings/members                                  996 B         859 kB
+├ ƒ /org-legacy/teams                                             124 B         858 kB
+├ ƒ /org-legacy/teams/[id]                                      2.85 kB         861 kB
+├ ƒ /org-legacy/test-qna                                        1.72 kB         860 kB
+├ ƒ /org/activity                                                 963 B         859 kB
+├ ƒ /org/chart                                                  4.36 kB         862 kB
+├ ƒ /org/chart/departments/[departmentId]                         903 B         859 kB
+├ ƒ /org/dev                                                      125 B         858 kB
+├ ƒ /org/dev-smoke                                                125 B         858 kB
+├ ƒ /org/dev/loopbrain-status                                     124 B         858 kB
+├ ƒ /org/diagnostics                                              173 B         858 kB
+├ ƒ /org/insights                                               2.92 kB         861 kB
+├ ƒ /org/intelligence                                           4.42 kB         862 kB
+├ ƒ /org/intelligence/drilldowns                                1.19 kB         859 kB
+├ ƒ /org/intelligence/snapshots/[snapshotId]                     1.1 kB         859 kB
+├ ƒ /org/issues                                                 4.26 kB         862 kB
+├ ƒ /org/ownership                                              2.15 kB         860 kB
+├ ƒ /org/people                                                 4.58 kB         863 kB
+├ ƒ /org/people/[personId]                                      10.7 kB         869 kB
+├ ƒ /org/people/new                                              1.7 kB         860 kB
+├ ƒ /org/qa-visual                                                125 B         858 kB
+├ ƒ /org/settings                                               5.37 kB         863 kB
+├ ƒ /org/structure                                              2.86 kB         861 kB
+├ ƒ /org/structure/departments/[departmentId]                   3.03 kB         861 kB
+├ ƒ /org/structure/teams/[teamId]                               1.11 kB         859 kB
+├ ○ /presentation                                               7.95 kB         866 kB
+├ ƒ /projects                                                     482 B         859 kB
+├ ƒ /projects/[id]                                              5.27 kB         863 kB
+├ ƒ /projects/[id]/settings/custom-fields                       2.16 kB         860 kB
+├ ƒ /projects/[id]/tasks/[taskId]                               2.79 kB         861 kB
+├ ƒ /projects/[id]/tasks/new                                      520 B         859 kB
+├ ƒ /projects/new                                                 513 B         859 kB
+├ ƒ /realtime-demo                                              1.41 kB         859 kB
+├ ƒ /realtime-test                                              1.84 kB         860 kB
+├ ○ /robots.txt                                                   125 B         858 kB
+├ ƒ /settings                                                     481 B         859 kB
+├ ○ /sitemap.xml                                                  125 B         858 kB
+├ ○ /test                                                         124 B         858 kB
+├ ○ /test-calendar                                                793 B         859 kB
+├ ƒ /test-context                                                 605 B         859 kB
+├ ƒ /test-embed                                                 1.13 kB         859 kB
+├ ƒ /test-search-options                                         2.9 kB         861 kB
+├ ○ /test-slite                                                 1.54 kB         860 kB
+├ ƒ /todos                                                       2.5 kB         861 kB
+├ ƒ /w/[workspaceSlug]                                            486 B         859 kB
+├ ƒ /w/[workspaceSlug]/ask                                      4.53 kB         863 kB
+├ ƒ /w/[workspaceSlug]/org                                        17 kB         875 kB
+├ ƒ /w/[workspaceSlug]/projects                                 3.37 kB         861 kB
+├ ƒ /w/[workspaceSlug]/projects/[id]                            4.84 kB         863 kB
+├ ƒ /w/[workspaceSlug]/projects/[id]/settings/custom-fields     2.17 kB         860 kB
+├ ƒ /w/[workspaceSlug]/projects/[id]/tasks/[taskId]             2.79 kB         861 kB
+├ ƒ /w/[workspaceSlug]/projects/[id]/tasks/new                    520 B         859 kB
+├ ƒ /w/[workspaceSlug]/settings                                 7.92 kB         866 kB
+├ ○ /welcome                                                    4.24 kB         862 kB
+├ ƒ /wiki                                                       1.72 kB         860 kB
+├ ƒ /wiki-enhanced                                              4.05 kB         862 kB
+├ ƒ /wiki/[slug]                                                5.06 kB         863 kB
+├ ƒ /wiki/embed-demo                                            1.58 kB         860 kB
+├ ƒ /wiki/home                                                  3.43 kB         861 kB
+├ ƒ /wiki/new                                                   1.73 kB         860 kB
+├ ƒ /wiki/personal-space                                        2.49 kB         861 kB
+├ ƒ /wiki/search                                                2.94 kB         861 kB
+├ ƒ /wiki/team-workspace                                        2.39 kB         860 kB
+└ ƒ /wiki/workspace/[id]                                        2.57 kB         861 kB
++ First Load JS shared by all                                    858 kB
+  ├ chunks/common-ea55189c04ff642f.js                            513 kB
+  └ chunks/vendors-8f8afb0a9d0fea59.js                           343 kB
+  └ other shared chunks (total)                                 2.77 kB
+
+
+ƒ Middleware                                                    55.9 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

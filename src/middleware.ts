@@ -2,6 +2,41 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logger, extractRequestContext } from '@/lib/logger'
 import { getToken } from 'next-auth/jwt'
 
+/**
+ * Protected routes that require authentication.
+ * These routes will redirect to /login if user is not authenticated.
+ */
+const PROTECTED_ROUTES = [
+  '/home',
+  '/projects',
+  '/wiki',
+  '/todos',
+  '/settings',
+  '/my-tasks',
+  '/calendar',
+  '/ask',
+  '/org',
+]
+
+/**
+ * Public routes that should redirect authenticated users away.
+ */
+const AUTH_ROUTES = ['/login', '/register', '/signup']
+
+/**
+ * Check if a pathname matches any protected route prefix.
+ */
+function isProtectedRoute(pathname: string): boolean {
+  return PROTECTED_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))
+}
+
+/**
+ * Check if a pathname is an auth route (login/register).
+ */
+function isAuthRoute(pathname: string): boolean {
+  return AUTH_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))
+}
+
 export async function middleware(request: NextRequest) {
   const startTime = Date.now()
   const context = extractRequestContext(request)
@@ -13,8 +48,32 @@ export async function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-request-id', context.requestId!)
   
-  // Check for workspace slug in URL path (/w/[workspaceSlug]/...)
   const pathname = request.nextUrl.pathname
+  
+  // Get auth token (lightweight check)
+  const token = await getToken({ 
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET 
+  })
+  
+  const isAuthenticated = !!token
+  
+  // --- Protected Route Check ---
+  // If accessing a protected route without auth, redirect to login
+  if (isProtectedRoute(pathname) && !isAuthenticated) {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('callbackUrl', pathname + request.nextUrl.search)
+    return NextResponse.redirect(loginUrl)
+  }
+  
+  // --- Auth Route Check ---
+  // If authenticated user tries to access login/register, redirect to home
+  if (isAuthRoute(pathname) && isAuthenticated) {
+    return NextResponse.redirect(new URL('/home', request.url))
+  }
+  
+  // --- Workspace Slug Route Check ---
+  // Check for workspace slug in URL path (/w/[workspaceSlug]/...)
   const slugMatch = pathname.match(/^\/w\/([^\/]+)/)
   
   if (slugMatch) {
@@ -30,14 +89,7 @@ export async function middleware(request: NextRequest) {
       )
     }
     
-    // Check if user is authenticated (lightweight check)
-    // Full auth and membership validation happens in getUnifiedAuth
-    const token = await getToken({ 
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET 
-    })
-    
-    if (!token) {
+    if (!isAuthenticated) {
       // Not authenticated - redirect to login
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('callbackUrl', pathname)
@@ -81,6 +133,3 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 }
-
-
-

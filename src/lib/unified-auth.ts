@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { cookies } from 'next/headers'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/server/authOptions'
 import { prisma } from '@/lib/db'
 import { createDefaultWorkspaceForUser } from '@/lib/workspace-onboarding'
 import { getCachedAuth, setCachedAuth } from '@/lib/auth-cache'
@@ -126,7 +126,13 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
       workspaceMemberships: {
         take: 1,
         orderBy: { joinedAt: 'asc' },
-        include: {
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
+          // Exclude customRoleId as it may not exist in DB yet
           workspace: {
             select: { id: true, slug: true }
           }
@@ -146,7 +152,13 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
         workspaceMemberships: {
           take: 1,
           orderBy: { joinedAt: 'asc' },
-          include: {
+          select: {
+            id: true,
+            workspaceId: true,
+            userId: true,
+            role: true,
+            joinedAt: true,
+            // Exclude customRoleId as it may not exist in DB yet
             workspace: {
               select: { id: true, slug: true }
             }

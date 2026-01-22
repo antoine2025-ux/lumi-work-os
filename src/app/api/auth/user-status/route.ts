@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/simple-auth'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/server/authOptions'
 import { cache, CACHE_KEYS } from '@/lib/cache'
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
@@ -106,14 +106,14 @@ export async function GET(request: NextRequest) {
     // Fetch user role in workspace (if workspace exists)
     // Always set role to ensure it's included in response when workspaceId exists
     let userRole: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' = 'MEMBER' // Default to MEMBER for backward compatibility
-    if (auth.workspaceId) {
+    if (authUser.workspaceId) {
       try {
         const roleStartTime = performance.now()
         const membership = await prisma.workspaceMember.findUnique({
           where: {
             workspaceId_userId: {
-              workspaceId: auth.workspaceId,
-              userId: auth.user.userId
+              workspaceId: authUser.workspaceId,
+              userId: authUser.id
             }
           },
           select: {
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
           logger.debug('user-status role query (slow)', {
             ...baseContext,
             roleDurationMs: Math.round(roleDurationMs * 100) / 100,
-            workspaceIdHash: hashWorkspaceId(auth.workspaceId)
+            workspaceIdHash: hashWorkspaceId(authUser.workspaceId)
           })
         }
       } catch {
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
         // Don't log error details to avoid exposing sensitive data
         logger.debug('user-status role query (failed, defaulting to MEMBER)', {
           ...baseContext,
-          workspaceIdHash: hashWorkspaceId(auth.workspaceId)
+          workspaceIdHash: hashWorkspaceId(authUser.workspaceId)
         })
       }
     }

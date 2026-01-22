@@ -1,0 +1,6 @@
+# Legacy @/lib/prisma imports
+# Expected: 0 (all should use @/lib/db)
+
+Count: 0
+
+✅ PASS - No legacy imports found. All imports use @/lib/db

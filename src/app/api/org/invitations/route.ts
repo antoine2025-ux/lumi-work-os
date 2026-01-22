@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { getOrgContext, requireAdmin } from "@/server/rbac";
 import { sendEmail } from "@/server/mailer";
 import crypto from "crypto";

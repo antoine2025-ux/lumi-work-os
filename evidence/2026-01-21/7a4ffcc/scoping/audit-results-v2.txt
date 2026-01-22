@@ -1,0 +1,14 @@
+==============================================
+Workspace Scoping Audit - 2026-01-21
+==============================================
+
+=== CREATE OPERATIONS ===
+
+=== UPDATE OPERATIONS ===
+
+=== DELETE OPERATIONS ===
+
+=== SUMMARY ===
+CRITICAL = Write/Update/Delete without workspaceId or ID check
+HIGH = Uses ID but no explicit workspaceId filter
+OK = Has workspaceId in query

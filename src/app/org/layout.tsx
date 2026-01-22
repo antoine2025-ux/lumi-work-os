@@ -22,7 +22,7 @@ import { OrgCenterDisabled } from "@/components/org/OrgCenterDisabled";
 import { OrgAnnouncementBanner } from "@/components/org/OrgAnnouncementBanner";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/server/authOptions";
 
 type OrgLayoutProps = {
   children: ReactNode;

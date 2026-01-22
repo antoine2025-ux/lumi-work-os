@@ -1,7 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 
-const prisma = new PrismaClient()
+// Shared include for task queries
+const taskInclude = {
+  assignee: {
+    select: {
+      id: true,
+      name: true,
+      email: true
+    }
+  },
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true
+    }
+  },
+  project: {
+    select: {
+      id: true,
+      name: true,
+      color: true,
+      status: true
+    }
+  },
+  subtasks: {
+    include: {
+      assignee: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
+    },
+    orderBy: {
+      order: 'asc' as const
+    }
+  },
+  comments: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
+    },
+    orderBy: {
+      createdAt: 'desc' as const
+    }
+  },
+  _count: {
+    select: {
+      subtasks: true,
+      comments: true
+    }
+  }
+}
 
 // GET /api/tasks/[id] - Get a specific task
 export async function GET(
@@ -9,68 +69,26 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 1. Authenticate user
+    const auth = await getUnifiedAuth(request)
+    
+    // 2. Check workspace access
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['VIEWER'] // Read access
+    })
+
     const { id: taskId } = await params
 
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      include: {
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-            status: true
-          }
-        },
-        subtasks: {
-          include: {
-            assignee: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          },
-          orderBy: {
-            order: 'asc'
-          }
-        },
-        comments: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        },
-        _count: {
-          select: {
-            subtasks: true,
-            comments: true
-          }
-        }
-      }
+    // 3. Fetch task with workspace constraint
+    const task = await prisma.task.findFirst({
+      where: { 
+        id: taskId,
+        workspaceId: auth.workspaceId // Workspace isolation
+      },
+      include: taskInclude
     })
 
     if (!task) {
@@ -82,6 +100,17 @@ export async function GET(
     return NextResponse.json(task)
   } catch (error: unknown) {
     console.error('Error fetching task:', error)
+    
+    // Handle auth errors
+    if (error instanceof Error) {
+      if (error.message.includes('Unauthorized')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      if (error.message.includes('Forbidden')) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to fetch task' 
     }, { status: 500 })
@@ -94,6 +123,17 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 1. Authenticate user
+    const auth = await getUnifiedAuth(request)
+    
+    // 2. Check workspace access (MEMBER can update)
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER']
+    })
+
     const { id: taskId } = await params
     const body = await request.json()
     const { 
@@ -107,8 +147,23 @@ export async function PUT(
       completedAt
     } = body
 
+    // 3. Verify task exists in this workspace before updating
+    const existingTask = await prisma.task.findFirst({
+      where: { 
+        id: taskId,
+        workspaceId: auth.workspaceId
+      },
+      select: { id: true }
+    })
+
+    if (!existingTask) {
+      return NextResponse.json({ 
+        error: 'Task not found' 
+      }, { status: 404 })
+    }
+
     // Build update data object
-    const updateData: any = {}
+    const updateData: Record<string, unknown> = {}
     
     if (title !== undefined) updateData.title = title
     if (description !== undefined) updateData.description = description
@@ -129,72 +184,27 @@ export async function PUT(
       updateData.completedAt = null
     }
 
+    // 4. Update task (safe because we verified ownership above)
     const task = await prisma.task.update({
       where: { id: taskId },
       data: updateData,
-      include: {
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-            status: true
-          }
-        },
-        subtasks: {
-          include: {
-            assignee: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          },
-          orderBy: {
-            order: 'asc'
-          }
-        },
-        comments: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        },
-        _count: {
-          select: {
-            subtasks: true,
-            comments: true
-          }
-        }
-      }
+      include: taskInclude
     })
 
     return NextResponse.json(task)
   } catch (error: unknown) {
     console.error('Error updating task:', error)
+    
+    // Handle auth errors
+    if (error instanceof Error) {
+      if (error.message.includes('Unauthorized')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      if (error.message.includes('Forbidden')) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to update task',
       details: error instanceof Error ? error.message : String(error)
@@ -208,11 +218,26 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 1. Authenticate user
+    const auth = await getUnifiedAuth(request)
+    
+    // 2. Check workspace access (MEMBER can delete)
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER']
+    })
+
     const { id: taskId } = await params
 
-    // Check if task exists
-    const task = await prisma.task.findUnique({
-      where: { id: taskId }
+    // 3. Verify task exists in this workspace before deleting
+    const task = await prisma.task.findFirst({
+      where: { 
+        id: taskId,
+        workspaceId: auth.workspaceId
+      },
+      select: { id: true }
     })
 
     if (!task) {
@@ -221,7 +246,7 @@ export async function DELETE(
       }, { status: 404 })
     }
 
-    // Delete the task (cascade will handle subtasks and comments)
+    // 4. Delete the task (cascade will handle subtasks and comments)
     await prisma.task.delete({
       where: { id: taskId }
     })
@@ -231,6 +256,17 @@ export async function DELETE(
     })
   } catch (error: unknown) {
     console.error('Error deleting task:', error)
+    
+    // Handle auth errors
+    if (error instanceof Error) {
+      if (error.message.includes('Unauthorized')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      if (error.message.includes('Forbidden')) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to delete task',
       details: error instanceof Error ? error.message : String(error)

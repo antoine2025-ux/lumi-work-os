@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/server/authOptions'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
@@ -9,37 +9,16 @@ import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Use getUnifiedAuth for proper workspace context
+    const auth = await getUnifiedAuth(request)
+    const workspaceId = auth.workspaceId
 
-    // Ensure user exists in our database
-    const user = await prisma.user.upsert({
-      where: { email: session.user.email },
-      update: {},
-      create: {
-        email: session.user.email,
-        name: session.user.name || 'User',
-        image: session.user.image,
-        emailVerified: new Date(),
-      }
-    })
-
-    // Get user's workspace
-    const workspace = await prisma.workspace.findFirst({
-      where: {
-        members: {
-          some: { userId: user.id }
-        }
-      }
-    })
-
-    if (!workspace) {
+    if (!workspaceId) {
       return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
     }
 
-    const workspaceId = workspace.id
+    // Set workspace context for Prisma middleware
+    setWorkspaceContext(workspaceId)
 
     // Generate cache key
     const cacheKey = cache.generateKey(
@@ -100,7 +79,7 @@ export async function GET(request: NextRequest) {
             icon: 'file-text',
             description: 'Your personal knowledge space',
             is_private: true,
-            created_by_id: user.id
+            created_by_id: auth.user.userId
           }
         })
         console.log('✅ Created Personal Space')

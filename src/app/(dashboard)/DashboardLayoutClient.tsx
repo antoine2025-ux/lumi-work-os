@@ -1,12 +1,13 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context";
 import { TaskSidebar } from "@/components/tasks/task-sidebar";
+import { getRedirectDecisionWithCookie, isPublicRoute } from "@/lib/redirect-handler";
 
 // Lazy load Header to reduce initial bundle size and improve LCP
 const Header = dynamic(() => import("@/components/layout/header").then(mod => ({ default: mod.Header })), {
@@ -47,37 +48,18 @@ export function DashboardLayoutClient({
   const workspaceIdFromStorage = typeof window !== 'undefined' ? sessionStorage.getItem('__workspace_id__') : null;
   const workspaceId = userStatus?.workspaceId || workspaceIdFromStorage || null;
 
+  const pathname = usePathname();
+  const hasRedirected = useRef(false);
+  const prevPathname = useRef(pathname);
+
   // Handle workspace redirect
   useEffect(() => {
-    // HARD STOP: Check if redirects are stopped
-    if (sessionStorage.getItem('__redirect_stopped__') === 'true') {
-      // Set workspace ID if not set
-      if (!workspaceId) {
-        const storedWorkspaceId = sessionStorage.getItem('__workspace_id__') || 'ws_1765020555_4662b211';
-        setIsFirstTime(false);
-        // Don't set workspaceId state here, let the checkWorkspace handle it
-      }
-      return;
+    // Reset redirect flag when pathname changes
+    if (prevPathname.current !== pathname) {
+      hasRedirected.current = false;
+      prevPathname.current = pathname;
     }
-    
-    if (status === 'authenticated' && !isLoadingWorkspace && !workspaceId) {
-      const workspaceJustCreated = sessionStorage.getItem('__workspace_just_created__') === 'true';
-      const redirectCount = parseInt(sessionStorage.getItem('__redirect_count__') || '0');
-      
-      if (redirectCount >= 2) {
-        console.log('[DashboardLayout] Redirect limit reached, stopping');
-        sessionStorage.setItem('__redirect_stopped__', 'true');
-        sessionStorage.setItem('__workspace_id__', 'ws_1765020555_4662b211');
-        sessionStorage.setItem('__has_workspace__', 'true');
-        return;
-      }
-      
-      if (!workspaceJustCreated) {
-        sessionStorage.setItem('__redirect_count__', (redirectCount + 1).toString());
-        window.location.href = '/welcome';
-      }
-    }
-    
+
     if (userStatus) {
       setIsFirstTime(userStatus.isFirstTime || false);
       // Clear workspace creation flag if workspace is found
@@ -86,79 +68,46 @@ export function DashboardLayoutClient({
         sessionStorage.removeItem('__skip_loader__');
       }
     }
-  }, [status, isLoadingWorkspace, workspaceId, userStatus]);
 
-  // Re-enable auth redirect - but only check once per mount or when session actually changes
-  const hasCheckedAuth = useRef(false);
-  useEffect(() => {
-    // Skip if we've already checked and session hasn't meaningfully changed
-    if (hasCheckedAuth.current && status === 'authenticated' && session) {
+    // Skip redirect logic if already redirected
+    if (hasRedirected.current) {
       return;
     }
-    
-    if (status === "loading") return; // Still loading session
+
+    // Use centralized redirect handler
+    const decision = getRedirectDecisionWithCookie({
+      session,
+      sessionStatus: status,
+      workspaceId: workspaceId || null,
+      isFirstTime: userStatus?.isFirstTime || false,
+      pendingInvite: null, // Dashboard layout doesn't handle invites
+      pathname,
+      isLoading: isLoadingWorkspace,
+      error: null,
+    });
+
+    if (decision.shouldRedirect && decision.target) {
+      hasRedirected.current = true;
+      window.location.href = decision.target;
+    }
+  }, [status, isLoadingWorkspace, workspaceId, userStatus, pathname, session]);
+
+  // Auth redirect is now handled by centralized redirect handler above
+  // This effect is kept for logout flag handling only
+  useEffect(() => {
+    if (status === "loading") return;
     
     // Check for logout flag - if set, redirect to login immediately and clear flag
-    // BUT: Never redirect from People page
     const logoutFlag = sessionStorage.getItem('__logout_flag__');
     if (logoutFlag === 'true') {
-      // CRITICAL: Check if we're on People page - never redirect from there
-      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-      const isPeoplePage = currentPath === '/org/people';
-      const hasPeoplePageFlag = typeof window !== 'undefined' && 
-        sessionStorage.getItem('__people_page_no_redirect__') === 'true';
-      
-      if (isPeoplePage || hasPeoplePageFlag) {
-        console.log('[DashboardLayoutClient] People page detected - skipping logout redirect');
-        // Don't clear the logout flag - let it be handled later when not on People page
+      // Don't redirect from People page
+      if (pathname === '/org/people') {
         return;
       }
-      
       sessionStorage.removeItem('__logout_flag__');
       window.location.href = '/login';
-      return;
     }
-    
-    // Only redirect if we're actually unauthenticated (not just refetching)
-    // Add a small delay to avoid race conditions with session initialization
-    if (status === 'unauthenticated' && !session) {
-      // CRITICAL: Check if we're on People page - never redirect from there
-      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-      const isPeoplePage = currentPath === '/org/people';
-      const hasPeoplePageFlag = typeof window !== 'undefined' && 
-        sessionStorage.getItem('__people_page_no_redirect__') === 'true';
-      
-      if (isPeoplePage || hasPeoplePageFlag) {
-        console.log('[DashboardLayoutClient] People page detected - skipping redirect to login');
-        return;
-      }
-      
-      // Double-check after a brief delay to avoid false positives
-      setTimeout(() => {
-        // Re-check People page before redirecting
-        const currentPathAfterDelay = typeof window !== 'undefined' ? window.location.pathname : '';
-        const isPeoplePageAfterDelay = currentPathAfterDelay === '/org/people';
-        const hasPeoplePageFlagAfterDelay = typeof window !== 'undefined' && 
-          sessionStorage.getItem('__people_page_no_redirect__') === 'true';
-        
-        if (isPeoplePageAfterDelay || hasPeoplePageFlagAfterDelay) {
-          console.log('[DashboardLayoutClient] People page detected after delay - skipping redirect to login');
-          return;
-        }
-        
-        if (status === 'unauthenticated' && !session) {
-          hasCheckedAuth.current = true;
-          router.push("/login");
-        }
-      }, 100);
-      return;
-    }
-    
-    // Mark as checked if we have a valid session
-    if (status === 'authenticated' && session) {
-      hasCheckedAuth.current = true;
-    }
-  }, [session, status, router]);
+  }, [status, pathname]);
 
   // Show minimal loading state - don't block entire page render
   // Render header and skeleton immediately for better perceived performance

@@ -1,0 +1,6 @@
+model Activity {
+  id          String    @id @default(cuid())
+  workspaceId String
+  actorId     String
+  entity      String
+  entityId    String

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/server/authOptions";
 import { acceptOrgInvitationByToken } from "@/server/data/acceptOrgInvitation";
 
 type InvitePageProps = {

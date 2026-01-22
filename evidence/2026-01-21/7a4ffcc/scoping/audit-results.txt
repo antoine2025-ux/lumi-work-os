@@ -1,0 +1,102 @@
+============================================
+Workspace Scoping Audit - 2026-01-21
+============================================
+
+=== CREATE OPERATIONS (Workspace-Scoped Models) ===
+
+✅ src/app/api/assistant/publish/route.ts:63 - Has workspaceId
+✅ src/app/api/assistant/sessions/route.ts:19 - Has workspaceId
+✅ src/app/api/assistant/route.ts:25 - Has workspaceId
+✅ src/app/api/assistant/create-project/route.ts:62 - Has workspaceId
+✅ src/app/api/assistant/create-project/route.ts:111 - Has workspaceId
+✅ src/app/api/assistant/create-project/route.ts:160 - Has workspaceId
+✅ src/app/api/tasks/route.ts:308 - Has workspaceId
+✅ src/app/api/test-projects/route.ts:91 - Has workspaceId
+✅ src/app/api/projects/[projectId]/milestones/route.ts:111 - Has workspaceId
+✅ src/app/api/projects/[projectId]/epics/route.ts:154 - Has workspaceId
+✅ src/app/api/ai/chat-sessions/route.ts:92 - Has workspaceId
+✅ src/app/api/todos/route.ts:363 - Has workspaceId
+✅ src/app/api/project-templates/[id]/apply/route.ts:75 - Has workspaceId
+✅ src/app/api/project-templates/[id]/apply/route.ts:104 - Has workspaceId
+✅ src/app/api/project-templates/[id]/apply/route.ts:127 - Has workspaceId
+✅ src/app/api/project-templates/[id]/apply/route.ts:147 - Has workspaceId
+✅ src/app/api/task-templates/[id]/apply/route.ts:91 - Has workspaceId
+
+=== UPDATE OPERATIONS ===
+⚠️  HIGH: src/app/api/assistant/message/route.ts:422 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/assistant/publish/route.ts:78 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/assistant/sessions/[id]/route.ts:76 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/assistant/generate-draft/route.ts:244 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/assistant/session/route.ts:17 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/assistant/create-project/route.ts:180 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/tasks/[id]/assignments/milestone/route.ts:67 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/tasks/[id]/assignments/epic/route.ts:67 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/tasks/[id]/assignments/points/route.ts:53 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/tasks/[id]/dependencies/route.ts:102 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/tasks/[id]/dependencies/route.ts:269 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/tasks/[id]/dependencies/route.ts:281 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/tasks/[id]/route.ts:132 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/projects/[projectId]/daily-summary-settings/route.ts:55 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/projects/[projectId]/route.ts:340 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/projects/[projectId]/milestones/[milestoneId]/route.ts:108 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/projects/[projectId]/epics/[epicId]/route.ts:110 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/wiki/pages/[id]/favorite/route.ts:44 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/wiki/pages/[id]/favorite/route.ts:98 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/wiki/pages/[id]/route.ts:281 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/ai/chat/stream/route.ts:148 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/ai/chat/route.ts:701 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/ai/chat/route.ts:709 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/ai/chat-sessions/[id]/regenerate-title/route.ts:109 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/ai/draft-page/route.ts:86 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/todos/[id]/route.ts:260 - No workspaceId (uses ID)
+
+=== DELETE OPERATIONS ===
+⚠️  HIGH: src/app/api/assistant/sessions/[id]/route.ts:121 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/tasks/[id]/route.ts:225 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/projects/[projectId]/route.ts:512 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/projects/[projectId]/milestones/[milestoneId]/route.ts:203 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/projects/[projectId]/epics/[epicId]/route.ts:211 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/wiki/pages/[id]/route.ts:377 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/ai/chat-sessions/[id]/route.ts:56 - No workspaceId (uses ID)
+⚠️  HIGH: src/app/api/todos/[id]/route.ts:340 - No workspaceId (uses ID)
+
+============================================
+CRITICAL SECURITY FINDINGS
+============================================
+
+❌ CRITICAL: src/app/api/tasks/[id]/route.ts
+   - NO authentication (no getUnifiedAuth, no getServerSession)
+   - NO workspace validation
+   - Creates own PrismaClient (line 4: new PrismaClient())
+   - Anyone with task ID can GET/PATCH/DELETE any task
+
+COMPARISON:
+✅ src/app/api/tasks/route.ts - Uses getUnifiedAuth + assertAccess
+✅ src/app/api/projects/[projectId]/route.ts - Uses getUnifiedAuth + assertProjectAccess
+❌ src/app/api/tasks/[id]/route.ts - NO AUTH AT ALL
+
+============================================
+SUMMARY COUNTS
+============================================
+
+CREATE operations: 17 total, 17 with workspaceId ✅
+UPDATE operations: 26 total, 0 with workspaceId in WHERE clause (all ID-based)
+DELETE operations: 8 total, 0 with workspaceId in WHERE clause (all ID-based)
+
+CRITICAL (no auth): 1 route
+HIGH (ID-based without workspaceId): 34 operations
+
+The HIGH items are acceptable IF:
+1. The route has getUnifiedAuth() at the start
+2. There is an ownership check before the update/delete
+
+STATUS: Most routes have auth. One route (tasks/[id]) is CRITICAL.
+
+============================================
+IMMEDIATE ACTION REQUIRED
+============================================
+
+1. Fix src/app/api/tasks/[id]/route.ts:
+   - Add getUnifiedAuth()
+   - Add workspace ownership check
+   - Replace new PrismaClient() with import from @/lib/db

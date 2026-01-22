@@ -5,121 +5,120 @@ import { encode } from 'next-auth/jwt'
 /**
  * E2E Test Authentication Endpoint
  * 
- * Creates a valid NextAuth session for E2E testing in CI environments.
- * 
- * Security guards (all must pass):
- * 1. E2E_AUTH_ENABLED === "true"
- * 2. NODE_ENV !== "production" AND VERCEL_ENV !== "production"
- * 3. E2E_AUTH_SECRET is set and matches x-e2e-secret header
- * 
- * Returns 404 for all guard failures to hide endpoint existence.
- * 
- * Usage in tests:
- * POST /api/e2e-auth
- * Headers: { 'x-e2e-secret': process.env.E2E_AUTH_SECRET }
- * Body: { email: 'e2e@loopwell.test' } (optional, uses default)
+ * Creates a test session for automated E2E testing.
+ * ONLY available when E2E_TEST_AUTH=true AND NODE_ENV !== 'production'.
  */
-
-const E2E_DEFAULT_EMAIL = 'e2e@loopwell.test'
-
 export async function POST(request: NextRequest) {
-  // Guard 1: E2E_AUTH_ENABLED must be explicitly set to "true"
-  if (process.env.E2E_AUTH_ENABLED !== 'true') {
-    return new NextResponse(null, { status: 404 })
+  // Security gates
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 403 })
   }
   
-  // Guard 2: Must NOT be production environment
-  if (process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production') {
-    return new NextResponse(null, { status: 404 })
+  if (process.env.E2E_TEST_AUTH !== 'true') {
+    return NextResponse.json({ error: 'E2E test auth not enabled' }, { status: 403 })
   }
   
-  // Guard 3: E2E_AUTH_SECRET must be configured
-  const e2eSecret = process.env.E2E_AUTH_SECRET
-  if (!e2eSecret) {
-    return new NextResponse(null, { status: 404 })
+  const testPassword = process.env.E2E_TEST_PASSWORD
+  if (!testPassword) {
+    return NextResponse.json({ error: 'E2E_TEST_PASSWORD not configured' }, { status: 500 })
   }
   
-  // Guard 4: Verify the secret from request header
-  const providedSecret = request.headers.get('x-e2e-secret')
-  if (providedSecret !== e2eSecret) {
-    return new NextResponse(null, { status: 404 })
+  // Validate password
+  let body: { password?: string } = {}
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+  
+  if (body.password !== testPassword) {
+    return NextResponse.json({ error: 'Invalid test password' }, { status: 401 })
   }
   
   try {
-    let email = E2E_DEFAULT_EMAIL
+    const testEmail = 'e2e-test@loopwell.test'
+    const testName = 'E2E Test User'
     
-    // Try to parse body for custom email (optional)
-    try {
-      const body = await request.json()
-      if (body.email) {
-        email = body.email
-      }
-    } catch {
-      // No body or invalid JSON - use default email
+    // Use raw SQL to avoid Prisma schema mismatch issues
+    // Upsert test user
+    const userResult = await prismaUnscoped.$queryRaw<{ id: string; email: string; name: string | null }[]>`
+      INSERT INTO users (id, email, name, "emailVerified", "createdAt", "updatedAt")
+      VALUES (gen_random_uuid()::text, ${testEmail}, ${testName}, NOW(), NOW(), NOW())
+      ON CONFLICT (email) DO UPDATE SET name = ${testName}, "emailVerified" = NOW()
+      RETURNING id, email, name
+    `
+    
+    const user = userResult[0]
+    if (!user) {
+      throw new Error('Failed to create/find user')
     }
     
-    // Find or create the test user
-    const user = await prismaUnscoped.user.upsert({
-      where: { email },
-      update: {
-        emailVerified: new Date(),
-      },
-      create: {
-        email,
-        name: 'E2E Test User',
-        emailVerified: new Date(),
-      },
-    })
+    // Find existing workspace membership
+    const membershipResult = await prismaUnscoped.$queryRaw<{ workspace_id: string; role: string }[]>`
+      SELECT wm."workspaceId" as workspace_id, wm.role
+      FROM workspace_members wm
+      WHERE wm."userId" = ${user.id}
+      LIMIT 1
+    `
     
-    // Find user's workspace membership
-    const membership = await prismaUnscoped.workspaceMember.findFirst({
-      where: { userId: user.id },
-      orderBy: { joinedAt: 'asc' },
-      select: { workspaceId: true, role: true },
-    })
+    let workspaceId: string
+    let role = 'OWNER'
     
-    // Create a JWT token matching NextAuth's format
+    if (membershipResult.length > 0) {
+      workspaceId = membershipResult[0].workspace_id
+      role = membershipResult[0].role
+    } else {
+      // Create workspace
+      const slug = `e2e-test-${Date.now()}`
+      const wsResult = await prismaUnscoped.$queryRaw<{ id: string }[]>`
+        INSERT INTO workspaces (id, name, slug, "ownerId", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid()::text, 'E2E Test Workspace', ${slug}, ${user.id}, NOW(), NOW())
+        RETURNING id
+      `
+      
+      workspaceId = wsResult[0].id
+      
+      // Create membership
+      await prismaUnscoped.$queryRaw`
+        INSERT INTO workspace_members (id, "workspaceId", "userId", role, "joinedAt")
+        VALUES (gen_random_uuid()::text, ${workspaceId}, ${user.id}, 'OWNER', NOW())
+      `
+    }
+    
+    // Create JWT token (compatible with NextAuth)
     const token = await encode({
       token: {
         sub: user.id,
         id: user.id,
         email: user.email,
         name: user.name,
-        workspaceId: membership?.workspaceId,
-        role: membership?.role,
-        isFirstTime: !membership,
+        workspaceId,
+        role,
+        isFirstTime: false,
       },
       secret: process.env.NEXTAUTH_SECRET!,
-      maxAge: 60 * 60 * 24, // 24 hours
     })
     
     // Create response with session cookie
     const response = NextResponse.json({
       success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
-      workspaceId: membership?.workspaceId,
+      user: { id: user.id, email: user.email, name: user.name },
+      workspaceId,
     })
     
-    // Set the session cookie (matching NextAuth's cookie name)
-    // In CI/test environments, we're not in production so use non-secure cookie
-    const cookieName = 'next-auth.session-token'
-    
-    response.cookies.set(cookieName, token, {
+    // Set NextAuth session cookie
+    response.cookies.set('next-auth.session-token', token, {
       httpOnly: true,
-      secure: false, // CI runs on localhost
+      secure: false,
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24, // 24 hours
+      maxAge: 60 * 60 * 24,
     })
     
     return response
   } catch (error) {
     console.error('[E2E Auth] Error:', error)
-    // Return 404 even on errors to hide endpoint behavior
-    return new NextResponse(null, { status: 404 })
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: 'Failed to create test session', details: message }, { status: 500 })
   }
 }

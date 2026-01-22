@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { listEngines } from "@/server/loopbrain/registry";
 import { getOrgContext, requireAdmin } from "@/server/rbac";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   const ctx = await getOrgContext(req);

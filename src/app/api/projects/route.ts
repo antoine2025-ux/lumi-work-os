@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-errors'
 import { ProjectCreateSchema } from '@/lib/pm/schemas'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
@@ -594,30 +595,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(project)
   } catch (error: unknown) {
-    console.error('Error creating project:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    
-    // Handle Zod validation errors
-    if (error instanceof z.ZodError) {
-      console.error('Validation errors:', error.issues)
-      return NextResponse.json({
-        error: 'Validation error',
-        details: error.issues
-      }, { status: 400 })
-    }
-    
-    // Handle auth errors
-    if (errorMessage.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (errorMessage.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to create project',
-      details: errorMessage
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

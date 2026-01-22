@@ -1,0 +1,850 @@
+
+> loopwell@0.1.0 test
+> vitest run
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /Users/tonyem/lumi-work-os
+
+ ✓ src/lib/wiki/__tests__/html-to-tiptap.test.ts (16 tests) 5ms
+ ✓ src/lib/workspace-context.test.ts (26 tests) 7ms
+ ✓ src/lib/wiki/__tests__/text-extract.test.ts (11 tests) 3ms
+ ❯ tests/events/orgEvents.test.ts (0 test)
+stdout | tests/workspace-scoping.sanity.test.ts
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+
+stdout | tests/workspace-scoping.sanity.test.ts > Workspace Scoping Sanity Tests
+⚠️  Scoping DISABLED - Tests will be skipped
+
+stdout | tests/workspace-scoping.sanity.test.ts > Workspace Scoping Sanity Tests > Critical Models - Scoping Enforcement > should enforce workspace context for Project when scoping enabled
+⏭️  Skipping Project test (scoping disabled)
+
+stdout | tests/workspace-scoping.sanity.test.ts > Workspace Scoping Sanity Tests > Critical Models - Scoping Enforcement > should allow Project query with workspace context
+⏭️  Skipping Project test (scoping disabled)
+
+stdout | tests/workspace-scoping.sanity.test.ts > Workspace Scoping Sanity Tests > Critical Models - Scoping Enforcement > should enforce workspace context for WikiPage when scoping enabled
+⏭️  Skipping WikiPage test (scoping disabled)
+
+stdout | tests/workspace-scoping.sanity.test.ts > Workspace Scoping Sanity Tests > Critical Models - Scoping Enforcement > should allow WikiPage query with workspace context
+⏭️  Skipping WikiPage test (scoping disabled)
+
+stdout | tests/workspace-scoping.sanity.test.ts > Workspace Scoping Sanity Tests > Critical Models - Scoping Enforcement > should enforce workspace context for Task when scoping enabled
+⏭️  Skipping Task test (scoping disabled)
+
+stdout | tests/workspace-scoping.sanity.test.ts > Workspace Scoping Sanity Tests > Critical Models - Scoping Enforcement > should allow Task query with workspace context
+⏭️  Skipping Task test (scoping disabled)
+
+stdout | tests/workspace-scoping.sanity.test.ts > Workspace Scoping Sanity Tests > Critical Models - Scoping Enforcement > should enforce workspace context for Activity when scoping enabled
+⏭️  Skipping Activity test (scoping disabled)
+
+stdout | tests/workspace-scoping.sanity.test.ts > Workspace Scoping Sanity Tests > Critical Models - Scoping Enforcement > should allow Activity query with workspace context
+⏭️  Skipping Activity test (scoping disabled)
+
+stdout | tests/workspace-scoping.sanity.test.ts > Workspace Scoping Sanity Tests > Scoping Flag Status > should report scoping status
+⚠️  PRISMA_WORKSPACE_SCOPING_ENABLED=false or unset - Scoping is DISABLED
+
+ ✓ tests/workspace-scoping.sanity.test.ts (10 tests) 3ms
+stdout | tests/workspace-scoping.sanity.test.ts > Workspace Scoping Sanity Tests > Unscoped Client Availability > should have prismaUnscoped available for scripts
+✅ prismaUnscoped available for scripts
+
+stdout | tests/api/phase1-migrated-routes.spec.ts
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+
+stdout | tests/api/projects.auth.spec.ts
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+
+stdout | tests/api/tasks.auth.spec.ts
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+
+ ✓ tests/loopbrain/orgContextMapper.person.test.ts (2 tests) 2ms
+ ✓ tests/loopbrain/orgContextMapper.position.test.ts (2 tests) 5ms
+ ✓ tests/loopbrain/orgContextMapper.team.test.ts (2 tests) 6ms
+ ✓ src/lib/org/__tests__/deriveIssues.test.ts (5 tests) 4ms
+ ✓ tests/loopbrain/orgContextMapper.department.test.ts (2 tests) 3ms
+stdout | tests/api/tasks.auth.spec.ts > Tasks API Auth > should return 401 without session when ALLOW_DEV_LOGIN=false
+{"timestamp":"2026-01-21T08:46:13.072Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/tasks","durationMs":0.23,"sessionDurationMs":0.14}}
+
+stderr | tests/api/tasks.auth.spec.ts > Tasks API Auth > should return 401 without session when ALLOW_DEV_LOGIN=false
+Error fetching tasks: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.GET (/Users/tonyem/lumi-work-os/src/app/api/tasks/route.ts:18:18)
+    at /Users/tonyem/lumi-work-os/tests/api/tasks.auth.spec.ts:57:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stdout | tests/api/tasks.auth.spec.ts > Tasks API Auth > should return 200 with session
+{"timestamp":"2026-01-21T08:46:13.091Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/tasks","durationMs":0.05,"sessionDurationMs":0.04}}
+
+stderr | tests/api/tasks.auth.spec.ts > Tasks API Auth > should return 200 with session
+Error fetching tasks: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.GET (/Users/tonyem/lumi-work-os/src/app/api/tasks/route.ts:18:18)
+    at /Users/tonyem/lumi-work-os/tests/api/tasks.auth.spec.ts:89:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stdout | tests/api/tasks.auth.spec.ts > Tasks API Auth > should return 400 when projectId is missing
+{"timestamp":"2026-01-21T08:46:13.096Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/tasks","durationMs":0.08,"sessionDurationMs":0.02}}
+
+stderr | tests/api/tasks.auth.spec.ts > Tasks API Auth > should return 400 when projectId is missing
+Error fetching tasks: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.GET (/Users/tonyem/lumi-work-os/src/app/api/tasks/route.ts:18:18)
+    at /Users/tonyem/lumi-work-os/tests/api/tasks.auth.spec.ts:105:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stdout | tests/api/tasks.auth.spec.ts > Tasks API Auth > should create task with proper workspace scoping
+{"timestamp":"2026-01-21T08:46:13.102Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/tasks","durationMs":0.03,"sessionDurationMs":0.02}}
+
+stderr | tests/api/tasks.auth.spec.ts > Tasks API Auth > should create task with proper workspace scoping
+[API Error] {
+  code: 'AUTHENTICATION_REQUIRED',
+  status: 401,
+  message: 'You must be signed in to access this resource.',
+  requestId: undefined,
+  cause: {
+    name: 'Error',
+    message: 'Unauthorized: No session found. Please log in through Google OAuth.',
+    stack: 'Error: Unauthorized: No session found. Please log in through Google OAuth.\n' +
+      '    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)\n' +
+      '    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+      '    at Module.POST (/Users/tonyem/lumi-work-os/src/app/api/tasks/route.ts:192:18)\n' +
+      '    at /Users/tonyem/lumi-work-os/tests/api/tasks.auth.spec.ts:157:22\n' +
+      '    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5\n' +
+      '    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)\n' +
+      '    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)\n' +
+      '    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)\n' +
+      '    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)\n' +
+      '    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)'
+  }
+}
+
+stderr | tests/api/tasks.auth.spec.ts > Access Control > should deny access with insufficient role
+[assertAccess] Insufficient role: {
+  userId: 'user-1',
+  workspaceId: 'workspace-1',
+  userRole: 'VIEWER',
+  requireRole: [ 'ADMIN' ],
+  scope: 'workspace'
+}
+
+stderr | tests/api/tasks.auth.spec.ts > Access Control > should allow dev bypass in development
+[assertAccess] WorkspaceMember not found: {
+  userId: 'user-1',
+  workspaceId: 'workspace-1',
+  scope: 'workspace',
+  requireRole: [ 'ADMIN' ]
+}
+
+ ❯ tests/api/tasks.auth.spec.ts (7 tests | 4 failed) 39ms
+   × Tasks API Auth > should return 200 with session 15ms
+     → expected 401 to be 200 // Object.is equality
+   × Tasks API Auth > should return 400 when projectId is missing 5ms
+     → expected 401 to be 400 // Object.is equality
+   × Tasks API Auth > should create task with proper workspace scoping 3ms
+     → expected 401 to be 200 // Object.is equality
+   × Access Control > should allow dev bypass in development 1ms
+     → promise rejected "Error: Forbidden: User not member of work…" instead of resolving
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Projects API > should return 401 when getAuthenticatedUser throws
+{"timestamp":"2026-01-21T08:46:13.120Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.19,"sessionDurationMs":0.09}}
+{"timestamp":"2026-01-21T08:46:13.120Z","level":"info","message":"Incoming request /api/projects","context":{"route":"/api/projects","method":"GET"}}
+{"timestamp":"2026-01-21T08:46:13.120Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.08,"sessionDurationMs":0.07}}
+{"timestamp":"2026-01-21T08:46:13.120Z","level":"error","message":"Error in /api/projects","context":{"route":"/api/projects","method":"GET","totalDurationMs":1.17},"error":{"name":"Error","message":"Unauthorized: No session found. Please log in through Google OAuth."}}
+
+stdout | tests/api/projects.auth.spec.ts > Projects API Auth > should return 401 when no session and ALLOW_DEV_LOGIN=false
+{"timestamp":"2026-01-21T08:46:13.140Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.1,"sessionDurationMs":0.07}}
+{"timestamp":"2026-01-21T08:46:13.140Z","level":"info","message":"Incoming request /api/projects","context":{"route":"/api/projects","method":"GET"}}
+{"timestamp":"2026-01-21T08:46:13.140Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.06,"sessionDurationMs":0.06}}
+{"timestamp":"2026-01-21T08:46:13.140Z","level":"error","message":"Error in /api/projects","context":{"route":"/api/projects","method":"GET","totalDurationMs":0.7},"error":{"name":"Error","message":"Unauthorized: No session found. Please log in through Google OAuth."}}
+
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Projects API > should return 200 with proper auth flow
+{"timestamp":"2026-01-21T08:46:13.131Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.02,"sessionDurationMs":0.01}}
+{"timestamp":"2026-01-21T08:46:13.131Z","level":"info","message":"Incoming request /api/projects","context":{"route":"/api/projects","method":"GET"}}
+{"timestamp":"2026-01-21T08:46:13.131Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.01,"sessionDurationMs":0.01}}
+{"timestamp":"2026-01-21T08:46:13.132Z","level":"error","message":"Error in /api/projects","context":{"route":"/api/projects","method":"GET","totalDurationMs":0.66},"error":{"name":"Error","message":"Unauthorized: No session found. Please log in through Google OAuth."}}
+
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Projects API > should return 403 for insufficient permissions
+{"timestamp":"2026-01-21T08:46:13.147Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.01,"sessionDurationMs":0.01}}
+{"timestamp":"2026-01-21T08:46:13.147Z","level":"info","message":"Incoming request /api/projects","context":{"route":"/api/projects","method":"GET"}}
+{"timestamp":"2026-01-21T08:46:13.147Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.01,"sessionDurationMs":0.01}}
+{"timestamp":"2026-01-21T08:46:13.147Z","level":"error","message":"Error in /api/projects","context":{"route":"/api/projects","method":"GET","totalDurationMs":0.18},"error":{"name":"Error","message":"Unauthorized: No session found. Please log in through Google OAuth."}}
+
+stdout | tests/api/projects.auth.spec.ts > Projects API Auth > should return 200 with session
+{"timestamp":"2026-01-21T08:46:13.143Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.03,"sessionDurationMs":0.02}}
+{"timestamp":"2026-01-21T08:46:13.143Z","level":"info","message":"Incoming request /api/projects","context":{"route":"/api/projects","method":"GET"}}
+{"timestamp":"2026-01-21T08:46:13.143Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.02,"sessionDurationMs":0.01}}
+{"timestamp":"2026-01-21T08:46:13.143Z","level":"error","message":"Error in /api/projects","context":{"route":"/api/projects","method":"GET","totalDurationMs":0.51},"error":{"name":"Error","message":"Unauthorized: No session found. Please log in through Google OAuth."}}
+
+stdout | tests/api/projects.auth.spec.ts > Projects API Auth > should return 403 for mismatched workspace
+{"timestamp":"2026-01-21T08:46:13.149Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.01,"sessionDurationMs":0.01}}
+{"timestamp":"2026-01-21T08:46:13.149Z","level":"info","message":"Incoming request /api/projects","context":{"route":"/api/projects","method":"GET"}}
+{"timestamp":"2026-01-21T08:46:13.149Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.01,"sessionDurationMs":0.01}}
+{"timestamp":"2026-01-21T08:46:13.149Z","level":"error","message":"Error in /api/projects","context":{"route":"/api/projects","method":"GET","totalDurationMs":0.13},"error":{"name":"Error","message":"Unauthorized: No session found. Please log in through Google OAuth."}}
+
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Projects API > should create project with proper workspace scoping
+{"timestamp":"2026-01-21T08:46:13.149Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.02,"sessionDurationMs":0.01}}
+
+stderr | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Projects API > should create project with proper workspace scoping
+[API Error] {
+  code: 'AUTHENTICATION_REQUIRED',
+  status: 401,
+  message: 'You must be signed in to access this resource.',
+  requestId: undefined,
+  cause: {
+    name: 'Error',
+    message: 'Unauthorized: No session found. Please log in through Google OAuth.',
+    stack: 'Error: Unauthorized: No session found. Please log in through Google OAuth.\n' +
+      '    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)\n' +
+      '    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+      '    at Module.POST (/Users/tonyem/lumi-work-os/src/app/api/projects/route.ts:368:18)\n' +
+      '    at /Users/tonyem/lumi-work-os/tests/api/phase1-migrated-routes.spec.ts:191:22\n' +
+      '    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5\n' +
+      '    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)\n' +
+      '    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)\n' +
+      '    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)\n' +
+      '    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)\n' +
+      '    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)'
+  }
+}
+
+stdout | tests/api/projects.auth.spec.ts > Tasks API Auth > should return 401 without session when ALLOW_DEV_LOGIN=false
+{"timestamp":"2026-01-21T08:46:13.151Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/tasks","durationMs":0.03,"sessionDurationMs":0.02}}
+
+stderr | tests/api/projects.auth.spec.ts > Tasks API Auth > should return 401 without session when ALLOW_DEV_LOGIN=false
+Error fetching tasks: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.GET (/Users/tonyem/lumi-work-os/src/app/api/tasks/route.ts:18:18)
+    at /Users/tonyem/lumi-work-os/tests/api/projects.auth.spec.ts:141:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Projects API > should require ADMIN or OWNER role to create projects
+{"timestamp":"2026-01-21T08:46:13.153Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects","durationMs":0.02,"sessionDurationMs":0.01}}
+
+stderr | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Projects API > should require ADMIN or OWNER role to create projects
+[API Error] {
+  code: 'AUTHENTICATION_REQUIRED',
+  status: 401,
+  message: 'You must be signed in to access this resource.',
+  requestId: undefined,
+  cause: {
+    name: 'Error',
+    message: 'Unauthorized: No session found. Please log in through Google OAuth.',
+    stack: 'Error: Unauthorized: No session found. Please log in through Google OAuth.\n' +
+      '    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)\n' +
+      '    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+      '    at Module.POST (/Users/tonyem/lumi-work-os/src/app/api/projects/route.ts:368:18)\n' +
+      '    at /Users/tonyem/lumi-work-os/tests/api/phase1-migrated-routes.spec.ts:234:22\n' +
+      '    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5\n' +
+      '    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)\n' +
+      '    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)\n' +
+      '    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)\n' +
+      '    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)\n' +
+      '    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)'
+  }
+}
+
+stdout | tests/api/projects.auth.spec.ts > Tasks API Auth > should return 200 with session
+{"timestamp":"2026-01-21T08:46:13.155Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/tasks","durationMs":0.03,"sessionDurationMs":0.02}}
+
+stderr | tests/api/projects.auth.spec.ts > Tasks API Auth > should return 200 with session
+Error fetching tasks: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.GET (/Users/tonyem/lumi-work-os/src/app/api/tasks/route.ts:18:18)
+    at /Users/tonyem/lumi-work-os/tests/api/projects.auth.spec.ts:173:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Tasks API > should return 401 when getAuthenticatedUser throws
+{"timestamp":"2026-01-21T08:46:13.156Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/tasks","durationMs":0.1,"sessionDurationMs":0.1}}
+
+stderr | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Tasks API > should return 401 when getAuthenticatedUser throws
+Error fetching tasks: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.GET (/Users/tonyem/lumi-work-os/src/app/api/tasks/route.ts:18:18)
+    at /Users/tonyem/lumi-work-os/tests/api/phase1-migrated-routes.spec.ts:260:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Tasks API > should return 200 with proper auth flow
+{"timestamp":"2026-01-21T08:46:13.157Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/tasks","durationMs":0.02,"sessionDurationMs":0.01}}
+
+stderr | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Tasks API > should return 200 with proper auth flow
+Error fetching tasks: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.GET (/Users/tonyem/lumi-work-os/src/app/api/tasks/route.ts:18:18)
+    at /Users/tonyem/lumi-work-os/tests/api/phase1-migrated-routes.spec.ts:286:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stdout | tests/api/projects.auth.spec.ts > Tasks API Auth > should return 400 when projectId is missing
+{"timestamp":"2026-01-21T08:46:13.158Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/tasks","durationMs":0.13,"sessionDurationMs":0.12}}
+
+stderr | tests/api/projects.auth.spec.ts > Tasks API Auth > should return 400 when projectId is missing
+Error fetching tasks: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.GET (/Users/tonyem/lumi-work-os/src/app/api/tasks/route.ts:18:18)
+    at /Users/tonyem/lumi-work-os/tests/api/projects.auth.spec.ts:189:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Tasks API > should create task with proper workspace scoping
+{"timestamp":"2026-01-21T08:46:13.160Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/tasks","durationMs":0.02,"sessionDurationMs":0.01}}
+
+stderr | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Tasks API > should create task with proper workspace scoping
+[API Error] {
+  code: 'AUTHENTICATION_REQUIRED',
+  status: 401,
+  message: 'You must be signed in to access this resource.',
+  requestId: undefined,
+  cause: {
+    name: 'Error',
+    message: 'Unauthorized: No session found. Please log in through Google OAuth.',
+    stack: 'Error: Unauthorized: No session found. Please log in through Google OAuth.\n' +
+      '    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)\n' +
+      '    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+      '    at Module.POST (/Users/tonyem/lumi-work-os/src/app/api/tasks/route.ts:192:18)\n' +
+      '    at /Users/tonyem/lumi-work-os/tests/api/phase1-migrated-routes.spec.ts:336:22\n' +
+      '    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5\n' +
+      '    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)\n' +
+      '    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)\n' +
+      '    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)\n' +
+      '    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)\n' +
+      '    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)'
+  }
+}
+
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Epics API > should return 401 when getAuthenticatedUser throws
+{"timestamp":"2026-01-21T08:46:13.161Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects/project-1/epics","durationMs":0.01,"sessionDurationMs":0.01}}
+
+stderr | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Epics API > should return 401 when getAuthenticatedUser throws
+Error fetching epics: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.GET (/Users/tonyem/lumi-work-os/src/app/api/projects/[projectId]/epics/route.ts:22:18)
+    at /Users/tonyem/lumi-work-os/tests/api/phase1-migrated-routes.spec.ts:366:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+ ❯ tests/api/projects.auth.spec.ts (8 tests | 6 failed) 25ms
+   × Projects API Auth > should return 200 with session 6ms
+     → expected 401 to be 200 // Object.is equality
+   × Projects API Auth > should return 403 for mismatched workspace 2ms
+     → expected 401 to be 200 // Object.is equality
+   × Tasks API Auth > should return 200 with session 3ms
+     → expected 401 to be 200 // Object.is equality
+   × Tasks API Auth > should return 400 when projectId is missing 2ms
+     → expected 401 to be 400 // Object.is equality
+   × Auth Utilities > should get authenticated user with session 1ms
+     → Cannot read properties of undefined (reading 'mockResolvedValue')
+   × Auth Utilities > should get dev user when no session and dev login allowed 1ms
+     → Cannot read properties of undefined (reading 'mockResolvedValue')
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Epics API > should return 200 with proper auth flow
+{"timestamp":"2026-01-21T08:46:13.163Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects/project-1/epics","durationMs":0.03,"sessionDurationMs":0.01}}
+
+stderr | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Epics API > should return 200 with proper auth flow
+Error fetching epics: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.GET (/Users/tonyem/lumi-work-os/src/app/api/projects/[projectId]/epics/route.ts:22:18)
+    at /Users/tonyem/lumi-work-os/tests/api/phase1-migrated-routes.spec.ts:392:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Epics API > should create epic with proper workspace scoping
+{"timestamp":"2026-01-21T08:46:13.167Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects/project-1/epics","durationMs":0.02,"sessionDurationMs":0.01}}
+
+stderr | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Epics API > should create epic with proper workspace scoping
+Error creating epic: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.POST (/Users/tonyem/lumi-work-os/src/app/api/projects/[projectId]/epics/route.ts:104:18)
+    at /Users/tonyem/lumi-work-os/tests/api/phase1-migrated-routes.spec.ts:441:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stdout | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Epics API > should require ADMIN or OWNER role to create epics
+{"timestamp":"2026-01-21T08:46:13.170Z","level":"warn","message":"getUnifiedAuth (unauthorized)","context":{"requestId":"no-request-id","route":"/api/projects/project-1/epics","durationMs":0.01,"sessionDurationMs":0.01}}
+
+stderr | tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Epics API > should require ADMIN or OWNER role to create epics
+Error creating epic: Error: Unauthorized: No session found. Please log in through Google OAuth.
+    at Module.getUnifiedAuth (/Users/tonyem/lumi-work-os/src/lib/unified-auth.ts:117:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Module.POST (/Users/tonyem/lumi-work-os/src/app/api/projects/[projectId]/epics/route.ts:104:18)
+    at /Users/tonyem/lumi-work-os/tests/api/phase1-migrated-routes.spec.ts:483:22
+    at file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/tonyem/lumi-work-os/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+ ❯ tests/api/phase1-migrated-routes.spec.ts (12 tests | 9 failed) 59ms
+   × Phase 1 Migrated Routes - Projects API > should return 200 with proper auth flow 19ms
+     → expected 401 to be 200 // Object.is equality
+   × Phase 1 Migrated Routes - Projects API > should return 403 for insufficient permissions 1ms
+     → expected 401 to be 403 // Object.is equality
+   × Phase 1 Migrated Routes - Projects API > should create project with proper workspace scoping 4ms
+     → expected 401 to be 200 // Object.is equality
+   × Phase 1 Migrated Routes - Projects API > should require ADMIN or OWNER role to create projects 2ms
+     → expected 401 to be 403 // Object.is equality
+   × Phase 1 Migrated Routes - Tasks API > should return 200 with proper auth flow 1ms
+     → expected 401 to be 200 // Object.is equality
+   × Phase 1 Migrated Routes - Tasks API > should create task with proper workspace scoping 2ms
+     → expected 401 to be 200 // Object.is equality
+   × Phase 1 Migrated Routes - Epics API > should return 200 with proper auth flow 2ms
+     → expected 401 to be 200 // Object.is equality
+   × Phase 1 Migrated Routes - Epics API > should create epic with proper workspace scoping 3ms
+     → expected 401 to be 201 // Object.is equality
+   × Phase 1 Migrated Routes - Epics API > should require ADMIN or OWNER role to create epics 3ms
+     → expected 401 to be 403 // Object.is equality
+stdout | tests/loopbrain/orgContextBuilder.smoke.test.ts
+✅ Workspace scoping DISABLED - Using unscoped Prisma client (current behavior)
+   Enable with PRISMA_WORKSPACE_SCOPING_ENABLED=true
+[PRISMA] ✅ ProjectDocumentation model available
+[PRISMA] ✅ WorkspaceInvite model available
+
+stdout | tests/loopbrain/orgContextBuilder.smoke.test.ts
+🔐 [NextAuth] Base URL for callbacks: http://localhost:3000
+🔐 [NextAuth] Expected callback URL: http://localhost:3000/api/auth/callback/google
+
+ ✓ src/lib/org/__tests__/deriveCompleteness.test.ts (5 tests) 2ms
+ ↓ tests/loopbrain/orgContextBuilder.smoke.test.ts (1 test | 1 skipped)
+ ✓ src/lib/loopbrain/__tests__/loopbrain.snapshots.test.ts (9 tests) 4374ms
+   ✓ Loopbrain Q1–Q9 Snapshot Tests > Q1: Who owns this? > should return stable response for healthy project 1747ms
+   ✓ Loopbrain Q1–Q9 Snapshot Tests > Q2: Who decides this? > should return stable response for healthy project 328ms
+   ✓ Loopbrain Q1–Q9 Snapshot Tests > Q3: Who should be working on this? > should return stable response for constrained project 311ms
+   ✓ Loopbrain Q1–Q9 Snapshot Tests > Q4: Do we have capacity in timeframe? > should return stable response for constrained project 315ms
+   ✓ Loopbrain Q1–Q9 Snapshot Tests > Q5: Who is unavailable and when do they return? > should return stable response for unavailable person 325ms
+   ✓ Loopbrain Q1–Q9 Snapshot Tests > Q6: Who can cover? > should return stable response for healthy project 325ms
+   ✓ Loopbrain Q1–Q9 Snapshot Tests > Q7: Is this aligned with role responsibilities? > should return stable response for role-misaligned project 331ms
+   ✓ Loopbrain Q1–Q9 Snapshot Tests > Q8: Is responsibility clear or fragmented? > should return stable response for fragmented project 336ms
+   ✓ Loopbrain Q1–Q9 Snapshot Tests > Q9: Should we proceed, reassign, delay, or request support? > should return stable response for constrained project 353ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/events/orgEvents.test.ts [ tests/events/orgEvents.test.ts ]
+Error: [vitest] There was an error when mocking a module. If you are using "vi.mock" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock
+ ❯ src/lib/loopbrain/listeners/orgContextListeners.ts:3:31
+      2|  * Org Context Listeners
+      3|  * 
+      4|  * These listeners respond to org entity mutations and rebuild the Con…
+       |                           ^
+      5|  * to keep Loopbrain's understanding of the organization up-to-date.
+      6|  */
+
+Caused by: ReferenceError: syncMock is not defined
+ ❯ tests/events/orgEvents.test.ts:3:50
+ ❯ src/lib/loopbrain/listeners/orgContextListeners.ts:3:31
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/20]⎯
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 19 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Projects API > should return 200 with proper auth flow
+AssertionError: expected 401 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 401
+
+ ❯ tests/api/phase1-migrated-routes.spec.ts:116:29
+    114|     const response = await getProjects(request)
+    115|     
+    116|     expect(response.status).toBe(200)
+       |                             ^
+    117|     
+    118|     // Verify auth flow was called correctly
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/20]⎯
+
+ FAIL  tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Projects API > should return 403 for insufficient permissions
+AssertionError: expected 401 to be 403 // Object.is equality
+
+- Expected
++ Received
+
+- 403
++ 401
+
+ ❯ tests/api/phase1-migrated-routes.spec.ts:146:29
+    144|     const response = await getProjects(request)
+    145|     
+    146|     expect(response.status).toBe(403)
+       |                             ^
+    147|     const data = await response.json()
+    148|     expect(data.error).toBe('Forbidden')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/20]⎯
+
+ FAIL  tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Projects API > should create project with proper workspace scoping
+AssertionError: expected 401 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 401
+
+ ❯ tests/api/phase1-migrated-routes.spec.ts:193:29
+    191|     const response = await createProject(request)
+    192|     
+    193|     expect(response.status).toBe(200)
+       |                             ^
+    194|     const data = await response.json()
+    195|     expect(data.workspaceId).toBe('workspace-1')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/20]⎯
+
+ FAIL  tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Projects API > should require ADMIN or OWNER role to create projects
+AssertionError: expected 401 to be 403 // Object.is equality
+
+- Expected
++ Received
+
+- 403
++ 401
+
+ ❯ tests/api/phase1-migrated-routes.spec.ts:236:29
+    234|     const response = await createProject(request)
+    235|     
+    236|     expect(response.status).toBe(403)
+       |                             ^
+    237|     const data = await response.json()
+    238|     expect(data.error).toBe('Forbidden')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/20]⎯
+
+ FAIL  tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Tasks API > should return 200 with proper auth flow
+AssertionError: expected 401 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 401
+
+ ❯ tests/api/phase1-migrated-routes.spec.ts:288:29
+    286|     const response = await getTasks(request)
+    287|     
+    288|     expect(response.status).toBe(200)
+       |                             ^
+    289|     
+    290|     // Verify auth flow was called correctly
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/20]⎯
+
+ FAIL  tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Tasks API > should create task with proper workspace scoping
+AssertionError: expected 401 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 401
+
+ ❯ tests/api/phase1-migrated-routes.spec.ts:338:29
+    336|     const response = await createTask(request)
+    337|     
+    338|     expect(response.status).toBe(200)
+       |                             ^
+    339|     const data = await response.json()
+    340|     expect(data.workspaceId).toBe('workspace-1')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/20]⎯
+
+ FAIL  tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Epics API > should return 200 with proper auth flow
+AssertionError: expected 401 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 401
+
+ ❯ tests/api/phase1-migrated-routes.spec.ts:394:29
+    392|     const response = await getEpics(request, { params: Promise.resolve…
+    393|     
+    394|     expect(response.status).toBe(200)
+       |                             ^
+    395|     
+    396|     // Verify auth flow was called correctly
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/20]⎯
+
+ FAIL  tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Epics API > should create epic with proper workspace scoping
+AssertionError: expected 401 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 401
+
+ ❯ tests/api/phase1-migrated-routes.spec.ts:443:29
+    441|     const response = await createEpic(request, { params: Promise.resol…
+    442|     
+    443|     expect(response.status).toBe(201)
+       |                             ^
+    444|     const data = await response.json()
+    445|     expect(data.workspaceId).toBe('workspace-1')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/20]⎯
+
+ FAIL  tests/api/phase1-migrated-routes.spec.ts > Phase 1 Migrated Routes - Epics API > should require ADMIN or OWNER role to create epics
+AssertionError: expected 401 to be 403 // Object.is equality
+
+- Expected
++ Received
+
+- 403
++ 401
+
+ ❯ tests/api/phase1-migrated-routes.spec.ts:485:29
+    483|     const response = await createEpic(request, { params: Promise.resol…
+    484|     
+    485|     expect(response.status).toBe(403)
+       |                             ^
+    486|     const data = await response.json()
+    487|     expect(data.error).toBe('Forbidden')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/20]⎯
+
+ FAIL  tests/api/projects.auth.spec.ts > Projects API Auth > should return 200 with session
+AssertionError: expected 401 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 401
+
+ ❯ tests/api/projects.auth.spec.ts:93:29
+     91|     const response = await getProjects(request)
+     92|     
+     93|     expect(response.status).toBe(200)
+       |                             ^
+     94|   })
+     95| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/20]⎯
+
+ FAIL  tests/api/projects.auth.spec.ts > Projects API Auth > should return 403 for mismatched workspace
+AssertionError: expected 401 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 401
+
+ ❯ tests/api/projects.auth.spec.ts:123:29
+    121|     const response = await getProjects(request)
+    122|     
+    123|     expect(response.status).toBe(200)
+       |                             ^
+    124|   })
+    125| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/20]⎯
+
+ FAIL  tests/api/projects.auth.spec.ts > Tasks API Auth > should return 200 with session
+AssertionError: expected 401 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 401
+
+ ❯ tests/api/projects.auth.spec.ts:175:29
+    173|     const response = await getTasks(request)
+    174|     
+    175|     expect(response.status).toBe(200)
+       |                             ^
+    176|   })
+    177| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/20]⎯
+
+ FAIL  tests/api/projects.auth.spec.ts > Tasks API Auth > should return 400 when projectId is missing
+AssertionError: expected 401 to be 400 // Object.is equality
+
+- Expected
++ Received
+
+- 400
++ 401
+
+ ❯ tests/api/projects.auth.spec.ts:191:29
+    189|     const response = await getTasks(request)
+    190|     
+    191|     expect(response.status).toBe(400)
+       |                             ^
+    192|     const data = await response.json()
+    193|     expect(data.error).toBe('Missing required parameter: projectId')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/20]⎯
+
+ FAIL  tests/api/projects.auth.spec.ts > Auth Utilities > should get authenticated user with session
+TypeError: Cannot read properties of undefined (reading 'mockResolvedValue')
+ ❯ tests/api/projects.auth.spec.ts:215:47
+    213|       name: 'Test User'
+    214|     })
+    215|     vi.mocked(prisma.workspaceMember.findFirst).mockResolvedValue({
+       |                                               ^
+    216|       workspaceId: 'workspace-1',
+    217|       role: 'OWNER'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/20]⎯
+
+ FAIL  tests/api/projects.auth.spec.ts > Auth Utilities > should get dev user when no session and dev login allowed
+TypeError: Cannot read properties of undefined (reading 'mockResolvedValue')
+ ❯ tests/api/projects.auth.spec.ts:240:47
+    238|       name: 'Dev User'
+    239|     })
+    240|     vi.mocked(prisma.workspaceMember.findFirst).mockResolvedValue({
+       |                                               ^
+    241|       workspaceId: 'workspace-1',
+    242|       role: 'OWNER'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/20]⎯
+
+ FAIL  tests/api/tasks.auth.spec.ts > Tasks API Auth > should return 200 with session
+AssertionError: expected 401 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 401
+
+ ❯ tests/api/tasks.auth.spec.ts:91:29
+     89|     const response = await getTasks(request)
+     90|     
+     91|     expect(response.status).toBe(200)
+       |                             ^
+     92|   })
+     93| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/20]⎯
+
+ FAIL  tests/api/tasks.auth.spec.ts > Tasks API Auth > should return 400 when projectId is missing
+AssertionError: expected 401 to be 400 // Object.is equality
+
+- Expected
++ Received
+
+- 400
++ 401
+
+ ❯ tests/api/tasks.auth.spec.ts:107:29
+    105|     const response = await getTasks(request)
+    106|     
+    107|     expect(response.status).toBe(400)
+       |                             ^
+    108|     const data = await response.json()
+    109|     expect(data.error).toBe('Missing required parameter: projectId')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/20]⎯
+
+ FAIL  tests/api/tasks.auth.spec.ts > Tasks API Auth > should create task with proper workspace scoping
+AssertionError: expected 401 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 401
+
+ ❯ tests/api/tasks.auth.spec.ts:159:29
+    157|     const response = await createTask(request)
+    158|     
+    159|     expect(response.status).toBe(200)
+       |                             ^
+    160|     const data = await response.json()
+    161|     expect(data.workspaceId).toBe('workspace-1')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/20]⎯
+
+ FAIL  tests/api/tasks.auth.spec.ts > Access Control > should allow dev bypass in development
+AssertionError: promise rejected "Error: Forbidden: User not member of work…" instead of resolving
+ ❯ tests/api/tasks.auth.spec.ts:219:7
+    217|       scope: 'workspace',
+    218|       requireRole: ['ADMIN']
+    219|     })).resolves.not.toThrow()
+       |       ^
+    220|   })
+    221| })
+
+Caused by: Error: Forbidden: User not member of workspace
+ ❯ Module.assertAccess src/lib/auth/assertAccess.ts:46:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/20]⎯
+
+ Test Files  4 failed | 11 passed | 1 skipped (16)
+      Tests  19 failed | 98 passed | 1 skipped (118)
+   Start at  10:46:12
+   Duration  4.84s (transform 724ms, setup 672ms, collect 2.21s, tests 4.54s, environment 2ms, prepare 934ms)
+

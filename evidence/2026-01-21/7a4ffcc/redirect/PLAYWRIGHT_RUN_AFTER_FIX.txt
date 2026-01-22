@@ -1,0 +1,219 @@
+
+Running 12 tests using 5 workers
+
+(node:56982) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56982) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║  AUTH STATE NOT FOUND OR INVALID                                       ║
+║                                                                         ║
+║  To set up authentication for local E2E tests:                          ║
+║                                                                         ║
+║  1. Start the app: npm run dev                                          ║
+║  2. Run: npx playwright codegen --save-storage=.auth/user.json \        ║
+║          http://localhost:3000/login                                    ║
+║  3. Complete Google OAuth login in the browser                          ║
+║  4. Close the browser when done                                         ║
+║                                                                         ║
+║  The auth state will be saved and reused for future test runs.          ║
+╚═══════════════════════════════════════════════════════════════════════╝
+  
+  ✓   1 [setup] › tests/e2e/auth.setup.ts:18:6 › authenticate (14ms)
+(node:56984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56985) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56987) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56988) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56986) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56988) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56985) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56987) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56986) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 [chromium] › tests/e2e/redirect-smoke.spec.ts:64:7 › Redirect Verification - Unauthenticated › TC-10: Unauthenticated user hitting /api/tasks returns 401 (1.4s)
+  ✓   5 [chromium] › tests/e2e/redirect-smoke.spec.ts:52:7 › Redirect Verification - Unauthenticated › TC-1c: Unauthenticated user hitting /wiki redirects to /login (1.6s)
+  ✓   6 [chromium] › tests/e2e/redirect-smoke.spec.ts:40:7 › Redirect Verification - Unauthenticated › TC-1b: Unauthenticated user hitting /projects redirects to /login (1.6s)
+  ✓   2 [chromium] › tests/e2e/redirect-smoke.spec.ts:24:7 › Redirect Verification - Unauthenticated › TC-1: Unauthenticated user hitting /home redirects to /login (1.7s)
+  ✘  10 [chromium] › tests/e2e/redirect-smoke.spec.ts:119:7 › Redirect Verification - Authenticated › TC-9: OAuth callback preserves session (549ms)
+(node:57026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  11 [chromium] › tests/e2e/redirect-smoke.spec.ts:131:7 › API Route Protection › Protected task route requires auth (298ms)
+  ✘  12 [chromium] › tests/e2e/redirect-smoke.spec.ts:145:7 › API Route Protection › Protected project route requires auth (974ms)
+  ✘   7 [chromium] › tests/e2e/redirect-smoke.spec.ts:87:7 › Redirect Verification - Authenticated › TC-4: Authenticated user with workspace can access /home (5.3s)
+  ✘   8 [chromium] › tests/e2e/redirect-smoke.spec.ts:98:7 › Redirect Verification - Authenticated › TC-4b: Authenticated user can access /projects (5.6s)
+  ✘   9 [chromium] › tests/e2e/redirect-smoke.spec.ts:105:7 › Redirect Verification - Authenticated › TC-8: Hard refresh on protected route maintains session (5.9s)
+  ✘   4 [chromium] › tests/e2e/redirect-smoke.spec.ts:75:7 › Redirect Verification - Authenticated › TC-2: Authenticated user hitting /login redirects to /home (11.5s)
+
+
+  1) [chromium] › tests/e2e/redirect-smoke.spec.ts:75:7 › Redirect Verification - Authenticated › TC-2: Authenticated user hitting /login redirects to /home 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mnot[2m.[22mtoContain[2m([22m[32mexpected[39m[2m) // indexOf[22m
+
+    Expected substring: not [32m"/login"[39m
+    Received string:        [31m"http://localhost:3000[7m/login[27m"[39m
+
+    Call Log:
+    - Timeout 10000ms exceeded while waiting on the predicate
+
+      82 |       // Should not be on login page anymore
+      83 |       expect(url).not.toContain('/login')
+    > 84 |     }).toPass({ timeout: 10000 })
+         |        ^
+      85 |   })
+      86 |
+      87 |   test('TC-4: Authenticated user with workspace can access /home', async ({ page }) => {
+        at /Users/tonyem/lumi-work-os/tests/e2e/redirect-smoke.spec.ts:84:8
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/redirect-smoke-Redirect-Ve-812e5-ing-login-redirects-to-home-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/redirect-smoke-Redirect-Ve-812e5-ing-login-redirects-to-home-chromium/error-context.md
+
+  2) [chromium] › tests/e2e/redirect-smoke.spec.ts:87:7 › Redirect Verification - Authenticated › TC-4: Authenticated user with workspace can access /home 
+
+    Error: [2mexpect([22m[31mpage[39m[2m).not.[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: not [32m/\/login/[39m
+    Received string: [31m"http://localhost:3000[7m/login[27m?callbackUrl=%2Fhome"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "not toHaveURL" with timeout 5000ms[22m
+    [2m    9 × unexpected value "http://localhost:3000/login?callbackUrl=%2Fhome"[22m
+
+
+      90 |     
+      91 |     // Should NOT be redirected to login
+    > 92 |     await expect(page).not.toHaveURL(/\/login/, { timeout: 5000 })
+         |                            ^
+      93 |     
+      94 |     // Dashboard container should be visible
+      95 |     await expect(page.getByTestId('dashboard-container')).toBeVisible({ timeout: 10000 })
+        at /Users/tonyem/lumi-work-os/tests/e2e/redirect-smoke.spec.ts:92:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/redirect-smoke-Redirect-Ve-2332a-h-workspace-can-access-home-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/redirect-smoke-Redirect-Ve-2332a-h-workspace-can-access-home-chromium/error-context.md
+
+  3) [chromium] › tests/e2e/redirect-smoke.spec.ts:98:7 › Redirect Verification - Authenticated › TC-4b: Authenticated user can access /projects 
+
+    Error: [2mexpect([22m[31mpage[39m[2m).not.[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: not [32m/\/login/[39m
+    Received string: [31m"http://localhost:3000[7m/login[27m?callbackUrl=%2Fprojects"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "not toHaveURL" with timeout 5000ms[22m
+    [2m    9 × unexpected value "http://localhost:3000/login?callbackUrl=%2Fprojects"[22m
+
+
+      100 |     await page.waitForLoadState('domcontentloaded')
+      101 |     
+    > 102 |     await expect(page).not.toHaveURL(/\/login/, { timeout: 5000 })
+          |                            ^
+      103 |   })
+      104 |
+      105 |   test('TC-8: Hard refresh on protected route maintains session', async ({ page }) => {
+        at /Users/tonyem/lumi-work-os/tests/e2e/redirect-smoke.spec.ts:102:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/redirect-smoke-Redirect-Ve-df689-ed-user-can-access-projects-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/redirect-smoke-Redirect-Ve-df689-ed-user-can-access-projects-chromium/error-context.md
+
+  4) [chromium] › tests/e2e/redirect-smoke.spec.ts:105:7 › Redirect Verification - Authenticated › TC-8: Hard refresh on protected route maintains session 
+
+    Error: [2mexpect([22m[31mpage[39m[2m).not.[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: not [32m/\/login/[39m
+    Received string: [31m"http://localhost:3000[7m/login[27m?callbackUrl=%2Fhome"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "not toHaveURL" with timeout 5000ms[22m
+    [2m    9 × unexpected value "http://localhost:3000/login?callbackUrl=%2Fhome"[22m
+
+
+      113 |     
+      114 |     // Should still be authenticated
+    > 115 |     await expect(page).not.toHaveURL(/\/login/, { timeout: 5000 })
+          |                            ^
+      116 |     await expect(page.getByTestId('dashboard-container')).toBeVisible({ timeout: 10000 })
+      117 |   })
+      118 |
+        at /Users/tonyem/lumi-work-os/tests/e2e/redirect-smoke.spec.ts:115:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/redirect-smoke-Redirect-Ve-9a752-ted-route-maintains-session-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/redirect-smoke-Redirect-Ve-9a752-ted-route-maintains-session-chromium/error-context.md
+
+  5) [chromium] › tests/e2e/redirect-smoke.spec.ts:119:7 › Redirect Verification - Authenticated › TC-9: OAuth callback preserves session 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoHaveProperty[2m([22m[32mpath[39m[2m)[22m
+
+    Expected path: [32m"user"[39m
+    Received path: [31m[][39m
+
+    Received value: [31m{}[39m
+
+      123 |     const session = await sessionResponse.json()
+      124 |     
+    > 125 |     expect(session).toHaveProperty('user')
+          |                     ^
+      126 |     expect(session.user).toHaveProperty('email')
+      127 |   })
+      128 | })
+        at /Users/tonyem/lumi-work-os/tests/e2e/redirect-smoke.spec.ts:125:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/redirect-smoke-Redirect-Ve-54858--callback-preserves-session-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium] › tests/e2e/redirect-smoke.spec.ts:145:7 › API Route Protection › Protected project route requires auth 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m401[39m
+    Received: [31m500[39m
+
+      148 |     
+      149 |     const response = await page.request.get('/api/projects/some-fake-id')
+    > 150 |     expect(response.status()).toBe(401)
+          |                               ^
+      151 |     
+      152 |     await context.close()
+      153 |   })
+        at /Users/tonyem/lumi-work-os/tests/e2e/redirect-smoke.spec.ts:150:31
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/redirect-smoke-API-Route-P-0f67c-project-route-requires-auth-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6 failed
+    [chromium] › tests/e2e/redirect-smoke.spec.ts:75:7 › Redirect Verification - Authenticated › TC-2: Authenticated user hitting /login redirects to /home 
+    [chromium] › tests/e2e/redirect-smoke.spec.ts:87:7 › Redirect Verification - Authenticated › TC-4: Authenticated user with workspace can access /home 
+    [chromium] › tests/e2e/redirect-smoke.spec.ts:98:7 › Redirect Verification - Authenticated › TC-4b: Authenticated user can access /projects 
+    [chromium] › tests/e2e/redirect-smoke.spec.ts:105:7 › Redirect Verification - Authenticated › TC-8: Hard refresh on protected route maintains session 
+    [chromium] › tests/e2e/redirect-smoke.spec.ts:119:7 › Redirect Verification - Authenticated › TC-9: OAuth callback preserves session 
+    [chromium] › tests/e2e/redirect-smoke.spec.ts:145:7 › API Route Protection › Protected project route requires auth 
+  6 passed (12.8s)

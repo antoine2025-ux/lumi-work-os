@@ -16,13 +16,14 @@ export default function LegacyProjectsPage() {
   const { currentWorkspace, isLoading } = useWorkspace()
 
   useEffect(() => {
+    // Wait for workspace to load
     if (isLoading) return
 
     if (currentWorkspace?.slug) {
       router.replace(`/w/${currentWorkspace.slug}/projects`)
     } else {
-      // No workspace - redirect to welcome or home
-      router.replace('/')
+      // No workspace - redirect to home (which will handle welcome redirect if needed)
+      router.replace('/home')
     }
   }, [currentWorkspace, isLoading, router])
 

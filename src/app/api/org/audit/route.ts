@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { unstable_cache, revalidateTag } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { getOrgContext } from "@/server/rbac";
 
 export async function GET(req: NextRequest) {

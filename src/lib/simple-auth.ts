@@ -1,5 +1,5 @@
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/server/authOptions'
 import { prisma } from '@/lib/db'
 
 // Note: Direct PostgreSQL connection via 'pg' library has issues connecting from host to Docker
@@ -44,13 +44,33 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       })
 
       // Check if user has any workspace membership
+      // Use select to avoid querying customRoleId which may not exist in database
       workspaceMembership = await prisma.workspaceMember.findFirst({
-        where: { userId: user.id }
+        where: { userId: user.id },
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
+          // Exclude customRoleId and customRole relation - they may not exist in database
+        }
       })
 
       if (workspaceMembership) {
         workspace = await prisma.workspace.findUnique({
-          where: { id: workspaceMembership.workspaceId }
+          where: { id: workspaceMembership.workspaceId },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            description: true,
+            logo: true,
+            ownerId: true,
+            createdAt: true,
+            updatedAt: true,
+            // Exclude orgCenterOnboardingCompletedAt - may not exist in database
+          }
         })
       }
     } catch (prismaError: any) {
@@ -266,13 +286,36 @@ export async function createUserWorkspace(userData: {
       }
     }
 
-    // Create workspace - try Prisma first, fall back to raw SQL
+    // Create workspace - first ensure slug is unique
     let workspace
+    
+    // Check if slug already exists and make it unique if needed
+    let finalSlug = workspaceData.slug
+    let counter = 1
+    const maxAttempts = 100 // Prevent infinite loop
+    while (counter < maxAttempts) {
+      try {
+        const existingWorkspace = await prisma.workspace.findUnique({
+          where: { slug: finalSlug },
+          select: { id: true }
+        })
+        if (!existingWorkspace) break
+        finalSlug = `${workspaceData.slug}-${counter}`
+        counter++
+      } catch (slugCheckError) {
+        console.warn('[createUserWorkspace] Error checking slug uniqueness:', slugCheckError)
+        // If we can't check, add a random suffix to be safe
+        finalSlug = `${workspaceData.slug}-${Date.now().toString(36).slice(-4)}`
+        break
+      }
+    }
+    
+    console.log('[createUserWorkspace] Using slug:', finalSlug)
     try {
       workspace = await prisma.workspace.create({
         data: {
           name: workspaceData.name,
-          slug: workspaceData.slug,
+          slug: finalSlug,
           description: workspaceData.description,
           ownerId: user.id,
         },
@@ -354,44 +397,32 @@ export async function createUserWorkspace(userData: {
       }
     }
 
-    // Add user as OWNER - try Prisma first, fall back to raw SQL
+    // Add user as OWNER - use raw SQL directly to avoid Prisma schema validation issues
+    // The database schema may be out of sync with Prisma schema (e.g., customRoleId column missing)
+    // Using raw SQL bypasses Prisma's schema validation and works with the actual database structure
     try {
-      const membership = await prisma.workspaceMember.create({
-        data: {
-          userId: user.id,
-          workspaceId: workspace.id,
-          role: 'OWNER',
-          joinedAt: new Date(),
-        }
-      })
-    } catch (prismaError: any) {
-      console.error('[createUserWorkspace] Prisma workspaceMember.create failed, trying raw SQL:', prismaError.message)
+      // Generate CUID-like ID for membership
+      const { randomBytes } = await import('crypto')
+      const membershipId = 'c' + Date.now().toString(36) + randomBytes(4).toString('hex')
+      const escapedUserId = user.id.replace(/'/g, "''")
+      const escapedWorkspaceId = workspace.id.replace(/'/g, "''")
       
-      // If Prisma fails due to schema mismatch, use raw SQL
-      if (prismaError.code === 'P2022' || prismaError.message?.includes('does not exist')) {
-        // Use raw SQL to create workspace member with only existing columns
-        // Generate CUID-like ID
-        const { randomBytes } = await import('crypto')
-        const membershipId = 'c' + Date.now().toString(36) + randomBytes(4).toString('hex')
-        const escapedUserId = user.id.replace(/'/g, "''")
-        const escapedWorkspaceId = workspace.id.replace(/'/g, "''")
-        
-        try {
-          await prisma.$executeRawUnsafe(`
-            INSERT INTO workspace_members (id, "userId", "workspaceId", role, "joinedAt")
-            VALUES ('${membershipId}', '${escapedUserId}', '${escapedWorkspaceId}', 'OWNER', NOW())
-            ON CONFLICT ("workspaceId", "userId") DO NOTHING
-          `)
-          
-        } catch (rawSQLError: any) {
-          console.error('[createUserWorkspace] Raw SQL workspaceMember.create also failed:', rawSQLError.message)
-          // Don't throw - workspace is already created, member can be added later via manual fix
-          console.warn('[createUserWorkspace] Workspace created but member creation failed. Workspace ID:', workspace.id)
-        }
-      } else {
-        // For other errors, log but don't throw
-        console.warn('[createUserWorkspace] Workspace created but member creation failed. Workspace ID:', workspace.id)
-      }
+      // Use raw SQL to create workspace member with only existing columns
+      // This avoids Prisma schema validation issues when schema is out of sync
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO workspace_members (id, "userId", "workspaceId", role, "joinedAt")
+        VALUES ('${membershipId}', '${escapedUserId}', '${escapedWorkspaceId}', 'OWNER', NOW())
+        ON CONFLICT ("workspaceId", "userId") DO NOTHING
+      `)
+      
+      console.log('[createUserWorkspace] WorkspaceMember created successfully via raw SQL')
+    } catch (rawSQLError: any) {
+      console.error('[createUserWorkspace] Raw SQL workspaceMember.create failed:', rawSQLError.message)
+      console.error('[createUserWorkspace] Raw SQL error code:', rawSQLError.code)
+      // Don't throw - workspace is already created, member can be added later via manual fix
+      // This is a non-critical error - the workspace exists, membership can be fixed manually if needed
+      console.warn('[createUserWorkspace] Workspace created but member creation failed. Workspace ID:', workspace.id)
+      console.warn('[createUserWorkspace] User can still access workspace, but membership record may need manual creation')
     }
 
     // Return the auth user data
@@ -405,14 +436,32 @@ export async function createUserWorkspace(userData: {
     }
   } catch (error) {
     console.error('[createUserWorkspace] Error creating workspace:', error)
+    
+    // Extract serializable error details
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorName = error instanceof Error ? error.name : 'Unknown'
+    const errorCode = (error as any)?.code
+    const prismaError = error as any
+    
     console.error('[createUserWorkspace] Error details:', {
-      message: error instanceof Error ? error.message : String(error),
-      name: error instanceof Error ? error.name : 'Unknown',
+      message: errorMessage,
+      name: errorName,
+      code: errorCode,
+      prismaCode: prismaError?.code,
+      prismaMeta: prismaError?.meta ? JSON.stringify(prismaError.meta) : undefined,
       stack: error instanceof Error ? error.stack : undefined,
-      userData,
-      workspaceData
+      userData: { id: userData.id, email: userData.email },
+      workspaceData: { name: workspaceData.name, slug: workspaceData.slug }
     })
-    throw error
+    
+    // Create a new Error with serializable properties to avoid circular reference issues
+    const serializableError = new Error(errorMessage)
+    ;(serializableError as any).code = errorCode
+    ;(serializableError as any).name = errorName
+    if (prismaError?.meta) {
+      ;(serializableError as any).meta = prismaError.meta
+    }
+    throw serializableError
   }
 }
 

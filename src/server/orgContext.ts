@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/authOptions";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { NextRequest } from "next/server";
 
@@ -23,26 +23,33 @@ export async function getActiveOrgContext(request?: NextRequest) {
     }
 
     // Try to get org from OrgMembership first (new system)
-    if (prisma.orgMembership) {
-      const membership = activeOrgId
-        ? await prisma.orgMembership.findUnique({
-            where: { orgId_userId: { orgId: activeOrgId, userId } },
-            select: { role: true, org: { select: { id: true, name: true } } },
-          })
-        : await prisma.orgMembership.findFirst({
-            where: { userId },
-            orderBy: { createdAt: "asc" },
-            select: { role: true, org: { select: { id: true, name: true } } },
-          });
+    // Wrapped in try/catch as a safety net during schema transitions
+    try {
+      if (prisma.orgMembership) {
+        const membership = activeOrgId
+          ? await prisma.orgMembership.findUnique({
+              where: { orgId_userId: { orgId: activeOrgId, userId } },
+              select: { role: true, org: { select: { id: true, name: true } } },
+            })
+          : await prisma.orgMembership.findFirst({
+              where: { userId },
+              orderBy: { createdAt: "asc" },
+              select: { role: true, org: { select: { id: true, name: true } } },
+            });
 
-      if (membership) {
-        return {
-          userId,
-          orgId: membership.org.id,
-          orgName: membership.org.name,
-          role: membership.role as any,
-        };
+        if (membership) {
+          return {
+            userId,
+            orgId: membership.org.id,
+            orgName: membership.org.name,
+            role: membership.role as any,
+          };
+        }
       }
+    } catch (orgMembershipError) {
+      // Table may not exist during migration - fall through to workspace-based resolution
+      console.warn("[getActiveOrgContext] OrgMembership query failed, falling back to workspace:", 
+        orgMembershipError instanceof Error ? orgMembershipError.message : "Unknown error");
     }
 
     // Fallback: Use workspace-based org resolution (legacy system)

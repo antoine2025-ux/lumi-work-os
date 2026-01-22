@@ -1,0 +1,748 @@
+
+> loopwell@0.1.0 typecheck
+> tsc --noEmit
+
+.next/types/app/(dashboard)/org-legacy/[orgId]/activity/exports/page.ts(12,13): error TS2344: Type 'OmitWithTag<typeof import("/Users/tonyem/lumi-work-os/src/app/(dashboard)/org-legacy/[orgId]/activity/exports/page"), "default" | "config" | "generateStaticParams" | "revalidate" | "dynamic" | ... 9 more ... | "experimental_ppr", "">' does not satisfy the constraint '{ [x: string]: never; }'.
+  Property 'OrgExportsScreen' is incompatible with index signature.
+    Type '({ orgId }: OrgExportsScreenProps) => Element' is not assignable to type 'never'.
+.next/types/app/(dashboard)/org-legacy/[orgId]/activity/exports/page.ts(30,4): error TS2344: Type 'typeof import("/Users/tonyem/lumi-work-os/src/app/(dashboard)/org-legacy/[orgId]/activity/exports/page")' does not satisfy the constraint '{ default: Function; config?: {} | undefined; generateStaticParams?: Function | undefined; revalidate?: false | undefined; dynamic?: "auto" | "force-dynamic" | "error" | "force-static" | undefined; ... 9 more ...; experimental_ppr?: boolean | undefined; }'.
+  Property 'default' is missing in type 'typeof import("/Users/tonyem/lumi-work-os/src/app/(dashboard)/org-legacy/[orgId]/activity/exports/page")' but required in type '{ default: Function; config?: {} | undefined; generateStaticParams?: Function | undefined; revalidate?: false | undefined; dynamic?: "auto" | "force-dynamic" | "error" | "force-static" | undefined; ... 9 more ...; experimental_ppr?: boolean | undefined; }'.
+.next/types/app/(dashboard)/org-legacy/[orgId]/activity/exports/page.ts(34,45): error TS2339: Property 'default' does not exist on type 'typeof import("/Users/tonyem/lumi-work-os/src/app/(dashboard)/org-legacy/[orgId]/activity/exports/page")'.
+.next/types/app/(dashboard)/org-legacy/[orgId]/activity/page.ts(12,13): error TS2344: Type 'OmitWithTag<typeof import("/Users/tonyem/lumi-work-os/src/app/(dashboard)/org-legacy/[orgId]/activity/page"), "default" | "config" | "generateStaticParams" | "revalidate" | "dynamic" | ... 9 more ... | "experimental_ppr", "">' does not satisfy the constraint '{ [x: string]: never; }'.
+  Property 'OrgActivityScreen' is incompatible with index signature.
+    Type '({ orgId, searchParams }: OrgActivityScreenProps) => Promise<Element>' is not assignable to type 'never'.
+.next/types/app/(dashboard)/org-legacy/members/page.ts(12,13): error TS2344: Type 'OmitWithTag<typeof import("/Users/tonyem/lumi-work-os/src/app/(dashboard)/org-legacy/members/page"), "default" | "config" | "generateStaticParams" | "revalidate" | "dynamic" | "dynamicParams" | ... 8 more ... | "experimental_ppr", "">' does not satisfy the constraint '{ [x: string]: never; }'.
+  Property 'OrgMembersScreen' is incompatible with index signature.
+    Type '({ workspaceId }: OrgMembersScreenProps) => Promise<Element>' is not assignable to type 'never'.
+.next/types/app/org/chart/departments/[departmentId]/page.ts(34,29): error TS2344: Type '{ params: { departmentId: string; }; }' does not satisfy the constraint 'PageProps'.
+  Types of property 'params' are incompatible.
+    Type '{ departmentId: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/org/dev/loopbrain-status/page.ts(2,24): error TS2306: File '/Users/tonyem/lumi-work-os/src/app/org/dev/loopbrain-status/page.tsx' is not a module.
+.next/types/app/org/dev/loopbrain-status/page.ts(5,29): error TS2306: File '/Users/tonyem/lumi-work-os/src/app/org/dev/loopbrain-status/page.tsx' is not a module.
+.next/types/app/org/structure/teams/[teamId]/page.ts(34,29): error TS2344: Type '{ params: { teamId: string; }; }' does not satisfy the constraint 'PageProps'.
+  Types of property 'params' are incompatible.
+    Type '{ teamId: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/validator.ts(144,31): error TS2344: Type 'typeof import("/Users/tonyem/lumi-work-os/src/app/(dashboard)/org-legacy/[orgId]/activity/exports/page")' does not satisfy the constraint 'AppPageConfig<"/org-legacy/[orgId]/activity/exports">'.
+  Property 'default' is missing in type 'typeof import("/Users/tonyem/lumi-work-os/src/app/(dashboard)/org-legacy/[orgId]/activity/exports/page")' but required in type 'AppPageConfig<"/org-legacy/[orgId]/activity/exports">'.
+.next/types/validator.ts(899,39): error TS2306: File '/Users/tonyem/lumi-work-os/src/app/org/dev/loopbrain-status/page.tsx' is not a module.
+prisma/seed/loopbrain_fixtures.ts(111,7): error TS2353: Object literal may only specify known properties, and 'workspaceId_departmentId_name' does not exist in type 'OrgTeamWhereUniqueInput'.
+prisma/seed/loopbrain_fixtures.ts(129,7): error TS2353: Object literal may only specify known properties, and 'workspaceId_departmentId_name' does not exist in type 'OrgTeamWhereUniqueInput'.
+prisma/seed/loopbrain_fixtures.ts(389,5): error TS2322: Type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' is not assignable to type '(Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput) | (Without<...> & PersonAvailabilityCreateInput)'.
+  Type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' is not assignable to type 'Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput'.
+    Property 'workspaceId' is missing in type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' but required in type 'PersonAvailabilityUncheckedCreateInput'.
+prisma/seed/loopbrain_fixtures.ts(400,5): error TS2322: Type '{ personId: string; type: "PARTIAL"; startDate: Date; endDate: Date; fraction: number; note: string; }' is not assignable to type '(Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput) | (Without<...> & PersonAvailabilityCreateInput)'.
+  Type '{ personId: string; type: "PARTIAL"; startDate: Date; endDate: Date; fraction: number; note: string; }' is not assignable to type 'Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput'.
+    Property 'workspaceId' is missing in type '{ personId: string; type: "PARTIAL"; startDate: Date; endDate: Date; fraction: number; note: string; }' but required in type 'PersonAvailabilityUncheckedCreateInput'.
+prisma/seed/org_golden_path.ts(244,5): error TS2322: Type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' is not assignable to type '(Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput) | (Without<...> & PersonAvailabilityCreateInput)'.
+  Type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' is not assignable to type 'Without<PersonAvailabilityCreateInput, PersonAvailabilityUncheckedCreateInput> & PersonAvailabilityUncheckedCreateInput'.
+    Property 'workspaceId' is missing in type '{ personId: string; type: "UNAVAILABLE"; startDate: Date; endDate: Date; note: string; }' but required in type 'PersonAvailabilityUncheckedCreateInput'.
+src/app/(dashboard)/my-tasks/page.tsx(542,11): error TS2719: Type 'Task | null' is not assignable to type 'Task | null'. Two different types with this name exist, but they are unrelated.
+  Type 'Task' is missing the following properties from type 'Task': dependsOn, blocks
+src/app/(dashboard)/org-legacy/api/departments/route.ts(11,9): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"OrgDepartment"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"OrgDepartment"> | undefined'.
+src/app/(dashboard)/org-legacy/api/projects/[projectId]/accountability/route.ts(25,13): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"Project"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"Project"> | undefined'.
+src/app/(dashboard)/org-legacy/api/teams/route.ts(10,16): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"OrgTeam"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"OrgTeam"> | undefined'.
+src/app/(dashboard)/org-legacy/dev/OrgQaSmokePanel.tsx(30,7): error TS2741: Property 'stub' is missing in type '{ pass: string; partial: string; fail: string; }' but required in type 'Record<"fail" | "pass" | "partial" | "stub", string>'.
+src/app/(dashboard)/org-legacy/dev/OrgQaSmokePanel.tsx(36,7): error TS2741: Property 'stub' is missing in type '{ pass: string; partial: string; fail: string; }' but required in type 'Record<"fail" | "pass" | "partial" | "stub", string>'.
+src/app/(dashboard)/org-legacy/dev/OrgQaSmokePanel.tsx(129,15): error TS2322: Type '(questionIdToHighlight?: string | undefined) => Promise<void>' is not assignable to type 'MouseEventHandler<HTMLButtonElement>'.
+  Types of parameters 'questionIdToHighlight' and 'event' are incompatible.
+    Type 'MouseEvent<HTMLButtonElement, MouseEvent>' is not assignable to type 'string'.
+src/app/(dashboard)/org-legacy/members/page.tsx(98,6): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/app/(dashboard)/org-legacy/members/page.tsx(126,14): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/app/(dashboard)/org-legacy/members/page.tsx(446,28): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(250,18): error TS2304: Cannot find name 'onAddAvailability'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(308,8): error TS2304: Cannot find name 'onAddAvailability'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(313,19): error TS2304: Cannot find name 'onAddAvailability'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(318,8): error TS2304: Cannot find name 'onAddAllocation'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(318,37): error TS2304: Cannot find name 'projectOptions'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(322,21): error TS2304: Cannot find name 'projectOptions'.
+src/app/(dashboard)/org-legacy/people/_components/EditPersonDrawer.tsx(324,19): error TS2304: Cannot find name 'onAddAllocation'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(143,25): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Type 'IssueRow' is not assignable to type '{ issue: { id: string; type: string; firstSeenAt: string; lastSeenAt: string; resolvedAt: null; }; person: any; impactScore: number; impactReason: string; }'.
+    The types of 'issue.resolvedAt' are incompatible between these types.
+      Type 'string | null' is not assignable to type 'null'.
+        Type 'string' is not assignable to type 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(177,43): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(207,25): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(208,45): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(220,11): error TS2304: Cannot find name 'load'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(304,66): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(339,19): error TS2304: Cannot find name 'setLoading'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(358,21): error TS2304: Cannot find name 'setLoading'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(361,17): error TS17001: JSX elements cannot have multiple attributes with the same name.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(476,42): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(477,50): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(478,37): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(479,53): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(480,46): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(483,36): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(483,67): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(484,19): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(486,21): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(488,21): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(490,21): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(495,25): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(501,38): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(510,58): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(511,44): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(522,28): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(522,45): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(525,29): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(525,47): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(541,22): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(541,53): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(544,35): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(546,26): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(547,93): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(548,30): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(563,40): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(579,55): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(591,40): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(593,60): error TS18047: 'r' is possibly 'null'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(704,25): error TS2304: Cannot find name 'onSyncIssues'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(705,29): error TS2304: Cannot find name 'onSyncIssues'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(843,21): error TS2304: Cannot find name 'setLoading'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(885,23): error TS2304: Cannot find name 'setLoading'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(888,29): error TS2304: Cannot find name 'loading'.
+src/app/(dashboard)/org-legacy/people/_components/PeopleIssuesTab.tsx(891,20): error TS2304: Cannot find name 'loading'.
+src/app/(dashboard)/org-legacy/people/_components/PersonProfileDrawer.tsx(520,28): error TS2304: Cannot find name 'orgId'.
+src/app/(dashboard)/org-legacy/people/_components/PersonProfileDrawer.tsx(526,45): error TS2304: Cannot find name 'orgId'.
+src/app/(dashboard)/org-legacy/projects/_components/EditProjectAccountabilityDrawer.tsx(43,31): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+src/app/(dashboard)/org-legacy/projects/_components/EditProjectAccountabilityDrawer.tsx(43,61): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+src/app/(dashboard)/org-legacy/projects/_components/EditProjectAccountabilityDrawer.tsx(75,22): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+src/app/(dashboard)/org-legacy/projects/_components/EditProjectAccountabilityDrawer.tsx(90,22): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ ownerPersonId?: string | undefined; ownerRole?: string | undefined; decisionPersonId?: string | undefined; decisionRole?: string | undefined; escalationPersonId?: string | undefined; ... 4 more ...; backupDecisionRole?: string | undefined; }'.
+src/app/(dashboard)/org-legacy/settings/activity/page.tsx(47,54): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/(dashboard)/org-legacy/settings/activity/page.tsx(84,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/(dashboard)/org-legacy/settings/activity/page.tsx(117,11): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/(dashboard)/org-legacy/settings/activity/page.tsx(132,11): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/(dashboard)/org-legacy/settings/members/page.tsx(41,32): error TS2304: Cannot find name 'role'.
+src/app/(dashboard)/projects/[id]/page.tsx(722,48): error TS18047: 'project' is possibly 'null'.
+src/app/(dashboard)/projects/[id]/page.tsx(722,48): error TS18048: 'project.projectSpace' is possibly 'undefined'.
+src/app/(dashboard)/projects/[id]/page.tsx(762,35): error TS18047: 'project' is possibly 'null'.
+src/app/(dashboard)/projects/[id]/page.tsx(762,54): error TS18047: 'project' is possibly 'null'.
+src/app/(dashboard)/projects/[id]/page.tsx(764,29): error TS18047: 'project' is possibly 'null'.
+src/app/(dashboard)/projects/[id]/settings/custom-fields/page.tsx(66,23): error TS2367: This comparison appears to be unintentional because the types '"text"' and '"select"' have no overlap.
+src/app/(dashboard)/projects/[id]/settings/custom-fields/page.tsx(100,23): error TS2367: This comparison appears to be unintentional because the types '"text"' and '"select"' have no overlap.
+src/app/(dashboard)/projects/[id]/settings/custom-fields/page.tsx(166,7): error TS2322: Type '"number" | "boolean" | "select" | "text" | "date"' is not assignable to type '"text"'.
+  Type '"number"' is not assignable to type '"text"'.
+src/app/(dashboard)/projects/[id]/settings/custom-fields/page.tsx(266,16): error TS2367: This comparison appears to be unintentional because the types '"text"' and '"select"' have no overlap.
+src/app/(dashboard)/projects/[id]/tasks/[taskId]/page.tsx(164,25): error TS2339: Property 'dependsOn' does not exist on type 'Task'.
+src/app/(dashboard)/projects/[id]/tasks/[taskId]/page.tsx(165,22): error TS2339: Property 'blocks' does not exist on type 'Task'.
+src/app/(dashboard)/projects/[id]/tasks/[taskId]/page.tsx(520,11): error TS2739: Type 'Task' is missing the following properties from type 'Task': dependsOn, blocks
+src/app/(dashboard)/w/[workspaceSlug]/org/page.tsx(746,15): error TS2719: Type 'User[]' is not assignable to type 'User[]'. Two different types with this name exist, but they are unrelated.
+  Type 'User' is missing the following properties from type 'User': role, department, position, isActive, and 2 more.
+src/app/(dashboard)/w/[workspaceSlug]/org/page.tsx(823,31): error TS2741: Property 'department' is missing in type 'OrgPosition' but required in type 'RoleCardData'.
+src/app/(dashboard)/w/[workspaceSlug]/org/page.tsx(824,31): error TS2322: Type '((position: OrgPosition) => void) | undefined' is not assignable to type '((role: RoleCardData) => void) | undefined'.
+  Type '(position: OrgPosition) => void' is not assignable to type '(role: RoleCardData) => void'.
+    Types of parameters 'position' and 'role' are incompatible.
+      Type 'RoleCardData' is missing the following properties from type 'OrgPosition': parentId, userId
+src/app/(dashboard)/w/[workspaceSlug]/org/page.tsx(825,31): error TS2322: Type '((role: OrgPosition) => Promise<void>) | undefined' is not assignable to type '((role: RoleCardData) => void) | undefined'.
+  Type '(role: OrgPosition) => Promise<void>' is not assignable to type '(role: RoleCardData) => void'.
+    Types of parameters 'role' and 'role' are incompatible.
+      Type 'RoleCardData' is missing the following properties from type 'OrgPosition': parentId, userId
+src/app/(dashboard)/w/[workspaceSlug]/org/page.tsx(826,31): error TS2322: Type '((position: OrgPosition) => void) | undefined' is not assignable to type '((role: RoleCardData) => void) | undefined'.
+  Type '(position: OrgPosition) => void' is not assignable to type '(role: RoleCardData) => void'.
+    Types of parameters 'position' and 'role' are incompatible.
+      Type 'RoleCardData' is missing the following properties from type 'OrgPosition': parentId, userId
+src/app/(dashboard)/w/[workspaceSlug]/org/page.tsx(898,15): error TS2322: Type 'OrgPosition | null' is not assignable to type 'OrgPosition | null | undefined'.
+  Property 'department' is missing in type 'OrgPosition' but required in type 'OrgPosition'.
+src/app/(dashboard)/w/[workspaceSlug]/org/page.tsx(899,15): error TS2719: Type 'OrgPosition[]' is not assignable to type 'OrgPosition[]'. Two different types with this name exist, but they are unrelated.
+  Property 'department' is missing in type 'OrgPosition' but required in type 'OrgPosition'.
+src/app/(dashboard)/w/[workspaceSlug]/org/page.tsx(926,17): error TS2322: Type 'OrgPosition | null' is not assignable to type 'RoleData | null'.
+  Property 'department' is missing in type 'OrgPosition' but required in type 'RoleData'.
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx(677,35): error TS18047: 'project' is possibly 'null'.
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx(677,54): error TS18047: 'project' is possibly 'null'.
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx(679,29): error TS18047: 'project' is possibly 'null'.
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx(827,46): error TS2339: Property 'workspaceId' does not exist on type 'Project'.
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/settings/custom-fields/page.tsx(66,23): error TS2367: This comparison appears to be unintentional because the types '"text"' and '"select"' have no overlap.
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/settings/custom-fields/page.tsx(100,23): error TS2367: This comparison appears to be unintentional because the types '"text"' and '"select"' have no overlap.
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/settings/custom-fields/page.tsx(166,7): error TS2322: Type '"number" | "boolean" | "select" | "text" | "date"' is not assignable to type '"text"'.
+  Type '"number"' is not assignable to type '"text"'.
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/settings/custom-fields/page.tsx(266,16): error TS2367: This comparison appears to be unintentional because the types '"text"' and '"select"' have no overlap.
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/tasks/[taskId]/page.tsx(164,25): error TS2339: Property 'dependsOn' does not exist on type 'Task'.
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/tasks/[taskId]/page.tsx(165,22): error TS2339: Property 'blocks' does not exist on type 'Task'.
+src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/tasks/[taskId]/page.tsx(520,11): error TS2739: Type 'Task' is missing the following properties from type 'Task': dependsOn, blocks
+src/app/(dashboard)/w/[workspaceSlug]/projects/page.tsx(674,35): error TS2339: Property 'name' does not exist on type 'Epic'.
+src/app/(dashboard)/w/[workspaceSlug]/projects/page.tsx(714,37): error TS2551: Property 'project' does not exist on type 'Epic'. Did you mean 'projectId'?
+src/app/(dashboard)/w/[workspaceSlug]/projects/page.tsx(720,37): error TS2339: Property 'endDate' does not exist on type 'Epic'.
+src/app/(dashboard)/w/[workspaceSlug]/projects/page.tsx(720,61): error TS2339: Property 'endDate' does not exist on type 'Epic'.
+src/app/(dashboard)/w/[workspaceSlug]/projects/page.tsx(762,37): error TS2551: Property 'project' does not exist on type 'Task'. Did you mean 'projectId'?
+src/app/(dashboard)/wiki/home/page.tsx(297,19): error TS17001: JSX elements cannot have multiple attributes with the same name.
+src/app/(dashboard)/wiki/home/page.tsx(345,21): error TS17001: JSX elements cannot have multiple attributes with the same name.
+src/app/(dashboard)/wiki/home/page.tsx(382,21): error TS17001: JSX elements cannot have multiple attributes with the same name.
+src/app/(dashboard)/wiki/home/page.tsx(431,21): error TS17001: JSX elements cannot have multiple attributes with the same name.
+src/app/(dashboard)/wiki/search/page.tsx(93,32): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/app/(dashboard)/wiki/search/page.tsx(93,35): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/app/(dashboard)/wiki/search/page.tsx(148,8): error TS2741: Property 'currentPath' is missing in type '{}' but required in type 'WikiNavigationProps'.
+src/app/api/admin/users/[id]/route.ts(27,9): error TS2353: Object literal may only specify known properties, and 'lastLoginAt' does not exist in type 'UserSelect<DefaultArgs>'.
+src/app/api/admin/users/[id]/route.ts(119,26): error TS2339: Property 'id' does not exist on type 'Promise<{ id: string; }>'.
+src/app/api/admin/users/[id]/route.ts(127,26): error TS2339: Property 'id' does not exist on type 'Promise<{ id: string; }>'.
+src/app/api/admin/users/[id]/route.ts(137,11): error TS2353: Object literal may only specify known properties, and 'department' does not exist in type 'Without<OrgPositionCreateInput, OrgPositionUncheckedCreateInput> & OrgPositionUncheckedCreateInput'.
+src/app/api/admin/users/[id]/route.ts(155,26): error TS2339: Property 'id' does not exist on type 'Promise<{ id: string; }>'.
+src/app/api/admin/users/[id]/route.ts(163,26): error TS2339: Property 'id' does not exist on type 'Promise<{ id: string; }>'.
+src/app/api/admin/users/[id]/route.ts(195,27): error TS2339: Property 'OrgPositionUpdatedEvent' does not exist on type 'typeof import("/Users/tonyem/lumi-work-os/src/lib/events/orgEvents")'.
+src/app/api/admin/users/[id]/route.ts(195,52): error TS2339: Property 'OrgPersonUpdatedEvent' does not exist on type 'typeof import("/Users/tonyem/lumi-work-os/src/lib/events/orgEvents")'.
+src/app/api/admin/users/[id]/route.ts(197,23): error TS2749: 'OrgPositionUpdatedEvent' refers to a value, but is being used as a type here. Did you mean 'typeof OrgPositionUpdatedEvent'?
+src/app/api/admin/users/[id]/route.ts(216,25): error TS2749: 'OrgPersonUpdatedEvent' refers to a value, but is being used as a type here. Did you mean 'typeof OrgPersonUpdatedEvent'?
+src/app/api/admin/users/[id]/route.ts(226,45): error TS2339: Property 'updatedAt' does not exist on type '{ id: string; name: string | null; email: string; }'.
+src/app/api/admin/users/[id]/route.ts(242,26): error TS2339: Property 'id' does not exist on type 'Promise<{ id: string; }>'.
+src/app/api/admin/users/[id]/route.ts(261,26): error TS2339: Property 'id' does not exist on type 'Promise<{ id: string; }>'.
+src/app/api/admin/users/[id]/route.ts(268,27): error TS2339: Property 'OrgPositionUpdatedEvent' does not exist on type 'typeof import("/Users/tonyem/lumi-work-os/src/lib/events/orgEvents")'.
+src/app/api/admin/users/[id]/route.ts(268,52): error TS2339: Property 'OrgPersonUpdatedEvent' does not exist on type 'typeof import("/Users/tonyem/lumi-work-os/src/lib/events/orgEvents")'.
+src/app/api/admin/users/[id]/route.ts(271,25): error TS2749: 'OrgPositionUpdatedEvent' refers to a value, but is being used as a type here. Did you mean 'typeof OrgPositionUpdatedEvent'?
+src/app/api/admin/users/[id]/route.ts(291,23): error TS2749: 'OrgPersonUpdatedEvent' refers to a value, but is being used as a type here. Did you mean 'typeof OrgPersonUpdatedEvent'?
+src/app/api/admin/users/[id]/route.ts(293,24): error TS2339: Property 'id' does not exist on type 'Promise<{ id: string; }>'.
+src/app/api/admin/users/[id]/route.ts(298,22): error TS2339: Property 'id' does not exist on type 'Promise<{ id: string; }>'.
+src/app/api/admin/users/[id]/route.ts(362,24): error TS2339: Property 'id' does not exist on type 'Promise<{ id: string; }>'.
+src/app/api/ai/chat-sessions/route.ts(115,37): error TS18046: 'error' is of type 'unknown'.
+src/app/api/ai/chat-sessions/route.ts(116,35): error TS18046: 'error' is of type 'unknown'.
+src/app/api/ai/chat-sessions/route.ts(120,16): error TS18046: 'error' is of type 'unknown'.
+src/app/api/assistant/create-project/route.ts(101,11): error TS2353: Object literal may only specify known properties, and 'templateData' does not exist in type 'ProjectTemplateInclude<DefaultArgs>'.
+src/app/api/assistant/create-project/route.ts(183,9): error TS2353: Object literal may only specify known properties, and 'projectId' does not exist in type '(Without<ChatSessionUpdateInput, ChatSessionUncheckedUpdateInput> & ChatSessionUncheckedUpdateInput) | (Without<...> & ChatSessionUpdateInput)'.
+src/app/api/assistant/generate-draft/route.ts(221,11): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(body: ChatCompletionCreateParamsNonStreaming, options?: RequestOptions | undefined): APIPromise<ChatCompletion>', gave the following error.
+    Type '{ role: string; content: string; }' is not assignable to type 'ChatCompletionMessageParam'.
+      Property 'name' is missing in type '{ role: string; content: string; }' but required in type 'ChatCompletionFunctionMessageParam'.
+  Overload 2 of 3, '(body: ChatCompletionCreateParamsStreaming, options?: RequestOptions | undefined): APIPromise<Stream<ChatCompletionChunk>>', gave the following error.
+    Type '{ role: string; content: string; }' is not assignable to type 'ChatCompletionMessageParam'.
+      Property 'name' is missing in type '{ role: string; content: string; }' but required in type 'ChatCompletionFunctionMessageParam'.
+  Overload 3 of 3, '(body: ChatCompletionCreateParamsBase, options?: RequestOptions | undefined): APIPromise<ChatCompletion | Stream<...>>', gave the following error.
+    Type '{ role: string; content: string; }' is not assignable to type 'ChatCompletionMessageParam'.
+      Property 'name' is missing in type '{ role: string; content: string; }' but required in type 'ChatCompletionFunctionMessageParam'.
+src/app/api/assistant/message/route.ts(119,51): error TS7006: Parameter 'w' implicitly has an 'any' type.
+src/app/api/assistant/message/route.ts(120,51): error TS7006: Parameter 'w' implicitly has an 'any' type.
+src/app/api/assistant/message/route.ts(152,65): error TS18046: 'searchError' is of type 'unknown'.
+src/app/api/assistant/message/route.ts(173,40): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/app/api/assistant/message/route.ts(173,48): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/app/api/assistant/message/route.ts(293,45): error TS2345: Argument of type '{ metadata: JsonValue; id: string; createdAt: Date; sessionId: string; type: MessageType; content: string; }' is not assignable to parameter of type 'string'.
+src/app/api/assistant/message/route.ts(314,13): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(body: ChatCompletionCreateParamsNonStreaming, options?: RequestOptions | undefined): APIPromise<ChatCompletion>', gave the following error.
+    Type '{ role: string; content: string; }' is not assignable to type 'ChatCompletionMessageParam'.
+      Property 'name' is missing in type '{ role: string; content: string; }' but required in type 'ChatCompletionFunctionMessageParam'.
+  Overload 2 of 3, '(body: ChatCompletionCreateParamsStreaming, options?: RequestOptions | undefined): APIPromise<Stream<ChatCompletionChunk>>', gave the following error.
+    Type '{ role: string; content: string; }' is not assignable to type 'ChatCompletionMessageParam'.
+      Property 'name' is missing in type '{ role: string; content: string; }' but required in type 'ChatCompletionFunctionMessageParam'.
+  Overload 3 of 3, '(body: ChatCompletionCreateParamsBase, options?: RequestOptions | undefined): APIPromise<ChatCompletion | Stream<...>>', gave the following error.
+    Type '{ role: string; content: string; }' is not assignable to type 'ChatCompletionMessageParam'.
+      Property 'name' is missing in type '{ role: string; content: string; }' but required in type 'ChatCompletionFunctionMessageParam'.
+src/app/api/assistant/route.ts(34,9): error TS2322: Type 'null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+src/app/api/assistant/route.ts(38,9): error TS2322: Type 'null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+src/app/api/assistant/stream/route.ts(34,36): error TS18047: 'openai' is possibly 'null'.
+src/app/api/dev/loopbrain-org-context/route.ts(30,9): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/dev/org-loopbrain/context-snapshot/route.ts(32,9): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"ContextItem"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"ContextItem"> | undefined'.
+src/app/api/dev/org-loopbrain/relations-debug/route.ts(45,9): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"ContextItem"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"ContextItem"> | undefined'.
+src/app/api/e2e-auth/route.ts(83,7): error TS2741: Property 'uid' is missing in type '{ sub: string; id: string; email: string; name: string | null; workspaceId: string | undefined; role: $Enums.WorkspaceRole | undefined; isFirstTime: boolean; }' but required in type 'JWT'.
+src/app/api/feature-flags/route.ts(25,9): error TS18046: 'error' is of type 'unknown'.
+src/app/api/feature-flags/route.ts(29,9): error TS18046: 'error' is of type 'unknown'.
+src/app/api/feature-flags/route.ts(62,9): error TS18046: 'error' is of type 'unknown'.
+src/app/api/feature-flags/route.ts(66,9): error TS18046: 'error' is of type 'unknown'.
+src/app/api/integrations/slack/callback/route.ts(187,13): error TS2552: Cannot find name 'url'. Did you mean 'URL'?
+src/app/api/integrations/slack/callback/route.ts(188,14): error TS2552: Cannot find name 'url'. Did you mean 'URL'?
+src/app/api/integrations/slack/route.ts(84,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ accessToken: string; refreshToken: string; expiresAt?: number | undefined; teamId?: string | undefined; teamName?: string | undefined; botUserId?: string | undefined; scopes?: string[] | undefined; }>'.
+src/app/api/integrations/slack/send/route.ts(36,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ channel: string; text?: string | undefined; blocks?: any[] | undefined; threadTs?: string | undefined; }>'.
+src/app/api/internal/org-context-diagnostics/route.ts(25,9): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/invites/[token]/accept/route.ts(33,46): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+src/app/api/invites/[token]/accept/route.ts(36,23): error TS2339: Property 'user' does not exist on type '{}'.
+src/app/api/invites/[token]/accept/route.ts(45,35): error TS2339: Property 'user' does not exist on type '{}'.
+src/app/api/loopbrain/actions/route.ts(74,40): error TS2339: Property 'errors' does not exist on type 'ZodError<{ type: "task.assign"; taskId: string; assigneeId: string; } | { type: "timeoff.create"; userId: string; startDate: string; endDate: string; timeOffType: string; notes?: string | undefined; } | { ...; }>'.
+src/app/api/loopbrain/index-health/route.ts(48,30): error TS2339: Property 'timeOff' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/loopbrain/index-health/route.ts(177,38): error TS2339: Property 'timeOff' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/loopbrain/org/ask/route.ts(46,9): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"ContextItem"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"ContextItem"> | undefined'.
+src/app/api/loopbrain/org/ask/route.ts(59,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/loopbrain/org/ask/route.ts(86,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/loopbrain/org/qa/run/[id]/route.ts(27,64): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/loopbrain/org/qa/smoke/route.ts(18,64): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/loopbrain/org/qna/route.ts(55,9): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/loopbrain/q1/route.ts(87,9): error TS2561: Object literal may only specify known properties, but 'positions' does not exist in type 'UserWhereInput'. Did you mean to write 'orgPositions'?
+src/app/api/loopbrain/q2/route.ts(89,9): error TS2561: Object literal may only specify known properties, but 'positions' does not exist in type 'UserWhereInput'. Did you mean to write 'orgPositions'?
+src/app/api/loopbrain/q5/route.ts(51,9): error TS2561: Object literal may only specify known properties, but 'positions' does not exist in type 'UserWhereInput'. Did you mean to write 'orgPositions'?
+src/app/api/loopbrain/q9/route.ts(110,9): error TS2561: Object literal may only specify known properties, but 'positions' does not exist in type 'UserWhereInput'. Did you mean to write 'orgPositions'?
+src/app/api/migrations/import/route.ts(43,47): error TS2339: Property 'items' does not exist on type 'string | number | boolean | JsonObject | JsonArray'.
+  Property 'items' does not exist on type 'string'.
+src/app/api/migrations/import/route.ts(56,7): error TS2698: Spread types may only be created from object types.
+src/app/api/migrations/import/route.ts(58,48): error TS2339: Property 'approvedItems' does not exist on type 'string | number | boolean | JsonObject | JsonArray'.
+  Property 'approvedItems' does not exist on type 'string'.
+src/app/api/migrations/import/route.ts(59,48): error TS2339: Property 'rejectedItems' does not exist on type 'string | number | boolean | JsonObject | JsonArray'.
+  Property 'rejectedItems' does not exist on type 'string'.
+src/app/api/migrations/import/route.ts(80,16): error TS18046: 'error' is of type 'unknown'.
+src/app/api/migrations/route.ts(26,30): error TS2339: Property 'id' does not exist on type 'UnifiedAuthUser'.
+src/app/api/migrations/route.ts(60,27): error TS2552: Cannot find name 'prisma'. Did you mean 'Prism'?
+src/app/api/migrations/route.ts(62,25): error TS2552: Cannot find name 'prisma'. Did you mean 'Prism'?
+src/app/api/migrations/route.ts(73,36): error TS2552: Cannot find name 'prisma'. Did you mean 'Prism'?
+src/app/api/migrations/route.ts(99,35): error TS18046: 'error' is of type 'unknown'.
+src/app/api/migrations/route.ts(102,16): error TS18046: 'error' is of type 'unknown'.
+src/app/api/migrations/route.ts(103,55): error TS18046: 'error' is of type 'unknown'.
+src/app/api/migrations/route.ts(111,27): error TS2304: Cannot find name 'getServerSession'.
+src/app/api/migrations/route.ts(111,44): error TS2304: Cannot find name 'authOptions'.
+src/app/api/migrations/sessions/route.ts(28,9): error TS2353: Object literal may only specify known properties, and 'user' does not exist in type 'MigrationInclude<DefaultArgs>'.
+src/app/api/migrations/sessions/route.ts(78,9): error TS2322: Type '"preview"' is not assignable to type 'MigrationStatus | undefined'.
+src/app/api/my-tasks/route.ts(109,9): error TS2353: Object literal may only specify known properties, and 'customFields' does not exist in type 'TaskInclude<DefaultArgs>'.
+src/app/api/my-tasks/route.ts(139,16): error TS18046: 'error' is of type 'unknown'.
+src/app/api/onboarding/generate/route.ts(212,9): error TS2561: Object literal may only specify known properties, but 'durationDays' does not exist in type 'Without<OnboardingTemplateCreateInput, OnboardingTemplateUncheckedCreateInput> & OnboardingTemplateUncheckedCreateInput'. Did you mean to write 'duration'?
+src/app/api/onboarding/generate/route.ts(232,9): error TS2353: Object literal may only specify known properties, and 'employeeId' does not exist in type 'Without<OnboardingPlanCreateInput, OnboardingPlanUncheckedCreateInput> & OnboardingPlanUncheckedCreateInput'.
+src/app/api/onboarding/generate/route.ts(252,33): error TS2561: Object literal may only specify known properties, but 'durationDays' does not exist in type 'OnboardingTemplateSelect<DefaultArgs>'. Did you mean to write 'duration'?
+src/app/api/onboarding/generate/route.ts(272,92): error TS2339: Property 'errors' does not exist on type 'ZodError<unknown>'.
+src/app/api/onboarding/plans/[id]/route.ts(28,33): error TS2561: Object literal may only specify known properties, but 'durationDays' does not exist in type 'OnboardingTemplateSelect<DefaultArgs>'. Did you mean to write 'duration'?
+src/app/api/onboarding/plans/[id]/route.ts(91,33): error TS2561: Object literal may only specify known properties, but 'durationDays' does not exist in type 'OnboardingTemplateSelect<DefaultArgs>'. Did you mean to write 'duration'?
+src/app/api/onboarding/plans/[id]/route.ts(108,92): error TS2339: Property 'errors' does not exist on type 'ZodError<unknown>'.
+src/app/api/onboarding/plans/route.ts(57,35): error TS2561: Object literal may only specify known properties, but 'durationDays' does not exist in type 'OnboardingTemplateSelect<DefaultArgs>'. Did you mean to write 'duration'?
+src/app/api/onboarding/plans/route.ts(83,9): error TS18046: 'error' is of type 'unknown'.
+src/app/api/onboarding/plans/route.ts(87,9): error TS18046: 'error' is of type 'unknown'.
+src/app/api/onboarding/plans/route.ts(122,20): error TS2353: Object literal may only specify known properties, and 'tasks' does not exist in type 'OnboardingTemplateInclude<DefaultArgs>'.
+src/app/api/onboarding/plans/route.ts(133,28): error TS2339: Property 'tasks' does not exist on type '{ workspaceId: string; isActive: boolean; id: string; name: string; description: string | null; createdAt: Date; updatedAt: Date; role: string | null; duration: number; }'.
+src/app/api/onboarding/plans/route.ts(133,38): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/app/api/onboarding/plans/route.ts(145,9): error TS2353: Object literal may only specify known properties, and 'employeeId' does not exist in type 'Without<OnboardingPlanCreateInput, OnboardingPlanUncheckedCreateInput> & OnboardingPlanUncheckedCreateInput'.
+src/app/api/onboarding/plans/route.ts(159,33): error TS2561: Object literal may only specify known properties, but 'durationDays' does not exist in type 'OnboardingTemplateSelect<DefaultArgs>'. Did you mean to write 'duration'?
+src/app/api/onboarding/plans/route.ts(171,92): error TS2339: Property 'errors' does not exist on type 'ZodError<unknown>'.
+src/app/api/onboarding/plans/route.ts(179,9): error TS18046: 'error' is of type 'unknown'.
+src/app/api/onboarding/plans/route.ts(183,9): error TS18046: 'error' is of type 'unknown'.
+src/app/api/onboarding/tasks/[id]/route.ts(26,18): error TS2353: Object literal may only specify known properties, and 'plan' does not exist in type 'OnboardingTaskInclude<DefaultArgs>'.
+src/app/api/onboarding/tasks/[id]/route.ts(44,57): error TS2339: Property 'status' does not exist on type '{ id: string; description: string | null; order: number; createdAt: Date; updatedAt: Date; title: string; templateId: string; isRequired: boolean; estimatedMinutes: number | null; }'.
+src/app/api/onboarding/tasks/[id]/route.ts(49,81): error TS2339: Property 'status' does not exist on type '{ id: string; description: string | null; order: number; createdAt: Date; updatedAt: Date; title: string; templateId: string; isRequired: boolean; estimatedMinutes: number | null; }'.
+src/app/api/onboarding/tasks/[id]/route.ts(57,9): error TS2353: Object literal may only specify known properties, and 'plan' does not exist in type 'OnboardingTaskInclude<DefaultArgs>'.
+src/app/api/onboarding/tasks/[id]/route.ts(71,35): error TS2339: Property 'planId' does not exist on type '{ id: string; description: string | null; order: number; createdAt: Date; updatedAt: Date; title: string; templateId: string; isRequired: boolean; estimatedMinutes: number | null; }'.
+src/app/api/onboarding/tasks/[id]/route.ts(77,92): error TS2339: Property 'errors' does not exist on type 'ZodError<unknown>'.
+src/app/api/onboarding/templates/[id]/route.ts(30,9): error TS2353: Object literal may only specify known properties, and 'tasks' does not exist in type 'OnboardingTemplateInclude<DefaultArgs>'.
+src/app/api/onboarding/templates/[id]/route.ts(89,20): error TS2339: Property 'templateTask' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/onboarding/templates/[id]/route.ts(108,9): error TS2353: Object literal may only specify known properties, and 'tasks' does not exist in type 'OnboardingTemplateInclude<DefaultArgs>'.
+src/app/api/onboarding/templates/[id]/route.ts(121,92): error TS2339: Property 'errors' does not exist on type 'ZodError<unknown>'.
+src/app/api/onboarding/templates/route.ts(72,11): error TS2353: Object literal may only specify known properties, and 'tasks' does not exist in type 'OnboardingTemplateInclude<DefaultArgs>'.
+src/app/api/onboarding/templates/route.ts(144,9): error TS2561: Object literal may only specify known properties, but 'durationDays' does not exist in type 'Without<OnboardingTemplateCreateInput, OnboardingTemplateUncheckedCreateInput> & OnboardingTemplateUncheckedCreateInput'. Did you mean to write 'duration'?
+src/app/api/onboarding/templates/route.ts(158,9): error TS2353: Object literal may only specify known properties, and 'tasks' does not exist in type 'OnboardingTemplateInclude<DefaultArgs>'.
+src/app/api/onboarding/templates/route.ts(171,92): error TS2339: Property 'errors' does not exist on type 'ZodError<unknown>'.
+src/app/api/org/custom-roles/[roleId]/route.ts(17,34): error TS2345: Argument of type '"org:settings:manage"' is not assignable to parameter of type 'OrgCapability'.
+src/app/api/org/custom-roles/[roleId]/route.ts(78,34): error TS2345: Argument of type '"org:settings:manage"' is not assignable to parameter of type 'OrgCapability'.
+src/app/api/org/custom-roles/route.ts(13,34): error TS2345: Argument of type '"org:settings:manage"' is not assignable to parameter of type 'OrgCapability'.
+src/app/api/org/custom-roles/route.ts(45,34): error TS2345: Argument of type '"org:settings:manage"' is not assignable to parameter of type 'OrgCapability'.
+src/app/api/org/departments/[id]/route.ts(22,9): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"OrgDepartment"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"OrgDepartment"> | undefined'.
+src/app/api/org/departments/[id]/route.ts(49,33): error TS2339: Property 'teams' does not exist on type '{ workspaceId: string; isActive: boolean; id: string; name: string; description: string | null; color: string | null; order: number; ownerPersonId: string | null; createdAt: Date; updatedAt: Date; }'.
+src/app/api/org/departments/[id]/route.ts(49,44): error TS7006: Parameter 'team' implicitly has an 'any' type.
+src/app/api/org/departments/[id]/route.ts(52,10): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/app/api/org/departments/[id]/route.ts(78,12): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+src/app/api/org/departments/[id]/route.ts(78,17): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/app/api/org/departments/[id]/route.ts(82,12): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+src/app/api/org/departments/[id]/route.ts(82,17): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/app/api/org/duplicates/merge/route.ts(177,9): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/app/api/org/duplicates/undo/route.ts(63,9): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/app/api/org/health/ownership/route.ts(119,33): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/org/health/ownership/route.ts(120,30): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/org/invitations/route.ts(58,66): error TS18047: 'created.expiresAt' is possibly 'null'.
+src/app/api/org/issues/apply/route.ts(112,46): error TS2339: Property 'metrics' does not exist on type '{ id: string; createdAt: Date; orgId: string; capturedAt: Date; capacityScore: number | null; ownershipScore: number | null; balanceScore: number | null; managementScore: number | null; dataQualityScore: number | null; phaseCVersion: string | null; }'.
+src/app/api/org/issues/apply/route.ts(113,43): error TS2339: Property 'score' does not exist on type '{ id: string; createdAt: Date; orgId: string; capturedAt: Date; capacityScore: number | null; ownershipScore: number | null; balanceScore: number | null; managementScore: number | null; dataQualityScore: number | null; phaseCVersion: string | null; }'.
+src/app/api/org/people/structure/route.ts(8,39): error TS2345: Argument of type 'Request' is not assignable to parameter of type 'NextRequest'.
+  Type 'Request' is missing the following properties from type 'NextRequest': cookies, nextUrl, page, ua
+src/app/api/org/people/structure/route.ts(15,33): error TS2345: Argument of type 'Request' is not assignable to parameter of type 'NextRequest'.
+  Type 'Request' is missing the following properties from type 'NextRequest': cookies, nextUrl, page, ua
+src/app/api/org/positions/[id]/route.ts(241,9): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/org/positions/[id]/route.ts(382,9): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/org/positions/route.ts(11,9): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"OrgPosition"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"OrgPosition"> | undefined'.
+src/app/api/org/positions/route.ts(42,24): error TS2339: Property 'team' does not exist on type '{ workspaceId: string; isActive: boolean; id: string; order: number; createdAt: Date; updatedAt: Date; userId: string | null; title: string | null; parentId: string | null; level: number; ... 14 more ...; managerIntentionallyUnassigned: boolean; }'.
+src/app/api/org/positions/route.ts(54,21): error TS2339: Property 'user' does not exist on type '{ workspaceId: string; isActive: boolean; id: string; order: number; createdAt: Date; updatedAt: Date; userId: string | null; title: string | null; parentId: string | null; level: number; ... 14 more ...; managerIntentionallyUnassigned: boolean; }'.
+src/app/api/org/positions/route.ts(55,23): error TS2339: Property 'user' does not exist on type '{ workspaceId: string; isActive: boolean; id: string; order: number; createdAt: Date; updatedAt: Date; userId: string | null; title: string | null; parentId: string | null; level: number; ... 14 more ...; managerIntentionallyUnassigned: boolean; }'.
+src/app/api/org/positions/route.ts(56,24): error TS2339: Property 'user' does not exist on type '{ workspaceId: string; isActive: boolean; id: string; order: number; createdAt: Date; updatedAt: Date; userId: string | null; title: string | null; parentId: string | null; level: number; ... 14 more ...; managerIntentionallyUnassigned: boolean; }'.
+src/app/api/org/readiness/route.ts(98,58): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/org/role-cards/[id]/skills/route.ts(191,9): error TS2322: Type 'number | null' is not assignable to type 'number | undefined'.
+  Type 'null' is not assignable to type 'number | undefined'.
+src/app/api/org/role-cards/[id]/skills/route.ts(210,29): error TS2551: Property 'skill' does not exist on type '{ id: string; createdAt: Date; type: RoleCardSkillType; roleCardId: string; skillId: string; minProficiency: number; }'. Did you mean 'skillId'?
+src/app/api/org/role-cards/[id]/skills/route.ts(211,31): error TS2551: Property 'skill' does not exist on type '{ id: string; createdAt: Date; type: RoleCardSkillType; roleCardId: string; skillId: string; minProficiency: number; }'. Did you mean 'skillId'?
+src/app/api/org/role-cards/[id]/skills/route.ts(212,35): error TS2551: Property 'skill' does not exist on type '{ id: string; createdAt: Date; type: RoleCardSkillType; roleCardId: string; skillId: string; minProficiency: number; }'. Did you mean 'skillId'?
+src/app/api/org/structure/departments/route.ts(70,25): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/api/todos/[id]/route.ts(238,20): error TS2322: Type '{}' is not assignable to type 'string'.
+src/app/api/todos/[id]/route.ts(245,20): error TS2322: Type '{}' is not assignable to type 'string'.
+src/app/api/todos/[id]/route.ts(252,20): error TS2322: Type '{}' is not assignable to type 'string'.
+src/app/ops/components/ai-cost-tab-content.tsx(64,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/ai-cost-tab-content.tsx(80,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/ai-cost-tab-content.tsx(96,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/ai-cost-tab-content.tsx(112,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/ai-cost-tab-content.tsx(139,44): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+src/app/ops/components/ai-cost-tab-content.tsx(139,49): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/app/ops/components/ai-cost-tab-content.tsx(144,38): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+src/app/ops/components/ai-cost-tab-content.tsx(144,43): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/app/ops/components/ai-cost-tab-content.tsx(149,40): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+src/app/ops/components/ai-cost-tab-content.tsx(149,45): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/app/ops/components/errors-tab-content.tsx(51,33): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/errors-tab-content.tsx(68,43): error TS7006: Parameter 'error' implicitly has an 'any' type.
+src/app/ops/components/errors-tab-content.tsx(113,40): error TS7006: Parameter 'error' implicitly has an 'any' type.
+src/app/ops/components/errors-tab-content.tsx(155,31): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/overview-tab-content.tsx(87,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/overview-tab-content.tsx(101,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/overview-tab-content.tsx(115,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/overview-tab-content.tsx(124,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/overview-tab-content.tsx(133,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/overview-tab-content.tsx(147,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/overview-tab-content.tsx(163,58): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/app/ops/components/overview-tab-content.tsx(163,81): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/app/ops/components/overview-tab-content.tsx(164,56): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/app/ops/components/overview-tab-content.tsx(164,79): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/app/ops/components/overview-tab-content.tsx(168,10): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/app/ops/components/overview-tab-content.tsx(169,14): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/app/ops/components/overview-tab-content.tsx(170,12): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/app/ops/components/overview-tab-content.tsx(170,15): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/app/ops/components/performance-tab-content.tsx(109,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/performance-tab-content.tsx(124,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/performance-tab-content.tsx(140,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/performance-tab-content.tsx(157,12): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/components/performance-tab-content.tsx(180,10): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/app/ops/components/performance-tab-content.tsx(181,14): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/app/ops/components/performance-tab-content.tsx(182,12): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/app/ops/components/performance-tab-content.tsx(182,15): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/app/ops/components/performance-tab-content.tsx(439,36): error TS7006: Parameter 'error' implicitly has an 'any' type.
+src/app/ops/components/performance-tab-content.tsx(494,38): error TS7006: Parameter 'request' implicitly has an 'any' type.
+src/app/ops/page.tsx(75,42): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/ops/page.tsx(141,40): error TS7006: Parameter 'request' implicitly has an 'any' type.
+src/app/ops/page.tsx(189,36): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/components/landing/animation/self-organizing-work.tsx(104,29): error TS2554: Expected 1 arguments, but got 0.
+src/components/org/health/OrgHealthSection.tsx(50,52): error TS2322: Type '{ id: string; type: string; severity: string; title: string; description: string; createdAt: string; resolvedAt: string | null; }[] | { createdAt: string; resolvedAt: null; type: SignalType; ... 7 more ...; id: string; }[]' is not assignable to type 'OrgHealthSignal[]'.
+  Type '{ id: string; type: string; severity: string; title: string; description: string; createdAt: string; resolvedAt: string | null; }[]' is not assignable to type 'OrgHealthSignal[]'.
+    Type '{ id: string; type: string; severity: string; title: string; description: string; createdAt: string; resolvedAt: string | null; }' is not assignable to type 'OrgHealthSignal'.
+      Types of property 'severity' are incompatible.
+        Type 'string' is not assignable to type '"INFO" | "WARNING" | "CRITICAL"'.
+src/lib/audit.ts(57,9): error TS2322: Type '{ [key: string]: any; reason?: string | undefined; effectiveDate?: Date | undefined; department?: string | undefined; manager?: string | undefined; } | null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+  Type 'null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+src/lib/auth-helpers.ts(3,29): error TS2307: Cannot find module './auth' or its corresponding type declarations.
+src/lib/cache.ts(53,9): error TS2353: Object literal may only specify known properties, and 'lazyConnect' does not exist in type 'RedisSocketOptions'.
+src/lib/context/context-builders.ts(605,3): error TS2741: Property 'workspaceId' is missing in type '{ id: string; type: "person"; title: string; summary: string; tags: string[]; ownerId: string; status: string; updatedAt: Date; relations: ContextRelation[]; metadata: { email: string | undefined; image: string | undefined; workloadStats: { ...; } | undefined; timeOff: { ...; } | undefined; }; }' but required in type 'ContextObject'.
+src/lib/context/context-builders.ts(636,3): error TS2741: Property 'workspaceId' is missing in type '{ id: string; type: "team"; title: string; summary: string; tags: string[]; status: string; updatedAt: Date; relations: ContextRelation[]; metadata: { description: string | undefined; }; }' but required in type 'ContextObject'.
+src/lib/context/context-builders.ts(684,5): error TS2322: Type '"time_off"' is not assignable to type 'ContextObjectType'.
+src/lib/env.ts(44,33): error TS2339: Property 'errors' does not exist on type 'ZodError<unknown>'.
+src/lib/env.ts(44,44): error TS7006: Parameter 'err' implicitly has an 'any' type.
+src/lib/loopbrain/client-helpers.ts(27,51): error TS2339: Property 'id' does not exist on type 'WorkspaceContextType'.
+src/lib/loopbrain/client-helpers.ts(29,61): error TS2339: Property 'id' does not exist on type 'WorkspaceContextType'.
+src/lib/loopbrain/client-helpers.ts(31,61): error TS2339: Property 'id' does not exist on type 'WorkspaceContextType'.
+src/lib/loopbrain/client-helpers.ts(34,61): error TS2339: Property 'id' does not exist on type 'WorkspaceContextType'.
+src/lib/loopbrain/context-engine.ts(636,11): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/lib/loopbrain/context-engine.ts(671,48): error TS2345: Argument of type '({ user: { id: string; name: string | null; email: string; } | null; team: { id: string; name: string; department: { id: string; name: string; } | null; } | null; parent: { id: string; title: string | null; } | null; } & { ...; })[]' is not assignable to parameter of type '{ id: string; title: string; level: number; parentId: string | null; userId: string | null; teamId: string | null; }[]'.
+  Type '{ user: { id: string; name: string | null; email: string; } | null; team: { id: string; name: string; department: { id: string; name: string; } | null; } | null; parent: { id: string; title: string | null; } | null; } & { ...; }' is not assignable to type '{ id: string; title: string; level: number; parentId: string | null; userId: string | null; teamId: string | null; }'.
+    Types of property 'title' are incompatible.
+      Type 'string | null' is not assignable to type 'string'.
+        Type 'null' is not assignable to type 'string'.
+src/lib/loopbrain/context-engine.ts(752,9): error TS2322: Type '{ entityTypes: unknown; actions: unknown; userIds: unknown; } | undefined' is not assignable to type '{ entityTypes?: string[] | undefined; actions?: string[] | undefined; userIds?: string[] | undefined; } | undefined'.
+  Type '{ entityTypes: unknown; actions: unknown; userIds: unknown; }' is not assignable to type '{ entityTypes?: string[] | undefined; actions?: string[] | undefined; userIds?: string[] | undefined; }'.
+    Types of property 'entityTypes' are incompatible.
+      Type 'unknown' is not assignable to type 'string[] | undefined'.
+src/lib/loopbrain/context-engine.ts(855,13): error TS7022: 'page' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+src/lib/loopbrain/context-engine.ts(1503,32): error TS2345: Argument of type '{ _count: { tasks: number; }; owner: { id: string; name: string | null; email: string; } | null; } & { workspaceId: string; id: string; name: string; description: string | null; color: string | null; ... 15 more ...; createdById: string; }' is not assignable to parameter of type 'ProjectWithRelations'.
+  Property 'documentationLinks' is missing in type '{ _count: { tasks: number; }; owner: { id: string; name: string | null; email: string; } | null; } & { workspaceId: string; id: string; name: string; description: string | null; color: string | null; ... 15 more ...; createdById: string; }' but required in type '{ _count: { tasks: number; }; documentationLinks: ({ wikiPage: { id: string; updatedAt: Date; title: string; content: string; slug: string; workspace_type: string | null; }; } & { id: string; order: number; createdAt: Date; projectId: string; wikiPageId: string; })[]; owner: { ...; } | null; }'.
+src/lib/loopbrain/context-engine.ts(1551,31): error TS2345: Argument of type '{ owner: { id: string; name: string | null; email: string; } | null; } & { workspaceId: string; id: string; name: string; description: string | null; color: string | null; createdAt: Date; ... 14 more ...; createdById: string; }' is not assignable to parameter of type '{ owner: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; } & { ...; }'.
+  Type '{ owner: { id: string; name: string | null; email: string; } | null; } & { workspaceId: string; id: string; name: string; description: string | null; color: string | null; createdAt: Date; ... 14 more ...; createdById: string; }' is not assignable to type '{ owner: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; }'.
+    Types of property 'owner' are incompatible.
+      Type '{ id: string; name: string | null; email: string; } | null' is not assignable to type '{ id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null'.
+        Type '{ id: string; name: string | null; email: string; }' is missing the following properties from type '{ id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; }': createdAt, updatedAt, emailVerified, image, and 11 more.
+src/lib/loopbrain/context-engine.ts(1588,30): error TS2345: Argument of type '{ project: { id: string; name: string; }; assignee: { id: string; name: string | null; email: string; } | null; } & { workspaceId: string; id: string; description: string | null; order: number; createdAt: Date; ... 14 more ...; points: number | null; }' is not assignable to parameter of type '{ project: { workspaceId: string; id: string; name: string; description: string | null; color: string | null; createdAt: Date; updatedAt: Date; status: ProjectStatus; ... 12 more ...; createdById: string; }; assignee: { ...; } | null; } & { ...; }'.
+  Type '{ project: { id: string; name: string; }; assignee: { id: string; name: string | null; email: string; } | null; } & { workspaceId: string; id: string; description: string | null; order: number; createdAt: Date; ... 14 more ...; points: number | null; }' is not assignable to type '{ project: { workspaceId: string; id: string; name: string; description: string | null; color: string | null; createdAt: Date; updatedAt: Date; status: ProjectStatus; ... 12 more ...; createdById: string; }; assignee: { ...; } | null; }'.
+    Types of property 'project' are incompatible.
+      Type '{ id: string; name: string; }' is missing the following properties from type '{ workspaceId: string; id: string; name: string; description: string | null; color: string | null; createdAt: Date; updatedAt: Date; status: ProjectStatus; department: string | null; ... 11 more ...; createdById: string; }': workspaceId, description, color, createdAt, and 15 more.
+src/lib/loopbrain/context-engine.ts(1677,28): error TS2345: Argument of type '{ createdBy: { id: string; name: string | null; email: string; }; projects: { id: string; name: string; }[]; } & { workspaceId: string; id: string; order: number; createdAt: Date; updatedAt: Date; ... 19 more ...; parentId: string | null; }' is not assignable to parameter of type '{ createdBy: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; }; projects: { ...; }[]; } & { ...; }'.
+  Type '{ createdBy: { id: string; name: string | null; email: string; }; projects: { id: string; name: string; }[]; } & { workspaceId: string; id: string; order: number; createdAt: Date; updatedAt: Date; ... 19 more ...; parentId: string | null; }' is not assignable to type '{ createdBy: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; }; projects: { ...; }[]; }'.
+    Types of property 'createdBy' are incompatible.
+      Type '{ id: string; name: string | null; email: string; }' is missing the following properties from type '{ id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; }': createdAt, updatedAt, emailVerified, image, and 11 more.
+src/lib/loopbrain/context-engine.ts(1748,28): error TS2345: Argument of type '{ user: { id: string; name: string | null; email: string; } | null; team: { id: string; name: string; department: { id: string; name: string; } | null; } | null; } & { workspaceId: string; isActive: boolean; ... 22 more ...; managerIntentionallyUnassigned: boolean; }' is not assignable to parameter of type '{ user: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; team: { ...; } | null; } & { ...; }'.
+  Type '{ user: { id: string; name: string | null; email: string; } | null; team: { id: string; name: string; department: { id: string; name: string; } | null; } | null; } & { workspaceId: string; isActive: boolean; ... 22 more ...; managerIntentionallyUnassigned: boolean; }' is not assignable to type '{ user: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; team: { ...; } | null; }'.
+    Types of property 'user' are incompatible.
+      Type '{ id: string; name: string | null; email: string; } | null' is not assignable to type '{ id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null'.
+        Type '{ id: string; name: string | null; email: string; }' is missing the following properties from type '{ id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; }': createdAt, updatedAt, emailVerified, image, and 11 more.
+src/lib/loopbrain/context-pack.ts(37,9): error TS2741: Property 'workspaceId' is missing in type '{ id: string; type: ContextObjectType; title: string; summary: string; tags: string[]; status: string | undefined; updatedAt: Date; relations: ContextRelation[]; ownerId: string | undefined; }' but required in type 'ContextObject'.
+src/lib/loopbrain/context-pack.ts(149,48): error TS2352: Conversion of type 'T & object & Record<"type", unknown>' to type 'ContextObject' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'T & object & Record<"type", unknown>' is missing the following properties from type 'ContextObject': id, workspaceId, title, summary, and 3 more.
+src/lib/loopbrain/context-ranker.ts(100,69): error TS2367: This comparison appears to be unintentional because the types '"workspace" | "role" | "person" | "team" | "meeting"' and '"epic"' have no overlap.
+src/lib/loopbrain/context-sources/pm/epics.ts(94,5): error TS2322: Type '"epic"' is not assignable to type 'ContextObjectType'.
+src/lib/loopbrain/context-sources/pm/epics.ts(101,5): error TS2322: Type '{ type: string; id: string; label: string; direction: "in" | "out"; }[]' is not assignable to type 'ContextRelation[]'.
+  Type '{ type: string; id: string; label: string; direction: "in" | "out"; }' is not assignable to type 'ContextRelation'.
+    Types of property 'type' are incompatible.
+      Type 'string' is not assignable to type 'ContextObjectType'.
+src/lib/loopbrain/context-sources/pm/projects.ts(64,42): error TS2345: Argument of type 'ProjectWithRelations' is not assignable to parameter of type '{ owner: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; } & { ...; }'.
+  Type 'ProjectWithRelations' is not assignable to type '{ owner: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; }'.
+    Types of property 'owner' are incompatible.
+      Type '{ id: string; name: string | null; email: string; } | null' is not assignable to type '{ id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null'.
+        Type '{ id: string; name: string | null; email: string; }' is missing the following properties from type '{ id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; }': createdAt, updatedAt, emailVerified, image, and 11 more.
+src/lib/loopbrain/context-sources/pm/projects.ts(117,5): error TS2322: Type '(ContextRelation | { type: "doc"; id: string; label: string; direction: "out"; })[]' is not assignable to type 'ContextRelation[]'.
+  Type 'ContextRelation | { type: "doc"; id: string; label: string; direction: "out"; }' is not assignable to type 'ContextRelation'.
+    Type '{ type: "doc"; id: string; label: string; direction: "out"; }' is not assignable to type 'ContextRelation'.
+      Types of property 'type' are incompatible.
+        Type '"doc"' is not assignable to type 'ContextObjectType'.
+src/lib/loopbrain/context-sources/pm/tasks.ts(144,5): error TS2322: Type '{ type: string; id: string; label: string; direction: "in" | "out"; }[]' is not assignable to type 'ContextRelation[]'.
+  Type '{ type: string; id: string; label: string; direction: "in" | "out"; }' is not assignable to type 'ContextRelation'.
+    Types of property 'type' are incompatible.
+      Type 'string' is not assignable to type 'ContextObjectType'.
+src/lib/loopbrain/context-sources/slack.ts(201,43): error TS2339: Property 'threadTs' does not exist on type '{ ts: string; user?: string | undefined; text: string; permalink?: string | undefined; }'.
+src/lib/loopbrain/context-sources/slack.ts(201,58): error TS2339: Property 'replies' does not exist on type '{ ts: string; user?: string | undefined; text: string; permalink?: string | undefined; }'.
+src/lib/loopbrain/context-sources/slack.ts(201,71): error TS2339: Property 'replies' does not exist on type '{ ts: string; user?: string | undefined; text: string; permalink?: string | undefined; }'.
+src/lib/loopbrain/embedding-service.ts(230,19): error TS2352: Conversion of type 'string | number | boolean | JsonObject | JsonArray | null' to type 'ContextObject' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'JsonArray' is not comparable to type 'ContextObject'.
+src/lib/loopbrain/indexing/builders/epic.ts(57,7): error TS2322: Type '"epic"' is not assignable to type 'ContextObjectType'.
+src/lib/loopbrain/indexing/builders/org.ts(118,34): error TS2339: Property 'timeOff' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/lib/loopbrain/indexing/builders/org.ts(140,7): error TS2322: Type '{ team: { workspaceId: string; isActive: boolean; id: string; name: string; description: string | null; color: string | null; order: number; ownerPersonId: string | null; createdAt: Date; updatedAt: Date; departmentId: string | null; } | null; } & { ...; }' is not assignable to type '({ user: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; team: { ...; } | null; } & { ...; }) | null | undefined'.
+  Type '{ team: { workspaceId: string; isActive: boolean; id: string; name: string; description: string | null; color: string | null; order: number; ownerPersonId: string | null; createdAt: Date; updatedAt: Date; departmentId: string | null; } | null; } & { ...; }' is not assignable to type '{ user: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; team: { ...; } | null; } & { ...; }'.
+    Property 'user' is missing in type '{ team: { workspaceId: string; isActive: boolean; id: string; name: string; description: string | null; color: string | null; order: number; ownerPersonId: string | null; createdAt: Date; updatedAt: Date; departmentId: string | null; } | null; } & { ...; }' but required in type '{ user: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; team: { ...; } | null; }'.
+src/lib/loopbrain/indexing/builders/org.ts(211,47): error TS2554: Expected 1 arguments, but got 2.
+src/lib/loopbrain/indexing/builders/org.ts(274,7): error TS2353: Object literal may only specify known properties, and 'user' does not exist in type '{ person?: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null | undefined; team?: { ...; } | ... 1 more ... | undefined; }'.
+src/lib/loopbrain/indexing/builders/page.ts(50,7): error TS2322: Type '{ workspaceId: string; id: string; name: string; description: string | null; color: string | null; createdAt: Date; updatedAt: Date; status: ProjectStatus; ... 12 more ...; createdById: string; } | undefined' is not assignable to type '({ owner: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; } & { ...; }) | null | undefined'.
+  Type '{ workspaceId: string; id: string; name: string; description: string | null; color: string | null; createdAt: Date; updatedAt: Date; status: ProjectStatus; department: string | null; ... 11 more ...; createdById: string; }' is not assignable to type '{ owner: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; } & { ...; }'.
+    Property 'owner' is missing in type '{ workspaceId: string; id: string; name: string; description: string | null; color: string | null; createdAt: Date; updatedAt: Date; status: ProjectStatus; department: string | null; ... 11 more ...; createdById: string; }' but required in type '{ owner: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; }'.
+src/lib/loopbrain/indexing/builders/task.ts(48,7): error TS2322: Type '{ workspaceId: string; id: string; name: string; description: string | null; color: string | null; createdAt: Date; updatedAt: Date; status: ProjectStatus; department: string | null; ... 11 more ...; createdById: string; }' is not assignable to type '{ owner: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; } & { ...; }'.
+  Property 'owner' is missing in type '{ workspaceId: string; id: string; name: string; description: string | null; color: string | null; createdAt: Date; updatedAt: Date; status: ProjectStatus; department: string | null; ... 11 more ...; createdById: string; }' but required in type '{ owner: { id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; } | null; }'.
+src/lib/loopbrain/indexing/builders/time-off.ts(31,34): error TS2339: Property 'timeOff' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/lib/loopbrain/indexing/indexer.ts(146,59): error TS2554: Expected 1 arguments, but got 2.
+src/lib/loopbrain/indexing/indexer.ts(152,31): error TS2551: Property 'contextItem' does not exist on type 'ContextItemRecord'. Did you mean 'contextId'?
+src/lib/loopbrain/indexing/indexer.ts(153,27): error TS2339: Property 'didChange' does not exist on type 'ContextItemRecord'.
+src/lib/loopbrain/indexing/indexer.ts(161,27): error TS2339: Property 'didChange' does not exist on type 'ContextItemRecord'.
+src/lib/loopbrain/orchestrator.ts(41,8): error TS2300: Duplicate identifier 'OrgQuestionContext'.
+src/lib/loopbrain/orchestrator.ts(49,15): error TS2300: Duplicate identifier 'OrgQuestionContext'.
+src/lib/loopbrain/orchestrator.ts(296,11): error TS2322: Type 'SlackMessageSummary[]' is not assignable to type '{ channel: string; channelId?: string | undefined; relevance: "high" | "medium" | "low"; summary: string; messages: { user: string; userId?: string | undefined; text: string; ts: string; threadTs?: string | undefined; replies?: number | undefined; }[]; messageCount: number; }[]'.
+  Type 'SlackMessageSummary' is not assignable to type '{ channel: string; channelId?: string | undefined; relevance: "high" | "medium" | "low"; summary: string; messages: { user: string; userId?: string | undefined; text: string; ts: string; threadTs?: string | undefined; replies?: number | undefined; }[]; messageCount: number; }'.
+    Types of property 'messages' are incompatible.
+      Type '{ ts: string; user?: string | undefined; text: string; permalink?: string | undefined; }[]' is not assignable to type '{ user: string; userId?: string | undefined; text: string; ts: string; threadTs?: string | undefined; replies?: number | undefined; }[]'.
+        Type '{ ts: string; user?: string | undefined; text: string; permalink?: string | undefined; }' is not assignable to type '{ user: string; userId?: string | undefined; text: string; ts: string; threadTs?: string | undefined; replies?: number | undefined; }'.
+          Types of property 'user' are incompatible.
+            Type 'string | undefined' is not assignable to type 'string'.
+              Type 'undefined' is not assignable to type 'string'.
+src/lib/loopbrain/orchestrator.ts(343,7): error TS2322: Type '{ promptTokens?: number | undefined; completionTokens?: number | undefined; totalTokens?: number | undefined; } | undefined' is not assignable to type '{ prompt?: number | undefined; completion?: number | undefined; total?: number | undefined; } | undefined'.
+  Type '{ promptTokens?: number | undefined; completionTokens?: number | undefined; totalTokens?: number | undefined; }' has no properties in common with type '{ prompt?: number | undefined; completion?: number | undefined; total?: number | undefined; }'.
+src/lib/loopbrain/orchestrator.ts(682,7): error TS2322: Type '{ promptTokens?: number | undefined; completionTokens?: number | undefined; totalTokens?: number | undefined; } | undefined' is not assignable to type '{ prompt?: number | undefined; completion?: number | undefined; total?: number | undefined; } | undefined'.
+  Type '{ promptTokens?: number | undefined; completionTokens?: number | undefined; totalTokens?: number | undefined; }' has no properties in common with type '{ prompt?: number | undefined; completion?: number | undefined; total?: number | undefined; }'.
+src/lib/loopbrain/orchestrator.ts(774,7): error TS2322: Type '{ promptTokens?: number | undefined; completionTokens?: number | undefined; totalTokens?: number | undefined; } | undefined' is not assignable to type '{ prompt?: number | undefined; completion?: number | undefined; total?: number | undefined; } | undefined'.
+  Type '{ promptTokens?: number | undefined; completionTokens?: number | undefined; totalTokens?: number | undefined; }' has no properties in common with type '{ prompt?: number | undefined; completion?: number | undefined; total?: number | undefined; }'.
+src/lib/loopbrain/orchestrator.ts(1006,7): error TS2353: Object literal may only specify known properties, and 'summary' does not exist in type 'WorkspaceContext | PageContext | ProjectContext | TaskContext | EpicContext | OrgContext | ActivityContext | UnifiedContext'.
+src/lib/loopbrain/orchestrator.ts(1027,9): error TS2322: Type 'Record<string, import("/Users/tonyem/lumi-work-os/src/lib/context/contextTypes").ContextObject>' is not assignable to type 'Record<string, import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject>'.
+  'string' index signatures are incompatible.
+    Type 'import("/Users/tonyem/lumi-work-os/src/lib/context/contextTypes").ContextObject' is not assignable to type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject'.
+      Type 'ContextObject' is missing the following properties from type 'PageContext': slug, isEmpty, createdAt, workspaceId, timestamp
+src/lib/loopbrain/orchestrator.ts(1028,9): error TS2322: Type 'import("/Users/tonyem/lumi-work-os/src/lib/context/contextTypes").ContextObject[]' is not assignable to type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject[]'.
+  Type 'import("/Users/tonyem/lumi-work-os/src/lib/context/contextTypes").ContextObject' is not assignable to type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject'.
+    Type 'ContextObject' is missing the following properties from type 'PageContext': slug, isEmpty, createdAt, workspaceId, timestamp
+src/lib/loopbrain/orchestrator.ts(1051,9): error TS2322: Type 'Date' is not assignable to type 'string'.
+src/lib/loopbrain/orchestrator.ts(1098,5): error TS2322: Type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject | null' is not assignable to type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/contextTypes").ContextObject | null'.
+  Type 'WorkspaceContext' is missing the following properties from type 'ContextObject': title, summary, tags, relations, and 3 more.
+src/lib/loopbrain/orchestrator.ts(1099,5): error TS2322: Type 'Record<string, import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject>' is not assignable to type 'Record<string, import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/contextTypes").ContextObject>'.
+  'string' index signatures are incompatible.
+    Type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject' is not assignable to type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/contextTypes").ContextObject'.
+      Type 'WorkspaceContext' is missing the following properties from type 'ContextObject': title, summary, tags, relations, and 3 more.
+src/lib/loopbrain/orchestrator.ts(1100,5): error TS2322: Type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject[]' is not assignable to type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/contextTypes").ContextObject[]'.
+  Type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject' is not assignable to type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/contextTypes").ContextObject'.
+    Type 'WorkspaceContext' is missing the following properties from type 'ContextObject': title, summary, tags, relations, and 3 more.
+src/lib/loopbrain/orchestrator.ts(1108,24): error TS2345: Argument of type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/contextTypes").ContextObject' is not assignable to parameter of type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject'.
+  Type 'ContextObject' is missing the following properties from type 'PageContext': slug, isEmpty, createdAt, workspaceId, timestamp
+src/lib/loopbrain/orchestrator.ts(1111,3): error TS2322: Type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject[]' is not assignable to type 'import("/Users/tonyem/lumi-work-os/src/lib/context/context-types").ContextObject[]'.
+  Type 'import("/Users/tonyem/lumi-work-os/src/lib/loopbrain/context-types").ContextObject' is not assignable to type 'import("/Users/tonyem/lumi-work-os/src/lib/context/context-types").ContextObject'.
+    Type 'WorkspaceContext' is missing the following properties from type 'ContextObject': title, summary, tags, updatedAt, relations
+src/lib/loopbrain/orchestrator.ts(1133,48): error TS2367: This comparison appears to be unintentional because the types 'ContextType' and '"person"' have no overlap.
+src/lib/loopbrain/orchestrator.ts(1134,47): error TS2367: This comparison appears to be unintentional because the types 'ContextType' and '"team"' have no overlap.
+src/lib/loopbrain/orchestrator.ts(1135,53): error TS2367: This comparison appears to be unintentional because the types 'ContextType' and '"department"' have no overlap.
+src/lib/loopbrain/orchestrator.ts(1136,47): error TS2367: This comparison appears to be unintentional because the types 'ContextType' and '"role"' have no overlap.
+src/lib/loopbrain/orchestrator.ts(1911,61): error TS2367: This comparison appears to be unintentional because the types 'ContextObjectType' and '"department"' have no overlap.
+src/lib/loopbrain/postProcessors/orgReferencedContext.ts(109,27): error TS2339: Property 'teams' does not exist on type 'OrgPromptContext | OrgHeadcountContext | OrgReportingContext | OrgRiskContext'.
+  Property 'teams' does not exist on type 'OrgReportingContext'.
+src/lib/loopbrain/postProcessors/orgReferencedContext.ts(110,33): error TS2339: Property 'departments' does not exist on type 'OrgPromptContext | OrgHeadcountContext | OrgReportingContext | OrgRiskContext'.
+  Property 'departments' does not exist on type 'OrgReportingContext'.
+src/lib/loopbrain/postProcessors/orgReferencedContext.ts(119,27): error TS2339: Property 'teams' does not exist on type 'OrgPromptContext | OrgHeadcountContext | OrgReportingContext | OrgRiskContext'.
+  Property 'teams' does not exist on type 'OrgReportingContext'.
+src/lib/loopbrain/postProcessors/orgReferencedContext.ts(124,27): error TS2339: Property 'teams' does not exist on type 'OrgPromptContext | OrgHeadcountContext | OrgReportingContext | OrgRiskContext'.
+  Property 'teams' does not exist on type 'OrgReportingContext'.
+src/lib/loopbrain/postProcessors/orgReferencedContext.ts(125,33): error TS2339: Property 'departments' does not exist on type 'OrgPromptContext | OrgHeadcountContext | OrgReportingContext | OrgRiskContext'.
+  Property 'departments' does not exist on type 'OrgReportingContext'.
+src/lib/loopbrain/postProcessors/orgReferencedContext.ts(126,27): error TS2339: Property 'roles' does not exist on type 'OrgPromptContext | OrgHeadcountContext | OrgReportingContext | OrgRiskContext'.
+  Property 'roles' does not exist on type 'OrgHeadcountContext'.
+src/lib/loopbrain/reasoning/q3.ts(126,54): error TS2345: Argument of type '{ ownerPersonId: string | null; ownerRole: string | null; decisionPersonId: string | null; decisionRole: string | null; escalationPersonId: string | null; escalationRole: string | null; backupOwnerPersonId: string | null; backupOwnerRole: string | null; backupDecisionPersonId: string | null; backupDecisionRole: stri...' is not assignable to parameter of type '{ ownerPersonId?: string | null | undefined; ownerRole?: string | null | undefined; decisionPersonId?: string | null | undefined; decisionRole?: string | null | undefined; escalationPersonId?: string | ... 1 more ... | undefined; ... 4 more ...; backupDecisionRole?: string | ... 1 more ... | undefined; } | undefined'.
+  Type 'null' is not assignable to type '{ ownerPersonId?: string | null | undefined; ownerRole?: string | null | undefined; decisionPersonId?: string | null | undefined; decisionRole?: string | null | undefined; escalationPersonId?: string | ... 1 more ... | undefined; ... 4 more ...; backupDecisionRole?: string | ... 1 more ... | undefined; } | undefined'.
+src/lib/loopbrain/reasoning/q3.ts(157,5): error TS2554: Expected 1 arguments, but got 2.
+src/lib/loopbrain/reasoning/q3.ts(268,61): error TS2339: Property 'role' does not exist on type 'AccountabilityValue'.
+  Property 'role' does not exist on type '{ type: "person"; personId: string; }'.
+src/lib/loopbrain/reasoning/q3.ts(704,7): error TS2561: Object literal may only specify known properties, but 'positions' does not exist in type 'UserWhereInput'. Did you mean to write 'orgPositions'?
+src/lib/loopbrain/reasoning/q3.ts(712,7): error TS2561: Object literal may only specify known properties, but 'positions' does not exist in type 'UserInclude<DefaultArgs>'. Did you mean to write 'orgPositions'?
+src/lib/loopbrain/reasoning/q3.ts(757,27): error TS2339: Property 'positions' does not exist on type '{ id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; }'.
+src/lib/loopbrain/reasoning/q3.ts(758,38): error TS2339: Property 'availability' does not exist on type '{ id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; }'.
+src/lib/loopbrain/reasoning/q3.ts(758,56): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/lib/loopbrain/reasoning/q3.ts(775,25): error TS2551: Property 'allocations' does not exist on type '{ id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; }'. Did you mean 'location'?
+src/lib/loopbrain/reasoning/q3.ts(775,42): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/lib/loopbrain/store/context-repository.ts(75,9): error TS2322: Type 'Record<string, unknown>' is not assignable to type 'JsonNull | InputJsonValue | undefined'.
+  Type 'Record<string, unknown>' is missing the following properties from type 'readonly (InputJsonValue | null)[]': length, concat, join, slice, and 26 more.
+src/lib/loopbrain/store/context-repository.ts(89,9): error TS2322: Type 'Record<string, unknown>' is not assignable to type 'JsonNull | InputJsonValue'.
+  Type 'Record<string, unknown>' is missing the following properties from type 'readonly (InputJsonValue | null)[]': length, concat, join, slice, and 26 more.
+src/lib/loopbrain/testing/normalize.ts(63,15): error TS18047: 'aVal' is possibly 'null'.
+src/lib/loopbrain/testing/normalize.ts(63,22): error TS18047: 'bVal' is possibly 'null'.
+src/lib/loopbrain/testing/normalize.ts(64,15): error TS18047: 'aVal' is possibly 'null'.
+src/lib/loopbrain/testing/normalize.ts(64,22): error TS18047: 'bVal' is possibly 'null'.
+src/lib/ops/logger.ts(33,15): error TS2339: Property 'opsEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/lib/ops/logger.ts(48,13): error TS7006: Parameter 'error' implicitly has an 'any' type.
+src/lib/org/org-context-builder.ts(173,19): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/lib/platform-admin-auth.ts(39,7): error TS2353: Object literal may only specify known properties, and 'isPlatformAdmin' does not exist in type 'UserSelect<DefaultArgs>'.
+src/lib/platform-admin-auth.ts(51,27): error TS2339: Property 'isPlatformAdmin' does not exist on type '{ id: string; name: string | null; createdAt: Date; updatedAt: Date; email: string; emailVerified: Date | null; image: string | null; themePreference: string | null; ... 9 more ...; personalWebsite: string | null; }'.
+src/lib/pm/history.ts(29,9): error TS2322: Type 'string | null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+  Type 'null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+src/lib/pm/history.ts(30,9): error TS2322: Type 'string | null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+  Type 'null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+src/lib/pm/history.ts(51,13): error TS2322: Type 'string | null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+  Type 'null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+src/lib/pm/history.ts(52,13): error TS2322: Type 'string | null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+  Type 'null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+src/lib/prisma/scopingMiddleware.ts(74,40): error TS2694: Namespace '"/Users/tonyem/lumi-work-os/node_modules/.prisma/client/index".Prisma' has no exported member 'Middleware'.
+src/lib/prisma/scopingMiddleware.ts(74,60): error TS7006: Parameter 'params' implicitly has an 'any' type.
+src/lib/prisma/scopingMiddleware.ts(74,68): error TS7006: Parameter 'next' implicitly has an 'any' type.
+src/lib/progress.ts(9,7): error TS2353: Object literal may only specify known properties, and 'tasks' does not exist in type 'OnboardingPlanInclude<DefaultArgs>'.
+src/lib/progress.ts(13,21): error TS2339: Property 'tasks' does not exist on type '{ workspaceId: string; id: string; createdAt: Date; updatedAt: Date; status: OnboardingStatus; userId: string; title: string; startDate: Date; endDate: Date | null; templateId: string | null; }'.
+src/lib/progress.ts(17,31): error TS2339: Property 'tasks' does not exist on type '{ workspaceId: string; id: string; createdAt: Date; updatedAt: Date; status: OnboardingStatus; userId: string; title: string; startDate: Date; endDate: Date | null; templateId: string | null; }'.
+src/lib/progress.ts(17,44): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/lib/progress.ts(18,27): error TS2339: Property 'tasks' does not exist on type '{ workspaceId: string; id: string; createdAt: Date; updatedAt: Date; status: OnboardingStatus; userId: string; title: string; startDate: Date; endDate: Date | null; templateId: string | null; }'.
+src/lib/progress.ts(46,7): error TS2353: Object literal may only specify known properties, and 'tasks' does not exist in type 'OnboardingPlanInclude<DefaultArgs>'.
+src/lib/progress.ts(56,55): error TS2339: Property 'progressPct' does not exist on type '{ workspaceId: string; id: string; createdAt: Date; updatedAt: Date; status: OnboardingStatus; userId: string; title: string; startDate: Date; endDate: Date | null; templateId: string | null; }'.
+src/lib/progress.ts(60,10): error TS2339: Property 'tasks' does not exist on type '{ workspaceId: string; id: string; createdAt: Date; updatedAt: Date; status: OnboardingStatus; userId: string; title: string; startDate: Date; endDate: Date | null; templateId: string | null; }'.
+src/lib/progress.ts(60,23): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/lib/progress.ts(69,35): error TS2339: Property 'tasks' does not exist on type '{ workspaceId: string; id: string; createdAt: Date; updatedAt: Date; status: OnboardingStatus; userId: string; title: string; startDate: Date; endDate: Date | null; templateId: string | null; }'.
+src/lib/progress.ts(70,19): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/lib/progress.ts(71,18): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/lib/progress.ts(71,21): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/lib/progress.ts(94,18): error TS2339: Property 'name' does not exist on type '{ workspaceId: string; id: string; createdAt: Date; updatedAt: Date; status: OnboardingStatus; userId: string; title: string; startDate: Date; endDate: Date | null; templateId: string | null; }'.
+src/lib/progress.ts(95,26): error TS2339: Property 'employee' does not exist on type '{ workspaceId: string; id: string; createdAt: Date; updatedAt: Date; status: OnboardingStatus; userId: string; title: string; startDate: Date; endDate: Date | null; templateId: string | null; }'.
+src/lib/progress.ts(97,25): error TS2339: Property 'progressPct' does not exist on type '{ workspaceId: string; id: string; createdAt: Date; updatedAt: Date; status: OnboardingStatus; userId: string; title: string; startDate: Date; endDate: Date | null; templateId: string | null; }'.
+src/lib/progress.ts(98,23): error TS2339: Property 'tasks' does not exist on type '{ workspaceId: string; id: string; createdAt: Date; updatedAt: Date; status: OnboardingStatus; userId: string; title: string; startDate: Date; endDate: Date | null; templateId: string | null; }'.
+src/lib/progress.ts(98,36): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/lib/progress.ts(99,24): error TS2339: Property 'tasks' does not exist on type '{ workspaceId: string; id: string; createdAt: Date; updatedAt: Date; status: OnboardingStatus; userId: string; title: string; startDate: Date; endDate: Date | null; templateId: string | null; }'.
+src/lib/realtime/mock-socket.ts(28,3): error TS2393: Duplicate function implementation.
+src/lib/realtime/mock-socket.ts(89,11): error TS2393: Duplicate function implementation.
+src/lib/realtime/socket-client.ts(1,10): error TS2305: Module '"socket.io-client"' has no exported member 'io'.
+src/lib/realtime/socket-client.ts(63,26): error TS2749: 'Socket' refers to a value, but is being used as a type here. Did you mean 'typeof Socket'?
+src/lib/realtime/socket-client.ts(156,28): error TS2339: Property 'description' does not exist on type 'Error'.
+src/lib/realtime/socket-client.ts(157,24): error TS2339: Property 'context' does not exist on type 'Error'.
+src/lib/realtime/socket-client.ts(158,21): error TS2339: Property 'type' does not exist on type 'Error'.
+src/lib/realtime/socket-client.ts(195,53): error TS2304: Cannot find name 'serverUrl'.
+src/lib/realtime/socket-context.tsx(84,17): error TS2552: Cannot find name 'newSocket'. Did you mean 'socket'?
+src/lib/supabase.ts(4,14): error TS2451: Cannot redeclare block-scoped variable 'supabaseClient'.
+src/lib/supabase.ts(13,14): error TS2451: Cannot redeclare block-scoped variable 'supabaseClient'.
+src/lib/wiki-knowledge.ts(115,5): error TS2322: Type '{ page: { id: string; createdAt: Date; updatedAt: Date; title: string; content: string; slug: string; excerpt: string | null; tags: string[]; category: string; }; relevanceScore: number; matchedFields: string[]; }[]' is not assignable to type 'WikiSearchResult[]'.
+  Type '{ page: { id: string; createdAt: Date; updatedAt: Date; title: string; content: string; slug: string; excerpt: string | null; tags: string[]; category: string; }; relevanceScore: number; matchedFields: string[]; }' is not assignable to type 'WikiSearchResult'.
+    The types of 'page.excerpt' are incompatible between these types.
+      Type 'string | null' is not assignable to type 'string | undefined'.
+        Type 'null' is not assignable to type 'string | undefined'.
+src/lib/wiki-knowledge.ts(154,5): error TS2322: Type '{ id: string; createdAt: Date; updatedAt: Date; title: string; content: string; slug: string; excerpt: string | null; tags: string[]; category: string; }[]' is not assignable to type 'WikiPage[]'.
+  Type '{ id: string; createdAt: Date; updatedAt: Date; title: string; content: string; slug: string; excerpt: string | null; tags: string[]; category: string; }' is not assignable to type 'WikiPage'.
+    Types of property 'excerpt' are incompatible.
+      Type 'string | null' is not assignable to type 'string | undefined'.
+        Type 'null' is not assignable to type 'string | undefined'.
+src/lib/wiki-knowledge.ts(193,5): error TS2322: Type '{ id: string; createdAt: Date; updatedAt: Date; title: string; content: string; slug: string; excerpt: string | null; tags: string[]; category: string; }[]' is not assignable to type 'WikiPage[]'.
+  Type '{ id: string; createdAt: Date; updatedAt: Date; title: string; content: string; slug: string; excerpt: string | null; tags: string[]; category: string; }' is not assignable to type 'WikiPage'.
+    Types of property 'excerpt' are incompatible.
+      Type 'string | null' is not assignable to type 'string | undefined'.
+        Type 'null' is not assignable to type 'string | undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(14,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(24,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(25,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(26,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(34,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(35,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(36,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(37,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(45,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(46,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(47,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(48,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(56,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(64,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(72,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(73,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(81,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(82,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(90,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(91,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(99,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(100,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(108,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(109,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(121,20): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(139,20): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(156,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(157,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(158,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(159,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(160,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/html-to-tiptap.test.ts(176,12): error TS18048: 'result.doc.content' is possibly 'undefined'.
+src/lib/wiki/__tests__/text-extract.test.ts(131,14): error TS18048: 'EMPTY_TIPTAP_DOC.content' is possibly 'undefined'.
+src/lib/wiki/text-extract.ts(75,31): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/server/authOptions.ts(128,11): error TS2322: Type '{}' is not assignable to type 'string'.
+src/server/data/acceptOrgInvitation.ts(57,9): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"WorkspaceMember"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"WorkspaceMember"> | undefined'.
+src/server/data/acceptOrgInvitation.ts(66,11): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/server/data/acceptOrgInvitation.ts(72,9): error TS2322: Type '{ id: string; name: string; } | null' is not assignable to type '{ id: string; name: string | null; }'.
+  Type 'null' is not assignable to type '{ id: string; name: string | null; }'.
+src/server/data/acceptOrgInvitation.ts(78,7): error TS2322: Type '{ id: string; name: string; } | null' is not assignable to type '{ id: string; name: string | null; }'.
+  Type 'null' is not assignable to type '{ id: string; name: string | null; }'.
+src/server/data/acceptOrgInvitation.ts(104,7): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"WorkspaceMember"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"WorkspaceMember"> | undefined'.
+src/server/data/acceptOrgInvitation.ts(120,7): error TS2322: Type '{ id: string; name: string; } | null' is not assignable to type '{ id: string; name: string | null; }'.
+  Type 'null' is not assignable to type '{ id: string; name: string | null; }'.
+src/server/data/acceptOrgInvitation.ts(129,9): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/server/data/acceptOrgInvitation.ts(144,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/server/data/acceptOrgInvitation.ts(157,5): error TS2322: Type '{ id: string; name: string; } | null' is not assignable to type '{ id: string; name: string | null; }'.
+  Type 'null' is not assignable to type '{ id: string; name: string | null; }'.
+src/server/data/orgActivity.ts(147,5): error TS2322: Type '{ createdAt?: { readonly gte: Date; } | undefined; event: { readonly in: readonly ["ORG_CREATED", "ORG_DELETED"]; }; workspaceId: string; } | { createdAt?: { readonly gte: Date; } | undefined; event: { ...; }; workspaceId: string; } | { ...; } | { ...; }' is not assignable to type 'OrgAuditLogWhereInput | undefined'.
+  Type '{ createdAt?: { readonly gte: Date; } | undefined; event: { readonly in: readonly ["ORG_CREATED", "ORG_DELETED"]; }; workspaceId: string; }' is not assignable to type 'OrgAuditLogWhereInput'.
+    Types of property 'event' are incompatible.
+      Type '{ readonly in: readonly ["ORG_CREATED", "ORG_DELETED"]; }' is not assignable to type 'OrgAuditEventType | EnumOrgAuditEventTypeNullableFilter<"OrgAuditLog"> | null | undefined'.
+        Type '{ readonly in: readonly ["ORG_CREATED", "ORG_DELETED"]; }' is not assignable to type 'EnumOrgAuditEventTypeNullableFilter<"OrgAuditLog">'.
+          Types of property 'in' are incompatible.
+            Type 'readonly ["ORG_CREATED", "ORG_DELETED"]' is not assignable to type 'OrgAuditEventType[] | FieldRef<"OrgAuditLog", "OrgAuditEventType[]"> | null | undefined'.
+              The type 'readonly ["ORG_CREATED", "ORG_DELETED"]' is 'readonly' and cannot be assigned to the mutable type 'OrgAuditEventType[]'.
+src/server/data/orgActivity.ts(195,24): error TS2339: Property 'actor' does not exist on type '{ metadata: JsonValue; workspaceId: string; id: string; createdAt: Date; userId: string; entityId: string; action: string; entityType: string; oldValues: JsonValue; newValues: JsonValue; actorUserId: string | null; targetUserId: string | null; event: OrgAuditEventType | null; }'.
+src/server/data/orgActivity.ts(196,25): error TS2339: Property 'actor' does not exist on type '{ metadata: JsonValue; workspaceId: string; id: string; createdAt: Date; userId: string; entityId: string; action: string; entityType: string; oldValues: JsonValue; newValues: JsonValue; actorUserId: string | null; targetUserId: string | null; event: OrgAuditEventType | null; }'.
+src/server/data/orgActivity.ts(197,25): error TS2339: Property 'target' does not exist on type '{ metadata: JsonValue; workspaceId: string; id: string; createdAt: Date; userId: string; entityId: string; action: string; entityType: string; oldValues: JsonValue; newValues: JsonValue; actorUserId: string | null; targetUserId: string | null; event: OrgAuditEventType | null; }'.
+src/server/data/orgActivity.ts(198,26): error TS2339: Property 'target' does not exist on type '{ metadata: JsonValue; workspaceId: string; id: string; createdAt: Date; userId: string; entityId: string; action: string; entityType: string; oldValues: JsonValue; newValues: JsonValue; actorUserId: string | null; targetUserId: string | null; event: OrgAuditEventType | null; }'.
+src/server/org/health/data-quality.ts(56,11): error TS2561: Object literal may only specify known properties, but 'managerIds' does not exist in type '{ personId: string; label: string; managers: number; }'. Did you mean to write 'managers'?
+src/server/org/health/data-quality.ts(119,129): error TS2551: Property 'managerIds' does not exist on type '{ personId: string; label: string; managers: number; }'. Did you mean 'managers'?
+src/server/org/health/team-membership.ts(25,21): error TS2339: Property 'teamMember' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/server/org/health/team-membership.ts(31,21): error TS2339: Property 'teamMembership' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/server/org/health/team-membership.ts(37,21): error TS2339: Property 'personTeam' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/server/org/health/team-membership.ts(43,21): error TS2551: Property 'membership' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'orgMembership'?
+src/server/org/intelligence/availabilityGaps.ts(19,31): error TS2339: Property 'orgPerson' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/server/org/intelligence/snapshots.ts(31,5): error TS2322: Type '{ source: string; findingCount: number; findingsJson: any; rollupsJson: any; }' is not assignable to type '(Without<OrgIntelligenceSnapshotCreateInput, OrgIntelligenceSnapshotUncheckedCreateInput> & OrgIntelligenceSnapshotUncheckedCreateInput) | (Without<...> & OrgIntelligenceSnapshotCreateInput)'.
+  Type '{ source: string; findingCount: number; findingsJson: any; rollupsJson: any; }' is not assignable to type 'Without<OrgIntelligenceSnapshotUncheckedCreateInput, OrgIntelligenceSnapshotCreateInput> & OrgIntelligenceSnapshotCreateInput'.
+    Property 'workspace' is missing in type '{ source: string; findingCount: number; findingsJson: any; rollupsJson: any; }' but required in type 'OrgIntelligenceSnapshotCreateInput'.
+src/server/org/loopbrainContext/build_v2.ts(23,9): error TS2741: Property 'freshness' is missing in type '{ generatedAt: string; version: "v2"; readiness: { ready: boolean; items: Array<{ key: string; complete: boolean; meta?: Record<string, any>; }>; }; orgCounts: { people: number; teams: number; ... 4 more ...; availabilityStale: number; }; intelligence: { ...; }; recommendations: { ...; }; }' but required in type 'LoopbrainOrgContextV2'.
+src/server/org/maintenance/dedup.ts(8,14): error TS2353: Object literal may only specify known properties, and 'orgId' does not exist in type 'PersonManagerLinkWhereInput'.
+src/server/org/maintenance/dedup.ts(59,14): error TS2353: Object literal may only specify known properties, and 'orgId' does not exist in type 'PersonAvailabilityWhereInput'.
+src/server/org/ownership/write.ts(40,7): error TS2322: Type '{ entityType: "TEAM" | "DEPARTMENT"; entityId: string; ownerPersonId: string; }' is not assignable to type '(Without<OwnerAssignmentCreateInput, OwnerAssignmentUncheckedCreateInput> & OwnerAssignmentUncheckedCreateInput) | (Without<...> & OwnerAssignmentCreateInput)'.
+  Type '{ entityType: "TEAM" | "DEPARTMENT"; entityId: string; ownerPersonId: string; }' is not assignable to type 'Without<OwnerAssignmentUncheckedCreateInput, OwnerAssignmentCreateInput> & OwnerAssignmentCreateInput'.
+    Property 'workspace' is missing in type '{ entityType: "TEAM" | "DEPARTMENT"; entityId: string; ownerPersonId: string; }' but required in type 'OwnerAssignmentCreateInput'.
+src/server/org/people/read.ts(248,57): error TS2339: Property 'email' does not exist on type '{ id: string; name: string | null; }'.
+src/server/org/people/read.ts(417,67): error TS2339: Property 'email' does not exist on type '{ id: string; name: string | null; }'.
+src/server/orgHealth.ts(45,7): error TS2353: Object literal may only specify known properties, and 'orgId' does not exist in type 'OrgPositionWhereInput'.
+src/server/orgHealth.ts(81,7): error TS2353: Object literal may only specify known properties, and 'score' does not exist in type '(Without<OrgHealthSnapshotCreateInput, OrgHealthSnapshotUncheckedCreateInput> & OrgHealthSnapshotUncheckedCreateInput) | (Without<...> & OrgHealthSnapshotCreateInput)'.
+src/server/workspace/context.ts(8,3): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/types/index.ts(5,1): error TS2308: Module './wiki' has already exported a member named 'User'. Consider explicitly re-exporting to resolve the ambiguity.

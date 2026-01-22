@@ -1,0 +1,5 @@
+src/app/welcome/page.tsx:63:      const workspaceId = 'ws_1765020555_4662b211'
+src/app/welcome/page.tsx:73:      const workspaceId = 'ws_1765020555_4662b211'
+src/app/force-workspace.ts:5:    const workspaceId = sessionStorage.getItem('__workspace_id__') || 'ws_1765020555_4662b211'
+src/app/force-workspace.ts:14:    sessionStorage.setItem('__workspace_id__', 'ws_1765020555_4662b211')
+src/app/layout.tsx:105:                    sessionStorage.setItem('__workspace_id__', 'ws_1765020555_4662b211');

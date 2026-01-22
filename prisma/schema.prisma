@@ -166,6 +166,7 @@ model Workspace {
   ownerAssignments    OwnerAssignment[]
   personManagerLinks  PersonManagerLink[]
   todos               Todo[]
+  activities          Activity[]
 
   @@map("workspaces")
 }
@@ -1101,17 +1102,21 @@ model ProjectTemplate {
 }
 
 model Activity {
-  id        String   @id @default(cuid())
-  actorId   String
-  entity    String
-  entityId  String
-  action    String
-  meta      Json?
-  createdAt DateTime @default(now())
-  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  workspaceId String
+  actorId     String
+  entity      String
+  entityId    String
+  action      String
+  meta        Json?
+  createdAt   DateTime  @default(now())
+  actor       User      @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([actorId, entity, entityId], map: "idx_activities_actor_entity")
   @@index([createdAt(sort: Desc)], map: "idx_activities_created")
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_activities_workspace_created")
+  @@index([workspaceId], map: "idx_activities_workspace")
   @@map("activities")
 }
 

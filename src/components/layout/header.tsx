@@ -6,9 +6,21 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/workspace-context"
 import { WorkspaceAccountMenu } from "@/components/layout/workspace-account-menu"
-import { LayoutDashboard, FolderKanban, Brain, Network } from "lucide-react"
+import { LayoutDashboard, FolderKanban, Brain, Network, Sliders, Users, Bell } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Logo } from "@/components/logo"
+import { useSession, signOut } from "next-auth/react"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { clearUserStatusCache } from "@/hooks/use-user-status"
 
 // Prefetch common routes on mount for instant navigation
 function prefetchRoutes() {
@@ -81,7 +93,8 @@ const navigationItems = [
 export function Header() {
   const pathname = usePathname()
   const router = useRouter()
-  const { currentWorkspace } = useWorkspace()
+  const { currentWorkspace, userRole } = useWorkspace()
+  const { data: session } = useSession()
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [userRoleFromPermissions, setUserRoleFromPermissions] = useState<string | null>(null)

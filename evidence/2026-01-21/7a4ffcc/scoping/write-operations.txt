@@ -1,0 +1,30 @@
+src/app/api/assistant/message/route.ts:422:      await prisma.chatSession.update({
+src/app/api/assistant/publish/route.ts:63:    const wikiPage = await prisma.wikiPage.create({
+src/app/api/assistant/publish/route.ts:78:    const updatedSession = await prisma.chatSession.update({
+src/app/api/assistant/sessions/route.ts:19:    const session = await prisma.chatSession.create({
+src/app/api/assistant/sessions/[id]/route.ts:76:    const session = await prisma.chatSession.update({
+src/app/api/assistant/sessions/[id]/route.ts:121:    await prisma.chatSession.delete({
+src/app/api/assistant/route.ts:25:    const session = await prisma.chatSession.create({
+src/app/api/assistant/generate-draft/route.ts:244:    const updatedSession = await prisma.chatSession.update({
+src/app/api/assistant/session/route.ts:17:    const updatedSession = await prisma.chatSession.update({
+src/app/api/assistant/create-project/route.ts:62:    const project = await prisma.project.create({
+src/app/api/assistant/create-project/route.ts:111:              const task = await prisma.task.create({
+src/app/api/assistant/create-project/route.ts:160:        const task = await prisma.task.create({
+src/app/api/assistant/create-project/route.ts:180:    await prisma.chatSession.update({
+src/app/api/tasks/route.ts:308:    const task = await prisma.task.create({
+src/app/api/tasks/[id]/assignments/milestone/route.ts:67:    const updatedTask = await prisma.task.update({
+src/app/api/tasks/[id]/assignments/epic/route.ts:67:    const updatedTask = await prisma.task.update({
+src/app/api/tasks/[id]/assignments/points/route.ts:53:    const updatedTask = await prisma.task.update({
+src/app/api/tasks/[id]/dependencies/route.ts:102:    const updatedTask = await prisma.task.update({
+src/app/api/tasks/[id]/dependencies/route.ts:269:    await prisma.task.update({
+src/app/api/tasks/[id]/dependencies/route.ts:281:    await prisma.task.update({
+src/app/api/tasks/[id]/route.ts:132:    const task = await prisma.task.update({
+src/app/api/tasks/[id]/route.ts:225:    await prisma.task.delete({
+src/app/api/test-projects/route.ts:91:      const task = await prisma.task.create({
+src/app/api/projects/[projectId]/daily-summary-settings/route.ts:55:    const updatedProject = await prisma.project.update({
+src/app/api/projects/[projectId]/route.ts:340:    const project = await prisma.project.update({
+src/app/api/projects/[projectId]/route.ts:512:    await prisma.project.delete({
+src/app/api/wiki/pages/route.ts:315:    const page = await (prisma.wikiPage.create as Function)({
+src/app/api/wiki/pages/[id]/favorite/route.ts:44:    const updatedPage = await prisma.wikiPage.update({
+src/app/api/wiki/pages/[id]/favorite/route.ts:98:    const updatedPage = await prisma.wikiPage.update({
+src/app/api/wiki/pages/[id]/route.ts:281:    const updatedPage = await prisma.wikiPage.update({

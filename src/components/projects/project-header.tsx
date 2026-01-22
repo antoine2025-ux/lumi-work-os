@@ -151,14 +151,6 @@ export function ProjectHeader({
             const done = getTaskStatusCount('DONE');
             const width = total > 0 ? (done / total) * 100 : 0;
             
-            // #region agent log
-            try {
-              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'project-header.tsx:147',message:'Project header progress calc (fixed)',data:{total,done,width},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix3',hypothesisId:'G'})}).catch(()=>{});
-            } catch(e) {
-              fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'project-header.tsx:147',message:'Project header progress calc error (fixed)',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix3',hypothesisId:'H'})}).catch(()=>{});
-            }
-            // #endregion
-            
             return (
               <>
                 <div className="flex items-center justify-between mb-1">

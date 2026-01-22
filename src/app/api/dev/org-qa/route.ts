@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runOrgQa } from "@/lib/loopbrain/orgQaService";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/server/authOptions";
 import { isOrgLoopbrainEnabled } from "@/lib/loopbrain/orgGate";
 
 export async function POST(req: NextRequest) {

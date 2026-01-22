@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/server/authOptions'
 import { createUserWorkspace } from '@/lib/simple-auth'
 
 export async function POST(request: NextRequest) {
@@ -30,37 +30,41 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already has a workspace
+    // Use direct workspaceMember query to avoid nested relation issues with customRoleId
     const { prisma } = await import('@/lib/db')
     let existingWorkspace = null
     try {
-      existingWorkspace = await prisma.workspace.findFirst({
-        where: {
-          members: {
-            some: { userId: session.user.id }
-          }
+      // Use workspaceMember directly to avoid nested relation that might access customRoleId
+      const member = await prisma.workspaceMember.findFirst({
+        where: { userId: session.user.id },
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
+          // Exclude customRoleId and customRole relation
         }
       })
+      if (member) {
+        // If member exists, fetch the workspace separately
+        existingWorkspace = await prisma.workspace.findUnique({
+          where: { id: member.workspaceId },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            description: true,
+            ownerId: true,
+            createdAt: true,
+            updatedAt: true,
+          }
+        })
+      }
     } catch (error: any) {
       // If Prisma connection fails, log but continue (might be a connection issue)
       console.warn('[workspace/create] Could not check existing workspace:', error.message)
-      // Try alternative check using workspaceMember directly (simpler query without nested relations)
-      try {
-        const member = await prisma.workspaceMember.findFirst({
-          where: { userId: session.user.id }
-        })
-        if (member) {
-          // If member exists, fetch the workspace separately
-          const workspace = await prisma.workspace.findUnique({
-            where: { id: member.workspaceId }
-          })
-          if (workspace) {
-            existingWorkspace = workspace
-          }
-        }
-      } catch (e: any) {
-        console.warn('[workspace/create] Alternative check also failed:', e?.message || e)
-        // Continue anyway - worst case we create a duplicate workspace
-      }
+      // Continue anyway - worst case we create a duplicate workspace
     }
 
     if (existingWorkspace) {
@@ -75,20 +79,54 @@ export async function POST(request: NextRequest) {
 
     // Create workspace for the user with session data
     console.log('[workspace/create] Creating workspace...')
-    const authUser = await createUserWorkspace({
-      id: session.user.id,
+    console.log('[workspace/create] Calling createUserWorkspace with:', {
+      userId: session.user.id,
       email: session.user.email,
-      name: session.user.name || '',
-      image: session.user.image
-    }, {
-      name,
-      slug,
-      description: description || '',
-      teamSize,
-      industry
+      workspaceName: name,
+      workspaceSlug: slug
     })
+    
+    let authUser
+    try {
+      authUser = await createUserWorkspace({
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name || '',
+        image: session.user.image
+      }, {
+        name,
+        slug,
+        description: description || '',
+        teamSize,
+        industry
+      })
+      console.log('[workspace/create] createUserWorkspace returned successfully')
+    } catch (createError: any) {
+      console.error('[workspace/create] createUserWorkspace threw error:', createError)
+      console.error('[workspace/create] createUserWorkspace error type:', typeof createError)
+      console.error('[workspace/create] createUserWorkspace error message:', createError?.message)
+      console.error('[workspace/create] createUserWorkspace error stack:', createError?.stack)
+      // Re-throw with more context
+      const enhancedError = new Error(`Workspace creation failed: ${createError?.message || String(createError)}`)
+      ;(enhancedError as any).originalError = createError?.message
+      ;(enhancedError as any).code = createError?.code
+      throw enhancedError
+    }
 
-    console.log('[workspace/create] Workspace created successfully!')
+    if (!authUser) {
+      console.error('[workspace/create] createUserWorkspace returned null/undefined')
+      throw new Error('Workspace creation returned no user data')
+    }
+
+    if (!authUser.workspaceId) {
+      console.error('[workspace/create] createUserWorkspace returned user without workspaceId')
+      throw new Error('Workspace creation returned user without workspace ID')
+    }
+
+    console.log('[workspace/create] Workspace created successfully!', {
+      userId: authUser.id,
+      workspaceId: authUser.workspaceId
+    })
     return NextResponse.json({
       success: true,
       user: authUser,
@@ -96,17 +134,65 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('[workspace/create] Error creating workspace:', error)
+    console.error('[workspace/create] ========== ERROR CAUGHT ==========')
+    console.error('[workspace/create] Error type:', typeof error)
+    console.error('[workspace/create] Error constructor:', error?.constructor?.name)
+    console.error('[workspace/create] Error instanceof Error:', error instanceof Error)
+    console.error('[workspace/create] Error object:', error)
+    console.error('[workspace/create] Error message:', error instanceof Error ? error.message : 'N/A')
     console.error('[workspace/create] Error stack:', error instanceof Error ? error.stack : 'No stack')
-    console.error('[workspace/create] Error details:', {
-      message: error instanceof Error ? error.message : String(error),
-      name: error instanceof Error ? error.name : 'Unknown',
-      cause: error instanceof Error ? error.cause : undefined
+    
+    // Helper to strip ANSI escape codes from strings
+    const stripAnsi = (str: string): string => {
+      return str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1B\]/g, '')
+    }
+    
+    // Extract serializable error details with fallbacks
+    let errorMessage = 'Unknown error occurred'
+    let errorName = 'Unknown'
+    let errorCode: string | undefined = undefined
+    
+    try {
+      if (error instanceof Error) {
+        errorMessage = stripAnsi(error.message || 'Error object has no message')
+        errorName = error.name || 'Error'
+        errorCode = (error as any)?.code
+      } else if (typeof error === 'string') {
+        errorMessage = stripAnsi(error)
+      } else if (error && typeof error === 'object') {
+        const rawMessage = (error as any)?.message || JSON.stringify(error)
+        errorMessage = stripAnsi(typeof rawMessage === 'string' ? rawMessage : String(rawMessage))
+        errorCode = (error as any)?.code
+      } else {
+        errorMessage = stripAnsi(String(error))
+      }
+    } catch (extractError) {
+      console.error('[workspace/create] Failed to extract error details:', extractError)
+      errorMessage = 'Failed to extract error details'
+    }
+    
+    const prismaError = error as any
+    console.error('[workspace/create] Extracted error details:', {
+      message: errorMessage,
+      name: errorName,
+      code: errorCode,
+      prismaCode: prismaError?.code,
+      prismaMeta: prismaError?.meta ? JSON.stringify(prismaError.meta) : undefined
     })
-    return NextResponse.json({ 
+    
+    // Return serializable error response - ensure it's always a valid object
+    const errorResponse = { 
       error: 'Failed to create workspace',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
-    }, { status: 500 })
+      details: errorMessage || 'Unknown error',
+      code: errorCode || undefined
+    }
+    
+    // Only include stack in development
+    if (process.env.NODE_ENV === 'development' && error instanceof Error && error.stack) {
+      (errorResponse as any).stack = error.stack
+    }
+    
+    console.error('[workspace/create] Returning error response:', errorResponse)
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }

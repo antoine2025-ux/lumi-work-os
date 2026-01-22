@@ -1,0 +1,57 @@
+
+Running 12 tests using 5 workers
+
+(node:57104) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57104) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║  AUTH STATE NOT FOUND OR INVALID                                       ║
+║                                                                         ║
+║  To set up authentication for local E2E tests:                          ║
+║                                                                         ║
+║  1. Start the app: npm run dev                                          ║
+║  2. Run: npx playwright codegen --save-storage=.auth/user.json \        ║
+║          http://localhost:3000/login                                    ║
+║  3. Complete Google OAuth login in the browser                          ║
+║  4. Close the browser when done                                         ║
+║                                                                         ║
+║  The auth state will be saved and reused for future test runs.          ║
+╚═══════════════════════════════════════════════════════════════════════╝
+  
+  ✓   1 [setup] › tests/e2e/auth.setup.ts:18:6 › authenticate (13ms)
+(node:57109) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57106) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57110) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57107) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57108) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57110) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57107) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57109) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57108) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57106) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 [chromium] › tests/e2e/redirect-smoke.spec.ts:64:7 › Redirect Verification - Unauthenticated › TC-10: Unauthenticated user hitting /api/tasks returns 401 (242ms)
+  -   2 [chromium] › tests/e2e/redirect-smoke.spec.ts:86:7 › Redirect Verification - Authenticated › TC-2: Authenticated user hitting /login redirects to /home
+  -   7 [chromium] › tests/e2e/redirect-smoke.spec.ts:98:7 › Redirect Verification - Authenticated › TC-4: Authenticated user with workspace can access /home
+  -   8 [chromium] › tests/e2e/redirect-smoke.spec.ts:109:7 › Redirect Verification - Authenticated › TC-4b: Authenticated user can access /projects
+  -   9 [chromium] › tests/e2e/redirect-smoke.spec.ts:116:7 › Redirect Verification - Authenticated › TC-8: Hard refresh on protected route maintains session
+  ✓   6 [chromium] › tests/e2e/redirect-smoke.spec.ts:24:7 › Redirect Verification - Unauthenticated › TC-1: Unauthenticated user hitting /home redirects to /login (656ms)
+  ✓   3 [chromium] › tests/e2e/redirect-smoke.spec.ts:40:7 › Redirect Verification - Unauthenticated › TC-1b: Unauthenticated user hitting /projects redirects to /login (691ms)
+  -  10 [chromium] › tests/e2e/redirect-smoke.spec.ts:130:7 › Redirect Verification - Authenticated › TC-9: OAuth callback preserves session
+  ✓   4 [chromium] › tests/e2e/redirect-smoke.spec.ts:52:7 › Redirect Verification - Unauthenticated › TC-1c: Unauthenticated user hitting /wiki redirects to /login (740ms)
+  ✓  11 [chromium] › tests/e2e/redirect-smoke.spec.ts:142:7 › API Route Protection › Protected task route requires auth (190ms)
+  ✓  12 [chromium] › tests/e2e/redirect-smoke.spec.ts:156:7 › API Route Protection › Protected project route requires auth (256ms)
+
+  5 skipped
+  7 passed (2.1s)

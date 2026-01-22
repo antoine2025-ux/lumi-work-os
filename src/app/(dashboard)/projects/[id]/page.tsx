@@ -781,14 +781,6 @@ export default function ProjectDetailPage() {
                       const width = total > 0 ? (done / total) * 100 : 0;
                       const isCompleted = total > 0 && width === 100;
                       
-                      // #region agent log
-                      try {
-                        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/[id]/page.tsx:770',message:'Project detail progress calc (fixed)',data:{total,done,width,isCompleted},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix3',hypothesisId:'K'})}).catch(()=>{});
-                      } catch(e) {
-                        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projects/[id]/page.tsx:770',message:'Project detail progress calc error (fixed)',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix3',hypothesisId:'L'})}).catch(()=>{});
-                      }
-                      // #endregion
-                      
                       return (
                         <>
                           <div className="w-full rounded-full h-2 mb-2" style={{ backgroundColor: colors.border }}>
