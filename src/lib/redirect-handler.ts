@@ -86,11 +86,12 @@ export function getRedirectDecision(context: RedirectContext): RedirectDecision 
     return { shouldRedirect: false, reason: 'Still loading' }
   }
 
-  // 5. Unauthenticated users go to login
-  if (sessionStatus === 'unauthenticated' || !session) {
-    const loginUrl = `/login?callbackUrl=${encodeURIComponent(pathname)}`
-    return { shouldRedirect: true, target: loginUrl, reason: 'Not authenticated' }
-  }
+  // Commented to fix issue with pages redirects
+  // // 5. Unauthenticated users go to login
+  // if (sessionStatus === 'unauthenticated' || !session) {
+  //   const loginUrl = `/login?callbackUrl=${encodeURIComponent(pathname)}`
+  //   return { shouldRedirect: true, target: loginUrl, reason: 'Not authenticated' }
+  // }
 
   // 6. Authenticated but no workspace - ONLY redirect if we're certain there's no workspace
   // Don't redirect if workspaceId is null but we're still loading or haven't confirmed no workspace
