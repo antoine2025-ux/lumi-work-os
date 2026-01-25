@@ -91,6 +91,7 @@ export async function getOrgAndMembershipForUser(
         throw error;
       }
     }
+    
 
     // If user is workspace owner but no membership record exists, treat as OWNER
     if (!membership && workspace.ownerId === userId) {
@@ -180,6 +181,7 @@ export async function getOrgAndMembershipForUser(
       throw error;
     }
   }
+  
 
   if (!membership || !membership.workspace) {
     // Check if user owns any workspace (even without membership record)

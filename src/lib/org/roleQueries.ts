@@ -42,7 +42,7 @@ export async function getRolesForPerson(
     if (!data || typeof data !== "object") continue;
     if (data.type !== "role") continue;
 
-    const relations = (data.relations ?? []) as NonNullable<RoleContextData["relations"]>;
+    const relations = (data.relations ?? []) as RoleContextData["relations"];
 
     // Check if person owns this role via owned_by relation or owner field
     const ownedByPerson =
@@ -86,7 +86,7 @@ export async function getRolesForTeam(
     if (!data || typeof data !== "object") continue;
     if (data.type !== "role") continue;
 
-    const relations = (data.relations ?? []) as NonNullable<RoleContextData["relations"]>;
+    const relations = (data.relations ?? []) as RoleContextData["relations"];
 
     const belongsToTeam = relations.some(
       (rel) =>

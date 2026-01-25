@@ -209,9 +209,6 @@ export async function buildOrgContextBundleForWorkspace(
  */
 export async function buildOrgContextBundleForCurrentWorkspace(): Promise<OrgContextBundle> {
   const workspaceId = await getCurrentWorkspaceId();
-  if (!workspaceId) {
-    throw new Error('No workspace found');
-  }
   return buildOrgContextBundleForWorkspace(workspaceId);
 }
 

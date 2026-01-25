@@ -15,9 +15,6 @@ export async function getOrgTeamById(
   teamId: string
 ): Promise<OrgTeamDetailDTO | null> {
   const workspaceId = await getCurrentWorkspaceId();
-  if (!workspaceId) {
-    return null;
-  }
 
   const team = await prisma.orgTeam.findFirst({
     where: {
@@ -68,9 +65,6 @@ export async function getOrgTeamWithMembers(
   teamId: string
 ): Promise<OrgTeamWithMembersDTO | null> {
   const workspaceId = await getCurrentWorkspaceId();
-  if (!workspaceId) {
-    return null;
-  }
 
   const team = await prisma.orgTeam.findFirst({
     where: {
