@@ -1,4 +1,3 @@
-import { test, expect } from "vitest";
 import { deriveIssues } from "../deriveIssues";
 
 test("detects missing fields deterministically", () => {

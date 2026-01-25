@@ -179,7 +179,7 @@ const _getOrgPeople = async (
   // Handle search query - prepare search data but don't add to filters yet
   let searchUserIds: string[] | null = null;
   let searchTitle: string | null = null;
-
+  
   if (filters?.q) {
     const searchTerm = filters.q.trim();
     if (searchTerm) {
@@ -272,7 +272,7 @@ const _getOrgPeople = async (
             },
           },
         },
-      take: 1000, // Add explicit limit to prevent issues
+        take: 1000, // Add explicit limit to prevent issues
       });
     } catch (queryError: any) {
       // If the full query fails, try a simpler query and filter in memory
@@ -601,7 +601,6 @@ const _getOrgStructureLists = async (
       departmentId: t.department?.id ?? null,
       departmentName: t.department?.name ?? null,
       leadName,
-      ownerPersonId: null, // TODO: Add team owner lookup if needed
       memberCount: t._count.positions,
     };
   });
@@ -619,12 +618,9 @@ const _getOrgStructureLists = async (
   >();
 
   for (const pos of positions) {
-    // Skip positions without a title
-    if (!pos.title) continue;
-    
     const existing = roleMap.get(pos.title);
     if (existing) {
-      if (pos.userId) {
+      if (pos.user) {
         existing.activePeopleCount += 1;
       }
       if (!existing.defaultTeamName && pos.team) {
@@ -636,7 +632,7 @@ const _getOrgStructureLists = async (
         name: pos.title,
         level: pos.level != null ? pos.level.toString() : null,
         defaultTeamName: pos.team?.name ?? null,
-        activePeopleCount: pos.userId ? 1 : 0,
+        activePeopleCount: pos.user ? 1 : 0,
       });
     }
   }

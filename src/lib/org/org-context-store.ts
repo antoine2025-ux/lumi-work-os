@@ -1,22 +1,21 @@
 import { prisma } from "@/lib/db";
-import { Prisma } from "@prisma/client";
 import {
   buildOrgContextBundleForWorkspace,
   buildOrgContextBundleForCurrentWorkspace,
   OrgContextBundle,
 } from "./org-context-service";
-import { ContextObject } from "@/lib/context/contextTypes";
+import { OrgContextObject } from "./context-object";
 
 /**
- * Persist a single ContextObject into ContextItem.
+ * Persist a single OrgContextObject into ContextItem.
  * For now, we:
  * - Use type = "org" in ContextItem (Org is a domain within the global context).
- * - Use contextId = ContextObject.id (e.g., "department:xyz").
- * - Store the full ContextObject in data.
+ * - Use contextId = OrgContextObject.id (e.g., "department:xyz").
+ * - Store the full OrgContextObject in data.
  */
 async function createContextItemForOrgObject(
   workspaceId: string,
-  obj: ContextObject
+  obj: OrgContextObject
 ) {
   await prisma.contextItem.create({
     data: {
@@ -25,7 +24,7 @@ async function createContextItemForOrgObject(
       type: "org",
       title: obj.title,
       summary: obj.summary,
-      data: obj as unknown as Prisma.InputJsonValue,
+      data: obj,
     },
   });
 }
@@ -45,7 +44,7 @@ export async function syncOrgContextBundleToStoreForWorkspace(
     workspaceId
   );
 
-  const allObjects: ContextObject[] = [bundle.root, ...bundle.items];
+  const allObjects: OrgContextObject[] = [bundle.root, ...bundle.items];
 
   // Clear existing Org context for this workspace
   await prisma.contextItem.deleteMany({

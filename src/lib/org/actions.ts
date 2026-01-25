@@ -70,27 +70,12 @@ export async function createTeam(input: CreateTeamInput) {
       return { ok: false as const, error: "Database connection unavailable." };
     }
 
-    // Handle departmentId - if not provided, find or create "Unassigned" department
-    let departmentId = input.departmentId;
+    // departmentId is optional - teams can be unassigned (departmentId: null)
+    // This is a valid first-class state, not a configuration error
+    let departmentId = input.departmentId ?? null;
     
-    if (!departmentId) {
-      // Find or create a default "Unassigned" department for teams without departments
-      const existing = await prisma.orgDepartment.findFirst({
-        where: { name: "Unassigned", workspaceId, isActive: true },
-        select: { id: true },
-      });
-      
-      if (existing) {
-        departmentId = existing.id;
-      } else {
-        const created = await prisma.orgDepartment.create({
-          data: { name: "Unassigned", workspaceId },
-          select: { id: true },
-        });
-        departmentId = created.id;
-      }
-    } else {
-      // Verify department exists in workspace
+    if (departmentId) {
+      // Verify department exists in workspace if provided
       const department = await prisma.orgDepartment.findFirst({
         where: {
           id: departmentId,
