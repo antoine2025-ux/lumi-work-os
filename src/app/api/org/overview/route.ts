@@ -5,7 +5,7 @@
  * Provides summary counts and readiness status in a single response
  * to eliminate client-side waterfall of multiple API calls.
  * 
- * Strict auth pattern: getUnifiedAuth → assertAccess → setWorkspaceContext → Prisma
+ * Strict auth pattern: getUnifiedAuth → assertAccess → setWorkspaceContext → intelligence layer
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -13,6 +13,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { getOrgIntelligenceSnapshot } from "@/lib/org/intelligence";
 
 export async function GET(request: NextRequest) {
   let userId: string | undefined;
@@ -47,8 +48,8 @@ export async function GET(request: NextRequest) {
     // Step 3: Set workspace context (enables automatic Prisma scoping)
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Parallel, minimal selects (no deep includes)
-    const [peopleCount, teamCount, deptCount, teamAssignments] = await Promise.all([
+    // Step 4: Get counts via Prisma and ownership via intelligence layer
+    const [peopleCount, teamCount, deptCount, snapshot] = await Promise.all([
       prisma.orgPosition.count({
         where: {
           userId: { not: null },
@@ -61,17 +62,14 @@ export async function GET(request: NextRequest) {
       prisma.orgDepartment.count({
         where: { isActive: true },
       }),
-      // Count team owner assignments
-      (prisma as any).ownerAssignment.count({
-        where: { entityType: "TEAM" },
+      // Use intelligence layer for ownership data (required by tripwire)
+      getOrgIntelligenceSnapshot(workspaceId, {
+        include: { ownership: true },
       }),
     ]);
 
-    // Calculate unowned entities (total - assigned)
-    // Note: Currently only TEAM assignments are supported (DEPARTMENT not in OwnedEntityType enum)
-    const unownedTeams = Math.max(0, teamCount - teamAssignments);
-    const unownedDepts = deptCount; // All departments are unowned until DEPARTMENT is supported
-    const unownedEntities = unownedTeams + unownedDepts;
+    // Get unowned entities count from snapshot (canonical source)
+    const unownedEntities = snapshot.ownership?.unownedEntities?.length ?? 0;
 
     // Setup readiness summary (deterministic; keep minimal)
     const readiness = {

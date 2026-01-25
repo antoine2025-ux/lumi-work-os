@@ -16,6 +16,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { getOrgIntelligenceSnapshot } from "@/lib/org/intelligence";
 
 export type IntegrityIssue = {
   issueKey: string;
@@ -270,43 +271,25 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 6. Check for departments missing owner (via OwnerAssignment)
-    const departments = await prisma.orgDepartment.findMany({
-      where: {
-        workspaceId,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-      },
+    // 6. Check for departments missing owner (via intelligence layer - required by tripwire)
+    const snapshot = await getOrgIntelligenceSnapshot(workspaceId, {
+      include: { ownership: true },
     });
+    
+    // Get unowned departments from the snapshot (canonical source)
+    const unownedDepartments = (snapshot.ownership?.unownedEntities ?? [])
+      .filter((e) => e.type === "department");
 
-    const departmentOwners = await prisma.ownerAssignment.findMany({
-      where: {
-        workspaceId,
-        entityType: "DEPARTMENT",
-        entityId: { in: departments.map((d) => d.id) },
-      },
-      select: {
-        entityId: true,
-      },
-    });
-
-    const ownedDepartmentIds = new Set(departmentOwners.map((o) => o.entityId));
-
-    for (const dept of departments) {
-      if (!ownedDepartmentIds.has(dept.id)) {
-        derivedIssues.push({
-          type: "department_missing_owner",
-          entityType: "department",
-          entityId: dept.id,
-          entityName: dept.name,
-          severity: "warning",
-          message: `Department "${dept.name}" is missing an owner`,
-          fixUrl: `/org/structure?tab=departments&departmentId=${dept.id}`,
-        });
-      }
+    for (const dept of unownedDepartments) {
+      derivedIssues.push({
+        type: "department_missing_owner",
+        entityType: "department",
+        entityId: dept.id,
+        entityName: dept.name,
+        severity: "warning",
+        message: `Department "${dept.name}" is missing an owner`,
+        fixUrl: `/org/structure?tab=departments&departmentId=${dept.id}`,
+      });
     }
 
     // 7. Check for manager cycles
