@@ -200,10 +200,10 @@ export async function getOrgInsightsSnapshot(
       },
     ])
   );
-  const roleCardByPositionId = new Map<string, { id: string; roleName: string }>(
+  const roleCardByPositionId = new Map(
     roleCards
-      .filter((rc: { id: string; roleName: string; positionId: string | null }) => rc.positionId)
-      .map((rc: { id: string; roleName: string; positionId: string | null }) => [rc.positionId!, { id: rc.id, roleName: rc.roleName }])
+      .filter((rc) => rc.positionId)
+      .map((rc) => [rc.positionId!, { id: rc.id, roleName: rc.roleName }])
   );
 
   // 2) Summary metrics

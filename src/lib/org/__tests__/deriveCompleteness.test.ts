@@ -1,4 +1,3 @@
-import { test, expect } from "vitest";
 import { deriveCompleteness } from "../deriveCompleteness";
 
 test("empty org returns zero completeness", () => {

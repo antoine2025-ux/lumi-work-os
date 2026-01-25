@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { Prisma } from "@prisma/client";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 
 export type OrgPositionListItemDTO = {
@@ -23,40 +22,30 @@ export type OrgPositionDetailDTO = OrgPositionListItemDTO & {
   preferredSkills: string[];
 };
 
-// Define the include shape for proper typing
-const positionInclude = {
-  team: {
-    include: {
-      department: true,
-    },
-  },
-  user: true,
-} satisfies Prisma.OrgPositionInclude;
-
-type PositionWithRelations = Prisma.OrgPositionGetPayload<{
-  include: typeof positionInclude;
-}>;
-
 export async function getOrgPositionsList(): Promise<OrgPositionListItemDTO[]> {
   const workspaceId = await getCurrentWorkspaceId();
-  if (!workspaceId) {
-    return [];
-  }
 
   const positions = await prisma.orgPosition.findMany({
     where: {
       workspaceId,
     },
-    include: positionInclude,
+    include: {
+      team: {
+        include: {
+          department: true,
+        },
+      },
+      user: true,
+    },
     orderBy: [
       { level: "asc" },
       { order: "asc" },
     ],
   });
 
-  return positions.map((pos: PositionWithRelations) => ({
+  return positions.map((pos) => ({
     id: pos.id,
-    title: pos.title || "Untitled Position",
+    title: pos.title,
     level: pos.level ?? null,
     isActive: pos.isActive,
     teamId: pos.teamId,
@@ -73,16 +62,20 @@ export async function getOrgPositionById(
   positionId: string
 ): Promise<OrgPositionDetailDTO | null> {
   const workspaceId = await getCurrentWorkspaceId();
-  if (!workspaceId) {
-    return null;
-  }
 
   const pos = await prisma.orgPosition.findFirst({
     where: {
       id: positionId,
       workspaceId,
     },
-    include: positionInclude,
+    include: {
+      team: {
+        include: {
+          department: true,
+        },
+      },
+      user: true,
+    },
   });
 
   if (!pos) {
@@ -91,7 +84,7 @@ export async function getOrgPositionById(
 
   return {
     id: pos.id,
-    title: pos.title || "Untitled Position",
+    title: pos.title,
     level: pos.level ?? null,
     isActive: pos.isActive,
     teamId: pos.teamId,

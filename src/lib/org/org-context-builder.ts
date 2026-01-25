@@ -17,13 +17,13 @@ export type OrgTeamInput = {
   description?: string | null;
   isActive: boolean;
   workspaceId: string;
-  departmentId: string | null;
+  departmentId: string;
   updatedAt: Date;
 };
 
 export type OrgPositionInput = {
   id: string;
-  title: string | null;
+  title: string;
   level?: number | null;
   roleDescription?: string | null;
   isActive: boolean;
