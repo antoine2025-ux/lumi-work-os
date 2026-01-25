@@ -48,6 +48,13 @@ exports[`Loopbrain Q1–Q9 Snapshot Tests > Q3: Who should be working on this? >
 }
 `;
 
+exports[`Loopbrain Q1–Q9 Snapshot Tests > Q3: Who should be working on this? > should return stable response for constrained project 2`] = `
+{
+  "error": "Unauthorized",
+  "ok": false,
+}
+`;
+
 exports[`Loopbrain Q1–Q9 Snapshot Tests > Q4: Do we have capacity in timeframe? > should return stable response for constrained project 1`] = `
 {
   "errors": [
