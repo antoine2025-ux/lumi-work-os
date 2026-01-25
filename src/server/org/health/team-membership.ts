@@ -51,7 +51,14 @@ export async function getTeamMemberships(orgId: string): Promise<Array<{ teamId:
     try {
       const rows = await fn()
       if (Array.isArray(rows) && rows.length > 0 && rows[0]?.teamId && rows[0]?.personId) {
-        return rows.map((r) => ({ teamId: String(r.teamId), personId: String(r.personId) }))
+        // Filter out any rows with null/undefined teamId or personId
+        // Also filter out string "null" which can occur from String(null) conversion
+        return rows
+          .filter((r) => 
+            r.teamId != null && r.teamId !== "null" && 
+            r.personId != null && r.personId !== "null"
+          )
+          .map((r) => ({ teamId: String(r.teamId), personId: String(r.personId) }))
       }
     } catch {
       // try next candidate
