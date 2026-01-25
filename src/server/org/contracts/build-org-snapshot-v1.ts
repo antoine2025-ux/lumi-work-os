@@ -74,35 +74,13 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
       .catch(() => [] as any[]),
   ])
 
-  const teamMembers = await (async () => {
-    try {
-      if ((prisma as any).teamMember && typeof (prisma as any).teamMember.findMany === "function") {
-        return await (prisma as any).teamMember.findMany({
-          where: { orgId } as any,
-          select: { teamId: true, personId: true } as any,
-          take: 200000,
-        }).catch(() => [] as any[])
-      }
-      return [] as any[]
-    } catch {
-      return [] as any[]
-    }
-  })()
+  const teamMembers = await prisma.teamMember
+    .findMany({ where: { orgId } as any, select: { teamId: true, personId: true } as any, take: 200000 })
+    .catch(() => [] as any[])
 
-  const managerLinks = await (async () => {
-    try {
-      if ((prisma as any).personManagerLink && typeof (prisma as any).personManagerLink.findMany === "function") {
-        return await (prisma as any).personManagerLink.findMany({
-          where: { orgId } as any,
-          select: { personId: true, managerId: true } as any,
-          take: 200000,
-        }).catch(() => [] as any[])
-      }
-      return [] as any[]
-    } catch {
-      return [] as any[]
-    }
-  })()
+  const managerLinks = await prisma.personManagerLink
+    .findMany({ where: { orgId } as any, select: { personId: true, managerId: true } as any, take: 200000 })
+    .catch(() => [] as any[])
 
   const availabilityBy = new Map<string, any>()
   for (const a of availability) availabilityBy.set(String((a as any).personId), a)
@@ -193,7 +171,7 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
       managerIds: managerIdsByPerson.get(pid) ?? [],
       capacity: capacity ? { fte: capacity.fte, shrinkagePct: capacity.shrinkagePct, allocationPct: capacity.allocationPct } : undefined,
     }
-  }).filter((p): p is NonNullable<typeof p> => Boolean(p))
+  }).filter(Boolean)
 
   return {
     version: "v1",

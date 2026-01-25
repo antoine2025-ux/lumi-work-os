@@ -56,7 +56,6 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
   // If your repo already has strong typed Org/People models, tighten these in later steps.
 
   let dataQualityScore: number | null = null
-  const signals: ComputedHealth["signals"] = []
 
   const [peopleCount, teamsCount] = await Promise.all([
     prisma.orgPosition
@@ -137,11 +136,11 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
 
       let availabilityByPerson = new Map<string, string>()
       try {
-        const av = await prisma.personAvailabilityHealth.findMany({
-          where: { workspaceId: orgId },
-          select: { personId: true, status: true, startsAt: true, endsAt: true },
+        const av = await prisma.personAvailability?.findMany?.({
+          where: { orgId },
+          select: { personId: true, status: true, startsAt: true, endsAt: true } as any,
           take: 5000,
-        })
+        } as any)
 
         if (Array.isArray(av)) {
           const nowMs = Date.now()
@@ -396,6 +395,8 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
   }
 
   let managementScore: number | null = null
+
+  const signals: ComputedHealth["signals"] = []
 
   if (t === 0) {
     signals.push({

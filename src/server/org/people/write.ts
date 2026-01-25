@@ -207,30 +207,44 @@ export async function updateOrgPerson(
 
 /**
  * Set the manager (reporting line) for a person.
+ * Returns previous managerId for audit logging.
  */
 export async function setOrgPersonManager(
   personId: string,
   managerId: string | null
-) {
-  console.log("[setOrgPersonManager] Called with:", { personId, managerId });
+): Promise<{ id: string; managerId: string | null; userId: string | null; previousManagerId: string | null }> {
+  // #region agent log
+  if (typeof fetch !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:212',message:'setOrgPersonManager entry',data:{personId,managerId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+  }
+  // #endregion
   
-  // First, find the person's position to validate it exists
+  // First, find the person's position to validate it exists and get current manager
   const personPosition = await prisma.orgPosition.findUnique({
     where: { id: personId },
-    select: { id: true, userId: true, workspaceId: true },
+    select: { id: true, userId: true, workspaceId: true, parentId: true },
   });
 
+  // #region agent log
+  if (typeof fetch !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:217',message:'After finding personPosition',data:{personPositionFound:!!personPosition,personPositionId:personPosition?.id,personUserId:personPosition?.userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+  }
+  // #endregion
+
   if (!personPosition) {
-    console.error("[setOrgPersonManager] Person position not found:", personId);
     throw new Error("Person not found");
   }
-  
-  console.log("[setOrgPersonManager] Found person position:", personPosition);
+
+  const previousManagerId = personPosition.parentId;
 
   // If managerId is provided, validate and convert to position ID if needed
   let managerPositionId: string | null = null;
   if (managerId) {
-    console.log("[setOrgPersonManager] Looking for manager:", managerId);
+    // #region agent log
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:230',message:'Before finding managerPosition',data:{managerId,personPositionId:personPosition.id,personUserId:personPosition.userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    }
+    // #endregion
     
     // Check if managerId is a position ID or userId
     // Try to find by position ID first
@@ -243,9 +257,14 @@ export async function setOrgPersonManager(
       select: { id: true, userId: true },
     });
 
+    // #region agent log
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:233',message:'After finding managerPosition by ID',data:{managerPositionFound:!!managerPosition,managerPositionId:managerPosition?.id,managerUserId:managerPosition?.userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    }
+    // #endregion
+
     // If not found by position ID, try by userId
     if (!managerPosition) {
-      console.log("[setOrgPersonManager] Manager not found by position ID, trying userId");
       managerPosition = await prisma.orgPosition.findFirst({
         where: {
           userId: managerId,
@@ -254,47 +273,63 @@ export async function setOrgPersonManager(
         },
         select: { id: true, userId: true },
       });
+      
+      // #region agent log
+      if (typeof fetch !== 'undefined') {
+        fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:244',message:'After finding managerPosition by userId',data:{managerPositionFound:!!managerPosition,managerPositionId:managerPosition?.id,managerUserId:managerPosition?.userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+      }
+      // #endregion
     }
 
     if (!managerPosition) {
-      console.error("[setOrgPersonManager] Manager not found:", { managerId, workspaceId: personPosition.workspaceId });
       throw new Error("Manager not found or does not belong to the same workspace");
     }
-    
-    console.log("[setOrgPersonManager] Found manager position:", managerPosition);
+
+    // #region agent log
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:254',message:'Before self-assignment validation',data:{managerPositionId:managerPosition.id,personPositionId:personPosition.id,managerUserId:managerPosition.userId,personUserId:personPosition.userId,positionIdMatch:managerPosition.id===personPosition.id,userIdMatch:managerPosition.userId&&personPosition.userId&&managerPosition.userId===personPosition.userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+    }
+    // #endregion
 
     // Prevent self-assignment (check both position ID and userId)
-    if (managerPosition.id === personId) {
+    if (managerPosition.id === personPosition.id) {
+      // #region agent log
+      if (typeof fetch !== 'undefined') {
+        fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:259',message:'Self-assignment detected by position ID',data:{managerPositionId:managerPosition.id,personPositionId:personPosition.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+      }
+      // #endregion
       throw new Error("Manager cannot be self");
     }
     if (managerPosition.userId && personPosition.userId && managerPosition.userId === personPosition.userId) {
+      // #region agent log
+      if (typeof fetch !== 'undefined') {
+        fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:262',message:'Self-assignment detected by userId',data:{managerUserId:managerPosition.userId,personUserId:personPosition.userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+      }
+      // #endregion
       throw new Error("Manager cannot be self");
     }
 
+    // #region agent log
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:263',message:'Self-assignment validation passed',data:{managerPositionId:managerPosition.id,personPositionId:personPosition.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    }
+    // #endregion
+
     managerPositionId = managerPosition.id;
-  } else {
-    console.log("[setOrgPersonManager] Clearing manager (managerId is null)");
   }
 
   // Update the person's position with the manager's position ID
-  console.log("[setOrgPersonManager] Updating position:", { personId, parentId: managerPositionId });
-  try {
-    const updated = await prisma.orgPosition.update({
-      where: { id: personId },
-      data: { parentId: managerPositionId },
-      select: { id: true, parentId: true, userId: true },
-    });
-    
-    console.log("[setOrgPersonManager] Successfully updated:", updated);
-    
-    return {
-      id: updated.id,
-      managerId: updated.parentId,
-      userId: updated.userId,
-    };
-  } catch (error: any) {
-    console.error("[setOrgPersonManager] Database update failed:", error);
-    throw error;
-  }
+  const updated = await prisma.orgPosition.update({
+    where: { id: personId },
+    data: { parentId: managerPositionId },
+    select: { id: true, parentId: true, userId: true },
+  });
+
+  return {
+    id: updated.id,
+    managerId: updated.parentId,
+    userId: updated.userId,
+    previousManagerId,
+  };
 }
 

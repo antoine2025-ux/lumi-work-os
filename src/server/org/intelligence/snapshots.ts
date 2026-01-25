@@ -17,7 +17,6 @@ import type { OrgIntelligenceRollups } from "./rollups";
  */
 export async function createIntelligenceSnapshot(input: {
   source: string;
-  workspaceId: string;
 }): Promise<{
   id: string;
   createdAt: Date;
@@ -30,7 +29,6 @@ export async function createIntelligenceSnapshot(input: {
 
   const snapshot = await prisma.orgIntelligenceSnapshot.create({
     data: {
-      workspaceId: input.workspaceId,
       source: input.source,
       findingCount: findings.length,
       findingsJson: findings as any,

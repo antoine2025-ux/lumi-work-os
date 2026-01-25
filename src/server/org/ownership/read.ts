@@ -1,113 +1,131 @@
 /**
  * Read services for Org Ownership.
- * 
+ *
+ * Phase S: This function is now a thin adapter around resolveOwnershipSignals.
+ * The canonical ownership logic is in the resolver; this function maps to DTO format.
+ *
  * IMPORTANT: These services assume Prisma is already workspace-scoped
  * via setWorkspaceContext(workspaceId) in the calling route handler.
- * Do NOT accept workspaceId as an argument.
+ *
+ * See docs/org/intelligence-rules.md for canonical rules.
+ *
+ * ⸻
+ *
+ * Ownership Read Path — Accountability Only
+ *
+ * RULES:
+ * 1. Ownership is about WHO, not WHERE.
+ *
+ * 2. Ownership queries must explicitly exclude:
+ *    - Teams with departmentId: null (unassigned teams)
+ *    - Structural grouping problems
+ *    - People hierarchy problems
+ *
+ * 3. Coverage counts reflect only entities that can meaningfully be owned.
+ *
+ * 4. If a team has no department but has an owner:
+ *    - It is not unowned
+ *    - It does not appear in Ownership
+ *    - It appears only as an unassigned team in Org Chart / Structure
+ *
+ * @deprecated Direct UI calls should use /api/org/ownership route.
+ *             This function remains for backward compatibility.
  */
 
 import { prisma } from "@/lib/db";
 import type { OrgOwnershipDTO } from "@/server/org/dto";
+import { loadIntelligenceData } from "@/lib/org/intelligence/queries";
+import { resolveOwnershipSignals } from "@/lib/org/intelligence/resolvers/ownership";
 
 /**
  * Get ownership coverage and assignments.
  * Returns coverage stats, unowned entities, and all assignments.
+ *
+ * Phase S: Uses canonical resolver for ownership logic.
+ * Additional details (departmentName, owner names) are fetched separately.
+ *
+ * @param workspaceId - Workspace ID (required for resolvers)
+ * @deprecated Direct UI calls should use /api/org/ownership route.
  */
-export async function getOrgOwnership(): Promise<OrgOwnershipDTO> {
-  // Schema truth: If ownerPersonId column doesn't exist, Prisma will throw.
-  // This enforces that migrations must be applied.
-  // Note: We try to select ownerPersonId, but if the column doesn't exist,
-  // Prisma will throw a clear error about the missing column.
-  const teams = await prisma.orgTeam.findMany({
-    where: { isActive: true },
-    select: {
-      id: true,
-      name: true,
-      ownerPersonId: true, // Include for suggested owner - will throw if column missing
-      department: { select: { name: true } },
+export async function getOrgOwnership(workspaceId: string): Promise<OrgOwnershipDTO> {
+  // Phase S: Load data and resolve ownership signals
+  const data = await loadIntelligenceData(workspaceId);
+  const signals = resolveOwnershipSignals(data);
+
+  // Build entity lookup maps for additional details
+  const teamMap = new Map(data.teams.map((t) => [t.id, t]));
+  const deptMap = new Map(data.departments.map((d) => [d.id, d]));
+
+  // Get department names for teams (signals don't include this)
+  const departmentNameMap = new Map<string, string>();
+  for (const team of data.teams) {
+    if (team.departmentId) {
+      const dept = deptMap.get(team.departmentId);
+      if (dept) {
+        departmentNameMap.set(team.id, dept.name);
+      }
+    }
+  }
+
+  // Get all assignments for owner details (signals don't include owner names)
+  const assignments = await prisma.ownerAssignment.findMany({
+    where: {
+      workspaceId,
+      entityType: { in: ["TEAM", "DEPARTMENT"] },
     },
+    orderBy: { updatedAt: "desc" },
   });
 
-  const [departments, assignments] = await Promise.all([
-    prisma.orgDepartment.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true },
-    }),
-    // Note: OwnedEntityType enum only includes TEAM, DOMAIN, PROJECT, SYSTEM (not DEPARTMENT)
-    // So we only query for TEAM assignments
-    prisma.ownerAssignment.findMany({
-      where: {
-        entityType: "TEAM",
-      },
-      include: {
-        // Note: ownerPersonId points to User.id, so we need to get the user
-        // Since there's no direct relation, we'll fetch users separately
-      },
-      orderBy: { updatedAt: "desc" },
-    }),
-  ]);
-
   // Get owner user details
-  const ownerPersonIds = [...new Set(assignments.map(a => a.ownerPersonId))];
+  const ownerPersonIds = [...new Set(assignments.map((a) => a.ownerPersonId))];
   const owners = await prisma.user.findMany({
     where: { id: { in: ownerPersonIds } },
     select: { id: true, name: true, email: true },
   });
-  
-  const ownerMap = new Map(owners.map(u => [u.id, u]));
 
-  // Build assignment index
-  const assignmentIndex = new Map<string, { id: string; owner: { id: string; fullName: string } }>();
-  for (const a of assignments) {
-    const owner = ownerMap.get(a.ownerPersonId);
-    if (owner) {
-      assignmentIndex.set(`${a.entityType}:${a.entityId}`, {
-        id: a.id,
-        owner: {
-          id: owner.id,
-          fullName: owner.name || owner.email || "Unknown",
-        },
-      });
+  const ownerMap = new Map(owners.map((u) => [u.id, u]));
+
+  // Map unowned entities from signals to DTO format
+  const unowned: OrgOwnershipDTO["unowned"] = signals.unownedEntities.map((entity) => {
+    if (entity.type === "team") {
+      return {
+        entityType: "TEAM" as const,
+        entityId: entity.id,
+        name: entity.name ?? "Unknown",
+        departmentName: departmentNameMap.get(entity.id) ?? null,
+        suggestedOwnerPersonId: null,
+      };
+    } else {
+      return {
+        entityType: "DEPARTMENT" as const,
+        entityId: entity.id,
+        name: entity.name ?? "Unknown",
+        suggestedOwnerPersonId: null,
+      };
     }
-  }
-
-  // Find unowned teams
-  const unownedTeams = teams
-    .filter((t) => !assignmentIndex.has(`TEAM:${t.id}`))
-    .map((t) => ({
-      entityType: "TEAM" as const,
-      entityId: t.id,
-      name: t.name,
-      departmentName: t.department?.name ?? null,
-      suggestedOwnerPersonId: t.ownerPersonId ?? null, // Suggest team owner from Structure
-    }));
-
-  // Find unowned departments
-  const unownedDepts = departments
-    .filter((d) => !assignmentIndex.has(`DEPARTMENT:${d.id}`))
-    .map((d) => ({
-      entityType: "DEPARTMENT" as const,
-      entityId: d.id,
-      name: d.name,
-      suggestedOwnerPersonId: null, // No suggestion for departments yet
-    }));
-
-  const ownedTeams = teams.length - unownedTeams.length;
-  const ownedDepartments = departments.length - unownedDepts.length;
+  });
 
   return {
     coverage: {
-      teams: { total: teams.length, owned: ownedTeams, unowned: unownedTeams.length },
-      departments: { total: departments.length, owned: ownedDepartments, unowned: unownedDepts.length },
+      teams: {
+        total: signals.coverage.teams.total,
+        owned: signals.coverage.teams.owned,
+        unowned: signals.coverage.teams.unowned,
+      },
+      departments: {
+        total: signals.coverage.departments.total,
+        owned: signals.coverage.departments.owned,
+        unowned: signals.coverage.departments.unowned,
+      },
     },
-    unowned: [...unownedTeams, ...unownedDepts],
+    unowned,
     assignments: assignments
       .filter((a) => ownerMap.has(a.ownerPersonId))
       .map((a) => {
         const owner = ownerMap.get(a.ownerPersonId)!;
         return {
           id: a.id,
-          entityType: a.entityType as "TEAM", // Only TEAM is supported by OwnedEntityType enum
+          entityType: a.entityType as "TEAM" | "DEPARTMENT",
           entityId: a.entityId,
           owner: {
             id: owner.id,
