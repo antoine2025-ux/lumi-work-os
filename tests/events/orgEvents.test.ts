@@ -114,13 +114,14 @@ describe("Org Event System", () => {
     });
 
     it("should rebuild org context on team created event", async () => {
-      // Mock the sync function
+      // Use vi.doMock instead of vi.mock to avoid hoisting issues
+      // vi.doMock is not hoisted, so it can safely reference local variables
       const syncMock = vi.fn().mockResolvedValue({
         workspaceId: "workspace_123",
         totalItems: 10,
       });
 
-      vi.mock("@/lib/org/org-context-store", () => ({
+      vi.doMock("@/lib/org/org-context-store", () => ({
         syncOrgContextBundleToStoreForWorkspace: syncMock,
       }));
 
