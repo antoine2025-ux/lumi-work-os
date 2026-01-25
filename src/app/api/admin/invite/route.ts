@@ -49,10 +49,19 @@ export async function POST(request: NextRequest) {
 
     // Check if user is already a member of this workspace
     if (existingUser) {
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const existingMember = await prisma.workspaceMember.findFirst({
         where: {
           workspaceId: auth.workspaceId,
           userId: existingUser.id
+        },
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
+          // Exclude employmentStatus - may not exist in database yet
         }
       })
 

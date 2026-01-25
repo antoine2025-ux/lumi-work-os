@@ -42,7 +42,7 @@ export async function measureOrgHealth(orgId: string) {
   // Count active positions (people) in the org
   const totalPeople = await prisma.orgPosition.count({
     where: {
-      orgId,
+      workspaceId: orgId,
       archivedAt: null,
       isActive: true,
       userId: { not: null },
@@ -78,8 +78,8 @@ export async function measureOrgHealth(orgId: string) {
   const snapshot = await prisma.orgHealthSnapshot.create({
     data: {
       orgId,
-      score,
-      metrics: { ...metrics, breakdown },
+      capturedAt: new Date(),
+      capacityScore: score * 100, // Convert 0-1 score to 0-100 scale
     },
   });
 

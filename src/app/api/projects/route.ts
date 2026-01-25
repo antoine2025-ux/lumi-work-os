@@ -61,12 +61,21 @@ export async function GET(request: NextRequest) {
       })
       
       // Check workspace membership directly for debugging
+      // Exclude employmentStatus field that may not exist in database yet
       const workspaceMember = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             workspaceId: auth.workspaceId,
             userId: auth.user.userId
           }
+        },
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
+          // Exclude employmentStatus - may not exist in database yet
         }
       })
       console.log('[PROJECTS API] WorkspaceMember check:', workspaceMember ? {
@@ -263,12 +272,21 @@ export async function GET(request: NextRequest) {
       })))
       
       // Check workspace membership
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const workspaceMember = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             workspaceId: auth.workspaceId,
             userId: auth.user.userId
           }
+        },
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
+          // Exclude employmentStatus - may not exist in database yet
         }
       })
       console.log('[PROJECTS API] User workspace membership:', workspaceMember ? 'YES' : 'NO')

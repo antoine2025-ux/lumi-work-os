@@ -97,16 +97,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                // STOP REDIRECT LOOPS IMMEDIATELY - Run before any React code
-                try {
-                  const redirectCount = parseInt(sessionStorage.getItem('__redirect_count__') || '0');
-                  if (redirectCount >= 2 || sessionStorage.getItem('__redirect_stopped__') === 'true') {
-                    sessionStorage.setItem('__redirect_stopped__', 'true');
-                    sessionStorage.setItem('__workspace_id__', 'ws_1765020555_4662b211');
-                    sessionStorage.setItem('__has_workspace__', 'true');
-                  }
-                } catch(e) {}
-
+                // PHASE A2/B1: Removed redirect loop prevention hack - middleware handles redirects now
                 try {
                   // Force dark mode - always apply dark theme
                   // Clean up any existing 'light' theme preference

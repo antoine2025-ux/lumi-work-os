@@ -96,6 +96,7 @@ export async function GET(request: NextRequest) {
     }
 
     // If workspaceId is provided, verify membership
+    // PHASE 1: Use explicit select to exclude employmentStatus
     if (workspaceId) {
       const membership = await prisma.workspaceMember.findUnique({
         where: {
@@ -104,7 +105,12 @@ export async function GET(request: NextRequest) {
             userId: user.id
           }
         },
-        include: {
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
           workspace: {
             select: {
               id: true,
@@ -112,6 +118,7 @@ export async function GET(request: NextRequest) {
               slug: true
             }
           }
+          // Exclude employmentStatus - may not exist in database yet
         }
       })
 
@@ -142,17 +149,25 @@ export async function GET(request: NextRequest) {
     }
 
     // No workspaceId provided - check if user has any workspace
+    // PHASE 1: Use explicit select to exclude employmentStatus
     const userMemberships = await prisma.workspaceMember.findMany({
       where: { userId: user.id },
       orderBy: { joinedAt: 'asc' },
       take: 1,
-      include: {
+      select: {
+        id: true,
+        workspaceId: true,
+        userId: true,
+        role: true,
+        joinedAt: true,
         workspace: {
           select: {
             id: true,
-            name: true
+            name: true,
+            slug: true
           }
         }
+        // Exclude employmentStatus - may not exist in database yet
       }
     })
 

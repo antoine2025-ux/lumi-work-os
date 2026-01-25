@@ -239,6 +239,38 @@ export const authOptions: NextAuthOptions = {
         }
       }
       
+      // PHASE A1: Ensure JWT always has workspaceId if user has a workspace
+      // Fallback: If token has email but no workspaceId, fetch from DB
+      if (token.email && !token.workspaceId) {
+        try {
+          const dbUser = await prismaUnscoped.user.findUnique({
+            where: { email: token.email as string },
+            select: { id: true }
+          });
+          
+          if (dbUser) {
+            const membership = await prismaUnscoped.workspaceMember.findFirst({
+              where: { userId: dbUser.id },
+              orderBy: { joinedAt: 'asc' },
+              select: { workspaceId: true, role: true }
+            });
+            
+            if (membership) {
+              token.workspaceId = membership.workspaceId;
+              token.role = membership.role;
+              token.isFirstTime = false;
+              console.log('✅ JWT: Set workspaceId from DB fallback:', membership.workspaceId);
+            } else {
+              token.isFirstTime = true;
+              console.log('✅ JWT: User has no workspace (isFirstTime=true)');
+            }
+          }
+        } catch (error) {
+          console.error('[NextAuth] Error fetching workspace in jwt callback fallback:', error);
+          // Don't fail auth - workspace will be fetched via API fallback
+        }
+      }
+      
       // Handle session update trigger (e.g., after workspace switch)
       if (trigger === 'update' && session) {
         // Allow client to update activeOrgId via session update
@@ -408,9 +440,20 @@ export const authOptions: NextAuthOptions = {
             });
             
             // Ensure user has a workspace
+            // PHASE 1: Use explicit select to exclude employmentStatus
             let membership = await prismaUnscoped.workspaceMember.findFirst({
               where: { userId: user.id },
-              include: { workspace: true }
+              select: {
+                id: true,
+                workspaceId: true,
+                userId: true,
+                role: true,
+                joinedAt: true,
+                workspace: {
+                  select: { id: true, name: true, slug: true }
+                }
+                // Exclude employmentStatus - may not exist in database yet
+              }
             });
             
             if (!membership) {

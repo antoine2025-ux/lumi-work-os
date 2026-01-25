@@ -49,12 +49,21 @@ export async function assertProjectAccess(
   // Verify workspace membership
   if (workspaceId) {
     try {
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const workspaceMember = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             workspaceId,
             userId: user.id
           }
+        },
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
+          // Exclude employmentStatus - may not exist in database yet
         }
       })
 
@@ -95,6 +104,7 @@ export async function assertProjectAccess(
     } else if (space.visibility === ProjectSpaceVisibility.PUBLIC) {
       // PUBLIC: All workspace members can access
       // Verify user is a workspace member
+      // PHASE 1: Use explicit select to exclude employmentStatus
       if (workspaceId) {
         const workspaceMember = await prisma.workspaceMember.findUnique({
           where: {
@@ -102,6 +112,14 @@ export async function assertProjectAccess(
               workspaceId,
               userId: user.id
             }
+          },
+          select: {
+            id: true,
+            workspaceId: true,
+            userId: true,
+            role: true,
+            joinedAt: true,
+            // Exclude employmentStatus - may not exist in database yet
           }
         })
         if (workspaceMember) {
@@ -126,12 +144,21 @@ export async function assertProjectAccess(
   } else {
     // No ProjectSpace (legacy): treat as PUBLIC - all workspace members can access
     if (workspaceId) {
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const workspaceMember = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             workspaceId,
             userId: user.id
           }
+        },
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
+          // Exclude employmentStatus - may not exist in database yet
         }
       })
       if (workspaceMember) {
@@ -254,12 +281,21 @@ export async function hasProjectAccess(
       } else if (space.visibility === ProjectSpaceVisibility.PUBLIC) {
         // PUBLIC: All workspace members can access
         // Verify user is a workspace member
+        // PHASE 1: Use explicit select to exclude employmentStatus
         const workspaceMember = await prisma.workspaceMember.findUnique({
           where: {
             workspaceId_userId: {
               workspaceId,
               userId
             }
+          },
+          select: {
+            id: true,
+            workspaceId: true,
+            userId: true,
+            role: true,
+            joinedAt: true,
+            // Exclude employmentStatus - may not exist in database yet
           }
         })
         if (workspaceMember) {
@@ -268,12 +304,21 @@ export async function hasProjectAccess(
       }
     } else {
       // No ProjectSpace (legacy): treat as PUBLIC - all workspace members can access
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const workspaceMember = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             workspaceId,
             userId
           }
+        },
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
+          // Exclude employmentStatus - may not exist in database yet
         }
       })
       if (workspaceMember) {

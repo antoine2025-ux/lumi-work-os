@@ -40,46 +40,10 @@ export default function DashboardLayout({
   // Handle workspace redirect
   // Skip redirect if user is on an invite page - they need to accept the invite first
   useEffect(() => {
-    // Resilience: Don't redirect if user-status query failed - prevents infinite redirects
-    if (status === 'authenticated' && !isLoadingWorkspace && !workspaceId && userStatus.isAuthenticated && !isUserStatusError) {
-      const workspaceJustCreated = sessionStorage.getItem('__workspace_just_created__') === 'true'
-      const isInvitePage = pathname?.startsWith('/invites') || pathname === '/invites'
-      
-      // Guard: Never redirect if already on invite page
-      if (isInvitePage) {
-        return
-      }
-      
-      // Don't redirect if we're already on the welcome page
-      if (pathname === '/welcome') {
-        return
-      }
-      
-      // Check for pending invite first
-      if (userStatus.pendingInvite?.token) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[DashboardLayout] No workspace found but pending invite exists, redirecting to invite:', userStatus.pendingInvite.token)
-        }
-        window.location.href = `/invites/${userStatus.pendingInvite.token}`
-        return
-      }
-      
-      // No pending invite, redirect to welcome (unless workspace just created)
-      if (!workspaceJustCreated) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[DashboardLayout] No workspace found, no pending invite, redirecting to welcome')
-        }
-        window.location.href = '/welcome'
-      }
-    }
-    
+    // PHASE B2/C2: Removed workspace redirect logic - middleware handles this now
+    // This effect is kept for first-time state tracking only
     if (userStatus.isAuthenticated) {
       setIsFirstTime(userStatus.isFirstTime || false)
-      // Clear workspace creation flag if workspace is found
-      if (workspaceId) {
-        sessionStorage.removeItem('__workspace_just_created__')
-        sessionStorage.removeItem('__skip_loader__')
-      }
     }
   }, [status, isLoadingWorkspace, workspaceId, userStatus.isAuthenticated, userStatus.isFirstTime, userStatus.pendingInvite, isUserStatusError, pathname])
 

@@ -37,9 +37,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     // Load membership and ensure it belongs to this org
     // ADAPT: Using WorkspaceMember model (workspaceId = orgId)
+    // PHASE 1: Use explicit select to exclude employmentStatus
     const membership = await (prisma as any).workspaceMember.findUnique({
       where: { id: memberId },
-      include: {
+      select: {
+        id: true,
+        workspaceId: true,
+        userId: true,
+        role: true,
+        joinedAt: true,
+        customRoleId: true,
         customRole: true,
         user: {
           select: {
@@ -48,6 +55,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             email: true,
           },
         },
+        // Exclude employmentStatus - may not exist in database yet
       },
     });
 

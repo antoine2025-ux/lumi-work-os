@@ -1,0 +1,21 @@
+# Baseline: prisma as any violations in src/server/org/**
+# Format: <path>:<line>
+# To update: npm run check:org-prisma-any:update
+#
+# These are known legacy violations. CI fails only if NEW violations appear.
+# Goal: Reduce this list over time by fixing files and removing entries.
+
+src/server/org/contracts/build-org-snapshot-v1.ts:79
+src/server/org/contracts/build-org-snapshot-v1.ts:80
+src/server/org/contracts/build-org-snapshot-v1.ts:94
+src/server/org/contracts/build-org-snapshot-v1.ts:95
+src/server/org/health/compute-minimal.ts:12
+src/server/org/health/compute-minimal.ts:81
+src/server/org/health/compute-minimal.ts:82
+src/server/org/health/compute-minimal.ts:91
+src/server/org/health/compute-minimal.ts:92
+src/server/org/health/ownership/scan.ts:35
+src/server/org/health/structure/metrics.ts:34
+src/server/org/people/membershipDelegate.ts:15
+src/server/org/people/profileOverrides.ts:4
+src/server/org/people/resolvePerson.ts:16

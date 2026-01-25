@@ -66,6 +66,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
   
+  // --- Workspace Check (PHASE C1) ---
+  // If authenticated user without workspace tries to access protected route, redirect to welcome
+  // Skip this check for /welcome itself to avoid redirect loops
+  if (isProtectedRoute(pathname) && isAuthenticated && pathname !== '/welcome') {
+    const isFirstTime = token.isFirstTime as boolean | undefined
+    if (isFirstTime === true) {
+      // User has no workspace - redirect to welcome
+      const welcomeUrl = new URL('/welcome', request.url)
+      return NextResponse.redirect(welcomeUrl)
+    }
+  }
+  
   // --- Auth Route Check ---
   // If authenticated user tries to access login/register, redirect to home
   if (isAuthRoute(pathname) && isAuthenticated) {

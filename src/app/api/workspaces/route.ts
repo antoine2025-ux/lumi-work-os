@@ -9,9 +9,15 @@ export async function GET(request: NextRequest) {
     const auth = await getUnifiedAuth(request)
     
     // Get all workspaces where user has a WorkspaceMember record
+    // PHASE 1: Use explicit select to exclude employmentStatus
     const memberships = await prisma.workspaceMember.findMany({
       where: { userId: auth.user.userId },
-      include: {
+      select: {
+        id: true,
+        workspaceId: true,
+        userId: true,
+        role: true,
+        joinedAt: true,
         workspace: {
           select: {
             id: true,
@@ -22,6 +28,7 @@ export async function GET(request: NextRequest) {
             updatedAt: true
           }
         }
+        // Exclude employmentStatus - may not exist in database yet
       },
       orderBy: {
         joinedAt: 'asc' // Return oldest membership first (consistent ordering)

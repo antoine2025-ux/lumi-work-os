@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react'
 import { useUserStatusContext } from '@/providers/user-status-provider'
 import { useSession } from 'next-auth/react'
 import { LoadingInitializer } from '@/components/auth/loading-initializer'
-import { getRedirectDecisionWithCookie, isPublicRoute } from '@/lib/redirect-handler'
+import { isPublicRoute } from '@/lib/redirect-handler'
 
 interface AuthWrapperProps {
   children: React.ReactNode
@@ -47,13 +47,7 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
       return
     }
     
-    // Check if we should skip loader (after workspace creation)
-    if (sessionStorage.getItem('__skip_loader__') === 'true') {
-      sessionStorage.removeItem('__skip_loader__')
-      setShowLoader(false)
-      hasShownLoader.current = true
-      return
-    }
+    // PHASE B2: Removed skip loader flag - loader shows based on loading state only
     
     // If user doesn't have a workspace and we're about to redirect to welcome, don't show loader
     if (userStatus && (userStatus.isFirstTime || !userStatus.workspaceId)) {
@@ -68,62 +62,14 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
     }
   }, [loading, sessionStatus, pathname, userStatus, session])
 
-  const prevPathname = useRef(pathname)
-
-  useEffect(() => {
-    // Reset redirect flag when pathname changes (user navigated to new route)
-    if (prevPathname.current !== pathname) {
-      hasRedirected.current = false
-      prevPathname.current = pathname
-    }
-
-    // Skip if already redirected for this pathname
-    if (hasRedirected.current) {
-      return
-    }
-
-    // Use centralized redirect handler
-    const decision = getRedirectDecisionWithCookie({
-      session,
-      sessionStatus,
-      workspaceId: userStatus?.workspaceId || null,
-      isFirstTime: userStatus?.isFirstTime || false,
-      pendingInvite: userStatus?.pendingInvite || null,
-      pathname,
-      isLoading: loading,
-      error: userStatus?.error || null,
-    })
-
-    if (decision.shouldRedirect && decision.target) {
-      // Clear any existing timeout
-      if (redirectTimeoutRef.current) {
-        clearTimeout(redirectTimeoutRef.current)
-      }
-
-      // Small delay to prevent rapid redirects during navigation
-      redirectTimeoutRef.current = setTimeout(() => {
-        hasRedirected.current = true
-        window.location.href = decision.target!
-      }, 100)
-    }
-
-    // Cleanup
-    return () => {
-      if (redirectTimeoutRef.current) {
-        clearTimeout(redirectTimeoutRef.current)
-        redirectTimeoutRef.current = null
-      }
-    }
-  }, [session, sessionStatus, userStatus, pathname, loading])
+  // PHASE C2: Removed workspace redirect logic - middleware handles all redirects now
+  // Keep only loading state management
 
   // Show loading only if we're on a protected route
   const isPublic = isPublicRoute(pathname)
   
-  // Skip loader if flag is set (after workspace creation)
-  const skipLoaderFlag = typeof window !== 'undefined' && (
-    sessionStorage.getItem('__skip_loader__') === 'true' || 
-    sessionStorage.getItem('__workspace_just_created__') === 'true'
-  )
+  // PHASE B2: Removed skip loader flag - loader shows based on loading state only
+  const skipLoaderFlag = false
   
   // Skip loader if user has no workspace (will redirect to /welcome)
   // Only check this if userStatus is actually loaded (not undefined)

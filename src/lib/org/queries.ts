@@ -56,70 +56,118 @@ export async function getPersonById(personId: string) {
 /**
  * Get all departments with their teams and team owners.
  * Fetches data for the current workspace from getOrgPermissionContext.
+ * 
+ * NOTE: Gracefully handles missing ownerPersonId column (if migration not run).
  */
 export async function getDepartmentsWithTeams() {
   if (!prisma) {
     return [];
   }
-  const departments = await prisma.orgDepartment.findMany({
-    orderBy: { name: "asc" },
-    include: {
-      teams: {
-        orderBy: { name: "asc" },
+  
+  try {
+    const departments = await prisma.orgDepartment.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        teams: {
+          orderBy: { name: "asc" },
+        },
       },
-    },
-  });
+    });
 
-  // Collect all owner IDs (departments + teams)
-  const ownerIds = Array.from(
-    new Set([
-      ...departments.map((d: any) => d.ownerPersonId).filter(Boolean),
-      ...departments.flatMap((d: any) => (d.teams as any[]).map((t: any) => t.ownerPersonId).filter(Boolean)),
-    ])
-  ) as string[];
+    // Safely access ownerPersonId - may not exist if migration not run
+    const ownerIds = Array.from(
+      new Set([
+        ...departments.map((d: any) => d.ownerPersonId).filter(Boolean),
+        ...departments.flatMap((d: any) => (d.teams as any[]).map((t: any) => t.ownerPersonId).filter(Boolean)),
+      ])
+    ) as string[];
 
-  const users = ownerIds.length
-    ? await prisma.user.findMany({
-        where: { id: { in: ownerIds } },
+    const users = ownerIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: ownerIds } },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        })
+      : [];
+
+    const owners = users.map((user) => {
+      const nameParts = (user.name || "").split(" ");
+      const firstName = nameParts[0] || null;
+      const lastName = nameParts.slice(1).join(" ") || null;
+      return {
+        id: user.id,
+        fullName: user.name || null,
+        firstName,
+        lastName,
+        email: user.email || null,
+      };
+    });
+
+    const ownerMap = new Map(owners.map((p) => [p.id, p]));
+
+    const result = departments.map((d: any) => ({
+      ...d,
+      ownerPerson: d.ownerPersonId ? ownerMap.get(d.ownerPersonId) ?? null : null,
+      teams: (d.teams as any[]).map((t: any) => ({
+        ...t,
+        owner: t.ownerPersonId ? ownerMap.get(t.ownerPersonId) ?? null : null,
+      })),
+    }));
+
+    return result;
+  } catch (error: any) {
+    // Handle missing column error gracefully
+    if (error?.message?.includes('ownerPersonId') && error?.message?.includes('does not exist')) {
+      console.warn('[getDepartmentsWithTeams] ownerPersonId column not found - returning departments without owners. Run migrations to fix.');
+      
+      // Fallback: use explicit select to avoid missing columns
+      const departments = await prisma.orgDepartment.findMany({
+        orderBy: { name: "asc" },
         select: {
           id: true,
           name: true,
-          email: true,
+          workspaceId: true,
+          createdAt: true,
+          updatedAt: true,
+          teams: {
+            orderBy: { name: "asc" },
+            select: {
+              id: true,
+              name: true,
+              workspaceId: true,
+              departmentId: true,
+              isActive: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
         },
-      })
-    : [];
-
-  const owners = users.map((user) => {
-    const nameParts = (user.name || "").split(" ");
-    const firstName = nameParts[0] || null;
-    const lastName = nameParts.slice(1).join(" ") || null;
-    return {
-      id: user.id,
-      fullName: user.name || null,
-      firstName,
-      lastName,
-      email: user.email || null,
-    };
-  });
-
-  const ownerMap = new Map(owners.map((p) => [p.id, p]));
-
-  const result = departments.map((d: any) => ({
-    ...d,
-    ownerPerson: d.ownerPersonId ? ownerMap.get(d.ownerPersonId) ?? null : null,
-    teams: (d.teams as any[]).map((t: any) => ({
-      ...t,
-      owner: t.ownerPersonId ? ownerMap.get(t.ownerPersonId) ?? null : null,
-    })),
-  }));
-
-  return result;
+      });
+      
+      return departments.map((d: any) => ({
+        ...d,
+        ownerPerson: null,
+        teams: (d.teams as any[]).map((t: any) => ({
+          ...t,
+          owner: null,
+        })),
+      }));
+    }
+    
+    // Re-throw other errors
+    throw error;
+  }
 }
 
 /**
  * Get unassigned teams (teams where departmentId is null).
  * Unassigned is a STATE, not an ENTITY - teams can temporarily have no department.
  * Fetches data for the current workspace from getOrgPermissionContext.
+ * 
+ * NOTE: Gracefully handles missing ownerPersonId column (if migration not run).
  */
 export async function getUnassignedTeams() {
   if (!prisma) {
@@ -133,53 +181,88 @@ export async function getUnassignedTeams() {
   }
   const workspaceId = context.orgId;
   
-  // Find teams with null departmentId (unassigned teams)
-  // Note: This requires departmentId to be nullable in the schema
-  const teams = await prisma.orgTeam.findMany({
-    where: {
-      workspaceId: workspaceId,
-      departmentId: null,
-      isActive: true,
-    },
-    orderBy: { name: "asc" },
-  });
+  try {
+    // Find teams with null departmentId (unassigned teams)
+    // Note: This requires departmentId to be nullable in the schema
+    const teams = await prisma.orgTeam.findMany({
+      where: {
+        workspaceId: workspaceId,
+        departmentId: null,
+        isActive: true,
+      },
+      orderBy: { name: "asc" },
+    });
 
-  // Collect owner IDs
-  const ownerIds = Array.from(
-    new Set(teams.map((t: any) => t.ownerPersonId).filter(Boolean))
-  ) as string[];
+    // Safely collect owner IDs - may not exist if migration not run
+    const ownerIds = Array.from(
+      new Set(teams.map((t: any) => t.ownerPersonId).filter(Boolean))
+    ) as string[];
 
-  const users = ownerIds.length
-    ? await prisma.user.findMany({
-        where: { id: { in: ownerIds } },
+    const users = ownerIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: ownerIds } },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        })
+      : [];
+
+    const owners = users.map((user) => {
+      const nameParts = (user.name || "").split(" ");
+      const firstName = nameParts[0] || null;
+      const lastName = nameParts.slice(1).join(" ") || null;
+      return {
+        id: user.id,
+        fullName: user.name || null,
+        firstName,
+        lastName,
+        email: user.email || null,
+      };
+    });
+
+    const ownerMap = new Map(owners.map((p) => [p.id, p]));
+
+    return teams.map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      ownerPerson: t.ownerPersonId ? ownerMap.get(t.ownerPersonId) ?? null : null,
+    }));
+  } catch (error: any) {
+    // Handle missing column error gracefully
+    if (error?.message?.includes('ownerPersonId') && error?.message?.includes('does not exist')) {
+      console.warn('[getUnassignedTeams] ownerPersonId column not found - returning teams without owners. Run migrations to fix.');
+      
+      // Fallback: use explicit select to avoid missing columns
+      const teams = await prisma.orgTeam.findMany({
+        where: {
+          workspaceId: workspaceId,
+          departmentId: null,
+          isActive: true,
+        },
+        orderBy: { name: "asc" },
         select: {
           id: true,
           name: true,
-          email: true,
+          workspaceId: true,
+          departmentId: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
         },
-      })
-    : [];
-
-  const owners = users.map((user) => {
-    const nameParts = (user.name || "").split(" ");
-    const firstName = nameParts[0] || null;
-    const lastName = nameParts.slice(1).join(" ") || null;
-    return {
-      id: user.id,
-      fullName: user.name || null,
-      firstName,
-      lastName,
-      email: user.email || null,
-    };
-  });
-
-  const ownerMap = new Map(owners.map((p) => [p.id, p]));
-
-  return teams.map((t: any) => ({
-    id: t.id,
-    name: t.name,
-    ownerPerson: t.ownerPersonId ? ownerMap.get(t.ownerPersonId) ?? null : null,
-  }));
+      });
+      
+      return teams.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        ownerPerson: null,
+      }));
+    }
+    
+    // Re-throw other errors
+    throw error;
+  }
 }
 
 /**
@@ -259,11 +342,14 @@ export type DepartmentDetail = {
 /**
  * Get a single department by ID with teams and owners.
  * Fetches data for the current workspace from getOrgPermissionContext.
+ * 
+ * NOTE: Gracefully handles missing ownerPersonId column (if migration not run).
  */
 export async function getDepartmentById(departmentId: string) {
   if (!prisma) {
     return null;
   }
+  
   const department = await prisma.orgDepartment.findUnique({
     where: { id: departmentId },
     include: {
@@ -275,55 +361,71 @@ export async function getDepartmentById(departmentId: string) {
 
   if (!department) return null;
 
-  // Collect all owner IDs (department + teams)
-  const ownerIds = new Set<string>();
-  const deptOwnerPersonId = (department as any).ownerPersonId as string | null | undefined;
-  if (deptOwnerPersonId) ownerIds.add(deptOwnerPersonId);
-  (department.teams as any[]).forEach((t: any) => {
-    if (t.ownerPersonId) ownerIds.add(t.ownerPersonId);
-  });
+  try {
+    // Collect all owner IDs (department + teams) - may not exist if migration not run
+    const ownerIds = new Set<string>();
+    const deptOwnerPersonId = (department as any).ownerPersonId as string | null | undefined;
+    if (deptOwnerPersonId) ownerIds.add(deptOwnerPersonId);
+    (department.teams as any[]).forEach((t: any) => {
+      if (t.ownerPersonId) ownerIds.add(t.ownerPersonId);
+    });
 
-  // Fetch all owners in one query
-  const userIds = Array.from(ownerIds);
-  const users = userIds.length
-    ? await prisma.user.findMany({
-        where: { id: { in: userIds } },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
+    // Fetch all owners in one query
+    const userIds = Array.from(ownerIds);
+    const users = userIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        })
+      : [];
+
+    const ownerMap = new Map(
+      users.map((user) => {
+        const nameParts = (user.name || "").split(" ");
+        const firstName = nameParts[0] || null;
+        const lastName = nameParts.slice(1).join(" ") || null;
+        return [
+          user.id,
+          {
+            id: user.id,
+            fullName: user.name || null,
+            firstName,
+            lastName,
+            email: user.email || null,
+          },
+        ];
       })
-    : [];
+    );
 
-  const ownerMap = new Map(
-    users.map((user) => {
-      const nameParts = (user.name || "").split(" ");
-      const firstName = nameParts[0] || null;
-      const lastName = nameParts.slice(1).join(" ") || null;
-      return [
-        user.id,
-        {
-          id: user.id,
-          fullName: user.name || null,
-          firstName,
-          lastName,
-          email: user.email || null,
-        },
-      ];
-    })
-  );
+    const result = {
+      ...department,
+      ownerPerson: deptOwnerPersonId ? ownerMap.get(deptOwnerPersonId) ?? null : null,
+      teams: (department.teams as any[]).map((t: any) => ({
+        ...t,
+        owner: t.ownerPersonId ? ownerMap.get(t.ownerPersonId) ?? null : null,
+      })),
+    };
 
-  const result = {
-    ...department,
-    ownerPerson: deptOwnerPersonId ? ownerMap.get(deptOwnerPersonId) ?? null : null,
-    teams: (department.teams as any[]).map((t: any) => ({
-      ...t,
-      owner: t.ownerPersonId ? ownerMap.get(t.ownerPersonId) ?? null : null,
-    })),
-  };
-
-  return result;
+    return result;
+  } catch (error: any) {
+    // Handle missing column gracefully - return department without owner info
+    if (error?.message?.includes('ownerPersonId')) {
+      console.warn('[getDepartmentById] ownerPersonId column not found - returning department without owner. Run migrations to fix.');
+      return {
+        ...department,
+        ownerPerson: null,
+        teams: (department.teams as any[]).map((t: any) => ({
+          ...t,
+          owner: null,
+        })),
+      };
+    }
+    throw error;
+  }
 }
 
 /**
@@ -337,6 +439,8 @@ export function getDepartmentOwnerPerson(dept: DepartmentDetail | null) {
 
 /**
  * Get a single team by ID with owner information.
+ * 
+ * NOTE: Gracefully handles missing ownerPersonId column (if migration not run).
  */
 export async function getTeamById(teamId: string) {
   if (!prisma) {
@@ -351,13 +455,25 @@ export async function getTeamById(teamId: string) {
 
   if (!team) return null;
 
-  const ownerPersonId = (team as any).ownerPersonId as string | null | undefined;
-  const ownerPerson = ownerPersonId ? await getPersonById(ownerPersonId) : null;
+  try {
+    const ownerPersonId = (team as any).ownerPersonId as string | null | undefined;
+    const ownerPerson = ownerPersonId ? await getPersonById(ownerPersonId) : null;
 
-  return {
-    ...team,
-    owner: ownerPerson,
-  };
+    return {
+      ...team,
+      owner: ownerPerson,
+    };
+  } catch (error: any) {
+    // Handle missing column gracefully
+    if (error?.message?.includes('ownerPersonId')) {
+      console.warn('[getTeamById] ownerPersonId column not found - returning team without owner. Run migrations to fix.');
+      return {
+        ...team,
+        owner: null,
+      };
+    }
+    throw error;
+  }
 }
 
 export type PersonForPicker = {

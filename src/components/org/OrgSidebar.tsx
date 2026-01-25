@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useOrgPermissions } from "@/components/org/OrgPermissionsContext";
 import { hasOrgCapability } from "@/lib/org/capabilities";
+
 /**
  * MVP Navigation (max 4 tabs)
  * 
@@ -18,58 +19,76 @@ import { hasOrgCapability } from "@/lib/org/capabilities";
  * Health is folded into Overview as derived signals.
  * Settings only shows when setup is incomplete.
  */
+
+// Base paths (without workspace prefix)
 const ORG_NAV_ITEMS = [
-  { key: "overview", label: "Overview", href: "/org" },
-  { key: "people", label: "People", href: "/org/people" },
-  { key: "structure", label: "Structure", href: "/org/structure" },
-  { key: "chart", label: "Org Chart", href: "/org/chart" },
-  { key: "ownership", label: "Ownership", href: "/org/ownership" },
-  { key: "issues", label: "Issues", href: "/org/issues" },
-  { key: "intelligence", label: "Intelligence", href: "/org/intelligence" },
-  { key: "settings", label: "Setup", href: "/org/setup" }, // Will be filtered by setupIncomplete
+  { key: "overview", label: "Overview", basePath: "" },
+  { key: "people", label: "People", basePath: "/people" },
+  { key: "structure", label: "Structure", basePath: "/structure" },
+  { key: "chart", label: "Org Chart", basePath: "/chart" },
+  { key: "ownership", label: "Ownership", basePath: "/ownership" },
+  { key: "issues", label: "Issues", basePath: "/issues" },
+  { key: "intelligence", label: "Intelligence", basePath: "/intelligence" },
+  { key: "settings", label: "Setup", basePath: "/setup" }, // Will be filtered by setupIncomplete
 ] as const;
 
-// Base sidebar items (always visible to org members) - fallback if API fails
-const BASE_SIDEBAR_ITEMS = [
-  { id: "overview", label: "Overview", href: "/org", section: "main" },
+/**
+ * Extract workspace slug from pathname if on a workspace-scoped route
+ * e.g., /w/my-workspace/org/people -> "my-workspace"
+ */
+function extractWorkspaceSlug(pathname: string | null): string | null {
+  if (!pathname) return null;
+  const match = pathname.match(/^\/w\/([^/]+)\/org/);
+  return match ? match[1] : null;
+}
 
-  { id: "people", label: "People", href: "/org/people", section: "org" },
-  { id: "structure", label: "Structure", href: "/org/structure", section: "org" },
-  { id: "chart", label: "Org Chart", href: "/org/chart", section: "org" },
-  { id: "ownership", label: "Ownership", href: "/org/ownership", section: "org" },
-  { id: "issues", label: "Issues", href: "/org/issues", section: "org" },
-  { id: "intelligence", label: "Intelligence", href: "/org/intelligence", section: "org" },
-];
+/**
+ * Build the correct href based on whether we're in workspace-scoped context
+ */
+function buildOrgHref(basePath: string, workspaceSlug: string | null): string {
+  if (workspaceSlug) {
+    return `/w/${workspaceSlug}/org${basePath}`;
+  }
+  return `/org${basePath}`;
+}
 
-function isItemActive(item: { href: string }, pathname: string | null, allItems: Array<{ href: string }>): boolean {
+/**
+ * Check if an item's href matches the current pathname
+ */
+function isItemActive(
+  itemBasePath: string,
+  pathname: string | null,
+  allBasePaths: string[],
+  workspaceSlug: string | null
+): boolean {
   if (!pathname) return false;
 
   const path = pathname.replace(/\/+$/, "") || "/";
+  const itemHref = buildOrgHref(itemBasePath, workspaceSlug);
 
-  // Overview is active on `/org` and `/org/` only
-  if (item.href === "/org") {
-    return path === "/org";
+  // Overview is active on base org path only
+  if (itemBasePath === "") {
+    const baseOrgPath = workspaceSlug ? `/w/${workspaceSlug}/org` : "/org";
+    return path === baseOrgPath;
   }
 
   // Check for exact match first
-  if (path === item.href) {
+  if (path === itemHref) {
     return true;
   }
 
   // Check if path starts with this item's href
-  if (!path.startsWith(item.href + "/")) {
+  if (!path.startsWith(itemHref + "/")) {
     return false;
   }
 
   // If path starts with this href, check if there's a more specific matching item
-  // (e.g., if we're on /org/health/ownership, don't highlight /org/health)
-  const moreSpecificMatch = allItems.find(otherItem => {
-    if (otherItem.href === item.href) return false; // Skip self
-    // Check if other item's href is more specific (longer and starts with current item's href)
-    return otherItem.href.startsWith(item.href + "/") && path.startsWith(otherItem.href);
+  const moreSpecificMatch = allBasePaths.find(otherBasePath => {
+    if (otherBasePath === itemBasePath) return false;
+    const otherHref = buildOrgHref(otherBasePath, workspaceSlug);
+    return otherHref.startsWith(itemHref + "/") && path.startsWith(otherHref);
   });
 
-  // If there's a more specific match, this item is not active
   return !moreSpecificMatch;
 }
 
@@ -83,6 +102,9 @@ export function OrgSidebar({ beta = false }: OrgSidebarProps) {
   const role = perms?.role;
 
   const [setupIncomplete, setSetupIncomplete] = useState(false);
+
+  // Extract workspace slug from current pathname (if on workspace-scoped route)
+  const workspaceSlug = useMemo(() => extractWorkspaceSlug(pathname), [pathname]);
 
   // Fetch setup status on mount
   useEffect(() => {
@@ -115,11 +137,15 @@ export function OrgSidebar({ beta = false }: OrgSidebarProps) {
     return true;
   });
 
-  // Convert to sidebar format
+  // Get all base paths for active state checking
+  const allBasePaths = navItems.map(item => item.basePath);
+
+  // Convert to sidebar format with workspace-aware hrefs
   const visibleItems = navItems.map((item) => ({
     id: item.key,
     label: item.label,
-    href: item.href,
+    basePath: item.basePath,
+    href: buildOrgHref(item.basePath, workspaceSlug),
   }));
 
   return (
@@ -133,7 +159,7 @@ export function OrgSidebar({ beta = false }: OrgSidebarProps) {
       <nav className="space-y-1.5">
         <ul className="space-y-1">
           {visibleItems.map((item) => {
-            const active = isItemActive(item, pathname, visibleItems);
+            const active = isItemActive(item.basePath, pathname, allBasePaths, workspaceSlug);
 
             return (
               <li key={item.id}>

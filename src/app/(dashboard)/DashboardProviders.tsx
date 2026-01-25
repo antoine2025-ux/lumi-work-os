@@ -1,8 +1,23 @@
 "use client";
 
-import React from "react";
+import React, { createContext, useContext } from "react";
 import { SessionProvider } from "next-auth/react";
-import { OrgContextProvider } from "./org-legacy/_components/OrgContext";
+
+/**
+ * Simple org context for dashboard components that need basic org info.
+ * For full org permissions, use getOrgPermissionContext() server-side
+ * or OrgPermissionsProvider client-side.
+ */
+type OrgContextValue = {
+  orgId: string | null;
+  orgName: string | null;
+};
+
+const OrgContext = createContext<OrgContextValue>({ orgId: null, orgName: null });
+
+export function useOrgContext() {
+  return useContext(OrgContext);
+}
 
 export function DashboardProviders({
   children,
@@ -15,9 +30,9 @@ export function DashboardProviders({
 }) {
   return (
     <SessionProvider>
-      <OrgContextProvider initialOrgId={initialOrgId} initialOrgName={initialOrgName}>
+      <OrgContext.Provider value={{ orgId: initialOrgId, orgName: initialOrgName }}>
         {children}
-      </OrgContextProvider>
+      </OrgContext.Provider>
     </SessionProvider>
   );
 }

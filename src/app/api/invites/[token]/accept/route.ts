@@ -117,12 +117,21 @@ export async function POST(
     if (invite.acceptedAt) {
       // Invite already accepted - check if user is a member and return workspace info
       // This allows the frontend to redirect to the workspace instead of showing an error
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const existingMember = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             workspaceId: invite.workspaceId,
             userId: auth.user.userId
           }
+        },
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
+          // Exclude employmentStatus - may not exist in database yet
         }
       })
 
@@ -234,14 +243,23 @@ export async function POST(
       }
       
       // Step 4: Create or upgrade WorkspaceMember
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const existingMember = await tx.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: {
+        where: {
+          workspaceId_userId: {
             workspaceId: currentInvite.workspaceId,
-          userId: auth.user.userId
+            userId: auth.user.userId
+          }
+        },
+        select: {
+          id: true,
+          workspaceId: true,
+          userId: true,
+          role: true,
+          joinedAt: true,
+          // Exclude employmentStatus - may not exist in database yet
         }
-      }
-    })
+      })
 
     const roleHierarchy: Record<string, number> = {
         VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4

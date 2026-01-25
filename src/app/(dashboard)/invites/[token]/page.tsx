@@ -133,8 +133,7 @@ export default function InviteAcceptPage() {
           queryClient.invalidateQueries({ queryKey: ['user-status'] })
         }
         
-        // Clear sessionStorage flags that might interfere
-        sessionStorage.removeItem('__workspace_just_created__')
+        // PHASE B2: Removed workspace creation flag clearing
       }
       
       // Redirect to the invited workspace using slug-based URL

@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Users, Zap, Calendar, Shield, FileText, Layers } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 interface WorkspaceTemplate {
   id: string
@@ -47,6 +48,7 @@ export function WorkspaceOnboardingModal({
   const [templates, setTemplates] = useState<WorkspaceTemplate[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<WorkspaceTemplate | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const { update: updateSession } = useSession()
   const [isCreating, setIsCreating] = useState(false)
   const [formData, setFormData] = useState<OnboardingFormData>({
     templateId: 'personal',
@@ -136,9 +138,9 @@ export function WorkspaceOnboardingModal({
 
       if (data.success) {
         console.log('Workspace created successfully:', data)
-        // Set flags to prevent redirect loops
-        sessionStorage.setItem('__workspace_just_created__', 'true')
-        sessionStorage.setItem('__skip_loader__', 'true')
+        // PHASE B2: Removed workspace creation flags - update session to refresh JWT
+        // Update session to refresh JWT with new workspaceId
+        await updateSession()
         // Redirect to dashboard
         router.push('/home')
         onClose()

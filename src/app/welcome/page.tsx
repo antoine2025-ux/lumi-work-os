@@ -57,27 +57,7 @@ export default function OnboardingPage() {
       return // CRITICAL: Return early to prevent checkAndRedirect from running
     }
 
-    // HARD STOP: If redirects are stopped, just set workspace and redirect
-    if (sessionStorage.getItem('__redirect_stopped__') === 'true') {
-      console.log('[welcome] Redirects stopped, setting workspace and going to home')
-      const workspaceId = 'ws_1765020555_4662b211'
-      sessionStorage.setItem('__workspace_id__', workspaceId)
-      sessionStorage.setItem('__has_workspace__', 'true')
-      window.location.replace('/home')
-      return
-    }
-    
-    // Check URL parameter to stop redirects and set workspace
-    if (urlParams.get('stop_redirect') === 'true') {
-      console.log('[welcome] Stop redirect flag detected, redirecting to home')
-      const workspaceId = 'ws_1765020555_4662b211'
-      sessionStorage.setItem('__workspace_id__', workspaceId)
-      sessionStorage.setItem('__has_workspace__', 'true')
-      sessionStorage.setItem('__redirect_stopped__', 'true')
-      sessionStorage.removeItem('__redirect_attempted__')
-      window.location.replace('/home')
-      return
-    }
+    // PHASE A2: Removed redirect loop prevention hacks - middleware handles redirects now
     
     let isMounted = true
     
@@ -140,10 +120,7 @@ export default function OnboardingPage() {
               
               if (workspaceData.workspaceId) {
                 console.log('[welcome] User has workspace, redirecting to dashboard')
-                // Set flags to prevent redirect loop
-                sessionStorage.setItem('__has_workspace__', 'true')
-                sessionStorage.setItem('__workspace_id__', workspaceData.workspaceId)
-                sessionStorage.removeItem('__redirect_attempted__') // Clear redirect flag
+                // PHASE A2: Removed sessionStorage flags - session update will refresh JWT
                 // Use replace instead of href to avoid adding to history
                 window.location.replace('/home')
                 return
@@ -215,9 +192,7 @@ export default function OnboardingPage() {
         setTimeout(() => {
           console.log('[welcome] Workspace created, redirecting to dashboard...')
           
-          // Set flag to skip loader and prevent redirect to welcome
-          sessionStorage.setItem('__skip_loader__', 'true')
-          sessionStorage.setItem('__workspace_just_created__', 'true')
+          // PHASE B2: Removed workspace creation flags - session update will refresh JWT
           
           // DON'T clear user status cache - let it update naturally
           // The workspace was just created, the API will return it on next fetch

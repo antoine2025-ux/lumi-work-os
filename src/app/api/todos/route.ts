@@ -318,12 +318,21 @@ export async function POST(request: NextRequest) {
     const finalAssignedToId = assignedToId || auth.user.userId
 
     // Validate that assignee is a workspace member
+    // PHASE 1: Use explicit select to exclude employmentStatus
     const assigneeMember = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
           workspaceId: auth.workspaceId,
           userId: finalAssignedToId
         }
+      },
+      select: {
+        id: true,
+        workspaceId: true,
+        userId: true,
+        role: true,
+        joinedAt: true,
+        // Exclude employmentStatus - may not exist in database yet
       }
     })
 

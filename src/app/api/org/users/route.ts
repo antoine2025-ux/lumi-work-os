@@ -24,11 +24,17 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
 
     // Get workspace members
+    // PHASE 1: Use explicit select to exclude employmentStatus
     const workspaceMembers = await prisma.workspaceMember.findMany({
       where: {
         workspaceId: auth.workspaceId
       },
-      include: {
+      select: {
+        id: true,
+        workspaceId: true,
+        userId: true,
+        role: true,
+        joinedAt: true,
         user: {
           select: {
             id: true,
@@ -37,6 +43,7 @@ export async function GET(request: NextRequest) {
             image: true
           }
         }
+        // Exclude employmentStatus - may not exist in database yet
       }
     })
 

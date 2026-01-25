@@ -125,12 +125,21 @@ export async function POST(
     })
 
     // Verify user is a workspace member
+    // PHASE 1: Use explicit select to exclude employmentStatus
     const workspaceMember = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
           workspaceId: auth.workspaceId,
           userId
         }
+      },
+      select: {
+        id: true,
+        workspaceId: true,
+        userId: true,
+        role: true,
+        joinedAt: true,
+        // Exclude employmentStatus - may not exist in database yet
       }
     })
 

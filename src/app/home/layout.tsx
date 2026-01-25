@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react"
 import { Header } from "@/components/layout/header"
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context"
 import { useUserStatusContext } from '@/providers/user-status-provider'
-import { getRedirectDecisionWithCookie } from '@/lib/redirect-handler'
+// PHASE C2: Removed redirect-handler import - middleware handles redirects
 
 export default function HomeLayout({
   children,
@@ -18,42 +18,7 @@ export default function HomeLayout({
   // Use centralized UserStatusContext - no separate API call needed
   const { workspaceId, isFirstTime, isLoading: isLoadingWorkspace, pendingInvite, error, refetch } = useUserStatusContext()
 
-  const pathname = usePathname()
-  const hasRedirected = useRef(false)
-  const prevPathname = useRef(pathname)
-
-  // Handle workspace redirect logic based on context data
-  useEffect(() => {
-    // Reset redirect flag when pathname changes
-    if (prevPathname.current !== pathname) {
-      hasRedirected.current = false
-      prevPathname.current = pathname
-    }
-
-    // Skip if already redirected
-    if (hasRedirected.current) {
-      return
-    }
-
-    // Use centralized redirect handler
-    const decision = getRedirectDecisionWithCookie({
-      session,
-      sessionStatus: status,
-      workspaceId: workspaceId || null,
-      isFirstTime: isFirstTime || false,
-      pendingInvite: pendingInvite || null,
-      pathname,
-      isLoading: isLoadingWorkspace,
-      error: error || null,
-    })
-
-    if (decision.shouldRedirect && decision.target) {
-      hasRedirected.current = true
-      window.location.href = decision.target
-    }
-  }, [workspaceId, isLoadingWorkspace, pendingInvite, status, pathname, session, isFirstTime, error])
-
-  // Auth redirect is now handled by centralized redirect handler above
+  // PHASE C2: Removed workspace redirect logic - middleware handles all redirects now
   // This effect is kept for logout flag handling only
   useEffect(() => {
     if (status === "loading") return
@@ -80,15 +45,8 @@ export default function HomeLayout({
     return null
   }
   
-  // Don't render anything while workspace is being checked
-  if (!workspaceId) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <p className="ml-3 text-sm text-muted-foreground">Checking workspace...</p>
-      </div>
-    )
-  }
+  // PHASE C2: Removed workspace check blocking - middleware handles redirects
+  // If user has no workspace, middleware will redirect to /welcome
 
   return (
     <LoopbrainAssistantProvider>

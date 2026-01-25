@@ -33,9 +33,15 @@ export async function GET(
     setWorkspaceContext(workspaceId)
 
     // Get all members with user info
+    // PHASE 1: Use explicit select to exclude employmentStatus
     const members = await prisma.workspaceMember.findMany({
       where: { workspaceId },
-      include: {
+      select: {
+        id: true,
+        workspaceId: true,
+        userId: true,
+        role: true,
+        joinedAt: true,
         user: {
           select: {
             id: true,
@@ -44,6 +50,7 @@ export async function GET(
             image: true
           }
         }
+        // Exclude employmentStatus - may not exist in database yet
       },
       orderBy: {
         joinedAt: 'asc'

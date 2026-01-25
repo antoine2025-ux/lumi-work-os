@@ -38,6 +38,8 @@
     "security:deps": "npm audit --audit-level=high || (echo '⚠️ High/critical vulnerabilities found - see above. Run: npm audit fix' && exit 1)",
     "security:secrets": "./scripts/scan-secrets.sh",
     "security:semgrep": "semgrep --config=semgrep.yml src/",
+    "check:org-prisma-any": "./scripts/check-org-prisma-any.sh",
+    "check:org-prisma-any:update": "./scripts/check-org-prisma-any.sh --update-baseline",
     "quality:gate": "npm run test:e2e && npm run security:deps && npm run security:secrets",
     "quality:gate:strict": "npm run typecheck && npm run lint && npm run test && npm run test:e2e && npm run security:deps && npm run security:secrets && npm run security:semgrep",
     "health:check": "node health-check.js",

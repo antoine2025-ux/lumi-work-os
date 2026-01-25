@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context";
 import { TaskSidebar } from "@/components/tasks/task-sidebar";
-import { getRedirectDecisionWithCookie, isPublicRoute } from "@/lib/redirect-handler";
+// PHASE C2: Removed redirect-handler import - middleware handles redirects
 
 // Lazy load Header to reduce initial bundle size and improve LCP
 const Header = dynamic(() => import("@/components/layout/header").then(mod => ({ default: mod.Header })), {
@@ -21,6 +21,7 @@ export function DashboardLayoutClient({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const [isFirstTime, setIsFirstTime] = useState(false);
   
   // Use React Query for user status - automatic caching and no sequential delays
@@ -44,55 +45,17 @@ export function DashboardLayoutClient({
     },
   });
 
-  // Get workspace ID from userStatus OR sessionStorage (for redirect-stopped case)
-  const workspaceIdFromStorage = typeof window !== 'undefined' ? sessionStorage.getItem('__workspace_id__') : null;
-  const workspaceId = userStatus?.workspaceId || workspaceIdFromStorage || null;
+  // PHASE A2: Removed sessionStorage workspaceId workaround - use only userStatus
+  const workspaceId = userStatus?.workspaceId || null;
 
-  const pathname = usePathname();
-  const hasRedirected = useRef(false);
-  const prevPathname = useRef(pathname);
-
-  // Handle workspace redirect
+  // PHASE C2: Removed workspace redirect logic - middleware handles all redirects now
+  // Keep only first-time state tracking
   useEffect(() => {
-    // Reset redirect flag when pathname changes
-    if (prevPathname.current !== pathname) {
-      hasRedirected.current = false;
-      prevPathname.current = pathname;
-    }
-
     if (userStatus) {
       setIsFirstTime(userStatus.isFirstTime || false);
-      // Clear workspace creation flag if workspace is found
-      if (workspaceId) {
-        sessionStorage.removeItem('__workspace_just_created__');
-        sessionStorage.removeItem('__skip_loader__');
-      }
     }
+  }, [userStatus]);
 
-    // Skip redirect logic if already redirected
-    if (hasRedirected.current) {
-      return;
-    }
-
-    // Use centralized redirect handler
-    const decision = getRedirectDecisionWithCookie({
-      session,
-      sessionStatus: status,
-      workspaceId: workspaceId || null,
-      isFirstTime: userStatus?.isFirstTime || false,
-      pendingInvite: null, // Dashboard layout doesn't handle invites
-      pathname,
-      isLoading: isLoadingWorkspace,
-      error: null,
-    });
-
-    if (decision.shouldRedirect && decision.target) {
-      hasRedirected.current = true;
-      window.location.href = decision.target;
-    }
-  }, [status, isLoadingWorkspace, workspaceId, userStatus, pathname, session]);
-
-  // Auth redirect is now handled by centralized redirect handler above
   // This effect is kept for logout flag handling only
   useEffect(() => {
     if (status === "loading") return;
@@ -131,11 +94,8 @@ export function DashboardLayoutClient({
   
   // Render immediately with loading state - don't block on workspace check
   // This allows LCP to happen much faster
-  // BUT: If redirects are stopped and we have a workspace ID in storage, allow rendering
-  const redirectStopped = typeof window !== 'undefined' && sessionStorage.getItem('__redirect_stopped__') === 'true';
-  const hasWorkspaceInStorage = typeof window !== 'undefined' && !!sessionStorage.getItem('__workspace_id__');
-  
-  if ((isLoadingWorkspace || !workspaceId) && !(redirectStopped && hasWorkspaceInStorage)) {
+  // PHASE A2: Removed sessionStorage redirect workaround
+  if (isLoadingWorkspace || !workspaceId) {
     return (
       <div className="flex min-h-screen flex-col bg-[#020617]">
         <Header />

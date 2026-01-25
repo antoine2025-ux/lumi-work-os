@@ -1,8 +1,17 @@
 /**
- * Centralized redirect handler
+ * CLIENT-SIDE REDIRECT HANDLER (EDGE CASES ONLY)
  * 
- * This module consolidates all redirect logic to prevent infinite loops
- * and provide a single source of truth for navigation decisions.
+ * ⚠️ IMPORTANT: Middleware (src/middleware.ts) is the PRIMARY redirect handler.
+ * 
+ * This handler should ONLY be used for:
+ * - Session sync issues (useSession() temporarily out of sync during navigation)
+ * - Client-side navigation that bypasses middleware (e.g., programmatic router.push)
+ * - Edge cases where middleware cannot handle the redirect (e.g., pending invites)
+ * 
+ * DO NOT use this for normal page loads - middleware handles those.
+ * 
+ * PHASE C3: After consolidating redirects to middleware, this handler is kept
+ * for edge cases and session sync issues only.
  */
 
 import { Session } from 'next-auth'

@@ -7,6 +7,17 @@ import { createDefaultWorkspaceForUser } from '@/lib/workspace-onboarding'
 import { getCachedAuth, setCachedAuth } from '@/lib/auth-cache'
 import { logger } from '@/lib/logger'
 
+// PHASE 1: Standard select for WorkspaceMember queries (excludes employmentStatus that may not exist in DB)
+const WORKSPACE_MEMBER_SELECT = {
+  id: true,
+  workspaceId: true,
+  userId: true,
+  role: true,
+  joinedAt: true,
+  // Exclude employmentStatus, employmentStartDate, employmentEndDate - may not exist in database yet
+  // Exclude customRoleId and customRole relation - they may not exist in database yet
+} as const
+
 export interface UnifiedAuthUser {
   userId: string
   activeWorkspaceId: string
@@ -170,7 +181,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
   const userQueryDurationMs = performance.now() - dbStartTime
 
   const workspaceStartTime = performance.now()
-  // Use workspace from combined query if available, otherwise resolve from request
+  // PHASE A3: Use JWT workspaceId first, then fall back to DB query
   let activeWorkspaceId: string
   let workspaceMember: any
   
@@ -191,11 +202,56 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
     }
     activeWorkspaceId = result.workspaceId
     workspaceMember = result.workspaceMember
+  } else if (session.user.workspaceId) {
+    // PHASE A3: JWT has workspaceId - use it (but validate membership)
+    const jwtWorkspaceId = session.user.workspaceId
+    // Validate workspace access and get member in one query
+    // PHASE 1: Use explicit select to exclude employmentStatus
+    const member = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: jwtWorkspaceId,
+          userId: user.id
+        }
+      },
+      select: WORKSPACE_MEMBER_SELECT
+    })
+    
+    if (member) {
+      // Valid membership - use JWT workspaceId (avoids DB query for default workspace)
+      activeWorkspaceId = jwtWorkspaceId
+      workspaceMember = member
+      logger.debug('getUnifiedAuth (JWT workspaceId)', {
+        requestId,
+        workspaceId: jwtWorkspaceId,
+        source: 'JWT'
+      })
+    } else {
+      // JWT workspaceId is invalid - fall back to DB query
+      logger.warn('getUnifiedAuth (JWT workspaceId invalid, falling back to DB)', {
+        requestId,
+        jwtWorkspaceId,
+        userId: user.id
+      })
+      // Fall through to DB query below
+      if (user.workspaceMemberships.length > 0 && user.workspaceMemberships[0].workspace) {
+        const defaultMembership = user.workspaceMemberships[0]
+        activeWorkspaceId = defaultMembership.workspaceId
+        workspaceMember = defaultMembership
+      } else {
+        throw new Error('No workspace found - user needs to create a workspace')
+      }
+    }
   } else if (user.workspaceMemberships.length > 0 && user.workspaceMemberships[0].workspace) {
-    // Use default workspace from combined query (no extra DB call!)
+    // JWT has no workspaceId - use default workspace from DB query
     const defaultMembership = user.workspaceMemberships[0]
     activeWorkspaceId = defaultMembership.workspaceId
     workspaceMember = defaultMembership
+    logger.debug('getUnifiedAuth (DB workspaceId)', {
+      requestId,
+      workspaceId: activeWorkspaceId,
+      source: 'DB'
+    })
   } else {
     // No workspace - user needs to create one
     throw new Error('No workspace found - user needs to create a workspace')
@@ -325,13 +381,15 @@ async function resolveActiveWorkspaceIdWithMember(
     const workspaceId = url.searchParams.get('workspaceId')
     if (workspaceId) {
       // Validate workspace access and get member in one query
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const member = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             userId,
             workspaceId
           }
-        }
+        },
+        select: WORKSPACE_MEMBER_SELECT
       })
       if (member) {
         return { workspaceId, workspaceMember: member }
@@ -346,13 +404,15 @@ async function resolveActiveWorkspaceIdWithMember(
       })
       if (project) {
         // Validate workspace access and get member in one query
+        // PHASE 1: Use explicit select to exclude employmentStatus
         const member = await prisma.workspaceMember.findUnique({
           where: {
             workspaceId_userId: {
               userId,
               workspaceId: project.workspaceId
             }
-          }
+          },
+          select: WORKSPACE_MEMBER_SELECT
         })
         if (member) {
           return { workspaceId: project.workspaceId, workspaceMember: member }
@@ -366,13 +426,15 @@ async function resolveActiveWorkspaceIdWithMember(
     const headerWorkspaceId = request.headers.get('x-workspace-id')
     if (headerWorkspaceId) {
       // Validate workspace access and get member in one query
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const member = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             userId,
             workspaceId: headerWorkspaceId
           }
-        }
+        },
+        select: WORKSPACE_MEMBER_SELECT
       })
       if (member) {
         return { workspaceId: headerWorkspaceId, workspaceMember: member }
@@ -383,6 +445,7 @@ async function resolveActiveWorkspaceIdWithMember(
   // Priority 4: User's default workspace
   // OPTIMIZED: Single query to get first membership with workspace verification
   // Use findFirst with a join condition instead of findMany + filter
+  // PHASE 1: Use explicit select to exclude employmentStatus
   const dbStartTime = performance.now()
   const validMembership = await prisma.workspaceMember.findFirst({
     where: { 
@@ -392,7 +455,8 @@ async function resolveActiveWorkspaceIdWithMember(
       }
     },
     orderBy: { joinedAt: 'asc' },
-    include: {
+    select: {
+      ...WORKSPACE_MEMBER_SELECT,
       workspace: {
         select: { id: true } // Verify workspace still exists
       }
@@ -460,13 +524,15 @@ async function resolveActiveWorkspaceId(
       }
       
       // Direct membership lookup (uses composite index)
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const member = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             workspaceId: workspace.id,
             userId
           }
-        }
+        },
+        select: WORKSPACE_MEMBER_SELECT
       })
       
       if (member) {
@@ -484,13 +550,15 @@ async function resolveActiveWorkspaceId(
     const workspaceId = url.searchParams.get('workspaceId')
     if (workspaceId) {
       // Validate workspace access
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const member = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             userId,
             workspaceId
           }
-        }
+        },
+        select: WORKSPACE_MEMBER_SELECT
       })
       if (member) {
         return workspaceId
@@ -505,13 +573,15 @@ async function resolveActiveWorkspaceId(
       })
       if (project) {
         // Validate workspace access
+        // PHASE 1: Use explicit select to exclude employmentStatus
         const member = await prisma.workspaceMember.findUnique({
           where: {
             workspaceId_userId: {
               userId,
               workspaceId: project.workspaceId
             }
-          }
+          },
+          select: WORKSPACE_MEMBER_SELECT
         })
         if (member) {
           return project.workspaceId
@@ -525,13 +595,15 @@ async function resolveActiveWorkspaceId(
     const headerWorkspaceId = request.headers.get('x-workspace-id')
     if (headerWorkspaceId) {
       // Validate workspace access
+      // PHASE 1: Use explicit select to exclude employmentStatus
       const member = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             userId,
             workspaceId: headerWorkspaceId
           }
-        }
+        },
+        select: WORKSPACE_MEMBER_SELECT
       })
       if (member) {
         return headerWorkspaceId
@@ -541,10 +613,12 @@ async function resolveActiveWorkspaceId(
 
   // Priority 4: User's default workspace
   // Get all memberships and find the first one with an existing workspace
+  // PHASE 1: Use explicit select to exclude employmentStatus
   const userMemberships = await prisma.workspaceMember.findMany({
     where: { userId },
     orderBy: { joinedAt: 'asc' },
-    include: {
+    select: {
+      ...WORKSPACE_MEMBER_SELECT,
       workspace: {
         select: { id: true } // Verify workspace still exists
       }
@@ -591,13 +665,15 @@ export async function validateWorkspaceAccess(
   userId: string, 
   workspaceId: string
 ): Promise<boolean> {
+  // PHASE 1: Use explicit select to exclude employmentStatus
   const member = await prisma.workspaceMember.findUnique({
     where: {
       workspaceId_userId: {
         userId,
         workspaceId
       }
-    }
+    },
+    select: WORKSPACE_MEMBER_SELECT
   })
   
   return !!member
