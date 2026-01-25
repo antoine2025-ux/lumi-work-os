@@ -19,7 +19,6 @@ export type OrgContextAction =
   | "org.ownership.assigned"
   | "org.availability.updated"
   | "org.department.created"
-  | "org.department.owner_set"
   | "org.team.created"
   | "org.team.owner_set"
   | "org.team.member_added"

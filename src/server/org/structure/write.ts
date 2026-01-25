@@ -85,26 +85,9 @@ export async function createDepartment(input: { name: string; workspaceId: strin
 }
 
 export async function createTeam(input: { name: string; departmentId: string | null; workspaceId: string }) {
-  // For MVP: If no departmentId, create or find a default "Unassigned" department
-  let departmentId = input.departmentId;
-  
-  if (!departmentId) {
-    // Find or create a default "Unassigned" department for teams without departments
-    const existing = await prisma.orgDepartment.findFirst({
-      where: { name: "Unassigned", workspaceId: input.workspaceId, isActive: true },
-      select: { id: true },
-    });
-    
-    if (existing) {
-      departmentId = existing.id;
-    } else {
-      const created = await prisma.orgDepartment.create({
-        data: { name: "Unassigned", workspaceId: input.workspaceId },
-        select: { id: true },
-      });
-      departmentId = created.id;
-    }
-  }
+  // departmentId is optional - teams can be unassigned (departmentId: null)
+  // This is a valid first-class state, not a configuration error
+  const departmentId = input.departmentId ?? null;
   
   return prisma.orgTeam.create({
     data: { name: input.name, departmentId, workspaceId: input.workspaceId },

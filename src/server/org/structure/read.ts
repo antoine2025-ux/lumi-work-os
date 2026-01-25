@@ -24,6 +24,7 @@ export async function getOrgStructure(workspaceId?: string): Promise<OrgStructur
     console.warn("[getOrgStructure] No workspaceId provided and no workspace context set. Returning empty structure.");
     return { departments: [], teams: [] };
   }
+
   const [departments, allTeams] = await Promise.all([
     prisma.orgDepartment.findMany({
       where: { 
@@ -34,7 +35,7 @@ export async function getOrgStructure(workspaceId?: string): Promise<OrgStructur
       },
       orderBy: { name: "asc" },
       select: {
-        id: true,
+          id: true,
           name: true,
           teams: {
             where: { isActive: true },

@@ -29,7 +29,7 @@ export async function getDataQualityDeepDive(orgId: string) {
   }
 
   // 2) Conflicting manager links: same person with >1 active manager (v0: count duplicates by personId)
-  const conflicts: Array<{ personId: string; label: string; managers: number; managerIds?: string[] }> = []
+  const conflicts: Array<{ personId: string; label: string; managers: number }> = []
   try {
     const links = await prisma.personManagerLink.findMany({
       where: { orgId } as any,

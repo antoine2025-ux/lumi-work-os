@@ -31,12 +31,11 @@ export async function computeStructureMetrics(orgId: string): Promise<StructureM
   try {
     // Try common membership models defensively.
     const memberCountByTeam = new Map<string, number>()
-    const p$ = prisma as any
     const candidates: Array<() => Promise<any[]>> = [
-      async () => (await p$.teamMember?.findMany?.({ where: { orgId }, select: { teamId: true }, take: 200000 })) ?? [],
-      async () => (await p$.teamMembership?.findMany?.({ where: { orgId }, select: { teamId: true }, take: 200000 })) ?? [],
-      async () => (await p$.personTeam?.findMany?.({ where: { orgId }, select: { teamId: true }, take: 200000 })) ?? [],
-      async () => (await p$.membership?.findMany?.({ where: { orgId }, select: { teamId: true }, take: 200000 })) ?? [],
+      async () => (await prisma.teamMember?.findMany?.({ where: { orgId } as any, select: { teamId: true } as any, take: 200000 } as any)) as any,
+      async () => (await prisma.teamMembership?.findMany?.({ where: { orgId } as any, select: { teamId: true } as any, take: 200000 } as any)) as any,
+      async () => (await prisma.personTeam?.findMany?.({ where: { orgId } as any, select: { teamId: true } as any, take: 200000 } as any)) as any,
+      async () => (await prisma.membership?.findMany?.({ where: { orgId } as any, select: { teamId: true } as any, take: 200000 } as any)) as any,
       // Try OrgPosition with teamId
       async () => {
         const positions = await prisma.orgPosition?.findMany?.({

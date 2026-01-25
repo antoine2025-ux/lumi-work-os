@@ -73,7 +73,6 @@ export async function listOrgPeople(workspaceId?: string, includeArchived: boole
       },
       select: { userId: true, employmentStatus: true },
     });
-    
     const employmentMap = new Map<string, EmploymentStatus>();
     for (const wm of workspaceMembers) {
       employmentMap.set(wm.userId, (wm.employmentStatus as EmploymentStatus) ?? "ACTIVE");
@@ -266,8 +265,20 @@ export async function listOrgPeople(workspaceId?: string, includeArchived: boole
  * @param workspaceId - Optional workspaceId. If not provided, will try to get from context.
  */
 export async function getOrgPerson(personId: string, workspaceId?: string): Promise<OrgPersonDTO | null> {
+  // #region agent log
+  if (typeof fetch !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'read.ts:267',message:'getOrgPerson entry',data:{personId,workspaceId:workspaceId||'from-context'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  }
+  // #endregion
+  
   // Get workspaceId from context if not provided (for backward compatibility)
   const effectiveWorkspaceId = workspaceId || getWorkspaceContext();
+  
+  // #region agent log
+  if (typeof fetch !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'read.ts:272',message:'Before findUnique by personId',data:{personId,effectiveWorkspaceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  }
+  // #endregion
   
   // Use select to explicitly choose fields that exist in the database
   const position = await prisma.orgPosition.findUnique({
@@ -299,7 +310,176 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
     },
   });
 
+  // #region agent log
+  if (typeof fetch !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'read.ts:273',message:'After findUnique by personId',data:{positionFound:!!position,positionId:position?.id,userId:position?.userId,hasUser:!!position?.user},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  }
+  // #endregion
+
   if (!position || !position.user || !position.userId) {
+    // #region agent log
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'read.ts:301',message:'Position not found - checking if personId is User ID',data:{personId,effectiveWorkspaceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    }
+    // #endregion
+    
+    // If position not found by ID, personId might be a User ID
+    // Try to find OrgPosition by userId
+    if (effectiveWorkspaceId) {
+      const positionByUserId = await prisma.orgPosition.findFirst({
+        where: {
+          userId: personId,
+          workspaceId: effectiveWorkspaceId,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          userId: true,
+          title: true,
+          workspaceId: true,
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+          team: {
+            select: { id: true, name: true, department: { select: { id: true, name: true } } },
+          },
+          parent: {
+            select: { id: true, user: { select: { id: true, name: true } } },
+          },
+          children: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              user: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      }).catch(() => null);
+      
+      // #region agent log
+      if (typeof fetch !== 'undefined') {
+        fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'read.ts:302',message:'After findFirst by userId',data:{positionFound:!!positionByUserId,positionId:positionByUserId?.id,userId:positionByUserId?.userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      }
+      // #endregion
+      
+      if (positionByUserId && positionByUserId.user && positionByUserId.userId) {
+        // Use the position found by userId
+        const effectivePosition = positionByUserId;
+        
+        // Continue with the rest of the function using effectivePosition
+        // Verify workspace ownership (security check)
+        if (effectivePosition.workspaceId !== effectiveWorkspaceId) {
+          console.warn(`[getOrgPerson] Person ${effectivePosition.id} belongs to workspace ${effectivePosition.workspaceId}, but requested workspace is ${effectiveWorkspaceId}`);
+          return null;
+        }
+
+        // Get intelligence settings for staleness threshold
+        let settings: { availabilityStaleDays: number };
+        try {
+          settings = await getOrCreateIntelligenceSettings();
+        } catch (error: any) {
+          if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+            console.warn("[getOrgPerson] Intelligence settings table not found, using defaults:", error.message);
+            settings = { availabilityStaleDays: 30 };
+          } else {
+            throw error;
+          }
+        }
+
+        // Get derived availability
+        const userId = effectivePosition.userId;
+        const wsId = effectivePosition.workspaceId;
+
+        const workspaceMember = await prisma.workspaceMember.findUnique({
+          where: {
+            workspaceId_userId: { workspaceId: wsId, userId },
+          },
+          select: { employmentStatus: true },
+        }).catch(() => null);
+        const employmentStatus = (workspaceMember?.employmentStatus as EmploymentStatus) ?? "ACTIVE";
+
+        const availabilityWindows = await prisma.personAvailability.findMany({
+          where: { personId: userId, workspaceId: wsId },
+          select: {
+            type: true,
+            startDate: true,
+            endDate: true,
+            fraction: true,
+            reason: true,
+            expectedReturnDate: true,
+            updatedAt: true,
+          },
+        }).catch(() => []);
+
+        const latestUpdate = availabilityWindows.reduce<Date | null>((latest, w) => {
+          if (!latest) return w.updatedAt;
+          return w.updatedAt && w.updatedAt > latest ? w.updatedAt : latest;
+        }, null);
+
+        const windows: AvailabilityWindow[] = availabilityWindows.map((w) => ({
+          type: w.type === "UNAVAILABLE" ? "unavailable" : "partial",
+          startDate: w.startDate,
+          endDate: w.endDate ?? undefined,
+          fraction: w.fraction ?? undefined,
+          reason: w.reason as AvailabilityWindow["reason"],
+          expectedReturnDate: w.expectedReturnDate ?? undefined,
+        }));
+
+        const derived = derivePersonAvailability({
+          personId: userId,
+          employmentStatus,
+          windows,
+        });
+
+        let availabilityStatus: OrgPersonDTO["availabilityStatus"] = "UNKNOWN";
+        if (derived.effectiveCapacity === 1) {
+          availabilityStatus = "AVAILABLE";
+        } else if (derived.effectiveCapacity > 0) {
+          availabilityStatus = "PARTIALLY_AVAILABLE";
+        } else if (employmentStatus === "ACTIVE" || employmentStatus === "CONTRACTOR") {
+          availabilityStatus = "UNAVAILABLE";
+        } else {
+          availabilityStatus = "UNKNOWN";
+        }
+
+        const availability = { updatedAt: latestUpdate };
+        const directReports = (effectivePosition.children || [])
+          .filter((child) => child.user)
+          .map((child) => ({
+            id: child.id,
+            fullName: child.user!.name || child.user!.email || "Unknown",
+          }))
+          .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+        const availabilityUpdatedAt = availability?.updatedAt ? availability.updatedAt : null;
+        return {
+          id: effectivePosition.id,
+          fullName: effectivePosition.user.name || effectivePosition.user.email || "Unknown",
+          email: effectivePosition.user.email,
+          title: effectivePosition.title,
+          department: effectivePosition.team?.department ? {
+            id: effectivePosition.team.department.id,
+            name: effectivePosition.team.department.name,
+          } : null,
+          team: effectivePosition.team ? {
+            id: effectivePosition.team.id,
+            name: effectivePosition.team.name,
+          } : null,
+          manager: effectivePosition.parent?.user ? {
+            id: effectivePosition.parent.id,
+            fullName: effectivePosition.parent.user.name || effectivePosition.parent.user.email || "Unknown",
+          } : null,
+          directReports,
+          availabilityStatus,
+          availabilityUpdatedAt: availabilityUpdatedAt ? availabilityUpdatedAt.toISOString() : null,
+          availabilityStale: isAvailabilityStale(availabilityUpdatedAt, settings.availabilityStaleDays),
+        };
+      }
+    }
+    
     return null;
   }
 

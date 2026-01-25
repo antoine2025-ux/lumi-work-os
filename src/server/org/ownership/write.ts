@@ -7,44 +7,64 @@
  */
 
 import { prisma } from "@/lib/db";
+import { resolveOwner } from "@/lib/org/ownership-resolver";
+import { OwnedEntityType } from "@prisma/client";
 
 /**
  * Assign ownership to a team or department.
  * Uses findFirst + create/update pattern to avoid complex upsert keys.
+ * Note: Audit logging is done by the calling route handler (after mutation).
+ * 
+ * IMPORTANT: This function assumes Prisma is already workspace-scoped.
+ * workspaceId must be obtained from the calling route handler.
  */
 export async function assignOwnership(input: {
+  workspaceId: string; // Required for resolver call
   entityType: "TEAM" | "DEPARTMENT";
   entityId: string;
   ownerPersonId: string; // User.id (person responsible)
-}) {
+}): Promise<{ id: string; previousOwnerId: string | null }> {
+  // Get current owner before assignment (for audit logging)
+  const currentResolution = await resolveOwner(
+    input.workspaceId,
+    input.entityType as OwnedEntityType,
+    input.entityId
+  );
+  const previousOwnerId = currentResolution.ownerPersonId || null;
+
   // Find existing assignment
   const existing = await prisma.ownerAssignment.findFirst({
     where: {
       entityType: input.entityType,
       entityId: input.entityId,
     },
-    select: { id: true },
+    select: { id: true, ownerPersonId: true },
   });
 
+  let result: { id: string; ownerPersonId: string };
   if (existing) {
     // Update existing
-    const updated = await prisma.ownerAssignment.update({
+    result = await prisma.ownerAssignment.update({
       where: { id: existing.id },
       data: { ownerPersonId: input.ownerPersonId },
-      select: { id: true },
+      select: { id: true, ownerPersonId: true },
     });
-    return { id: updated.id };
   } else {
-    // Create new
-    const created = await prisma.ownerAssignment.create({
+    // Create new (include workspaceId for explicit compliance)
+    result = await prisma.ownerAssignment.create({
       data: {
-        entityType: input.entityType,
+        workspaceId: input.workspaceId,
+        entityType: input.entityType as any,
         entityId: input.entityId,
         ownerPersonId: input.ownerPersonId,
       },
-      select: { id: true },
+      select: { id: true, ownerPersonId: true },
     });
-    return { id: created.id };
   }
+
+  return { 
+    id: result.id,
+    previousOwnerId: existing?.ownerPersonId || previousOwnerId,
+  };
 }
 
