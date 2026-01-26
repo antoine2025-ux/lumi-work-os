@@ -8,43 +8,66 @@
 export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getDepartmentById, getPeopleForOrgPicker, getDepartmentsForPicker } from "@/lib/org/queries";
+import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { Card } from "@/components/ui/card";
 import { DepartmentPageClient } from "./DepartmentPageClient";
 import { TeamsSectionClient } from "./TeamsSectionClient";
 import { personDisplayName } from "@/lib/org/displayName";
-import { Button } from "@/components/ui/button";
+
+/**
+ * Server-compatible function to resolve back action based on the `from` query parameter.
+ * This is a server-side version of the client-side resolveBackAction function.
+ */
+function resolveBackActionServer(from: string | null): { label: string; href: string } | null {
+  if (!from) return null;
+  
+  const backTargets: Record<string, { label: string; href: string }> = {
+    issues: { label: "Back to Issues", href: "/org/issues" },
+    intelligence: { label: "Back to Intelligence", href: "/org/intelligence" },
+    structure: { label: "Back to Structure", href: "/org/structure" },
+    people: { label: "Back to People", href: "/org/people" },
+    ownership: { label: "Back to Ownership", href: "/org/ownership" },
+  };
+  
+  return backTargets[from] || null;
+}
 
 export default async function DepartmentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ departmentId: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { departmentId } = await params;
   const department = await getDepartmentById(departmentId);
   if (!department) return notFound();
 
+  const resolvedSearchParams = await searchParams;
+  const fromParam = resolvedSearchParams.from || null;
+
   const people = await getPeopleForOrgPicker();
   const departmentsForPicker = await getDepartmentsForPicker();
 
+  // Resolve back action based on from param or fallback to structure
+  const resolvedBackAction = fromParam ? resolveBackActionServer(fromParam) : null;
+  const defaultBackAction = {
+    label: "Back to Structure",
+    href: "/org/structure",
+  };
+  const backAction = resolvedBackAction || defaultBackAction;
+
   return (
     <div className="w-full">
-      <div className="mx-auto w-full max-w-6xl px-6 pt-4 pb-8">
+      <OrgPageHeader
+        title={department.name}
+        description="Manage this department's details, teams, and ownership."
+        backAction={backAction}
+      />
+      <div className="mx-auto w-full max-w-6xl px-10 pb-10">
         <div className="space-y-6">
-          <div className="flex flex-col gap-2">
-            <div>
-              <Link
-                href="/org/structure"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                ← Back to Structure
-              </Link>
-            </div>
-          </div>
-
-          <div className="flex items-start justify-between gap-4">
-            <h1 className="text-2xl font-semibold leading-tight">{department.name}</h1>
+          <div className="flex items-start justify-end gap-4">
             <DepartmentPageClient
               department={{
                 id: department.id,

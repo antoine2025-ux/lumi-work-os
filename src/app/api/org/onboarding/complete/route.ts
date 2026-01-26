@@ -11,7 +11,7 @@ export async function POST() {
     const context = await getOrgPermissionContext();
 
     try {
-      assertOrgCapability(context, "org:org:update");
+      assertOrgCapability(context, "org:settings:manage");
     } catch (err) {
       return NextResponse.json(
         { error: "Only owners or admins can complete onboarding." },
@@ -26,7 +26,7 @@ export async function POST() {
       );
     }
 
-    const updated = await (prisma as any).workspace.update({
+    const updated = await prisma.workspace.update({
       where: { id: context!.orgId },
       data: { orgCenterOnboardingCompletedAt: new Date() },
     });

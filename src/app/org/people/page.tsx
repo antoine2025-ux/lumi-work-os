@@ -25,7 +25,6 @@ export default async function PeoplePage() {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / PEOPLE"
           title="People"
           description="View and manage everyone in your organization."
         />
@@ -55,4 +54,3 @@ export default async function PeoplePage() {
     </>
   )
 }
-

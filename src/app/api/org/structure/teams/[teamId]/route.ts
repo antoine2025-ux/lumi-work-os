@@ -17,7 +17,7 @@ export async function GET(
 ) {
   let userId: string | undefined;
   let workspaceId: string | undefined;
-
+  
   try {
     const auth = await getUnifiedAuth(request);
     userId = auth?.user?.userId;

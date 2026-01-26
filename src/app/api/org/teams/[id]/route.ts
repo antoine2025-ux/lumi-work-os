@@ -8,19 +8,12 @@ type RouteParams = {
   }>;
 };
 
-// GET /api/org/teams/[id] - Get a specific team
 export async function GET(
   _req: NextRequest,
   { params }: RouteParams
 ) {
   try {
     const workspaceId = await getCurrentWorkspaceId(_req);
-    if (!workspaceId) {
-      return NextResponse.json(
-        { ok: false, error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
     const { id } = await params;
 
     const team = await prisma.orgTeam.findFirst({
@@ -83,12 +76,12 @@ export async function GET(
             id: team.department.id,
             name: team.department.name,
           }
-          : null,
-          positions: positionDtos,
-          stats: {
-            positionsCount: positionDtos.length,
-            filledPositionsCount: filledCount,
-            unfilledPositionsCount: positionDtos.length - filledCount,
+        : null,
+      positions: positionDtos,
+      stats: {
+        positionsCount: positionDtos.length,
+        filledPositionsCount: filledCount,
+        unfilledPositionsCount: positionDtos.length - filledCount,
       },
     };
 
@@ -101,4 +94,3 @@ export async function GET(
     );
   }
 }
-

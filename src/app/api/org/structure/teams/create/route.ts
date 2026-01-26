@@ -16,7 +16,7 @@ import { createTeam } from "@/server/org/structure/write";
 export async function POST(request: NextRequest) {
   let userId: string | undefined;
   let workspaceId: string | undefined;
-
+  
   try {
     const auth = await getUnifiedAuth(request);
     userId = auth?.user?.userId;
@@ -74,7 +74,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (error?.message?.includes("Invalid") || error?.message?.includes("Department is required")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
       return NextResponse.json(
         { 
           error: error.message,

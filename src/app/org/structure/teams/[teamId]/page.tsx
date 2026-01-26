@@ -14,13 +14,36 @@ import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { TeamPageClient } from "./TeamPageClient";
 import { cn } from "@/lib/utils";
 
+/**
+ * Server-compatible function to resolve back action based on the `from` query parameter.
+ * This is a server-side version of the client-side resolveBackAction function.
+ */
+function resolveBackActionServer(from: string | null): { label: string; href: string } | null {
+  if (!from) return null;
+  
+  const backTargets: Record<string, { label: string; href: string }> = {
+    issues: { label: "Back to Issues", href: "/org/issues" },
+    intelligence: { label: "Back to Intelligence", href: "/org/intelligence" },
+    structure: { label: "Back to Structure", href: "/org/structure" },
+    people: { label: "Back to People", href: "/org/people" },
+    ownership: { label: "Back to Ownership", href: "/org/ownership" },
+  };
+  
+  return backTargets[from] || null;
+}
+
 export default async function TeamPage({
   params,
+  searchParams,
 }: {
   params: { teamId: string };
+  searchParams: Promise<{ from?: string }>;
 }) {
   const team = await getTeamById(params.teamId);
   if (!team) return notFound();
+
+  const resolvedSearchParams = await searchParams;
+  const fromParam = resolvedSearchParams.from || null;
 
   const department = (team as any).department;
   const allDepartments = await getDepartmentsWithTeams();
@@ -33,35 +56,23 @@ export default async function TeamPage({
       name: d.name,
     }));
 
-  // Determine breadcrumb and back link based on department
-  const breadcrumb = department
-    ? `ORG / STRUCTURE / ${department.name.toUpperCase()}`
-    : "ORG / STRUCTURE / UNASSIGNED TEAMS";
+  // Resolve back action based on from param or fallback to structure navigation
+  const resolvedBackAction = fromParam ? resolveBackActionServer(fromParam) : null;
   
-  const backHref = department
-    ? `/org/structure/departments/${department.id}`
-    : "/org/structure#unassigned";
+  // Default back action: back to Structure
+  const defaultBackAction = {
+    label: "Back to Structure",
+    href: "/org/structure",
+  };
+  
+  const backAction = resolvedBackAction || defaultBackAction;
 
   return (
     <div className="space-y-8">
       <OrgPageHeader
-        breadcrumb={breadcrumb}
         title={team.name}
         description="Manage this team's details, ownership, and membership."
-        backLink={
-          <Link
-          href={backHref}
-            className={cn(
-              "inline-flex items-center gap-1.5",
-              "text-[12px] text-slate-500 hover:text-slate-300",
-              "transition-colors duration-150",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-            )}
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-            {department ? `Back to ${department.name}` : "Back to Structure"}
-          </Link>
-        }
+        backAction={backAction}
       />
 
       <TeamPageClient team={team as any} departments={departments} />

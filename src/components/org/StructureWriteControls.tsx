@@ -227,7 +227,7 @@ export function StructureWriteControls({
               </Select>
               <div className="text-xs text-muted-foreground">
                 {departments.length === 0
-                  ? 'Teams can be created without a department. A default "Unassigned" department will be created if needed.'
+                  ? 'Teams can be created without a department. They will appear in the "Unassigned teams" section.'
                   : departments.length === 1
                   ? `Defaulting to "${departments[0].name}". You can change this or select "No department".`
                   : "Select a department or leave as 'No department'."}

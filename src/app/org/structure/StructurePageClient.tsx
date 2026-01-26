@@ -6,9 +6,9 @@
 
 "use client";
 
-import { useState, Suspense, startTransition, useCallback, memo, useMemo, useEffect } from "react";
+import { useState, Suspense, startTransition, useCallback, memo, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { OrgTabNav, type OrgTab } from "@/components/org/OrgTabNav";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { OrgNoAccessState } from "@/components/org/OrgNoAccessState";
@@ -27,7 +27,6 @@ import type {
   StructureRole,
 } from "@/types/org";
 import { TeamsDragList } from "@/components/org/structure/TeamsDragList";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { OrgRole } from "@/lib/org/capabilities";
 import { OrgApi } from "@/components/org/api";
@@ -44,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { IntegrityBanner } from "@/components/org/IntegrityBanner";
+import { Button } from "@/components/ui/button";
 
 const STRUCTURE_TABS: OrgTab[] = [
   { id: "teams", label: "Teams" },
@@ -72,6 +72,7 @@ export function StructurePageClient({
   const router = useRouter();
   // If departmentId is present, default to departments tab
   const tabParam = searchParams.get("tab");
+  const filterParam = searchParams.get("filter"); // Read filter param
   const highlightDepartmentId = searchParams.get("departmentId");
   const initialTab = highlightDepartmentId 
     ? "departments" 
@@ -81,13 +82,25 @@ export function StructurePageClient({
 
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const canManageStructure = canRole(role, "manageStructure");
+  const unassignedSectionRef = useRef<HTMLDivElement | null>(null);
 
   // Sync activeTab when URL params change (e.g., departmentId present should show departments tab)
   useEffect(() => {
     if (highlightDepartmentId && activeTab !== "departments") {
       setActiveTab("departments");
     }
-  }, [highlightDepartmentId, activeTab]);
+    // Also handle filter param - if filter=unassigned and tab=teams, switch to teams tab
+    if (filterParam === "unassigned" && tabParam === "teams" && activeTab !== "teams") {
+      setActiveTab("teams");
+      // Scroll to teams section after tab switch
+      setTimeout(() => {
+        const teamsSection = document.getElementById("teams-tab-section");
+        if (teamsSection) {
+          teamsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 150);
+    }
+  }, [highlightDepartmentId, activeTab, filterParam, tabParam]);
 
   // PERFORMANCE: Use startTransition to keep UI responsive during tab switches
   const handleTabChange = useCallback((tabId: string) => {
@@ -167,16 +180,18 @@ export function StructurePageClient({
       ) : !error ? (
         <>
           {activeTab === "teams" && (
-            <TeamsTab
-              teams={teams}
-              highlightTeamId={highlightTeamId}
-              justCreated={justCreated}
-              canManageStructure={canManageStructure}
-              departmentOptions={departmentOptions}
-              highlightDepartmentId={highlightDepartmentId}
-              people={people}
-              onRefresh={() => router.refresh()}
-            />
+            <div id="teams-tab-section">
+              <TeamsTab
+                teams={teams}
+                highlightTeamId={highlightTeamId}
+                justCreated={justCreated}
+                canManageStructure={canManageStructure}
+                departmentOptions={departmentOptions}
+                highlightDepartmentId={highlightDepartmentId}
+                people={people}
+                onRefresh={() => router.refresh()}
+              />
+            </div>
           )}
 
           {activeTab === "departments" && (
@@ -189,6 +204,8 @@ export function StructurePageClient({
               onReorderTeams={handleReorderTeams}
               topDepartmentsInsights={topDepartmentsInsights}
               people={people}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
             />
           )}
 
@@ -275,7 +292,7 @@ const TeamsTab = memo(function TeamsTab({
   }
 
   return (
-    <section className="rounded-2xl border border-white/5 bg-slate-900/40 p-6 shadow-sm">
+    <section id="teams-tab-content" className="rounded-2xl border border-white/5 bg-slate-900/40 p-6 shadow-sm">
       <div className="flex items-center justify-between gap-3 mb-6">
         <div>
           <h2 className="text-sm font-medium text-slate-100">
@@ -465,6 +482,8 @@ const DepartmentsTab = memo(function DepartmentsTab({
   onReorderTeams,
   topDepartmentsInsights,
   people,
+  activeTab,
+  onTabChange,
 }: {
   departments: StructureDepartment[];
   highlightDepartmentId: string | null;
@@ -474,6 +493,8 @@ const DepartmentsTab = memo(function DepartmentsTab({
   onReorderTeams: (departmentId: string, updates: { id: string; position: number }[]) => Promise<void>;
   topDepartmentsInsights?: Array<{ name: string; headcount: number }> | null;
   people: Array<{ id: string; fullName: string }>;
+  activeTab: string;
+  onTabChange: (tabId: string) => void;
 }) {
   const router = useRouter();
   const [savingOwner, setSavingOwner] = useState<Record<string, boolean>>({});
@@ -508,9 +529,8 @@ const DepartmentsTab = memo(function DepartmentsTab({
   }, [teams, router]);
 
   const handleSetDepartmentOwner = useCallback(async (departmentId: string, ownerPersonId: string | "__none__") => {
-    const key = `dept-${departmentId}`;
-    setSelectedOwnerIds((prev) => ({ ...prev, [key]: ownerPersonId }));
-    setSavingOwner((prev) => ({ ...prev, [key]: true }));
+    setSelectedOwnerIds((prev) => ({ ...prev, [`dept-${departmentId}`]: ownerPersonId }));
+    setSavingOwner((prev) => ({ ...prev, [`dept-${departmentId}`]: true }));
 
     try {
       await OrgApi.setDepartmentOwner(departmentId, {
@@ -520,9 +540,9 @@ const DepartmentsTab = memo(function DepartmentsTab({
     } catch (error: any) {
       console.error("Failed to set department owner:", error);
       const dept = departments.find((d) => d.id === departmentId);
-      setSelectedOwnerIds((prev) => ({ ...prev, [key]: dept?.ownerPersonId ?? "__none__" }));
+      setSelectedOwnerIds((prev) => ({ ...prev, [`dept-${departmentId}`]: dept?.ownerPersonId ?? "__none__" }));
     } finally {
-      setSavingOwner((prev) => ({ ...prev, [key]: false }));
+      setSavingOwner((prev) => ({ ...prev, [`dept-${departmentId}`]: false }));
     }
   }, [departments, router]);
 
@@ -801,13 +821,27 @@ const DepartmentsTab = memo(function DepartmentsTab({
         ) : null;
       })()}
 
-      {/* Unassigned teams section */}
+      {/* 
+       * Unassigned Teams Section — State Visualization Only
+       * 
+       * RULES:
+       * 1. Org Chart must not import:
+       *    - Integrity severity
+       *    - Ownership status
+       *    - Issue metadata
+       * 
+       * 2. Org Chart renders structure only — descriptive, not prescriptive.
+       * 
+       * 3. Unassigned teams are neutral, informational, and non-actionable.
+       * 
+       * 4. No warnings, badges, or error indicators are allowed.
+       */}
       {teamsByDepartment.unassigned.length > 0 && (
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-sm">
-          <div className="p-5 border-b border-white/5">
-            <h3 className="text-lg font-semibold text-slate-50">Unassigned</h3>
-            <div className="text-sm text-slate-400 mt-1">
-              Teams not assigned to a department
+        <div className="rounded-2xl border border-slate-700/50 bg-slate-900/30 shadow-sm">
+          <div className="p-5 border-b border-slate-700/30">
+            <h3 className="text-base font-semibold text-slate-200">Unassigned teams</h3>
+            <div className="text-sm text-slate-500 mt-1">
+              Teams that aren't yet placed in a department.
             </div>
           </div>
           <div className="p-5 pt-4 space-y-2">
@@ -819,50 +853,55 @@ const DepartmentsTab = memo(function DepartmentsTab({
               return (
                 <div
                   key={team.id}
-                  className="rounded-lg border border-white/5 bg-slate-900/40 p-3 hover:border-white/10 transition-colors"
+                  className="rounded-lg border border-slate-700/30 bg-slate-900/20 p-3 hover:border-slate-600/50 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <h4 className="text-sm font-medium text-slate-100">
+                        <h4 className="text-sm font-medium text-slate-200">
                           {team.name}
                         </h4>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-slate-400">
                         <span>{team.memberCount} {team.memberCount === 1 ? "member" : "members"}</span>
-                        <span>•</span>
-                        {canManageStructure ? (
-                          <Select
-                            disabled={isSavingOwner}
-                            value={currentOwnerId}
-                            onValueChange={(v) => handleSetOwner(team.id, v)}
-                          >
-                            <SelectTrigger className={cn(
-                              "border-none bg-transparent p-0 text-xs h-auto",
-                              currentOwnerId === "__none__" ? "text-slate-500 italic" : "text-slate-400",
-                              "hover:text-slate-300 focus:ring-0"
-                            )}>
-                              <SelectValue>
-                                {currentOwnerId === "__none__" ? "No owner" : (ownerPerson?.fullName || "No owner")}
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">No owner</SelectItem>
-                              {people.map((p) => (
-                                <SelectItem key={p.id} value={p.id}>
-                                  {p.fullName}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span>{ownerPerson?.fullName || "No owner"}</span>
+                        {ownerPerson && (
+                          <>
+                            <span>•</span>
+                            <span>Owner: {ownerPerson.fullName}</span>
+                          </>
+                        )}
+                        {canManageStructure && !ownerPerson && (
+                          <>
+                            <span>•</span>
+                            <Select
+                              disabled={isSavingOwner}
+                              value={currentOwnerId}
+                              onValueChange={(v) => handleSetOwner(team.id, v)}
+                            >
+                              <SelectTrigger className={cn(
+                                "border-none bg-transparent p-0 text-xs h-auto text-slate-400",
+                                "hover:text-slate-300 focus:ring-0"
+                              )}>
+                                <SelectValue>
+                                  {currentOwnerId === "__none__" ? "No owner" : (people.find(p => p.id === currentOwnerId)?.fullName || "No owner")}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">No owner</SelectItem>
+                                {people.map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.fullName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </>
                         )}
                       </div>
                     </div>
                     <Link
-                      href={`/org/people?teamId=${team.id}`}
-                      className="text-xs text-blue-400 hover:text-blue-300 hover:underline shrink-0"
+                      href={`/org/structure/teams/${team.id}`}
+                      className="text-xs text-slate-400 hover:text-slate-300 hover:underline shrink-0"
                     >
                       View
                     </Link>
@@ -870,6 +909,83 @@ const DepartmentsTab = memo(function DepartmentsTab({
                 </div>
               );
             })}
+          </div>
+          {/* Optional CTA */}
+          <div className="px-5 pb-5 pt-3 border-t border-slate-700/30">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-slate-500">
+                You can assign teams to departments from the Structure page.
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:920',message:'Manage structure button clicked in DepartmentsTab',data:{currentTab:activeTab,currentUrl:window.location.href,unassignedTeamsCount:teamsByDepartment.unassigned.length,willSwitchTab:activeTab !== 'teams'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                  // #endregion
+                  
+                  // Always switch to Teams tab for consistency
+                  onTabChange("teams");
+                  
+                  // Update URL to teams tab (remove filter param since TeamsTab doesn't use it)
+                  const currentUrl = new URL(window.location.href);
+                  currentUrl.searchParams.set("tab", "teams");
+                  currentUrl.searchParams.delete("filter");
+                  const targetUrl = currentUrl.pathname + (currentUrl.searchParams.toString() ? "?" + currentUrl.searchParams.toString() : "");
+                  
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:927',message:'Before router.push',data:{targetUrl,currentPath:window.location.pathname,currentSearch:window.location.search,willNavigate:targetUrl !== window.location.pathname + window.location.search},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                  // #endregion
+                  
+                  // Always update URL (even if same) to ensure state is consistent, then scroll
+                  router.push(targetUrl);
+                  
+                  // Scroll to teams tab section after tab switch renders
+                  // Use triple RAF + timeout to ensure DOM is fully updated after tab switch
+                  requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                      requestAnimationFrame(() => {
+                        setTimeout(() => {
+                          // Try to find teams section or teams content
+                          const teamsSectionEl = document.getElementById("teams-tab-section") || document.getElementById("teams-tab-content");
+                          
+                          // #region agent log
+                          fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:938',message:'Attempting to scroll to teams section',data:{foundSection:!!teamsSectionEl,windowScrollY:window.scrollY,windowInnerHeight:window.innerHeight},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                          // #endregion
+                          
+                          if (teamsSectionEl) {
+                            const rect = teamsSectionEl.getBoundingClientRect();
+                            // Only scroll if section is not already fully visible at the top
+                            if (rect.top > 150 || rect.bottom < window.innerHeight) {
+                              const scrollOffset = 150;
+                              const scrollY = window.scrollY + rect.top - scrollOffset;
+                              window.scrollTo({ top: Math.max(0, scrollY), behavior: "smooth" });
+                              // #region agent log
+                              fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:946',message:'Scrolled to teams section',data:{scrollY,sectionTop:rect.top,sectionBottom:rect.bottom,windowScrollYBefore:window.scrollY,windowInnerHeight:window.innerHeight},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                              // #endregion
+                            } else {
+                              // Section already visible - just scroll to top of page for visual feedback
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                              // #region agent log
+                              fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:950',message:'Teams section already visible, scrolled to top',data:{sectionTop:rect.top,sectionBottom:rect.bottom},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                              // #endregion
+                            }
+                          } else {
+                            // Fallback: scroll to top of page
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                            // #region agent log
+                            fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:955',message:'Teams section not found, scrolled to top',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                            // #endregion
+                          }
+                        }, 200); // Delay to allow tab switch to render
+                      });
+                    });
+                  });
+                }}
+              >
+                Manage structure
+              </Button>
+            </div>
           </div>
         </div>
       )}

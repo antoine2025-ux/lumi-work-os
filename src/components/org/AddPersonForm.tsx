@@ -69,11 +69,11 @@ export function AddPersonForm() {
 
       // Redirect first, then trigger refresh
       router.push("/org/people");
-
+      
       // Use router.refresh() to force server-side revalidation
       // This ensures the people list is updated with the new person
       router.refresh();
-
+      
       // Also dispatch event as a backup for client-side refetch
       // Delay slightly to ensure navigation has started
       setTimeout(() => {

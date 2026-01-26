@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { getOrgContext } from "@/server/rbac";
@@ -9,7 +9,7 @@ function csvEscape(v: any) {
   return s;
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {

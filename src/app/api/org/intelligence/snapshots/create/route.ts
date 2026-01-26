@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     // Step 4: Create snapshot (computes findings and persists them)
-    const snapshot = await createIntelligenceSnapshot({ source: "on_demand", workspaceId });
+    const snapshot = await createIntelligenceSnapshot({ source: "on_demand" });
 
     // Step 5: Emit Loopbrain context (persist + trigger indexing non-blocking)
     await emitOrgContextObject({

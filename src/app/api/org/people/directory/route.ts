@@ -45,7 +45,7 @@ export async function GET(req: Request) {
           if (!u) return null
           return { personKey: m.id, userId: u.id, name: u.name, email: u.email }
         })
-        .filter((x): x is { personKey: string; userId: string; name: string | null; email: string } => x !== null)
+        .filter((x): x is { personKey: string; userId: string; name: string | null; email: string | null } => x !== null)
     } else {
       // Fallback: users (not workspace scoped). Keep until membership exists.
       const users = await prisma.user.findMany({

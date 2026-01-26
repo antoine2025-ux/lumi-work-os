@@ -9,9 +9,6 @@ import type { OrgHealth } from "@/lib/org/healthTypes";
 export async function GET(req: NextRequest) {
   try {
     const workspaceId = await getCurrentWorkspaceId(req);
-    if (!workspaceId) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 401 });
-    }
 
     // Build Org bundle to get all ContextObjects
     const bundle = await buildOrgLoopbrainContextBundleForWorkspace(workspaceId);

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     setWorkspaceContext(workspaceId);
 
-    const latest = await (prisma as any).orgIntelligenceSnapshot.findFirst({
+    const latest = await prisma.orgIntelligenceSnapshot.findFirst({
       orderBy: { createdAt: "desc" },
       select: { id: true, createdAt: true, findingCount: true },
     });

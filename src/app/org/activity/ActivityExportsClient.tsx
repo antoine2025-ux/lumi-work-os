@@ -74,7 +74,7 @@ export function ActivityExportsClient({
       )}
 
       {activeTab === "exports" && (
-        <ExportsSection orgId={orgId} />
+        <ExportsSection orgId={orgId} role={role} />
       )}
     </div>
   );

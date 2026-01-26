@@ -6,6 +6,8 @@
  * No Prisma imports anywhere in UI.
  */
 
+import type { MutationResponse, OwnershipPatch, EmptyPatch } from "@/lib/org/mutations/types";
+
 export type OrgFlagsDTO = {
   flags: {
     peopleWrite: boolean;
@@ -159,6 +161,60 @@ export type OrgLatestIntelligenceSnapshotDTO = {
   freshness: SnapshotFreshness;
 };
 
+// ============================================================================
+// Phase R: Reasoning/Recommendations Types
+// ============================================================================
+
+export type OrgReasoningRecommendation = {
+  code: string;
+  severity: "info" | "warning" | "critical";
+  category: "ownership" | "people" | "structure" | "capacity";
+  title: string;
+  summary: string;
+  evidence: {
+    issueCodes: string[];
+    entities: Array<{ type: string; id: string; name?: string }>;
+    meta: {
+      count?: number;
+      snapshotMeta: {
+        schemaVersion: number;
+        semanticsVersion: number;
+        assumptionsId: string;
+      };
+    };
+  };
+  actions: Array<{
+    label: string;
+    href: string;
+    surface: string;
+    primary?: boolean;
+  }>;
+  rank: number;
+};
+
+export type OrgReasoningResultDTO = {
+  ok: true;
+  data: {
+    recommendations: OrgReasoningRecommendation[];
+    summaries: {
+      byCategory: Record<string, number>;
+      criticalCount: number;
+      total: number;
+    };
+    _meta: {
+      computedAt: string;
+      reasoningSchemaVersion: number;
+      reasoningSemanticsVersion: number;
+      snapshotApiVersion: string;
+      inputSnapshotMeta: {
+        schemaVersion: number;
+        semanticsVersion: number;
+        assumptionsId: string;
+      };
+    };
+  };
+};
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -180,6 +236,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
         // Try to parse as JSON
         try {
           const body = JSON.parse(text);
+          
           // Extract error message - support both { error: "..." } and { error: { message: "..." } } formats
           const errorMsg = typeof body?.error === 'string' 
             ? body.error 
@@ -232,13 +289,30 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   // Check content-type before parsing JSON (even for 200/201 OK responses)
   const contentType = res.headers.get("content-type");
   
+  // #region agent log
+  if (typeof fetch !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:232',message:'Before parsing JSON response',data:{path,status:res.status,contentType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+  }
+  // #endregion
+  
   // Only read the body once - clone the response if we need to check content-type
   // For 201/200 responses, we expect JSON
   if (contentType?.includes("application/json")) {
     // Response is JSON, parse it
     try {
-      return await res.json() as T;
+      const jsonData = await res.json() as T;
+      // #region agent log
+      if (typeof fetch !== 'undefined') {
+        fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:240',message:'JSON parsed successfully',data:{path,status:res.status,hasData:!!jsonData,dataKeys:jsonData?Object.keys(jsonData as any).slice(0,5):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      }
+      // #endregion
+      return jsonData;
     } catch (parseError) {
+      // #region agent log
+      if (typeof fetch !== 'undefined') {
+        fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:248',message:'JSON parse error',data:{path,status:res.status,error:parseError instanceof Error?parseError.message:String(parseError)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      }
+      // #endregion
       // JSON parse failed - might be empty body or malformed JSON
       // For 201 Created, empty body is sometimes acceptable
       if (res.status === 201) {
@@ -256,6 +330,11 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     }
     const text = await res.text();
     const preview = text.substring(0, 200);
+    // #region agent log
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:260',message:'Non-JSON response received',data:{path,status:res.status,contentType,preview},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    }
+    // #endregion
     throw new Error(`Expected JSON response but got ${contentType || "unknown content type"} from ${path}. Response preview: ${preview}`);
   }
 }
@@ -342,7 +421,7 @@ export const OrgApi = {
     }),
 
   setManager: (personId: string, payload: { managerId: string | null }) =>
-    api<{ id: string; managerId: string | null }>(
+    api<MutationResponse<{ personId: string; managerId: string | null; managerName: string | null }, EmptyPatch>>(
       `/api/org/people/${personId}/manager`,
       { method: "PUT", body: JSON.stringify(payload) }
     ),
@@ -360,7 +439,7 @@ export const OrgApi = {
     ),
 
   setTeam: (personId: string, payload: { teamId: string | null }) =>
-    api<{ id: string; teamId: string | null }>(
+    api<MutationResponse<{ personId: string; teamId: string | null }, EmptyPatch>>(
       `/api/org/people/${personId}/team`,
       { method: "PUT", body: JSON.stringify(payload) }
     ),
@@ -370,7 +449,50 @@ export const OrgApi = {
     entityId: string;
     ownerPersonId: string;
   }) =>
-    api<{ id: string }>("/api/org/ownership/assign", {
+    api<{
+      id: string;
+      affectedIssues: Array<{
+        issueKey: string;
+        issueId: string;
+        type: string;
+        severity: 'error' | 'warning' | 'info';
+        entityType: 'TEAM' | 'DEPARTMENT' | 'PERSON' | 'POSITION';
+        entityId: string;
+        entityName: string;
+        explanation: string;
+        fixUrl: string;
+        fixAction: string;
+      }>;
+      affectedSignals: Array<{
+        issueKey: string;
+        type: string;
+        severity: 'error' | 'warning' | 'info';
+        entityType: 'TEAM' | 'DEPARTMENT' | 'PERSON' | 'POSITION';
+        entityId: string;
+        entityName: string;
+        explanation: string;
+        fixUrl: string;
+        fixAction: string;
+      }>;
+      updatedCoverage: {
+        coverage: {
+          teams: { total: number; owned: number; unowned: number };
+          departments: { total: number; owned: number; unowned: number };
+        };
+        unowned: Array<{
+          entityType: "TEAM" | "DEPARTMENT";
+          entityId: string;
+          name: string;
+        }>;
+        assignments: Array<{
+          id: string;
+          entityType: "TEAM" | "DEPARTMENT";
+          entityId: string;
+          owner: { id: string; fullName: string };
+        }>;
+      };
+      issuesVersion: number;
+    }>("/api/org/ownership/assign", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
@@ -389,13 +511,13 @@ export const OrgApi = {
     }),
 
   setTeamOwner: (teamId: string, payload: { ownerPersonId: string | null }) =>
-    api<{ id: string; ownerPersonId: string | null }>(`/api/org/structure/teams/${teamId}/owner`, {
+    api<MutationResponse<{ id: string; ownerPersonId: string | null }, OwnershipPatch>>(`/api/org/structure/teams/${teamId}/owner`, {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
 
   setDepartmentOwner: (departmentId: string, payload: { ownerPersonId: string | null }) =>
-    api<{ id: string; ownerPersonId: string | null }>(`/api/org/structure/departments/${departmentId}/owner`, {
+    api<MutationResponse<{ id: string; ownerPersonId: string | null }, OwnershipPatch>>(`/api/org/structure/departments/${departmentId}/owner`, {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
@@ -486,6 +608,15 @@ export const OrgApi = {
       snapshot: null | { id: string; createdAt: string };
       recommendations: OrgRecommendation[];
     }>("/api/org/intelligence/recommendations/latest"),
+
+  /**
+   * Phase R: Get AI-driven recommendations for org health improvements.
+   * Pure derivation from Phase S snapshot signals.
+   */
+  getReasoning: (options?: { limit?: number }) =>
+    api<OrgReasoningResultDTO>(
+      `/api/org/reasoning${options?.limit !== undefined ? `?limit=${options.limit}` : ""}`
+    ),
 
   getIntelligenceFilterPrefs: () =>
     api<{ key: string; value: OrgIntelligenceFilterPrefs | null }>(

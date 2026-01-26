@@ -18,16 +18,15 @@ export async function POST(req: Request) {
 
     if (!cleaned.length) return NextResponse.json({ ok: true })
 
-    // Note: taxonomy models require prisma generate to be recognized in types
     if (kind === "ROLE") {
-      await (prisma as any).orgRoleTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId, label })), skipDuplicates: true })
+      await prisma.orgRoleTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId, label })) as any, skipDuplicates: true } as any)
       revalidateTag("org:taxonomy")
       revalidateTag("org:contracts")
       return NextResponse.json({ ok: true })
     }
 
     if (kind === "SKILL") {
-      await (prisma as any).orgSkillTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId, label })), skipDuplicates: true })
+      await prisma.orgSkillTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId, label })) as any, skipDuplicates: true } as any)
       revalidateTag("org:taxonomy")
       revalidateTag("org:contracts")
       return NextResponse.json({ ok: true })

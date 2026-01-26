@@ -15,7 +15,7 @@ import { buildRecommendations } from "@/server/org/intelligence/recommendations/
 export async function GET(request: NextRequest) {
   let userId: string | undefined;
   let workspaceId: string | undefined;
-
+  
   try {
     // Step 1: Get unified auth (includes workspaceId)
     const auth = await getUnifiedAuth(request);
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     // Step 4: Get latest snapshot
-    const latest = await (prisma as any).orgIntelligenceSnapshot.findFirst({
+    const latest = await prisma.orgIntelligenceSnapshot.findFirst({
       orderBy: { createdAt: "desc" },
       select: { id: true, createdAt: true, findingsJson: true },
     });

@@ -72,8 +72,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Step 6: Fetch workspace members for employment status
-    // Note: employmentStatus field requires prisma generate to be recognized in types
-    const members = await (prisma.workspaceMember.findMany as Function)({
+    const members = await prisma.workspaceMember.findMany({
       where: {
         workspaceId,
       },
@@ -84,12 +83,11 @@ export async function GET(request: NextRequest) {
     });
 
     const employmentMap = new Map(
-      (members as unknown as { userId: string; employmentStatus: EmploymentStatus }[]).map((m) => [m.userId, m.employmentStatus])
+      members.map((m) => [m.userId, m.employmentStatus as EmploymentStatus])
     );
 
     // Step 7: Fetch all availability windows
-    // Note: personAvailability model requires prisma generate to be recognized in types
-    const allWindows = await ((prisma as any).personAvailability.findMany({
+    const allWindows = await prisma.personAvailability.findMany({
       where: {
         workspaceId,
       },
@@ -103,16 +101,7 @@ export async function GET(request: NextRequest) {
         expectedReturnDate: true,
         note: true,
       },
-    }) as Promise<{
-      personId: string;
-      type: string;
-      startDate: Date;
-      endDate: Date | null;
-      fraction: number | null;
-      reason: string | null;
-      expectedReturnDate: Date | null;
-      note: string | null;
-    }[]>);
+    });
 
     // Group windows by personId
     const windowsByPerson = new Map<string, AvailabilityWindow[]>();

@@ -14,7 +14,6 @@ export default function OrgIssuesPage() {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / ISSUES"
         title="Issues"
         description="Review and manage structural issues in your organization."
       />

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { getUnifiedAuth } from "@/lib/unified-auth";
 
 type RouteParams = {
   params: Promise<{
@@ -90,6 +91,190 @@ export async function GET(
     console.error("Error loading department detail:", error);
     return NextResponse.json(
       { ok: false, error: "Failed to load department" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT /api/org/departments/[id]
+ * Update department (all fields editable: name, owner, description)
+ */
+export async function PUT(
+  req: NextRequest,
+  { params }: RouteParams
+) {
+  try {
+    const workspaceId = await getCurrentWorkspaceId(req);
+    const { id } = await params;
+    const body = await req.json();
+
+    // Verify department exists
+    const existing = await prisma.orgDepartment.findFirst({
+      where: { id, workspaceId },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { ok: false, error: "Department not found" },
+        { status: 404 }
+      );
+    }
+
+    // Update department (all fields editable)
+    const updated = await prisma.orgDepartment.update({
+      where: { id },
+      data: {
+        name: body.name?.trim() || existing.name,
+        description: body.description?.trim() || null,
+        ownerPersonId: body.ownerPersonId || null,
+      },
+    });
+
+    return NextResponse.json({ ok: true, department: updated });
+  } catch (error) {
+    console.error("Error updating department:", error);
+    return NextResponse.json(
+      { ok: false, error: "Failed to update department" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/org/departments/[id]
+ * Archive department (default action - soft-delete)
+ * Optionally hard-delete if hard=true and no references exist
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: RouteParams
+) {
+  try {
+    const workspaceId = await getCurrentWorkspaceId(req);
+    const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const hardDelete = searchParams.get("hard") === "true";
+
+    // Verify department exists
+    const department = await prisma.orgDepartment.findFirst({
+      where: { id, workspaceId },
+      include: {
+        teams: {
+          where: { isActive: true },
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    if (!department) {
+      return NextResponse.json(
+        { ok: false, error: "Department not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check for teams in department (warn, offer to move)
+    if (department.teams.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Cannot archive department with active teams",
+          teams: department.teams.map((t) => ({ id: t.id, name: t.name })),
+        },
+        { status: 400 }
+      );
+    }
+
+    // Get actor user ID for audit logging
+    const auth = await getUnifiedAuth(req);
+    const actorUserId = auth?.user?.userId || "system";
+
+    if (hardDelete) {
+      // Hard delete (admin-only): check audit logs and resolved issues
+      const hasAuditLogs = await prisma.orgAuditLog.count({
+        where: {
+          workspaceId,
+          entityType: "DEPARTMENT",
+          entityId: id,
+        },
+      });
+
+      // Check for resolved issues referencing this department
+      const hasResolvedIssues = await prisma.orgIssueResolution.count({
+        where: {
+          workspaceId,
+          entityType: "DEPARTMENT",
+          entityId: id,
+        },
+      });
+
+      if (hasAuditLogs > 0 || hasResolvedIssues > 0) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Cannot hard-delete: department referenced in audit logs or resolved issues. Use archive instead.",
+            auditLogCount: hasAuditLogs,
+            resolvedIssuesCount: hasResolvedIssues,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Log audit event before deletion (only critical fields: departmentId - set to null on delete)
+      const { logOrgMutation } = await import("@/server/org/audit/write");
+      await logOrgMutation({
+        workspaceId,
+        actorUserId,
+        action: "DEPARTMENT_DELETED",
+        entityType: "DEPARTMENT",
+        entityId: id,
+        before: { departmentId: id }, // Department existed
+        after: { departmentId: null }, // Department deleted
+      });
+
+      // Hard delete
+      await prisma.orgDepartment.delete({
+        where: { id },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        message: "Department permanently deleted",
+      });
+    } else {
+      // Archive (default action - soft-delete)
+      // Log audit event (only critical fields: departmentId - unchanged, just archived)
+      const { logOrgMutation } = await import("@/server/org/audit/write");
+      await logOrgMutation({
+        workspaceId,
+        actorUserId,
+        action: "DEPARTMENT_ARCHIVED",
+        entityType: "DEPARTMENT",
+        entityId: id,
+        before: { departmentId: id }, // Department active
+        after: { departmentId: id }, // Department archived (still exists, just inactive)
+      });
+
+      const archived = await prisma.orgDepartment.update({
+        where: { id },
+        data: {
+          isActive: false,
+          // Note: archivedAt will be added via migration later
+          // For now, we use isActive: false
+        },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        message: "Department archived",
+        department: archived,
+      });
+    }
+  } catch (error) {
+    console.error("Error deleting department:", error);
+    return NextResponse.json(
+      { ok: false, error: "Failed to delete department" },
       { status: 500 }
     );
   }

@@ -103,7 +103,7 @@ export async function PATCH(
       updateData.employmentEndDate = employmentEndDate;
     }
 
-    const updated = await (prisma as any).workspaceMember.update({
+    const updated = await prisma.workspaceMember.update({
       where: {
         workspaceId_userId: {
           workspaceId,

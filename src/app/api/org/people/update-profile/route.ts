@@ -22,22 +22,22 @@ export async function POST(req: Request) {
     const personId = String(body.id ?? "")
     if (!personId) return NextResponse.json({ error: "id required" }, { status: 400 })
 
-    await (prisma as any).person.update({
-      where: { id: personId },
+    await prisma.person.update({
+      where: { id: personId } as any,
       data: {
         ...(body.name ? { name: String(body.name) } : {}),
         ...(body.title !== undefined ? { title: body.title ? String(body.title) : null } : {}),
-      },
-    })
+      } as any,
+    } as any)
 
     if (body.availability) {
       const status = String(body.availability.status ?? "AVAILABLE").toUpperCase()
       const reason = body.availability.reason ? String(body.availability.reason) : null
-      await (prisma as any).personAvailabilityHealth.upsert({
-        where: { orgId_personId: { orgId, personId } },
-        update: { status, reason },
-        create: { orgId, personId, status, reason },
-      })
+      await prisma.personAvailabilityHealth.upsert({
+        where: { orgId_personId: { orgId, personId } } as any,
+        update: { status, reason } as any,
+        create: { orgId, personId, status, reason } as any,
+      } as any)
     }
 
     // Skills overwrite (v0)
@@ -46,18 +46,18 @@ export async function POST(req: Request) {
       
       // Upsert skills into taxonomy
       if (cleaned.length) {
-        await (prisma as any).orgSkillTaxonomy.createMany({
-          data: cleaned.map((label) => ({ orgId, label })),
+        await prisma.orgSkillTaxonomy.createMany({
+          data: cleaned.map((label) => ({ orgId, label })) as any,
           skipDuplicates: true,
-        })
+        } as any)
       }
       
-      await (prisma as any).personSkill.deleteMany({ where: { orgId, personId } })
+      await prisma.personSkill.deleteMany({ where: { orgId, personId } as any })
       if (cleaned.length) {
-        await (prisma as any).personSkill.createMany({
-          data: cleaned.map((skill) => ({ orgId, personId, skill })),
+        await prisma.personSkill.createMany({
+          data: cleaned.map((skill) => ({ orgId, personId, skill })) as any,
           skipDuplicates: true,
-        })
+        } as any)
       }
     }
 
@@ -70,18 +70,18 @@ export async function POST(req: Request) {
 
       // Upsert roles into taxonomy
       if (cleaned.length) {
-        await (prisma as any).orgRoleTaxonomy.createMany({
-          data: cleaned.map((r) => ({ orgId, label: r.role })),
+        await prisma.orgRoleTaxonomy.createMany({
+          data: cleaned.map((r) => ({ orgId, label: r.role })) as any,
           skipDuplicates: true,
-        })
+        } as any)
       }
 
-      await (prisma as any).personRoleAssignment.deleteMany({ where: { orgId, personId } })
+      await prisma.personRoleAssignment.deleteMany({ where: { orgId, personId } as any })
       if (cleaned.length) {
-        await (prisma as any).personRoleAssignment.createMany({
-          data: cleaned.map((r) => ({ orgId, personId, role: r.role, percent: Math.round(r.percent) })),
+        await prisma.personRoleAssignment.createMany({
+          data: cleaned.map((r) => ({ orgId, personId, role: r.role, percent: Math.round(r.percent) })) as any,
           skipDuplicates: true,
-        })
+        } as any)
       }
     }
 

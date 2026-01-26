@@ -16,12 +16,6 @@ export async function POST(req: NextRequest) {
     }
 
     const workspaceId = await getCurrentWorkspaceId(req);
-    if (!workspaceId) {
-      return NextResponse.json(
-        { ok: false, error: "Workspace not found" },
-        { status: 401 }
-      );
-    }
 
     const roles = await getRolesForPerson(workspaceId, personContextId);
 

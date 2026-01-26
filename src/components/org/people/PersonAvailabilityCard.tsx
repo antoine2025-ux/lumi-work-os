@@ -23,6 +23,7 @@ import { AvailabilityWindowsEditor } from "./AvailabilityWindowsEditor";
 type PersonAvailabilityCardProps = {
   personId: string;
   canEdit?: boolean;
+  onAvailabilityChanged?: () => void; // Callback to notify parent of availability changes
 };
 
 function EmploymentStatusBadge({ status }: { status: string }) {
@@ -117,7 +118,7 @@ const QUICK_SET_CONFIG: Record<QuickSetType, { type: "AVAILABLE" | "PARTIAL" | "
   unavailable: { type: "UNAVAILABLE", fraction: 0 },
 };
 
-export function PersonAvailabilityCard({ personId, canEdit = false }: PersonAvailabilityCardProps) {
+export function PersonAvailabilityCard({ personId, canEdit = false, onAvailabilityChanged }: PersonAvailabilityCardProps) {
   const { toast } = useToast();
   const [refreshKey, setRefreshKey] = useState(0);
   const [editEmploymentOpen, setEditEmploymentOpen] = useState(false);
@@ -136,6 +137,8 @@ export function PersonAvailabilityCard({ personId, canEdit = false }: PersonAvai
 
   const handleRefresh = () => {
     setRefreshKey((k) => k + 1);
+    // Notify parent component to refetch person data (for badge update)
+    onAvailabilityChanged?.();
   };
 
   /**

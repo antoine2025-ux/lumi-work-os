@@ -49,7 +49,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         id: role.id,
         name: role.name,
         description: role.description,
-        responsibilities: role.responsibilities.map((r: { id: string; scope: string; target: string }) => ({
+        responsibilities: role.responsibilities.map((r) => ({
           id: r.id,
           scope: r.scope,
           target: r.target,
@@ -147,7 +147,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         id: role.id,
         name: role.name,
         description: role.description,
-        responsibilities: role.responsibilities.map((r: { id: string; scope: string; target: string }) => ({
+        responsibilities: role.responsibilities.map((r) => ({
           id: r.id,
           scope: r.scope,
           target: r.target,

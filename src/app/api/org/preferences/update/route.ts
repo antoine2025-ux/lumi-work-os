@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const preferences = body.preferences ?? {};
 
-    await (prisma as any).workspaceMember.updateMany({
+    await prisma.workspaceMember.updateMany({
       where: { workspaceId: context.orgId, userId: context.userId },
       data: { preferences },
     });

@@ -51,7 +51,6 @@ export default async function DepartmentDrillInPage(props: { params: { departmen
     departmentId: team.departmentId,
     departmentName: null,
     leadName: null,
-    ownerPersonId: null,
     memberCount: 0, // Will be 0 until membership mapping exists
   }))
 

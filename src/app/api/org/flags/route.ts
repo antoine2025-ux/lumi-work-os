@@ -14,7 +14,7 @@ import { isOrgFlagEnabled } from "@/server/org/flags";
 export async function GET(request: NextRequest) {
   let userId: string | undefined;
   let workspaceId: string | undefined;
-
+  
   try {
     // Step 1: Get unified auth (includes workspaceId)
     const auth = await getUnifiedAuth(request);
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       reportingWrite: isOrgFlagEnabled("org.reporting.write"),
       availabilityWrite: isOrgFlagEnabled("org.availability.write"),
     };
-
+    
     return NextResponse.json(
       { flags },
       { status: 200 }

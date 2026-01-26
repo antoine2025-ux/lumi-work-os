@@ -73,7 +73,7 @@ export function OrgHealthCard(props: {
         {items.map((it) => {
           const tone = scoreTone(it.score)
           return (
-            <div key={String(it.key)} className="rounded-2xl border p-4">
+            <div key={it.key} className="rounded-2xl border p-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-medium">{it.label}</div>
                 <div className="text-sm text-muted-foreground">{it.score === null ? "—" : `${it.score}/100`}</div>

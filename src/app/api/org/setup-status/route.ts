@@ -7,7 +7,7 @@ import { getOrgSetupStatus } from "@/server/org/setup/status"
 export async function GET(request: NextRequest) {
   let userId: string | undefined
   let workspaceId: string | undefined
-
+  
   try {
     // Step 1: Get unified auth (includes workspaceId)
     const auth = await getUnifiedAuth(request)
@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
       items,
       ready: !setupData.setupIncomplete,
     }
+    
     return NextResponse.json({ ok: true, status })
   } catch (error: any) {
     console.error("[GET /api/org/setup-status] Error:", error)

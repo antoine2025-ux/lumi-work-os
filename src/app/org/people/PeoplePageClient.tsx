@@ -562,7 +562,6 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
       }
     >
       <OrgPageHeader
-        breadcrumb="ORG / PEOPLE"
         title={
           <div className="flex items-center gap-2">
             <span>People</span>
@@ -581,7 +580,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
               canManagePeople={canManagePeople}
               onInvite={() => {
                 // TODO: Implement invite flow
-                window.location.href = "/org/settings?tab=members";
+                window.location.href = "/org/workspace-settings?tab=members";
               }}
               onAssignTeam={() => setBulkAssignModal({ type: "team", isOpen: true })}
               onAssignDepartment={() => setBulkAssignModal({ type: "department", isOpen: true })}
@@ -746,7 +745,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
                         {hasAnyPeopleFilter(filters) || deferredSearch.trim() ? (
                           <PeopleEmptyState
                             hasFilters={true}
-                            onClearFilters={handleClearAllFilters}
+                            onClearFilters={handleClearAll}
                             onResetSearch={handleResetSearch}
                           />
                         ) : (
@@ -793,7 +792,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
                         {hasAnyPeopleFilter(filters) || deferredSearch.trim() ? (
                           <PeopleEmptyState
                             hasFilters={true}
-                            onClearFilters={handleClearAllFilters}
+                            onClearFilters={handleClearAll}
                             onResetSearch={handleResetSearch}
                           />
                         ) : (

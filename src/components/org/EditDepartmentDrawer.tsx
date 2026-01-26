@@ -48,7 +48,6 @@ export function EditDepartmentDrawer(props: {
   const { open, onOpenChange, department, people, onSaved } = props;
   
   const teamCount = department.teamCount ?? 0;
-  const isUnassigned = department.name?.trim().toLowerCase() === "unassigned";
 
   const [name, setName] = React.useState(department.name);
   const [ownerId, setOwnerId] = React.useState<string>(department.ownerId ?? "none");
@@ -146,11 +145,7 @@ export function EditDepartmentDrawer(props: {
               Deleting a department is permanent. Teams must be moved or deleted first.
             </div>
 
-            {isUnassigned ? (
-              <div className="mt-3 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/70">
-                "Unassigned" is a system bucket and can't be deleted.
-              </div>
-            ) : teamCount > 0 ? (
+            {teamCount > 0 ? (
               <div className="mt-3 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/70">
                 This department has {teamCount} team{teamCount === 1 ? "" : "s"}. Move or delete teams first.
                 <div className="mt-3">

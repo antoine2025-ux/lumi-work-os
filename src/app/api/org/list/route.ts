@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/server/auth";
 
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ ok: false, error: "Unauthenticated" }, { status: 401 });
 
-  const memberships = await (prisma as any).orgMembership.findMany({
+  const memberships = await prisma.orgMembership.findMany({
     where: { userId: user.id },
     select: {
       role: true,
@@ -15,7 +15,7 @@ export async function GET() {
     orderBy: { createdAt: "asc" },
   });
 
-  const orgs = memberships.map((m: any) => ({
+  const orgs = memberships.map((m) => ({
     id: m.org.id,
     name: m.org.name,
     role: m.role,

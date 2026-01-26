@@ -58,7 +58,6 @@ export function DepartmentRowsCard(props: {
         {departments.map((d, idx) => {
           const teams = d.teams ?? [];
           const isEmpty = teams.length === 0;
-          const isUnassigned = d.name?.toLowerCase() === "unassigned";
           const missingOwner = !d.ownerPerson;
 
           return (
@@ -84,11 +83,6 @@ export function DepartmentRowsCard(props: {
                     {isEmpty && (
                       <Badge variant="secondary" className="rounded-full text-[11px]">
                         Empty
-                      </Badge>
-                    )}
-                    {isUnassigned && (
-                      <Badge variant="secondary" className="rounded-full text-[11px]">
-                        Unassigned
                       </Badge>
                     )}
                   </div>

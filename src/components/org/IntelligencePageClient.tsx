@@ -115,7 +115,7 @@ export function IntelligencePageClient() {
       setGenerating(false);
     }
   }
-  
+
   // Extract data early (before early returns) to ensure hooks are called consistently
   const snapshot = latestQ.data?.snapshot;
   const freshness = latestQ.data?.freshness;
@@ -364,8 +364,8 @@ export function IntelligencePageClient() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {listQ.data.snapshots.slice(0, 10).map((snap, idx, arr) => {
-                const prev = idx < arr.length - 1 ? arr[idx + 1] : null;
+              {listQ.data.snapshots.slice(0, 10).map((snap, idx) => {
+                const prev = idx < listQ.data.snapshots.length - 1 ? listQ.data.snapshots[idx + 1] : null;
                 const delta = computeRollupDelta(snap.rollups, prev?.rollups || null);
                 const deltaHigh = delta.bySeverity.HIGH || 0;
                 const deltaTotal = delta.totalFindings;

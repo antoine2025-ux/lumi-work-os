@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { getOrgContext } from "@/server/rbac";
@@ -7,7 +7,7 @@ function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ viewId: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ viewId: string }> }) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {
@@ -36,11 +36,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ v
 
     const resolvedParams = await params;
 
-    // Note: orgSavedView model requires prisma generate to be recognized in types
-    const existing = await (prisma as any).orgSavedView.findUnique({
+    const existing = await prisma.orgSavedView.findUnique({
       where: { id: resolvedParams.viewId },
       select: { id: true, workspaceId: true },
-    }) as { id: string; workspaceId: string } | null;
+    });
 
     if (!existing) {
       return NextResponse.json({ ok: false, error: { code: "NOT_FOUND", message: "View not found" } }, { status: 404 });
@@ -49,7 +48,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ v
       return badRequest("View does not belong to workspace");
     }
 
-    await (prisma as any).orgSavedView.delete({ where: { id: resolvedParams.viewId } });
+    await prisma.orgSavedView.delete({ where: { id: resolvedParams.viewId } });
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     console.error("Error deleting saved view:", error);

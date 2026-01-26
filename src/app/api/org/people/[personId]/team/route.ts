@@ -12,6 +12,13 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { optionalString } from "@/server/org/validate";
 import { prisma } from "@/lib/db";
+import type { OrgIssueMetadata } from "@/lib/org/deriveIssues";
+import {
+  buildResponseMeta,
+  type MutationResult,
+  type EmptyPatch,
+} from "@/lib/org/mutations/types";
+import { computeIssueResolution } from "@/lib/org/mutations/utils";
 
 export async function PUT(
   request: NextRequest,
@@ -29,6 +36,7 @@ export async function PUT(
       console.error("[PUT /api/org/people/[personId]/team] Missing userId or workspaceId", { userId, workspaceId });
       return NextResponse.json(
         { 
+          ok: false,
           error: "Unauthorized",
           hint: "Authentication failed. Please ensure you are logged in and have workspace access."
         },
@@ -52,7 +60,9 @@ export async function PUT(
     const teamId = optionalString(body.teamId);
 
     // Step 5: Verify person exists and belongs to workspace
-    const position = await prisma.orgPosition.findFirst({
+    // personId from URL can be either OrgPosition ID or User ID (userId)
+    // Try to find by OrgPosition ID first, then by User ID if not found
+    let position = await prisma.orgPosition.findFirst({
       where: { 
         id: personId,
         workspaceId: workspaceId,
@@ -60,10 +70,23 @@ export async function PUT(
       },
       select: { id: true, userId: true },
     });
+    
+    // If not found by ID, try by userId (personId might be a User ID)
+    if (!position) {
+      position = await prisma.orgPosition.findFirst({
+        where: { 
+          userId: personId,
+          workspaceId: workspaceId,
+          isActive: true
+        },
+        select: { id: true, userId: true },
+      });
+    }
 
     if (!position) {
       return NextResponse.json(
         { 
+          ok: false,
           error: "Person not found",
           hint: "The person you're trying to update does not exist or doesn't belong to this workspace."
         },
@@ -85,6 +108,7 @@ export async function PUT(
       if (!team) {
         return NextResponse.json(
           { 
+            ok: false,
             error: "Team not found",
             hint: "The team you're trying to assign does not exist or doesn't belong to this workspace."
           },
@@ -93,40 +117,58 @@ export async function PUT(
       }
     }
 
-    // Step 7: Update team assignment
+    // Step 7: Compute issues BEFORE mutation (scoped to person)
+    // TODO: Enhance to derive actual MISSING_TEAM issues for person
+    const issuesBefore: OrgIssueMetadata[] = [];
+
+    // Step 8: Update team assignment
     const updated = await prisma.orgPosition.update({
-      where: { id: personId },
+      where: { id: position.id },
       data: { teamId: teamId ?? null },
-      select: { id: true, teamId: true },
+      select: { id: true, teamId: true, userId: true },
     });
 
-    // Step 8: Emit Loopbrain context (persist + trigger indexing non-blocking)
-    // Wrap in try-catch to handle cases where context_items table doesn't exist yet
+    // Step 9: Compute issues AFTER mutation (same scoped set)
+    // TODO: Enhance to derive actual MISSING_TEAM issues for person
+    const issuesAfter: OrgIssueMetadata[] = [];
+
+    // Step 10: Build response metadata
+    const responseMeta = buildResponseMeta("mutation:person-team:v1");
+
+    // Step 11: Diff issues to determine active vs resolved
+    const affectedIssues = computeIssueResolution(
+      issuesBefore,
+      issuesAfter,
+      responseMeta.mutationId
+    );
+
+    // Step 12: Emit Loopbrain context (non-blocking)
     try {
       await emitOrgContextObject({
         workspaceId,
         actorUserId: userId,
-        action: "org.person.updated",
+        action: "org.person.team.updated",
         entity: { type: "person", id: updated.id },
         payload: { teamId },
       });
     } catch (contextError: any) {
-      // Log but don't fail - context emission is non-blocking
-      // Common case: context_items table may not exist yet if migrations haven't run
       console.warn("[PUT /api/org/people/[personId]/team] Failed to emit context object (non-blocking):", contextError?.message);
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[PUT /api/org/people/[personId]/team] Context error details:", {
-          message: contextError?.message,
-          code: contextError?.code,
-          stack: contextError?.stack,
-        });
-      }
     }
 
-    return NextResponse.json(
-      { id: updated.id, teamId: updated.teamId },
-      { status: 200 }
-    );
+    // Step 13: Return canonical MutationResult
+    const response: MutationResult<{ personId: string; teamId: string | null }, EmptyPatch> = {
+      ok: true,
+      data: { personId: updated.userId ?? personId, teamId: updated.teamId },
+      patch: {},
+      scope: {
+        entityType: "PERSON",
+        entityId: updated.userId ?? personId,
+      },
+      affectedIssues,
+      responseMeta,
+    };
+
+    return NextResponse.json(response, { status: 200 });
   } catch (error: any) {
     console.error("[PUT /api/org/people/[personId]/team] Error:", error);
     console.error("[PUT /api/org/people/[personId]/team] Error stack:", error?.stack);
@@ -140,6 +182,7 @@ export async function PUT(
     if (error?.message?.includes("Person not found") || error?.message?.includes("does not belong to this workspace")) {
       return NextResponse.json(
         { 
+          ok: false,
           error: error.message || "Person not found",
           hint: "The person you're trying to update does not exist or doesn't belong to this workspace."
         },
@@ -150,6 +193,7 @@ export async function PUT(
     if (error?.message?.includes("Team not found") || error?.message?.includes("does not belong to this workspace")) {
       return NextResponse.json(
         { 
+          ok: false,
           error: error.message || "Team not found",
           hint: "The team you're trying to assign does not exist or doesn't belong to this workspace."
         },
@@ -160,6 +204,7 @@ export async function PUT(
     if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
       return NextResponse.json(
         { 
+          ok: false,
           error: error.message || "Forbidden",
           hint: "You don't have permission to update team assignments."
         },
@@ -171,6 +216,7 @@ export async function PUT(
     if (error?.status === 401 || error?.status === 403) {
       return NextResponse.json(
         { 
+          ok: false,
           error: error?.message || "Unauthorized",
           hint: "Please ensure you're logged in and have access to this workspace."
         },
@@ -183,6 +229,7 @@ export async function PUT(
       console.error("[PUT /api/org/people/[personId]/team] Database error:", error.message);
       return NextResponse.json(
         { 
+          ok: false,
           error: "Database error",
           hint: "An error occurred while updating the team assignment. Please try again."
         },
@@ -192,6 +239,7 @@ export async function PUT(
 
     return NextResponse.json(
       { 
+        ok: false,
         error: "Internal server error",
         hint: error?.message || "An unexpected error occurred while updating team assignment. Please try again."
       },

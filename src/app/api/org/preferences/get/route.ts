@@ -6,7 +6,7 @@ export async function GET() {
   const context = await getOrgPermissionContext();
   if (!context) return NextResponse.json({ preferences: {} });
 
-  const membership = await (prisma as any).workspaceMember.findFirst({
+  const membership = await prisma.workspaceMember.findFirst({
     where: { workspaceId: context.orgId, userId: context.userId },
     select: { preferences: true },
   });

@@ -47,7 +47,7 @@ type DepartmentRowData = {
  * Normalize department data for OrgDepartmentRow component
  */
 function normalizeOrgForOrgChart(
-  departments: NonNullable<OrgChartClientProps["chartData"]>["departments"],
+  departments: OrgChartClientProps["chartData"]["departments"],
   baseIndex: number = 0
 ): DepartmentRowData[] {
   if (!departments) return [];
@@ -86,7 +86,7 @@ export function OrgChartClient({ orgId, chartData, validation }: OrgChartClientP
 
   // Normalize department data into view model
   const departments = useMemo<DepartmentRowData[]>(
-    () => normalizeOrgForOrgChart(chartData?.departments ?? []),
+    () => normalizeOrgForOrgChart(chartData?.departments ?? null),
     [chartData]
   );
 

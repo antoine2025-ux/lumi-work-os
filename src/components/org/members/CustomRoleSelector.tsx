@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOrgPermissions } from "@/components/org/OrgPermissionsContext";
-import { canClient } from "@/lib/org/permissions.client";
 import { PermissionHint } from "@/components/org/permissions/PermissionHint";
 
 type CustomRoleOption = {
@@ -24,7 +23,7 @@ export function CustomRoleSelector({
 }: Props) {
   const router = useRouter();
   const perms = useOrgPermissions();
-  const canChangeRoles = canClient(perms, "org:member:role.change");
+  const canChangeRoles = perms?.capabilities?.["org:member:role.change"] === true;
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

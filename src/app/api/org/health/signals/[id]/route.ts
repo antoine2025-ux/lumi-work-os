@@ -20,7 +20,7 @@ export async function PATCH(
     }
 
     // Ensure org scoping: only update signals belonging to active org
-    const existing = await (prisma as any).orgHealthSignal.findFirst({
+    const existing = await prisma.orgHealthSignal.findFirst({
       where: { id, orgId },
       select: { id: true },
     })
@@ -31,7 +31,7 @@ export async function PATCH(
 
     const now = new Date()
 
-    await (prisma as any).orgHealthSignal.update({
+    await prisma.orgHealthSignal.update({
       where: { id },
       data:
         action === "resolve"

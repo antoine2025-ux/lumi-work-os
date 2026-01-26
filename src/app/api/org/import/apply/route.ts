@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       const uniq = new Map<string, any>()
       for (const x of prepared) uniq.set(`${x.personId}::${x.managerId}`, x)
 
-      await (prisma as any).personManagerLink.createMany({
+      await prisma.personManagerLink.createMany({
         data: Array.from(uniq.values()),
         skipDuplicates: true as any,
       })
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
       // Upsert using unique constraint (batched for scale)
       const ops = Array.from(uniq.values()).map((x) =>
-        (prisma as any).personRoleAssignment.upsert({
+        prisma.personRoleAssignment.upsert({
           where: { orgId_personId_role: { orgId, personId: x.personId, role: x.role } } as any,
           update: { percent: x.percent } as any,
           create: x as any,
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
 
       // Upsert using unique constraint (batched for scale)
       const ops = Array.from(uniqPeople.values()).map((x) =>
-        (prisma as any).personAvailability.upsert({
+        prisma.personAvailability.upsert({
           where: { orgId_personId: { orgId, personId: x.personId } } as any,
           update: { status: x.status as any, reason: x.reason || null } as any,
           create: { orgId, personId: x.personId, status: x.status as any, reason: x.reason || null } as any,
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
 
       // Upsert using unique constraint (batched for scale)
       const ops = Array.from(uniqPeople.values()).map((x) =>
-        (prisma as any).personCapacity.upsert({
+        prisma.personCapacity.upsert({
           where: { orgId_personId: { orgId, personId: x.personId } } as any,
           update: { fte: x.fte, shrinkagePct: x.shrinkagePct } as any,
           create: x as any,

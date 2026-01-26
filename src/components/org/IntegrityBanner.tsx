@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -83,36 +83,44 @@ export function IntegrityBanner() {
             <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <button 
-                  onClick={handleViewAll}
-                  className="text-sm font-semibold text-amber-100 hover:text-amber-50 transition-colors underline-offset-2 hover:underline"
-                >
-                  Fix required: {data.totalIssues} {data.totalIssues === 1 ? "issue" : "issues"} found
-                </button>
+                <span className="text-sm font-semibold text-amber-100">
+                  Fix required: {data.totalIssues} structural {data.totalIssues === 1 ? "issue needs" : "issues need"} attention
+                </span>
                 {errorCount > 0 && (
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-300 border border-red-500/30">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-300 border border-red-500/30 opacity-70">
                     {errorCount} error{errorCount !== 1 ? "s" : ""}
                   </span>
                 )}
                 {warningCount > 0 && (
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30 opacity-70">
                     {warningCount} warning{warningCount !== 1 ? "s" : ""}
                   </span>
                 )}
               </div>
               <p className="text-xs text-amber-200/80">
-                Some data is incomplete or has integrity issues. Fix these to ensure accurate reporting and Loopbrain indexing.
+                Resolve these to keep org structure accurate and intelligence reliable.
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-amber-200 hover:text-amber-100 hover:bg-amber-500/10 shrink-0"
-          >
-            {isExpanded ? <X className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Primary CTA - navigates to issues inbox (no expand/collapse) */}
+            <Button
+              size="sm"
+              onClick={handleViewAll}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-900"
+            >
+              Review issues
+            </Button>
+            {/* Secondary control - toggles inline preview (no navigation) */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-amber-200 hover:text-amber-100 hover:bg-amber-500/10"
+            >
+              {isExpanded ? <X className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
 
         {isExpanded && (

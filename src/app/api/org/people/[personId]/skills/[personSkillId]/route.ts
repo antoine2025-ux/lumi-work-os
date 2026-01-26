@@ -42,7 +42,8 @@ export async function PATCH(
     setWorkspaceContext(workspaceId);
 
     // Step 4: Get the user ID from position
-    const position = await prisma.orgPosition.findFirst({
+    // Handle both OrgPosition ID and User ID (personId might be either)
+    let position = await prisma.orgPosition.findFirst({
       where: {
         id: personId,
         workspaceId,
@@ -53,12 +54,26 @@ export async function PATCH(
       },
     });
 
+    // If not found by ID, personId might be a User ID - try to find by userId
+    if (!position) {
+      position = await prisma.orgPosition.findFirst({
+        where: {
+          userId: personId,
+          workspaceId,
+          isActive: true,
+        },
+        select: {
+          userId: true,
+        },
+      });
+    }
+
     if (!position || !position.userId) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
 
     // Step 5: Verify person skill exists and belongs to this person
-    const existing = await (prisma as any).personSkill.findFirst({
+    const existing = await prisma.personSkill.findFirst({
       where: {
         id: personSkillId,
         workspaceId,
@@ -116,7 +131,7 @@ export async function PATCH(
     }
 
     // Step 7: Update person skill
-    const updated = await (prisma as any).personSkill.update({
+    const updated = await prisma.personSkill.update({
       where: { id: personSkillId },
       data: updateData,
       include: {
@@ -179,7 +194,8 @@ export async function DELETE(
     setWorkspaceContext(workspaceId);
 
     // Step 4: Get the user ID from position
-    const position = await prisma.orgPosition.findFirst({
+    // Handle both OrgPosition ID and User ID (personId might be either)
+    let position = await prisma.orgPosition.findFirst({
       where: {
         id: personId,
         workspaceId,
@@ -190,12 +206,26 @@ export async function DELETE(
       },
     });
 
+    // If not found by ID, personId might be a User ID - try to find by userId
+    if (!position) {
+      position = await prisma.orgPosition.findFirst({
+        where: {
+          userId: personId,
+          workspaceId,
+          isActive: true,
+        },
+        select: {
+          userId: true,
+        },
+      });
+    }
+
     if (!position || !position.userId) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
 
     // Step 5: Verify person skill exists and belongs to this person
-    const existing = await (prisma as any).personSkill.findFirst({
+    const existing = await prisma.personSkill.findFirst({
       where: {
         id: personSkillId,
         workspaceId,
@@ -208,7 +238,7 @@ export async function DELETE(
     }
 
     // Step 6: Delete person skill
-    await (prisma as any).personSkill.delete({
+    await prisma.personSkill.delete({
       where: { id: personSkillId },
     });
 

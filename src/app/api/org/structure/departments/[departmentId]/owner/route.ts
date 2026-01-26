@@ -12,6 +12,14 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { optionalString } from "@/server/org/validate";
 import { prisma } from "@/lib/db";
+import { deriveOwnershipIssuesForEntity } from "@/lib/org/deriveIssues";
+import { getOrgOwnership } from "@/server/org/ownership/read";
+import {
+  buildResponseMeta,
+  type OwnershipPatch,
+  type MutationResult,
+} from "@/lib/org/mutations/types";
+import { computeIssueResolution } from "@/lib/org/mutations/utils";
 
 export async function PUT(request: NextRequest, ctx: { params: Promise<{ departmentId: string }> }) {
   try {
@@ -24,6 +32,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
       console.error("[PUT /api/org/structure/departments/[departmentId]/owner] Missing userId or workspaceId", { userId, workspaceId });
       return NextResponse.json(
         { 
+          ok: false,
           error: "Unauthorized",
           hint: "Authentication failed. Please ensure you are logged in and have workspace access."
         },
@@ -55,6 +64,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
     if (!department) {
       return NextResponse.json(
         { 
+          ok: false,
           error: "Department not found or does not belong to this workspace",
           hint: "The department you're trying to update does not exist or you don't have access to it."
         },
@@ -92,6 +102,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
         if (!userPosition) {
           return NextResponse.json(
             { 
+              ok: false,
               error: "Person not found or does not belong to this workspace",
               hint: "The person you're trying to assign as owner does not exist or doesn't belong to this workspace."
             },
@@ -101,27 +112,37 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
       }
     }
 
-    // Step 7: Update or create OwnerAssignment for department
+    // Step 7: Compute issues BEFORE mutation
+    const issuesBefore = await deriveOwnershipIssuesForEntity(workspaceId, "DEPARTMENT", departmentId);
+
+    // Step 8: Update or create OwnerAssignment for department
     // Use raw SQL to avoid enum type issues
     if (userIdToAssign) {
       // Upsert: delete existing and create new (ensures only one owner)
       try {
         await prisma.$transaction(async (tx) => {
           // Delete existing owner assignment for this department (raw SQL)
-          await tx.$executeRawUnsafe(
+          // Note: Column names must be quoted for camelCase in PostgreSQL
+          // Note: entityType is an enum, must cast to text for comparison
+          const deleteResult = await tx.$executeRawUnsafe(
             `DELETE FROM owner_assignments
-             WHERE workspace_id = $1::text
-               AND entity_type = $2::text
-               AND entity_id = $3::text`,
+             WHERE "workspaceId" = $1::text
+               AND "entityType"::text = $2::text
+               AND "entityId" = $3::text`,
             workspaceId,
             'DEPARTMENT',
             departmentId
-          ).catch(() => {}); // Ignore if table doesn't exist
+          ).catch((e: Error) => { 
+            console.warn("[setDepartmentOwner] Delete failed:", e?.message);
+            return -1; 
+          });
 
-          // Create new owner assignment (raw SQL with text type for entity_type)
-          await tx.$executeRawUnsafe(
-            `INSERT INTO owner_assignments (id, workspace_id, entity_type, entity_id, entity_label, owner_person_id, is_primary, created_at, updated_at)
-             VALUES (gen_random_uuid()::text, $1::text, $2::text, $3::text, $4::text, $5::text, true, NOW(), NOW())`,
+          // Create new owner assignment (raw SQL)
+          // Note: Column names must be quoted for camelCase in PostgreSQL
+          // Note: entityType must be cast to the OwnedEntityType enum
+          const insertResult = await tx.$executeRawUnsafe(
+            `INSERT INTO owner_assignments (id, "workspaceId", "entityType", "entityId", "entityLabel", "ownerPersonId", "isPrimary", "createdAt", "updatedAt")
+             VALUES (gen_random_uuid()::text, $1::text, $2::"OwnedEntityType", $3::text, $4::text, $5::text, true, NOW(), NOW())`,
             workspaceId,
             'DEPARTMENT',
             departmentId,
@@ -136,12 +157,14 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
       }
     } else {
       // Remove owner: delete existing assignment (raw SQL)
+      // Note: Column names must be quoted for camelCase in PostgreSQL
+      // Note: entityType is an enum, must cast to text for comparison
       try {
         await prisma.$executeRawUnsafe(
           `DELETE FROM owner_assignments
-           WHERE workspace_id = $1::text
-             AND entity_type = $2::text
-             AND entity_id = $3::text`,
+           WHERE "workspaceId" = $1::text
+             AND "entityType"::text = $2::text
+             AND "entityId" = $3::text`,
           workspaceId,
           'DEPARTMENT',
           departmentId
@@ -152,7 +175,23 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
       }
     }
 
-    // Step 8: Emit Loopbrain context (non-blocking)
+    // Step 9: Compute issues AFTER mutation
+    const issuesAfter = await deriveOwnershipIssuesForEntity(workspaceId, "DEPARTMENT", departmentId);
+
+    // Step 10: Build response metadata
+    const responseMeta = buildResponseMeta("mutation:department-owner:v1");
+
+    // Step 11: Diff issues to determine active vs resolved
+    const affectedIssues = computeIssueResolution(
+      issuesBefore,
+      issuesAfter,
+      responseMeta.mutationId
+    );
+
+    // Step 12: Get updated ownership coverage
+    const ownershipData = await getOrgOwnership(workspaceId);
+
+    // Step 13: Emit Loopbrain context (non-blocking)
     try {
       await emitOrgContextObject({
         workspaceId,
@@ -165,13 +204,30 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
       console.warn("[PUT /api/org/structure/departments/[departmentId]/owner] Failed to emit context object (non-blocking):", contextError?.message);
     }
 
-    return NextResponse.json({ id: departmentId, ownerPersonId: userIdToAssign }, { status: 200 });
+    // Step 14: Return canonical MutationResult
+    const response: MutationResult<{ id: string; ownerPersonId: string | null }, OwnershipPatch> = {
+      ok: true,
+      data: { id: departmentId, ownerPersonId: userIdToAssign },
+      patch: {
+        patchVersion: 1,
+        updatedCoverage: ownershipData.coverage,
+      },
+      scope: {
+        entityType: "DEPARTMENT",
+        entityId: departmentId,
+      },
+      affectedIssues,
+      responseMeta,
+    };
+
+    return NextResponse.json(response, { status: 200 });
   } catch (error: any) {
     console.error("[PUT /api/org/structure/departments/[departmentId]/owner] Error:", error);
 
     if (error?.message?.includes("Department not found") || error?.message?.includes("does not belong to this workspace")) {
       return NextResponse.json(
         { 
+          ok: false,
           error: error.message,
           hint: "The department you're trying to update does not exist or you don't have access to it."
         },
@@ -182,6 +238,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
     if (error?.message?.includes("Person not found") || error?.message?.includes("does not belong to this workspace")) {
       return NextResponse.json(
         { 
+          ok: false,
           error: error.message,
           hint: "The person you're trying to assign as owner does not exist or doesn't belong to this workspace."
         },
@@ -192,6 +249,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
     if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
       return NextResponse.json(
         { 
+          ok: false,
           error: error.message || "Forbidden",
           hint: "You don't have permission to update department ownership."
         },
@@ -202,6 +260,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
     if (error?.status === 401 || error?.status === 403) {
       return NextResponse.json(
         { 
+          ok: false,
           error: error?.message || "Unauthorized",
           hint: "Please ensure you're logged in and have access to this workspace."
         },
@@ -211,6 +270,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
 
     return NextResponse.json(
       { 
+        ok: false,
         error: "Internal server error",
         hint: error?.message || "An unexpected error occurred while updating department owner. Please try again."
       },

@@ -24,7 +24,7 @@ export function OrgLayoutClient({ children, beta = false, showHeader = true }: O
   const pathname = usePathname();
   
   return (
-    <div className="flex min-h-screen flex-col bg-[#020617]" data-testid="new-org-layout">
+    <div className="flex min-h-screen flex-col bg-[#020617]">
       {/* Global Loopwell header: logo + blue pill tabs + avatar */}
       {/* Only render if showHeader is true (default) - skip when nested in dashboard layout */}
       {showHeader && <Header />}

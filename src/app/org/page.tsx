@@ -21,6 +21,7 @@ import { NextStepCard } from "@/components/org/NextStepCard";
 import { OrgIntelligenceOverview } from "@/components/org/OrgIntelligenceOverview";
 import { OrgSectionBoundary } from "@/components/org/OrgSectionBoundary";
 import { IntegrityBanner } from "@/components/org/IntegrityBanner";
+import { RecommendationsOverview } from "@/components/org/recommendations";
 
 export default async function OrgOverviewPage() {
   try {
@@ -33,7 +34,6 @@ export default async function OrgOverviewPage() {
       return (
         <>
           <OrgPageHeader
-            breadcrumb="ORG / OVERVIEW"
             title="Overview"
             description="See a high-level view of your organization's people, teams, and structure."
           />
@@ -53,7 +53,6 @@ export default async function OrgOverviewPage() {
       <>
         <OrgPageViewTracker route="/org" name="Org Overview" />
         <OrgPageHeader
-          breadcrumb="ORG / ORG OVERVIEW"
           title="Org overview"
           description="See a high-level view of your organization's people, teams, and structure."
         />
@@ -64,6 +63,9 @@ export default async function OrgOverviewPage() {
           </OrgSectionBoundary>
           <OrgSectionBoundary title="Overview">
             <OverviewSummaryCards />
+          </OrgSectionBoundary>
+          <OrgSectionBoundary title="Recommendations">
+            <RecommendationsOverview />
           </OrgSectionBoundary>
           <OrgSectionBoundary title="Intelligence">
             <OrgIntelligenceOverview />
@@ -78,7 +80,6 @@ export default async function OrgOverviewPage() {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / ORG OVERVIEW"
           title="Org overview"
           description="See a high-level view of your organization's people, teams, and structure."
         />

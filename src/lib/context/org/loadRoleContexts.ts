@@ -44,6 +44,7 @@ export async function loadRoleContexts(
       budget: true,
       reportingStructure: true,
       teamId: true,
+      departmentId: true,
       parentId: true,
       children: {
         select: {
@@ -78,6 +79,14 @@ export async function loadRoleContexts(
     )
   );
 
+  const departmentIds = Array.from(
+    new Set(
+      positions
+        .map((p) => p.departmentId)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
   const userIds = Array.from(
     new Set(
       positions
@@ -107,15 +116,6 @@ export async function loadRoleContexts(
   for (const t of teams) {
     teamById.set(t.id, t);
   }
-
-  // Extract departmentIds from teams (positions don't have departmentId directly)
-  const departmentIds = Array.from(
-    new Set(
-      teams
-        .map((t) => t.departmentId)
-        .filter((id): id is string => Boolean(id))
-    )
-  );
 
   // 3) Load departments
   const departments = departmentIds.length
@@ -189,8 +189,10 @@ export async function loadRoleContexts(
   for (const pos of positions) {
     const team = pos.teamId ? teamById.get(pos.teamId) ?? null : null;
 
-    // Get departmentId through team (positions don't have departmentId directly)
-    const departmentId = team?.departmentId ?? null;
+    const departmentIdFromPos = pos.departmentId ?? null;
+    const departmentIdFromTeam = team?.departmentId ?? null;
+
+    const departmentId = departmentIdFromPos ?? departmentIdFromTeam;
 
     const department =
       departmentId ? departmentById.get(departmentId) ?? null : null;
@@ -264,7 +266,7 @@ export async function loadRoleContexts(
     const input: RoleContextInput = {
       workspaceId: pos.workspaceId,
       roleId: pos.id,
-      title: pos.title || 'Untitled Role',
+      title: pos.title,
       level: pos.level ?? null,
       description: pos.roleDescription ?? null,
       isActive: true,

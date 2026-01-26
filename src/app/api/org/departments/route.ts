@@ -6,14 +6,6 @@ import {
   mapPermissionErrorToStatus,
 } from "@/lib/org/permissions.server";
 import { logOrgAudit } from "@/lib/orgAudit";
-import { logger } from "@/lib/logger"
-import { buildLogContextFromRequest } from "@/lib/request-context"
-
-// Helper to hash workspaceId for logging (privacy/correlation protection)
-function hashWorkspaceId(workspaceId: string | null): string | undefined {
-  if (!workspaceId) return undefined
-  return workspaceId.slice(-6)
-}
 
 type CreateDepartmentBody = {
   name: string;
@@ -25,7 +17,6 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as CreateDepartmentBody;
     const name = body.name?.trim();
 
-    const dbStartTime = performance.now()
     if (!name) {
       return NextResponse.json(
         {
@@ -136,4 +127,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

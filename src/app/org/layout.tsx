@@ -22,7 +22,7 @@ import { OrgCenterDisabled } from "@/components/org/OrgCenterDisabled";
 import { OrgAnnouncementBanner } from "@/components/org/OrgAnnouncementBanner";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/server/authOptions";
+import { authOptions } from "@/lib/auth";
 
 type OrgLayoutProps = {
   children: ReactNode;
@@ -112,7 +112,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
             </div>
           );
         }
-
+        
         // User is signed in but has no workspace - show create workspace message
         // User is signed in but has no org membership (no workspace found)
         return (
