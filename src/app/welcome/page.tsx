@@ -206,10 +206,18 @@ export default function OnboardingPage() {
           window.location.href = '/home'
         }, remainingTime)
       } else {
-        console.error('[welcome] Failed to create workspace:', data)
+        console.error('[welcome] Failed to create workspace:', JSON.stringify(data, null, 2))
         console.error('[welcome] Response status:', response.status)
         console.error('[welcome] Response headers:', Object.fromEntries(response.headers.entries()))
         setIsCreatingWorkspace(false)
+        
+        // Handle "already has workspace" case - redirect to home
+        if (data?.existingWorkspaceId) {
+          console.log('[welcome] User already has workspace, redirecting to home...')
+          window.location.href = '/home'
+          return
+        }
+        
         const errorMessage = data?.error || data?.details || data?.message || JSON.stringify(data) || 'Unknown error'
         alert(`Failed to create workspace: ${errorMessage}`)
       }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
+import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,58 +21,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Email mismatch' }, { status: 403 })
     }
 
-    // Use direct SQL to check for workspace (bypasses Prisma)
-    const { execSync } = await import('child_process')
-    
     try {
-      // Escape email for SQL
-      const escapedEmail = checkEmail.replace(/'/g, "''")
+      // Find user by email
+      const user = await prisma.user.findUnique({
+        where: { email: checkEmail },
+        select: { id: true }
+      })
       
-      // Get user ID - use proper quoting with -A flag to avoid pipe delimiter issues
-      const userQuery = `SELECT id FROM users WHERE email = '${escapedEmail}';`
-      const userResult = execSync(
-        `docker compose exec -T postgres psql -U lumi_user -d lumi_work_os -t -A -c ${JSON.stringify(userQuery)}`,
-        { encoding: 'utf-8', cwd: process.cwd(), maxBuffer: 1024 * 1024 }
-      ).trim()
-      
-      if (!userResult || userResult.includes('ERROR')) {
-        console.log('[check-workspace-by-email] No user found or error:', userResult)
+      if (!user) {
+        console.log('[check-workspace-by-email] No user found for email:', checkEmail)
         return NextResponse.json({ workspaceId: null, hasWorkspace: false })
       }
       
-      // With -A flag, result is just the value, no pipe delimiter
-      const userId = userResult.trim()
-      if (!userId) {
-        return NextResponse.json({ workspaceId: null, hasWorkspace: false })
+      // Check for workspace membership
+      const membership = await prisma.workspaceMember.findFirst({
+        where: { userId: user.id },
+        select: { workspaceId: true }
+      })
+      
+      if (membership?.workspaceId) {
+        return NextResponse.json({ 
+          workspaceId: membership.workspaceId,
+          hasWorkspace: true,
+          userId: user.id 
+        })
       }
       
-      // Check for workspace membership - escape userId and use proper SQL quoting
-      const escapedUserId = userId.replace(/'/g, "''")
-      // Use a here-document style approach to avoid shell quoting issues
-      const membershipQuery = `SELECT "workspaceId" FROM workspace_members WHERE "userId" = '${escapedUserId}' LIMIT 1;`
-      const membershipResult = execSync(
-        `docker compose exec -T postgres psql -U lumi_user -d lumi_work_os -t -A -c ${JSON.stringify(membershipQuery)}`,
-        { encoding: 'utf-8', cwd: process.cwd(), maxBuffer: 1024 * 1024 }
-      ).trim()
-      
-      if (membershipResult && !membershipResult.includes('ERROR')) {
-        const workspaceId = membershipResult.trim()
-        if (workspaceId) {
-          return NextResponse.json({ 
-            workspaceId,
-            hasWorkspace: true,
-            userId 
-          })
-        }
-      }
-      
-      return NextResponse.json({ workspaceId: null, hasWorkspace: false, userId })
-    } catch (sqlError: any) {
-      console.error('[check-workspace-by-email] SQL error:', sqlError.message)
-      console.error('[check-workspace-by-email] Error stack:', sqlError.stack)
+      return NextResponse.json({ workspaceId: null, hasWorkspace: false, userId: user.id })
+    } catch (dbError: any) {
+      console.error('[check-workspace-by-email] Database error:', dbError.message)
+      console.error('[check-workspace-by-email] Error stack:', dbError.stack)
       return NextResponse.json({ 
         error: 'Database query failed',
-        details: sqlError.message 
+        details: dbError.message 
       }, { status: 500 })
     }
   } catch (error) {
