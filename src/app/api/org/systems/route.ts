@@ -5,13 +5,12 @@ import { requireActiveOrgId } from "@/server/org/context"
 export async function GET(req: NextRequest) {
   try {
     const orgId = await requireActiveOrgId(req)
-    // Note: systemEntity model requires prisma generate to be recognized in types
-    const systems = await (prisma as any).systemEntity.findMany({
+    const systems = await prisma.systemEntity.findMany({
       where: { orgId },
-      select: { id: true, name: true, description: true, createdAt: true },
+      select: { id: true, name: true, description: true, createdAt: true } as any,
       take: 5000,
-      orderBy: { createdAt: "desc" },
-    }) as { id: string; name: string; description: string | null; createdAt: Date }[]
+      orderBy: { createdAt: "desc" } as any,
+    })
     return NextResponse.json({ systems })
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -25,10 +24,10 @@ export async function POST(req: NextRequest) {
     const name = String(body?.name ?? "").trim()
     if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 })
 
-    const created = await (prisma as any).systemEntity.create({
+    const created = await prisma.systemEntity.create({
       data: { orgId, name, description: body?.description ?? null },
-      select: { id: true },
-    }) as { id: string }
+      select: { id: true } as any,
+    })
     return NextResponse.json({ ok: true, id: created.id })
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -44,12 +43,12 @@ export async function PATCH(req: NextRequest) {
 
     const name = body?.name ? String(body.name).trim() : undefined
 
-    await (prisma as any).systemEntity.update({
-      where: { id },
+    await prisma.systemEntity.update({
+      where: { id } as any,
       data: {
         ...(name ? { name } : {}),
         ...(body?.description !== undefined ? { description: body.description } : {}),
-      },
+      } as any,
     })
 
     return NextResponse.json({ ok: true })

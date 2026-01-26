@@ -171,7 +171,7 @@ export function PeopleDirectory() {
             return (
               <Link
                 key={p.personKey}
-                href={`/org/people/${encodeURIComponent(p.personKey)}`}
+                href={`/org/people/${encodeURIComponent(p.personKey)}?from=people`}
                 className="block rounded-3xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] transition-colors hover:bg-white/[0.05]"
               >
                 <div className="flex items-center gap-4">

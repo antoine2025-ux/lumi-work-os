@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { getOrgContext, requireAdmin } from "@/server/rbac";
 
 export async function GET(req: NextRequest) {
@@ -12,21 +12,21 @@ export async function GET(req: NextRequest) {
   const days = Math.max(1, Math.min(90, Number(searchParams.get("days") || "14")));
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-  const runs = await (prisma as any).orgSuggestionRun.findMany({
+  const runs = await prisma.orgSuggestionRun.findMany({
     where: { orgId: ctx.orgId, scope: "people_issues", createdAt: { gte: since } },
     select: { id: true, createdAt: true, engineId: true },
   });
 
-  const feedback = await (prisma as any).loopBrainFeedback.findMany({
+  const feedback = await prisma.loopBrainFeedback.findMany({
     where: { orgId: ctx.orgId, scope: "people_issues", createdAt: { gte: since } },
     select: { accepted: true, partiallyApplied: true, createdAt: true, suggestionRunId: true },
   });
 
   const runCount = runs.length;
   const feedbackCount = feedback.length;
-  const acceptedCount = feedback.filter((f: any) => f.accepted === true).length;
-  const rejectedCount = feedback.filter((f: any) => f.accepted === false).length;
-  const partialCount = feedback.filter((f: any) => f.partiallyApplied === true).length;
+  const acceptedCount = feedback.filter((f) => f.accepted === true).length;
+  const rejectedCount = feedback.filter((f) => f.accepted === false).length;
+  const partialCount = feedback.filter((f) => f.partiallyApplied === true).length;
 
   // Simple per-engine breakdown
   const byEngine = new Map<string, { runs: number; accepted: number; rejected: number; partial: number }>();
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 
   for (const f of feedback) {
-    const run = runs.find((r: any) => r.id === f.suggestionRunId);
+    const run = runs.find((r) => r.id === f.suggestionRunId);
     const k = run?.engineId || "unknown";
     const cur = byEngine.get(k) || { runs: 0, accepted: 0, rejected: 0, partial: 0 };
     if (f.accepted === true) cur.accepted += 1;
@@ -49,13 +49,13 @@ export async function GET(req: NextRequest) {
   }
 
   // Fetch outcomes for impact metrics
-  const outcomes = await (prisma as any).loopBrainOutcome.findMany({
+  const outcomes = await prisma.loopBrainOutcome.findMany({
     where: { orgId: ctx.orgId, scope: "people_issues", measuredAt: { gte: since } },
     orderBy: { measuredAt: "desc" },
     take: 100,
   });
 
-  const improvedCount = outcomes.filter((o: any) => o.improved).length;
+  const improvedCount = outcomes.filter((o) => o.improved).length;
   const latestOutcome = outcomes[0] || null;
 
   return NextResponse.json({

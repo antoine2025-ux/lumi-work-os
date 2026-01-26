@@ -132,7 +132,7 @@ export function PeopleListClient() {
       hasData,
       rawData: peopleQ.data,
       peopleCount: people.length,
-      extractedPeople: people.slice(0, 2).map((p: typeof people[number]) => ({ id: p.id, name: p.name })),
+      extractedPeople: people.slice(0, 2).map(p => ({ id: p.id, name: p.name })),
       willShowEmpty: hasData && people.length === 0 && !q.trim(),
       willShowList: hasData && people.length > 0,
     });
@@ -142,7 +142,7 @@ export function PeopleListClient() {
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return people;
-    return people.filter((p: typeof people[number]) => {
+    return people.filter((p) => {
       const displayName = getDisplayName({
         fullName: (p as any).fullName || p.name,
         name: p.name,
@@ -360,7 +360,7 @@ export function PeopleListClient() {
           </div>
         ) : (
           <div className="divide-y divide-white/5">
-            {filtered.map((person: typeof filtered[number]) => {
+            {filtered.map((person) => {
               // Get display badges (team label and issue label)
               const badges = getPersonDisplayBadges({
                 team: person.team,

@@ -4,20 +4,6 @@ import { requireActiveOrgId } from "@/server/org/context";
 import { getLatestOrgHealth } from "@/server/org/health/store";
 import { refreshOrgHealth } from "@/server/org/health/refresh";
 
-type HealthSignal = {
-  id: string;
-  type: string;
-  severity: string;
-  title: string;
-  description: string | null;
-  createdAt: Date;
-  resolvedAt: Date | null;
-  contextType: string | null;
-  contextId: string | null;
-  contextLabel: string | null;
-  href: string | null;
-};
-
 export async function GET(req: NextRequest) {
   try {
     const orgId = await requireActiveOrgId(req);
@@ -33,7 +19,7 @@ export async function GET(req: NextRequest) {
           dataQualityScore: latest.snapshot.dataQualityScore ?? undefined,
           capturedAt: latest.snapshot.capturedAt.toISOString(),
         },
-        signals: latest.signals.map((s: HealthSignal) => ({
+        signals: latest.signals.map((s) => ({
           id: s.id,
           type: s.type,
           severity: s.severity,
@@ -49,22 +35,21 @@ export async function GET(req: NextRequest) {
       });
     }
 
-  // No snapshot yet: compute + store first snapshot
-  const computed = await refreshOrgHealth(orgId);
-  return NextResponse.json({
-    snapshot: {
-      ...computed.snapshot,
-      capturedAt: computed.snapshot.capturedAt.toISOString(),
-    },
-    signals: computed.signals.map((s) => ({
-      id: `sig_${s.type}_${s.severity}`,
-      ...s,
-      createdAt: new Date().toISOString(),
-      resolvedAt: null,
-    })),
-  });
-
-} catch {
+    // No snapshot yet: compute + store first snapshot
+    const computed = await refreshOrgHealth(orgId);
+    return NextResponse.json({
+      snapshot: {
+        ...computed.snapshot,
+        capturedAt: computed.snapshot.capturedAt.toISOString(),
+      },
+      signals: computed.signals.map((s) => ({
+        id: `sig_${s.type}_${s.severity}`,
+        ...s,
+        createdAt: new Date().toISOString(),
+        resolvedAt: null,
+      })),
+    });
+  } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 }

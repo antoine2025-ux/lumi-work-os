@@ -23,6 +23,7 @@ const STUB_QUESTIONS: OrgQaQuestionWithStatus[] = [
     label: "Does every person have at least one role?",
     type: "person",
     status: "stub",
+    category: "coverage",
     description: "Checks if all people have responsibilities assigned.",
   },
   {
@@ -30,6 +31,7 @@ const STUB_QUESTIONS: OrgQaQuestionWithStatus[] = [
     label: "Which teams have unclear ownership?",
     type: "team",
     status: "stub",
+    category: "ownership",
     description: "Detects teams without clear accountability.",
   },
   {
@@ -37,6 +39,7 @@ const STUB_QUESTIONS: OrgQaQuestionWithStatus[] = [
     label: "Which departments are overloaded?",
     type: "department",
     status: "stub",
+    category: "workload",
     description: "Highlights structural imbalance in departments.",
   },
   {
@@ -44,6 +47,7 @@ const STUB_QUESTIONS: OrgQaQuestionWithStatus[] = [
     label: "What are the biggest org hotspots right now?",
     type: "org",
     status: "stub",
+    category: "hotspots",
     description: "Identifies company-wide risk areas.",
   },
 ];

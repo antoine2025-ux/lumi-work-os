@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { getOrgContext, requireEdit } from "@/server/rbac";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { revalidateTag } from "next/cache";
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (!actions.length) return NextResponse.json({ ok: false, error: "actions required" }, { status: 400 });
 
   // Capture baseline health snapshot before applying changes
-  const beforeSnapshot = await (prisma as any).orgHealthSnapshot.findFirst({
+  const beforeSnapshot = await prisma.orgHealthSnapshot.findFirst({
     where: { orgId: ctx.orgId },
     orderBy: { createdAt: "desc" },
   });
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       if (a.patch.managerId !== undefined) {
         // Find the manager position to get parentId
         if (a.patch.managerId) {
-          const managerPos = await (tx as any).orgPosition.findFirst({
+          const managerPos = await tx.orgPosition.findFirst({
             where: {
               workspaceId,
               userId: a.patch.managerId,
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await (tx as any).auditLogEntry.create({
+    await tx.auditLogEntry.create({
       data: {
         orgId: ctx.orgId,
         actorUserId: ctx.user?.id ?? null,
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
 
   // Record feedback implicitly as "accepted" if suggestionRunId provided
   if (body.suggestionRunId) {
-    await (prisma as any).loopBrainFeedback.create({
+    await prisma.loopBrainFeedback.create({
       data: {
         orgId: ctx.orgId,
         scope: "people_issues",
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     // Measure outcomes: create new health snapshot and compare
     const afterSnapshot = await measureOrgHealth(ctx.orgId);
 
-    await (prisma as any).loopBrainOutcome.create({
+    await prisma.loopBrainOutcome.create({
       data: {
         orgId: ctx.orgId,
         scope: "people_issues",

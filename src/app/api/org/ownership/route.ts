@@ -40,8 +40,9 @@ export async function GET(request: NextRequest) {
     // Step 3: Set workspace context (enables automatic Prisma scoping)
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Query Prisma (scoped automatically)
-    const data = await getOrgOwnership();
+    // Step 4: Query ownership data using canonical resolver
+    // SECURITY: workspaceId from auth only
+    const data = await getOrgOwnership(workspaceId);
 
     return NextResponse.json(data, { status: 200 });
   } catch (error: any) {

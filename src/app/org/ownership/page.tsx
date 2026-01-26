@@ -26,11 +26,10 @@ export default async function OwnershipPage() {
       return (
         <>
           <OrgPageHeader
-            breadcrumb="ORG / OWNERSHIP"
             title="Ownership"
-            description="Ownership shows whether every team and domain has a clear accountable owner."
+            description="Ensure every team and department has a clear accountable owner."
           />
-          <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6">
+          <div className="mx-auto w-full max-w-6xl px-10 pb-10">
             <div className="rounded-2xl border border-yellow-900/60 bg-yellow-950/60 px-6 py-6 text-[13px] text-yellow-100">
               <div className="font-semibold">No active organization</div>
               <div className="mt-2 text-yellow-200">
@@ -48,7 +47,7 @@ export default async function OwnershipPage() {
         <OrgPageHeader
           breadcrumb="ORG / OWNERSHIP"
           title="Ownership"
-          description="Ownership shows whether every team and domain has a clear accountable owner."
+          description="Ensure every team and department has a clear accountable owner."
         />
         <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6">
           <OwnershipClient />
@@ -67,7 +66,7 @@ export default async function OwnershipPage() {
         <OrgPageHeader
           breadcrumb="ORG / OWNERSHIP"
           title="Ownership"
-          description="Ownership shows whether every team and domain has a clear accountable owner."
+          description="Ensure every team and department has a clear accountable owner."
         />
         <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6">
           <div className="rounded-2xl border border-red-900/60 bg-red-950/60 px-6 py-6 text-[13px] text-red-100">

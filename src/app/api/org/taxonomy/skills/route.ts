@@ -14,15 +14,14 @@ export async function GET(req: Request) {
     const q = String(url.searchParams.get("q") ?? "").trim()
     const take = Math.max(1, Math.min(20, Number(url.searchParams.get("take") ?? 10)))
 
-    // Note: orgSkillTaxonomy model requires prisma generate to be recognized in types
-    const rows = await (prisma as any).orgSkillTaxonomy.findMany({
-      where: { orgId, ...(q ? { label: { contains: q, mode: "insensitive" } } : {}) },
-      select: { label: true },
-      orderBy: { label: "asc" },
+    const rows = await prisma.orgSkillTaxonomy.findMany({
+      where: { orgId, ...(q ? { label: { contains: q, mode: "insensitive" } as any } : {}) } as any,
+      select: { label: true } as any,
+      orderBy: { label: "asc" } as any,
       take,
-    }) as { label: string }[]
+    } as any)
 
-    return NextResponse.json({ ok: true, skills: rows.map((r) => r.label) })
+    return NextResponse.json({ ok: true, skills: rows.map((r: any) => String(r.label)) })
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

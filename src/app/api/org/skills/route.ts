@@ -49,8 +49,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
 
     // Step 5: Fetch skills
-    // Note: skill model requires prisma generate to be recognized in types
-    const skills = await (prisma as any).skill.findMany({
+    const skills = await prisma.skill.findMany({
       where: {
         workspaceId,
         ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
@@ -63,23 +62,11 @@ export async function GET(request: NextRequest) {
       },
       orderBy: [{ category: "asc" }, { name: "asc" }],
       take: limit,
-    }) as {
-      id: string;
-      name: string;
-      category: string | null;
-      description: string | null;
-      _count: { personSkills: number };
-    }[];
+    });
 
     return NextResponse.json({
       ok: true,
-      skills: skills.map((s: {
-        id: string;
-        name: string;
-        category: string | null;
-        description: string | null;
-        _count: { personSkills: number };
-      }) => ({
+      skills: skills.map((s) => ({
         id: s.id,
         name: s.name,
         category: s.category,
@@ -131,12 +118,12 @@ export async function POST(request: NextRequest) {
     const description = body.description ? String(body.description).trim() : null;
 
     // Step 5: Check for case-insensitive duplicate
-    const existing = await (prisma as any).skill.findFirst({
+    const existing = await prisma.skill.findFirst({
       where: {
         workspaceId,
         name: { equals: name, mode: "insensitive" },
       },
-    }) as { id: string; name: string; category: string | null; description: string | null } | null;
+    });
 
     if (existing) {
       // Return existing skill instead of error (per plan: "If skill exists, return existing")
@@ -154,14 +141,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 6: Create skill
-    const created = await (prisma as any).skill.create({
+    const created = await prisma.skill.create({
       data: {
         workspaceId,
         name,
         category,
         description,
       },
-    }) as { id: string; name: string; category: string | null; description: string | null };
+    });
 
     return NextResponse.json({
       ok: true,

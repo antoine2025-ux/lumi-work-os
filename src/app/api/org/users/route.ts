@@ -9,12 +9,12 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
     
-    // Assert workspace access (VIEWER can read org structure)
+    // Assert workspace access
     await assertAccess({ 
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       scope: 'workspace', 
-      requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
+      requireRole: ['MEMBER'] 
     })
 
     // Set workspace context for Prisma middleware
@@ -24,17 +24,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
 
     // Get workspace members
-    // PHASE 1: Use explicit select to exclude employmentStatus
     const workspaceMembers = await prisma.workspaceMember.findMany({
       where: {
         workspaceId: auth.workspaceId
       },
-      select: {
-        id: true,
-        workspaceId: true,
-        userId: true,
-        role: true,
-        joinedAt: true,
+      include: {
         user: {
           select: {
             id: true,
@@ -43,7 +37,6 @@ export async function GET(request: NextRequest) {
             image: true
           }
         }
-        // Exclude employmentStatus - may not exist in database yet
       }
     })
 

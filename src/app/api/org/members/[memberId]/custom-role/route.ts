@@ -37,16 +37,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     // Load membership and ensure it belongs to this org
     // ADAPT: Using WorkspaceMember model (workspaceId = orgId)
-    // PHASE 1: Use explicit select to exclude employmentStatus
-    const membership = await (prisma as any).workspaceMember.findUnique({
+    const membership = await prisma.workspaceMember.findUnique({
       where: { id: memberId },
-      select: {
-        id: true,
-        workspaceId: true,
-        userId: true,
-        role: true,
-        joinedAt: true,
-        customRoleId: true,
+      include: {
         customRole: true,
         user: {
           select: {
@@ -55,7 +48,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             email: true,
           },
         },
-        // Exclude employmentStatus - may not exist in database yet
       },
     });
 
@@ -75,7 +67,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         return NextResponse.json({ membership }, { status: 200 });
       }
 
-      const updated = await (prisma as any).workspaceMember.update({
+      const updated = await prisma.workspaceMember.update({
         where: { id: memberId },
         data: { customRoleId: null },
         include: {
@@ -135,7 +127,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return NextResponse.json({ membership }, { status: 200 });
     }
 
-    const updatedMembership = await (prisma as any).workspaceMember.update({
+    const updatedMembership = await prisma.workspaceMember.update({
       where: { id: memberId },
       data: { customRoleId: requestedCustomRoleId },
       include: {

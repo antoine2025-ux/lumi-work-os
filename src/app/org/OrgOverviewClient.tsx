@@ -6,8 +6,7 @@ import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 import { OrgNoAccessState } from "@/components/org/OrgNoAccessState";
 import { isOrgNoAccessError } from "@/lib/orgErrorUtils";
 import { OrgOverviewStatsRibbon } from "@/components/org/overview/OrgOverviewStatsRibbon";
-import type { OrgOverviewStats } from "@/lib/org/data.server";
-import type { OrgInsightsSnapshot } from "@/lib/org/insights";
+import type { OrgOverviewStats, OrgInsightsSnapshot } from "@/lib/org/data.server";
 
 type OwnershipHealthResponse = {
   summary: {
@@ -134,13 +133,13 @@ function NeedsAttentionStrip() {
       try {
         const res = await fetch("/api/org/health/ownership", { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
+        
         // Check if response is JSON before parsing
         const contentType = res.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
           throw new Error('Response is not JSON');
         }
-
+        
         const json = (await res.json()) as OwnershipHealthResponse;
         if (!cancelled) setData(json);
       } catch {
@@ -269,13 +268,13 @@ function CapacitySnapshotStrip() {
       try {
         const res = await fetch("/api/org/health/capacity?lookaheadDays=14", { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
+        
         // Check if response is JSON before parsing
         const contentType = res.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
           throw new Error('Response is not JSON');
         }
-
+        
         const json = (await res.json()) as CapacitySnapshotResponse;
         if (!cancelled) setData(json);
       } catch {
@@ -684,7 +683,7 @@ export function OrgOverviewClient({
                 </>
               }
               primaryActionLabel="Invite your first member"
-              primaryActionHref="/org/settings?tab=members"
+              primaryActionHref="/org/workspace-settings?tab=members"
               secondaryActionLabel="Set up structure"
               secondaryActionHref="/org/structure"
             />

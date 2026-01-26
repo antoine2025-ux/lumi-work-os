@@ -1,101 +1,180 @@
 /**
  * GET /api/org/reasoning
+ * Get AI-driven recommendations for org health improvements.
  *
- * Returns org recommendations computed from the intelligence snapshot.
- * Uses the reasoning engine (Phase R) with Phase S snapshot data.
+ * Phase R: Consumes Phase S snapshot and derives prioritized recommendations.
+ * No new truth logic - pure derivation from snapshot signals.
+ *
+ * SECURITY: workspaceId from auth only, never from query params.
+ * See docs/org/reasoning-rules.md for contracts.
  *
  * Query params:
- * - version: API version (default "v1", returns 400 for unsupported versions)
- * - limit: Max recommendations (default 10, max 50, 0 returns empty)
+ * - version: API version (default "v1")
+ * - limit: Max recommendations (0-50, default 10)
  *
- * Response:
- * - 200: { ok: true, data: { recommendations, summaries, _meta } }
- * - 400: { ok: false, error: { code: "UNSUPPORTED_VERSION" } }
- * - 401: { ok: false, error: { code: "UNAUTHORIZED" } }
- * - 403: { ok: false, error: { code: "FORBIDDEN" } }
- * - 500: { ok: false, error: { code: "INTERNAL_ERROR" } }
+ * Strict auth pattern: getUnifiedAuth → assertAccess → getSnapshot → computeRecommendations
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { getOrgIntelligenceSnapshot, serializeSnapshot } from "@/lib/org/intelligence";
-import { computeOrgRecommendations } from "@/lib/org/reasoning/engine";
 import {
+  computeOrgRecommendations,
   REASONING_API_VERSION,
-  REASONING_DEFAULT_LIMIT,
   REASONING_MAX_LIMIT,
-} from "@/lib/org/reasoning/version";
+  REASONING_DEFAULT_LIMIT,
+} from "@/lib/org/reasoning";
 
 export async function GET(request: NextRequest) {
+  let userId: string | undefined;
+  let workspaceId: string | undefined;
+
   try {
-    // Step 1: Auth
+    // Step 1: Get unified auth (includes workspaceId)
+    // SECURITY: workspaceId from auth only
     const auth = await getUnifiedAuth(request);
-    const userId = auth?.user?.userId;
-    const workspaceId = auth?.workspaceId;
+    userId = auth?.user?.userId;
+    workspaceId = auth?.workspaceId;
 
     if (!userId || !workspaceId) {
       return NextResponse.json(
-        { ok: false, error: { code: "UNAUTHORIZED" } },
+        {
+          ok: false,
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Authentication required",
+          },
+        },
         { status: 401 }
       );
     }
 
-    // Step 2: Assert access (MEMBER or higher can access reasoning)
-    try {
-      await assertAccess({
-        userId,
-        workspaceId,
-        scope: "workspace",
-        requireRole: ["MEMBER"],
-      });
-    } catch {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN" } },
-        { status: 403 }
-      );
-    }
+    // Step 2: Assert access (verifies workspace membership and role)
+    await assertAccess({
+      userId,
+      workspaceId,
+      scope: "workspace",
+      requireRole: ["MEMBER"],
+    });
 
     // Step 3: Parse query params
-    const { searchParams } = new URL(request.url);
-    const version = searchParams.get("version") || REASONING_API_VERSION;
+    const searchParams = request.nextUrl.searchParams;
+    const version = searchParams.get("version") ?? REASONING_API_VERSION;
     const limitParam = searchParams.get("limit");
+    const parsedLimit = limitParam !== null ? parseInt(limitParam, 10) : NaN;
+    const limit = !isNaN(parsedLimit)
+      ? Math.min(Math.max(0, parsedLimit), REASONING_MAX_LIMIT)
+      : REASONING_DEFAULT_LIMIT;
 
-    // Step 4: Validate version
+    // Validate version
     if (version !== REASONING_API_VERSION) {
       return NextResponse.json(
-        { ok: false, error: { code: "UNSUPPORTED_VERSION" } },
+        {
+          ok: false,
+          error: {
+            code: "UNSUPPORTED_VERSION",
+            message: `Unsupported API version: ${version}. Supported: ${REASONING_API_VERSION}`,
+          },
+        },
         { status: 400 }
       );
     }
 
-    // Step 5: Parse and clamp limit
-    let limit = REASONING_DEFAULT_LIMIT;
-    if (limitParam !== null) {
-      const parsed = parseInt(limitParam, 10);
-      if (!isNaN(parsed)) {
-        limit = Math.min(Math.max(0, parsed), REASONING_MAX_LIMIT);
-      }
-      // Invalid limit values use default (no error)
-    }
+    // Step 4: Get Phase S snapshot (full snapshot for reasoning)
+    const snapshot = await getOrgIntelligenceSnapshot(workspaceId, {
+      include: {
+        ownership: true,
+        structure: true,
+        people: true,
+        capacity: true,
+      },
+    });
 
-    // Step 6: Get intelligence snapshot
-    const snapshot = await getOrgIntelligenceSnapshot(workspaceId);
+    // Step 5: Serialize snapshot to DTO
     const snapshotDTO = serializeSnapshot(snapshot);
 
-    // Step 7: Compute recommendations
+    // Step 6: Compute recommendations (pure function, no side effects)
     const result = computeOrgRecommendations(snapshotDTO, { limit });
 
-    // Step 8: Return success response
+    // Step 7: Return result
     return NextResponse.json(
-      { ok: true, data: result },
+      {
+        ok: true,
+        data: result,
+      },
       { status: 200 }
     );
-  } catch (error) {
-    console.error("[GET /api/org/reasoning] Error:", error);
+  } catch (error: unknown) {
+    const err = error as Error & { code?: string };
 
+    // Handle auth errors
+    if (!userId || !workspaceId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Authentication required",
+          },
+        },
+        { status: 401 }
+      );
+    }
+
+    // Handle access denied
+    if (err?.message?.includes("Forbidden") || err?.message?.includes("Unauthorized")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "You don't have permission to access this resource",
+          },
+        },
+        { status: 403 }
+      );
+    }
+
+    // Handle database errors - return degraded response
+    if (
+      err?.code?.startsWith("P") ||
+      err?.message?.includes("prisma") ||
+      err?.message?.includes("database")
+    ) {
+      console.error("[GET /api/org/reasoning] Database error:", err.message);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Unable to fetch recommendations. Please try again later.",
+          },
+          degraded: true,
+        },
+        { status: 503 }
+      );
+    }
+
+    // Generic error
+    console.error("[GET /api/org/reasoning] Error:", err);
+    console.error("[GET /api/org/reasoning] Error name:", err?.name);
+    console.error("[GET /api/org/reasoning] Error message:", err?.message);
+    console.error("[GET /api/org/reasoning] Error stack:", err?.stack);
+    
+    // In development, include error details in response
+    const isDev = process.env.NODE_ENV !== "production";
     return NextResponse.json(
-      { ok: false, error: { code: "INTERNAL_ERROR" } },
+      {
+        ok: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: isDev && err?.message 
+            ? `An unexpected error occurred: ${err.message}` 
+            : "An unexpected error occurred",
+          ...(isDev && err?.stack && { stack: err.stack }),
+        },
+      },
       { status: 500 }
     );
   }

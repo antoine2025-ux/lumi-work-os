@@ -54,7 +54,8 @@ export async function GET(
     setWorkspaceContext(workspaceId);
 
     // Step 4: Get the user ID from position
-    const position = await prisma.orgPosition.findFirst({
+    // Handle both OrgPosition ID and User ID (personId might be either)
+    let position = await prisma.orgPosition.findFirst({
       where: {
         id: personId,
         workspaceId,
@@ -65,12 +66,26 @@ export async function GET(
       },
     });
 
+    // If not found by ID, personId might be a User ID - try to find by userId
+    if (!position) {
+      position = await prisma.orgPosition.findFirst({
+        where: {
+          userId: personId,
+          workspaceId,
+          isActive: true,
+        },
+        select: {
+          userId: true,
+        },
+      });
+    }
+
     if (!position || !position.userId) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
 
     // Step 5: Fetch availability windows
-    const windows = await (prisma as any).personAvailability.findMany({
+    const windows = await prisma.personAvailability.findMany({
       where: {
         workspaceId,
         personId: position.userId,
@@ -94,7 +109,7 @@ export async function GET(
 
     return NextResponse.json({
       ok: true,
-      windows: windows.map((w: any) => ({
+      windows: windows.map((w) => ({
         id: w.id,
         type: w.type,
         startDate: w.startDate.toISOString(),
@@ -140,7 +155,38 @@ export async function POST(
     // Step 3: Set workspace context
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Parse and validate request body
+    // Step 4: Get the user ID from position first (needed for validation)
+    // Handle both OrgPosition ID and User ID (personId might be either)
+    let position = await prisma.orgPosition.findFirst({
+      where: {
+        id: personId,
+        workspaceId,
+        isActive: true,
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    // If not found by ID, personId might be a User ID - try to find by userId
+    if (!position) {
+      position = await prisma.orgPosition.findFirst({
+        where: {
+          userId: personId,
+          workspaceId,
+          isActive: true,
+        },
+        select: {
+          userId: true,
+        },
+      });
+    }
+
+    if (!position || !position.userId) {
+      return NextResponse.json({ error: "Person not found" }, { status: 404 });
+    }
+
+    // Step 5: Parse and validate request body
     const body = await request.json();
 
     // Validate required fields
@@ -201,28 +247,12 @@ export async function POST(
       );
     }
 
-    // Step 5: Get the user ID from position
-    const position = await prisma.orgPosition.findFirst({
-      where: {
-        id: personId,
-        workspaceId,
-        isActive: true,
-      },
-      select: {
-        userId: true,
-      },
-    });
-
-    if (!position || !position.userId) {
-      return NextResponse.json({ error: "Person not found" }, { status: 404 });
-    }
-
     // Step 6: Create the availability window
-    const created = await (prisma as any).personAvailability.create({
+    const created = await prisma.personAvailability.create({
       data: {
         workspaceId,
         personId: position.userId,
-        type,
+        type: type as "AVAILABLE" | "UNAVAILABLE" | "PARTIAL",
         startDate,
         endDate,
         fraction,
@@ -260,8 +290,39 @@ export async function POST(
       },
     });
   } catch (error: unknown) {
+    const prismaError = error as any;
+    
     console.error("[POST /api/org/people/[personId]/availability-windows] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    
+    // Provide more specific error message for Prisma validation errors
+    if (prismaError?.code === 'P2003' || prismaError?.code === 'P2025') {
+      return NextResponse.json({ 
+        error: "Database constraint violation", 
+        details: prismaError?.meta || prismaError?.message 
+      }, { status: 400 });
+    }
+    
+    if (prismaError?.code === 'P2002') {
+      return NextResponse.json({ 
+        error: "Unique constraint violation", 
+        details: prismaError?.meta 
+      }, { status: 409 });
+    }
+    
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Check if it's a validation error related to enum
+    if (prismaError?.constructor?.name === 'PrismaClientValidationError' || errorMessage?.includes('AvailabilityType')) {
+      return NextResponse.json({ 
+        error: "Invalid availability type. The database may not support this value yet. Please apply pending migrations.",
+        details: errorMessage,
+      }, { status: 400 });
+    }
+    
+    return NextResponse.json({ 
+      error: "Internal server error",
+      details: errorMessage 
+    }, { status: 500 });
   }
 }
 

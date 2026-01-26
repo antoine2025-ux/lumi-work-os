@@ -26,26 +26,26 @@ export function PeopleFilterBar({
   const anyFilters = hasAnyPeopleFilter(filters);
   if (!anyFilters) return null;
 
-  const items = ([
+  const items: { key: keyof PeopleFilters; label: string; value?: string; displayValue?: string }[] = [
     { 
-      key: "teamId" as const, 
+      key: "teamId", 
       label: "Team", 
       value: filters.teamId,
       displayValue: teamName || filters.teamId,
     },
     { 
-      key: "departmentId" as const, 
+      key: "departmentId", 
       label: "Department", 
       value: filters.departmentId,
       displayValue: departmentName || filters.departmentId,
     },
     { 
-      key: "roleId" as const, 
+      key: "roleId", 
       label: "Role", 
       value: filters.roleId,
       displayValue: roleName || filters.roleId,
     },
-  ] as { key: keyof PeopleFilters; label: string; value?: string; displayValue?: string }[]).filter((item) => item.value);
+  ].filter((item) => item.value);
 
   function handleClearAll() {
     const params = new URLSearchParams(searchParams.toString());

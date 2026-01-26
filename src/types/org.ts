@@ -17,7 +17,6 @@ export type OrgPerson = {
   name: string;
   fullName?: string | null; // From API, may be more reliable than name
   email: string;
-  title?: string | null; // Job title
   role: string | null;
   teamId: string | null;
   team: string | null;

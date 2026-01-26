@@ -51,14 +51,6 @@ type CapacitySnapshotResponse = {
   };
 };
 
-type AvailabilityRecord = {
-  personId: string;
-  type: string;
-  startDate: Date;
-  endDate: Date | null;
-  fraction: number | null;
-};
-
 function toISO(d: Date) {
   return d.toISOString();
 }
@@ -146,7 +138,7 @@ export async function GET(req: NextRequest) {
     const userIds = positions.map((p) => p.user!.id);
 
     // Fetch availability records for these users
-    const availabilityRecords = await (prisma as any).personAvailability.findMany({
+    const availabilityRecords = await prisma.personAvailability.findMany({
       where: {
         personId: { in: userIds },
         startDate: { lte: lookahead },
@@ -165,7 +157,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Fetch allocation records for these users
-    const allocationRecords = await (prisma as any).projectAllocation.findMany({
+    const allocationRecords = await prisma.projectAllocation.findMany({
       where: {
         personId: { in: userIds },
         orgId: orgId,
@@ -182,7 +174,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Group availability/allocation by userId
-    const availabilityByUser = new Map<string, AvailabilityRecord[]>();
+    const availabilityByUser = new Map<string, typeof availabilityRecords>();
     for (const av of availabilityRecords) {
       const existing = availabilityByUser.get(av.personId) || [];
       existing.push(av);

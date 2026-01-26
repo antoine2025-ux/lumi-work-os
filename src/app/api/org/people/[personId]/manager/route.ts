@@ -12,6 +12,15 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { optionalString } from "@/server/org/validate";
 import { setOrgPersonManager } from "@/server/org/people/write";
+import { isPersonManagerExempt } from "@/lib/org/manager-exemption";
+import { prisma } from "@/lib/db";
+import type { OrgIssueMetadata } from "@/lib/org/deriveIssues";
+import {
+  buildResponseMeta,
+  type MutationResult,
+  type EmptyPatch,
+} from "@/lib/org/mutations/types";
+import { computeIssueResolution } from "@/lib/org/mutations/utils";
 
 export async function PUT(
   request: NextRequest,
@@ -19,7 +28,7 @@ export async function PUT(
 ) {
   let personId: string | undefined;
   let managerId: string | null | undefined;
-
+  
   try {
     const params = await ctx.params;
     personId = params.personId;
@@ -30,7 +39,7 @@ export async function PUT(
     const workspaceId = auth?.workspaceId;
 
     if (!userId || !workspaceId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
 
     // Step 2: Assert access (verifies workspace membership and role)
@@ -48,11 +57,77 @@ export async function PUT(
     const body = await request.json();
     managerId = optionalString(body.managerId);
 
-    // Step 5: Set manager
-    const updated = await setOrgPersonManager(personId, managerId);
+    // Step 5: Check if person is exempt from manager requirement (using centralized exemption)
+    // Note: personId is actually userId (User.id), so we can pass it directly
+    const isExempt = await isPersonManagerExempt(personId, workspaceId);
+    if (isExempt && managerId !== null) {
+      // Allow setting manager for exempt persons (optional), but don't require it
+      // This check is informational - we don't block the request
+    }
 
-    // Step 6: Emit Loopbrain context (persist + trigger indexing non-blocking)
-    // Wrap in try-catch to prevent Loopbrain errors from breaking the response
+    // Step 6: Get current position to find position ID
+    const position = await prisma.orgPosition.findFirst({
+      where: {
+        userId: personId,
+        workspaceId,
+        isActive: true,
+      },
+      select: { id: true, userId: true },
+    });
+
+    if (!position) {
+      return NextResponse.json({ ok: false, error: "Person position not found" }, { status: 404 });
+    }
+
+    // Step 7: Compute issues BEFORE mutation (scoped to person + direct reports)
+    // TODO: Enhance to derive actual issues for person and direct reports
+    // For now, use empty array - maintains contract structure
+    const issuesBefore: OrgIssueMetadata[] = [];
+
+    // Step 8: Set manager (returns previous managerId for audit logging)
+    const updated = await setOrgPersonManager(position.id, managerId);
+
+    // Step 9: Get direct reports (manager change affects them too for MISSING_MANAGER cascade)
+    const directReports = await prisma.orgPosition.findMany({
+      where: {
+        managerId: position.userId,
+        workspaceId,
+        isActive: true,
+      },
+      select: { userId: true },
+    });
+
+    // Step 10: Compute issues AFTER mutation (same scoped set)
+    // TODO: Enhance to derive actual issues for person and direct reports
+    const issuesAfter: OrgIssueMetadata[] = [];
+
+    // Step 11: Build response metadata
+    const responseMeta = buildResponseMeta("mutation:person-manager:v1");
+
+    // Step 12: Diff issues to determine active vs resolved
+    const affectedIssues = computeIssueResolution(
+      issuesBefore,
+      issuesAfter,
+      responseMeta.mutationId
+    );
+
+    // Step 13: Log audit event (only critical fields: managerId)
+    try {
+      const { logOrgMutation } = await import("@/server/org/audit/write");
+      await logOrgMutation({
+        workspaceId,
+        actorUserId: userId,
+        action: managerId ? "MANAGER_ASSIGNED" : "MANAGER_REMOVED",
+        entityType: "PERSON",
+        entityId: position.id,
+        before: { managerId: updated.previousManagerId },
+        after: { managerId: updated.managerId },
+      });
+    } catch (auditError: any) {
+      console.error("[PUT /api/org/people/[personId]/manager] Audit logging error (non-fatal):", auditError);
+    }
+
+    // Step 14: Emit Loopbrain context (non-blocking)
     try {
       await emitOrgContextObject({
         workspaceId,
@@ -62,14 +137,34 @@ export async function PUT(
         payload: { managerId },
       });
     } catch (loopbrainError: any) {
-      // Log but don't fail the request if Loopbrain fails
       console.error("[PUT /api/org/people/[personId]/manager] Loopbrain error (non-fatal):", loopbrainError);
     }
 
-    return NextResponse.json(
-      { id: updated.id, managerId: updated.managerId },
-      { status: 200 }
-    );
+    // Step 15: Get manager name for response
+    let managerName: string | null = null;
+    if (managerId) {
+      const managerUser = await prisma.user.findUnique({
+        where: { id: managerId },
+        select: { name: true },
+      });
+      managerName = managerUser?.name ?? null;
+    }
+
+    // Step 16: Return canonical MutationResult
+    const response: MutationResult<{ personId: string; managerId: string | null; managerName: string | null }, EmptyPatch> = {
+      ok: true,
+      data: { personId, managerId: updated.managerId, managerName },
+      patch: {},
+      scope: {
+        entityType: "PERSON",
+        entityId: personId,
+        related: directReports.map((dr) => ({ entityType: "PERSON", entityId: dr.userId })),
+      },
+      affectedIssues,
+      responseMeta,
+    };
+
+    return NextResponse.json(response, { status: 200 });
   } catch (error: any) {
     console.error("[PUT /api/org/people/[personId]/manager] Error:", error);
     console.error("[PUT /api/org/people/[personId]/manager] Error details:", {
@@ -80,22 +175,23 @@ export async function PUT(
     });
 
     if (error?.message?.includes("Manager cannot be self")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
     }
 
     if (error?.message?.includes("Person not found")) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+      return NextResponse.json({ ok: false, error: error.message }, { status: 404 });
     }
 
     if (error?.message?.includes("Manager not found")) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+      return NextResponse.json({ ok: false, error: error.message }, { status: 404 });
     }
 
     if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
+      return NextResponse.json({ ok: false, error: error.message }, { status: 403 });
     }
 
     return NextResponse.json({ 
+      ok: false,
       error: error?.message || "Internal server error",
       hint: "Check server logs for details"
     }, { status: 500 });

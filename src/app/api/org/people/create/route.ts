@@ -16,7 +16,7 @@ import { createOrgPerson } from "@/server/org/people/write";
 export async function POST(request: NextRequest) {
   let userId: string | undefined;
   let workspaceId: string | undefined;
-
+  
   try {
     // Step 1: Get unified auth (includes workspaceId)
     const auth = await getUnifiedAuth(request);

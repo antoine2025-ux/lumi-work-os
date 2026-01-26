@@ -5,15 +5,12 @@ import { OrgPermissionsMatrix } from "./OrgPermissionsMatrix";
 import { CustomRolesSection } from "./CustomRolesSection";
 import { ROLE_CAPABILITIES } from "@/lib/org/capabilities";
 import { OrgCapabilityGate } from "@/components/org/OrgCapabilityGate";
-import { useOrgPermissions } from "@/components/org/OrgPermissionsContext";
 
 type GeneralSettingsSectionProps = {
   orgId?: string;
 };
 
 export function GeneralSettingsSection({ orgId }: GeneralSettingsSectionProps) {
-  const perms = useOrgPermissions();
-
   if (!orgId) {
     return (
       <div className="rounded-2xl border border-[#111827] bg-[#020617] p-4 text-xs text-slate-400">
@@ -62,8 +59,7 @@ export function GeneralSettingsSection({ orgId }: GeneralSettingsSectionProps) {
       <OrgPermissionsMatrix matrix={ROLE_CAPABILITIES} />
 
       <OrgCapabilityGate
-        capability="org:org:update"
-        permissions={perms}
+        capability="org:settings:manage"
         fallback={null}
       >
         <CustomRolesSection />

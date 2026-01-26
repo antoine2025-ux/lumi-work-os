@@ -132,7 +132,7 @@ function AssignOwnerModal(props: {
             onClick={async () => {
               setLoading(true)
               try {
-                await fetch("/api/org/ownership/assign", {
+                const res = await fetch("/api/org/ownership/assign", {
                   method: "POST",
                   headers: { "content-type": "application/json" },
                   body: JSON.stringify({
@@ -142,7 +142,16 @@ function AssignOwnerModal(props: {
                     ownerPersonId: selected,
                   }),
                 })
-                router.refresh()
+                if (res.ok) {
+                  const data = await res.json()
+                  // Optimistic update: use scoped response data
+                  // Toast notification (if toast available)
+                  if (typeof window !== 'undefined' && (window as any).toast) {
+                    (window as any).toast({ title: "Ownership assigned", description: "Ownership coverage updated." })
+                  }
+                  // Refresh to update UI with latest data
+                  router.refresh()
+                }
               } catch {
                 // silent fail
               } finally {
@@ -150,7 +159,7 @@ function AssignOwnerModal(props: {
               }
             }}
           >
-            Assign owner
+            Assign
           </button>
         </div>
       </div>
@@ -459,7 +468,7 @@ export function OwnershipDeepDive(props: {
           <div>
             <div className="text-sm font-semibold">Unowned entities</div>
             <div className="mt-1 text-sm text-muted-foreground">
-              Assign owners to improve accountability and decision speed.
+              Assigns to improve accountability and decision speed.
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -547,7 +556,7 @@ export function OwnershipDeepDive(props: {
                               })
                             }
                           >
-                            Assign owner
+                            Assign
                           </button>
                         </div>
                       </div>

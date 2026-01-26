@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
+import { Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOrgPermissions } from "@/components/org/OrgPermissionsContext";
 import { hasOrgCapability } from "@/lib/org/capabilities";
-
 /**
  * MVP Navigation (max 4 tabs)
  * 
@@ -19,76 +19,63 @@ import { hasOrgCapability } from "@/lib/org/capabilities";
  * Health is folded into Overview as derived signals.
  * Settings only shows when setup is incomplete.
  */
-
-// Base paths (without workspace prefix)
 const ORG_NAV_ITEMS = [
-  { key: "overview", label: "Overview", basePath: "" },
-  { key: "people", label: "People", basePath: "/people" },
-  { key: "structure", label: "Structure", basePath: "/structure" },
-  { key: "chart", label: "Org Chart", basePath: "/chart" },
-  { key: "ownership", label: "Ownership", basePath: "/ownership" },
-  { key: "issues", label: "Issues", basePath: "/issues" },
-  { key: "intelligence", label: "Intelligence", basePath: "/intelligence" },
-  { key: "settings", label: "Setup", basePath: "/setup" }, // Will be filtered by setupIncomplete
+  { key: "overview", label: "Overview", href: "/org" },
+  { key: "people", label: "People", href: "/org/people" },
+  { key: "structure", label: "Structure", href: "/org/structure" },
+  { key: "chart", label: "Org Chart", href: "/org/chart" },
+  { key: "ownership", label: "Ownership", href: "/org/ownership" },
+  { key: "issues", label: "Issues", href: "/org/issues" },
+  { key: "intelligence", label: "Intelligence", href: "/org/intelligence" },
+  { key: "settings", label: "Setup", href: "/org/setup" }, // Will be filtered by setupIncomplete
 ] as const;
 
-/**
- * Extract workspace slug from pathname if on a workspace-scoped route
- * e.g., /w/my-workspace/org/people -> "my-workspace"
- */
-function extractWorkspaceSlug(pathname: string | null): string | null {
-  if (!pathname) return null;
-  const match = pathname.match(/^\/w\/([^/]+)\/org/);
-  return match ? match[1] : null;
-}
+// Base sidebar items (always visible to org members) - fallback if API fails
+const BASE_SIDEBAR_ITEMS = [
+  { id: "overview", label: "Overview", href: "/org", section: "main" },
+  { id: "people", label: "People", href: "/org/people", section: "org" },
+  { id: "structure", label: "Structure", href: "/org/structure", section: "org" },
+  { id: "chart", label: "Org Chart", href: "/org/chart", section: "org" },
+  { id: "ownership", label: "Ownership", href: "/org/ownership", section: "org" },
+  { id: "issues", label: "Issues", href: "/org/issues", section: "org" },
+  { id: "intelligence", label: "Intelligence", href: "/org/intelligence", section: "org" },
+];
 
-/**
- * Build the correct href based on whether we're in workspace-scoped context
- */
-function buildOrgHref(basePath: string, workspaceSlug: string | null): string {
-  if (workspaceSlug) {
-    return `/w/${workspaceSlug}/org${basePath}`;
-  }
-  return `/org${basePath}`;
-}
+// Settings section items (admin-only)
+const SETTINGS_NAV_ITEMS = [
+  { key: "org-settings", label: "Org", href: "/org/settings" },
+  { key: "workspace-settings", label: "Workspace", href: "/org/workspace-settings" },
+] as const;
 
-/**
- * Check if an item's href matches the current pathname
- */
-function isItemActive(
-  itemBasePath: string,
-  pathname: string | null,
-  allBasePaths: string[],
-  workspaceSlug: string | null
-): boolean {
+function isItemActive(item: { href: string }, pathname: string | null, allItems: Array<{ href: string }>): boolean {
   if (!pathname) return false;
 
   const path = pathname.replace(/\/+$/, "") || "/";
-  const itemHref = buildOrgHref(itemBasePath, workspaceSlug);
 
-  // Overview is active on base org path only
-  if (itemBasePath === "") {
-    const baseOrgPath = workspaceSlug ? `/w/${workspaceSlug}/org` : "/org";
-    return path === baseOrgPath;
+  // Overview is active on `/org` and `/org/` only
+  if (item.href === "/org") {
+    return path === "/org";
   }
 
   // Check for exact match first
-  if (path === itemHref) {
+  if (path === item.href) {
     return true;
   }
 
   // Check if path starts with this item's href
-  if (!path.startsWith(itemHref + "/")) {
+  if (!path.startsWith(item.href + "/")) {
     return false;
   }
 
   // If path starts with this href, check if there's a more specific matching item
-  const moreSpecificMatch = allBasePaths.find(otherBasePath => {
-    if (otherBasePath === itemBasePath) return false;
-    const otherHref = buildOrgHref(otherBasePath, workspaceSlug);
-    return otherHref.startsWith(itemHref + "/") && path.startsWith(otherHref);
+  // (e.g., if we're on /org/health/ownership, don't highlight /org/health)
+  const moreSpecificMatch = allItems.find(otherItem => {
+    if (otherItem.href === item.href) return false; // Skip self
+    // Check if other item's href is more specific (longer and starts with current item's href)
+    return otherItem.href.startsWith(item.href + "/") && path.startsWith(otherItem.href);
   });
 
+  // If there's a more specific match, this item is not active
   return !moreSpecificMatch;
 }
 
@@ -100,11 +87,7 @@ export function OrgSidebar({ beta = false }: OrgSidebarProps) {
   const pathname = usePathname();
   const perms = useOrgPermissions();
   const role = perms?.role;
-
   const [setupIncomplete, setSetupIncomplete] = useState(false);
-
-  // Extract workspace slug from current pathname (if on workspace-scoped route)
-  const workspaceSlug = useMemo(() => extractWorkspaceSlug(pathname), [pathname]);
 
   // Fetch setup status on mount
   useEffect(() => {
@@ -137,20 +120,28 @@ export function OrgSidebar({ beta = false }: OrgSidebarProps) {
     return true;
   });
 
-  // Get all base paths for active state checking
-  const allBasePaths = navItems.map(item => item.basePath);
-
-  // Convert to sidebar format with workspace-aware hrefs
+  // Convert to sidebar format
   const visibleItems = navItems.map((item) => ({
     id: item.key,
     label: item.label,
-    basePath: item.basePath,
-    href: buildOrgHref(item.basePath, workspaceSlug),
+    href: item.href,
   }));
+
+  // Settings section visibility (admin-only, not just access control)
+  // This is a navigation-level decision — non-admins don't see settings in sidebar at all
+  const canAccessSettings = role && hasOrgCapability(role, "org:org:update");
+  const settingsItems = SETTINGS_NAV_ITEMS.map((item) => ({
+    id: item.key,
+    label: item.label,
+    href: item.href,
+  }));
+
+  // Combine all items for active state calculation
+  const allItems = [...visibleItems, ...settingsItems];
 
   return (
     <aside className="flex w-60 flex-col border-r border-[#111827] bg-[#020617] px-3 py-4 text-[13px] text-slate-300">
-      {/* Section header - centered */}
+      {/* ORG Section header - centered */}
       <div className="mb-4 text-center">
         <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">
           ORG
@@ -159,7 +150,7 @@ export function OrgSidebar({ beta = false }: OrgSidebarProps) {
       <nav className="space-y-1.5">
         <ul className="space-y-1">
           {visibleItems.map((item) => {
-            const active = isItemActive(item.basePath, pathname, allBasePaths, workspaceSlug);
+            const active = isItemActive(item, pathname, allItems);
 
             return (
               <li key={item.id}>
@@ -190,6 +181,57 @@ export function OrgSidebar({ beta = false }: OrgSidebarProps) {
           })}
         </ul>
       </nav>
+
+      {/* SETTINGS Section - Admin/Owner only */}
+      {canAccessSettings && (
+        <>
+          {/* Divider */}
+          <div className="my-4 border-t border-[#1e293b]" />
+          
+          {/* SETTINGS header */}
+          <div className="mb-3 flex items-center gap-1.5 px-2.5">
+            <Settings className="h-3.5 w-3.5 text-slate-500" />
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Settings
+            </span>
+          </div>
+          
+          <nav className="space-y-1">
+            <ul className="space-y-1">
+              {settingsItems.map((item) => {
+                const active = isItemActive(item, pathname, allItems);
+
+                return (
+                  <li key={item.id}>
+                    <Link
+                      href={item.href}
+                      prefetch={true}
+                      aria-label={`Go to ${item.label} Settings`}
+                      className={cn(
+                        "focus-ring group flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-[13px] outline-none transition-all duration-150",
+                        active
+                          ? "border border-[#243B7D] bg-[#0B1220] text-slate-50 shadow-sm"
+                          : "text-slate-400 hover:bg-[#050816] hover:text-slate-300 hover:shadow-[0_0_0_1px_rgba(148,163,184,0.25)]"
+                      )}
+                    >
+                      {/* Smaller dot for settings items */}
+                      <span
+                        className={cn(
+                          "h-1 w-1 shrink-0 rounded-full transition-all duration-150",
+                          active 
+                            ? "bg-[#5CA9FF] scale-100" 
+                            : "bg-transparent group-hover:bg-[#334155] scale-75"
+                        )}
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        </>
+      )}
     </aside>
   );
 }

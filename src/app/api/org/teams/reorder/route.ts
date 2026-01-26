@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      assertOrgCapability(context, "org:team:update");
+      assertOrgCapability(context, "org:structure:write");
     } catch (err) {
       const status = mapPermissionErrorToStatus(err);
       await recordOrgApiHit(routeId, status, context.orgId, context.userId);

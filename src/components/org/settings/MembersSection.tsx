@@ -56,7 +56,7 @@ export function MembersSection({
             title="No members yet"
             description="Invite teammates to this organization so they can access Spaces, Loopbrain, and Org insights."
             primaryActionLabel="Invite member"
-            primaryActionHref="/org/settings?tab=invites"
+            primaryActionHref="/org/workspace-settings?tab=invites"
           />
         ) : (
           <MembersListClient

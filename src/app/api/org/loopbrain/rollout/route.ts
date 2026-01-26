@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { getOrgContext, requireAdmin } from "@/server/rbac";
 
 export async function GET(req: NextRequest) {
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   if (!ctx.orgId) return NextResponse.json({ ok: false }, { status: 401 });
   // Allow non-admin reads for eligibility checks
 
-  const cfg = await (prisma as any).orgLoopBrainRollout.findUnique({
+  const cfg = await prisma.orgLoopBrainRollout.findUnique({
     where: { orgId_scope: { orgId: ctx.orgId, scope: "people_issues" } },
   });
 
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     enabled: boolean;
   };
 
-  const cfg = await (prisma as any).orgLoopBrainRollout.upsert({
+  const cfg = await prisma.orgLoopBrainRollout.upsert({
     where: { orgId_scope: { orgId: ctx.orgId, scope: "people_issues" } },
     update: {
       mode: body.mode,
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await (prisma as any).auditLogEntry.create({
+  await prisma.auditLogEntry.create({
     data: {
       orgId: ctx.orgId,
       actorUserId: ctx.user?.id ?? null,

@@ -23,7 +23,7 @@ export async function GET(
       userId: auth.user.userId, 
       workspaceId: auth.workspaceId, 
       scope: 'workspace', 
-      requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
+      requireRole: ['MEMBER'] 
     })
 
     setWorkspaceContext(auth.workspaceId)
@@ -138,27 +138,6 @@ export async function PUT(
 
     if (!existingPosition) {
       return NextResponse.json({ error: 'Position not found' }, { status: 404 })
-    }
-
-    // If assigning a user, validate single-occupant constraint
-    if (userId !== undefined && userId !== null) {
-      // Check if position is already occupied by different user
-      if (existingPosition.userId && existingPosition.userId !== userId) {
-        return NextResponse.json(
-          { error: 'Position is already occupied by another user' },
-          { status: 409 }
-        )
-      }
-      
-      // Remove user from other positions in same workspace (enforce one-position-per-user-per-workspace)
-      await prisma.orgPosition.updateMany({
-        where: {
-          workspaceId: existingPosition.workspaceId,
-          userId,
-          id: { not: resolvedParams.id }
-        },
-        data: { userId: null }
-      })
     }
 
     // Build update data - only include fields that are provided
@@ -281,7 +260,7 @@ export async function PUT(
             id: newUserId,
             name: position.user.name,
             email: position.user.email,
-            updatedAt: new Date(),
+            updatedAt: position.user.updatedAt ?? new Date(),
           },
         });
       }
@@ -402,7 +381,7 @@ export async function DELETE(
           id: position.userId,
           name: position.user.name,
           email: position.user.email,
-          updatedAt: new Date(),
+          updatedAt: position.user.updatedAt ?? new Date(),
         },
       });
     }

@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     // For v1, orgId = workspaceId
     const orgId = workspaceId;
 
-    const projects = await (prisma as any).project.findMany({
+    const projects = await prisma.project.findMany({
       where: {
         OR: [
           { orgId },
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     // Resolve person names if person IDs are set
     const projectsWithNames = await Promise.all(
-      projects.map(async (project: any) => {
+      projects.map(async (project) => {
         const accountability = project.accountability;
         if (!accountability) {
           return {
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
             backupDecisionPerson,
             backupDecisionRole: accountability.backupDecisionRole || undefined,
           },
-          allocations: project.allocations.map((a: any) => ({
+          allocations: project.allocations.map((a) => ({
             id: a.id,
             personId: a.personId,
             personName: a.person.name || "Unnamed",

@@ -1,11 +1,15 @@
 /**
  * GET /api/org/overview
  * Get aggregated overview data for Org Overview page.
- * 
+ *
  * Provides summary counts and readiness status in a single response
  * to eliminate client-side waterfall of multiple API calls.
- * 
- * Strict auth pattern: getUnifiedAuth → assertAccess → setWorkspaceContext → intelligence layer
+ *
+ * Phase S: Ownership signals now sourced from canonical resolver.
+ * SECURITY: workspaceId from auth only, never from query params.
+ * See docs/org/intelligence-rules.md for canonical rules.
+ *
+ * Strict auth pattern: getUnifiedAuth → assertAccess → setWorkspaceContext → Prisma
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -21,15 +25,15 @@ export async function GET(request: NextRequest) {
 
   try {
     // Step 1: Get unified auth (includes workspaceId)
+    // SECURITY: workspaceId from auth only
     const auth = await getUnifiedAuth(request);
     userId = auth?.user?.userId;
     workspaceId = auth?.workspaceId;
 
     if (!userId || !workspaceId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       console.error("[GET /api/org/overview] Missing userId or workspaceId", { userId, workspaceId });
       return NextResponse.json(
-        { 
+        {
           error: "Unauthorized",
           hint: "Authentication failed. Please ensure you are logged in and have workspace access."
         },
@@ -48,8 +52,12 @@ export async function GET(request: NextRequest) {
     // Step 3: Set workspace context (enables automatic Prisma scoping)
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Get counts via Prisma and ownership via intelligence layer
-    const [peopleCount, teamCount, deptCount, snapshot] = await Promise.all([
+    // Step 4: Get snapshot and counts in parallel
+    const [snapshot, peopleCount, teamCount, deptCount] = await Promise.all([
+      // Phase S: Canonical ownership and structure from resolver
+      getOrgIntelligenceSnapshot(workspaceId, {
+        include: { ownership: true, structure: true },
+      }),
       prisma.orgPosition.count({
         where: {
           userId: { not: null },
@@ -62,20 +70,17 @@ export async function GET(request: NextRequest) {
       prisma.orgDepartment.count({
         where: { isActive: true },
       }),
-      // Use intelligence layer for ownership data (required by tripwire)
-      getOrgIntelligenceSnapshot(workspaceId, {
-        include: { ownership: true },
-      }),
     ]);
 
-    // Get unowned entities count from snapshot (canonical source)
-    const unownedEntities = snapshot.ownership?.unownedEntities?.length ?? 0;
+    // Phase S: All ownership data from canonical snapshot (no duplicated logic)
+    const unownedEntities = snapshot.ownership?.unownedEntities.length ?? 0;
+    const ownershipPercent = snapshot.ownership?.coverage.overallPercent ?? 0;
 
-    // Setup readiness summary (deterministic; keep minimal)
+    // Setup readiness summary (deterministic; derived from snapshot)
     const readiness = {
       people_added: peopleCount > 0,
       structure_defined: teamCount + deptCount > 0,
-      ownership_assigned: (teamCount + deptCount) > 0 ? unownedEntities === 0 : false,
+      ownership_assigned: ownershipPercent === 100,
     };
 
     return NextResponse.json(
@@ -90,14 +95,15 @@ export async function GET(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("[GET /api/org/overview] Error:", error);
-    console.error("[GET /api/org/overview] Error stack:", error?.stack);
+  } catch (error: unknown) {
+    const err = error as Error & { code?: string };
+    console.error("[GET /api/org/overview] Error:", err);
+    console.error("[GET /api/org/overview] Error stack:", err?.stack);
 
     if (!userId || !workspaceId) {
       console.error("[GET /api/org/overview] Missing userId or workspaceId", { userId, workspaceId });
       return NextResponse.json(
-        { 
+        {
           error: "Unauthorized",
           hint: "Authentication failed. Please ensure you are logged in and have workspace access."
         },
@@ -105,10 +111,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
+    if (err?.message?.includes("Forbidden") || err?.message?.includes("Unauthorized")) {
       return NextResponse.json(
-        { 
-          error: error.message || "Forbidden",
+        {
+          error: err.message || "Forbidden",
           hint: "You don't have permission to access this resource."
         },
         { status: 403 }
@@ -116,8 +122,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Return empty state instead of 500 for query errors
-    if (error?.code?.startsWith('P') || error?.message?.includes('prisma') || error?.message?.includes('database')) {
-      console.error("[GET /api/org/overview] Database error, returning empty state:", error.message);
+    if (err?.code?.startsWith("P") || err?.message?.includes("prisma") || err?.message?.includes("database")) {
+      console.error("[GET /api/org/overview] Database error, returning empty state:", err.message);
       return NextResponse.json(
         {
           summary: {
@@ -137,9 +143,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { 
+      {
         error: "Failed to load overview",
-        hint: error?.message || "An unexpected error occurred. Please try again."
+        hint: err?.message || "An unexpected error occurred. Please try again."
       },
       { status: 500 }
     );

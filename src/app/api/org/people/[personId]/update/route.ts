@@ -51,7 +51,6 @@ export async function PUT(
 
     // Step 5: Update person
     const updated = await updateOrgPerson(personId, {
-      workspaceId,
       fullName,
       email,
       title,

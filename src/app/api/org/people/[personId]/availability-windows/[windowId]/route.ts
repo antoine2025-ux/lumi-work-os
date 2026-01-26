@@ -54,7 +54,8 @@ export async function PATCH(
     setWorkspaceContext(workspaceId);
 
     // Step 4: Get the user ID from position
-    const position = await prisma.orgPosition.findFirst({
+    // Handle both OrgPosition ID and User ID (personId might be either)
+    let position = await prisma.orgPosition.findFirst({
       where: {
         id: personId,
         workspaceId,
@@ -65,12 +66,26 @@ export async function PATCH(
       },
     });
 
+    // If not found by ID, personId might be a User ID - try to find by userId
+    if (!position) {
+      position = await prisma.orgPosition.findFirst({
+        where: {
+          userId: personId,
+          workspaceId,
+          isActive: true,
+        },
+        select: {
+          userId: true,
+        },
+      });
+    }
+
     if (!position || !position.userId) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
 
     // Step 5: Check window exists and belongs to this person
-    const existing = await (prisma as any).personAvailability.findFirst({
+    const existing = await prisma.personAvailability.findFirst({
       where: {
         id: windowId,
         workspaceId,
@@ -84,6 +99,7 @@ export async function PATCH(
 
     // Step 6: Parse and validate request body
     const body = await request.json();
+    
     const updateData: Record<string, unknown> = {};
 
     // Validate and set startDate
@@ -180,7 +196,7 @@ export async function PATCH(
     }
 
     // Step 7: Update the window
-    const updated = await (prisma as any).personAvailability.update({
+    const updated = await prisma.personAvailability.update({
       where: { id: windowId },
       data: updateData,
       select: {
@@ -246,7 +262,8 @@ export async function DELETE(
     setWorkspaceContext(workspaceId);
 
     // Step 4: Get the user ID from position
-    const position = await prisma.orgPosition.findFirst({
+    // Handle both OrgPosition ID and User ID (personId might be either)
+    let position = await prisma.orgPosition.findFirst({
       where: {
         id: personId,
         workspaceId,
@@ -257,12 +274,26 @@ export async function DELETE(
       },
     });
 
+    // If not found by ID, personId might be a User ID - try to find by userId
+    if (!position) {
+      position = await prisma.orgPosition.findFirst({
+        where: {
+          userId: personId,
+          workspaceId,
+          isActive: true,
+        },
+        select: {
+          userId: true,
+        },
+      });
+    }
+
     if (!position || !position.userId) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
 
     // Step 5: Check window exists and belongs to this person
-    const existing = await (prisma as any).personAvailability.findFirst({
+    const existing = await prisma.personAvailability.findFirst({
       where: {
         id: windowId,
         workspaceId,
@@ -275,7 +306,7 @@ export async function DELETE(
     }
 
     // Step 6: Delete the window
-    await (prisma as any).personAvailability.delete({
+    await prisma.personAvailability.delete({
       where: { id: windowId },
     });
 

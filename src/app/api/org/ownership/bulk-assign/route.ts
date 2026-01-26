@@ -28,13 +28,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Demote existing primaries
-    await (prisma as any).ownerAssignment.updateMany({
+    await prisma.ownerAssignment.updateMany({
       where: { orgId, entityType: entityType as any, entityId: { in: entityIds }, isPrimary: true } as any,
       data: { isPrimary: false },
     })
 
     // Create new primaries
-    await (prisma as any).ownerAssignment.createMany({
+    await prisma.ownerAssignment.createMany({
       data: entityIds.map((id) => ({
         orgId,
         entityType: entityType as any,
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Resolve matching OWNERSHIP signals for those entities only
-    await (prisma as any).orgHealthSignal.updateMany({
+    await prisma.orgHealthSignal.updateMany({
       where: {
         orgId,
         type: "OWNERSHIP" as any,

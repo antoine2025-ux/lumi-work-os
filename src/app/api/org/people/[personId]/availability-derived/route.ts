@@ -54,7 +54,8 @@ export async function GET(
     setWorkspaceContext(workspaceId);
 
     // Step 4: Get the user ID from position
-    const position = await prisma.orgPosition.findFirst({
+    // Handle both OrgPosition ID and User ID (personId might be either)
+    let position = await prisma.orgPosition.findFirst({
       where: {
         id: personId,
         workspaceId,
@@ -65,12 +66,26 @@ export async function GET(
       },
     });
 
+    // If not found by ID, personId might be a User ID - try to find by userId
+    if (!position) {
+      position = await prisma.orgPosition.findFirst({
+        where: {
+          userId: personId,
+          workspaceId,
+          isActive: true,
+        },
+        select: {
+          userId: true,
+        },
+      });
+    }
+
     if (!position || !position.userId) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
 
     // Step 5: Get employment status from workspace member
-    const member = await (prisma as any).workspaceMember.findUnique({
+    const member = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
           workspaceId,
@@ -87,7 +102,7 @@ export async function GET(
     const employmentStatus = (member?.employmentStatus as EmploymentStatus) ?? "ACTIVE";
 
     // Step 6: Fetch availability windows
-    const windowsRaw = await (prisma as any).personAvailability.findMany({
+    const windowsRaw = await prisma.personAvailability.findMany({
       where: {
         workspaceId,
         personId: position.userId,
@@ -107,7 +122,7 @@ export async function GET(
     });
 
     // Convert to AvailabilityWindow format
-    const windows: AvailabilityWindow[] = windowsRaw.map((w: any) => ({
+    const windows: AvailabilityWindow[] = windowsRaw.map((w) => ({
       type: w.type === "UNAVAILABLE" ? "unavailable" : "partial",
       startDate: w.startDate,
       endDate: w.endDate ?? undefined,

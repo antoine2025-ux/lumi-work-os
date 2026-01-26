@@ -26,7 +26,7 @@ export function PeopleActionsMenu({
   onAssignManager,
   onExport,
 }: PeopleActionsMenuProps) {
-  const handleAction = (action: (() => void) | undefined) => {
+  const handleAction = (action: () => void | undefined) => {
     if (action) {
       action();
     } else {

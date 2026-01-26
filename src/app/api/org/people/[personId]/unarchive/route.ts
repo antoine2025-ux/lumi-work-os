@@ -46,7 +46,7 @@ export async function PATCH(
     const { personId } = await ctx.params;
 
     // Step 5: Verify person exists and belongs to workspace
-    const position = await (prisma as any).orgPosition.findFirst({
+    const position = await prisma.orgPosition.findFirst({
       where: {
         id: personId,
         workspaceId,
@@ -80,7 +80,7 @@ export async function PATCH(
     }
 
     // Step 6: Unarchive the person
-    const updated = await (prisma as any).orgPosition.update({
+    const updated = await prisma.orgPosition.update({
       where: { id: personId },
       data: {
         archivedAt: null,

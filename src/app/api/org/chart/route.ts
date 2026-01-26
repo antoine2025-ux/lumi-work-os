@@ -11,6 +11,7 @@ import { buildOrgChartTree, buildOrgChartByDepartment } from "@/lib/org/projecti
 export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request);
+    
     const { searchParams } = new URL(request.url);
     const workspaceId = searchParams.get("workspaceId") || auth.workspaceId;
     const groupBy = searchParams.get("groupBy"); // "department" or null
@@ -51,11 +52,10 @@ export async function GET(request: NextRequest) {
     if (error instanceof Error && error.message.includes("Unauthorized")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
+    
     return NextResponse.json(
       { error: "Failed to fetch org chart" },
       { status: 500 }
     );
   }
 }
-

@@ -75,61 +75,74 @@ export async function PATCH(request: NextRequest) {
     }
     // For ACKNOWLEDGED and FALSE_POSITIVE, we'll use upsert logic below
 
-    // Step 6: Upsert the resolution record
-    // Note: OrgPersonIssue model uses personId for entityId and type for issueType
-    // For now, we only support person issues since that's what the model supports
-    // Team/department issues would need a separate model or expanded schema
-    
-    if (body.entityType !== "person" && body.entityType !== "position") {
-      // For non-person entities, we can't persist resolution yet
-      // Return success but log that it's not persisted
-      console.warn(`[PATCH /api/org/integrity/resolution] Cannot persist resolution for entityType: ${body.entityType}`);
+    // Step 6: Build issueKey for reconciliation (PRIMARY IDENTIFIER)
+    // Format: `${issueType}:${entityType}:${entityId}`
+    const entityTypeUpper = body.entityType.toUpperCase();
+    const issueKey = `${body.issueType}:${entityTypeUpper}:${body.entityId}`;
+
+    // Step 7: Upsert the resolution record using OrgIssueResolution (hybrid storage: store resolved by issueKey)
+    // Only persist if resolution is not PENDING (PENDING means not resolved, so no record needed)
+    if (body.resolution === "PENDING") {
+      // Delete resolution record if it exists (reopen issue)
+      await prisma.orgIssueResolution.deleteMany({
+        where: {
+          workspaceId,
+          issueKey,
+        },
+      });
+
       return NextResponse.json({
         ok: true,
-        warning: `Resolution for ${body.entityType} issues cannot be persisted yet. Schema expansion needed.`,
-        persisted: false,
+        issue: {
+          id: issueKey,
+          resolution: "PENDING",
+          resolutionNote: null,
+          resolvedById: null,
+          resolvedAt: null,
+        },
+        persisted: true,
       });
     }
 
-    // Upsert the issue resolution
-    const result = await (prisma as any).orgPersonIssue.upsert({
+    // Upsert the resolution record (for RESOLVED, ACKNOWLEDGED, FALSE_POSITIVE)
+    const result = await prisma.orgIssueResolution.upsert({
       where: {
-        orgId_personId_type: {
-          orgId: workspaceId,
-          personId: body.entityId,
-          type: body.issueType,
+        workspaceId_issueKey: {
+          workspaceId,
+          issueKey,
         },
       },
       create: {
-        orgId: workspaceId,
-        personId: body.entityId,
-        type: body.issueType,
-        resolution: body.resolution,
+        workspaceId,
+        issueKey,
+        issueType: body.issueType,
+        entityType: entityTypeUpper,
+        entityId: body.entityId,
+        resolvedBy: userId,
+        resolvedAt: new Date(),
         resolutionNote: body.resolutionNote ?? null,
-        resolvedById: userId,
-        resolvedAt: resolvedAt,
-        firstSeenAt: new Date(),
-        lastSeenAt: new Date(),
       },
       update: {
-        resolution: body.resolution,
-        resolutionNote: body.resolution === "PENDING" 
-          ? undefined // Keep existing note on reopen
-          : (body.resolutionNote ?? undefined),
-        resolvedById: userId,
-        resolvedAt: body.resolution === "PENDING" ? null : (body.resolution === "RESOLVED" ? new Date() : undefined),
-        lastSeenAt: new Date(),
+        resolvedBy: userId,
+        resolvedAt: new Date(),
+        resolutionNote: body.resolutionNote ?? null,
       },
+    });
+
+    // Fetch resolver name for response
+    const resolver = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true },
     });
 
     return NextResponse.json({
       ok: true,
       issue: {
         id: result.id,
-        resolution: result.resolution,
+        resolution: body.resolution,
         resolutionNote: result.resolutionNote,
-        resolvedById: result.resolvedById,
-        resolvedAt: result.resolvedAt?.toISOString() ?? null,
+        resolvedById: result.resolvedBy,
+        resolvedAt: result.resolvedAt.toISOString(),
       },
       persisted: true,
     });

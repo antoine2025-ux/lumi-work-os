@@ -47,7 +47,7 @@ export async function PATCH(
     const { personId } = await ctx.params;
 
     // Step 5: Verify person exists and belongs to workspace
-    const position = await (prisma as any).orgPosition.findFirst({
+    const position = await prisma.orgPosition.findFirst({
       where: {
         id: personId,
         workspaceId,
@@ -90,7 +90,7 @@ export async function PATCH(
 
     // Step 6: Check if person is an owner of any team or department
     const [ownedTeams, ownedDepartmentAssignments] = await Promise.all([
-      (prisma as any).orgTeam.findMany({
+      prisma.orgTeam.findMany({
         where: {
           workspaceId,
           ownerPersonId: position.id,
@@ -101,7 +101,7 @@ export async function PATCH(
         },
       }),
       // Check owner_assignments table for department ownership
-      (prisma as any).ownerAssignment.findMany({
+      prisma.ownerAssignment.findMany({
         where: {
           workspaceId,
           ownerPersonId: position.id,
@@ -115,7 +115,7 @@ export async function PATCH(
     ]);
 
     // Fetch department names for owned departments
-    const ownedDepartmentIds = ownedDepartmentAssignments.map((a: any) => a.entityId);
+    const ownedDepartmentIds = ownedDepartmentAssignments.map(a => a.entityId);
     const ownedDepartments = ownedDepartmentIds.length > 0
       ? await prisma.orgDepartment.findMany({
           where: {
@@ -131,8 +131,8 @@ export async function PATCH(
 
     if (ownedTeams.length > 0 || ownedDepartments.length > 0) {
       const entityNames: string[] = [
-        ...ownedTeams.map((t: any) => `team "${t.name}"`),
-        ...ownedDepartments.map((d: any) => `department "${d.name}"`),
+        ...ownedTeams.map(t => `team "${t.name}"`),
+        ...ownedDepartments.map(d => `department "${d.name}"`),
       ];
       
       return NextResponse.json(
@@ -145,7 +145,7 @@ export async function PATCH(
     }
 
     // Step 7: Archive the person
-    const updated = await (prisma as any).orgPosition.update({
+    const updated = await prisma.orgPosition.update({
       where: { id: personId },
       data: {
         archivedAt: new Date(),

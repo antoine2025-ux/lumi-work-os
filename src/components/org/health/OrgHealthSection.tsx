@@ -2,9 +2,8 @@ import { OrgHealthCard } from "@/components/org/health/OrgHealthCard"
 import { requireActiveOrgId } from "@/server/org/context"
 import { getLatestOrgHealth } from "@/server/org/health/store"
 import { refreshOrgHealth } from "@/server/org/health/refresh"
-import type { OrgHealthSignal, OrgHealthSnapshot } from "@/lib/org-health/types"
 
-async function getHealth(): Promise<{ snapshot: OrgHealthSnapshot; signals: OrgHealthSignal[] }> {
+async function getHealth() {
   const orgId = await requireActiveOrgId()
   
   // Try to get latest persisted snapshot
@@ -20,7 +19,7 @@ async function getHealth(): Promise<{ snapshot: OrgHealthSnapshot; signals: OrgH
       signals: latest.signals.map((s) => ({
         id: s.id,
         type: s.type,
-        severity: s.severity as OrgHealthSignal["severity"],
+        severity: s.severity,
         title: s.title,
         description: s.description,
         createdAt: s.createdAt.toISOString(),
@@ -38,10 +37,7 @@ async function getHealth(): Promise<{ snapshot: OrgHealthSnapshot; signals: OrgH
     },
     signals: computed.signals.map((s) => ({
       id: `sig_${s.type}_${s.severity}`,
-      type: s.type,
-      severity: s.severity as OrgHealthSignal["severity"],
-      title: s.title,
-      description: s.description,
+      ...s,
       createdAt: new Date().toISOString(),
       resolvedAt: null,
     })),

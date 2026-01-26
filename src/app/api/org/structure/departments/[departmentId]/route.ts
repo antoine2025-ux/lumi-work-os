@@ -77,18 +77,6 @@ export async function DELETE(
       );
     }
 
-    // Prevent deletion of "Unassigned" department (system bucket)
-    if (department.name?.trim().toLowerCase() === "unassigned") {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: "FORBIDDEN",
-          hint: "Cannot delete the 'Unassigned' department. It is a system bucket for unplaced teams."
-        },
-        { status: 403 }
-      );
-    }
-
     // Block deletion if department has teams
     if (department.teams.length > 0) {
       return NextResponse.json(
@@ -106,12 +94,10 @@ export async function DELETE(
       // Delete department owner assignments if they exist
       await tx.$executeRaw`
         DELETE FROM owner_assignments
-        WHERE "targetId" = ${departmentId} 
+        WHERE "entityId" = ${departmentId} 
         AND "workspaceId" = ${workspaceId}
         AND "entityType" = 'DEPARTMENT'
-      `.catch(() => {
-        // Table might not exist or use different schema, ignore
-      });
+      `;
 
       // Finally, delete the department
       await tx.orgDepartment.delete({

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { getOrgContext } from "@/server/rbac";
@@ -7,7 +7,7 @@ function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {
@@ -22,12 +22,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "No workspace" }, { status: 403 });
     }
 
-    // Note: orgSavedView model requires prisma generate to be recognized in types
-    const views = await (prisma as any).orgSavedView.findMany({
+    const views = await prisma.orgSavedView.findMany({
       where: { workspaceId, scope },
       orderBy: { name: "asc" },
       select: { id: true, name: true, key: true, filters: true },
-    }) as { id: string; name: string; key: string; filters: any }[];
+    });
 
     return NextResponse.json({ ok: true, views });
   } catch (error: any) {
@@ -39,7 +38,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {
@@ -74,12 +73,12 @@ export async function POST(req: NextRequest) {
     if (!key || typeof key !== "string") return badRequest("key is required");
     if (!filters || typeof filters !== "object") return badRequest("filters must be an object");
 
-    const created = await (prisma as any).orgSavedView.upsert({
+    const created = await prisma.orgSavedView.upsert({
       where: { workspaceId_scope_key: { workspaceId, scope, key } },
       update: { name: name.trim(), filters },
       create: { workspaceId, scope, name: name.trim(), key: key.trim(), filters },
       select: { id: true, name: true, key: true, filters: true },
-    }) as { id: string; name: string; key: string; filters: any };
+    });
 
     return NextResponse.json({ ok: true, view: created });
   } catch (error: any) {

@@ -116,9 +116,8 @@ export async function GET(req: NextRequest) {
     const deptOwnershipMap = new Map<string, boolean>();
     for (const team of teamsByDept) {
       const isOwned = team._count.positions > 0;
-      const deptId = team.departmentId;
-      if (deptId && (!deptOwnershipMap.has(deptId) || isOwned)) {
-        deptOwnershipMap.set(deptId, isOwned);
+      if (!deptOwnershipMap.has(team.departmentId) || isOwned) {
+        deptOwnershipMap.set(team.departmentId, isOwned);
       }
     }
 

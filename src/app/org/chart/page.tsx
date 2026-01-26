@@ -20,7 +20,6 @@ export default async function OrgChartPage() {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / CHART"
           title="Org Chart"
           description="Visualize your organization's structure"
         />
@@ -41,7 +40,6 @@ export default async function OrgChartPage() {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / ORG CHART"
         title="Org chart"
         description="Visual overview of departments, teams, and people in your organization."
       />
@@ -54,3 +52,4 @@ export default async function OrgChartPage() {
     </>
   );
 }
+

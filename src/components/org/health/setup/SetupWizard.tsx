@@ -311,7 +311,13 @@ function QuickAssignOwnerModal(props: {
                     }),
                   })
                   if (!res.ok) throw new Error("failed")
-                  props.onToast({ title: "Owner assigned", description: `${entity!.label} now has a primary owner.` })
+                  const data = await res.json()
+                  // Optimistic update: show success toast with scoped response info
+                  props.onToast({
+                    title: "Ownership assigned",
+                    description: `${entity!.label} now has a primary owner. Ownership coverage updated.`,
+                  })
+                  // Note: Use data.issuesVersion for optional revalidation if needed
                   props.onDone()
                 } catch {
                   props.onToast({ title: "Failed to assign owner", description: "Please try again." })
@@ -419,7 +425,7 @@ function QuickManagerLinkModal(props: { open: boolean; onClose: () => void; onTo
   )
 }
 
-function QuickRoleAssignModal(props: { open: boolean; onClose: () => void; onToast: (t: { title: string; description?: string }) => void; onDone: () => void }) {
+function QuickRoleAssignModal(props: { open: boolean; onClose: () => void }) {
   const [personId, setPersonId] = React.useState<string | null>(null)
   const [role, setRole] = React.useState("Engineer")
   const [percent, setPercent] = React.useState(100)

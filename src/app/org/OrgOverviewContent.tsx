@@ -40,14 +40,14 @@ async function OverviewDataLoader({ context }: OrgOverviewContentProps) {
           return null;
         })
       : Promise.resolve(null),
-      getOrgSetupStatus(context.orgId).catch((error) => {
-        console.error("[OverviewDataLoader] Error loading setup status:", error);
-        return null; // Return null instead of throwing
-      }),
-      getOrgOverviewSummary(context.orgId).catch((error) => {
-        console.error("[OverviewDataLoader] Error loading summary:", error);
-        return null; // Return null instead of throwing
-      }),
+    getOrgSetupStatus(context.orgId).catch((error) => {
+      console.error("[OverviewDataLoader] Error loading setup status:", error);
+      return null; // Return null instead of throwing
+    }),
+    getOrgOverviewSummary(context.orgId).catch((error) => {
+      console.error("[OverviewDataLoader] Error loading summary:", error);
+      return null; // Return null instead of throwing
+    }),
   ]);
 
   if (process.env.NODE_ENV !== "production" && startTime) {

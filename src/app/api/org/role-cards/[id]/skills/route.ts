@@ -72,13 +72,7 @@ export async function GET(
 
     return NextResponse.json({
       ok: true,
-      skills: roleCardSkills.map((rcs: {
-        id: string;
-        skillId: string;
-        skill: { id: string; name: string; category: string | null };
-        type: string;
-        minProficiency: number | null;
-      }) => ({
+      skills: roleCardSkills.map((rcs) => ({
         id: rcs.id,
         skillId: rcs.skillId,
         skill: {

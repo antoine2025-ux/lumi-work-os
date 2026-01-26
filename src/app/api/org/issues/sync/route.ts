@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { getOrgContext, requireEdit } from "@/server/rbac";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   if (!workspaceId) return NextResponse.json({ ok: false, error: "Workspace required" }, { status: 400 });
 
   // Get all org positions (people) for this workspace with team and title info (exclude archived)
-  const positions = await (prisma as any).orgPosition.findMany({
+  const positions = await prisma.orgPosition.findMany({
     where: { workspaceId, isActive: true, archivedAt: null },
     select: {
       id: true,
@@ -29,11 +29,11 @@ export async function POST(req: NextRequest) {
   const now = new Date();
 
   // Missing manager issues: upsert + set lastSeenAt; resolve for fixed.
-  const missingManager = new Set(positions.filter((p: any) => !p.parentId).map((p: any) => p.id));
+  const missingManager = new Set(positions.filter((p) => !p.parentId).map((p) => p.id));
 
   // Upsert missing manager issues
   for (const id of missingManager) {
-    await (prisma as any).orgPersonIssue.upsert({
+    await prisma.orgPersonIssue.upsert({
       where: { orgId_personId_type: { orgId: ctx.orgId, personId: id, type: "MISSING_MANAGER" } },
       update: { lastSeenAt: now, resolvedAt: null },
       create: {
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Resolve missing manager issues no longer missing
-  await (prisma as any).orgPersonIssue.updateMany({
+  await prisma.orgPersonIssue.updateMany({
     where: {
       orgId: ctx.orgId,
       type: "MISSING_MANAGER",
@@ -58,9 +58,9 @@ export async function POST(req: NextRequest) {
   });
 
   // Detect missing team
-  const missingTeam = positions.filter((p: any) => !p.teamId && !p.team?.id).map((p: any) => p.id);
+  const missingTeam = positions.filter((p) => !p.teamId && !p.team?.id).map((p) => p.id);
   for (const id of missingTeam) {
-    await (prisma as any).orgPersonIssue.upsert({
+    await prisma.orgPersonIssue.upsert({
       where: { orgId_personId_type: { orgId: ctx.orgId, personId: id, type: "MISSING_TEAM" } },
       update: { lastSeenAt: now, resolvedAt: null },
       create: {
@@ -74,9 +74,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Detect missing role/title
-  const missingRole = positions.filter((p: any) => !p.title || p.title.trim() === "").map((p: any) => p.id);
+  const missingRole = positions.filter((p) => !p.title || p.title.trim() === "").map((p) => p.id);
   for (const id of missingRole) {
-    await (prisma as any).orgPersonIssue.upsert({
+    await prisma.orgPersonIssue.upsert({
       where: { orgId_personId_type: { orgId: ctx.orgId, personId: id, type: "MISSING_ROLE" } },
       update: { lastSeenAt: now, resolvedAt: null },
       create: {
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Resolve fixed issues generically
-  await (prisma as any).orgPersonIssue.updateMany({
+  await prisma.orgPersonIssue.updateMany({
     where: {
       orgId: ctx.orgId,
       resolvedAt: null,

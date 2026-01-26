@@ -155,7 +155,7 @@ export async function GET(req: Request) {
     let effectiveCapacityUnits = 0;
 
     if (userIds.length > 0) {
-      const availabilityRecords = await (prisma as any).personAvailability.findMany({
+      const availabilityRecords = await prisma.personAvailability.findMany({
         where: {
           personId: { in: userIds },
           startDate: { lte: lookahead },
@@ -170,7 +170,7 @@ export async function GET(req: Request) {
         },
       });
 
-      const allocationRecords = await (prisma as any).projectAllocation.findMany({
+      const allocationRecords = await prisma.projectAllocation.findMany({
         where: {
           personId: { in: userIds },
           orgId: workspaceId,
@@ -200,7 +200,7 @@ export async function GET(req: Request) {
         const allocations = allocationByUser.get(uid) || 0;
 
         const activeUnavailable = avRecords.find(
-          (av: any) =>
+          (av) =>
             av.type === "UNAVAILABLE" &&
             av.startDate <= now &&
             (av.endDate === null || av.endDate >= now)
@@ -210,7 +210,7 @@ export async function GET(req: Request) {
         const isAvailableNow = !isUnavailableNow;
 
         const partialAv = avRecords.find(
-          (av: any) =>
+          (av) =>
             av.type === "PARTIAL" &&
             av.startDate <= now &&
             (av.endDate === null || av.endDate >= now)
@@ -324,8 +324,7 @@ export async function GET(req: Request) {
             teamId: startPosition.teamId,
             workspaceId,
             isActive: true,
-            userId: { not: null },
-            NOT: { userId: personId },
+            userId: { not: null, not: personId },
           },
           select: { userId: true },
           take: 20,
@@ -358,8 +357,7 @@ export async function GET(req: Request) {
               teamId: { in: deptTeamIds },
               workspaceId,
               isActive: true,
-              userId: { not: null },
-              NOT: { userId: personId },
+              userId: { not: null, not: personId },
             },
             select: { userId: true },
             take: 20,

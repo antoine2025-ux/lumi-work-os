@@ -19,7 +19,7 @@ import { computeSnapshotFreshness } from "@/server/org/intelligence/freshness";
 export async function GET(request: NextRequest) {
   let userId: string | undefined;
   let workspaceId: string | undefined;
-
+  
   try {
     // Step 1: Get unified auth (includes workspaceId)
     const auth = await getUnifiedAuth(request);
@@ -60,11 +60,11 @@ export async function GET(request: NextRequest) {
     // Schema truth: If model/table doesn't exist, Prisma will throw.
     // This enforces that migrations must be applied.
     // Check if model exists to prevent "Cannot read properties of undefined" error
-    if (!(prisma as any).orgIntelligenceSnapshot) {
+    if (!prisma.orgIntelligenceSnapshot) {
       throw new Error("Prisma client is stale - please run 'pnpm prisma generate'. The orgIntelligenceSnapshot model is missing.");
     }
     
-    const latest = await (prisma as any).orgIntelligenceSnapshot.findFirst({
+    const latest = await prisma.orgIntelligenceSnapshot.findFirst({
       orderBy: { createdAt: "desc" },
       select: {
         id: true,

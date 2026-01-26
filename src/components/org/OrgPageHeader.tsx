@@ -1,33 +1,220 @@
 "use client";
 
 import * as React from "react";
-import { HelpCircle } from "lucide-react";
+import Link from "next/link";
+import { HelpCircle, ChevronLeft } from "lucide-react";
 import { OrgSetupGuideTrigger } from "./OrgSetupGuideTrigger";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+
+/**
+ * Resolve back action based on the `from` query parameter.
+ * Returns null if `from` is not recognized or not provided.
+ */
+export function resolveBackAction(from: string | null): { label: string; href: string } | null {
+  if (!from) return null;
+  
+  const backTargets: Record<string, { label: string; href: string }> = {
+    issues: { label: "Back to Issues", href: "/org/issues" },
+    intelligence: { label: "Back to Intelligence", href: "/org/intelligence" },
+    structure: { label: "Back to Structure", href: "/org/structure" },
+    people: { label: "Back to People", href: "/org/people" },
+    ownership: { label: "Back to Ownership", href: "/org/ownership" },
+  };
+  
+  return backTargets[from] || null;
+}
 
 type OrgPageHeaderProps = {
-  breadcrumb?: string;
   title: string | React.ReactNode;
   description?: React.ReactNode;
+  
+  // Legacy support (deprecated, but keep for migration)
+  legacyBreadcrumb?: string;
+  
+  // New structured API
+  breadcrumb?: Array<{
+    label: string;
+    href?: string;
+  }>;
+  
+  backAction?: {
+    label: string;
+    href: string;
+  };
+  
+  primaryAction?: {
+    label: string;
+    onClick?: () => void;
+    href?: string;
+  };
+  
+  secondaryActions?: Array<{
+    label: string;
+    onClick?: () => void;
+    href?: string;
+  }>;
+  
+  // Existing props (keep for backward compatibility)
   secondaryDescription?: React.ReactNode;
   actions?: React.ReactNode;
   showHelp?: boolean;
   showSetupGuide?: boolean; // Show setup guide only when needed (e.g., 0 people)
-  backLink?: React.ReactNode; // Back link to show above title on the left
+  backLink?: React.ReactNode; // Back link to show above title on the left (deprecated, use backAction)
 };
 
-export function OrgPageHeader({ breadcrumb, title, description, secondaryDescription, actions, showHelp = true, showSetupGuide = false, backLink }: OrgPageHeaderProps) {
-  
+export function OrgPageHeader({ 
+  title, 
+  description, 
+  legacyBreadcrumb,
+  breadcrumb,
+  backAction,
+  primaryAction,
+  secondaryActions,
+  secondaryDescription, 
+  actions, 
+  showHelp = true, 
+  showSetupGuide = false, 
+  backLink 
+}: OrgPageHeaderProps) {
+  // Determine which breadcrumb to render
+  const renderBreadcrumb = () => {
+    // New structured breadcrumb (priority)
+    if (Array.isArray(breadcrumb) && breadcrumb.length >= 2) {
+      return (
+        <nav className="flex items-center gap-1 text-[12px] text-slate-500 mb-2" aria-label="Breadcrumb">
+          {breadcrumb.map((item, index) => {
+            const isLast = index === breadcrumb.length - 1;
+            return (
+              <React.Fragment key={index}>
+                {item.href && !isLast ? (
+                  <Link
+                    href={item.href}
+                    className="hover:text-slate-400 transition-colors"
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span className={isLast ? "text-slate-400" : ""}>
+                    {item.label}
+                  </span>
+                )}
+                {!isLast && <span className="text-slate-600">/</span>}
+              </React.Fragment>
+            );
+          })}
+        </nav>
+      );
+    }
+    
+    // Legacy breadcrumb (fallback)
+    if (legacyBreadcrumb) {
+      return (
+        <nav className="flex items-center text-[12px] text-slate-500 mb-2" aria-label="Breadcrumb">
+          {legacyBreadcrumb}
+        </nav>
+      );
+    }
+    
+    return null;
+  };
+
+  // Render back action
+  const renderBackAction = () => {
+    if (backAction) {
+      return (
+        <Link
+          href={backAction.href}
+          className="flex items-center gap-1 text-[13px] text-slate-400 hover:text-slate-300 transition-colors mb-2 group"
+        >
+          <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          {backAction.label}
+        </Link>
+      );
+    }
+    
+    // Legacy backLink support
+    if (backLink) {
+      return <div className="mb-2">{backLink}</div>;
+    }
+    
+    return null;
+  };
+
+  // Render actions (primary and secondary)
+  const renderActions = () => {
+    const hasNewActions = primaryAction || (secondaryActions && secondaryActions.length > 0);
+    const hasLegacyActions = actions;
+    
+    // Always render actions container if setup guide or any actions exist
+    if (!showSetupGuide && !hasNewActions && !hasLegacyActions) {
+      return null;
+    }
+
+    return (
+      <div className="flex shrink-0 items-center gap-2 flex-wrap">
+        {showSetupGuide && (
+          <OrgSetupGuideTrigger className="focus-ring rounded-full border border-slate-700 bg-slate-800/50 px-3 py-1.5 text-[11px] text-slate-300 transition-colors hover:bg-slate-700 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900" />
+        )}
+        
+        {hasNewActions && (
+          <>
+            {secondaryActions && secondaryActions.length > 0 && (
+              <div className="flex items-center gap-2">
+                {secondaryActions.map((action, index) => {
+                  if (action.href) {
+                    return (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        size="sm"
+                        asChild
+                      >
+                        <Link href={action.href}>{action.label}</Link>
+                      </Button>
+                    );
+                  }
+                  return (
+                    <Button
+                      key={index}
+                      variant="outline"
+                      size="sm"
+                      onClick={action.onClick}
+                    >
+                      {action.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            )}
+            {primaryAction && (
+              <>
+                {primaryAction.href ? (
+                  <Button size="sm" asChild>
+                    <Link href={primaryAction.href}>{primaryAction.label}</Link>
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={primaryAction.onClick}>
+                    {primaryAction.label}
+                  </Button>
+                )}
+              </>
+            )}
+          </>
+        )}
+        
+        {hasLegacyActions && <div className="flex items-center gap-2">{actions}</div>}
+      </div>
+    );
+  };
+
   return (
     <header className="flex flex-col gap-4 px-10 pt-4 pb-5 md:flex-row md:items-start md:justify-between">
       <div className="flex flex-col gap-2">
-        {backLink && (
-          <div>
-            {backLink}
-          </div>
-        )}
+        {renderBreadcrumb()}
+        {renderBackAction()}
 
-<div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <h1 className="mt-1 text-[20px] font-semibold text-slate-100">
             {title}
           </h1>
@@ -77,12 +264,7 @@ export function OrgPageHeader({ breadcrumb, title, description, secondaryDescrip
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 flex-wrap">
-        {showSetupGuide && (
-          <OrgSetupGuideTrigger className="focus-ring rounded-full border border-slate-700 bg-slate-800/50 px-3 py-1.5 text-[11px] text-slate-300 transition-colors hover:bg-slate-700 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900" />
-        )}
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
-      </div>
+      {renderActions()}
     </header>
   );
 }

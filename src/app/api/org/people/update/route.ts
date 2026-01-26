@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { getOrgContext, requireEdit } from "@/server/rbac";
 
@@ -20,9 +19,6 @@ export async function POST(req: Request) {
     requireEdit(ctx.canEdit);
 
     const workspaceId = await getCurrentWorkspaceId(req as any);
-    if (!workspaceId) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 401 });
-    }
     const body = (await req.json()) as Body;
 
     if (!body?.id) {
@@ -100,7 +96,7 @@ export async function POST(req: Request) {
       data: updateData,
     });
 
-    await (prisma as any).auditLogEntry.create({
+    await prisma.auditLogEntry.create({
       data: {
         orgId: ctx.orgId,
         actorUserId: ctx.user?.id ?? null,

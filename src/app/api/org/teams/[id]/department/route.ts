@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
-import {
-  assertOrgCapability,
-  getOrgPermissionContext,
-  mapPermissionErrorToStatus,
-} from "@/lib/org/permissions.server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 
 type RouteParams = {
   params: Promise<{
@@ -27,8 +24,12 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   try {
-    const context = await getOrgPermissionContext(req);
-    if (!context) {
+    // Step 1: Get unified auth (includes workspaceId)
+    const auth = await getUnifiedAuth(req);
+    const userId = auth?.user?.userId;
+    const workspaceId = auth?.workspaceId;
+
+    if (!userId || !workspaceId) {
       return NextResponse.json(
         {
           ok: false,
@@ -41,23 +42,17 @@ export async function PATCH(
       );
     }
 
-    try {
-      assertOrgCapability(context, "org:team:update");
-    } catch (permError) {
-      const status = mapPermissionErrorToStatus(permError);
-      return NextResponse.json(
-        {
-          ok: false,
-          error: {
-            code: status === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
-            message: "Not allowed to update teams in this org.",
-          },
-        },
-        { status }
-      );
-    }
+    // Step 2: Assert access
+    await assertAccess({
+      userId,
+      workspaceId,
+      scope: "workspace",
+      requireRole: ["MEMBER"],
+    });
 
-    const workspaceId = context.orgId;
+    // Step 3: Set workspace context
+    setWorkspaceContext(workspaceId);
+
     const { id } = await params;
     const body = (await req.json()) as UpdateDepartmentBody;
 
@@ -125,15 +120,95 @@ export async function PATCH(
           name: team.name,
           id: { not: id }, // Exclude current team
         },
+        include: {
+          department: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
 
       if (existingTeam) {
+        // Get department name for better error message
+        const departmentName = existingTeam.department?.name || "the target department";
+        
+        // Find ALL teams with the same name (to show duplicates)
+        // Use raw SQL to properly handle NULL ordering (NULLs first)
+        const allTeamsWithSameName = await prisma.$queryRaw<Array<{
+          id: string;
+          name: string;
+          departmentId: string | null;
+          department_name: string | null;
+        }>>`
+          SELECT 
+            t.id,
+            t.name,
+            t."departmentId",
+            d.name as department_name
+          FROM org_teams t
+          LEFT JOIN org_departments d ON t."departmentId" = d.id
+          WHERE t."workspaceId" = ${workspaceId}
+            AND t.name = ${team.name}
+            AND t."isActive" = true
+          ORDER BY 
+            t."departmentId" NULLS FIRST,
+            d.name ASC NULLS FIRST,
+            t.name ASC
+        `;
+        
+        // Map raw SQL results to expected format
+        const teamsWithSameName = allTeamsWithSameName.map(t => ({
+          id: t.id,
+          name: t.name,
+          departmentId: t.departmentId,
+          departmentName: t.department_name || null,
+          isUnassigned: t.departmentId === null,
+          isCurrentTeam: t.id === id,
+          isExistingTeam: t.id === existingTeam.id,
+        }));
+        
+        // #region agent log
+        console.log("[PATCH /api/org/teams/[id]/department] Duplicate team detected:", {
+          currentTeam: { id, name: team.name, departmentId: team.departmentId },
+          existingTeam: { id: existingTeam.id, name: existingTeam.name, departmentId: existingTeam.departmentId },
+          allTeamsWithSameName: teamsWithSameName,
+          targetDepartmentId: body.departmentId,
+          targetDepartmentName: departmentName,
+        });
+        // #endregion
+        
+        // Check if current team is unassigned to provide more specific guidance
+        const currentTeamIsUnassigned = team.departmentId === null;
+        const duplicateCount = teamsWithSameName.length;
+        
+        const guidanceMessage = duplicateCount > 1
+          ? ` There are ${duplicateCount} teams named "${team.name}" in your organization. One is already in ${departmentName}. Consider renaming the unassigned team or removing the duplicate.`
+          : currentTeamIsUnassigned
+          ? ` There is already a team named "${team.name}" in ${departmentName}. You have two separate teams with this name. You can rename the unassigned team or delete the duplicate before assigning.`
+          : ` There is already a team named "${team.name}" in ${departmentName}. Consider renaming one of the teams or removing the duplicate.`;
+        
         return NextResponse.json(
           {
             ok: false,
             error: {
               code: "TEAM_EXISTS",
-              message: "A team with this name already exists in the target department.",
+              message: `A team named "${team.name}" already exists in ${departmentName}.${guidanceMessage}`,
+              details: {
+                existingTeamId: existingTeam.id,
+                existingTeamName: existingTeam.name,
+                existingTeamDepartmentId: existingTeam.departmentId,
+                existingTeamDepartmentName: departmentName,
+                targetDepartmentId: body.departmentId,
+                targetDepartmentName: departmentName,
+                currentTeamId: id,
+                currentTeamName: team.name,
+                currentTeamDepartmentId: team.departmentId,
+                duplicateCount,
+                allTeamsWithSameName: teamsWithSameName,
+                isDuplicate: true,
+              },
             },
           },
           { status: 409 }
@@ -141,9 +216,11 @@ export async function PATCH(
       }
     }
 
+    // Get previous departmentId for audit logging
+    const previousDepartmentId = team.departmentId;
+
     // Update team department (can be null to unassign)
-    // Note: departmentId is nullable in schema but types are stale - run prisma generate
-    const updatedTeam = await (prisma.orgTeam.update as Function)({
+    const updatedTeam = await prisma.orgTeam.update({
       where: { id },
       data: {
         departmentId: body.departmentId ?? null,
@@ -153,7 +230,19 @@ export async function PATCH(
         name: true,
         departmentId: true,
       },
-    }) as { id: string; name: string; departmentId: string | null };
+    });
+
+    // Log audit event (only critical fields: departmentId)
+    const { logOrgMutation } = await import("@/server/org/audit/write");
+    await logOrgMutation({
+      workspaceId,
+      actorUserId: userId,
+      action: "TEAM_MOVED",
+      entityType: "TEAM",
+      entityId: updatedTeam.id,
+      before: { departmentId: previousDepartmentId },
+      after: { departmentId: updatedTeam.departmentId },
+    });
 
     return NextResponse.json({
       ok: true,

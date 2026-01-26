@@ -28,7 +28,7 @@ export async function GET(req: Request) {
       take: 2000,
     })
 
-    const availabilities = await (prisma as any).personAvailabilityHealth.findMany({
+    const availabilities = await prisma.personAvailabilityHealth.findMany({
       where: { orgId },
       select: { personId: true, status: true, reason: true, updatedAt: true, createdAt: true },
       take: 5000,

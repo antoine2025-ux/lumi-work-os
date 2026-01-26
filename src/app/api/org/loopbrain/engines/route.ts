@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { listEngines } from "@/server/loopbrain/registry";
 import { getOrgContext, requireAdmin } from "@/server/rbac";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const ctx = await getOrgContext(req);
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const engines = listEngines().filter((e) => e.scope === "people_issues");
 
-  const cfg = await (prisma as any).orgLoopBrainConfig.findUnique({
+  const cfg = await prisma.orgLoopBrainConfig.findUnique({
     where: { orgId_scope: { orgId: ctx.orgId, scope: "people_issues" } },
   });
 
@@ -24,13 +24,13 @@ export async function POST(req: NextRequest) {
 
   const body = (await req.json()) as { engineId: string; enabled: boolean };
 
-  const updated = await (prisma as any).orgLoopBrainConfig.upsert({
+  const updated = await prisma.orgLoopBrainConfig.upsert({
     where: { orgId_scope: { orgId: ctx.orgId, scope: "people_issues" } },
     update: { engineId: body.engineId, enabled: !!body.enabled },
     create: { orgId: ctx.orgId, scope: "people_issues", engineId: body.engineId, enabled: !!body.enabled },
   });
 
-  await (prisma as any).auditLogEntry.create({
+  await prisma.auditLogEntry.create({
     data: {
       orgId: ctx.orgId,
       actorUserId: ctx.user?.id ?? null,

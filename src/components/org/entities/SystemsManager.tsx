@@ -113,7 +113,7 @@ export function SystemsManager() {
                     className="rounded-xl border px-3 py-2 text-sm font-medium hover:bg-muted"
                     href={`/org/health/ownership?type=SYSTEM&id=${encodeURIComponent(s.id)}`}
                   >
-                    Assign owner
+                    Assign
                   </a>
                 </div>
               </div>

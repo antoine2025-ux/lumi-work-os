@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, X, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
+import { Search, X, SlidersHorizontal, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PeopleViewToggle, type ViewMode } from "./PeopleViewToggle";
 import { SavedViewsDropdown } from "./SavedViewsDropdown";
@@ -51,6 +52,7 @@ export function PeopleFiltersBar({
   onSelectShortlist,
   onDeleteShortlist,
   onClearShortlist,
+  canManagePeople = true,
 }: PeopleFiltersBarProps) {
   const handleClearSearch = () => {
     onSearchChange("");
@@ -190,6 +192,28 @@ export function PeopleFiltersBar({
               viewMode={viewMode}
               onViewModeChange={onViewModeChange}
             />
+          )}
+
+          {/* Add person button */}
+          {canManagePeople && (
+            <Link
+              href="/org/people/new"
+              className={cn(
+                "inline-flex items-center justify-center gap-2",
+                "rounded-full",
+                "px-4 py-2",
+                "text-sm font-medium",
+                "bg-primary",
+                "hover:bg-primary/90",
+                "text-white",
+                "transition-colors duration-150",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
+                "disabled:cursor-not-allowed disabled:opacity-50"
+              )}
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>Add person</span>
+            </Link>
           )}
         </div>
       </div>

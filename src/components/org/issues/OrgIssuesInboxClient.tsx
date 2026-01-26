@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { OrgApi } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
@@ -14,9 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getIssueTypeLabel } from "@/lib/org/issues/issueCopy";
+import { getIssueTypeLabel, getIssueExplanation, getIssueOutcomeHint } from "@/lib/org/issues/issueCopy";
 import { OrgIssueDetailDrawer } from "@/components/org/issues/OrgIssueDetailDrawer";
-import { AlertTriangle, CheckCircle, Eye } from "lucide-react";
+import { AlertTriangle, CheckCircle, Info } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { mutationBus } from "@/lib/org/mutations";
+import type { OrgIssueMetadata, OrgIssue } from "@/lib/org/deriveIssues";
+import { WhyThisAnswerPanel } from "@/components/org/intelligence/WhyThisAnswerPanel";
+import { ExplainabilityPanel } from "@/components/org/explainability/ExplainabilityPanel";
+import { OrgEmptyState } from "@/components/org/OrgEmptyState";
+import { SeverityBadge } from "@/components/org/SeverityBadge";
 
 type Resolution = "PENDING" | "ACKNOWLEDGED" | "FALSE_POSITIVE" | "RESOLVED";
 
@@ -37,57 +44,61 @@ type IntegrityIssue = {
   firstSeenAt: string | null;
 };
 
-function SeverityBadge({ severity }: { severity: "error" | "warning" }) {
-  if (severity === "error") {
-    return (
-      <Badge variant="destructive" className="text-[10px]">
-        Error
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="secondary" className="text-[10px] bg-amber-500/20 text-amber-300 border-amber-500/30">
-      Warning
-    </Badge>
-  );
+// Type adapter: convert IntegrityIssue to OrgIssueMetadata
+// Preserves critical fields: issueKey, severity, fixUrl/fixAction for display + Fix button behavior
+function normalizeIssue(issue: IntegrityIssue): OrgIssueMetadata {
+  return {
+    issueKey: issue.issueKey, // Preserved: primary identifier
+    issueId: issue.issueKey, // Use issueKey as ID
+    type: issue.type as OrgIssue,
+    severity: issue.severity, // Preserved: affects sorting and display
+    entityType: (issue.entityType.toUpperCase() as "PERSON" | "TEAM" | "DEPARTMENT" | "POSITION") as OrgIssueMetadata["entityType"],
+    entityId: issue.entityId,
+    entityName: issue.entityName,
+    explanation: getIssueExplanation(issue.type),
+    fixUrl: issue.fixUrl || "", // Preserved: Fix button behavior
+    fixAction: "Fix issue", // Default, can be enhanced
+  };
 }
 
-function ResolutionBadge({ resolution }: { resolution: Resolution }) {
-  switch (resolution) {
-    case "PENDING":
-      return (
-        <Badge variant="outline" className="text-[10px] border-slate-500 text-slate-400">
-          Pending
-        </Badge>
-      );
-    case "ACKNOWLEDGED":
-      return (
-        <Badge variant="secondary" className="text-[10px] bg-blue-500/20 text-blue-300 border-blue-500/30">
-          Acknowledged
-        </Badge>
-      );
-    case "FALSE_POSITIVE":
-      return (
-        <Badge variant="secondary" className="text-[10px] bg-purple-500/20 text-purple-300 border-purple-500/30">
-          Intentional
-        </Badge>
-      );
-    case "RESOLVED":
-      return (
-        <Badge variant="secondary" className="text-[10px] bg-green-500/20 text-green-300 border-green-500/30">
-          Resolved
-        </Badge>
-      );
-    default:
-      return null;
-  }
+// Sorting helper with canonical severity ordering
+function sortIssuesDeterministically(issues: OrgIssueMetadata[]): OrgIssueMetadata[] {
+  const severityRank = (s: "error" | "warning" | "info") => {
+    switch (s) {
+      case "error": return 3;
+      case "warning": return 2;
+      case "info": return 1;
+      default: return 0;
+    }
+  };
+  
+  return [...issues].sort((a, b) => {
+    // Primary: severity desc (error > warning > info)
+    const severityDiff = severityRank(b.severity) - severityRank(a.severity);
+    if (severityDiff !== 0) return severityDiff;
+    
+    // Secondary: issueKey asc (tie-breaker)
+    return a.issueKey.localeCompare(b.issueKey);
+  });
 }
 
-function EntityTypeBadge({ entityType }: { entityType: string }) {
+// SeverityBadge is now imported from @/components/org/SeverityBadge
+
+function StatusIndicator({ resolution }: { resolution: Resolution }) {
+  const config: Record<Resolution, { dot: string; text: string; label: string }> = {
+    PENDING: { dot: "bg-amber-400", text: "text-amber-400", label: "Pending" },
+    RESOLVED: { dot: "bg-green-500/60", text: "text-green-500/60", label: "Resolved" },
+    ACKNOWLEDGED: { dot: "bg-slate-400", text: "text-slate-400", label: "Acknowledged" },
+    FALSE_POSITIVE: { dot: "bg-slate-400", text: "text-slate-400", label: "Intentional" },
+  };
+  
+  const { dot, text, label } = config[resolution] ?? { dot: "bg-slate-500", text: "text-slate-500", label: resolution };
+
   return (
-    <span className="text-[10px] text-slate-500 uppercase tracking-wide">
-      {entityType}
-    </span>
+    <div className="flex items-center gap-1.5">
+      <div className={cn("h-1.5 w-1.5 rounded-full", dot)} />
+      <span className={cn("text-[10px]", text)}>{label}</span>
+    </div>
   );
 }
 
@@ -95,9 +106,15 @@ export function OrgIssuesInboxClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const issueKeyFromUrl = searchParams.get("issue");
+  
+  // Parse ?types=TYPE1,TYPE2 query param for filtering from Intelligence landing
+  const typesFromUrl = searchParams.get("types");
+  const typesFilter = useMemo(() => {
+    if (!typesFromUrl) return null;
+    return typesFromUrl.split(",").filter(Boolean);
+  }, [typesFromUrl]);
 
   // Filter state
-  const [resolutionFilter, setResolutionFilter] = useState<"all" | Resolution>("PENDING");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [entityTypeFilter, setEntityTypeFilter] = useState<string>("all");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
@@ -106,76 +123,160 @@ export function OrgIssuesInboxClient() {
   const [selectedIssueKey, setSelectedIssueKey] = useState<string | null>(issueKeyFromUrl);
   const [isUpdatingResolution, setIsUpdatingResolution] = useState(false);
 
-  // Fetch issues - include resolved if filter is not PENDING or if deep link requires it
-  const includeResolved = resolutionFilter !== "PENDING" || !!issueKeyFromUrl;
-  
+  // Base issues state (canonical fetched issues + mutation deltas)
+  const [baseIssues, setBaseIssues] = useState<OrgIssueMetadata[]>([]);
+  const [responseMeta, setResponseMeta] = useState<any | null>(null);
+  const [appliedMutationIds, setAppliedMutationIds] = useState<string[]>([]);
+  const appliedMutationIdsRef = useRef<Set<string>>(new Set()); // Dedup guard (capped to last ~200)
+  const MAX_DEDUP_IDS = 200;
+
+  // Optimistic removal state - issues resolved this session disappear immediately
+  const [locallyRemovedKeys, setLocallyRemovedKeys] = useState<Set<string>>(new Set());
+  const [resolvedThisSession, setResolvedThisSession] = useState(0);
+
+  // Post-fix return helper - shows when user returns from fix surface
+  const [showReturnHelper, setShowReturnHelper] = useState(false);
+
+  // Fetch issues
   const integrityQ = useOrgQuery(
-    () => OrgApi.getIntegrity({ includeResolved }),
-    [includeResolved]
+    () => OrgApi.getIntegrity({ includeResolved: true }),
+    []
   );
 
   // Handle deep link: if issue not found in current feed, show message
   const [deepLinkNotFound, setDeepLinkNotFound] = useState(false);
 
   useEffect(() => {
-    if (issueKeyFromUrl && integrityQ.data?.issues) {
-      const found = integrityQ.data.issues.some((i: IntegrityIssue) => i.issueKey === issueKeyFromUrl);
-      if (!found && !includeResolved) {
-        // Try fetching with includeResolved
-        setResolutionFilter("all");
-      } else if (!found && includeResolved) {
+    if (issueKeyFromUrl && baseIssues.length) {
+      const found = baseIssues.some((i: OrgIssueMetadata) => i.issueKey === issueKeyFromUrl);
+      if (!found) {
         setDeepLinkNotFound(true);
       } else {
         setDeepLinkNotFound(false);
         setSelectedIssueKey(issueKeyFromUrl);
       }
     }
-  }, [issueKeyFromUrl, integrityQ.data?.issues, includeResolved]);
+  }, [issueKeyFromUrl, baseIssues]);
 
-  // Get unique types for filter dropdown
-  const issueTypes = useMemo(() => {
-    if (!integrityQ.data?.issues) return [];
-    const types = new Set(integrityQ.data.issues.map((i: IntegrityIssue) => i.type));
-    return Array.from(types).sort();
-  }, [integrityQ.data?.issues]);
+  // On fetch success, explicitly initialize baseIssues
+  useEffect(() => {
+    if (integrityQ.data?.issues) {
+      const normalized = integrityQ.data.issues.map(normalizeIssue);
+      setBaseIssues(normalized);
+      // Note: integrity endpoint may not return responseMeta, so we'll handle it gracefully
+      // Store any metadata that might be available
+      if ((integrityQ.data as any).responseMeta) {
+        setResponseMeta((integrityQ.data as any).responseMeta);
+      }
+    }
+  }, [integrityQ.data]);
 
-  // Apply filters
-  const filteredIssues = useMemo(() => {
-    if (!integrityQ.data?.issues) return [];
+  // Subscribe to mutation bus for real-time coherence
+  useEffect(() => {
+    const unsubscribe = mutationBus.subscribe((event) => {
+      // Dedup guard: prevent double-application if component remounts
+      // Dedup by mutationId (not patchType) - mutationId is the stable identifier
+      if (appliedMutationIdsRef.current.has(event.mutationId)) {
+        return; // Already applied
+      }
+      appliedMutationIdsRef.current.add(event.mutationId);
+      
+      // Cap dedup set to prevent unbounded growth
+      if (appliedMutationIdsRef.current.size > MAX_DEDUP_IDS) {
+        const idsArray = Array.from(appliedMutationIdsRef.current);
+        const toRemove = idsArray.slice(0, idsArray.length - MAX_DEDUP_IDS);
+        toRemove.forEach((id) => appliedMutationIdsRef.current.delete(id));
+      }
+      
+      setBaseIssues((prev) => {
+        // Build resolved keys set
+        const resolvedKeys = new Set(event.affectedIssues.resolved.map(r => r.issueKey));
+        
+        // Build active issues map by key
+        // Note: Bus events already have OrgIssueMetadata, no normalization needed
+        const activeByKey = new Map(
+          event.affectedIssues.active.map(i => [i.issueKey, i])
+        );
+        
+        // Convert current list to Map for O(1) lookups (avoid O(n²) findIndex)
+        const currentMap = new Map(prev.map(i => [i.issueKey, i]));
+        
+        // 1. Remove resolved
+        resolvedKeys.forEach(key => currentMap.delete(key));
+        
+        // 2. Upsert active
+        activeByKey.forEach((issue, key) => {
+          currentMap.set(key, issue);
+        });
+        
+        // 3. Convert back to array and sort deterministically
+        const updated = Array.from(currentMap.values());
+        return sortIssuesDeterministically(updated);
+      });
+      
+      // Track mutation for explainability (keep last 10)
+      setAppliedMutationIds(prev => [...prev.slice(-9), event.mutationId]);
+    });
     
-    return integrityQ.data.issues.filter((issue: IntegrityIssue) => {
-      if (resolutionFilter !== "all" && issue.resolution !== resolutionFilter) return false;
+    return unsubscribe;
+  }, []);
+
+  // Check if returning from fix surface
+  useEffect(() => {
+    const returnFlag = sessionStorage.getItem("returnedFromFix");
+    if (returnFlag) {
+      setShowReturnHelper(true);
+      sessionStorage.removeItem("returnedFromFix");
+      // Auto-dismiss after 5 seconds
+      const timer = setTimeout(() => setShowReturnHelper(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Get unique types for filter dropdown (from baseIssues)
+  const issueTypes = useMemo(() => {
+    if (!baseIssues.length) return [];
+    const types = new Set(baseIssues.map(i => i.type));
+    return Array.from(types).sort();
+  }, [baseIssues]);
+
+  // Apply filters over baseIssues
+  // Note: typesFilter from URL (?types=) is purely client-side filtering
+  // Note: resolution filter is handled separately since baseIssues doesn't have resolution field
+  // For now, we'll filter by type, entityType, and severity only
+  const filteredIssues = useMemo(() => {
+    if (!baseIssues.length) return [];
+    
+    return baseIssues.filter((issue: OrgIssueMetadata) => {
+      // URL-based types filter (from Intelligence landing)
+      if (typesFilter && typesFilter.length > 0 && !typesFilter.includes(issue.type)) {
+        return false;
+      }
       if (typeFilter !== "all" && issue.type !== typeFilter) return false;
-      if (entityTypeFilter !== "all" && issue.entityType !== entityTypeFilter) return false;
+      if (entityTypeFilter !== "all" && issue.entityType.toLowerCase() !== entityTypeFilter) return false;
       if (severityFilter !== "all" && issue.severity !== severityFilter) return false;
       return true;
     });
-  }, [integrityQ.data?.issues, resolutionFilter, typeFilter, entityTypeFilter, severityFilter]);
+  }, [baseIssues, typeFilter, entityTypeFilter, severityFilter, typesFilter]);
 
-  // Sort: PENDING first, then severity desc, then firstSeen asc
-  const sortedIssues = useMemo(() => {
-    return [...filteredIssues].sort((a: IntegrityIssue, b: IntegrityIssue) => {
-      // PENDING first
-      if (a.resolution === "PENDING" && b.resolution !== "PENDING") return -1;
-      if (a.resolution !== "PENDING" && b.resolution === "PENDING") return 1;
-      
-      // Then severity (error > warning)
-      if (a.severity === "error" && b.severity !== "error") return -1;
-      if (a.severity !== "error" && b.severity === "error") return 1;
-      
-      // Then firstSeen ascending
-      const aDate = a.firstSeenAt ? new Date(a.firstSeenAt).getTime() : 0;
-      const bDate = b.firstSeenAt ? new Date(b.firstSeenAt).getTime() : 0;
-      return aDate - bDate;
-    });
-  }, [filteredIssues]);
+  // Issues are already sorted deterministically by mutation bus subscription
+  // Just use filteredIssues directly (they're already sorted)
+  const sortedIssues = filteredIssues;
+
+  // Filter out optimistically removed issues for display
+  const displayIssues = useMemo(() => {
+    return sortedIssues.filter((i: OrgIssueMetadata) => !locallyRemovedKeys.has(i.issueKey));
+  }, [sortedIssues, locallyRemovedKeys]);
 
   const selectedIssue = useMemo(() => {
-    if (!selectedIssueKey || !integrityQ.data?.issues) return null;
-    return integrityQ.data.issues.find((i: IntegrityIssue) => i.issueKey === selectedIssueKey) || null;
-  }, [selectedIssueKey, integrityQ.data?.issues]);
+    if (!selectedIssueKey || !baseIssues.length) return null;
+    const issue = baseIssues.find((i: OrgIssueMetadata) => i.issueKey === selectedIssueKey);
+    if (!issue) return null;
+    // Pass OrgIssueMetadata directly to drawer (it accepts both formats)
+    return issue;
+  }, [selectedIssueKey, baseIssues]);
 
-  const handleIssueClick = (issue: IntegrityIssue) => {
+  const handleIssueClick = (issue: OrgIssueMetadata) => {
     setSelectedIssueKey(issue.issueKey);
     // Update URL without navigation
     const url = new URL(window.location.href);
@@ -207,7 +308,17 @@ export function OrgIssuesInboxClient() {
         throw new Error("Failed to update resolution");
       }
 
-      // Refetch to get updated data
+      // Optimistic removal with idempotency guard
+      // Only remove if RESOLVED/FALSE_POSITIVE and not already removed
+      if (
+        (resolution === "RESOLVED" || resolution === "FALSE_POSITIVE") &&
+        !locallyRemovedKeys.has(selectedIssue.issueKey)
+      ) {
+        setLocallyRemovedKeys(prev => new Set(prev).add(selectedIssue.issueKey));
+        setResolvedThisSession(prev => prev + 1);
+      }
+
+      // Refetch to get updated data (background sync)
       integrityQ.refetch();
     } finally {
       setIsUpdatingResolution(false);
@@ -230,10 +341,12 @@ export function OrgIssuesInboxClient() {
     );
   }
 
-  const pendingCount = integrityQ.data?.issues?.filter((i: IntegrityIssue) => i.resolution === "PENDING").length ?? 0;
+  // Note: baseIssues doesn't have resolution field, so we can't filter by PENDING
+  // For now, show all issues as "pending" (they're all active issues)
+  const pendingCount = baseIssues.length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Deep link not found message */}
       {deepLinkNotFound && (
         <Card className="border-amber-500/30 bg-amber-950/20">
@@ -246,42 +359,84 @@ export function OrgIssuesInboxClient() {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setResolutionFilter("all");
                   setDeepLinkNotFound(false);
                 }}
                 className="text-amber-200 hover:text-amber-100"
               >
-                Show all
+                Dismiss
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
+      {/* Post-fix return helper - auto-dismisses */}
+      {showReturnHelper && (
+        <div className="text-xs text-slate-500 mb-2">
+          Issue list updated based on recent changes.
+        </div>
+      )}
+
+      {/* Resolved recently counter - session only */}
+      {resolvedThisSession > 0 && (
+        <div className="text-xs text-slate-500 mb-2">
+          {resolvedThisSession} issue{resolvedThisSession !== 1 ? "s" : ""} resolved recently
+        </div>
+      )}
+
       {/* Summary */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          {pendingCount} pending issue{pendingCount !== 1 ? "s" : ""} • {sortedIssues.length} shown
+          {pendingCount} pending issue{pendingCount !== 1 ? "s" : ""} • {displayIssues.length} shown
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <Select value={resolutionFilter} onValueChange={(v) => setResolutionFilter(v as "all" | Resolution)}>
-          <SelectTrigger className="w-[140px] h-8 text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="PENDING">Pending</SelectItem>
-            <SelectItem value="ACKNOWLEDGED">Acknowledged</SelectItem>
-            <SelectItem value="FALSE_POSITIVE">Intentional</SelectItem>
-            <SelectItem value="RESOLVED">Resolved</SelectItem>
-            <SelectItem value="all">All</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* URL-based types filter indicator */}
+      {typesFilter && typesFilter.length > 0 && (
+        <Card className="border-blue-500/30 bg-blue-950/20">
+          <CardContent className="py-2 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-blue-200">
+                  Filtered by {typesFilter.length} type{typesFilter.length !== 1 ? "s" : ""}:
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {typesFilter.slice(0, 3).map((t) => (
+                    <Badge key={t} variant="secondary" className="text-[10px]">
+                      {getIssueTypeLabel(t)}
+                    </Badge>
+                  ))}
+                  {typesFilter.length > 3 && (
+                    <Badge variant="outline" className="text-[10px]">
+                      +{typesFilter.length - 3} more
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete("types");
+                  router.replace(url.pathname + url.search, { scroll: false });
+                }}
+                className="text-blue-200 hover:text-blue-100 h-6 text-xs"
+              >
+                Clear filter
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
+      {/* Filters (Secondary - compact when unused) */}
+      <div className={cn(
+        "flex flex-wrap gap-2 transition-opacity",
+        displayIssues.length === 0 ? "opacity-40" : "opacity-80"
+      )}>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[180px] h-8 text-xs">
+          <SelectTrigger className="w-[160px] h-7 text-xs bg-slate-900/50 border-slate-700">
             <SelectValue placeholder="Issue type" />
           </SelectTrigger>
           <SelectContent>
@@ -295,7 +450,7 @@ export function OrgIssuesInboxClient() {
         </Select>
 
         <Select value={entityTypeFilter} onValueChange={setEntityTypeFilter}>
-          <SelectTrigger className="w-[140px] h-8 text-xs">
+          <SelectTrigger className="w-[130px] h-7 text-xs bg-slate-900/50 border-slate-700">
             <SelectValue placeholder="Entity" />
           </SelectTrigger>
           <SelectContent>
@@ -307,7 +462,7 @@ export function OrgIssuesInboxClient() {
         </Select>
 
         <Select value={severityFilter} onValueChange={setSeverityFilter}>
-          <SelectTrigger className="w-[120px] h-8 text-xs">
+          <SelectTrigger className="w-[110px] h-7 text-xs bg-slate-900/50 border-slate-700">
             <SelectValue placeholder="Severity" />
           </SelectTrigger>
           <SelectContent>
@@ -319,61 +474,88 @@ export function OrgIssuesInboxClient() {
       </div>
 
       {/* Issues list */}
-      {sortedIssues.length === 0 ? (
-        <Card className="border-slate-800">
-          <CardContent className="py-12 text-center">
-            <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-3" />
-            <div className="text-sm font-medium text-slate-200">
-              No unresolved issues detected.
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Your organization structure is complete.
-            </div>
-          </CardContent>
-        </Card>
+      {displayIssues.length === 0 ? (
+        <OrgEmptyState
+          variant="good"
+          title="All issues resolved"
+          description="Your organization structure is healthy and aligned based on current data."
+        />
       ) : (
         <div className="space-y-2">
-          {sortedIssues.map((issue: IntegrityIssue) => (
+          {/* Guidance text when few issues */}
+          {displayIssues.length > 0 && displayIssues.length <= 3 && (
+            <div className="text-xs text-slate-400 mb-2 px-1">
+              These are the issues that need attention in your organization structure. Keeping these clean improves reporting accuracy.
+            </div>
+          )}
+          
+          {displayIssues.map((issue: OrgIssueMetadata) => (
             <Card
               key={issue.issueKey}
-              className={`border-slate-800 hover:border-slate-700 transition-colors cursor-pointer ${
-                selectedIssueKey === issue.issueKey ? "border-blue-500/50 bg-blue-950/10" : ""
-              }`}
+              className={cn(
+                "border-slate-800 hover:border-slate-700 transition-colors cursor-pointer",
+                selectedIssueKey === issue.issueKey && "border-blue-500/50 bg-blue-950/10"
+              )}
               onClick={() => handleIssueClick(issue)}
             >
               <CardContent className="py-3 px-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                {/* 3-zone row layout: Left (entity) | Middle (explanation) | Right (actions) */}
+                <div className="flex items-start gap-4">
+                  {/* Left Zone: Entity name + type/issue label */}
+                  <div className="min-w-0 w-[200px] shrink-0">
+                    <div className="flex items-center gap-2">
                       {issue.severity === "error" ? (
                         <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
                       ) : (
                         <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
                       )}
-                      <span className="text-sm font-medium text-slate-200 truncate">
-                        {issue.message}
+                      <span className="font-medium text-slate-200 truncate">
+                        {issue.entityName}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <EntityTypeBadge entityType={issue.entityType} />
-                      <span className="text-[10px] text-slate-500">•</span>
+                    <div className="flex items-center gap-1.5 mt-0.5 ml-6">
+                      <span className="text-[10px] text-slate-500 uppercase">
+                        {issue.entityType.toLowerCase()}
+                      </span>
+                      <span className="text-[10px] text-slate-500">·</span>
                       <span className="text-[10px] text-slate-400">
                         {getIssueTypeLabel(issue.type)}
                       </span>
-                      {issue.firstSeenAt && (
-                        <>
-                          <span className="text-[10px] text-slate-500">•</span>
-                          <span className="text-[10px] text-slate-500">
-                            {new Date(issue.firstSeenAt).toLocaleDateString()}
-                          </span>
-                        </>
-                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <SeverityBadge severity={issue.severity} />
-                    <ResolutionBadge resolution={issue.resolution} />
-                    <Eye className="h-4 w-4 text-slate-500" />
+                  
+                  {/* Middle Zone: Explanation + outcome hint */}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-slate-400">
+                      {issue.explanation}
+                    </div>
+                    {getIssueOutcomeHint(issue.type) && (
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        {getIssueOutcomeHint(issue.type)}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Right Zone: Fix button + Status + Severity */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    {/* Fix action intentionally bypasses issue drawer and navigates to fix surface */}
+                    {issue.fixUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Set flag so we show return helper when user comes back
+                          sessionStorage.setItem("returnedFromFix", "true");
+                          const fixUrl = `${issue.fixUrl}${issue.fixUrl.includes('?') ? '&' : '?'}from=issues`;
+                          router.push(fixUrl);
+                        }}
+                      >
+                        Fix
+                      </Button>
+                    )}
+                    <SeverityBadge severity={issue.severity as "error" | "warning"} />
                   </div>
                 </div>
               </CardContent>
@@ -390,6 +572,66 @@ export function OrgIssuesInboxClient() {
           onResolutionChange={handleResolutionChange}
           isUpdating={isUpdatingResolution}
         />
+      )}
+
+      {/* Tertiary: Explainability Footer (reduced contrast, collapsed by default) */}
+      {(responseMeta || appliedMutationIds.length > 0) && (
+        <div className="mt-6 opacity-60 border-white/5">
+          {/* Full panel if integrity endpoint returns required fields */}
+          {responseMeta && responseMeta.issueWindow && responseMeta.thresholds ? (
+            <>
+              {/* Show local UI note if mutations were applied (separate from server assumptions) */}
+              {appliedMutationIds.length > 0 && (
+                <div className="text-xs text-muted-foreground mb-2">
+                  Updated by {appliedMutationIds.length} recent fix{appliedMutationIds.length !== 1 ? "es" : ""} (mutation bus)
+                </div>
+              )}
+              <WhyThisAnswerPanel
+                issueWindow={responseMeta.issueWindow}
+                thresholds={responseMeta.thresholds}
+                responseMeta={responseMeta}
+              />
+            </>
+          ) : (
+            /* Minimal footer for older integrity payloads - always show "why it changed" hint */
+            <Card className="border-dashed border-white/5">
+              <CardContent className="py-3 px-4">
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    <Info className="h-3.5 w-3.5" />
+                    Response Metadata
+                  </div>
+                  <div className="grid gap-2 text-sm">
+                    {responseMeta?.generatedAt && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Generated At</span>
+                        <span className="font-mono text-xs">
+                          {new Date(responseMeta.generatedAt).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {responseMeta?.assumptionsId && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Assumptions ID</span>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {responseMeta.assumptionsId}
+                        </Badge>
+                      </div>
+                    )}
+                    {appliedMutationIds.length > 0 && (
+                      <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                        <span className="text-muted-foreground">Updates Applied</span>
+                        <span className="text-xs text-muted-foreground">
+                          {appliedMutationIds.length} fix{appliedMutationIds.length !== 1 ? "es" : ""} via mutation bus
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );

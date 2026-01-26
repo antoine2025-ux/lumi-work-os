@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     if (!p1 || !p2) return NextResponse.json({ error: "Person not found" }, { status: 404 })
 
-    await (prisma as any).personManagerLink.create({
+    await prisma.personManagerLink.create({
       data: {
         orgId,
         personId: body.personId,
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Resolve specific "People missing manager links" signal (precise)
-    await (prisma as any).orgHealthSignal.updateMany({
+    await prisma.orgHealthSignal.updateMany({
       where: {
         orgId,
         resolvedAt: null,

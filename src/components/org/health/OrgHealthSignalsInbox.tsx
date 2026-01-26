@@ -34,7 +34,6 @@ export function OrgHealthSignalsInbox(props: {
     title: string
     description: string
     createdAt: Date
-    contextType?: string | null
     contextLabel?: string | null
     href?: string | null
   }>

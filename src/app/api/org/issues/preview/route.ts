@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { getOrgContext, requireEdit } from "@/server/rbac";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import crypto from "crypto";
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (!ids.length) return NextResponse.json({ ok: false, error: "personIds required" }, { status: 400 });
 
   // Fetch positions (people) for selected IDs
-  const positions = await (prisma as any).orgPosition.findMany({
+  const positions = await prisma.orgPosition.findMany({
     where: {
       workspaceId,
       id: { in: ids },
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   });
 
   // For better suggestions, fetch full org people context
-  const allPositions = await (prisma as any).orgPosition.findMany({
+  const allPositions = await prisma.orgPosition.findMany({
     where: {
       workspaceId,
       isActive: true,
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   });
 
   // Map to person-like shape for suggestion computation
-  const people = positions.map((pos: any) => ({
+  const people = positions.map((pos) => ({
     id: pos.id,
     name: pos.user?.name || "Unnamed",
     email: pos.user?.email || null,
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
     managerName: pos.parent?.user?.name || null,
   }));
 
-  const allPeople = allPositions.map((pos: any) => ({
+  const allPeople = allPositions.map((pos) => ({
     id: pos.id,
     name: pos.user?.name || "Unnamed",
     email: pos.user?.email || null,
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
   });
 
   // Build preview with before/after diffs
-  const preview = people.map((p: any) => {
+  const preview = people.map((p) => {
     const s = suggestions.find((x) => x.personId === p.id);
     const patch = s?.patch || {};
     const after: any = { ...p, ...patch };
@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
 
   // Optional traceability
   const inputHash = hash({ orgId: ctx.orgId, ids });
-  const suggestionRun = await (prisma as any).orgSuggestionRun.create({
+  const suggestionRun = await prisma.orgSuggestionRun.create({
     data: {
       orgId: ctx.orgId,
       scope: "people_issues",

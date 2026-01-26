@@ -128,8 +128,7 @@ export function PersonDrawer(props: { personId: string | null }) {
             )}
           </div>
         </div>
-        </div>
+      </div>
     </OrgCard>
   )
 }
-

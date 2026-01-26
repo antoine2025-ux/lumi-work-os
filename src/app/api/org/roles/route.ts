@@ -43,12 +43,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      roles: roles.map((role: {
-        id: string;
-        name: string;
-        description: string | null;
-        responsibilities: { id: string; scope: string; target: string }[];
-      }) => ({
+      roles: roles.map((role) => ({
         id: role.id,
         name: role.name,
         description: role.description,
@@ -128,7 +123,7 @@ export async function POST(request: NextRequest) {
         id: role.id,
         name: role.name,
         description: role.description,
-        responsibilities: role.responsibilities.map((r: { id: string; scope: string; target: string }) => ({
+        responsibilities: role.responsibilities.map((r) => ({
           id: r.id,
           scope: r.scope,
           target: r.target,

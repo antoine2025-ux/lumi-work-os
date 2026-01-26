@@ -42,7 +42,8 @@ export async function GET(
     setWorkspaceContext(workspaceId);
 
     // Step 4: Get the user ID from position
-    const position = await prisma.orgPosition.findFirst({
+    // Handle both OrgPosition ID and User ID (personId might be either)
+    let position = await prisma.orgPosition.findFirst({
       where: {
         id: personId,
         workspaceId,
@@ -53,12 +54,26 @@ export async function GET(
       },
     });
 
+    // If not found by ID, personId might be a User ID - try to find by userId
+    if (!position) {
+      position = await prisma.orgPosition.findFirst({
+        where: {
+          userId: personId,
+          workspaceId,
+          isActive: true,
+        },
+        select: {
+          userId: true,
+        },
+      });
+    }
+
     if (!position || !position.userId) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
 
     // Step 5: Fetch person skills with skill details
-    const personSkills = await (prisma as any).personSkill.findMany({
+    const personSkills = await prisma.personSkill.findMany({
       where: {
         workspaceId,
         personId: position.userId,
@@ -77,7 +92,7 @@ export async function GET(
 
     return NextResponse.json({
       ok: true,
-      skills: personSkills.map((ps: any) => ({
+      skills: personSkills.map((ps) => ({
         id: ps.id,
         skillId: ps.skillId,
         skill: {
@@ -146,7 +161,8 @@ export async function POST(
     }
 
     // Step 5: Get the user ID from position
-    const position = await prisma.orgPosition.findFirst({
+    // Handle both OrgPosition ID and User ID (personId might be either)
+    let position = await prisma.orgPosition.findFirst({
       where: {
         id: personId,
         workspaceId,
@@ -157,12 +173,26 @@ export async function POST(
       },
     });
 
+    // If not found by ID, personId might be a User ID - try to find by userId
+    if (!position) {
+      position = await prisma.orgPosition.findFirst({
+        where: {
+          userId: personId,
+          workspaceId,
+          isActive: true,
+        },
+        select: {
+          userId: true,
+        },
+      });
+    }
+
     if (!position || !position.userId) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
 
     // Step 6: Verify skill exists
-    const skill = await (prisma as any).skill.findFirst({
+    const skill = await prisma.skill.findFirst({
       where: {
         id: body.skillId,
         workspaceId,
@@ -174,7 +204,7 @@ export async function POST(
     }
 
     // Step 7: Upsert person skill
-    const personSkill = await (prisma as any).personSkill.upsert({
+    const personSkill = await prisma.personSkill.upsert({
       where: {
         workspaceId_personId_skillId: {
           workspaceId,

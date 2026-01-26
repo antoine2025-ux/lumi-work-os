@@ -14,7 +14,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { OrgApi, type OrgPersonDTO, type OrgStructureDTO, type OrgPeopleListDTO } from "@/components/org/api";
+import { OrgApi, type OrgPersonDTO } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ import { getPersonDisplayBadges } from "@/lib/org/personDisplay";
 import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
 import { PersonAvailabilityCard } from "./people/PersonAvailabilityCard";
 import { PersonSkillsCard } from "./people/PersonSkillsCard";
+import { isMutationSuccess, publishMutationResult } from "@/lib/org/mutations";
 
 type PersonProfileClientProps = {
   personId: string;
@@ -54,6 +55,7 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
   const structureQ = useOrgQuery(() => OrgApi.getStructure(), []);
   const peopleQ = useOrgQuery(() => OrgApi.listPeople(), []);
   const { role } = useCurrentOrgRole();
+
 
   const canWrite = flagsQ.data?.flags?.peopleWrite === true;
   // Allow workspace owners/admins to edit managers (same permission as delete)
@@ -90,9 +92,15 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
 
   const person = personQ.data;
 
-  if (personQ.loading) return <div className="text-sm text-slate-400">Loading profile…</div>;
-  if (personQ.error) return <div className="text-sm text-red-400">Failed to load profile</div>;
-  if (!person) return <div className="text-sm text-slate-400">Not found</div>;
+  if (personQ.loading) {
+    return <div className="text-sm text-slate-400">Loading profile…</div>;
+  }
+  if (personQ.error) {
+    return <div className="text-sm text-red-400">Failed to load profile</div>;
+  }
+  if (!person) {
+    return <div className="text-sm text-slate-400">Not found</div>;
+  }
 
   // Get initials for avatar
   function getInitials(name: string | null | undefined): string {
@@ -147,8 +155,9 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
     team: person.team,
     department: person.department,
     title: person.title,
-    manager: person.manager,
-    managerId: person.manager?.id,
+    role: person.role,
+    manager: (person as any).manager,
+    managerId: (person as any).managerId,
   });
 
   return (
@@ -292,6 +301,7 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
         <EditProfilePanel
           person={person}
           personId={personId}
+          personQ={personQ}
           structureQ={structureQ}
           peopleQ={peopleQ}
           canWrite={canWrite}
@@ -303,6 +313,7 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
             refetchPerson();
             setEditPanelOpen(false);
           }}
+          onPersonChanged={refetchPerson}
         />
       )}
 
@@ -314,6 +325,7 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
 function EditProfilePanel({
   person,
   personId,
+  personQ,
   structureQ,
   peopleQ,
   canWrite,
@@ -322,17 +334,20 @@ function EditProfilePanel({
   initialFocusField,
   onClose,
   onSave,
+  onPersonChanged,
 }: {
-  person: OrgPersonDTO;
+  person: NonNullable<ReturnType<typeof useOrgQuery<typeof OrgApi.getPerson>>['data']>;
   personId: string;
-  structureQ: ReturnType<typeof useOrgQuery<OrgStructureDTO>>;
-  peopleQ: ReturnType<typeof useOrgQuery<OrgPeopleListDTO>>;
+  personQ: ReturnType<typeof useOrgQuery<typeof OrgApi.getPerson>>;
+  structureQ: ReturnType<typeof useOrgQuery<typeof OrgApi.getStructure>>;
+  peopleQ: ReturnType<typeof useOrgQuery<typeof OrgApi.listPeople>>;
   canWrite: boolean;
   canReporting: boolean;
   canAvailability: boolean;
   initialFocusField?: "manager" | "team" | "title" | "availability";
   onClose: () => void;
   onSave: () => void;
+  onPersonChanged?: () => void; // Callback to refetch person data without closing panel
 }) {
   const { toast } = useToast();
   const [nameValue, setNameValue] = useState(person.fullName ?? "");
@@ -348,9 +363,32 @@ function EditProfilePanel({
   const nameSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const managerSelectRef = useRef<HTMLButtonElement>(null);
 
-  const teams = structureQ.data?.teams ?? [];
+  // Deduplicate teams by name (in case of database duplicates with same name)
+  // Keep only the first occurrence of each team name (case-insensitive)
+  const allTeamsRaw = structureQ.data?.teams ?? [];
+  const teamsMapByName = new Map<string, typeof allTeamsRaw[0]>();
+  
+  for (const team of allTeamsRaw) {
+    // Normalize team name for case-insensitive comparison
+    const normalizedName = team.name?.trim().toLowerCase() || '';
+    if (normalizedName && !teamsMapByName.has(normalizedName)) {
+      // Keep first occurrence of each team name
+      teamsMapByName.set(normalizedName, team);
+    }
+  }
+  
+  // Convert map values to array, preserving original team names
+  const teams = Array.from(teamsMapByName.values());
+  
   const people = peopleQ.data?.people ?? [];
-  const managerOptions = people.filter((p) => p.id !== personId);
+  
+  // Filter out the person themselves from manager options
+  // person.id is OrgPosition ID (from getPerson), p.id in people list is also OrgPosition ID (from listPeople)
+  // personId prop is User ID (from URL), but we should compare by OrgPosition ID since that's what both have
+  const managerOptions = people.filter((p) => {
+    // Compare by OrgPosition ID - person.id is the current person's position ID
+    return p.id !== person.id;
+  });
   
   // Filter manager options by search query
   const filteredManagerOptions = managerSearchQuery
@@ -446,9 +484,28 @@ function EditProfilePanel({
     setSaving(true);
     
     try {
-      await OrgApi.setTeam(personId, {
+      const result = await OrgApi.setTeam(personId, {
         teamId: teamId === "__none__" ? null : teamId,
       });
+      
+      // Check if mutation succeeded
+      if (!isMutationSuccess(result)) {
+        throw new Error(result.error || "Failed to update team");
+      }
+      
+      // Publish to mutation bus for Issues page coherence
+      publishMutationResult(result);
+      
+      // Apply returned state - update personQ with new team
+      personQ.setData((prev) => {
+        if (!prev) return prev;
+        const selectedTeam = teams.find(t => t.id === result.data.teamId);
+        return {
+          ...prev,
+          team: selectedTeam ? { id: selectedTeam.id, name: selectedTeam.name } : null,
+        };
+      });
+      
       toast({ title: "Team updated", description: "The team assignment has been saved successfully." });
       onSave();
     } catch (error: any) {
@@ -457,7 +514,7 @@ function EditProfilePanel({
     } finally {
       setSaving(false);
     }
-  }, [personId, canWrite, toast, onSave]);
+  }, [personId, canWrite, toast, onSave, personQ, teams]);
 
   // Handle manager change
   const handleManagerChange = useCallback(async (managerId: string | null) => {
@@ -465,37 +522,46 @@ function EditProfilePanel({
       console.warn("Cannot change manager: canReporting is false");
       return;
     }
-    console.log("handleManagerChange called with:", managerId);
     const newManagerId = managerId === "__none__" || managerId === null ? null : managerId;
     setSelectedManagerId(newManagerId ?? "__none__");
     setManagerPopoverOpen(false);
     setSaving(true);
     
     try {
-      console.log("Calling OrgApi.setManager with:", { personId, managerId: newManagerId });
-      await OrgApi.setManager(personId, {
+      const result = await OrgApi.setManager(personId, {
         managerId: newManagerId,
       });
-      toast({ title: "Manager updated", description: "The manager assignment has been saved successfully." });
       
-      // Get the updated manager info for optimistic update
-      const people = peopleQ.data?.people ?? [];
-      const updatedManager = newManagerId 
-        ? people.find(p => p.id === newManagerId)
-        : null;
+      // Check if mutation succeeded
+      if (!isMutationSuccess(result)) {
+        throw new Error(result.error || "Failed to update manager");
+      }
       
-      // Dispatch event with updated person data for optimistic update
+      // Publish to mutation bus for Issues page coherence
+      publishMutationResult(result);
+      
+      // Apply returned state - update personQ with new manager from result.data
+      personQ.setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          manager: result.data.managerName 
+            ? { id: result.data.managerId!, fullName: result.data.managerName }
+            : null,
+        };
+      });
+      
+      // Dispatch event with updated person data for other listeners
       window.dispatchEvent(new CustomEvent("org:person:updated", {
         detail: {
           personId,
-          manager: updatedManager ? {
-            id: updatedManager.id,
-            fullName: updatedManager.fullName,
-          } : null,
+          manager: result.data.managerName 
+            ? { id: result.data.managerId, fullName: result.data.managerName }
+            : null,
         }
       }));
       
-      // onSave() will trigger refetchPerson() in the parent component
+      toast({ title: "Manager updated", description: "The manager assignment has been saved successfully." });
       onSave();
     } catch (error: any) {
       console.error("Failed to set manager:", error);
@@ -505,7 +571,7 @@ function EditProfilePanel({
     } finally {
       setSaving(false);
     }
-  }, [personId, person.manager?.id, canReporting, toast, onSave]);
+  }, [personId, person.manager?.id, canReporting, toast, onSave, personQ]);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -697,6 +763,9 @@ function EditProfilePanel({
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                // #region agent log
+                                fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonProfileClient.tsx:745',message:'Manager option clicked',data:{selectedManagerId:p.id,selectedManagerName:p.fullName,personId,personPositionId:person.id,personName:person.fullName,isSelf:p.id===person.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
+                                // #endregion
                                 console.log("Clicking manager", p.id);
                                 handleManagerChange(p.id);
                               }}
@@ -734,7 +803,11 @@ function EditProfilePanel({
           )}
 
           {/* Availability & Employment */}
-          <PersonAvailabilityCard personId={personId} canEdit={canAvailability} />
+          <PersonAvailabilityCard 
+            personId={personId} 
+            canEdit={canAvailability}
+            onAvailabilityChanged={onPersonChanged}
+          />
 
           {/* Skills */}
           <PersonSkillsCard personId={personId} canEdit={canWrite} />
