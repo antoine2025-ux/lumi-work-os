@@ -1,6 +1,5 @@
-"use client";
 
-import { OrgExportsScreen } from "@/app/(dashboard)/org-legacy/[orgId]/activity/exports/page";
+import { OrgExportsScreen } from "@/components/org/activity/OrgExportsScreen";
 
 type ExportsSectionProps = {
   orgId?: string;
