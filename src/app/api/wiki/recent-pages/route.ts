@@ -4,6 +4,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
+import { handleApiError } from '@/lib/api-errors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -127,6 +128,6 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     console.error('Error fetching recent pages:', error)
-    return NextResponse.json({ error: 'Failed to fetch recent pages' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

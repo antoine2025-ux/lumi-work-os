@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/wiki/pages/[id] - Get a specific wiki page by ID or slug
 export async function GET(
@@ -137,39 +138,7 @@ export async function GET(
     return NextResponse.json(response)
   } catch (error: any) {
     console.error('Error in GET /api/wiki/pages/[id]:', error)
-    
-    // Ensure we always return valid JSON
-    const errorMessage = error?.message || String(error) || 'Unknown error'
-    const statusCode = error?.status || 500
-
-    // Handle specific error cases
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized') || error.message.includes('No session')) {
-        return NextResponse.json({ 
-          error: 'Unauthorized', 
-          details: errorMessage 
-        }, { status: 401 })
-      }
-      
-      if (error.message.includes('No workspace found')) {
-        return NextResponse.json({ 
-          error: 'No workspace found', 
-          details: 'Please create a workspace first' 
-        }, { status: 400 })
-      }
-      
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json({ 
-          error: 'Forbidden', 
-          details: errorMessage 
-        }, { status: 403 })
-      }
-    }
-    
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
-    }, { status: statusCode })
+    return handleApiError(error, request)
   }
 }
 
@@ -341,10 +310,7 @@ export async function PUT(
     return NextResponse.json(updatedPage)
   } catch (error: any) {
     console.error('Error updating wiki page:', error)
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      message: process.env.NODE_ENV === 'development' ? (error?.message || String(error)) : undefined
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -381,9 +347,6 @@ export async function DELETE(
     return NextResponse.json({ message: 'Page deleted successfully' })
   } catch (error: any) {
     console.error('Error deleting wiki page:', error)
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      message: process.env.NODE_ENV === 'development' ? (error?.message || String(error)) : undefined
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

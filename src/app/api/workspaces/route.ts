@@ -3,6 +3,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { prisma } from "@/lib/db"
 import { WorkspaceRole } from "@prisma/client"
 import { logOrgAuditEvent } from "@/server/audit/orgAudit"
+import { handleApiError } from '@/lib/api-errors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -145,9 +146,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ workspace: result })
   } catch (error) {
     console.error("Error creating workspace:", error)
-    return NextResponse.json(
-      { error: "Failed to create workspace" },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }

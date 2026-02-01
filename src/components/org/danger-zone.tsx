@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import { useApiAction } from "@/hooks/useApiAction";
 import { orgApi } from "@/lib/orgApi";
@@ -23,6 +25,7 @@ export function DangerZone({
   transferTargets,
 }: DangerZoneProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [selectedMembershipId, setSelectedMembershipId] = useState<string | "">(
@@ -138,9 +141,23 @@ export function DangerZone({
         description: "The workspace and its data have been removed.",
       });
 
-      // Redirect away from the deleted workspace.
-      router.push("/home");
-      router.refresh();
+      // Clear all client-side state to prevent stale workspace references
+      // 1. Clear React Query cache
+      queryClient.clear();
+      
+      // 2. Clear localStorage workspace preference
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('currentWorkspaceId');
+        localStorage.removeItem('workspace-data');
+        sessionStorage.clear();
+      }
+      
+      // 3. Sign out to clear the stale JWT token (which contains deleted workspaceId)
+      // This ensures a clean state on next login
+      await signOut({ redirect: false });
+      
+      // 4. Redirect to login for a fresh start
+      window.location.href = '/login';
     } finally {
       setDeleting(false);
     }

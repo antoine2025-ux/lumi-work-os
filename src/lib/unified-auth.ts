@@ -239,7 +239,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
         activeWorkspaceId = defaultMembership.workspaceId
         workspaceMember = defaultMembership
       } else {
-        throw new Error('No workspace found - user needs to create a workspace')
+        throw new NoWorkspaceError()
       }
     }
   } else if (user.workspaceMemberships.length > 0 && user.workspaceMemberships[0].workspace) {
@@ -254,7 +254,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
     })
   } else {
     // No workspace - user needs to create one
-    throw new Error('No workspace found - user needs to create a workspace')
+    throw new NoWorkspaceError()
   }
   const workspaceQueryDurationMs = performance.now() - workspaceStartTime
 

@@ -98,6 +98,8 @@ model User {
   orgActivityExports    OrgActivityExport[]
   availability          PersonAvailability[]
   allocations           ProjectAllocation[]
+  createdTodos          Todo[]                 @relation("TodoCreator")
+  assignedTodos         Todo[]                 @relation("TodoAssignee")
 
   @@map("users")
 }
@@ -181,6 +183,9 @@ model Workspace {
 
   // Settings IA: Org Capacity Settings
   orgCapacitySettings OrgCapacitySettings?
+
+  // Todos
+  todos Todo[]
 
   @@map("workspaces")
 }
@@ -1000,6 +1005,50 @@ model Activity {
   @@index([actorId, entity, entityId], map: "idx_activities_actor_entity")
   @@index([createdAt(sort: Desc)], map: "idx_activities_created")
   @@map("activities")
+}
+
+// Todo enums
+enum TodoStatus {
+  OPEN
+  DONE
+}
+
+enum TodoPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TodoAnchorType {
+  NONE
+  PROJECT
+  TASK
+  PAGE
+}
+
+model Todo {
+  id           String         @id @default(cuid())
+  workspaceId  String
+  title        String
+  note         String?
+  status       TodoStatus     @default(OPEN)
+  dueAt        DateTime?
+  priority     TodoPriority?
+  createdById  String
+  assignedToId String
+  anchorType   TodoAnchorType @default(NONE)
+  anchorId     String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation("TodoCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  assignedTo  User      @relation("TodoAssignee", fields: [assignedToId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, assignedToId, status, dueAt], map: "idx_todos_workspace_assignee_status_due")
+  @@index([workspaceId, anchorType, anchorId], map: "idx_todos_workspace_anchor")
+  @@index([workspaceId, createdById], map: "idx_todos_workspace_creator")
+  @@map("todos")
 }
 
 model TaskTemplate {

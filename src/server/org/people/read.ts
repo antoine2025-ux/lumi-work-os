@@ -265,20 +265,8 @@ export async function listOrgPeople(workspaceId?: string, includeArchived: boole
  * @param workspaceId - Optional workspaceId. If not provided, will try to get from context.
  */
 export async function getOrgPerson(personId: string, workspaceId?: string): Promise<OrgPersonDTO | null> {
-  // #region agent log
-  if (typeof fetch !== 'undefined') {
-    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'read.ts:267',message:'getOrgPerson entry',data:{personId,workspaceId:workspaceId||'from-context'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  }
-  // #endregion
-  
   // Get workspaceId from context if not provided (for backward compatibility)
   const effectiveWorkspaceId = workspaceId || getWorkspaceContext();
-  
-  // #region agent log
-  if (typeof fetch !== 'undefined') {
-    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'read.ts:272',message:'Before findUnique by personId',data:{personId,effectiveWorkspaceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  }
-  // #endregion
   
   // Use select to explicitly choose fields that exist in the database
   const position = await prisma.orgPosition.findUnique({
@@ -310,19 +298,7 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
     },
   });
 
-  // #region agent log
-  if (typeof fetch !== 'undefined') {
-    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'read.ts:273',message:'After findUnique by personId',data:{positionFound:!!position,positionId:position?.id,userId:position?.userId,hasUser:!!position?.user},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  }
-  // #endregion
-
   if (!position || !position.user || !position.userId) {
-    // #region agent log
-    if (typeof fetch !== 'undefined') {
-      fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'read.ts:301',message:'Position not found - checking if personId is User ID',data:{personId,effectiveWorkspaceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    }
-    // #endregion
-    
     // If position not found by ID, personId might be a User ID
     // Try to find OrgPosition by userId
     if (effectiveWorkspaceId) {
@@ -358,12 +334,6 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
           },
         },
       }).catch(() => null);
-      
-      // #region agent log
-      if (typeof fetch !== 'undefined') {
-        fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'read.ts:302',message:'After findFirst by userId',data:{positionFound:!!positionByUserId,positionId:positionByUserId?.id,userId:positionByUserId?.userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      }
-      // #endregion
       
       if (positionByUserId && positionByUserId.user && positionByUserId.userId) {
         // Use the position found by userId

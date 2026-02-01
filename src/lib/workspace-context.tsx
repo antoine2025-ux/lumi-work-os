@@ -132,8 +132,12 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
                 if (savedWorkspace) {
                   // Valid saved workspace - use it
                   selectedWorkspace = savedWorkspace
+                } else {
+                  // Saved workspaceId is invalid (workspace was deleted or user removed)
+                  // Clear the stale reference to prevent future issues
+                  console.warn(`Saved workspace ${savedWorkspaceId} no longer exists, clearing localStorage`)
+                  localStorage.removeItem('currentWorkspaceId')
                 }
-                // If saved workspaceId is invalid (user removed from workspace), fall through to default
               }
             }
             
@@ -150,12 +154,16 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
               localStorage.setItem('currentWorkspaceId', selectedWorkspace.id)
             }
           } else {
-            // No workspaces - user needs to create one
+            // No workspaces - user needs to create one or their workspace was deleted
+            // Clear any stale localStorage references
             setCurrentWorkspace(null)
             setUserRole(null)
-            // SSR-safe: Clear localStorage (client-side only)
             if (typeof window !== 'undefined') {
-              localStorage.removeItem('currentWorkspaceId')
+              const savedWorkspaceId = localStorage.getItem('currentWorkspaceId')
+              if (savedWorkspaceId) {
+                console.warn('User has no workspaces but had saved workspaceId, clearing stale reference')
+                localStorage.removeItem('currentWorkspaceId')
+              }
             }
           }
         } else {

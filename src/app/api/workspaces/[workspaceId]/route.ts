@@ -5,6 +5,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from "@/lib/db"
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/workspaces/[workspaceId] - Get workspace details
 export async function GET(
@@ -97,17 +98,7 @@ export async function GET(
     return NextResponse.json(workspaceData)
   } catch (error) {
     console.error("Error fetching workspace:", error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    const errorStack = error instanceof Error ? error.stack : undefined
-    console.error("Error details:", { errorMessage, errorStack })
-    return NextResponse.json(
-      { 
-        error: "Failed to fetch workspace",
-        details: errorMessage,
-        ...(process.env.NODE_ENV === 'development' && { stack: errorStack })
-      },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 
@@ -186,10 +177,7 @@ export async function PUT(
     return NextResponse.json(updatedWorkspace)
   } catch (error) {
     console.error("Error updating workspace:", error)
-    return NextResponse.json(
-      { error: "Failed to update workspace" },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 
@@ -250,9 +238,6 @@ export async function DELETE(
     })
   } catch (error) {
     console.error("Error deleting workspace:", error)
-    return NextResponse.json(
-      { error: "Failed to delete workspace" },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }

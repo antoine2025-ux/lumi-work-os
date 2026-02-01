@@ -132,39 +132,12 @@ export async function GET(request: NextRequest) {
       return response
     }
 
-    // Build where clause with ProjectSpace visibility filtering
+    // Build where clause - workspace scoped
+    // NOTE: ProjectSpace visibility filtering removed - projectSpaceId field does not exist on Project model
     const where: any = { workspaceId: auth.workspaceId } // 5. Use activeWorkspaceId, no hardcoded values
     if (status) {
       where.status = status
     }
-
-    // NEW: Filter by ProjectSpace visibility
-    // PUBLIC spaces: visible to all workspace members
-    // TARGETED spaces: only visible to ProjectSpaceMembers
-    where.OR = [
-      // Projects without a ProjectSpace (legacy, treat as PUBLIC)
-      { projectSpaceId: null },
-      // Projects in PUBLIC spaces
-      {
-        projectSpace: {
-          visibility: 'PUBLIC'
-        }
-      },
-      // Projects in TARGETED spaces where user is a member
-      {
-        projectSpace: {
-          visibility: 'TARGETED',
-          members: {
-            some: {
-              userId: auth.user.userId
-            }
-          }
-        }
-      },
-      // Projects where user is creator/owner (always visible)
-      { createdById: auth.user.userId },
-      { ownerId: auth.user.userId }
-    ]
 
     // Optimized query: Use select instead of include, limit tasks loaded
     console.log('[PROJECTS API] About to query Prisma with where:', JSON.stringify(where, null, 2))
@@ -187,14 +160,7 @@ export async function GET(request: NextRequest) {
         endDate: true,
         createdAt: true,
         updatedAt: true,
-        projectSpaceId: true,
-        projectSpace: {
-          select: {
-            id: true,
-            name: true,
-            visibility: true
-          }
-        },
+        // NOTE: projectSpaceId and projectSpace removed - fields do not exist on Project model
         owner: {
           select: {
             id: true,
@@ -261,14 +227,13 @@ export async function GET(request: NextRequest) {
       // Debug: Check if there are any projects in the workspace at all
       const allProjectsInWorkspace = await prisma.project.findMany({
         where: { workspaceId: auth.workspaceId },
-        select: { id: true, name: true, projectSpaceId: true },
+        select: { id: true, name: true },
         take: 5
       })
       console.log('[PROJECTS API] Debug - Total projects in workspace:', allProjectsInWorkspace.length)
       console.log('[PROJECTS API] Sample projects:', allProjectsInWorkspace.map(p => ({
         id: p.id,
-        name: p.name,
-        projectSpaceId: p.projectSpaceId
+        name: p.name
       })))
       
       // Check workspace membership
@@ -353,29 +318,7 @@ export async function GET(request: NextRequest) {
       totalDurationMs: Math.round(totalDurationMs * 100) / 100,
     }, error)
     
-    // Handle auth errors
-    if (error?.message?.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error?.message?.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    // Return detailed error in development
-    const errorDetails = process.env.NODE_ENV === 'development' 
-      ? { 
-          message: error?.message, 
-          code: error?.code, 
-          name: error?.name,
-          stack: error?.stack?.split('\n').slice(0, 5).join('\n') // First 5 lines of stack
-        }
-      : {}
-    
-    return NextResponse.json({ 
-      error: 'Failed to fetch projects',
-      ...errorDetails
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -417,40 +360,9 @@ export async function POST(request: NextRequest) {
       memberUserIds = []
     } = validatedData
 
-    // Extract watcher, assignee IDs, and legacy projectSpaceId from the request body
-    const { watcherIds = [], assigneeIds = [], projectSpaceId: legacyProjectSpaceId } = body
-
-    // Determine projectSpaceId based on visibility
-    let projectSpaceId: string | undefined
-    
-    if (legacyProjectSpaceId) {
-      // Legacy support: validate projectSpaceId belongs to workspace if provided
-      const space = await prisma.projectSpace.findUnique({
-        where: { id: legacyProjectSpaceId },
-        select: { workspaceId: true }
-      })
-      
-      if (!space || space.workspaceId !== auth.workspaceId) {
-        return NextResponse.json({ 
-          error: 'Invalid project space or space does not belong to this workspace' 
-        }, { status: 400 })
-      }
-      projectSpaceId = legacyProjectSpaceId
-    } else if (visibility === 'TARGETED') {
-      // New flow: create private ProjectSpace
-      const { createPrivateProjectSpace } = await import('@/lib/pm/project-space-helpers')
-      projectSpaceId = await createPrivateProjectSpace(
-        auth.workspaceId,
-        name,
-        auth.user.userId,
-        memberUserIds
-      ) ?? undefined
-    } else {
-      // Default: PUBLIC - use General space
-      const { getOrCreateGeneralProjectSpace } = await import('@/lib/pm/project-space-helpers')
-      projectSpaceId = await getOrCreateGeneralProjectSpace(auth.workspaceId) ?? undefined
-      // If migration not run, projectSpaceId will be null - that's OK, project will work without it (legacy mode)
-    }
+    // Extract watcher and assignee IDs from the request body
+    // NOTE: projectSpaceId/projectSpace logic removed - those fields do not exist on Project model
+    const { watcherIds = [], assigneeIds = [] } = body
 
     // Handle empty strings as null/undefined
     const cleanData = {
@@ -458,39 +370,10 @@ export async function POST(request: NextRequest) {
       department: department || undefined,
       team: team || undefined,
       ownerId: ownerId || undefined,
-      wikiPageId: wikiPageId || undefined,
-      projectSpaceId: projectSpaceId // Now determined by visibility logic above
+      wikiPageId: wikiPageId || undefined
     }
 
-    // Phase 1: Get canonical spaceId (default to TEAM space)
-    let spaceId: string | null = null
-    if (projectSpaceId) {
-      // If projectSpaceId exists, try to find mapped canonical Space
-      try {
-        const mappedSpace = await (prisma as any).space.findFirst({
-          where: {
-            workspaceId: auth.workspaceId,
-            legacySource: {
-              path: ['projectSpaceId'],
-              equals: projectSpaceId
-            }
-          },
-          select: { id: true }
-        })
-        if (mappedSpace) {
-          spaceId = mappedSpace.id
-        }
-      } catch (error) {
-        // Legacy source query may fail if JSON path not supported, fallback to TEAM
-        console.warn('Could not find mapped Space for ProjectSpace, defaulting to TEAM:', error)
-      }
-    }
-    
-    // If no mapped space found, default to TEAM space
-    if (!spaceId) {
-      const { getOrCreateTeamSpace } = await import('@/lib/spaces/canonical-space-helpers')
-      spaceId = await getOrCreateTeamSpace(auth.workspaceId)
-    }
+    // NOTE: spaceId logic removed - Space model and spaceId field do not exist on Project model
 
     // Create the project and creator's membership atomically in a transaction
     // This guarantees immediate access for the creator and avoids race conditions with assertProjectAccess
@@ -510,8 +393,7 @@ export async function POST(request: NextRequest) {
           team: cleanData.team,
           ownerId: cleanData.ownerId || auth.user.userId, // Use provided owner or default to creator
           wikiPageId: cleanData.wikiPageId,
-          projectSpaceId: cleanData.projectSpaceId, // Legacy: ProjectSpace assignment
-          spaceId: spaceId, // Phase 1: Canonical Space assignment
+          // NOTE: projectSpaceId and spaceId removed - fields do not exist on Project model
           dailySummaryEnabled,
           createdById: auth.user.userId // 3. Use userId from auth
         },

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/server/authOptions'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
+import { handleApiError } from '@/lib/api-errors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -129,7 +128,7 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     console.error('Error fetching wiki workspaces:', error)
-    return NextResponse.json({ error: 'Failed to fetch workspaces' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -188,7 +187,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(newWorkspace, { status: 201 })
   } catch (error) {
     console.error('Error creating wiki workspace:', error)
-    return NextResponse.json({ error: 'Failed to create workspace' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -231,6 +230,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, message: 'Workspace deleted successfully' })
   } catch (error) {
     console.error('Error deleting wiki workspace:', error)
-    return NextResponse.json({ error: 'Failed to delete workspace' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

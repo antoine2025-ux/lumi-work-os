@@ -104,6 +104,20 @@ export function toApiError(err: unknown, requestId?: string): ApiError {
   const errorMessage = err instanceof Error ? err.message : String(err)
   const errorName = err instanceof Error ? err.name : 'UnknownError'
 
+  // Check for NoWorkspaceError - user needs to create a workspace (not a 500 error)
+  if (errorName === 'NoWorkspaceError' || errorMessage.includes('No workspace found')) {
+    return new ApiError(
+      'NOT_FOUND',
+      404,
+      'No workspace found. Please create a workspace first.',
+      {
+        isUserSafe: true,
+        cause: err,
+        requestId,
+      }
+    )
+  }
+
   // Check for Zod validation errors
   if (errorName === 'ZodError' || errorMessage.includes('ZodError')) {
     return new ApiError(

@@ -763,9 +763,6 @@ function EditProfilePanel({
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                // #region agent log
-                                fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonProfileClient.tsx:745',message:'Manager option clicked',data:{selectedManagerId:p.id,selectedManagerName:p.fullName,personId,personPositionId:person.id,personName:person.fullName,isSelf:p.id===person.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
-                                // #endregion
                                 console.log("Clicking manager", p.id);
                                 handleManagerChange(p.id);
                               }}

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getTodayWindow, getWeekWindow } from '@/lib/datetime'
 import { logger } from '@/lib/logger'
+import { handleApiError } from '@/lib/api-errors'
 
 // Schema for creating a todo
 const TodoCreateSchema = z.object({
@@ -269,16 +270,7 @@ export async function GET(request: NextRequest) {
     }, error instanceof Error ? error : undefined)
     console.error('Error fetching todos:', error)
     
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-    
-    return NextResponse.json({ error: 'Failed to fetch todos' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -405,23 +397,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(todo)
   } catch (error) {
     console.error('Error creating todo:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({
-        error: 'Validation error',
-        details: error.issues
-      }, { status: 400 })
-    }
-    
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-    
-    return NextResponse.json({ error: 'Failed to create todo' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

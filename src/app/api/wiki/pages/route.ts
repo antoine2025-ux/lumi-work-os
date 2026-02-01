@@ -6,6 +6,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { logger } from '@/lib/logger'
 import { parsePaginationParams, createPaginationResult, getSkipValue, getOrderByClause } from '@/lib/pagination'
 import { cache } from '@/lib/cache'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/wiki/pages - List all wiki pages for a workspace
 export async function GET(request: NextRequest) {
@@ -32,11 +33,10 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const pagination = parsePaginationParams(searchParams)
-    const spaceId = searchParams.get('spaceId') // Phase 1: Optional spaceId filter
-    const includeLegacy = searchParams.get('includeLegacy') === 'true' // Include pages without spaceId
+    // NOTE: spaceId filter removed - spaceId field does not exist on WikiPage model
     
     // OPTIMIZED: Check cache first (non-blocking with timeout)
-    const cacheKey = `wiki_pages_${auth.workspaceId}_${spaceId || 'all'}_${pagination.page || 1}_${pagination.limit || 10}_${pagination.sortBy || 'order'}_${pagination.sortOrder || 'asc'}`
+    const cacheKey = `wiki_pages_${auth.workspaceId}_all_${pagination.page || 1}_${pagination.limit || 10}_${pagination.sortBy || 'order'}_${pagination.sortOrder || 'asc'}`
     const cachePromise = cache.get(cacheKey)
     const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 50)) // 50ms timeout
     
@@ -56,24 +56,11 @@ export async function GET(request: NextRequest) {
     // Check if we need full content or just metadata
     const includeContent = searchParams.get('includeContent') === 'true'
     
-    // Build where clause with optional spaceId filter
+    // Build where clause
+    // NOTE: spaceId filtering removed - spaceId field does not exist on WikiPage model
     const baseWhere: any = {
       workspaceId: auth.workspaceId,
       isPublished: true
-    }
-    
-    // Phase 1: Filter by spaceId if provided
-    if (spaceId) {
-      if (includeLegacy) {
-        // Include pages with matching spaceId OR pages without spaceId (legacy)
-        baseWhere.OR = [
-          { spaceId },
-          { spaceId: null }
-        ]
-      } else {
-        // Only pages with matching spaceId
-        baseWhere.spaceId = spaceId
-      }
     }
     
     // Get total count and pages in parallel
@@ -94,7 +81,7 @@ export async function GET(request: NextRequest) {
           excerpt: true,
           permissionLevel: true,
           workspace_type: true,
-          spaceId: true, // Phase 1: Canonical Space ID
+          // NOTE: spaceId removed - field does not exist on WikiPage model
           category: true,
           tags: true,
           updatedAt: true,
@@ -176,22 +163,12 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     const totalDurationMs = performance.now() - startTime
-    const workspaceId = (error as any)?.workspaceId || 'unknown'
     logger.error('Error fetching wiki pages', {
       route,
       totalDurationMs: Math.round(totalDurationMs * 100) / 100
     }, error instanceof Error ? error : undefined)
     
-    // Handle auth errors
-    if (error instanceof Error && error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -293,17 +270,7 @@ export async function POST(request: NextRequest) {
     
     console.log('💾 Saving page with workspace_type:', finalWorkspaceType, 'permissionLevel:', finalPermissionLevel, 'contentFormat:', finalContentFormat)
     
-    // Phase 1: Determine canonical spaceId
-    let spaceId: string | null = null
-    if (finalWorkspaceType === 'personal') {
-      // Map to user's PERSONAL space
-      const { getOrCreatePersonalSpace } = await import('@/lib/spaces/canonical-space-helpers')
-      spaceId = await getOrCreatePersonalSpace(auth.workspaceId, auth.user.userId)
-    } else {
-      // Default to TEAM space
-      const { getOrCreateTeamSpace } = await import('@/lib/spaces/canonical-space-helpers')
-      spaceId = await getOrCreateTeamSpace(auth.workspaceId)
-    }
+    // NOTE: spaceId logic removed - spaceId field does not exist on WikiPage model
     
     // Import text extraction utility
     const { extractTextFromProseMirror } = await import('@/lib/wiki/text-extract')
@@ -327,7 +294,7 @@ export async function POST(request: NextRequest) {
         category,
         permissionLevel: finalPermissionLevel,
         workspace_type: finalWorkspaceType,
-        spaceId: spaceId, // Phase 1: Canonical Space assignment
+        // NOTE: spaceId removed - field does not exist on WikiPage model
         createdById: auth.user.userId
       },
       include: {
@@ -351,16 +318,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(page, { status: 201 })
   } catch (error) {
     logger.error('Error creating wiki page', error instanceof Error ? error : undefined)
-    
-    // Handle auth errors
-    if (error instanceof Error && error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUnifiedAuth } from '@/lib/unified-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/server/authOptions'
 import { prisma } from '@/lib/db'
 import { isValidTimezone } from '@/lib/datetime'
 import { z } from 'zod'
@@ -12,14 +13,28 @@ const TimezoneSchema = z.object({
  * POST /api/users/timezone
  * Auto-capture user's timezone from browser
  * Only sets if user.timezone is null/empty (doesn't overwrite)
+ * 
+ * NOTE: This is a user-level operation that doesn't require a workspace.
+ * We use getServerSession directly instead of getUnifiedAuth.
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get authenticated user
-    const auth = await getUnifiedAuth(request)
+    // Get authenticated user - use getServerSession for user-level operations
+    // This works even if user has no workspace yet (first-time users)
+    const session = await getServerSession(authOptions)
     
-    if (!auth?.user?.userId) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get user ID from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true, timezone: true }
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     const body = await request.json()
@@ -42,25 +57,19 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check if user already has a timezone set
-    const existingUser = await prisma.user.findUnique({
-      where: { id: auth.user.userId },
-      select: { timezone: true }
-    })
-
-    if (existingUser?.timezone) {
+    if (user.timezone) {
       // Don't overwrite existing timezone
       return NextResponse.json({ 
         success: true, 
         message: 'Timezone already set',
-        timezone: existingUser.timezone,
+        timezone: user.timezone,
         updated: false
       })
     }
 
     // Set the timezone
     const updatedUser = await prisma.user.update({
-      where: { id: auth.user.userId },
+      where: { id: user.id },
       data: { timezone },
       select: { id: true, timezone: true }
     })
@@ -73,13 +82,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error setting user timezone:', error)
-    
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
-    
     return NextResponse.json({ error: 'Failed to set timezone' }, { status: 500 })
   }
 }
@@ -90,14 +92,15 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const auth = await getUnifiedAuth(request)
+    // Get authenticated user - use getServerSession for user-level operations
+    const session = await getServerSession(authOptions)
     
-    if (!auth?.user?.userId) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: auth.user.userId },
+      where: { email: session.user.email },
       select: { timezone: true }
     })
 

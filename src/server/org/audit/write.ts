@@ -64,12 +64,6 @@ export async function logOrgMutation(params: {
   // Log only critical fields (NOT full snapshots)
   // Wrap in try-catch to handle cases where audit table doesn't exist or has schema issues
   try {
-    // #region agent log
-    if (typeof fetch !== 'undefined') {
-      fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:64',message:'Before orgAuditLog.create',data:{workspaceId:params.workspaceId,action:params.action,entityType:params.entityType,entityId:params.entityId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'M'})}).catch(()=>{});
-    }
-    // #endregion
-    
     // Note: event field is optional and uses a different enum than action
     // The Prisma enum OrgAuditEventType doesn't include "MANAGER_ASSIGNED"/"MANAGER_REMOVED"
     // so we set event to null to avoid enum mismatch errors
@@ -87,19 +81,7 @@ export async function logOrgMutation(params: {
         createdAt: new Date(),
       },
     });
-    
-    // #region agent log
-    if (typeof fetch !== 'undefined') {
-      fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:80',message:'After orgAuditLog.create success',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'M'})}).catch(()=>{});
-    }
-    // #endregion
   } catch (error: any) {
-    // #region agent log
-    if (typeof fetch !== 'undefined') {
-      fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'write.ts:81',message:'orgAuditLog.create error',data:{error:error?.message,errorCode:error?.code,errorMeta:error?.meta},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'M'})}).catch(()=>{});
-    }
-    // #endregion
-    
     // If audit table doesn't exist or has schema issues, log warning but don't throw
     // Audit logging should not break the main operation
     const errorMessage = error?.message || '';

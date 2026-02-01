@@ -7,6 +7,7 @@ import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
 import { getTodayWindow } from '@/lib/datetime'
 import { DashboardBootstrap } from '@/lib/types/dashboard-bootstrap'
+import { handleApiError } from '@/lib/api-errors'
 
 /**
  * GET /api/dashboard/bootstrap
@@ -94,28 +95,8 @@ export async function GET(request: NextRequest) {
       // 1. Projects (minimal fields, strict limit)
       prisma.project.findMany({
         where: {
-          workspaceId: auth.workspaceId,
-          // Apply same visibility filtering as /api/projects
-          OR: [
-            { projectSpaceId: null },
-            {
-              projectSpace: {
-                visibility: 'PUBLIC'
-              }
-            },
-            {
-              projectSpace: {
-                visibility: 'TARGETED',
-                members: {
-                  some: {
-                    userId: auth.user.userId
-                  }
-                }
-              }
-            },
-            { createdById: auth.user.userId },
-            { ownerId: auth.user.userId }
-          ]
+          workspaceId: auth.workspaceId
+          // NOTE: projectSpaceId/projectSpace visibility filtering removed - fields do not exist on Project model
         },
         // ⚠️ GUARDRAIL: Must use select (never include), minimal fields only
         select: {
@@ -405,19 +386,7 @@ export async function GET(request: NextRequest) {
       totalDurationMs: Math.round(totalDurationMs * 100) / 100
     }, error)
     
-    // Handle auth errors
-    if (error?.message?.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error?.message?.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({
-      error: 'Failed to fetch dashboard data',
-      details: process.env.NODE_ENV === 'development' ? error?.message : undefined
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 

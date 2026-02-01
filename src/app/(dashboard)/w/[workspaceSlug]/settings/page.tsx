@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
+import { signOut } from "next-auth/react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -58,6 +60,7 @@ export default function SettingsPage() {
   const userStatus = useUserStatusContext()
   const userStatusLoading = userStatus.isLoading
   const router = useRouter()
+  const queryClient = useQueryClient()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || "workspace")
@@ -353,14 +356,19 @@ export default function SettingsPage() {
         }
       }
       
-      // Clear any cached data
+      // Clear all client-side state to prevent stale workspace references
+      // 1. Clear React Query cache
+      queryClient.clear()
+      
+      // 2. Clear localStorage workspace preference and cached data
+      localStorage.removeItem('currentWorkspaceId')
       localStorage.removeItem('workspace-data')
       sessionStorage.clear()
       
-      // Sign out the user to clear session
-      await fetch('/api/auth/signout', { method: 'POST' })
+      // 3. Sign out to clear the stale JWT token (which contains deleted workspaceId)
+      await signOut({ redirect: false })
       
-      // Redirect to login page for a clean start
+      // 4. Redirect to login page for a clean start
       window.location.href = '/login'
       
     } catch (err) {

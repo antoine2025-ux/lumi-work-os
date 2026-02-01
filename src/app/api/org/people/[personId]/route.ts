@@ -19,18 +19,11 @@ export async function GET(
   let userId: string | undefined;
   let workspaceId: string | undefined;
   
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:15',message:'GET handler entry',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   try {
     // Step 1: Get unified auth (includes workspaceId)
     const auth = await getUnifiedAuth(request);
     userId = auth?.user?.userId;
     workspaceId = auth?.workspaceId;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:24',message:'After getUnifiedAuth',data:{hasUserId:!!userId,hasWorkspaceId:!!workspaceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     if (!userId || !workspaceId) {
       console.error("[GET /api/org/people/[personId]] Missing userId or workspaceId", { userId, workspaceId });
@@ -57,16 +50,8 @@ export async function GET(
     // Step 4: Get person (explicitly pass workspaceId since middleware is disabled)
     const { personId } = await ctx.params;
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:50',message:'Before getOrgPerson',data:{personId,workspaceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    
     // getOrgPerson now handles both OrgPosition ID and User ID
     const person = await getOrgPerson(personId, workspaceId);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:52',message:'After getOrgPerson',data:{personFound:!!person,personId:person?.id,personName:person?.fullName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
 
     if (!person) {
       return NextResponse.json(
@@ -80,9 +65,6 @@ export async function GET(
 
     return NextResponse.json(person, { status: 200 });
   } catch (error: any) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:65',message:'Catch block error',data:{error:error?.message,errorCode:error?.code,errorStack:error?.stack?.substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'ALL'})}).catch(()=>{});
-    // #endregion
     console.error("[GET /api/org/people/[personId]] Error:", error);
     console.error("[GET /api/org/people/[personId]] Error stack:", error?.stack);
 

@@ -920,10 +920,6 @@ const DepartmentsTab = memo(function DepartmentsTab({
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:920',message:'Manage structure button clicked in DepartmentsTab',data:{currentTab:activeTab,currentUrl:window.location.href,unassignedTeamsCount:teamsByDepartment.unassigned.length,willSwitchTab:activeTab !== 'teams'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                  // #endregion
-                  
                   // Always switch to Teams tab for consistency
                   onTabChange("teams");
                   
@@ -932,10 +928,6 @@ const DepartmentsTab = memo(function DepartmentsTab({
                   currentUrl.searchParams.set("tab", "teams");
                   currentUrl.searchParams.delete("filter");
                   const targetUrl = currentUrl.pathname + (currentUrl.searchParams.toString() ? "?" + currentUrl.searchParams.toString() : "");
-                  
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:927',message:'Before router.push',data:{targetUrl,currentPath:window.location.pathname,currentSearch:window.location.search,willNavigate:targetUrl !== window.location.pathname + window.location.search},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                  // #endregion
                   
                   // Always update URL (even if same) to ensure state is consistent, then scroll
                   router.push(targetUrl);
@@ -949,10 +941,6 @@ const DepartmentsTab = memo(function DepartmentsTab({
                           // Try to find teams section or teams content
                           const teamsSectionEl = document.getElementById("teams-tab-section") || document.getElementById("teams-tab-content");
                           
-                          // #region agent log
-                          fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:938',message:'Attempting to scroll to teams section',data:{foundSection:!!teamsSectionEl,windowScrollY:window.scrollY,windowInnerHeight:window.innerHeight},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                          // #endregion
-                          
                           if (teamsSectionEl) {
                             const rect = teamsSectionEl.getBoundingClientRect();
                             // Only scroll if section is not already fully visible at the top
@@ -960,22 +948,13 @@ const DepartmentsTab = memo(function DepartmentsTab({
                               const scrollOffset = 150;
                               const scrollY = window.scrollY + rect.top - scrollOffset;
                               window.scrollTo({ top: Math.max(0, scrollY), behavior: "smooth" });
-                              // #region agent log
-                              fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:946',message:'Scrolled to teams section',data:{scrollY,sectionTop:rect.top,sectionBottom:rect.bottom,windowScrollYBefore:window.scrollY,windowInnerHeight:window.innerHeight},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                              // #endregion
                             } else {
                               // Section already visible - just scroll to top of page for visual feedback
                               window.scrollTo({ top: 0, behavior: "smooth" });
-                              // #region agent log
-                              fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:950',message:'Teams section already visible, scrolled to top',data:{sectionTop:rect.top,sectionBottom:rect.bottom},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                              // #endregion
                             }
                           } else {
                             // Fallback: scroll to top of page
                             window.scrollTo({ top: 0, behavior: "smooth" });
-                            // #region agent log
-                            fetch('http://127.0.0.1:7242/ingest/34153de7-4273-472a-b15e-68740f3fbd8e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StructurePageClient.tsx:955',message:'Teams section not found, scrolled to top',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                            // #endregion
                           }
                         }, 200); // Delay to allow tab switch to render
                       });
