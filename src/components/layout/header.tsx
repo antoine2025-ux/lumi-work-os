@@ -68,26 +68,27 @@ const navigationItems = [
     icon: Network,
     description: "Organization chart and structure"
   },
-  {
-    name: "Settings",
-    href: "/settings", // Will be prefixed with /w/[slug] in component
-    icon: Sliders,
-    description: "Workspace configuration"
-    },
-  {
-    name: "Members",
-    href: "/org/settings/members",
-    icon: Users,
-    description: "Manage org members and roles",
-    requiresAdmin: true
-  },
-  {
-    name: "Invitations",
-    href: "/org/settings/invitations",
-    icon: Users,
-    description: "Manage org invitations",
-    requiresAdmin: true
-  }
+  // Part from Org repo
+  // {
+  //   name: "Settings",
+  //   href: "/settings", // Will be prefixed with /w/[slug] in component
+  //   icon: Sliders,
+  //   description: "Workspace configuration"
+  //   },
+  // {
+  //   name: "Members",
+  //   href: "/org/settings/members",
+  //   icon: Users,
+  //   description: "Manage org members and roles",
+  //   requiresAdmin: true
+  // },
+  // {
+  //   name: "Invitations",
+  //   href: "/org/settings/invitations",
+  //   icon: Users,
+  //   description: "Manage org invitations",
+  //   requiresAdmin: true
+  // }
 ]
 
 export function Header() {
@@ -178,10 +179,11 @@ export function Header() {
           <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center justify-center">
             <div className="flex items-center space-x-1">
             {navigationItems.map((item) => {
+              // Part from Org repo
               // Hide admin-only items if user is not admin
-              if (item.requiresAdmin && userRoleFromPermissions !== "ADMIN") {
-                return null;
-              }
+              // if (item.requiresAdmin && userRoleFromPermissions !== "ADMIN") {
+              //   return null;
+              // }
               
               // Build slug-aware href
               const slugHref = currentWorkspace?.slug 
@@ -233,8 +235,15 @@ export function Header() {
             })}
             </div>
           </div>
+
+          {/* Spacer to balance layout */}
+          <div className="flex-1"></div>
+
+          {/* Workspace Account Menu */}
+          <WorkspaceAccountMenu />
           
-          {/* User Controls */}
+          {/* Part from Org repo */}
+          {/* User Controls
           <div className="flex items-center space-x-4">
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted">
               <Bell className="h-5 w-5" />
@@ -350,7 +359,7 @@ export function Header() {
                 </Avatar>
               </Button>
             )}
-          </div>
+          </div> */}
         </div>
       </header>
     </TooltipProvider>

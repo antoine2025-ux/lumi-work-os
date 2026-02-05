@@ -30,15 +30,31 @@ export default function OnboardingPage() {
       // Still need to load user for the form, but don't check workspace or redirect
       let isMounted = true
       const loadUserOnly = async () => {
+        const abortController = new AbortController()
+        const timeoutId = setTimeout(() => {
+          abortController.abort()
+        }, 10000) // 10 seconds timeout
+        
         try {
-          const sessionRes = await fetch('/api/auth/session')
+          const sessionRes = await fetch('/api/auth/session', {
+            signal: abortController.signal,
+          })
+          
+          clearTimeout(timeoutId)
+          
           if (!sessionRes.ok) {
             console.warn('[welcome] Session fetch failed:', sessionRes.status)
+            if (isMounted) {
+              setIsLoading(false)
+            }
             return
           }
           const contentType = sessionRes.headers.get('content-type')
           if (!contentType || !contentType.includes('application/json')) {
             console.warn('[welcome] Session response is not JSON:', contentType)
+            if (isMounted) {
+              setIsLoading(false)
+            }
             return
           }
           const sessionData = await sessionRes.json()
@@ -46,7 +62,12 @@ export default function OnboardingPage() {
             setUser(sessionData.user)
           }
         } catch (error) {
-          console.error('[welcome] Error loading user:', error)
+          clearTimeout(timeoutId)
+          if (error instanceof Error && error.name === 'AbortError') {
+            console.warn('[welcome] Session fetch timeout when loading user')
+          } else {
+            console.error('[welcome] Error loading user:', error)
+          }
         } finally {
           if (isMounted) {
             setIsLoading(false)
@@ -62,23 +83,33 @@ export default function OnboardingPage() {
     let isMounted = true
     
     const checkAndRedirect = async () => {
+      const abortController = new AbortController()
+      const timeoutId = setTimeout(() => {
+        abortController.abort()
+      }, 10000) // Increased to 10 seconds for better reliability
+      
       try {
         // Get user info from session first with timeout
-        const sessionPromise = fetch('/api/auth/session')
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
-        )
-        
-        const res = await Promise.race([sessionPromise, timeoutPromise]) as Response
+        const res = await fetch('/api/auth/session', {
+          signal: abortController.signal,
+        })
+
+        clearTimeout(timeoutId)
 
         if (!res.ok) {
           console.warn('[welcome] Session fetch failed:', res.status)
+          if (isMounted) {
+            setIsLoading(false)
+          }
           return
         }
         
         const contentType = res.headers.get('content-type')
         if (!contentType || !contentType.includes('application/json')) {
           console.warn('[welcome] Session response is not JSON:', contentType)
+          if (isMounted) {
+            setIsLoading(false)
+          }
           return
         }
 
@@ -98,14 +129,21 @@ export default function OnboardingPage() {
           }
 
           // Check if user has a workspace by email (even if session.user.id is missing)
+          const workspaceAbortController = new AbortController()
+          const workspaceTimeoutId = setTimeout(() => {
+            workspaceAbortController.abort()
+          }, 10000) // Increased to 10 seconds
+          
           try {
             // Call a special endpoint that checks workspace by email with timeout
-            const workspacePromise = fetch(`/api/auth/check-workspace-by-email?email=${encodeURIComponent(data.user.email)}`)
-            const workspaceTimeout = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Workspace check timeout')), 5000)
+            const workspaceRes = await fetch(
+              `/api/auth/check-workspace-by-email?email=${encodeURIComponent(data.user.email)}`,
+              {
+                signal: workspaceAbortController.signal,
+              }
             )
             
-            const workspaceRes = await Promise.race([workspacePromise, workspaceTimeout]) as Response
+            clearTimeout(workspaceTimeoutId)
             
             if (!isMounted) return
             
@@ -113,6 +151,9 @@ export default function OnboardingPage() {
               const contentType = workspaceRes.headers.get('content-type')
               if (!contentType || !contentType.includes('application/json')) {
                 console.warn('[welcome] Workspace check response is not JSON:', contentType)
+                if (isMounted) {
+                  setIsLoading(false)
+                }
                 return
               }
               const workspaceData = await workspaceRes.json()
@@ -126,8 +167,13 @@ export default function OnboardingPage() {
                 return
               }
             }
-          } catch (error) {
-            console.error('[welcome] Error checking workspace by email:', error)
+          } catch (workspaceError) {
+            clearTimeout(workspaceTimeoutId)
+            if (workspaceError instanceof Error && workspaceError.name === 'AbortError') {
+              console.warn('[welcome] Workspace check timeout - continuing to show welcome page')
+            } else {
+              console.error('[welcome] Error checking workspace by email:', workspaceError)
+            }
             // Continue anyway - let user see welcome page
           }
         } else {
@@ -137,7 +183,13 @@ export default function OnboardingPage() {
           // The user might still be able to create a workspace
         }
       } catch (error) {
-        console.error('[welcome] Error fetching session:', error)
+        clearTimeout(timeoutId)
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.warn('[welcome] Session fetch timeout - showing welcome page anyway')
+          // On timeout, still show the welcome page - user might be able to create workspace
+        } else {
+          console.error('[welcome] Error fetching session:', error)
+        }
         // If session fetch fails, still try to show welcome page
         // User might be able to create workspace anyway
       } finally {
