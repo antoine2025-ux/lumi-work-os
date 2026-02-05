@@ -1050,6 +1050,9 @@ CREATE INDEX "org_departments_ownerPersonId_idx" ON "org_departments"("ownerPers
 CREATE INDEX "org_positions_workspaceId_idx" ON "org_positions"("workspaceId");
 
 -- CreateIndex
+-- Drop existing partial index if it exists (from earlier migration)
+DROP INDEX IF EXISTS "idx_org_positions_workspace_active";
+-- Create full index as defined in schema
 CREATE INDEX "idx_org_positions_workspace_active" ON "org_positions"("workspaceId", "isActive");
 
 -- CreateIndex
