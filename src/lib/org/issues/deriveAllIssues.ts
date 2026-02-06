@@ -24,6 +24,9 @@ import {
 } from "@/lib/org/capacity/thresholds";
 import type { SerializedIssueWindow, IssueWindowLabel } from "@/lib/org/intelligence/types";
 import { resolveWorkImpactSummary } from "@/lib/org/impact/resolveWorkImpact";
+import { deriveDecisionIssues } from "@/lib/org/issues/deriveDecisionIssues";
+import { deriveResponsibilityIssues } from "@/lib/org/issues/deriveResponsibilityIssues";
+import { deriveWorkStaffingIssues } from "@/lib/org/issues/deriveWorkStaffingIssues";
 
 // ============================================================================
 // Helper Functions
@@ -235,10 +238,41 @@ export async function deriveAllIssues(
     impactSummaryMap
   );
 
-  // 9. Combine all derived issues
-  const allIssues: OrgIssueMetadata[] = [...ownershipIssues, ...personIssues, ...workImpactIssues];
+  // 9. Derive decision authority issues (Phase I)
+  let decisionIssues: OrgIssueMetadata[] = [];
+  try {
+    decisionIssues = await deriveDecisionIssues(workspaceId, window);
+  } catch (err) {
+    console.warn("[deriveAllIssues] Decision issue derivation failed:", err);
+  }
 
-  // 10. Return standardized payload
+  // 10. Derive responsibility issues (Phase K)
+  let responsibilityIssues: OrgIssueMetadata[] = [];
+  try {
+    responsibilityIssues = await deriveResponsibilityIssues(workspaceId);
+  } catch (err) {
+    console.warn("[deriveAllIssues] Responsibility issue derivation failed:", err);
+  }
+
+  // 11. Derive work staffing issues (Phase H)
+  let workStaffingIssues: OrgIssueMetadata[] = [];
+  try {
+    workStaffingIssues = await deriveWorkStaffingIssues(workspaceId);
+  } catch (err) {
+    console.warn("[deriveAllIssues] Work staffing issue derivation failed:", err);
+  }
+
+  // 12. Combine all derived issues
+  const allIssues: OrgIssueMetadata[] = [
+    ...ownershipIssues,
+    ...personIssues,
+    ...workImpactIssues,
+    ...decisionIssues,
+    ...responsibilityIssues,
+    ...workStaffingIssues,
+  ];
+
+  // 13. Return standardized payload
   return {
     issues: allIssues,
     issueWindow,

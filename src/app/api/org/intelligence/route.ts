@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     if (!workspaceId) {
       return NextResponse.json(
         { error: "workspaceId is required" },
-        { status: 400 }
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -118,12 +118,12 @@ export async function GET(request: NextRequest) {
     console.error("Error computing org intelligence:", error);
 
     if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "Content-Type": "application/json" } });
     }
 
     return NextResponse.json(
       { error: "Failed to compute org intelligence" },
-      { status: 500 }
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }

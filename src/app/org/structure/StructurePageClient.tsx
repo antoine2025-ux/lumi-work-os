@@ -44,6 +44,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { IntegrityBanner } from "@/components/org/IntegrityBanner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { CapacityStatusDot } from "@/components/org/capacity/CapacityStatusBadge";
+import { useCapacityTeams, type TeamCapacityRow } from "@/hooks/useCapacityTeams";
 
 const STRUCTURE_TABS: OrgTab[] = [
   { id: "teams", label: "Teams" },
@@ -79,10 +89,19 @@ export function StructurePageClient({
     : (tabParam ?? "teams");
   const highlightTeamId = searchParams.get("teamId");
   const justCreated = searchParams.get("created");
+  const panelParam = searchParams.get("panel");
 
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const canManageStructure = canRole(role, "manageStructure");
   const unassignedSectionRef = useRef<HTMLDivElement | null>(null);
+  const { teamCapacityMap } = useCapacityTeams();
+
+  // Assign-department deep-link dialog state
+  const [assignDeptDialogTeamId, setAssignDeptDialogTeamId] = useState<string | null>(null);
+  const [assignDeptSelectedId, setAssignDeptSelectedId] = useState<string>("");
+  const [assignDeptSaving, setAssignDeptSaving] = useState(false);
+  const [assignDeptError, setAssignDeptError] = useState<string | null>(null);
+  const assignDeptDeepLinkHandled = useRef(false);
 
   // Sync activeTab when URL params change (e.g., departmentId present should show departments tab)
   useEffect(() => {
@@ -118,6 +137,54 @@ export function StructurePageClient({
   const departments = (!isLoading && hookDepartments !== null) ? hookDepartments : initialDepartments;
   const roles = (!isLoading && hookRoles !== null) ? hookRoles : initialRoles;
   const noAccess = isOrgNoAccessError(error);
+
+  // Deep-link: ?panel=assignDepartment&teamId=... opens the assign-department dialog
+  useEffect(() => {
+    if (assignDeptDeepLinkHandled.current) return;
+    if (panelParam !== "assignDepartment" || !highlightTeamId) return;
+    // Wait for teams to load
+    if (!teams || teams.length === 0) return;
+
+    const team = teams.find((t) => t.id === highlightTeamId);
+    // Failure behavior: if team doesn't exist or already has a department, no-op and clear params
+    if (!team || team.departmentId !== null) {
+      assignDeptDeepLinkHandled.current = true;
+      router.replace("/org/structure?tab=teams");
+      return;
+    }
+
+    assignDeptDeepLinkHandled.current = true;
+    setActiveTab("teams");
+    setAssignDeptDialogTeamId(highlightTeamId);
+  }, [panelParam, highlightTeamId, teams, router]);
+
+  // Handler: save department assignment
+  const handleAssignDepartmentSave = useCallback(async () => {
+    if (!assignDeptDialogTeamId || !assignDeptSelectedId) return;
+    setAssignDeptSaving(true);
+    setAssignDeptError(null);
+    try {
+      const res = await fetch(`/api/org/teams/${assignDeptDialogTeamId}/department`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ departmentId: assignDeptSelectedId }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setAssignDeptError(json?.error?.message ?? "Failed to assign department.");
+        return;
+      }
+      // Success: close dialog, clear params, refetch
+      setAssignDeptDialogTeamId(null);
+      setAssignDeptSelectedId("");
+      router.replace("/org/structure?tab=teams");
+      router.refresh();
+    } catch (err: unknown) {
+      setAssignDeptError(err instanceof Error ? err.message : "Failed to assign department.");
+    } finally {
+      setAssignDeptSaving(false);
+    }
+  }, [assignDeptDialogTeamId, assignDeptSelectedId, router]);
 
   // Load people for owner dropdowns
   const peopleQ = useOrgQuery(() => OrgApi.listPeople(), []);
@@ -190,6 +257,7 @@ export function StructurePageClient({
                 highlightDepartmentId={highlightDepartmentId}
                 people={people}
                 onRefresh={() => router.refresh()}
+                teamCapacityMap={teamCapacityMap}
               />
             </div>
           )}
@@ -206,6 +274,7 @@ export function StructurePageClient({
               people={people}
               activeTab={activeTab}
               onTabChange={handleTabChange}
+              teamCapacityMap={teamCapacityMap}
             />
           )}
 
@@ -217,6 +286,71 @@ export function StructurePageClient({
           )}
         </>
       ) : null}
+
+      {/* Assign Department Dialog (deep-link driven) */}
+      <Dialog
+        open={!!assignDeptDialogTeamId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAssignDeptDialogTeamId(null);
+            setAssignDeptSelectedId("");
+            setAssignDeptError(null);
+            router.replace("/org/structure?tab=teams");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Assign department</DialogTitle>
+            <DialogDescription>
+              Choose a department for{" "}
+              <span className="font-medium text-slate-200">
+                {teams.find((t) => t.id === assignDeptDialogTeamId)?.name ?? "this team"}
+              </span>
+              .
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select
+              value={assignDeptSelectedId}
+              onValueChange={setAssignDeptSelectedId}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a department" />
+              </SelectTrigger>
+              <SelectContent>
+                {departmentOptions.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {assignDeptError && (
+              <p className="mt-2 text-sm text-red-400">{assignDeptError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setAssignDeptDialogTeamId(null);
+                setAssignDeptSelectedId("");
+                setAssignDeptError(null);
+                router.replace("/org/structure?tab=teams");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!assignDeptSelectedId || assignDeptSaving}
+              onClick={handleAssignDepartmentSave}
+            >
+              {assignDeptSaving ? "Saving..." : "Assign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -239,6 +373,7 @@ const TeamsTab = memo(function TeamsTab({
   highlightDepartmentId: string | null;
   people: Array<{ id: string; fullName: string }>;
   onRefresh: () => void;
+  teamCapacityMap?: Map<string, TeamCapacityRow>;
 }) {
   const [savingOwner, setSavingOwner] = useState<Record<string, boolean>>({});
   const [ownerErrors, setOwnerErrors] = useState<Record<string, string | null>>({});
@@ -337,6 +472,9 @@ const TeamsTab = memo(function TeamsTab({
                     <h3 className="text-[14px] font-semibold text-slate-50 truncate">
                       {team.name}
                     </h3>
+                    {teamCapacityMap?.get(team.id) && (
+                      <CapacityStatusDot status={teamCapacityMap.get(team.id)!.status} />
+                    )}
                     {justCreatedThis && (
                       <span className="rounded-full bg-[#5CA9FF]/20 px-2 py-[2px] text-[10px] font-medium text-[#5CA9FF] shrink-0">
                         New
@@ -352,8 +490,19 @@ const TeamsTab = memo(function TeamsTab({
                     )}
                   </div>
                 </div>
-                <div className="text-[11px] text-slate-400 shrink-0">
-                  {team.memberCount} {team.memberCount === 1 ? "member" : "members"}
+                <div className="text-[11px] text-slate-400 shrink-0 flex items-center gap-2">
+                  {(() => {
+                    const cap = teamCapacityMap?.get(team.id);
+                    if (cap && cap.availableHours > 0) {
+                      return (
+                        <span className="text-[10px] text-slate-500">
+                          {cap.utilizationPct}% util
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                  <span>{team.memberCount} {team.memberCount === 1 ? "member" : "members"}</span>
                 </div>
               </div>
 
@@ -495,6 +644,7 @@ const DepartmentsTab = memo(function DepartmentsTab({
   people: Array<{ id: string; fullName: string }>;
   activeTab: string;
   onTabChange: (tabId: string) => void;
+  teamCapacityMap?: Map<string, TeamCapacityRow>;
 }) {
   const router = useRouter();
   const [savingOwner, setSavingOwner] = useState<Record<string, boolean>>({});
@@ -635,6 +785,26 @@ const DepartmentsTab = memo(function DepartmentsTab({
                       </div>
                       <div className="flex items-center gap-3 text-sm text-slate-400">
                         <span>{deptTeams.length} {deptTeams.length === 1 ? "team" : "teams"}</span>
+                        {/* Department utilization (weighted average) */}
+                        {teamCapacityMap && (() => {
+                          let totalAvail = 0;
+                          let totalAlloc = 0;
+                          for (const dt of deptTeams) {
+                            const cap = teamCapacityMap.get(dt.id);
+                            if (cap) {
+                              totalAvail += cap.availableHours;
+                              totalAlloc += cap.allocatedHours;
+                            }
+                          }
+                          if (totalAvail === 0 && deptTeams.length > 0) {
+                            return <span className="text-[11px] text-slate-500">No capacity</span>;
+                          }
+                          if (totalAvail > 0) {
+                            const pct = Math.round((totalAlloc / totalAvail) * 100);
+                            return <span className="text-[11px] text-slate-500">{pct}% util</span>;
+                          }
+                          return null;
+                        })()}
                         {/* Owner display - inline with avatar */}
                         {d.ownerPersonId && (() => {
                           const owner = people.find((p) => p.id === d.ownerPersonId);

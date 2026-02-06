@@ -19,9 +19,14 @@ export function useOrgReadiness() {
   const loading = peopleQ.loading || structureQ.loading || ownershipQ.loading;
   const error = peopleQ.error || structureQ.error || ownershipQ.error;
 
+  // Unwrap { ok, data: { people } } envelope from /api/org/people if present
+  const unwrappedPeople = (peopleQ.data as any)?.data?.people
+    ? (peopleQ.data as any).data
+    : peopleQ.data;
+
   const readiness =
-    !loading && !error && peopleQ.data && structureQ.data && ownershipQ.data
-      ? computeOrgReadiness({ people: peopleQ.data, structure: structureQ.data, ownership: ownershipQ.data })
+    !loading && !error && unwrappedPeople && structureQ.data && ownershipQ.data
+      ? computeOrgReadiness({ people: unwrappedPeople, structure: structureQ.data, ownership: ownershipQ.data })
       : null;
 
   return { loading, error, readiness };

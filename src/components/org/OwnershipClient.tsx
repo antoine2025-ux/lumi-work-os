@@ -39,7 +39,8 @@ export function OwnershipClient() {
 
   // Extract data with safe defaults - must be done before any conditional returns
   const assignments = ownQ.data?.assignments ?? [];
-  const people = peopleQ.data?.people ?? [];
+  // Support both { ok, data: { people } } and { people } response shapes
+  const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
   const coverage = ownQ.data?.coverage;
   const structureQ = useOrgQuery(() => OrgApi.getStructure(), []);
   const structure = structureQ.data;

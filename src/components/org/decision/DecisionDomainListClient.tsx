@@ -7,7 +7,8 @@
  * Phase I: UI renders API output only; no resolution logic in client.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,11 +46,14 @@ type DecisionDomainSummary = {
 };
 
 export function DecisionDomainListClient() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [domains, setDomains] = useState<DecisionDomainSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<DecisionDomainSummary | null>(null);
+  const deepLinkHandled = useRef(false);
 
   // Create form state
   const [newKey, setNewKey] = useState("");
@@ -77,6 +81,23 @@ export function DecisionDomainListClient() {
   useEffect(() => {
     fetchDomains();
   }, [fetchDomains]);
+
+  // Deep-link: auto-open domain from ?domain= query param
+  useEffect(() => {
+    if (deepLinkHandled.current || loading || domains.length === 0) return;
+    const domainKey = searchParams.get("domain");
+    if (!domainKey) return;
+
+    const match = domains.find((d) => d.key === domainKey);
+    if (match) {
+      setSelectedDomain(match);
+      deepLinkHandled.current = true;
+      // Clear the param to avoid re-triggering
+      const url = new URL(window.location.href);
+      url.searchParams.delete("domain");
+      router.replace(url.pathname + url.search, { scroll: false });
+    }
+  }, [loading, domains, searchParams, router]);
 
   const handleCreate = async () => {
     try {
