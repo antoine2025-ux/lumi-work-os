@@ -39,5 +39,12 @@ export interface DashboardBootstrap {
     priority?: string | null
     createdAt: string
   }>
+  taskSummary: {
+    total: number
+    todo: number
+    inProgress: number
+    done: number
+    overdue: number
+  }
 }
 

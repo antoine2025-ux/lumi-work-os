@@ -250,12 +250,20 @@ model OrgCustomRole {
   @@map("org_custom_roles")
 }
 
+enum ContentFormat {
+  HTML
+  JSON
+}
+
 model WikiPage {
   id                   String                 @id @default(cuid())
   workspaceId          String
   title                String
   slug                 String
   content              String
+  contentJson          Json?
+  contentFormat        ContentFormat           @default(HTML)
+  textContent          String?
   excerpt              String?
   parentId             String?
   order                Int                    @default(0)
@@ -272,7 +280,8 @@ model WikiPage {
   last_viewed_at       DateTime?              @db.Timestamp(6)
   ai_analysis          Json?
   quality_score        Decimal?               @db.Decimal(3, 2)
-  projects             Project[]
+  projects                Project[]
+  projectDocumentation    ProjectDocumentation[]
   wiki_ai_interactions wiki_ai_interactions[]
   attachments          WikiAttachment[]
   chunks               WikiChunk[]
@@ -342,14 +351,17 @@ model WikiComment {
 }
 
 model WikiVersion {
-  id          String   @id @default(cuid())
-  pageId      String
-  content     String
-  version     Int
-  createdAt   DateTime @default(now())
-  createdById String
-  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  page        WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  id           String         @id @default(cuid())
+  pageId       String
+  content      String
+  contentJson  Json?
+  contentFormat ContentFormat @default(HTML)
+  textContent  String?
+  version      Int
+  createdAt    DateTime       @default(now())
+  createdById  String
+  createdBy    User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  page         WikiPage       @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   @@index([pageId, version], map: "idx_wiki_versions_page_version")
   @@map("wiki_versions")
@@ -807,16 +819,32 @@ model Project {
   watchers            ProjectWatcher[]
   accountability      ProjectAccountability?
   allocations         ProjectAllocation[]
-  createdBy           User                   @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  owner               User?                  @relation("ProjectOwner", fields: [ownerId], references: [id])
-  wikiPage            WikiPage?              @relation(fields: [wikiPageId], references: [id])
-  workspace           Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  tasks               Task[]
+  createdBy             User                   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  owner                  User?                  @relation("ProjectOwner", fields: [ownerId], references: [id])
+  wikiPage               WikiPage?              @relation(fields: [wikiPageId], references: [id])
+  projectDocumentation   ProjectDocumentation[]
+  workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks                  Task[]
 
   @@index([workspaceId, status], map: "idx_projects_workspace_status")
   @@index([updatedAt(sort: Desc)], map: "idx_projects_updated_at")
   @@index([orgId])
   @@map("projects")
+}
+
+model ProjectDocumentation {
+  id         String   @id @default(cuid())
+  projectId  String
+  wikiPageId String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  wikiPage   WikiPage @relation(fields: [wikiPageId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, wikiPageId])
+  @@index([projectId], map: "idx_project_documentation_project")
+  @@index([wikiPageId], map: "idx_project_documentation_wiki_page")
+  @@map("project_documentation")
 }
 
 model ProjectAccountability {

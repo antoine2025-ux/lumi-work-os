@@ -1,13 +1,13 @@
-import { ProjectRole, ProjectSpaceVisibility } from '@prisma/client'
+import { ProjectRole } from '@prisma/client'
 import { User } from 'next-auth'
 import { prisma } from '@/lib/db'
 
 /**
  * Assert that the authenticated user has access to the project
  * Throws error if access is denied, returns project and user data if granted
- * 
- * CRITICAL: Verifies workspace isolation - project must belong to user's workspace
- * NEW: Checks ProjectSpace visibility (PUBLIC vs TARGETED)
+ *
+ * CRITICAL: Verifies workspace isolation - project must belong to user's workspace.
+ * ProjectSpace is not in the current schema; access is based on workspace + project members/creator/owner.
  */
 export async function assertProjectAccess(
   user: User,
@@ -19,19 +19,12 @@ export async function assertProjectAccess(
     throw new Error('Unauthorized: User not authenticated.')
   }
 
-  // Fetch project with ProjectSpace info - this is the critical check
+  // Fetch project with members only (projectSpace not in schema)
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
       members: {
         where: { userId: user.id }
-      },
-      projectSpace: {
-        include: {
-          members: {
-            where: { userId: user.id }
-          }
-        }
       }
     }
   })
@@ -41,15 +34,13 @@ export async function assertProjectAccess(
   }
 
   // CRITICAL: Verify workspace isolation - project must belong to user's workspace
-  // This is the primary security check - if workspaceId is provided, it must match
   if (workspaceId && project.workspaceId !== workspaceId) {
     throw new Error('Forbidden: Insufficient project permissions.')
   }
 
-  // Verify workspace membership
+  // Verify workspace membership when workspaceId is provided
   if (workspaceId) {
     try {
-      // PHASE 1: Use explicit select to exclude employmentStatus
       const workspaceMember = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
@@ -63,7 +54,6 @@ export async function assertProjectAccess(
           userId: true,
           role: true,
           joinedAt: true,
-          // Exclude employmentStatus - may not exist in database yet
         }
       })
 
@@ -71,112 +61,30 @@ export async function assertProjectAccess(
         throw new Error('Forbidden: User not member of workspace.')
       }
     } catch (error: any) {
-      // If workspaceMember check fails due to connection pooling or other transient errors,
-      // we've already verified workspace isolation via project.workspaceId check above
-      // Log the error but don't fail the request
       if (error?.message?.includes('prepared statement') || error?.code === '26000') {
-        console.warn('WorkspaceMember check skipped due to connection issue, workspace isolation verified via project.workspaceId', { 
-          workspaceId, 
+        console.warn('WorkspaceMember check skipped due to connection issue, workspace isolation verified via project.workspaceId', {
+          workspaceId,
           userId: user.id,
-          projectWorkspaceId: project.workspaceId 
+          projectWorkspaceId: project.workspaceId
         })
       } else {
-        // For other errors (like user not found), still throw
         throw error
       }
     }
   }
 
-  // NEW: Check ProjectSpace visibility
-  // If project has a ProjectSpace, check visibility rules
-  if (project.projectSpace) {
-    const space = project.projectSpace
-    const isSpaceMember = space.members.length > 0
-
-    if (space.visibility === ProjectSpaceVisibility.TARGETED) {
-      // TARGETED: Only members can access
-      if (!isSpaceMember) {
-        // Check if user is project creator/owner (they should always have access)
-        if (project.createdById !== user.id && project.ownerId !== user.id) {
-          throw new Error('Forbidden: You do not have access to this project space.')
+  // Workspace-scoped (no ProjectSpace in schema): workspace members can access; use project member or synthetic VIEWER
+  if (workspaceId) {
+    const wsMember = project.members[0]
+    if (!wsMember) {
+      return {
+        user,
+        project,
+        member: {
+          userId: user.id,
+          role: 'VIEWER' as ProjectRole,
+          projectId: project.id
         }
-      }
-    } else if (space.visibility === ProjectSpaceVisibility.PUBLIC) {
-      // PUBLIC: All workspace members can access
-      // Verify user is a workspace member
-      // PHASE 1: Use explicit select to exclude employmentStatus
-      if (workspaceId) {
-        const workspaceMember = await prisma.workspaceMember.findUnique({
-          where: {
-            workspaceId_userId: {
-              workspaceId,
-              userId: user.id
-            }
-          },
-          select: {
-            id: true,
-            workspaceId: true,
-            userId: true,
-            role: true,
-            joinedAt: true,
-            // Exclude employmentStatus - may not exist in database yet
-          }
-        })
-        if (workspaceMember) {
-          // Workspace member has access to PUBLIC space
-          // Return with synthetic member if no ProjectMember record exists
-          const member = project.members[0]
-          if (!member) {
-            return {
-              user,
-              project,
-              member: {
-                userId: user.id,
-                role: 'VIEWER' as ProjectRole,
-                projectId: project.id
-              }
-            }
-          }
-          // Continue to check ProjectMember role
-        }
-      }
-    }
-  } else {
-    // No ProjectSpace (legacy): treat as PUBLIC - all workspace members can access
-    if (workspaceId) {
-      // PHASE 1: Use explicit select to exclude employmentStatus
-      const workspaceMember = await prisma.workspaceMember.findUnique({
-        where: {
-          workspaceId_userId: {
-            workspaceId,
-            userId: user.id
-          }
-        },
-        select: {
-          id: true,
-          workspaceId: true,
-          userId: true,
-          role: true,
-          joinedAt: true,
-          // Exclude employmentStatus - may not exist in database yet
-        }
-      })
-      if (workspaceMember) {
-        // Workspace member has access to legacy project
-        // Return with synthetic member if no ProjectMember record exists
-        const member = project.members[0]
-        if (!member) {
-          return {
-            user,
-            project,
-            member: {
-              userId: user.id,
-              role: 'VIEWER' as ProjectRole,
-              projectId: project.id
-            }
-          }
-        }
-        // Continue to check ProjectMember role
       }
     }
   }
@@ -247,83 +155,32 @@ export async function hasProjectAccess(
   workspaceId: string
 ): Promise<boolean> {
   try {
-    // Get project with ProjectSpace info
     const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      include: {
-        projectSpace: {
-          include: {
-            members: {
-              where: { userId }
-            }
-          }
-        }
-      }
+      where: { id: projectId }
     })
 
     if (!project || project.workspaceId !== workspaceId) {
       return false
     }
 
-    // Check ProjectSpace visibility
-    if (project.projectSpace) {
-      const space = project.projectSpace
-      const isSpaceMember = space.members.length > 0
-
-      if (space.visibility === ProjectSpaceVisibility.TARGETED) {
-        // TARGETED: Only members can access
-        if (!isSpaceMember) {
-          // Check if user is project creator/owner
-          if (project.createdById !== userId && project.ownerId !== userId) {
-            return false
-          }
+    // Workspace member has access (no ProjectSpace in schema)
+    const workspaceMember = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId
         }
-      } else if (space.visibility === ProjectSpaceVisibility.PUBLIC) {
-        // PUBLIC: All workspace members can access
-        // Verify user is a workspace member
-        // PHASE 1: Use explicit select to exclude employmentStatus
-        const workspaceMember = await prisma.workspaceMember.findUnique({
-          where: {
-            workspaceId_userId: {
-              workspaceId,
-              userId
-            }
-          },
-          select: {
-            id: true,
-            workspaceId: true,
-            userId: true,
-            role: true,
-            joinedAt: true,
-            // Exclude employmentStatus - may not exist in database yet
-          }
-        })
-        if (workspaceMember) {
-          return true // Workspace member has access to PUBLIC space
-        }
+      },
+      select: {
+        id: true,
+        workspaceId: true,
+        userId: true,
+        role: true,
+        joinedAt: true,
       }
-    } else {
-      // No ProjectSpace (legacy): treat as PUBLIC - all workspace members can access
-      // PHASE 1: Use explicit select to exclude employmentStatus
-      const workspaceMember = await prisma.workspaceMember.findUnique({
-        where: {
-          workspaceId_userId: {
-            workspaceId,
-            userId
-          }
-        },
-        select: {
-          id: true,
-          workspaceId: true,
-          userId: true,
-          role: true,
-          joinedAt: true,
-          // Exclude employmentStatus - may not exist in database yet
-        }
-      })
-      if (workspaceMember) {
-        return true // Workspace member has access to legacy project
-      }
+    })
+    if (workspaceMember) {
+      return true
     }
 
     // Check ProjectMember

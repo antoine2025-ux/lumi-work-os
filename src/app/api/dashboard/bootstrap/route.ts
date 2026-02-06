@@ -89,9 +89,13 @@ export async function GET(request: NextRequest) {
     const userTimezone = user?.timezone || null
     const userTimezoneDurationMs = performance.now() - userTimezoneStart
     
+    // Compute today's start for overdue task filtering
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    
     // Parallel DB queries - all execute simultaneously
     const dbStart = performance.now()
-    const [projects, wikiPages, workspaces, todos] = await Promise.all([
+    const [projects, wikiPages, workspaces, todos, taskStatusCounts, overdueTaskCount] = await Promise.all([
       // 1. Projects (minimal fields, strict limit)
       prisma.project.findMany({
         where: {
@@ -186,7 +190,29 @@ export async function GET(request: NextRequest) {
           // ⚠️ GUARDRAIL: Strict limit enforced
           take: MAX_TODOS
         })
-      })()
+      })(),
+      
+      // 5. Task status counts (workspace + user scoped, for dashboard gauges)
+      // Uses idx_tasks_workspace_assignee index
+      prisma.task.groupBy({
+        by: ['status'],
+        where: {
+          workspaceId: auth.workspaceId,
+          assigneeId: auth.user.userId,
+        },
+        _count: true
+      }),
+      
+      // 6. Overdue task count (workspace + user scoped)
+      // Uses idx_tasks_workspace_assignee index
+      prisma.task.count({
+        where: {
+          workspaceId: auth.workspaceId,
+          assigneeId: auth.user.userId,
+          dueDate: { lt: todayStart },
+          status: { notIn: ['DONE'] }
+        }
+      })
     ])
     const dbDurationMs = performance.now() - dbStart
     
@@ -277,6 +303,13 @@ export async function GET(request: NextRequest) {
       select: { id: true, name: true }
     })
     
+    // Build task summary from groupBy results
+    const statusCountMap: Record<string, number> = {}
+    for (const row of taskStatusCounts) {
+      statusCountMap[row.status] = row._count
+    }
+    const taskSummaryTotal = Object.values(statusCountMap).reduce((a, b) => a + b, 0)
+    
     // Transform data to match DashboardBootstrap type
     const bootstrap: DashboardBootstrap = {
       workspace: {
@@ -311,7 +344,14 @@ export async function GET(request: NextRequest) {
         dueAt: t.dueAt?.toISOString() || null,
         priority: t.priority,
         createdAt: t.createdAt.toISOString()
-      }))
+      })),
+      taskSummary: {
+        total: taskSummaryTotal,
+        todo: statusCountMap['TODO'] || 0,
+        inProgress: statusCountMap['IN_PROGRESS'] || 0,
+        done: statusCountMap['DONE'] || 0,
+        overdue: overdueTaskCount
+      }
     }
     
     const totalDurationMs = performance.now() - startTime

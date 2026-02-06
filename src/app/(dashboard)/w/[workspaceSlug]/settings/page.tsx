@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
-import { signOut } from "next-auth/react"
 import { useQueryClient } from "@tanstack/react-query"
+import { teardownWorkspaceSession } from "@/lib/workspace-teardown"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -356,20 +356,10 @@ export default function SettingsPage() {
         }
       }
       
-      // Clear all client-side state to prevent stale workspace references
-      // 1. Clear React Query cache
-      queryClient.clear()
-      
-      // 2. Clear localStorage workspace preference and cached data
-      localStorage.removeItem('currentWorkspaceId')
-      localStorage.removeItem('workspace-data')
-      sessionStorage.clear()
-      
-      // 3. Sign out to clear the stale JWT token (which contains deleted workspaceId)
-      await signOut({ redirect: false })
-      
-      // 4. Redirect to login page for a clean start
-      window.location.href = '/login'
+      // Deterministic teardown: clears all client-side state sources
+      // (logout flag, React Query, localStorage, sessionStorage, JWT)
+      // and hard-redirects to /login.
+      await teardownWorkspaceSession(queryClient)
       
     } catch (err) {
       // Handle 403/401 gracefully

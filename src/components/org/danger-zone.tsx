@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { teardownWorkspaceSession } from "@/lib/workspace-teardown";
 import { useToast } from "@/components/ui/use-toast";
 import { useApiAction } from "@/hooks/useApiAction";
 import { orgApi } from "@/lib/orgApi";
@@ -141,23 +141,10 @@ export function DangerZone({
         description: "The workspace and its data have been removed.",
       });
 
-      // Clear all client-side state to prevent stale workspace references
-      // 1. Clear React Query cache
-      queryClient.clear();
-      
-      // 2. Clear localStorage workspace preference
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('currentWorkspaceId');
-        localStorage.removeItem('workspace-data');
-        sessionStorage.clear();
-      }
-      
-      // 3. Sign out to clear the stale JWT token (which contains deleted workspaceId)
-      // This ensures a clean state on next login
-      await signOut({ redirect: false });
-      
-      // 4. Redirect to login for a fresh start
-      window.location.href = '/login';
+      // Deterministic teardown: clears all client-side state sources
+      // (logout flag, React Query, localStorage, sessionStorage, JWT)
+      // and hard-redirects to /login.
+      await teardownWorkspaceSession(queryClient);
     } finally {
       setDeleting(false);
     }

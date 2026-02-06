@@ -102,10 +102,9 @@ export default function DashboardLayout({
   // Users need to accept the invite first, which will create the workspace membership
   const isInvitePage = pathname?.startsWith('/invites')
   
-  // Render immediately with loading state - don't block on workspace check
-  // This allows LCP to happen much faster
-  // BUT: Skip this check on invite pages - they don't need a workspace yet
-  if (!isInvitePage && (isLoadingWorkspace || !workspaceId)) {
+  // Still loading workspace status -- show skeleton while we wait.
+  // Skip this check on invite pages - they don't need a workspace yet.
+  if (!isInvitePage && isLoadingWorkspace) {
     return (
       <div className="min-h-screen bg-slate-950">
         <Header />
@@ -123,6 +122,15 @@ export default function DashboardLayout({
         </main>
       </div>
     )
+  }
+
+  // Loading finished but no workspace exists (deleted or first-time user).
+  // Redirect instead of rendering a perpetual skeleton.
+  if (!isInvitePage && !workspaceId) {
+    if (typeof window !== "undefined") {
+      window.location.href = isFirstTime ? "/welcome" : "/login"
+    }
+    return null
   }
 
   return (

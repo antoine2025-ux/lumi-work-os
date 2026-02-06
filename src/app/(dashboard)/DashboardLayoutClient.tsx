@@ -92,10 +92,8 @@ export function DashboardLayoutClient({
     return null;
   }
   
-  // Render immediately with loading state - don't block on workspace check
-  // This allows LCP to happen much faster
-  // PHASE A2: Removed sessionStorage redirect workaround
-  if (isLoadingWorkspace || !workspaceId) {
+  // Still loading workspace status -- show skeleton while we wait.
+  if (isLoadingWorkspace) {
     return (
       <div className="flex min-h-screen flex-col bg-[#020617]">
         <Header />
@@ -113,6 +111,17 @@ export function DashboardLayoutClient({
         </main>
       </div>
     );
+  }
+
+  // Loading finished but no workspace exists (deleted or first-time user).
+  // Redirect instead of rendering a perpetual skeleton.
+  if (!workspaceId) {
+    if (typeof window !== "undefined") {
+      // isFirstTime means user has never had a workspace → /welcome
+      // Otherwise the workspace was deleted → /login for a clean session
+      window.location.href = isFirstTime ? "/welcome" : "/login";
+    }
+    return null;
   }
 
   return (

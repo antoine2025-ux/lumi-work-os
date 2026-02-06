@@ -278,34 +278,38 @@ export async function POST(request: NextRequest) {
     // Extract text content from JSON
     const textContent = extractTextFromProseMirror(finalContentJson)
     const excerpt = textContent.substring(0, 200) + (textContent.length > 200 ? '...' : '')
-    
-    const page = await (prisma.wikiPage.create as Function)({
-      data: {
-        workspaceId: auth.workspaceId,
-        title,
-        slug,
-        content: '', // Empty string for JSON pages (backward compatibility)
-        contentJson: finalContentJson,
-        contentFormat: finalContentFormat,
-        textContent,
-        excerpt,
-        parentId: parentId || null,
-        tags,
-        category,
-        permissionLevel: finalPermissionLevel,
-        workspace_type: finalWorkspaceType,
-        // NOTE: spaceId removed - field does not exist on WikiPage model
-        createdById: auth.user.userId
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
+
+    // RLS on wiki_pages requires app.user_id to be set for INSERT. Run create inside a transaction
+    // that sets the session variable so the policy has_workspace_access(workspaceId, app.user_id) passes.
+    const page = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.user_id', ${auth.user.userId}, true)`
+      return tx.wikiPage.create({
+        data: {
+          workspaceId: auth.workspaceId,
+          title,
+          slug,
+          content: '', // Empty string for JSON pages (backward compatibility)
+          contentJson: finalContentJson as object,
+          contentFormat: finalContentFormat,
+          textContent,
+          excerpt,
+          parentId: parentId || null,
+          tags,
+          category,
+          permissionLevel: finalPermissionLevel,
+          workspace_type: finalWorkspaceType,
+          createdById: auth.user.userId
+        },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
           }
         }
-      }
+      })
     })
 
     console.log('✅ Page created successfully with workspace_type:', page.workspace_type)
@@ -317,7 +321,15 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(page, { status: 201 })
   } catch (error) {
-    logger.error('Error creating wiki page', error instanceof Error ? error : undefined)
+    const err = error instanceof Error ? error : error
+    const message = err instanceof Error ? err.message : String(err)
+    const name = err instanceof Error ? err.name : 'Error'
+    logger.error('Error creating wiki page', { message, name, cause: err instanceof Error ? err.cause : undefined }, err instanceof Error ? err : undefined)
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[POST /api/wiki/pages] Full error:', err)
+      const prismaErr = err as { code?: string; meta?: unknown }
+      if (prismaErr.code) console.error('[POST /api/wiki/pages] Prisma code:', prismaErr.code, prismaErr.meta)
+    }
     return handleApiError(error, request)
   }
 }
