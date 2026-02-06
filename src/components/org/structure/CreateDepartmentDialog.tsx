@@ -40,7 +40,8 @@ export function CreateDepartmentDialog(props: CreateDepartmentDialogProps) {
   const { toast } = useToast();
   const perms = useOrgPermissions();
   const peopleQ = useOrgQuery(() => OrgApi.listPeople(), []);
-  const people = peopleQ.data?.people ?? [];
+  // Support both { ok, data: { people } } and { people } response shapes
+  const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
 
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<CreateDepartmentFormValues>({

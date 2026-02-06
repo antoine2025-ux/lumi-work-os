@@ -19,6 +19,9 @@ type CapacityThresholds = {
   overallocationThreshold: number;
   minCapacityForCoverage: number;
   issueWindowDays: number;
+  severeOverloadThresholdPct: number;
+  underutilizedThresholdPct: number;
+  defaultWeeklyHoursTarget: number;
 };
 
 export function CapacitySettingsClient() {
@@ -35,6 +38,9 @@ export function CapacitySettingsClient() {
     overallocationThreshold: "",
     minCapacityForCoverage: "",
     issueWindowDays: "",
+    severeOverloadThresholdPct: "",
+    underutilizedThresholdPct: "",
+    defaultWeeklyHoursTarget: "",
   });
 
   const fetchThresholds = useCallback(async () => {
@@ -55,6 +61,9 @@ export function CapacitySettingsClient() {
         overallocationThreshold: String(Math.round(data.thresholds.overallocationThreshold * 100)),
         minCapacityForCoverage: String(data.thresholds.minCapacityForCoverage),
         issueWindowDays: String(data.thresholds.issueWindowDays),
+        severeOverloadThresholdPct: String(Math.round(data.thresholds.severeOverloadThresholdPct * 100)),
+        underutilizedThresholdPct: String(Math.round(data.thresholds.underutilizedThresholdPct * 100)),
+        defaultWeeklyHoursTarget: String(data.thresholds.defaultWeeklyHoursTarget),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -81,6 +90,9 @@ export function CapacitySettingsClient() {
           overallocationThreshold: Number(formValues.overallocationThreshold) / 100,
           minCapacityForCoverage: Number(formValues.minCapacityForCoverage),
           issueWindowDays: Number(formValues.issueWindowDays),
+          severeOverloadThresholdPct: Number(formValues.severeOverloadThresholdPct) / 100,
+          underutilizedThresholdPct: Number(formValues.underutilizedThresholdPct) / 100,
+          defaultWeeklyHoursTarget: Number(formValues.defaultWeeklyHoursTarget),
         }),
       });
 
@@ -109,6 +121,9 @@ export function CapacitySettingsClient() {
         overallocationThreshold: String(Math.round(defaults.overallocationThreshold * 100)),
         minCapacityForCoverage: String(defaults.minCapacityForCoverage),
         issueWindowDays: String(defaults.issueWindowDays),
+        severeOverloadThresholdPct: String(Math.round(defaults.severeOverloadThresholdPct * 100)),
+        underutilizedThresholdPct: String(Math.round(defaults.underutilizedThresholdPct * 100)),
+        defaultWeeklyHoursTarget: String(defaults.defaultWeeklyHoursTarget),
       });
     }
   };
@@ -214,6 +229,69 @@ export function CapacitySettingsClient() {
             />
             <p className="text-sm text-muted-foreground">
               Minimum available hours for a secondary to be considered viable for coverage.
+            </p>
+          </div>
+
+          {/* Severe Overload Threshold */}
+          <div className="space-y-2">
+            <Label htmlFor="severeOverloadThresholdPct">
+              Severe Overload Threshold (%)
+            </Label>
+            <Input
+              id="severeOverloadThresholdPct"
+              type="number"
+              min="100"
+              max="300"
+              value={formValues.severeOverloadThresholdPct}
+              onChange={(e) =>
+                setFormValues((v) => ({ ...v, severeOverloadThresholdPct: e.target.value }))
+              }
+              className="max-w-[200px]"
+            />
+            <p className="text-sm text-muted-foreground">
+              Allocation percentage above which overload is considered severe (critical). Must be higher than the overallocation threshold.
+            </p>
+          </div>
+
+          {/* Underutilized Threshold */}
+          <div className="space-y-2">
+            <Label htmlFor="underutilizedThresholdPct">
+              Underutilized Threshold (%)
+            </Label>
+            <Input
+              id="underutilizedThresholdPct"
+              type="number"
+              min="0"
+              max="100"
+              value={formValues.underutilizedThresholdPct}
+              onChange={(e) =>
+                setFormValues((v) => ({ ...v, underutilizedThresholdPct: e.target.value }))
+              }
+              className="max-w-[200px]"
+            />
+            <p className="text-sm text-muted-foreground">
+              Allocation percentage below which a person or team is considered underutilized.
+            </p>
+          </div>
+
+          {/* Default Weekly Hours Target */}
+          <div className="space-y-2">
+            <Label htmlFor="defaultWeeklyHoursTarget">
+              Default Weekly Hours Target
+            </Label>
+            <Input
+              id="defaultWeeklyHoursTarget"
+              type="number"
+              min="1"
+              max="168"
+              value={formValues.defaultWeeklyHoursTarget}
+              onChange={(e) =>
+                setFormValues((v) => ({ ...v, defaultWeeklyHoursTarget: e.target.value }))
+              }
+              className="max-w-[200px]"
+            />
+            <p className="text-sm text-muted-foreground">
+              Default weekly hours used when quick-entering capacity for a person without a contract.
             </p>
           </div>
 

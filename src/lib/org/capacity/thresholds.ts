@@ -17,6 +17,12 @@ export type CapacityThresholds = {
   overallocationThreshold: number;
   /** Minimum hours for a secondary to be considered viable for coverage */
   minCapacityForCoverage: number;
+  /** Capacity v1: Allocation percent above which overload is "severe" (1.4 = 140%) */
+  severeOverloadThresholdPct: number;
+  /** Capacity v1: Allocation percent below which person is "underutilized" (0.6 = 60%) */
+  underutilizedThresholdPct: number;
+  /** Capacity v1: Default weekly hours target for quick-entry */
+  defaultWeeklyHoursTarget: number;
 };
 
 /**
@@ -50,6 +56,9 @@ export const DEFAULT_CAPACITY_THRESHOLDS: CapacityThresholds = {
   lowCapacityHoursThreshold: 8,       // hours
   overallocationThreshold: 1.0,        // 100%
   minCapacityForCoverage: 8,           // hours
+  severeOverloadThresholdPct: 1.4,     // 140%
+  underutilizedThresholdPct: 0.6,      // 60%
+  defaultWeeklyHoursTarget: 40,        // hours
 };
 
 export const DEFAULT_CAPACITY_THRESHOLDS_WITH_WINDOW: CapacityThresholdsWithWindow = {
@@ -84,6 +93,9 @@ export async function getWorkspaceThresholdsAsync(
         overallocationThreshold: settings.overallocationThreshold,
         minCapacityForCoverage: settings.minCapacityForCoverage,
         issueWindowDays: settings.issueWindowDays,
+        severeOverloadThresholdPct: settings.severeOverloadThresholdPct,
+        underutilizedThresholdPct: settings.underutilizedThresholdPct,
+        defaultWeeklyHoursTarget: settings.defaultWeeklyHoursTarget,
       };
     }
   } catch {
@@ -108,6 +120,9 @@ export async function saveWorkspaceThresholds(
       overallocationThreshold: thresholds.overallocationThreshold ?? DEFAULT_CAPACITY_THRESHOLDS.overallocationThreshold,
       minCapacityForCoverage: thresholds.minCapacityForCoverage ?? DEFAULT_CAPACITY_THRESHOLDS.minCapacityForCoverage,
       issueWindowDays: thresholds.issueWindowDays ?? DEFAULT_ISSUE_WINDOW_DAYS,
+      severeOverloadThresholdPct: thresholds.severeOverloadThresholdPct ?? DEFAULT_CAPACITY_THRESHOLDS.severeOverloadThresholdPct,
+      underutilizedThresholdPct: thresholds.underutilizedThresholdPct ?? DEFAULT_CAPACITY_THRESHOLDS.underutilizedThresholdPct,
+      defaultWeeklyHoursTarget: thresholds.defaultWeeklyHoursTarget ?? DEFAULT_CAPACITY_THRESHOLDS.defaultWeeklyHoursTarget,
     },
     update: {
       ...(thresholds.lowCapacityHoursThreshold !== undefined && {
@@ -122,6 +137,15 @@ export async function saveWorkspaceThresholds(
       ...(thresholds.issueWindowDays !== undefined && {
         issueWindowDays: thresholds.issueWindowDays,
       }),
+      ...(thresholds.severeOverloadThresholdPct !== undefined && {
+        severeOverloadThresholdPct: thresholds.severeOverloadThresholdPct,
+      }),
+      ...(thresholds.underutilizedThresholdPct !== undefined && {
+        underutilizedThresholdPct: thresholds.underutilizedThresholdPct,
+      }),
+      ...(thresholds.defaultWeeklyHoursTarget !== undefined && {
+        defaultWeeklyHoursTarget: thresholds.defaultWeeklyHoursTarget,
+      }),
     },
   });
 
@@ -130,6 +154,9 @@ export async function saveWorkspaceThresholds(
     overallocationThreshold: settings.overallocationThreshold,
     minCapacityForCoverage: settings.minCapacityForCoverage,
     issueWindowDays: settings.issueWindowDays,
+    severeOverloadThresholdPct: settings.severeOverloadThresholdPct,
+    underutilizedThresholdPct: settings.underutilizedThresholdPct,
+    defaultWeeklyHoursTarget: settings.defaultWeeklyHoursTarget,
   };
 }
 
@@ -137,7 +164,7 @@ export async function saveWorkspaceThresholds(
  * Format threshold for human-readable explanation
  */
 export function formatThresholdExplanation(
-  type: 'low_capacity' | 'overallocation' | 'coverage_viability',
+  type: 'low_capacity' | 'overallocation' | 'severe_overload' | 'underutilized' | 'coverage_viability',
   thresholds: CapacityThresholds
 ): string {
   switch (type) {
@@ -145,6 +172,10 @@ export function formatThresholdExplanation(
       return `below threshold (${thresholds.lowCapacityHoursThreshold}h)`;
     case 'overallocation':
       return `exceeds threshold (${Math.round(thresholds.overallocationThreshold * 100)}%)`;
+    case 'severe_overload':
+      return `exceeds severe threshold (${Math.round(thresholds.severeOverloadThresholdPct * 100)}%)`;
+    case 'underutilized':
+      return `below threshold (${Math.round(thresholds.underutilizedThresholdPct * 100)}%)`;
     case 'coverage_viability':
       return `requires at least ${thresholds.minCapacityForCoverage}h available`;
     default:

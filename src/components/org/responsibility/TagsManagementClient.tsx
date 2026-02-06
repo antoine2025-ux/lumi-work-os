@@ -6,7 +6,8 @@
  * UI for managing responsibility tags and role profiles.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -268,7 +269,7 @@ function TagsTab() {
 // Profiles Tab
 // ============================================================================
 
-function ProfilesTab() {
+function ProfilesTab({ initialRoleType }: { initialRoleType?: string | null }) {
   const [profiles, setProfiles] = useState<{
     id: string;
     roleType: string;
@@ -278,6 +279,7 @@ function ProfilesTab() {
   }[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  const deepLinkHandled = useRef(false);
 
   const fetchProfiles = useCallback(async () => {
     try {
@@ -297,6 +299,20 @@ function ProfilesTab() {
   useEffect(() => {
     fetchProfiles();
   }, [fetchProfiles]);
+
+  // Deep-link: auto-open profile from initialRoleType prop
+  useEffect(() => {
+    if (deepLinkHandled.current || loading || !initialRoleType) return;
+    const match = profiles.find((p) => p.roleType === initialRoleType);
+    if (match) {
+      setSelectedProfile(match.roleType);
+      deepLinkHandled.current = true;
+    } else if (!loading && profiles.length > 0) {
+      // Role type not found — open "new" profile editor pre-filled with this roleType
+      setSelectedProfile("new");
+      deepLinkHandled.current = true;
+    }
+  }, [loading, profiles, initialRoleType]);
 
   const handleProfileSaved = () => {
     setSelectedProfile(null);
@@ -377,8 +393,23 @@ function ProfilesTab() {
 // ============================================================================
 
 export function TagsManagementClient() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const roleTypeParam = searchParams.get("roleType");
+
+  // If deep-link has ?roleType=, default to profiles tab and clear param
+  const defaultTab = roleTypeParam ? "profiles" : "tags";
+
+  useEffect(() => {
+    if (!roleTypeParam) return;
+    // Clear the param after reading to avoid re-triggering
+    const url = new URL(window.location.href);
+    url.searchParams.delete("roleType");
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [roleTypeParam, router]);
+
   return (
-    <Tabs defaultValue="tags" className="space-y-4">
+    <Tabs defaultValue={defaultTab} className="space-y-4">
       <TabsList>
         <TabsTrigger value="tags" className="flex items-center gap-2">
           <Tag className="h-4 w-4" />
@@ -395,7 +426,7 @@ export function TagsManagementClient() {
       </TabsContent>
 
       <TabsContent value="profiles">
-        <ProfilesTab />
+        <ProfilesTab initialRoleType={roleTypeParam} />
       </TabsContent>
     </Tabs>
   );

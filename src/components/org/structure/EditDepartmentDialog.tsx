@@ -37,7 +37,8 @@ export function EditDepartmentDialog({
   const router = useRouter();
   const { toast } = useToast();
   const peopleQ = useOrgQuery(() => OrgApi.listPeople(), []);
-  const people = peopleQ.data?.people ?? [];
+  // Support both { ok, data: { people } } and { people } response shapes
+  const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
 
   const [name, setName] = useState(department.name);
   const [ownerPersonId, setOwnerPersonId] = useState<string>(department.ownerPersonId || "");

@@ -6,6 +6,7 @@ import { OrgApi } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { OrgPrimaryCta } from "@/components/org/ui/OrgCtaButton";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -540,8 +541,7 @@ export function OrgIssuesInboxClient() {
                   <div className="flex items-center gap-3 shrink-0">
                     {/* Fix action intentionally bypasses issue drawer and navigates to fix surface */}
                     {issue.fixUrl && (
-                      <Button
-                        variant="outline"
+                      <OrgPrimaryCta
                         size="sm"
                         className="h-7 text-xs"
                         onClick={(e) => {
@@ -553,7 +553,7 @@ export function OrgIssuesInboxClient() {
                         }}
                       >
                         Fix
-                      </Button>
+                      </OrgPrimaryCta>
                     )}
                     <SeverityBadge severity={issue.severity as "error" | "warning"} />
                   </div>

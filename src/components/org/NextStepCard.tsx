@@ -2,7 +2,7 @@
  * Next Step Card Component
  * 
  * Shows a single, clear next step in the onboarding flow:
- * People → Structure → Ownership → Complete
+ * People → Structure → Ownership → Work → Complete
  * 
  * HARD RULE: NextStepCard must not appear for Ownership if Ownership coverage is 100%.
  * This means: teamsOwned === teamsTotal AND departmentsOwned === departmentsTotal.
@@ -18,17 +18,72 @@
 "use client";
 
 import Link from "next/link";
-import { Users, Building2, ShieldCheck } from "lucide-react";
+import { Users, Building2, ShieldCheck, Briefcase } from "lucide-react";
 import { OrgApi } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+
+// Lightweight fetchers for Work step guards
+async function fetchWorkRequestCount(): Promise<number> {
+  try {
+    const res = await fetch("/api/org/work/requests?status=OPEN");
+    if (!res.ok) return -1;
+    const data = await res.json();
+    return data.count ?? data.requests?.length ?? 0;
+  } catch {
+    return -1;
+  }
+}
+
+async function fetchDecisionDomainCount(): Promise<number> {
+  try {
+    const res = await fetch("/api/org/decision/domains");
+    if (!res.ok) return -1;
+    const data = await res.json();
+    const domains = data.domains ?? [];
+    // Only count active (non-archived) domains
+    return domains.filter((d: { isArchived?: boolean }) => !d.isArchived).length;
+  } catch {
+    return -1;
+  }
+}
 
 export function NextStepCard() {
   const overviewQ = useOrgQuery(() => OrgApi.getOrgOverview(), []);
   const ownershipQ = useOrgQuery(() => OrgApi.getOwnership(), []);
 
-  // Show loading state if either query is loading
+  // Work step data (only fetched when ownership is complete)
+  const [workData, setWorkData] = useState<{
+    workRequestCount: number;
+    domainCount: number;
+    loaded: boolean;
+  }>({ workRequestCount: 0, domainCount: 0, loaded: false });
+
+  // Determine if we need to fetch work data
+  const ownershipLoaded = !overviewQ.loading && !ownershipQ.loading && overviewQ.data && ownershipQ.data;
+  const summary = overviewQ.data?.summary;
+  const coverage = ownershipQ.data?.coverage;
+  const hasCoverage = coverage?.teams && coverage?.departments;
+  const hasUnownedEntities = hasCoverage
+    ? (coverage.teams.total - coverage.teams.owned > 0 || coverage.departments.total - coverage.departments.owned > 0)
+    : false;
+  const ownershipComplete = ownershipLoaded && hasCoverage && !hasUnownedEntities
+    && (summary?.peopleCount ?? 0) > 0 && (summary?.teamCount ?? 0) > 0;
+
+  useEffect(() => {
+    if (!ownershipComplete || workData.loaded) return;
+    let cancelled = false;
+    Promise.all([fetchWorkRequestCount(), fetchDecisionDomainCount()]).then(
+      ([wrc, dc]) => {
+        if (!cancelled) setWorkData({ workRequestCount: wrc, domainCount: dc, loaded: true });
+      }
+    );
+    return () => { cancelled = true; };
+  }, [ownershipComplete, workData.loaded]);
+
+  // Show loading state if core queries are loading
   if (overviewQ.loading || ownershipQ.loading) {
     return (
       <Card>
@@ -41,32 +96,20 @@ export function NextStepCard() {
 
   // Return null if either query errors (don't show incorrect state)
   if (overviewQ.error || !overviewQ.data || ownershipQ.error || !ownershipQ.data) {
-    return null; // Don't show next step if data unavailable
+    return null;
   }
 
-  const { summary } = overviewQ.data;
-  const { peopleCount, teamCount, deptCount } = summary ?? {};
-  const coverage = ownershipQ.data?.coverage;
-
-  // Explicit availability check: prevent transient false positives during partial hydration
-  const hasCoverage =
-    coverage &&
-    coverage.teams &&
-    coverage.departments;
+  const { peopleCount, teamCount } = summary ?? {};
 
   if (!hasCoverage) {
     return null; // Don't show ownership card if coverage data unavailable
   }
 
-  // Calculate unowned count from canonical ownership coverage
-  const teamsUnowned = coverage.teams.total - coverage.teams.owned;
-  const deptsUnowned = coverage.departments.total - coverage.departments.owned;
-  const hasUnownedEntities = teamsUnowned > 0 || deptsUnowned > 0;
-
   // Determine next step based on onboarding flow priority:
   // 1. No people → People page
   // 2. No teams → Structure page
   // 3. No ownership → Ownership page
+  // 4. No work requests (and domains exist) → Work page
   let nextStep: {
     icon: typeof Users;
     title: string;
@@ -76,7 +119,6 @@ export function NextStepCard() {
   } | null = null;
 
   if (peopleCount === 0) {
-    // No people → Add people first
     nextStep = {
       icon: Users,
       title: "Add your first person",
@@ -85,7 +127,6 @@ export function NextStepCard() {
       ctaHref: "/org/people",
     };
   } else if (teamCount === 0) {
-    // No teams → Create first team
     nextStep = {
       icon: Building2,
       title: "Create your first team",
@@ -94,7 +135,6 @@ export function NextStepCard() {
       ctaHref: "/org/structure",
     };
   } else if (hasUnownedEntities) {
-    // Teams exist, but some have no owners → Ownership cleanup required
     nextStep = {
       icon: ShieldCheck,
       title: "Ownership cleanup required",
@@ -102,8 +142,18 @@ export function NextStepCard() {
       ctaLabel: "Fix ownership",
       ctaHref: "/org/ownership",
     };
+  } else if (ownershipComplete && workData.loaded
+    && workData.domainCount > 0 && workData.workRequestCount === 0) {
+    // Ownership complete, decision domains exist, but no work requests yet
+    nextStep = {
+      icon: Briefcase,
+      title: "Ask your first work question",
+      description: "Submit a work request to see staffing recommendations based on your org's capacity.",
+      ctaLabel: "New work request",
+      ctaHref: "/org/work",
+    };
   } else {
-    // All setup steps complete — hide card entirely (no celebratory message)
+    // All steps complete or prerequisites not met — hide card
     return null;
   }
 

@@ -62,6 +62,10 @@ type UpdateThresholdsBody = {
   overallocationThreshold?: number;
   minCapacityForCoverage?: number;
   issueWindowDays?: number;
+  // Capacity v1: Graduated thresholds
+  severeOverloadThresholdPct?: number;
+  underutilizedThresholdPct?: number;
+  defaultWeeklyHoursTarget?: number;
 };
 
 export async function PATCH(request: NextRequest) {
@@ -118,6 +122,34 @@ export async function PATCH(request: NextRequest) {
       if (typeof body.issueWindowDays !== "number" || body.issueWindowDays < 1 || body.issueWindowDays > 90) {
         return NextResponse.json(
           { error: "issueWindowDays must be between 1 and 90" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Capacity v1: Graduated threshold validation
+    if (body.severeOverloadThresholdPct !== undefined) {
+      if (typeof body.severeOverloadThresholdPct !== "number" || body.severeOverloadThresholdPct <= 0) {
+        return NextResponse.json(
+          { error: "severeOverloadThresholdPct must be a positive number (e.g. 1.4 for 140%)" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (body.underutilizedThresholdPct !== undefined) {
+      if (typeof body.underutilizedThresholdPct !== "number" || body.underutilizedThresholdPct < 0 || body.underutilizedThresholdPct > 1) {
+        return NextResponse.json(
+          { error: "underutilizedThresholdPct must be between 0 and 1 (e.g. 0.6 for 60%)" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (body.defaultWeeklyHoursTarget !== undefined) {
+      if (typeof body.defaultWeeklyHoursTarget !== "number" || body.defaultWeeklyHoursTarget < 1 || body.defaultWeeklyHoursTarget > 168) {
+        return NextResponse.json(
+          { error: "defaultWeeklyHoursTarget must be between 1 and 168" },
           { status: 400 }
         );
       }

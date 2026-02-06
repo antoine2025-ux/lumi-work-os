@@ -40,6 +40,8 @@ import { PeopleStateSummary } from "@/components/org/people/PeopleStateSummary";
 import { PeopleActionsMenu } from "@/components/org/people/PeopleActionsMenu";
 import { BulkAssignModal } from "@/components/org/people/BulkAssignModal";
 import { BarChart3, X } from "lucide-react";
+import { useCapacityPeople } from "@/hooks/useCapacityPeople";
+import { CapacitySummaryCard } from "@/components/org/capacity/CapacitySummaryCard";
 import type { OrgPerson } from "@/types/org";
 import type { ViewMode } from "@/components/org/people/PeopleViewToggle";
 
@@ -60,6 +62,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
   const searchParams = useSearchParams();
   const router = useRouter();
   const { teams, departments, roles, isLoading: isStructureLoading } = useOrgStructureLists();
+  const { capacityMap, coverage, overloadedCount, underutilizedCount, refresh: refreshCapacity } = useCapacityPeople();
   
   // Load persistent preferences
   const [prefs, setPrefs] = useState<Record<string, any>>({});
@@ -133,6 +136,12 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
   // Scroll position preservation when switching views
   const scrollPositionRef = useRef<number>(0);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Deep-link: ?person=&openCapacity=true
+  const deepLinkPersonId = searchParams.get("person");
+  const deepLinkOpenCapacity = searchParams.get("openCapacity") === "true";
+  const [highlightedPersonId, setHighlightedPersonId] = useState<string | null>(null);
+  const deepLinkHandledRef = useRef(false);
   
   // Sync search input with URL query param on mount
   useEffect(() => {
@@ -196,6 +205,38 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
       window.removeEventListener("org:person:created", handlePersonCreated);
     };
   }, [router]);
+
+  // Deep-link: scroll to person and highlight when ?person= param is present
+  useEffect(() => {
+    if (deepLinkHandledRef.current) return;
+    if (!deepLinkPersonId || isPeopleLoading) return;
+    if (!basePeople || basePeople.length === 0) return;
+
+    // Check if person exists in the current data
+    const personExists = basePeople.some((p) => p.id === deepLinkPersonId);
+    if (!personExists) return;
+
+    deepLinkHandledRef.current = true;
+
+    // Highlight the person row
+    setHighlightedPersonId(deepLinkPersonId);
+
+    // Scroll to the person row after a short delay (allow rendering)
+    requestAnimationFrame(() => {
+      const el =
+        document.querySelector(`[data-person-id="${deepLinkPersonId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+
+    // Remove highlight after 3 seconds
+    const timer = setTimeout(() => {
+      setHighlightedPersonId(null);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [deepLinkPersonId, isPeopleLoading, basePeople]);
 
   // Memoize peopleById map for O(1) lookups
   const peopleById = useMemo(() => {
@@ -773,6 +814,18 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
                   </>
                 ) : (
                   // Table view
+                  <>
+                  {coverage && (
+                    <div className="mb-3">
+                      <CapacitySummaryCard
+                        configured={coverage.configured}
+                        total={coverage.total}
+                        coveragePct={coverage.pct}
+                        overloadedCount={overloadedCount}
+                        underutilizedCount={underutilizedCount}
+                      />
+                    </div>
+                  )}
                   <PeopleTableCard>
                     {isPeopleLoading && !basePeople.length ? (
                       // Loading state inside card
@@ -816,10 +869,14 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
                           onToggleSelection={toggleSelection}
                           isOwner={isOwner}
                           onDeletePerson={handleDeletePerson}
+                          capacityData={capacityMap}
+                          onCapacityRefresh={refreshCapacity}
+                          highlightedPersonId={highlightedPersonId}
                         />
                       </div>
                     )}
                   </PeopleTableCard>
+                  </>
                 )}
               </div>
 

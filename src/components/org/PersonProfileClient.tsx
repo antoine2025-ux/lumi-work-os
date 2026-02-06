@@ -380,7 +380,8 @@ function EditProfilePanel({
   // Convert map values to array, preserving original team names
   const teams = Array.from(teamsMapByName.values());
   
-  const people = peopleQ.data?.people ?? [];
+  // Support both { ok, data: { people } } and { people } response shapes
+  const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
   
   // Filter out the person themselves from manager options
   // person.id is OrgPosition ID (from getPerson), p.id in people list is also OrgPosition ID (from listPeople)

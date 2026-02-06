@@ -34,11 +34,13 @@ export const ISSUE_TYPE_COPY: Record<string, string> = {
   work_not_staffable: "No viable candidates found to staff this work request.",
   work_capacity_gap: "Available capacity is less than the estimated effort required.",
   work_role_mismatch: "No candidates match the required role type for this work request.",
+  work_no_decision_domain: "This work request has no decision domain configured.",
   
   // Phase I: Decision Authority issues
   decision_authority_missing: "No decision authority is configured for this domain.",
   decision_authority_role_unresolvable: "The configured role type could not be resolved to a person.",
   decision_authority_primary_unavailable: "The primary decision maker is unavailable in the requested time window.",
+  decision_domain_no_coverage: "This decision domain has no backup coverage configured.",
   
   // Phase J: Impact & Dependency issues
   work_impact_undefined: "This work request has no explicit impacts defined.",
@@ -50,6 +52,30 @@ export const ISSUE_TYPE_COPY: Record<string, string> = {
   work_role_misaligned: "This work request is misaligned with the assigned person's role.",
   role_profile_missing: "No responsibility profile is defined for this role type.",
   forbidden_responsibility_conflict: "This work requires a tag that is forbidden for the role.",
+
+  // Structural issues (OrgIssue union types, lowercased)
+  missing_manager: "This person has no manager assigned.",
+  missing_team: "This person has no team assigned.",
+  missing_role: "This person has no role assigned.",
+  manager_intentionally_absent: "This person's manager absence is intentionally marked.",
+  team_intentionally_absent: "This person's team absence is intentionally marked.",
+  cycle_detected: "This person is part of a circular manager chain.",
+  ownership_conflict: "This entity has conflicting ownership sources.",
+  unowned_team: "This team has no owner assigned.",
+  unowned_department: "This department has no owner assigned.",
+  unassigned_team: "This team has no department assigned.",
+  empty_department: "This department has no teams assigned.",
+  orphan_entity: "This entity has no parent assigned.",
+
+  // Capacity v1: Team-level and missing-data issues
+  capacity_missing_data_person: "This person has no capacity data configured.",
+  capacity_overloaded_team: "This team's members are collectively overloaded.",
+  capacity_severely_overloaded_team: "This team's members are severely overloaded.",
+  capacity_underutilized_team: "This team's members are collectively underutilized.",
+  capacity_team_no_members: "This team has no active members assigned.",
+  // Reserved for v1.1 (registered to avoid copy gaps)
+  capacity_manager_overloaded: "This manager's direct reports exceed capacity thresholds.",
+  capacity_team_donut: "This team has capacity but no incoming demand.",
   
   // Generic fallback
   unknown: "Issue details unavailable.",
@@ -80,11 +106,13 @@ export const ISSUE_OUTCOME_HINTS: Record<string, string> = {
   work_not_staffable: "Adjusting constraints or timeline enables staffing.",
   work_capacity_gap: "Splitting work or extending timeline closes the capacity gap.",
   work_role_mismatch: "Broadening role requirements or hiring enables staffing.",
+  work_no_decision_domain: "Assigning a decision domain enables authority routing and feasibility evaluation.",
   
   // Phase I: Decision Authority outcomes
   decision_authority_missing: "Configuring authority enables escalation and decision routing.",
   decision_authority_role_unresolvable: "Assigning a person to the role or updating configuration enables routing.",
   decision_authority_primary_unavailable: "Escalation paths or backup contacts ensure continuity.",
+  decision_domain_no_coverage: "Adding escalation steps ensures continuity when the primary decider is unavailable.",
   
   // Phase J: Impact & Dependency outcomes
   work_impact_undefined: "Defining impacts enables blast radius visibility.",
@@ -96,6 +124,26 @@ export const ISSUE_OUTCOME_HINTS: Record<string, string> = {
   work_role_misaligned: "Adjusting assignment or work tags aligns work with capabilities.",
   role_profile_missing: "Creating a profile enables responsibility-based matching.",
   forbidden_responsibility_conflict: "Adjusting assignment or removing forbidden tag enables alignment.",
+
+  // Structural issue outcomes
+  missing_manager: "Assigning a manager completes reporting hierarchy.",
+  missing_team: "Assigning a team enables structure-based views.",
+  missing_role: "Assigning a role clarifies responsibilities.",
+  ownership_conflict: "Resolving ownership conflict ensures consistent accountability.",
+  unowned_team: "Assigning an owner clarifies team accountability.",
+  unowned_department: "Assigning an owner clarifies department accountability.",
+  unassigned_team: "Assigning a department groups related teams.",
+  empty_department: "Adding teams to this department enables structure-based views.",
+  orphan_entity: "Assigning a parent completes the hierarchy.",
+
+  // Capacity v1 outcomes
+  capacity_missing_data_person: "Configuring capacity data enables accurate workload calculations.",
+  capacity_overloaded_team: "Rebalancing team allocations prevents burnout.",
+  capacity_severely_overloaded_team: "Urgently rebalancing team allocations prevents burnout.",
+  capacity_underutilized_team: "Increasing team allocation improves resource utilization.",
+  capacity_team_no_members: "Assigning members enables team capacity calculations.",
+  capacity_manager_overloaded: "Redistributing reports reduces management burden.",
+  capacity_team_donut: "Assigning demand enables utilization tracking.",
 };
 
 /**
@@ -151,11 +199,13 @@ export const ISSUE_RESOLUTION_EXPLANATIONS: Record<string, string> = {
   work_not_staffable: "Work request has been staffed or closed.",
   work_capacity_gap: "Capacity gap has been addressed.",
   work_role_mismatch: "Role requirements have been satisfied.",
+  work_no_decision_domain: "A decision domain has been assigned to this work request.",
   
   // Phase I: Decision Authority resolutions
   decision_authority_missing: "Decision authority has been configured.",
   decision_authority_role_unresolvable: "Role can now be resolved to a person.",
   decision_authority_primary_unavailable: "Primary is now available or escalation is configured.",
+  decision_domain_no_coverage: "Escalation steps have been configured for backup coverage.",
   
   // Phase J: Impact & Dependency resolutions
   work_impact_undefined: "Explicit impacts have been defined.",
@@ -167,6 +217,26 @@ export const ISSUE_RESOLUTION_EXPLANATIONS: Record<string, string> = {
   work_role_misaligned: "Assignment has been updated to an aligned candidate.",
   role_profile_missing: "A responsibility profile has been created for the role.",
   forbidden_responsibility_conflict: "Assignment or work tags have been adjusted.",
+
+  // Structural issue resolutions
+  missing_manager: "A manager relationship is now defined.",
+  missing_team: "A team is now assigned to this person.",
+  missing_role: "A role is now assigned to this person.",
+  ownership_conflict: "Ownership conflict has been resolved.",
+  unowned_team: "An owner is now assigned to this team.",
+  unowned_department: "An owner is now assigned to this department.",
+  unassigned_team: "A department is now assigned to this team.",
+  empty_department: "Teams have been added to this department.",
+  orphan_entity: "A parent is now assigned to this entity.",
+
+  // Capacity v1 resolutions
+  capacity_missing_data_person: "Capacity data has been configured for this person.",
+  capacity_overloaded_team: "Team allocations have been rebalanced.",
+  capacity_severely_overloaded_team: "Team allocations have been rebalanced.",
+  capacity_underutilized_team: "Team allocation has been increased.",
+  capacity_team_no_members: "Members have been assigned to this team.",
+  capacity_manager_overloaded: "Reports have been redistributed.",
+  capacity_team_donut: "Demand has been assigned to this team.",
 };
 
 /**

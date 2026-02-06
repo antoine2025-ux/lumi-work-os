@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils";
 import { PersonIdentityCell } from "./PersonIdentityCell";
 import { tableHeaderClass, focusRingClass } from "./people-styles";
 import { AvailabilityPill } from "@/components/org/AvailabilityPill";
+import { CapacityStatusBadge, type CapacityStatus } from "@/components/org/capacity/CapacityStatusBadge";
+import { CapacityQuickEntryPopover } from "@/components/org/capacity/CapacityQuickEntryPopover";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +18,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { OrgPerson } from "@/types/org";
 import type { PeopleFilters } from "./people-filters";
+
+export type PersonCapacityRow = {
+  personId: string;
+  status: CapacityStatus;
+  utilizationPct: number;
+  hasContract: boolean;
+  hasAvailability: boolean;
+};
 
 type PeopleTableProps = {
   people: OrgPerson[];
@@ -25,6 +36,12 @@ type PeopleTableProps = {
   onToggleSelection?: (personId: string) => void;
   isOwner?: boolean;
   onDeletePerson?: (person: OrgPerson) => void;
+  /** Capacity data keyed by personId */
+  capacityData?: Map<string, PersonCapacityRow>;
+  /** Person ID to highlight (deep-link) */
+  highlightedPersonId?: string | null;
+  /** Called when capacity data should be refreshed */
+  onCapacityRefresh?: () => void;
 };
 
 /**
@@ -40,6 +57,9 @@ export const PeopleTable = memo(function PeopleTable({
   onToggleSelection,
   isOwner = false,
   onDeletePerson,
+  capacityData,
+  onCapacityRefresh,
+  highlightedPersonId,
 }: PeopleTableProps) {
   const handleRowClick = useCallback(
     (person: OrgPerson) => (e: React.MouseEvent) => {
@@ -118,7 +138,7 @@ export const PeopleTable = memo(function PeopleTable({
             </th>
             <th className="px-6 py-4 text-left">
               <div className={tableHeaderClass}>
-                {/* Status column removed */}
+                Capacity
               </div>
             </th>
             <th className="w-24 px-6 py-4 text-right">
@@ -136,6 +156,7 @@ export const PeopleTable = memo(function PeopleTable({
             return (
               <tr
                 key={person.id}
+                data-person-id={person.id}
                 role="button"
                 tabIndex={0}
                 onClick={handleRowClick(person)}
@@ -146,7 +167,8 @@ export const PeopleTable = memo(function PeopleTable({
                   "transition-all duration-150",
                   isSelected ? "bg-primary/5" : "hover:bg-slate-800/50 group",
                   focusRingClass,
-                  "cursor-pointer relative"
+                  "cursor-pointer relative",
+                  highlightedPersonId === person.id && "ring-2 ring-primary/60 bg-primary/5"
                 )}
                 style={{ height: "64px" }}
               >
@@ -215,9 +237,38 @@ export const PeopleTable = memo(function PeopleTable({
                 )}
               </td>
 
-              {/* Status column - removed (no status indicators) */}
+              {/* Capacity column */}
               <td className="px-6 py-3">
-                {/* Empty - no status indicators */}
+                {capacityData ? (() => {
+                  const cap = capacityData.get(person.id);
+                  if (!cap || cap.status === "MISSING") {
+                    return (
+                      <CapacityQuickEntryPopover
+                        personId={person.id}
+                        personName={person.name ?? "Unknown"}
+                        onSaved={onCapacityRefresh}
+                        trigger={
+                          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground">
+                            Set capacity
+                          </Button>
+                        }
+                      />
+                    );
+                  }
+                  return (
+                    <div className="flex items-center gap-1.5">
+                      <CapacityStatusBadge
+                        status={cap.status}
+                        utilizationPct={cap.utilizationPct * 100}
+                      />
+                      <CapacityQuickEntryPopover
+                        personId={person.id}
+                        personName={person.name ?? "Unknown"}
+                        onSaved={onCapacityRefresh}
+                      />
+                    </div>
+                  );
+                })() : null}
               </td>
 
               {/* Actions column - menu and availability */}

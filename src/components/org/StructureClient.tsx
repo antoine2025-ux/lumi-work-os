@@ -83,7 +83,8 @@ export function StructureClient() {
   }
 
   const data = structureQ.data;
-  const people = peopleQ.data?.people ?? [];
+  // Support both { ok, data: { people } } and { people } response shapes
+  const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
   const structureDefinedItem = readiness?.items.find((i) => i.key === "structure_defined");
   const hasDepartments = data.departments.length > 0;
   const hasTeams = data.teams.length > 0;
