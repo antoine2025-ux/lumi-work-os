@@ -6,6 +6,8 @@ import { prisma } from "@/lib/db"
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
 import { handleApiError } from '@/lib/api-errors'
+import { cache, CACHE_KEYS } from '@/lib/cache'
+import { clearAuthCache } from '@/lib/auth-cache'
 
 // GET /api/workspaces/[workspaceId] - Get workspace details
 export async function GET(
@@ -227,6 +229,30 @@ export async function DELETE(
 
     // Log the deletion for audit purposes
     console.log(`Workspace "${workspace.name}" deleted by user ${auth.user.userId}`)
+
+    // Invalidate server-side caches so no subsequent request sees stale data.
+    // 1. Clear the user-status cache entry for this session token.
+    try {
+      const cookieHeader = request.headers.get('cookie') || ''
+      const sessionMatch = cookieHeader.match(/next-auth\.session-token=([^;]*)/)
+      const sessionToken = sessionMatch ? sessionMatch[1] : null
+      if (sessionToken) {
+        const userStatusCacheKey = cache.generateKey(CACHE_KEYS.USER_STATUS, sessionToken)
+        await cache.del(userStatusCacheKey)
+      }
+    } catch {
+      // Cache invalidation is best-effort; client teardown is the primary guard.
+    }
+
+    // 2. Clear the request-level auth cache (in-memory, same process).
+    clearAuthCache()
+
+    // 3. Invalidate any workspace-scoped cache entries.
+    try {
+      await cache.invalidateWorkspace(workspaceId)
+    } catch {
+      // Best-effort.
+    }
 
     return NextResponse.json({ 
       message: "Workspace deleted successfully",

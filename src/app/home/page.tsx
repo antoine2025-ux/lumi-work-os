@@ -1,9 +1,8 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
@@ -14,36 +13,13 @@ import {
   Plus,
   BookOpen,
   Bot,
-  FileText,
-  Clock,
-  Star,
-  TrendingUp,
-  Users,
-  Settings,
-  Bell,
   ChevronRight,
   Sparkles,
-  Zap,
-  Lightbulb,
-  Calendar,
-  Building2,
-  Target,
-  Activity,
   CheckCircle,
   AlertCircle,
-  Video,
-  Phone,
-  User,
-  Calendar as CalendarIcon,
-  FileText as DocumentText,
   BarChart3,
-  Grid,
-  Search,
-  Filter,
   CheckSquare,
-  Sun
 } from "lucide-react"
-import { ContextMenu, contextMenuItems } from "@/components/ui/context-menu"
 import { useTheme } from "@/components/theme-provider"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 // Lazy load heavy components for better initial page load
@@ -76,15 +52,8 @@ interface Project {
   taskCount?: number
 }
 
-// Mock data for analytics (coming soon)
-const mockAnalytics = [
-  { label: "Productivity", value: 85, color: "bg-green-500" },
-  { label: "Focus Time", value: 6.5, color: "bg-blue-500", unit: "h" },
-  { label: "Team Collaboration", value: 92, color: "bg-purple-500" }
-]
-
 export default function HomePage() {
-  const { currentWorkspace, userRole, canCreateProjects, canViewAnalytics, isLoading: workspaceLoading } = useWorkspace()
+  const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace()
   const { theme, themeConfig } = useTheme()
   const [currentTime, setCurrentTime] = useState(new Date())
 
@@ -131,9 +100,10 @@ export default function HomePage() {
   const todaysTodos = bootstrapData?.todos || []
   const completedTodos = todaysTodos.filter((todo: any) => todo.status === 'DONE').length
   const totalTodos = todaysTodos.length
+  const taskSummary = bootstrapData?.taskSummary || { total: 0, todo: 0, inProgress: 0, done: 0, overdue: 0 }
+  const taskCompletionPct = taskSummary.total > 0 ? Math.round((taskSummary.done / taskSummary.total) * 100) : 0
   
   // Loading state combines all bootstrap data
-  const isLoadingRecentPages = isLoadingBootstrap
   const isLoadingProjects = isLoadingBootstrap
 
   // Helper function to format time ago
@@ -222,7 +192,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Weekly Goal */}
+            {/* Task Completion */}
             <div className="text-center">
               <div className="relative w-16 h-16 mb-2">
                 <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
@@ -234,20 +204,31 @@ export default function HomePage() {
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
                   <path
-                    className="text-green-500"
+                    className={taskSummary.overdue > 0 ? "text-red-500" : "text-green-500"}
                     stroke="currentColor"
                     strokeWidth="3"
                     fill="none"
-                    strokeDasharray="75, 100"
+                    strokeDasharray={`${taskCompletionPct}, 100`}
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-sm font-semibold" style={{ color: themeConfig.foreground }}>75%</span>
+                  <span className="text-sm font-semibold" style={{ color: themeConfig.foreground }}>
+                    {taskSummary.total > 0 ? `${taskCompletionPct}%` : '--'}
+                  </span>
                 </div>
               </div>
-              <p className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Weekly Goal</p>
-              <p className="text-xs" style={{ color: themeConfig.mutedForeground }}>On track</p>
+              <p className="text-sm font-medium" style={{ color: themeConfig.foreground }}>Tasks Done</p>
+              {taskSummary.overdue > 0 ? (
+                <div className="flex items-center justify-center space-x-1 mt-1">
+                  <AlertCircle className="h-3 w-3 text-red-400" />
+                  <span className="text-xs text-red-400">{taskSummary.overdue} overdue</span>
+                </div>
+              ) : (
+                <p className="text-xs mt-1" style={{ color: themeConfig.mutedForeground }}>
+                  {taskSummary.done}/{taskSummary.total}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -286,35 +267,36 @@ export default function HomePage() {
                   ))}
                 </div>
               ) : recentProjects.length > 0 ? (
-                recentProjects.slice(0, 3).map((project) => (
-                  <div key={project.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-2 h-2 rounded-full ${
-                          project.status === 'active' ? 'bg-green-500' : 'bg-yellow-500'
-                        }`} />
-                        <span className="text-sm font-medium" style={{ color: themeConfig.foreground }}>
-                          {project.name}
-                        </span>
+                recentProjects.slice(0, 5).map((project) => (
+                  <Link key={project.id} href={`/projects/${project.id}`} className="block">
+                    <div className="space-y-1 p-2 rounded-lg hover:bg-muted transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                            project.status === 'ACTIVE' ? 'bg-green-500' :
+                            project.status === 'ON_HOLD' ? 'bg-yellow-500' :
+                            project.status === 'COMPLETED' ? 'bg-blue-500' : 'bg-muted-foreground'
+                          }`} />
+                          <span className="text-sm font-medium truncate" style={{ color: themeConfig.foreground }}>
+                            {project.name}
+                          </span>
+                        </div>
+                        <Badge 
+                          variant={project.status === 'ACTIVE' ? 'default' : 'secondary'}
+                          className="text-xs flex-shrink-0 ml-2"
+                        >
+                          {project.status === 'ACTIVE' ? 'Active' :
+                           project.status === 'ON_HOLD' ? 'On Hold' :
+                           project.status === 'COMPLETED' ? 'Done' :
+                           project.status === 'CANCELLED' ? 'Cancelled' : project.status}
+                        </Badge>
                       </div>
-                      <Badge 
-                        variant={project.status === 'active' ? 'default' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {project.status}
-                      </Badge>
-                    </div>
-                    <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs" style={{ color: themeConfig.mutedForeground }}>
-                        <span>Progress tracking coming soon</span>
                         <span>{project.taskCount || 0} tasks</span>
-                      </div>
-                      <Progress value={0} className="h-1" />
-                      <div className="text-xs" style={{ color: themeConfig.mutedForeground }}>
-                        Updated: {getTimeAgo(project.updatedAt)}
+                        <span>{getTimeAgo(project.updatedAt)}</span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))
               ) : (
                 <div className="text-center py-4">
@@ -330,60 +312,129 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          {/* Analytics - Placeholder */}
+          {/* My Task Signals - Real Data */}
           <Card className="lg:col-span-1">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Analytics</CardTitle>
+              <CardTitle className="text-lg flex items-center justify-between">
+                <span>My Tasks</span>
+                <Badge variant="outline" className="text-xs">{taskSummary.total}</Badge>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {mockAnalytics.map((metric, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium" style={{ color: themeConfig.foreground }}>
-                      {metric.label}
-                    </span>
-                    <span className="text-sm font-semibold" style={{ color: themeConfig.foreground }}>
-                      {metric.value}{metric.unit || '%'}
-                    </span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full ${metric.color}`}
-                      style={{ width: `${metric.value}%` }}
-                    />
-                  </div>
+              {isLoadingBootstrap ? (
+                <div className="space-y-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="h-4 bg-muted rounded animate-pulse w-24" />
+                      <div className="h-4 bg-muted rounded animate-pulse w-8" />
+                    </div>
+                  ))}
                 </div>
-              ))}
-              <div className="text-center py-2">
-                <p className="text-xs text-muted-foreground">Analytics dashboard coming soon</p>
-              </div>
+              ) : taskSummary.total > 0 ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                      <span className="text-sm" style={{ color: themeConfig.foreground }}>To do</span>
+                    </div>
+                    <span className="text-sm font-semibold" style={{ color: themeConfig.foreground }}>
+                      {taskSummary.todo}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                      <span className="text-sm" style={{ color: themeConfig.foreground }}>In progress</span>
+                    </div>
+                    <span className="text-sm font-semibold" style={{ color: themeConfig.foreground }}>
+                      {taskSummary.inProgress}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span className="text-sm" style={{ color: themeConfig.foreground }}>Completed</span>
+                    </div>
+                    <span className="text-sm font-semibold" style={{ color: themeConfig.foreground }}>
+                      {taskSummary.done}
+                    </span>
+                  </div>
+                  {taskSummary.overdue > 0 && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500" />
+                        <span className="text-sm text-red-400">Overdue</span>
+                      </div>
+                      <span className="text-sm font-semibold text-red-400">
+                        {taskSummary.overdue}
+                      </span>
+                    </div>
+                  )}
+                  <Link href="/my-tasks" className="block pt-2">
+                    <Button variant="ghost" size="sm" className="w-full justify-center text-muted-foreground hover:text-foreground">
+                      View all tasks
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">No tasks assigned to you yet</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* This Week Calendar - Placeholder */}
+          {/* Recent Wiki Pages - Real Data */}
           <Card className="lg:col-span-1">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">This Week</CardTitle>
+              <CardTitle className="text-lg flex items-center justify-between">
+                <span>Recent Pages</span>
+                <Badge variant="outline" className="text-xs">{recentPages.length}</Badge>
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-7 gap-2">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
-                  <div key={day} className="text-center">
-                    <div className="text-xs font-medium mb-1" style={{ color: themeConfig.mutedForeground }}>
-                      {day}
+            <CardContent className="space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
+              {isLoadingBootstrap ? (
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center space-x-3 p-2 rounded-lg animate-pulse">
+                      <div className="w-4 h-4 bg-muted rounded" />
+                      <div className="flex-1 space-y-1">
+                        <div className="h-4 bg-muted rounded w-3/4" />
+                        <div className="h-3 bg-muted rounded w-1/2" />
+                      </div>
                     </div>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs ${
-                      index === 0 ? 'bg-primary/10 text-primary' : ''
-                    }`}>
-                      {index + 1}
+                  ))}
+                </div>
+              ) : recentPages.length > 0 ? (
+                recentPages.map((page) => (
+                  <Link key={page.id} href={`/wiki/${page.slug}`} className="block">
+                    <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted transition-colors">
+                      <BookOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: themeConfig.foreground }}>
+                          {page.title}
+                        </p>
+                        <p className="text-xs" style={{ color: themeConfig.mutedForeground }}>
+                          {getTimeAgo(page.updatedAt)}
+                          {page.category && ` · ${page.category}`}
+                        </p>
+                      </div>
                     </div>
-                    {index === 0 && <div className="w-1 h-1 bg-primary rounded-full mx-auto mt-1" />}
-                  </div>
-                ))}
-              </div>
-              <div className="text-center py-4">
-                <p className="text-xs text-muted-foreground">Calendar integration coming soon</p>
-              </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="text-center py-4">
+                  <BookOpen className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mb-2">No wiki pages yet</p>
+                  <Link href="/wiki/new">
+                    <Button size="sm" variant="outline">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Create Page
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -421,7 +472,7 @@ export default function HomePage() {
           </Card>
         </div>
 
-        {/* AI Suggestions */}
+        {/* Ask Loopbrain CTA */}
         <div className="mt-8">
           <Card style={{ 
             background: theme === 'dark' 
@@ -432,26 +483,21 @@ export default function HomePage() {
             <CardContent className="p-6">
               <div className="flex items-start space-x-4">
                 <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                  <Lightbulb className="h-5 w-5 text-foreground" />
+                  <Bot className="h-5 w-5 text-foreground" />
                 </div>
                 <div className="flex-1">
                   <h4 className="font-medium mb-2" style={{ color: themeConfig.foreground }}>
-                    AI Suggestion: Focus on High-Priority Tasks
+                    Ask Loopbrain
                   </h4>
                   <p className="text-sm mb-3" style={{ color: themeConfig.mutedForeground }}>
-                    Based on your current workload, consider tackling the "Review Q4 roadmap" task first, as it's blocking other strategic decisions.
+                    Get AI-powered insights about your workspace, tasks, and projects.
                   </p>
-                  <div className="flex space-x-2">
-                    <Link href="/ask">
-                      <Button size="sm" className="bg-purple-500 hover:bg-purple-600">
-                        <Zap className="h-4 w-4 mr-2" />
-                        Get AI Help
-                      </Button>
-                    </Link>
-                    <Button size="sm" variant="outline">
-                      Learn more
+                  <Link href="/ask">
+                    <Button size="sm" className="bg-purple-500 hover:bg-purple-600">
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Ask Loopbrain
                     </Button>
-                  </div>
+                  </Link>
                 </div>
               </div>
             </CardContent>

@@ -11,14 +11,7 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import TaskList from '@tiptap/extension-task-list'
 // @ts-ignore - TipTap extension types
 import TaskItem from '@tiptap/extension-task-item'
-// @ts-ignore - TipTap extension types
-import Table from '@tiptap/extension-table'
-// @ts-ignore - TipTap extension types
-import TableRow from '@tiptap/extension-table-row'
-// @ts-ignore - TipTap extension types
-import TableCell from '@tiptap/extension-table-cell'
-// @ts-ignore - TipTap extension types
-import TableHeader from '@tiptap/extension-table-header'
+import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import { lowlight } from 'lowlight'
 import { JSONContent, Editor } from '@tiptap/core'
 import { useEffect } from 'react'

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUnifiedAuth } from '@/lib/unified-auth'
+import { getUnifiedAuth, NoWorkspaceError } from '@/lib/unified-auth'
 import { ProjectUpdateSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { ProjectRole } from '@prisma/client'
@@ -76,15 +76,6 @@ export async function GET(
         wikiPageId: true,
         createdById: true,
         workspaceId: true,
-        projectSpaceId: true,
-        spaceId: true, // Phase 1: Canonical Space ID
-        projectSpace: {
-          select: {
-            id: true,
-            name: true,
-            visibility: true
-          }
-        },
         createdBy: {
           select: {
             id: true,
@@ -174,23 +165,19 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
     
-    if (error.message === 'Forbidden: Insufficient project permissions.' || 
+    if (error.message === 'Forbidden: Insufficient project permissions.' ||
         error.message === 'Forbidden: You do not have access to this project space.') {
-      // Try to include projectSpaceId in error response for better UX
-      try {
-        const project = await prisma.project.findUnique({
-          where: { id: projectId },
-          select: { projectSpaceId: true }
-        })
-        return NextResponse.json({ 
-          error: 'Forbidden: Insufficient project permissions',
-          projectSpaceId: project?.projectSpaceId || null
-        }, { status: 403 })
-      } catch {
-        return NextResponse.json({ error: 'Forbidden: Insufficient project permissions' }, { status: 403 })
-      }
+      return NextResponse.json({ error: 'Forbidden: Insufficient project permissions' }, { status: 403 })
     }
-    
+
+    // User has no workspace (e.g. not in any workspace/org) — often perceived as "org mismatch"
+    if (error instanceof NoWorkspaceError) {
+      return NextResponse.json(
+        { error: 'No workspace found. You must be a member of a workspace to open projects.' },
+        { status: 403 }
+      )
+    }
+
     return NextResponse.json({ 
       error: 'Failed to fetch project'
     }, { status: 500 })

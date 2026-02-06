@@ -106,7 +106,9 @@ export async function createWikiPage(
     let errorMessage = 'Failed to create page'
     try {
       const errorData = await response.json()
-      errorMessage = errorData.error || errorData.message || errorMessage
+      const err = errorData.error
+      // API may return { error: string } or { error: { code, message } }
+      errorMessage = typeof err === 'string' ? err : (err?.message ?? errorData.message ?? errorMessage)
     } catch (parseError) {
       // Ignore parse errors, use default message
     }

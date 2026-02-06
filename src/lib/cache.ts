@@ -153,6 +153,9 @@ export const cache = {
   },
 
   async del(key: string): Promise<void> {
+    // Always clear the in-memory fallback so stale data cannot survive.
+    memoryCache.delete(key);
+
     try {
       const client = await connectRedis();
       if (!client || !isRedisAvailable) {
