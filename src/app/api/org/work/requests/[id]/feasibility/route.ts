@@ -19,6 +19,8 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { resolveWorkFeasibility } from "@/lib/org/work/resolveWorkFeasibility";
+import { logWorkRecommendation } from "@/lib/org/work/logWorkRecommendation";
+import type { WorkRecommendationAction } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -60,6 +62,29 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Step 5: Resolve feasibility
     const result = await resolveWorkFeasibility(workspaceId, workRequest);
+
+    // Step 6: Optional logging (W1.5 Recommendation Closure)
+    const shouldLog = request.nextUrl.searchParams.get("log") === "true";
+    if (shouldLog) {
+      try {
+        await logWorkRecommendation({
+          workspaceId,
+          workRequestId: id,
+          action: result.recommendation.action as WorkRecommendationAction,
+          reason: result.recommendation.explanation[0] ?? null,
+          snapshot: {
+            viableCount: result.evidence.viableCount,
+            capacityGapHours: result.feasibility.capacityGapHours,
+            requiredRoleType: workRequest.requiredRoleType,
+            decisionDomainKey: workRequest.decisionDomainKey,
+            topCandidateCount: result.candidates.length,
+            evaluatedAt: result.responseMeta.generatedAt,
+          },
+        });
+      } catch (logErr) {
+        console.warn("[GET /api/org/work/requests/[id]/feasibility] Logging failed:", logErr);
+      }
+    }
 
     return NextResponse.json({
       ok: true,

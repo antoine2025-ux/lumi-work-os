@@ -4,21 +4,29 @@
  * Shows:
  *   - Count of open work requests
  *   - Recommendation breakdown (PROCEED / DELAY / REQUEST_SUPPORT / REASSIGN)
+ *   - Unacknowledged recommendations count (W1.5)
+ *   - Up to 3 unacknowledged items with deep links (W1.5)
  *   - CTA to /org/work
  *
- * Fetches feasibility for at most 10 open requests to bound API cost.
+ * Uses list API latestRecommendationAction / latestAcknowledgedAt fields
+ * instead of per-request feasibility fetches.
  */
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, CheckCircle2, Clock, AlertTriangle, Users } from "lucide-react";
-
-const MAX_FEASIBILITY_REQUESTS = 10;
+import {
+  Briefcase,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Users,
+  Bell,
+} from "lucide-react";
 
 const RECOMMENDATION_LABELS: Record<string, { label: string; color: string }> = {
   PROCEED: { label: "Can proceed", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
@@ -27,26 +35,30 @@ const RECOMMENDATION_LABELS: Record<string, { label: string; color: string }> = 
   REASSIGN: { label: "Needs reassignment", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
 };
 
-type WorkRequest = {
+const MAX_ATTENTION_ITEMS = 3;
+
+type WorkRequestItem = {
   id: string;
   title: string;
   priority: string;
   status: string;
+  isProvisional: boolean;
+  latestRecommendationAction: string | null;
+  latestAcknowledgedAt: string | null;
 };
 
 type RecommendationCounts = Record<string, number>;
 
 export function WorkOverviewCard() {
   const [loading, setLoading] = useState(true);
-  const [requests, setRequests] = useState<WorkRequest[]>([]);
-  const [counts, setCounts] = useState<RecommendationCounts>({});
+  const [requests, setRequests] = useState<WorkRequestItem[]>([]);
   const [totalOpen, setTotalOpen] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
 
-      // Fetch open work requests
+      // Fetch open work requests (list API now includes recommendation state)
       const res = await fetch("/api/org/work/requests?status=OPEN");
       if (!res.ok) {
         setRequests([]);
@@ -54,33 +66,9 @@ export function WorkOverviewCard() {
         return;
       }
       const data = await res.json();
-      const openRequests: WorkRequest[] = data.requests ?? [];
+      const openRequests: WorkRequestItem[] = data.requests ?? [];
       setRequests(openRequests);
       setTotalOpen(openRequests.length);
-
-      if (openRequests.length === 0) return;
-
-      // Fetch feasibility for top N (by priority, already sorted by API)
-      const toEvaluate = openRequests.slice(0, MAX_FEASIBILITY_REQUESTS);
-      const recCounts: RecommendationCounts = {};
-
-      await Promise.all(
-        toEvaluate.map(async (req) => {
-          try {
-            const fRes = await fetch(
-              `/api/org/work/requests/${req.id}/feasibility`
-            );
-            if (!fRes.ok) return;
-            const fData = await fRes.json();
-            const action: string = fData.recommendation?.action ?? "UNKNOWN";
-            recCounts[action] = (recCounts[action] ?? 0) + 1;
-          } catch {
-            // Skip failures silently
-          }
-        })
-      );
-
-      setCounts(recCounts);
     } catch {
       setRequests([]);
       setTotalOpen(0);
@@ -92,6 +80,35 @@ export function WorkOverviewCard() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Derive counts from list data (no per-request feasibility calls needed)
+  const counts = useMemo<RecommendationCounts>(() => {
+    const c: RecommendationCounts = {};
+    for (const req of requests) {
+      if (req.latestRecommendationAction) {
+        c[req.latestRecommendationAction] = (c[req.latestRecommendationAction] ?? 0) + 1;
+      }
+    }
+    return c;
+  }, [requests]);
+
+  // W1.5: Unacknowledged = has recommendation but no acknowledgedAt
+  // O1: Exclude provisional work — they can't be acknowledged by design
+  const unacknowledgedItems = useMemo(
+    () =>
+      requests.filter(
+        (r) =>
+          !r.isProvisional &&
+          r.latestRecommendationAction !== null &&
+          r.latestAcknowledgedAt === null
+      ),
+    [requests]
+  );
+
+  const evaluated = useMemo(
+    () => Object.values(counts).reduce((a, b) => a + b, 0),
+    [counts]
+  );
 
   if (loading) {
     return (
@@ -131,8 +148,6 @@ export function WorkOverviewCard() {
     );
   }
 
-  // Build recommendation summary
-  const evaluated = Object.values(counts).reduce((a, b) => a + b, 0);
   const unevaluated = totalOpen - evaluated;
 
   return (
@@ -183,6 +198,47 @@ export function WorkOverviewCard() {
                 +{unevaluated} more
               </Badge>
             )}
+          </div>
+        )}
+
+        {/* W1.5: Unacknowledged recommendations */}
+        {unacknowledgedItems.length > 0 && (
+          <div className="border-t pt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-sm">
+                <Bell className="h-3.5 w-3.5 text-amber-500" />
+                <span className="font-medium">
+                  {unacknowledgedItems.length} unacknowledged recommendation
+                  {unacknowledgedItems.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <Button asChild variant="ghost" size="sm" className="h-6 text-xs">
+                <Link href="/org/work">Review work</Link>
+              </Button>
+            </div>
+            {/* Show up to 3 items needing attention */}
+            <div className="space-y-1">
+              {unacknowledgedItems.slice(0, MAX_ATTENTION_ITEMS).map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/org/work/${item.id}`}
+                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-0.5"
+                >
+                  <span className="truncate flex-1">{item.title}</span>
+                  {item.latestRecommendationAction && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      {RECOMMENDATION_LABELS[item.latestRecommendationAction]?.label ??
+                        item.latestRecommendationAction}
+                    </Badge>
+                  )}
+                </Link>
+              ))}
+              {unacknowledgedItems.length > MAX_ATTENTION_ITEMS && (
+                <p className="text-xs text-muted-foreground">
+                  +{unacknowledgedItems.length - MAX_ATTENTION_ITEMS} more
+                </p>
+              )}
+            </div>
           </div>
         )}
       </CardContent>

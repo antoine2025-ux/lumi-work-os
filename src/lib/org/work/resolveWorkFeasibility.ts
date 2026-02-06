@@ -28,6 +28,7 @@ import {
 import { resolveWorkImpact } from "@/lib/org/impact/resolveWorkImpact";
 import { getWorkTagsOrInfer } from "@/lib/org/responsibility/inferWorkTags";
 import type { ExplainabilityBlock, ExplainDependency } from "@/lib/org/explainability/types";
+import { prisma } from "@/lib/db";
 
 // ============================================================================
 // Main Resolver
@@ -384,6 +385,16 @@ export async function resolveWorkFeasibility(
     console.warn("[resolveWorkFeasibility] Failed to compute alignment summary:", err);
   }
 
+  // O1: Compute missing requirements (only for non-PROCEED recommendations)
+  let missingRequirements: WorkFeasibilityResult["missingRequirements"] = undefined;
+  if (recommendation.action !== "PROCEED") {
+    missingRequirements = await computeMissingRequirements(
+      workspaceId,
+      workRequest,
+      candidates,
+    );
+  }
+
   return {
     workRequestId: workRequest.id,
     timeWindow,
@@ -414,9 +425,81 @@ export async function resolveWorkFeasibility(
     escalationContacts,
     impactSummary,
     alignmentSummary,
+    missingRequirements,
     responseMeta: getWorkFeasibilityResponseMeta(),
     explainability,
   };
+}
+
+// ============================================================================
+// O1: Missing Requirements Computation
+// ============================================================================
+
+/**
+ * Compute structural gaps that prevent the system from answering the work question.
+ *
+ * These are *structural* (no data configured), NOT *transient* (data exists but capacity
+ * is full / zero availability). All checks are scoped to workspaceId.
+ *
+ * IMPORTANT CONTRACT — confidence.factors.completeness === 0:
+ *   This MUST mean "no CapacityContract AND no PersonAvailability exist" (structural
+ *   absence). It does NOT mean "capacity data exists but effective hours are 0" (that
+ *   is transient overload). If the completeness factor semantics ever change in
+ *   resolveEffectiveCapacity, this logic MUST be updated in tandem to avoid instructing
+ *   users to "set capacity" when the real issue is overload.
+ *
+ * Performance: the RoleResponsibilityProfile query only fires when requiredRoleType is
+ * set. In-function cache avoids duplicate DB round-trips if called twice for the same
+ * roleType within one feasibility evaluation.
+ */
+const _profileCountCache = new Map<string, number>();
+
+async function computeMissingRequirements(
+  workspaceId: string,
+  workRequest: WorkRequest,
+  candidates: WorkCandidate[],
+): Promise<WorkFeasibilityResult["missingRequirements"]> {
+  const missing: NonNullable<WorkFeasibilityResult["missingRequirements"]> = {};
+
+  // 1. Decision domain: structurally missing if workRequest.decisionDomainKey is null
+  if (!workRequest.decisionDomainKey) {
+    missing.decisionDomain = true;
+  }
+
+  // 2. Capacity: missing only if NO candidate has any capacity data at all.
+  //    See contract note above re: completeness === 0.
+  if (candidates.length > 0 && workRequest.requiredRoleType) {
+    const allLackCapacityData = candidates.every(
+      (c) => c.confidence && c.confidence.factors.completeness === 0
+    );
+    if (allLackCapacityData) {
+      missing.capacityForRoles = [workRequest.requiredRoleType];
+    }
+  } else if (candidates.length === 0 && workRequest.requiredRoleType) {
+    // No candidates at all — capacity is structurally absent for this role
+    missing.capacityForRoles = [workRequest.requiredRoleType];
+  }
+
+  // 3. Responsibility profiles: missing only if RoleResponsibilityProfile
+  //    truly does not exist for the roleType in this workspace.
+  //    Uses in-function cache to avoid duplicate DB hits within one eval cycle.
+  if (workRequest.requiredRoleType) {
+    const cacheKey = `${workspaceId}:${workRequest.requiredRoleType}`;
+    let profileCount = _profileCountCache.get(cacheKey);
+    if (profileCount === undefined) {
+      profileCount = await prisma.roleResponsibilityProfile.count({
+        where: { workspaceId, roleType: workRequest.requiredRoleType },
+      });
+      _profileCountCache.set(cacheKey, profileCount);
+      // Evict cache after brief window (avoids stale data across requests)
+      setTimeout(() => _profileCountCache.delete(cacheKey), 5_000);
+    }
+    if (profileCount === 0) {
+      missing.responsibilityProfiles = [workRequest.requiredRoleType];
+    }
+  }
+
+  return Object.keys(missing).length > 0 ? missing : undefined;
 }
 
 // ============================================================================

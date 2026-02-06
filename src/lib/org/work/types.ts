@@ -162,6 +162,13 @@ export type WorkFeasibilityResult = {
     workTagsSource: "EXPLICIT" | "INFERRED";
   } | null;
 
+  /** O1: Structural gaps preventing full evaluation */
+  missingRequirements?: {
+    decisionDomain?: true;
+    capacityForRoles?: string[];       // roleTypes with no capacity data
+    responsibilityProfiles?: string[];  // roleTypes with no profile
+  };
+
   responseMeta: WorkResponseMeta;
   /** Phase O: Structured explainability */
   explainability?: ExplainabilityBlock;

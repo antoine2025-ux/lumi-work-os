@@ -6,6 +6,13 @@ import {
   mapPermissionErrorToStatus,
 } from "@/lib/org/permissions.server";
 
+/**
+ * POST /api/org/onboarding/complete
+ *
+ * Sets orgCenterOnboardingCompletedAt on the workspace.
+ * Idempotent: if already set, returns ok without overwriting.
+ * Auth: OWNER / ADMIN only (org:settings:manage).
+ */
 export async function POST() {
   try {
     const context = await getOrgPermissionContext();
@@ -26,12 +33,22 @@ export async function POST() {
       );
     }
 
-    const updated = await prisma.workspace.update({
+    // Idempotent: if already set, return ok without overwriting the timestamp
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: context!.orgId },
+      select: { orgCenterOnboardingCompletedAt: true },
+    });
+
+    if (workspace?.orgCenterOnboardingCompletedAt) {
+      return NextResponse.json({ ok: true, alreadyCompleted: true }, { status: 200 });
+    }
+
+    await prisma.workspace.update({
       where: { id: context!.orgId },
       data: { orgCenterOnboardingCompletedAt: new Date() },
     });
 
-    return NextResponse.json({ ok: true, org: updated }, { status: 200 });
+    return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
     console.error("[POST /api/org/onboarding/complete] Error:", error);
     return NextResponse.json(

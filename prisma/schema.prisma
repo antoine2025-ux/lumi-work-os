@@ -190,6 +190,9 @@ model Workspace {
   // Todos
   todos Todo[]
 
+  // W1.5: Recommendation Closure
+  workRecommendationLogs WorkRecommendationLog[]
+
   @@map("workspaces")
 }
 
@@ -210,6 +213,9 @@ model WorkspaceMember {
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // W1.5: Recommendation Closure
+  acknowledgedRecommendations WorkRecommendationLog[]
 
   @@unique([workspaceId, userId])
   @@index([userId], map: "idx_workspace_members_user")
@@ -2644,6 +2650,9 @@ model WorkRequest {
   status   WorkRequestStatus @default(OPEN)
   closedAt DateTime?
 
+  // O1: Intent-Driven Onboarding
+  isProvisional Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2656,6 +2665,9 @@ model WorkRequest {
   // Note: Inferred tags are NOT auto-persisted; only explicit tags stored
   workTags         ResponsibilityTag[] @relation("WorkTags")
   primaryWorkTagId String?             // Optional: single primary for UI simplicity
+
+  // W1.5: Recommendation Closure
+  recommendationLogs WorkRecommendationLog[]
 
   @@index([workspaceId, status])
   @@index([workspaceId, desiredStart])
@@ -2897,4 +2909,47 @@ model PersonResponsibilityOverride {
   @@unique([workspaceId, personId, tagId])
   @@index([workspaceId, personId])
   @@map("person_responsibility_overrides")
+}
+
+// =============================================================================
+// W1.5: Recommendation Closure
+// =============================================================================
+
+enum WorkRecommendationAction {
+  PROCEED
+  DELAY
+  REASSIGN
+  REQUEST_SUPPORT
+}
+
+/**
+ * WorkRecommendationLog -- Append-only log of feasibility recommendations
+ *
+ * Records the recommendation action shown to the user and their acknowledgement.
+ * "Latest recommendation" = row with greatest createdAt for a given workRequestId.
+ * Acknowledging an older log must never mark newer ones as acknowledged.
+ *
+ * snapshotJson is diagnostic only (≤ 5 KB, flat primitives). No business logic
+ * may read or branch on its contents.
+ */
+model WorkRecommendationLog {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  workRequestId String
+
+  recommendationAction WorkRecommendationAction
+  recommendationReason String?
+  snapshotJson         Json?
+
+  acknowledgedAt   DateTime?
+  acknowledgedById String?
+
+  createdAt DateTime @default(now())
+
+  workspace      Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workRequest    WorkRequest      @relation(fields: [workRequestId], references: [id], onDelete: Cascade)
+  acknowledgedBy WorkspaceMember? @relation(fields: [acknowledgedById], references: [id])
+
+  @@index([workspaceId, workRequestId, createdAt])
+  @@map("work_recommendation_logs")
 }

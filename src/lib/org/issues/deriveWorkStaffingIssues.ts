@@ -66,6 +66,26 @@ export async function deriveWorkStaffingIssues(
     };
     const fixUrl = deepLinkForWorkRequest(wr.id);
 
+    // ─── Step 0 (O1): Skip issue derivation for provisional work ────
+    // Provisional work requests suppress all staffing issues except
+    // WORK_NO_DECISION_DOMAIN, which serves as intentional onboarding guidance.
+    if (wr.isProvisional) {
+      if (!wr.decisionDomainKey || !activeDomainKeys.has(wr.decisionDomainKey)) {
+        const issueKey = `WORK_NO_DECISION_DOMAIN:WORK_REQUEST:${wr.id}`;
+        issues.push({
+          issueKey,
+          issueId: issueKey,
+          type: "WORK_NO_DECISION_DOMAIN",
+          severity: "error",
+          ...entityBase,
+          explanation: getIssueExplanation("WORK_NO_DECISION_DOMAIN"),
+          fixUrl,
+          fixAction: "Assign domain",
+        });
+      }
+      continue; // Skip remaining issue derivation for provisional work
+    }
+
     // ─── Step 1: Decision domain guard ──────────────────────────────
     if (!wr.decisionDomainKey || !activeDomainKeys.has(wr.decisionDomainKey)) {
       const issueKey = `WORK_NO_DECISION_DOMAIN:WORK_REQUEST:${wr.id}`;

@@ -20,10 +20,13 @@ import { OverviewSummaryCards } from "@/components/org/OverviewSummaryCards";
 import { NextStepCard } from "@/components/org/NextStepCard";
 import { OrgIntelligenceOverview } from "@/components/org/OrgIntelligenceOverview";
 import { OrgSectionBoundary } from "@/components/org/OrgSectionBoundary";
+import { OrgReadinessBanner } from "@/components/org/OrgReadinessBanner";
 import { IntegrityBanner } from "@/components/org/IntegrityBanner";
 import { RecommendationsOverview } from "@/components/org/recommendations";
 import { CapacityOverviewCard } from "@/components/org/capacity/CapacityOverviewCard";
 import { WorkOverviewCard } from "@/components/org/work/WorkOverviewCard";
+import { OnboardingResumeCard } from "@/components/org/work/OnboardingResumeCard";
+import { prisma } from "@/lib/db";
 
 export default async function OrgOverviewPage() {
   try {
@@ -51,6 +54,20 @@ export default async function OrgOverviewPage() {
       );
     }
 
+    // O1: Check if onboarding is incomplete for OWNER users
+    let showOnboardingResume = false;
+    if (context.role === "OWNER" && prisma) {
+      try {
+        const workspace = await prisma.workspace.findUnique({
+          where: { id: context.orgId },
+          select: { orgCenterOnboardingCompletedAt: true },
+        });
+        showOnboardingResume = !workspace?.orgCenterOnboardingCompletedAt;
+      } catch {
+        // Non-blocking — don't break Overview if this fails
+      }
+    }
+
     return (
       <>
         <OrgPageViewTracker route="/org" name="Org Overview" />
@@ -59,7 +76,9 @@ export default async function OrgOverviewPage() {
           description="See a high-level view of your organization's people, teams, and structure."
         />
         <div className="px-10 pb-10 space-y-6">
+          <OrgReadinessBanner onboardingIncomplete={showOnboardingResume} />
           <IntegrityBanner />
+          {showOnboardingResume && <OnboardingResumeCard />}
           <OrgSectionBoundary title="Next step">
             <NextStepCard />
           </OrgSectionBoundary>
