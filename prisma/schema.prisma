@@ -184,6 +184,9 @@ model Workspace {
   // Settings IA: Org Capacity Settings
   orgCapacitySettings OrgCapacitySettings?
 
+  // Capacity v1: Team Demand Planning
+  teamCapacityPlans TeamCapacityPlan[]
+
   // Todos
   todos Todo[]
 
@@ -487,8 +490,9 @@ model OrgTeam {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   positions     OrgPosition[]
-  department    OrgDepartment? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  department        OrgDepartment?    @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  teamCapacityPlan  TeamCapacityPlan?
 
   // Note: Unique constraint removed because Prisma doesn't support unique constraints with nullable fields
   // Uniqueness is enforced at the application level for teams within the same department
@@ -1833,9 +1837,30 @@ model OrgCapacitySettings {
   minCapacityForCoverage    Int   @default(8)   // Min hours for coverage viability
   issueWindowDays           Int   @default(7)   // Days forward for issue detection
 
+  // Capacity v1: Graduated thresholds
+  severeOverloadThresholdPct Float @default(1.4) // 140% = severe overload
+  underutilizedThresholdPct  Float @default(0.6) // 60% = underutilized
+  defaultWeeklyHoursTarget   Int   @default(40)  // Default for quick-entry
+
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("org_capacity_settings")
+}
+
+model TeamCapacityPlan {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  teamId            String   @unique
+  weeklyDemandHours Float    @default(0)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  team      OrgTeam   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("team_capacity_plans")
 }
 
 model OrgUiPreference {

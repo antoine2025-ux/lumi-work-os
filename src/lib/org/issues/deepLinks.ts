@@ -1,0 +1,75 @@
+/**
+ * Canonical deep-link generators for issue Fix CTAs.
+ *
+ * Ownership rule: ALL issue fix URLs must be generated via this module.
+ * No issue may inline hardcoded routes (e.g. "/org/structure") directly.
+ * This prevents drift when routes evolve.
+ */
+
+// ---------------------------------------------------------------------------
+// Structure deep links
+// ---------------------------------------------------------------------------
+
+/** Open the "Assign Department" panel for a specific unassigned team. */
+export function deepLinkForUnassignedTeam(teamId: string): string {
+  return `/org/structure?tab=teams&teamId=${encodeURIComponent(teamId)}&panel=assignDepartment`;
+}
+
+/** Navigate to a specific team detail page (for ownership, capacity, etc.). */
+export function deepLinkForTeam(teamId: string): string {
+  return `/org/structure/teams/${encodeURIComponent(teamId)}`;
+}
+
+/** Navigate to a specific department detail page. */
+export function deepLinkForDepartment(departmentId: string): string {
+  return `/org/structure/departments/${encodeURIComponent(departmentId)}`;
+}
+
+/** Navigate to the structure page with the teams tab and a team highlighted. */
+export function deepLinkForTeamInStructure(teamId: string): string {
+  return `/org/structure?tab=teams&teamId=${encodeURIComponent(teamId)}`;
+}
+
+// ---------------------------------------------------------------------------
+// People deep links
+// ---------------------------------------------------------------------------
+
+/** Open the Capacity Quick Entry popover for a specific person. */
+export function deepLinkForPersonCapacity(personId: string): string {
+  return `/org/people?person=${encodeURIComponent(personId)}&openCapacity=true`;
+}
+
+// ---------------------------------------------------------------------------
+// Work deep links
+// ---------------------------------------------------------------------------
+
+/** Navigate to a specific work request's detail/feasibility page. */
+export function deepLinkForWorkRequest(workRequestId: string): string {
+  return `/org/work/${encodeURIComponent(workRequestId)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Decision & Responsibility deep links
+// ---------------------------------------------------------------------------
+
+/** Navigate to decision authority settings, auto-focusing a specific domain. */
+export function deepLinkForDecisionDomain(domainKey: string): string {
+  return `/org/settings/decision-authority?domain=${encodeURIComponent(domainKey)}`;
+}
+
+/** Navigate to responsibility settings, auto-focusing a specific role profile. */
+export function deepLinkForResponsibilityProfile(roleType: string): string {
+  return `/org/settings/responsibility?roleType=${encodeURIComponent(roleType)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Generic
+// ---------------------------------------------------------------------------
+
+/** Navigate to the Issues page, optionally pre-filtered by severity. */
+export function deepLinkForIssues(severity?: string): string {
+  if (severity) {
+    return `/org/issues?severity=${encodeURIComponent(severity)}`;
+  }
+  return `/org/issues`;
+}

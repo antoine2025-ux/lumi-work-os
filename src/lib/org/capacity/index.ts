@@ -2,6 +2,7 @@
  * Capacity Module
  * 
  * Phase G: Capacity contracts and effective capacity resolution.
+ * Capacity v1: Status, team rollups, and graduated thresholds.
  */
 
 export {
@@ -45,3 +46,24 @@ export {
   type IssueWindow,
   type ResponseMeta,
 } from "./thresholds";
+
+export {
+  getPersonCapacityStatus,
+  getTeamCapacityStatus,
+  getStatusUI,
+  STATUS_UI_MAP,
+  type PersonCapacityStatus,
+  type TeamCapacityStatus,
+  type PersonCapacityMeta,
+  type TeamCapacityRollup,
+  type StatusUI,
+  type StatusSeverity,
+} from "./status";
+
+export {
+  computeTeamCapacityRollup,
+  computeDepartmentRollup,
+  computeAllTeamRollups,
+  type TeamMemberCapacity,
+  type DepartmentCapacityRollup,
+} from "./teamRollup";

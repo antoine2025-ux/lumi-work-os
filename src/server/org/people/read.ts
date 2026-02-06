@@ -79,22 +79,35 @@ export async function listOrgPeople(workspaceId?: string, includeArchived: boole
     }
 
     // Fetch availability windows
-    const availabilityWindows = await prisma.personAvailability.findMany({
-      where: {
-        personId: { in: userIds },
-        workspaceId: effectiveWorkspaceId,
-      },
-      select: {
-        personId: true,
-        type: true,
-        startDate: true,
-        endDate: true,
-        fraction: true,
-        reason: true,
-        expectedReturnDate: true,
-        updatedAt: true,
-      },
-    });
+    // Handle Prisma enum mismatch gracefully - if enum values don't match schema, filter them out
+    let availabilityWindows;
+    try {
+      availabilityWindows = await prisma.personAvailability.findMany({
+        where: {
+          personId: { in: userIds },
+          workspaceId: effectiveWorkspaceId,
+        },
+        select: {
+          personId: true,
+          type: true,
+          startDate: true,
+          endDate: true,
+          fraction: true,
+          reason: true,
+          expectedReturnDate: true,
+          updatedAt: true,
+        },
+      });
+    } catch (error: any) {
+      // Handle Prisma enum mismatch - if the error is about enum values, log and continue with empty array
+      if (error?.message?.includes('not found in enum') || error?.message?.includes('AvailabilityType')) {
+        console.error('[listOrgPeople] Prisma enum mismatch detected. Regenerate Prisma client with: npx prisma generate', error.message);
+        // Return empty array to allow the route to continue - availability data will be missing but people list will load
+        availabilityWindows = [];
+      } else {
+        throw error;
+      }
+    }
 
     // Group windows by personId
     const windowsMap = new Map<string, AvailabilityWindow[]>();
@@ -371,18 +384,28 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
         }).catch(() => null);
         const employmentStatus = (workspaceMember?.employmentStatus as EmploymentStatus) ?? "ACTIVE";
 
-        const availabilityWindows = await prisma.personAvailability.findMany({
-          where: { personId: userId, workspaceId: wsId },
-          select: {
-            type: true,
-            startDate: true,
-            endDate: true,
-            fraction: true,
-            reason: true,
-            expectedReturnDate: true,
-            updatedAt: true,
-          },
-        }).catch(() => []);
+        let availabilityWindows;
+        try {
+          availabilityWindows = await prisma.personAvailability.findMany({
+            where: { personId: userId, workspaceId: wsId },
+            select: {
+              type: true,
+              startDate: true,
+              endDate: true,
+              fraction: true,
+              reason: true,
+              expectedReturnDate: true,
+              updatedAt: true,
+            },
+          });
+        } catch (error: any) {
+          if (error?.message?.includes('not found in enum') || error?.message?.includes('AvailabilityType')) {
+            console.error('[getPersonProfile] Prisma enum mismatch. Regenerate Prisma client: npx prisma generate', error.message);
+            availabilityWindows = [];
+          } else {
+            throw error;
+          }
+        }
 
         const latestUpdate = availabilityWindows.reduce<Date | null>((latest, w) => {
           if (!latest) return w.updatedAt;
@@ -489,18 +512,28 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
   const employmentStatus = (workspaceMember?.employmentStatus as EmploymentStatus) ?? "ACTIVE";
 
   // Fetch availability windows
-  const availabilityWindows = await prisma.personAvailability.findMany({
-    where: { personId: userId, workspaceId: wsId },
-    select: {
-      type: true,
-      startDate: true,
-      endDate: true,
-      fraction: true,
-      reason: true,
-      expectedReturnDate: true,
-      updatedAt: true,
-    },
-  }).catch(() => []);
+  let availabilityWindows;
+  try {
+    availabilityWindows = await prisma.personAvailability.findMany({
+      where: { personId: userId, workspaceId: wsId },
+      select: {
+        type: true,
+        startDate: true,
+        endDate: true,
+        fraction: true,
+        reason: true,
+        expectedReturnDate: true,
+        updatedAt: true,
+      },
+    });
+  } catch (error: any) {
+    if (error?.message?.includes('not found in enum') || error?.message?.includes('AvailabilityType')) {
+      console.error('[getPersonAvailability] Prisma enum mismatch. Regenerate Prisma client: npx prisma generate', error.message);
+      availabilityWindows = [];
+    } else {
+      throw error;
+    }
+  }
 
   // Get latest update timestamp
   const latestUpdate = availabilityWindows.reduce<Date | null>((latest, w) => {

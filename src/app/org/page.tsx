@@ -22,6 +22,8 @@ import { OrgIntelligenceOverview } from "@/components/org/OrgIntelligenceOvervie
 import { OrgSectionBoundary } from "@/components/org/OrgSectionBoundary";
 import { IntegrityBanner } from "@/components/org/IntegrityBanner";
 import { RecommendationsOverview } from "@/components/org/recommendations";
+import { CapacityOverviewCard } from "@/components/org/capacity/CapacityOverviewCard";
+import { WorkOverviewCard } from "@/components/org/work/WorkOverviewCard";
 
 export default async function OrgOverviewPage() {
   try {
@@ -63,6 +65,12 @@ export default async function OrgOverviewPage() {
           </OrgSectionBoundary>
           <OrgSectionBoundary title="Overview">
             <OverviewSummaryCards />
+          </OrgSectionBoundary>
+          <OrgSectionBoundary title="Capacity">
+            <CapacityOverviewCard />
+          </OrgSectionBoundary>
+          <OrgSectionBoundary title="Work">
+            <WorkOverviewCard />
           </OrgSectionBoundary>
           <OrgSectionBoundary title="Recommendations">
             <RecommendationsOverview />

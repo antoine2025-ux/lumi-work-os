@@ -70,9 +70,10 @@ export function PeopleListClient() {
         updateDataRef.current((currentData) => {
           if (!currentData) return currentData;
           
+          // Support both { ok, data: { people } } and { people } shapes
           const people = Array.isArray(currentData) 
             ? currentData 
-            : (currentData as any)?.people ?? [];
+            : ((currentData as any)?.data?.people ?? (currentData as any)?.people ?? []);
           
           const personIndex = people.findIndex((p: any) => p.id === updatedData.personId);
           if (personIndex !== -1) {
@@ -83,9 +84,14 @@ export function PeopleListClient() {
               manager: updatedData.manager,
             };
             
-            // Return updated data structure
+            // Return updated data structure preserving original shape
             if (Array.isArray(currentData)) {
               return updatedPeople as typeof currentData;
+            } else if ((currentData as any)?.data?.people) {
+              return {
+                ...currentData,
+                data: { ...(currentData as any).data, people: updatedPeople },
+              } as typeof currentData;
             } else {
               return {
                 ...currentData,
@@ -116,12 +122,12 @@ export function PeopleListClient() {
   const error = peopleQ.error;
   const hasData = peopleQ.data !== null && peopleQ.data !== undefined;
   
-  // Extract people array from API response - API returns { people: [...] }
+  // Extract people array from API response - API returns { ok, data: { people: [...] } }
   // The API route returns OrgPeopleListDTO which is { people: Array<...> }
   const people = hasData 
     ? (Array.isArray(peopleQ.data) 
         ? peopleQ.data  // Fallback: if API returns array directly
-        : ((peopleQ.data as any)?.people ?? []))  // Normal case: { people: [...] }
+        : ((peopleQ.data as any)?.data?.people ?? (peopleQ.data as any)?.people ?? []))  // Support { ok, data: { people } } and { people }
     : [];
 
   // Dev-only logging for debugging render state

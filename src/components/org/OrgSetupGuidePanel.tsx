@@ -29,7 +29,8 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
   // Determine completion status for each step
   const stepStatus = useMemo(() => {
     const overview = overviewQ.data;
-    const people = peopleQ.data?.people ?? [];
+    // Support both { ok, data: { people } } and { people } response shapes
+    const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
 
     if (!overview) {
       return {

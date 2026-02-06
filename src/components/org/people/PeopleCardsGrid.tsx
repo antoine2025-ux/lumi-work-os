@@ -123,20 +123,21 @@ export const PeopleCardsGrid = memo(function PeopleCardsGrid({
         const statusChips = personStatusChips.get(person.id) || [];
 
         return (
-          <PeopleCard
-            key={person.id}
-            person={person}
-            onOpenPerson={onOpenPerson}
-            onTeamClick={onTeamClick}
-            onDepartmentClick={onDepartmentClick}
-            managerName={metadata?.managerName}
-            managerId={metadata?.managerId}
-            onManagerClick={onManagerClick}
-            directReportsCount={metadata?.directReportsCount}
-            statusChips={statusChips}
-            isSelected={selectedIds.includes(person.id)}
-            onToggleSelection={onToggleSelection}
-          />
+          <div key={person.id} data-person-id={person.id}>
+            <PeopleCard
+              person={person}
+              onOpenPerson={onOpenPerson}
+              onTeamClick={onTeamClick}
+              onDepartmentClick={onDepartmentClick}
+              managerName={metadata?.managerName}
+              managerId={metadata?.managerId}
+              onManagerClick={onManagerClick}
+              directReportsCount={metadata?.directReportsCount}
+              statusChips={statusChips}
+              isSelected={selectedIds.includes(person.id)}
+              onToggleSelection={onToggleSelection}
+            />
+          </div>
         );
       })}
     </div>

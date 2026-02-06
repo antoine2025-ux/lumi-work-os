@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
           error: "Unauthorized",
           hint: "Authentication failed. Please ensure you are logged in and have workspace access."
         },
-        { status: 401 }
+        { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
           error: error.message || "Forbidden",
           hint: "You don't have permission to access this resource."
         },
-        { status: 403 }
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
     
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
           unowned: [],
           assignments: []
         },
-        { status: 200 }
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
     
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         error: "Failed to load ownership",
         hint: error?.message || "An unexpected error occurred. Please try again."
       },
-      { status: 500 }
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }

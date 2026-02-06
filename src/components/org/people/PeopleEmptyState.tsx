@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OrgPrimaryCta } from "@/components/org/ui/OrgCtaButton";
 
 type PeopleEmptyStateProps = {
   hasFilters: boolean;
@@ -56,40 +57,13 @@ export function PeopleEmptyState({
         {/* Right: primary CTA */}
         <div className="ml-auto shrink-0">
           {onAddPerson ? (
-            <button
-              type="button"
-              onClick={onAddPerson}
-              className={cn(
-                "inline-flex items-center justify-center",
-                "rounded-full",
-                "px-5 py-2",
-                "text-sm font-medium",
-                "bg-primary",
-                "hover:bg-primary/90",
-                "text-white",
-                "transition-colors duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-              )}
-            >
+            <OrgPrimaryCta onClick={onAddPerson} size="sm">
               Add person
-            </button>
+            </OrgPrimaryCta>
           ) : (
-            <Link
-              href="/org/people/new"
-              className={cn(
-                "inline-flex items-center justify-center",
-                "rounded-full",
-                "px-5 py-2",
-                "text-sm font-medium",
-                "bg-primary",
-                "hover:bg-primary/90",
-                "text-white",
-                "transition-colors duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-              )}
-            >
-              Add person
-            </Link>
+            <OrgPrimaryCta asChild size="sm">
+              <Link href="/org/people/new">Add person</Link>
+            </OrgPrimaryCta>
           )}
         </div>
       </div>

@@ -9,6 +9,7 @@ import { ReportingChain } from "./ReportingChain";
 import { Connections } from "./Connections";
 import { DetailsGrid } from "./DetailsGrid";
 import { ActivityMiniTimeline } from "./ActivityMiniTimeline";
+import { PersonResponsibilities } from "./PersonResponsibilities";
 import type { OrgPerson } from "@/types/org";
 import type { PeopleFilters } from "./people-filters";
 
@@ -215,6 +216,9 @@ export function PersonProfileDrawer({
                   onPersonClick={onPersonClick}
                   onViewAll={handleViewAll}
                 />
+
+                {/* Responsibilities */}
+                <PersonResponsibilities personId={person.id} />
 
                 {/* Details Grid */}
                 <DetailsGrid person={person} />

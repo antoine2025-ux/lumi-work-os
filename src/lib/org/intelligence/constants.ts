@@ -25,7 +25,7 @@ export const OWNERSHIP_ISSUE_TYPES: OrgIssue[] = [
 ];
 
 /**
- * Capacity & Availability issue types (Phase G)
+ * Capacity & Availability issue types (Phase G + Capacity v1)
  */
 export const CAPACITY_ISSUE_TYPES: OrgIssue[] = [
   "OVERALLOCATED_PERSON",
@@ -34,6 +34,12 @@ export const CAPACITY_ISSUE_TYPES: OrgIssue[] = [
   "SINGLE_POINT_OF_FAILURE",
   "UNAVAILABLE_OWNER",
   "CAPACITY_CONTRACT_CONFLICT",
+  // Capacity v1: Team-level and missing-data issues
+  "CAPACITY_MISSING_DATA_PERSON",
+  "CAPACITY_OVERLOADED_TEAM",
+  "CAPACITY_SEVERELY_OVERLOADED_TEAM",
+  "CAPACITY_UNDERUTILIZED_TEAM",
+  "CAPACITY_TEAM_NO_MEMBERS",
 ];
 
 /**
@@ -43,6 +49,7 @@ export const WORK_ISSUE_TYPES: OrgIssue[] = [
   "WORK_NOT_STAFFABLE",
   "WORK_CAPACITY_GAP",
   "WORK_ROLE_MISMATCH",
+  "WORK_NO_DECISION_DOMAIN",
 ];
 
 /**
@@ -62,6 +69,7 @@ export const DECISION_ISSUE_TYPES: OrgIssue[] = [
   "DECISION_AUTHORITY_MISSING",
   "DECISION_AUTHORITY_ROLE_UNRESOLVABLE",
   "DECISION_AUTHORITY_PRIMARY_UNAVAILABLE",
+  "DECISION_DOMAIN_NO_COVERAGE",
 ];
 
 /**

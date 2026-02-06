@@ -62,8 +62,8 @@ export function useOrgPeopleDirectory(
           return;
         }
 
-        // NEW endpoint returns { people } directly
-        setPeople(json.people || []);
+        // Support both { data: { people } } (current) and { people } (future) shapes
+        setPeople(json.data?.people ?? json.people ?? []);
         setIsLoading(false);
       } catch (err) {
         if (cancelled) return;

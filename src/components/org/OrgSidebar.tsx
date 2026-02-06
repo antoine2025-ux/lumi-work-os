@@ -27,6 +27,7 @@ const ORG_NAV_ITEMS = [
   { key: "ownership", label: "Ownership", href: "/org/ownership" },
   { key: "issues", label: "Issues", href: "/org/issues" },
   { key: "intelligence", label: "Intelligence", href: "/org/intelligence" },
+  { key: "work", label: "Work", href: "/org/work" },
   { key: "settings", label: "Setup", href: "/org/setup" }, // Will be filtered by setupIncomplete
 ] as const;
 
@@ -39,6 +40,7 @@ const BASE_SIDEBAR_ITEMS = [
   { id: "ownership", label: "Ownership", href: "/org/ownership", section: "org" },
   { id: "issues", label: "Issues", href: "/org/issues", section: "org" },
   { id: "intelligence", label: "Intelligence", href: "/org/intelligence", section: "org" },
+  { id: "work", label: "Work", href: "/org/work", section: "org" },
 ];
 
 // Settings section items (admin-only)
