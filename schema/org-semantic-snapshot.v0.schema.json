@@ -1,0 +1,246 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://loopwell.com/schemas/org-semantic-snapshot.v0.json",
+  "title": "OrgSemanticSnapshotV0",
+  "description": "Machine contract for Loopbrain consumption. Authoritative Loopbrain ingest contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "workspaceId",
+    "readiness",
+    "coverage",
+    "roles",
+    "decisionDomains",
+    "capacity",
+    "responsibility",
+    "decisions",
+    "work",
+    "issues"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "v0",
+      "description": "Schema version. Append-only."
+    },
+    "generatedAt": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO 8601 timestamp when snapshot was generated."
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Workspace ID."
+    },
+    "snapshotHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Content hash of canonical fields for change detection."
+    },
+    "readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["isAnswerable", "blockers"],
+      "properties": {
+        "isAnswerable": { "type": "boolean" },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "NO_ACTIVE_PEOPLE",
+              "NO_TEAMS",
+              "OWNERSHIP_INCOMPLETE",
+              "NO_DECISION_DOMAINS",
+              "CAPACITY_COVERAGE_BELOW_MIN",
+              "RESPONSIBILITY_PROFILES_MISSING",
+              "WORK_CANNOT_EVALUATE_BASELINE"
+            ]
+          },
+          "description": "Readiness blockers. Fixed priority order. Append-only enum."
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ownership", "capacity", "responsibilityProfiles", "decisionDomains"],
+      "properties": {
+        "ownership": {
+          "$ref": "#/definitions/OrgOwnershipCoverage"
+        },
+        "capacity": {
+          "$ref": "#/definitions/OrgCoverageMetric"
+        },
+        "responsibilityProfiles": {
+          "$ref": "#/definitions/OrgCoverageMetric"
+        },
+        "decisionDomains": {
+          "$ref": "#/definitions/OrgCoverageMetric"
+        }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/RoleSemanticSummary" },
+      "description": "Sorted by roleType asc."
+    },
+    "decisionDomains": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/DecisionDomainSemanticSummary" },
+      "description": "Sorted by key asc."
+    },
+    "capacity": {
+      "$ref": "#/definitions/CapacitySemanticSummary"
+    },
+    "responsibility": {
+      "$ref": "#/definitions/ResponsibilitySemanticSummary"
+    },
+    "decisions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domains"],
+      "properties": {
+        "domains": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DecisionDomainSemanticSummary" }
+        }
+      }
+    },
+    "work": {
+      "$ref": "#/definitions/WorkSemanticSummary"
+    },
+    "issues": {
+      "$ref": "#/definitions/IssueSemanticSummary"
+    }
+  },
+  "definitions": {
+    "OrgOwnershipCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coveragePct", "conflictCount"],
+      "properties": {
+        "coveragePct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "0-100. Answers 'Is something owned?'"
+        },
+        "conflictCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Answers 'Is ownership clean?'"
+        }
+      }
+    },
+    "OrgCoverageMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "total", "pct"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 },
+        "pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "0-100"
+        }
+      }
+    },
+    "RoleSemanticSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["roleType", "peopleCount", "hasProfile"],
+      "properties": {
+        "roleType": { "type": "string" },
+        "peopleCount": { "type": "integer", "minimum": 0 },
+        "hasProfile": { "type": "boolean" }
+      }
+    },
+    "DecisionDomainSemanticSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "name", "hasPrimary", "hasCoverage"],
+      "properties": {
+        "key": { "type": "string" },
+        "name": { "type": "string" },
+        "hasPrimary": { "type": "boolean" },
+        "hasCoverage": { "type": "boolean" }
+      }
+    },
+    "CapacitySemanticSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["configuredCount", "totalPeople", "pctConfigured", "issueCount"],
+      "properties": {
+        "configuredCount": { "type": "integer", "minimum": 0 },
+        "totalPeople": { "type": "integer", "minimum": 0 },
+        "pctConfigured": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "issueCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ResponsibilitySemanticSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profileCount", "distinctRoleTypes", "pctCovered"],
+      "properties": {
+        "profileCount": { "type": "integer", "minimum": 0 },
+        "distinctRoleTypes": { "type": "integer", "minimum": 0 },
+        "pctCovered": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "WorkSemanticSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["openCount", "byRecommendationAction", "unacknowledgedCount"],
+      "properties": {
+        "openCount": { "type": "integer", "minimum": 0 },
+        "byRecommendationAction": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        },
+        "unacknowledgedCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "CountsBySeverity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["error", "warning", "info"],
+      "properties": {
+        "error": { "type": "integer", "minimum": 0 },
+        "warning": { "type": "integer", "minimum": 0 },
+        "info": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "IssueSemanticSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "countsBySeverity", "topIssueIds"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "countsBySeverity": { "$ref": "#/definitions/CountsBySeverity" },
+        "topIssueIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Severity/scope/type order via sortIssuesForSnapshot."
+        },
+        "topIssueTypes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional. If present must be array, never null."
+        }
+      }
+    }
+  }
+}

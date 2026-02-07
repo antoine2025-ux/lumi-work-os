@@ -11,6 +11,8 @@
  * This page answers: "Who decides this type of thing?"
  */
 
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { DecisionDomainListClient } from "@/components/org/decision/DecisionDomainListClient";
 import { OrgPageViewTracker } from "@/components/org/telemetry/OrgPageViewTracker";
@@ -20,7 +22,12 @@ import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 
 export const dynamic = "force-dynamic";
 
-export default async function DecisionAuthoritySettingsPage() {
+type PageProps = {
+  searchParams: Promise<{ returnTo?: string; domain?: string }>;
+};
+
+export default async function DecisionAuthoritySettingsPage({ searchParams }: PageProps) {
+  const params = await searchParams;
   const context = await getOrgPermissionContext();
 
   if (!context) {
@@ -63,6 +70,9 @@ export default async function DecisionAuthoritySettingsPage() {
     );
   }
 
+  // O1: returnTo affordance — visible link back to work request during onboarding
+  const returnTo = params.returnTo;
+
   return (
     <>
       <OrgPageViewTracker route="/org/settings/decision-authority" name="Decision Authority Settings" />
@@ -71,7 +81,16 @@ export default async function DecisionAuthoritySettingsPage() {
         title="Decision Authority"
         description="Configure who decides for each domain and escalation paths."
       />
-      <div className="px-10 pb-10">
+      <div className="px-10 pb-10 space-y-4">
+        {returnTo && (
+          <Link
+            href={decodeURIComponent(returnTo)}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to work request
+          </Link>
+        )}
         <DecisionDomainListClient />
       </div>
     </>

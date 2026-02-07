@@ -88,6 +88,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         requesterPersonId: workRequest.requesterPersonId,
         createdById: workRequest.createdById,
         status: workRequest.status,
+        isProvisional: workRequest.isProvisional,
         closedAt: workRequest.closedAt?.toISOString() ?? null,
         createdAt: workRequest.createdAt.toISOString(),
         updatedAt: workRequest.updatedAt.toISOString(),
@@ -257,6 +258,19 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       updates.requesterPersonId = body.requesterPersonId;
     }
 
+    // O1: Allow converting provisional → normal (never the reverse)
+    if (body.isProvisional !== undefined) {
+      if (body.isProvisional === false && existing.isProvisional === true) {
+        updates.isProvisional = false;
+      } else if (body.isProvisional === true) {
+        return NextResponse.json(
+          { ok: false, error: "Cannot set isProvisional to true via API" },
+          { status: 400 }
+        );
+      }
+      // isProvisional: false on already non-provisional is a no-op, skip
+    }
+
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ ok: false, error: "No valid fields to update" }, { status: 400 });
     }
@@ -318,6 +332,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       requesterPersonId: workRequest.requesterPersonId,
       createdById: workRequest.createdById,
       status: workRequest.status,
+      isProvisional: workRequest.isProvisional,
       closedAt: workRequest.closedAt?.toISOString() ?? null,
       createdAt: workRequest.createdAt.toISOString(),
       updatedAt: workRequest.updatedAt.toISOString(),

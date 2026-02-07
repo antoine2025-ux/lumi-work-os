@@ -86,6 +86,21 @@ Rules:
   - Activity
 - Do not hide important context in unstructured blobs unless explicitly requested.
 
+### Evidence Values
+
+Evidence values exposed to Loopbrain must be shallow, JSON-serializable primitives or flat objects. No nested or opaque blobs.
+
+### Blocker Priority
+
+Blocker priority must be defined in exactly one canonical module and reused everywhere. See `src/lib/loopbrain/contract/blockerPriority.v0.ts`.
+
+### Org Semantic Snapshot (S1+)
+
+OrgSemanticSnapshotV0 is a machine contract, not a UI model.
+- No UI component may depend on derived or reformatted fields from this snapshot.
+- UI may only display snapshot data, never reinterpret it.
+- Do not add or change snapshot fields for UI convenience.
+
 ---
 
 ## 7. VERIFICATION IS REQUIRED

@@ -6,6 +6,8 @@
  * This prevents drift when routes evolve.
  */
 
+import type { OrgIssue } from "@/lib/org/deriveIssues";
+
 // ---------------------------------------------------------------------------
 // Structure deep links
 // ---------------------------------------------------------------------------
@@ -72,4 +74,51 @@ export function deepLinkForIssues(severity?: string): string {
     return `/org/issues?severity=${encodeURIComponent(severity)}`;
   }
   return `/org/issues`;
+}
+
+// ---------------------------------------------------------------------------
+// W1.5: Recommendation-aware deep links (issue type filters)
+// ---------------------------------------------------------------------------
+
+/** Navigate to Issues page pre-filtered to specific issue types. */
+export function deepLinkForIssuesByTypes(types: OrgIssue[]): string {
+  if (types.length === 0) {
+    return `/org/issues`;
+  }
+  return `/org/issues?types=${types.map(encodeURIComponent).join(",")}`;
+}
+
+/** Issues page filtered to ownership-related issues. */
+export function deepLinkForOwnershipIssues(): string {
+  return deepLinkForIssuesByTypes([
+    "UNOWNED_TEAM",
+    "UNOWNED_DEPARTMENT",
+    "OWNERSHIP_CONFLICT",
+  ]);
+}
+
+/** Issues page filtered to capacity-related issues. */
+export function deepLinkForCapacityIssues(): string {
+  return deepLinkForIssuesByTypes([
+    "OVERALLOCATED_PERSON",
+    "LOW_EFFECTIVE_CAPACITY",
+    "CAPACITY_CONTRACT_CONFLICT",
+  ]);
+}
+
+/** Issues page filtered to decision authority issues. */
+export function deepLinkForDecisionIssues(): string {
+  return deepLinkForIssuesByTypes([
+    "DECISION_AUTHORITY_MISSING",
+    "DECISION_DOMAIN_NO_COVERAGE",
+  ]);
+}
+
+/** Issues page filtered to role responsibility/alignment issues. */
+export function deepLinkForResponsibilityIssues(): string {
+  return deepLinkForIssuesByTypes([
+    "ROLE_ALIGNMENT_UNKNOWN",
+    "WORK_ROLE_MISALIGNED",
+    "ROLE_PROFILE_MISSING",
+  ]);
 }

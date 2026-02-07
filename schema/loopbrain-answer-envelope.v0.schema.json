@@ -1,0 +1,167 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://loopwell.com/schemas/loopbrain-answer-envelope.v0.json",
+  "title": "LoopbrainAnswerEnvelopeV0",
+  "description": "Machine-enforced output contract for Loopbrain answers. UI renders only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "questionId",
+    "answerability",
+    "confidence",
+    "supportingEvidence",
+    "blockingFactors",
+    "recommendedNextActions"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "v0" },
+    "generatedAt": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO 8601 timestamp."
+    },
+    "questionId": { "type": "string", "minLength": 1 },
+    "answerability": {
+      "type": "string",
+      "enum": ["ANSWERABLE", "BLOCKED"]
+    },
+    "answer": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["summary"],
+          "properties": {
+            "summary": { "type": "string", "minLength": 1 },
+            "details": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "supportingEvidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "value"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(readiness|coverage|roles|decisionDomains|capacity|responsibility|work|issues)(\\.|$)"
+          },
+          "value": { "$ref": "#/definitions/EvidenceValue" }
+        }
+      }
+    },
+    "blockingFactors": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/OrgReadinessBlocker" }
+    },
+    "recommendedNextActions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label"],
+        "properties": {
+          "label": { "type": "string" },
+          "deepLink": {
+            "type": "string",
+            "pattern": "^/org/.*",
+            "description": "Absolute path only, no protocol/external URLs."
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "snapshotHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "if": {
+    "properties": { "answerability": { "const": "BLOCKED" } },
+    "required": ["answerability"]
+  },
+  "then": {
+    "allOf": [
+      {
+        "properties": {
+          "answer": { "type": "null" },
+          "supportingEvidence": { "type": "array", "maxItems": 0 },
+          "confidence": { "type": "number", "maximum": 0.3 },
+          "blockingFactors": { "type": "array", "minItems": 1 }
+        },
+        "required": ["answer", "supportingEvidence", "confidence", "blockingFactors"]
+      },
+      { "not": { "type": "object", "required": ["warnings"], "properties": { "warnings": { "type": "array" } } } }
+    ]
+  },
+  "else": {
+    "if": {
+      "properties": { "answerability": { "const": "ANSWERABLE" } },
+      "required": ["answerability"]
+    },
+    "then": {
+      "properties": {
+        "answer": { "type": "object" },
+        "supportingEvidence": { "type": "array", "minItems": 1 },
+        "confidence": { "type": "number", "minimum": 0.4 }
+      },
+      "required": ["answer", "supportingEvidence", "confidence"]
+    }
+  },
+  "definitions": {
+    "OrgReadinessBlocker": {
+      "type": "string",
+      "enum": [
+        "NO_ACTIVE_PEOPLE",
+        "NO_TEAMS",
+        "OWNERSHIP_INCOMPLETE",
+        "NO_DECISION_DOMAINS",
+        "CAPACITY_COVERAGE_BELOW_MIN",
+        "RESPONSIBILITY_PROFILES_MISSING",
+        "WORK_CANNOT_EVALUATE_BASELINE"
+      ]
+    },
+    "EvidenceValue": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "null" },
+        { "type": "array", "items": { "type": "string" } },
+        { "type": "array", "items": { "type": "number" } },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "number" },
+              { "type": "boolean" },
+              { "type": "null" }
+            ]
+          },
+          "propertyNames": {
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$",
+            "description": "snake_case or camelCase ASCII, no spaces/dots."
+          }
+        }
+      ]
+    }
+  }
+}

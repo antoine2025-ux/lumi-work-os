@@ -55,6 +55,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Work request not found" }, { status: 404 });
     }
 
+    // O1: Provisional work requests must be converted before closing
+    if (existing.isProvisional) {
+      return NextResponse.json(
+        { error: "Provisional work requests must be converted before closing" },
+        { status: 400 }
+      );
+    }
+
     // Already closed
     if (existing.status === "CLOSED") {
       return NextResponse.json(

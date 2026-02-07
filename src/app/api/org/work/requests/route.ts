@@ -19,7 +19,7 @@ import {
   getEstimatedEffortHours,
 } from "@/lib/org/work/effortDefaults";
 import { getWorkRequestResponseMeta } from "@/lib/org/work/types";
-import type { WorkRequestStatus, WorkPriority, WorkDomainType } from "@prisma/client";
+import type { Prisma, WorkRequestStatus, WorkPriority, WorkDomainType } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const domainType = searchParams.get("domainType") as WorkDomainType | null;
 
     // Step 5: Build query
-    const where: Parameters<typeof prisma.workRequest.findMany>[0]["where"] = {
+    const where: Prisma.WorkRequestWhereInput = {
       workspaceId,
     };
 
@@ -64,41 +64,58 @@ export async function GET(request: NextRequest) {
       where.domainType = domainType;
     }
 
-    // Step 6: Fetch work requests
+    // Step 6: Fetch work requests with latest recommendation log
     const requests = await prisma.workRequest.findMany({
       where,
       orderBy: [
         { priority: "asc" },
         { desiredStart: "asc" },
       ],
+      include: {
+        recommendationLogs: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            recommendationAction: true,
+            acknowledgedAt: true,
+          },
+        },
+      },
     });
 
     // Step 7: Get effort defaults for conversion
     const effortDefaults = await getOrCreateWorkspaceEffortDefaults(workspaceId);
 
-    // Step 8: Serialize responses
-    const serialized = requests.map((req) => ({
-      id: req.id,
-      title: req.title,
-      description: req.description,
-      priority: req.priority,
-      desiredStart: req.desiredStart.toISOString(),
-      desiredEnd: req.desiredEnd.toISOString(),
-      effortType: req.effortType,
-      effortHours: req.effortHours,
-      effortTShirt: req.effortTShirt,
-      estimatedEffortHours: getEstimatedEffortHours(req, effortDefaults),
-      domainType: req.domainType,
-      domainId: req.domainId,
-      requiredRoleType: req.requiredRoleType,
-      requiredSeniority: req.requiredSeniority,
-      requesterPersonId: req.requesterPersonId,
-      createdById: req.createdById,
-      status: req.status,
-      closedAt: req.closedAt?.toISOString() ?? null,
-      createdAt: req.createdAt.toISOString(),
-      updatedAt: req.updatedAt.toISOString(),
-    }));
+    // Step 8: Serialize responses (sort order unchanged — no recommendation-based reordering)
+    const serialized = requests.map((req) => {
+      const latestLog = req.recommendationLogs[0] ?? null;
+      return {
+        id: req.id,
+        title: req.title,
+        description: req.description,
+        priority: req.priority,
+        desiredStart: req.desiredStart.toISOString(),
+        desiredEnd: req.desiredEnd.toISOString(),
+        effortType: req.effortType,
+        effortHours: req.effortHours,
+        effortTShirt: req.effortTShirt,
+        estimatedEffortHours: getEstimatedEffortHours(req, effortDefaults),
+        domainType: req.domainType,
+        domainId: req.domainId,
+        requiredRoleType: req.requiredRoleType,
+        requiredSeniority: req.requiredSeniority,
+        requesterPersonId: req.requesterPersonId,
+        createdById: req.createdById,
+        status: req.status,
+        closedAt: req.closedAt?.toISOString() ?? null,
+        isProvisional: req.isProvisional,
+        createdAt: req.createdAt.toISOString(),
+        updatedAt: req.updatedAt.toISOString(),
+        // W1.5: Latest recommendation state
+        latestRecommendationAction: latestLog?.recommendationAction ?? null,
+        latestAcknowledgedAt: latestLog?.acknowledgedAt?.toISOString() ?? null,
+      };
+    });
 
     return NextResponse.json({
       ok: true,
@@ -136,11 +153,98 @@ export async function POST(request: NextRequest) {
 
     // Step 4: Parse and validate request body
     const body = await request.json();
+    const isProvisional = body.provisional === true;
 
     // Required fields
     if (!body.title?.trim()) {
       return NextResponse.json({ error: "title is required" }, { status: 400 });
     }
+
+    // O1: Provisional creation — relaxed defaults for onboarding
+    if (isProvisional) {
+      // Guard: only one provisional per workspace (regardless of status).
+      // A provisional must be converted (isProvisional = false) before creating another.
+      const existingProvisional = await prisma.workRequest.count({
+        where: { workspaceId, isProvisional: true },
+      });
+      if (existingProvisional > 0) {
+        return NextResponse.json(
+          { error: "A provisional work request already exists. Convert it first." },
+          { status: 409 }
+        );
+      }
+
+      // requiredRoleType is required for provisional
+      if (!body.requiredRoleType?.trim()) {
+        return NextResponse.json(
+          { error: "requiredRoleType is required for provisional work requests" },
+          { status: 400 }
+        );
+      }
+
+      // Apply relaxed defaults
+      const now = new Date();
+      const defaultEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const priority = body.priority || "P2";
+      const domainType = body.domainType || "OTHER";
+      const desiredStart = body.desiredStart ? new Date(body.desiredStart) : now;
+      const desiredEnd = body.desiredEnd ? new Date(body.desiredEnd) : defaultEnd;
+      const effortType = body.effortType || "HOURS";
+
+      const workRequest = await prisma.workRequest.create({
+        data: {
+          workspaceId,
+          title: body.title.trim(),
+          description: body.description?.trim() || null,
+          priority,
+          desiredStart,
+          desiredEnd,
+          effortType,
+          effortHours: body.effortHours ?? null,
+          effortTShirt: body.effortTShirt ?? null,
+          domainType,
+          domainId: body.domainId ?? null,
+          requiredRoleType: body.requiredRoleType.trim(),
+          requiredSeniority: body.requiredSeniority ?? null,
+          requesterPersonId: body.requesterPersonId ?? null,
+          createdById: userId,
+          status: "OPEN",
+          isProvisional: true,
+        },
+      });
+
+      const effortDefaults = await getOrCreateWorkspaceEffortDefaults(workspaceId);
+
+      return NextResponse.json({
+        ok: true,
+        request: {
+          id: workRequest.id,
+          title: workRequest.title,
+          description: workRequest.description,
+          priority: workRequest.priority,
+          desiredStart: workRequest.desiredStart.toISOString(),
+          desiredEnd: workRequest.desiredEnd.toISOString(),
+          effortType: workRequest.effortType,
+          effortHours: workRequest.effortHours,
+          effortTShirt: workRequest.effortTShirt,
+          estimatedEffortHours: getEstimatedEffortHours(workRequest, effortDefaults),
+          domainType: workRequest.domainType,
+          domainId: workRequest.domainId,
+          requiredRoleType: workRequest.requiredRoleType,
+          requiredSeniority: workRequest.requiredSeniority,
+          requesterPersonId: workRequest.requesterPersonId,
+          createdById: workRequest.createdById,
+          status: workRequest.status,
+          isProvisional: workRequest.isProvisional,
+          closedAt: null,
+          createdAt: workRequest.createdAt.toISOString(),
+          updatedAt: workRequest.updatedAt.toISOString(),
+          workTags: [],
+        },
+      }, { status: 201 });
+    }
+
+    // --- Normal (non-provisional) creation ---
     if (!body.priority) {
       return NextResponse.json({ error: "priority is required" }, { status: 400 });
     }
@@ -253,6 +357,7 @@ export async function POST(request: NextRequest) {
         requesterPersonId: body.requesterPersonId ?? null,
         createdById: userId,
         status: "OPEN",
+        isProvisional: false,
         // Phase K: Connect work tags if provided
         workTags: body.workTagIds?.length
           ? { connect: body.workTagIds.map((id: string) => ({ id })) }
@@ -286,6 +391,7 @@ export async function POST(request: NextRequest) {
         requesterPersonId: workRequest.requesterPersonId,
         createdById: workRequest.createdById,
         status: workRequest.status,
+        isProvisional: workRequest.isProvisional,
         closedAt: null,
         createdAt: workRequest.createdAt.toISOString(),
         updatedAt: workRequest.updatedAt.toISOString(),

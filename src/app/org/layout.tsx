@@ -19,12 +19,13 @@ import {
   isOrgCenterBeta,
   isOrgCenterForceDisabled,
 } from "@/lib/org/feature-flags";
-import { OrgWelcomeOverlay } from "@/components/org/onboarding/OrgWelcomeOverlay";
 import { OrgCenterDisabled } from "@/components/org/OrgCenterDisabled";
 import { OrgAnnouncementBanner } from "@/components/org/OrgAnnouncementBanner";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 type OrgLayoutProps = {
   children: ReactNode;
@@ -166,18 +167,65 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
       }
     }
 
-    // Fetch workspace to check onboarding status
-    // Note: orgCenterOnboardingCompletedAt may not exist in schema yet
-    let shouldShowOnboarding = false;
-    if (context && prisma) {
+    // O1: Intent-Driven Onboarding redirect
+    // Redirect OWNER users to /org/onboarding/work if onboarding isn't complete
+    if (context && prisma && context.role === "OWNER") {
       try {
-        const workspace = await prisma.workspace.findUnique({
-          where: { id: context.orgId },
-          select: { id: true },
-        });
-        // For now, skip onboarding check if field doesn't exist
-        // shouldShowOnboarding = !workspace?.orgCenterOnboardingCompletedAt && context.role === "OWNER";
+        // Read the request URL to check for escape hatch and current path
+        const headersList = await headers();
+        const fullUrl = headersList.get("x-url") || headersList.get("referer") || "";
+        const nextUrl = headersList.get("next-url") || "";
+
+        // Determine current pathname (prefer next-url, fallback to x-url parsing)
+        let pathname = nextUrl;
+        if (!pathname && fullUrl) {
+          try {
+            pathname = new URL(fullUrl).pathname;
+          } catch {
+            pathname = "";
+          }
+        }
+
+        // Skip if already on the onboarding page
+        const isOnOnboardingPage = pathname.startsWith("/org/onboarding");
+
+        // Skip if escape hatch ?skipOnboarding=true is present
+        let hasSkipParam = false;
+        if (fullUrl) {
+          try {
+            const url = new URL(fullUrl);
+            hasSkipParam = url.searchParams.get("skipOnboarding") === "true";
+          } catch {
+            // Ignore URL parse errors
+          }
+        }
+
+        if (!isOnOnboardingPage && !hasSkipParam) {
+          const workspace = await prisma.workspace.findUnique({
+            where: { id: context.orgId },
+            select: { orgCenterOnboardingCompletedAt: true },
+          });
+
+          if (!workspace?.orgCenterOnboardingCompletedAt) {
+            // Check if a provisional work request already exists (user is mid-onboarding)
+            const provisionalCount = await prisma.workRequest.count({
+              where: { workspaceId: context.orgId, isProvisional: true, status: "OPEN" },
+            });
+
+            if (provisionalCount === 0) {
+              redirect("/org/onboarding/work");
+            }
+            // If provisional exists, let through — user is mid-onboarding
+          }
+        }
       } catch (error) {
+        // Re-throw redirect errors
+        if (error && typeof error === "object" && "digest" in error) {
+          const err = error as { digest?: string };
+          if (err.digest === "NEXT_REDIRECT") {
+            throw error;
+          }
+        }
         console.error("[OrgLayout] Failed to check onboarding status:", error);
         // Don't block rendering if onboarding check fails
       }
@@ -189,7 +237,6 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
         <OrgLayoutClient beta={isOrgCenterBeta()}>
           {children}
         </OrgLayoutClient>
-        <OrgWelcomeOverlay shouldShow={shouldShowOnboarding} />
       </OrgPermissionsProvider>
     );
   } catch (error) {

@@ -40,6 +40,29 @@ type WorkRequestSummary = {
   status: string;
   closedAt: string | null;
   createdAt: string;
+  // W1.5: Latest recommendation state
+  latestRecommendationAction: string | null;
+  latestAcknowledgedAt: string | null;
+};
+
+// W1.5: Recommendation pill config
+const recommendationPillConfig: Record<string, { label: string; className: string }> = {
+  PROCEED: {
+    label: "Proceed",
+    className: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+  },
+  DELAY: {
+    label: "Delay",
+    className: "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30",
+  },
+  REASSIGN: {
+    label: "Reassign",
+    className: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30",
+  },
+  REQUEST_SUPPORT: {
+    label: "Request Support",
+    className: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30",
+  },
 };
 
 const priorityColors: Record<string, string> = {
@@ -197,9 +220,32 @@ export function WorkRequestListClient() {
                     </div>
                     <CardTitle className="text-lg">{req.title}</CardTitle>
                   </div>
-                  <div className="text-right text-sm text-muted-foreground">
-                    <div>{formatDate(req.desiredStart)} - {formatDate(req.desiredEnd)}</div>
-                    <div className="font-medium text-foreground">{formatEffort(req)}</div>
+                  <div className="flex items-start gap-3">
+                    {/* W1.5: Recommendation pill */}
+                    {(() => {
+                      const pill = req.latestRecommendationAction
+                        ? recommendationPillConfig[req.latestRecommendationAction]
+                        : null;
+                      return (
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className={`text-xs whitespace-nowrap ${
+                              pill?.className ?? "bg-muted/50 text-muted-foreground border-muted"
+                            }`}
+                          >
+                            {pill?.label ?? "Not evaluated"}
+                          </Badge>
+                          {req.latestAcknowledgedAt && (
+                            <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400 flex-shrink-0" />
+                          )}
+                        </div>
+                      );
+                    })()}
+                    <div className="text-right text-sm text-muted-foreground">
+                      <div>{formatDate(req.desiredStart)} - {formatDate(req.desiredEnd)}</div>
+                      <div className="font-medium text-foreground">{formatEffort(req)}</div>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
