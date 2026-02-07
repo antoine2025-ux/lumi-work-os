@@ -16,7 +16,11 @@ import {
   Lightbulb,
   Languages,
   Search,
-  CheckSquare
+  CheckSquare,
+  ThumbsUp,
+  ThumbsDown,
+  ChevronsUp,
+  ChevronsDown,
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -77,8 +81,24 @@ export function LoopbrainAssistantPanel({
   const [isLoading, setIsLoading] = useState(false)
   const [displayMode, setDisplayMode] = useState<'sidebar' | 'floating'>(propDisplayMode || 'floating')
   const [lastLoopbrainResponse, setLastLoopbrainResponse] = useState<LoopbrainResponse | null>(null)
+  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, string>>({}) // messageId -> rating|signal
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Send feedback to the API and track locally
+  const handleFeedback = async (messageId: string, rating: "up" | "down", signal?: "too_long" | "too_short") => {
+    const key = signal ? `${rating}_${signal}` : rating
+    setFeedbackGiven((prev) => ({ ...prev, [messageId]: key }))
+    try {
+      await fetch("/api/loopbrain/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId, rating, signal }),
+      })
+    } catch (err) {
+      console.error("Failed to send feedback", err)
+    }
+  }
 
   // Sync prop display mode
   useEffect(() => {
@@ -401,6 +421,66 @@ export function LoopbrainAssistantPanel({
                               >
                                 {message.content}
                               </ReactMarkdown>
+                            </div>
+
+                            {/* Feedback actions */}
+                            <div className="flex items-center gap-1 pt-1">
+                              {(() => {
+                                const fb = feedbackGiven[message.id]
+                                return (
+                                  <>
+                                    <button
+                                      onClick={() => handleFeedback(message.id, "up")}
+                                      className={cn(
+                                        "p-1 rounded hover:bg-background transition-colors",
+                                        fb === "up" ? "text-green-600 dark:text-green-400" : "text-muted-foreground/50 hover:text-muted-foreground"
+                                      )}
+                                      title="Good response"
+                                      disabled={!!fb}
+                                    >
+                                      <ThumbsUp className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleFeedback(message.id, "down")}
+                                      className={cn(
+                                        "p-1 rounded hover:bg-background transition-colors",
+                                        fb === "down" ? "text-red-600 dark:text-red-400" : "text-muted-foreground/50 hover:text-muted-foreground"
+                                      )}
+                                      title="Bad response"
+                                      disabled={!!fb}
+                                    >
+                                      <ThumbsDown className="h-3.5 w-3.5" />
+                                    </button>
+                                    <span className="w-px h-3.5 bg-border mx-1" />
+                                    <button
+                                      onClick={() => handleFeedback(message.id, "down", "too_long")}
+                                      className={cn(
+                                        "px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors",
+                                        fb === "down_too_long"
+                                          ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                                          : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-background"
+                                      )}
+                                      title="Response was too long"
+                                      disabled={!!fb}
+                                    >
+                                      <span className="flex items-center gap-0.5"><ChevronsDown className="h-3 w-3" />Too long</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleFeedback(message.id, "down", "too_short")}
+                                      className={cn(
+                                        "px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors",
+                                        fb === "down_too_short"
+                                          ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                                          : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-background"
+                                      )}
+                                      title="Response was too short"
+                                      disabled={!!fb}
+                                    >
+                                      <span className="flex items-center gap-0.5"><ChevronsUp className="h-3 w-3" />Too short</span>
+                                    </button>
+                                  </>
+                                )
+                              })()}
                             </div>
                             
                             {/* Loopbrain suggestions and retrieved items - only for last assistant message */}

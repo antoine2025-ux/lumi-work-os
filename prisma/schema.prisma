@@ -100,6 +100,7 @@ model User {
   allocations           ProjectAllocation[]
   createdTodos          Todo[]                 @relation("TodoCreator")
   assignedTodos         Todo[]                 @relation("TodoAssignee")
+  loopbrainUserProfiles LoopbrainUserProfile[]
 
   @@map("users")
 }
@@ -142,6 +143,7 @@ model Workspace {
   orgIntelligenceSettings        OrgIntelligenceSettings?
   orgUiPreferences               OrgUiPreference[]
   orgIssueResolutions            OrgIssueResolution[]
+  activities                     Activity[]
   projectTemplates               ProjectTemplate[]
   projects                       Project[]
   roleCards                      RoleCard[]
@@ -189,6 +191,9 @@ model Workspace {
 
   // Todos
   todos Todo[]
+
+  // Loopbrain personalization
+  loopbrainUserProfiles LoopbrainUserProfile[]
 
   @@map("workspaces")
 }
@@ -1025,17 +1030,21 @@ model ProjectTemplate {
 }
 
 model Activity {
-  id        String   @id @default(cuid())
-  actorId   String
-  entity    String
-  entityId  String
-  action    String
-  meta      Json?
-  createdAt DateTime @default(now())
-  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  actorId     String
+  workspaceId String
+  entity      String
+  entityId    String
+  action      String
+  meta        Json?
+  createdAt   DateTime  @default(now())
+  actor       User      @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([actorId, entity, entityId], map: "idx_activities_actor_entity")
   @@index([createdAt(sort: Desc)], map: "idx_activities_created")
+  @@index([workspaceId], map: "idx_activities_workspace")
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_activities_workspace_created")
   @@map("activities")
 }
 
@@ -1906,6 +1915,25 @@ model OrgUiPreference {
   @@index([workspaceId])
   @@index([userId])
   @@map("org_ui_preferences")
+}
+
+model LoopbrainUserProfile {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  userId          String
+  tone            String   @default("balanced") // e.g. "concise", "friendly", "formal", "balanced"
+  verbosity       Int      @default(3) // 1 (terse) to 5 (detailed)
+  formatting      Json     @default("{}") // { bullets: true, headings: true, checklists: false }
+  focusProjectIds Json     @default("[]") // string[] of project IDs
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@map("loopbrain_user_profiles")
 }
 
 model OrgHealthSnapshot {

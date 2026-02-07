@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadCurrentWorkspaceOrgContextBundle } from "@/lib/context/org/loadCurrentWorkspaceOrgContextBundle";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -12,13 +13,11 @@ export const dynamic = "force-dynamic";
  * Returns a unified OrgContextBundle from the Context Store for the current workspace.
  * This endpoint is READ-ONLY: it does not trigger sync; combine with POST /api/loopbrain/org/context/sync when you want fresh data.
  *
- * Protected: Only authenticated users in that workspace can access it.
+ * Protected: getUnifiedAuth → assertAccess (workspace MEMBER) → load bundle.
  */
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user and ensure workspace access
     const auth = await getUnifiedAuth(request);
-
     if (!auth.workspaceId) {
       return NextResponse.json(
         {
@@ -29,6 +28,12 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["MEMBER"],
+    });
 
     const { workspaceId, bundle } =
       await loadCurrentWorkspaceOrgContextBundle(request);

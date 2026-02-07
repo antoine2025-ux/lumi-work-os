@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { buildOrgQuestionPrompt } from "@/lib/loopbrain/orgQuestionPrompt";
 import { runOrgQuestionLLM } from "@/lib/loopbrain/orgLlmClient";
 import {
@@ -8,6 +7,7 @@ import {
   createAnswerPreview,
 } from "@/lib/loopbrain/orgQueryLogger";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +24,25 @@ type OrgAskRequestBody = {
  * - Builds an Org-focused prompt.
  * - Calls LLM via orgLlmClient to generate an answer.
  * - Returns answer + prompt + metadata.
+ *
+ * Auth: getUnifiedAuth → assertAccess (workspace MEMBER) → use auth.workspaceId.
  */
 export async function POST(req: NextRequest) {
   try {
-    const workspaceId = await getCurrentWorkspaceId();
+    const auth = await getUnifiedAuth(req);
+    if (!auth.workspaceId) {
+      return NextResponse.json(
+        { ok: false, error: "No workspace in session." },
+        { status: 400 }
+      );
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["MEMBER"],
+    });
+    const workspaceId = auth.workspaceId;
 
     const body = (await req.json()) as OrgAskRequestBody;
     const question = (body.question ?? "").trim();
@@ -68,17 +83,7 @@ export async function POST(req: NextRequest) {
 
     const answer = llmResult.answer ?? "";
 
-    // Try to get current user ID (non-fatal if unavailable)
-    let currentUserId: string | null = null;
-    try {
-      const auth = await getUnifiedAuth(req);
-      currentUserId = auth.user.userId ?? null;
-    } catch (authError) {
-      console.warn(
-        "[loopbrain/org/ask] Could not resolve current user for logging",
-        authError
-      );
-    }
+    const currentUserId = auth.user.userId ?? null;
 
     // Fire-and-forget logging (no await necessary,
     // but we keep await to preserve ordering in dev).

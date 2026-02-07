@@ -67,6 +67,7 @@ import { recordOrgRoutingEvent } from './org/telemetry'
 import type { OrgDebugSnapshot } from '@/types/loopbrain-org-debug'
 import { detectOrgQuestionType as detectOrgQuestionTypeFromModule } from './orgQuestionType'
 import { logOrgLoopbrainQuery } from './orgTelemetry'
+import { getProfile, buildStyleInstructions } from './personalization/profile'
 
 /**
  * Default LLM model for Loopbrain
@@ -318,8 +319,13 @@ async function handleSpacesMode(
   // Build prompt (include Slack availability)
   const prompt = buildSpacesPrompt(req, contextSummary, slackAvailable)
   
+  // Personalization: load user profile and build style instructions
+  const userProfile = await getProfile(req.workspaceId, req.userId)
+  const styleBlock = buildStyleInstructions(userProfile)
+  const spacesSystemPrompt = styleBlock ? `You are Loopbrain, Loopwell's Virtual COO assistant.\n\n${styleBlock}` : undefined
+  
   // Call LLM
-  const llmResponse = await callLoopbrainLLM(prompt)
+  const llmResponse = await callLoopbrainLLM(prompt, spacesSystemPrompt)
   
   // Check if LLM response contains Slack action requests and execute them
   // Only if explicitly requested or if LLM included Slack commands
@@ -599,6 +605,13 @@ async function handleOrgMode(
     systemPrompt = ORG_SYSTEM_PROMPT
   }
   
+  // Personalization: inject user style preferences into system prompt
+  const orgUserProfile = await getProfile(req.workspaceId, req.userId)
+  const orgStyleBlock = buildStyleInstructions(orgUserProfile)
+  if (orgStyleBlock) {
+    systemPrompt = systemPrompt + '\n\n' + orgStyleBlock
+  }
+  
   // Call LLM with appropriate system prompt
   // Use Org-specific config if in org mode
   const llmResponse = inOrgMode
@@ -749,8 +762,13 @@ async function handleDashboardMode(
   // Build prompt (include Slack availability)
   const prompt = buildDashboardPrompt(req, contextSummary, slackAvailable)
   
+  // Personalization: load user profile and build style instructions
+  const dashUserProfile = await getProfile(req.workspaceId, req.userId)
+  const dashStyleBlock = buildStyleInstructions(dashUserProfile)
+  const dashboardSystemPrompt = dashStyleBlock ? `You are Loopbrain, Loopwell's Virtual COO assistant.\n\n${dashStyleBlock}` : undefined
+  
   // Call LLM
-  const llmResponse = await callLoopbrainLLM(prompt)
+  const llmResponse = await callLoopbrainLLM(prompt, dashboardSystemPrompt)
   
   // Check if LLM response contains Slack action requests and execute them
   // Only if explicitly requested or if LLM included Slack commands

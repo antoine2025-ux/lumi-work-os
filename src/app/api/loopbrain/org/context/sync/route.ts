@@ -8,6 +8,7 @@ import { syncTeamContexts } from "@/lib/context/org/syncTeamContexts";
 import { syncPersonContexts } from "@/lib/context/org/syncPersonContexts";
 import { syncRoleContexts } from "@/lib/context/org/syncRoleContexts";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -24,13 +25,11 @@ export const dynamic = "force-dynamic";
  * - Syncs ROLE-level ContextItems (type="role", one per role/position)
  * - Returns all saved ContextItem rows as JSON
  *
- * Protected: Only authenticated users in that workspace can trigger it.
+ * Protected: getUnifiedAuth → assertAccess (workspace MEMBER) → sync.
  */
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user and ensure workspace access
     const auth = await getUnifiedAuth(request);
-    
     if (!auth.workspaceId) {
       return NextResponse.json(
         {
@@ -41,6 +40,12 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["MEMBER"],
+    });
 
     /**
      * Step 1:
