@@ -101,6 +101,8 @@ model User {
   createdTodos          Todo[]                 @relation("TodoCreator")
   assignedTodos         Todo[]                 @relation("TodoAssignee")
   loopbrainUserProfiles LoopbrainUserProfile[]
+  loopbrainChatFeedback LoopbrainChatFeedback[]
+  loopbrainOpenLoops    LoopbrainOpenLoop[]
 
   @@map("users")
 }
@@ -193,7 +195,9 @@ model Workspace {
   todos Todo[]
 
   // Loopbrain personalization
-  loopbrainUserProfiles LoopbrainUserProfile[]
+  loopbrainUserProfiles  LoopbrainUserProfile[]
+  loopbrainChatFeedback  LoopbrainChatFeedback[]
+  loopbrainOpenLoops     LoopbrainOpenLoop[]
 
   // W1.5: Recommendation Closure
   workRecommendationLogs WorkRecommendationLog[]
@@ -1940,6 +1944,59 @@ model LoopbrainUserProfile {
   @@unique([workspaceId, userId])
   @@index([workspaceId])
   @@map("loopbrain_user_profiles")
+}
+
+model LoopbrainChatFeedback {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  scope       String   @default("chat")
+  rating      String   // "up" | "down"
+  signal      String?  // "too_long" | "too_short" | "wrong_tone" | "good"
+  messageId   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, userId, createdAt])
+  @@index([workspaceId, scope])
+  @@map("loopbrain_chat_feedback")
+}
+
+enum OpenLoopType {
+  BLOCKED
+  WAITING
+  OVERDUE
+  NEEDS_RESPONSE
+}
+
+enum OpenLoopStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model LoopbrainOpenLoop {
+  id          String         @id @default(cuid())
+  workspaceId String
+  userId      String
+  type        OpenLoopType
+  status      OpenLoopStatus @default(OPEN)
+  title       String
+  detail      String?
+  entityType  String         // e.g. "task", "work_recommendation"
+  entityId    String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId, entityType, entityId])
+  @@index([workspaceId, userId, status])
+  @@map("loopbrain_open_loops")
 }
 
 model OrgHealthSnapshot {

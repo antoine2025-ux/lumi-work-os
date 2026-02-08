@@ -92,6 +92,19 @@ export interface LoopbrainContextSummary {
   projectEpics?: UnifiedContextObject[]
   /** Tasks for the current project (if projectId is present) */
   projectTasks?: UnifiedContextObject[]
+  /** User task summary for task-intent precision guard */
+  userTaskSummary?: string
+  /** Unified action items (tasks + todos) for structured prompt rendering */
+  userActionItems?: Array<{
+    id: string
+    source: string
+    title: string
+    status: string
+    priority: string | null
+    dueDate: string | null
+    isOverdue: boolean
+    projectName: string | null
+  }>
   /** Slack context from project channels (Tier B - non-persistent) */
   slackContext?: Array<{
     channel: string
@@ -140,6 +153,15 @@ export interface LoopbrainResponse {
   answer: string
   /** Suggested follow-up actions */
   suggestions: LoopbrainSuggestion[]
+  /** Open loops the system is tracking for this user (World Model v0) */
+  openLoops?: {
+    id: string
+    type: string
+    title: string
+    detail: string | null
+    entityType: string
+    entityId: string
+  }[]
   /** Optional metadata (model, tokens, etc.) */
   metadata?: {
     model?: string

@@ -68,6 +68,14 @@ import type { OrgDebugSnapshot } from '@/types/loopbrain-org-debug'
 import { detectOrgQuestionType as detectOrgQuestionTypeFromModule } from './orgQuestionType'
 import { logOrgLoopbrainQuery } from './orgTelemetry'
 import { getProfile, buildStyleInstructions } from './personalization/profile'
+import { buildPersonalizedSystemPrompt } from './personalization/systemPrompt'
+import { getOrgSnapshotContext } from './context/getOrgSnapshotContext'
+import { getMemberRole } from './context/getMemberRole'
+import { deriveOpenLoops } from './world/openLoops/deriveOpenLoops'
+import { fetchOpenLoops } from './world/openLoops/fetchOpenLoops'
+import { formatOpenLoopsForPrompt } from './world/openLoops/formatOpenLoopsForPrompt'
+import { detectIntentFromKeywords, type LoopbrainIntent } from './intent-router'
+import { getUserTaskContext } from './context/getUserTaskContext'
 
 /**
  * Default LLM model for Loopbrain
@@ -94,6 +102,24 @@ export function getLastOrgDebugSnapshot(): OrgDebugSnapshot | null {
   return lastOrgDebugSnapshot
 }
 
+// ---------------------------------------------------------------------------
+// Intent classification (lightweight, no LLM)
+// ---------------------------------------------------------------------------
+
+const TASK_INTENTS: ReadonlySet<LoopbrainIntent> = new Set(['task_status', 'task_priority'])
+
+function classifyQueryIntent(query: string): {
+  intent: LoopbrainIntent
+  isTaskIntent: boolean
+} {
+  const queryLower = query.toLowerCase().trim()
+  const tokens = queryLower
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 3)
+  const { intent } = detectIntentFromKeywords(queryLower, tokens)
+  return { intent, isTaskIntent: TASK_INTENTS.has(intent) }
+}
+
 /**
  * Main orchestrator function
  * 
@@ -113,12 +139,50 @@ export async function runLoopbrainQuery(
     queryLength: req.query.length, // Log length, not content
   })
 
+  // Refresh open loops (World Model v0) — bounded, idempotent
   try {
+    await deriveOpenLoops(req.workspaceId, req.userId)
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orchestrator.ts:after-derive',message:'deriveOpenLoops ok',data:{mode:req.mode},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+  } catch (err) {
+    logger.debug('Open loop derivation failed, continuing', {
+      workspaceId: req.workspaceId,
+      error: err instanceof Error ? err.message : String(err),
+    })
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orchestrator.ts:derive-catch',message:'deriveOpenLoops threw',data:{message:err instanceof Error ? err.message : String(err)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+  }
+
+  // Classify intent (lightweight, rule-based — no LLM)
+  const { intent, isTaskIntent } = classifyQueryIntent(req.query)
+  logger.debug('Intent classified', {
+    workspaceId: req.workspaceId,
+    intent,
+    isTaskIntent,
+    originalMode: req.mode,
+  })
+
+  // Override mode for task intents: force spaces (where task context lives)
+  if (isTaskIntent && req.mode !== 'spaces') {
+    logger.debug('Task intent detected, overriding mode to spaces', {
+      workspaceId: req.workspaceId,
+      intent,
+      fromMode: req.mode,
+    })
+    req = { ...req, mode: 'spaces' }
+  }
+
+  try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orchestrator.ts:before-switch',message:'Before mode switch',data:{mode:req.mode},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
     // Route to mode-specific handler
     let result: LoopbrainResponse
     switch (req.mode) {
       case 'spaces':
-        result = await handleSpacesMode(req)
+        result = await handleSpacesMode(req, { intent, isTaskIntent })
         break
       case 'org':
         result = await handleOrgMode(req)
@@ -161,8 +225,12 @@ export async function runLoopbrainQuery(
  * Focus: Projects, Pages, Tasks
  */
 async function handleSpacesMode(
-  req: LoopbrainRequest
+  req: LoopbrainRequest,
+  intentMeta?: { intent: LoopbrainIntent; isTaskIntent: boolean },
 ): Promise<LoopbrainResponse> {
+  const intent = intentMeta?.intent ?? 'unknown'
+  const isTaskIntent = intentMeta?.isTaskIntent ?? false
+
   // Check if Slack is available
   const slackAvailable = await isSlackAvailable(req.workspaceId)
   
@@ -233,6 +301,46 @@ async function handleSpacesMode(
       error
     })
     // Don't fail the request if ContextObjects fail to load
+  }
+
+  // Precision guard: if task intent, replace generic tasks with user-scoped tasks
+  if (isTaskIntent) {
+    try {
+      const userTaskCtx = await getUserTaskContext({
+        workspaceId: req.workspaceId,
+        userId: req.userId,
+      })
+      // Keep non-task context (projects etc.), replace tasks with user-scoped ones
+      contextSummary.structuredContext = [
+        ...(contextSummary.structuredContext?.filter((c) => c.type !== 'task') ?? []),
+        ...userTaskCtx.tasks,
+      ]
+      contextSummary.userTaskSummary = userTaskCtx.summary
+      // Wire unified action items (tasks + todos) for structured prompt rendering
+      contextSummary.userActionItems = userTaskCtx.actionItems.map((item) => ({
+        id: item.id,
+        source: item.source,
+        title: item.title,
+        status: item.status,
+        priority: item.priority,
+        dueDate: item.dueDate?.toISOString() ?? null,
+        isOverdue: item.isOverdue,
+        projectName: item.projectName,
+      }))
+      logger.debug('Task intent: injected user-scoped task context', {
+        workspaceId: req.workspaceId,
+        intent,
+        taskCount: userTaskCtx.tasks.length,
+        actionItemCount: userTaskCtx.actionItems.length,
+        summary: userTaskCtx.summary,
+      })
+    } catch (error) {
+      logger.error('Error fetching user task context', {
+        workspaceId: req.workspaceId,
+        error,
+      })
+      // Don't fail — generic tasks are still available as fallback
+    }
   }
 
   // Fetch personal space documents
@@ -316,13 +424,34 @@ async function handleSpacesMode(
     }
   }
   
+  // Dev-only assertion: task intents must have gone through the precision guard.
+  // If userTaskSummary is set, the guard ran (even if 0 tasks were found — that's valid).
+  // Only fire if the guard was somehow skipped entirely.
+  if (isTaskIntent && !contextSummary.userTaskSummary) {
+    const msg = `[Loopbrain] TASK intent reached LLM without task precision guard. Intent: ${intent}, query: "${req.query.slice(0, 80)}"`
+    if (process.env.NODE_ENV === 'development') {
+      throw new Error(msg)
+    }
+    logger.warn(msg, { workspaceId: req.workspaceId, intent })
+  }
+
   // Build prompt (include Slack availability)
-  const prompt = buildSpacesPrompt(req, contextSummary, slackAvailable)
+  let prompt = buildSpacesPrompt(req, contextSummary, slackAvailable)
+  
+  // Open Loops: fetch and inject into prompt
+  const openLoops = await fetchOpenLoops(req.workspaceId, req.userId)
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orchestrator.ts:spaces-after-fetch',message:'fetchOpenLoops done',data:{count:openLoops?.length??-1},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+  // #endregion
+  const openLoopsSection = formatOpenLoopsForPrompt(openLoops)
+  if (openLoopsSection) {
+    prompt = prompt + "\n\n" + openLoopsSection
+  }
   
   // Personalization: load user profile and build style instructions
   const userProfile = await getProfile(req.workspaceId, req.userId)
   const styleBlock = buildStyleInstructions(userProfile)
-  const spacesSystemPrompt = styleBlock ? `You are Loopbrain, Loopwell's Virtual COO assistant.\n\n${styleBlock}` : undefined
+  const spacesSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: styleBlock })
   
   // Call LLM
   const llmResponse = await callLoopbrainLLM(prompt, spacesSystemPrompt)
@@ -335,6 +464,9 @@ async function handleSpacesMode(
   // Build suggestions
   const suggestions = buildSpacesSuggestions(slackAvailable)
   
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orchestrator.ts:spaces-before-return',message:'Building spaces response',data:{openLoopsCount:openLoops.length},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion
   // Build response
   return {
     mode: 'spaces',
@@ -344,6 +476,14 @@ async function handleSpacesMode(
     context: contextSummary,
     answer: updatedContent,
     suggestions,
+    openLoops: openLoops.map((l) => ({
+      id: l.id,
+      type: l.type,
+      title: l.title,
+      detail: l.detail,
+      entityType: l.entityType,
+      entityId: l.entityId,
+    })),
     metadata: {
       model: llmResponse.model,
       tokens: llmResponse.usage,
@@ -460,6 +600,22 @@ async function handleOrgMode(
       error
     })
     // Don't fail the request if org people fail to load
+  }
+  
+  // Load Org Semantic Snapshot as top-priority context
+  let snapshotSection: string | null = null
+  try {
+    const memberRole = await getMemberRole(req.workspaceId, req.userId)
+    const snapshotCtx = await getOrgSnapshotContext({
+      workspaceId: req.workspaceId,
+      role: memberRole,
+    })
+    snapshotSection = snapshotCtx.section
+  } catch (err) {
+    logger.debug('Org snapshot unavailable, continuing without', {
+      workspaceId: req.workspaceId,
+      error: err instanceof Error ? err.message : String(err),
+    })
   }
   
   // 1) Determine if this is actually an Org question (guardrail)
@@ -592,7 +748,14 @@ async function handleOrgMode(
   }
   
   // Build prompt (include Slack availability and Org graph context)
-  const prompt = buildOrgPrompt(req, contextSummary, slackAvailable, orgGraphContextSection, orgContextForPrompt || undefined)
+  let prompt = buildOrgPrompt(req, contextSummary, slackAvailable, orgGraphContextSection, orgContextForPrompt || undefined, snapshotSection)
+  
+  // Open Loops: fetch and inject into prompt
+  const openLoops = await fetchOpenLoops(req.workspaceId, req.userId)
+  const openLoopsSection = formatOpenLoopsForPrompt(openLoops)
+  if (openLoopsSection) {
+    prompt = prompt + "\n\n" + openLoopsSection
+  }
   
   // Build system prompt - use Org-specific only if inOrgMode is true
   let systemPrompt: string
@@ -608,9 +771,7 @@ async function handleOrgMode(
   // Personalization: inject user style preferences into system prompt
   const orgUserProfile = await getProfile(req.workspaceId, req.userId)
   const orgStyleBlock = buildStyleInstructions(orgUserProfile)
-  if (orgStyleBlock) {
-    systemPrompt = systemPrompt + '\n\n' + orgStyleBlock
-  }
+  systemPrompt = buildPersonalizedSystemPrompt({ basePrompt: systemPrompt, styleInstructions: orgStyleBlock })
   
   // Call LLM with appropriate system prompt
   // Use Org-specific config if in org mode
@@ -690,6 +851,14 @@ async function handleOrgMode(
     context: contextSummary,
     answer: updatedContent,
     suggestions,
+    openLoops: openLoops.map((l) => ({
+      id: l.id,
+      type: l.type,
+      title: l.title,
+      detail: l.detail,
+      entityType: l.entityType,
+      entityId: l.entityId,
+    })),
     metadata: {
       model: llmResponse.model,
       tokens: llmResponse.usage,
@@ -760,12 +929,19 @@ async function handleDashboardMode(
   const contextSummary = await loadDashboardContextForRequest(req)
   
   // Build prompt (include Slack availability)
-  const prompt = buildDashboardPrompt(req, contextSummary, slackAvailable)
+  let prompt = buildDashboardPrompt(req, contextSummary, slackAvailable)
+  
+  // Open Loops: fetch and inject into prompt
+  const openLoops = await fetchOpenLoops(req.workspaceId, req.userId)
+  const openLoopsSection = formatOpenLoopsForPrompt(openLoops)
+  if (openLoopsSection) {
+    prompt = prompt + "\n\n" + openLoopsSection
+  }
   
   // Personalization: load user profile and build style instructions
   const dashUserProfile = await getProfile(req.workspaceId, req.userId)
   const dashStyleBlock = buildStyleInstructions(dashUserProfile)
-  const dashboardSystemPrompt = dashStyleBlock ? `You are Loopbrain, Loopwell's Virtual COO assistant.\n\n${dashStyleBlock}` : undefined
+  const dashboardSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: dashStyleBlock })
   
   // Call LLM
   const llmResponse = await callLoopbrainLLM(prompt, dashboardSystemPrompt)
@@ -787,6 +963,14 @@ async function handleDashboardMode(
     context: contextSummary,
     answer: updatedContent,
     suggestions,
+    openLoops: openLoops.map((l) => ({
+      id: l.id,
+      type: l.type,
+      title: l.title,
+      detail: l.detail,
+      entityType: l.entityType,
+      entityId: l.entityId,
+    })),
     metadata: {
       model: llmResponse.model,
       tokens: llmResponse.usage,
@@ -1271,6 +1455,18 @@ function buildSpacesPrompt(
 Your role is to help users manage projects, pages, and tasks within their workspace.
 You have access to contextual information about their workspace, projects, pages, and tasks.
 Be helpful, concise, and action-oriented.`)
+
+  // Task-intent precision: if user asked about their tasks, inject user-scoped summary and action items
+  if (ctx.userTaskSummary) {
+    sections.push(`\n## USER ACTION ITEMS (HIGH PRIORITY)`)
+    sections.push(`The user is asking about their personal tasks/to-dos. Answer ONLY from the action item data provided below. Do NOT summarize the workspace generically. Do NOT say tasks are unavailable if action item data is present. Use the term "action items" when referring to the combined list of tasks and to-dos.`)
+    sections.push(`\n**Summary:** ${ctx.userTaskSummary}`)
+
+    if (ctx.userActionItems && ctx.userActionItems.length > 0) {
+      sections.push(`\n## USER ACTION ITEMS (JSON)`)
+      sections.push('```json\n' + JSON.stringify(ctx.userActionItems, null, 2) + '\n```')
+    }
+  }
 
   // ContextObject usage instructions (add before Structured Context Objects section)
   if (ctx.structuredContext && ctx.structuredContext.length > 0) {
@@ -1766,13 +1962,19 @@ function buildOrgPrompt(
   ctx: LoopbrainContextSummary,
   slackAvailable: boolean = false,
   orgGraphContextSection: string | null = null,
-  orgContextForPrompt?: ReturnType<typeof buildOrgContextForPrompt> extends Promise<infer T> ? T : never
+  orgContextForPrompt?: ReturnType<typeof buildOrgContextForPrompt> extends Promise<infer T> ? T : never,
+  snapshotSection?: string | null,
 ): string {
   const orgQuestion = (ctx as any).orgQuestion as OrgQuestionContext | undefined
   const sections: string[] = []
 
   // Note: System prompt is now handled separately via ORG_SYSTEM_PROMPT in callLoopbrainLLM
   // This prompt section focuses on context and instructions
+
+  // Inject Org Semantic Snapshot as top-priority structural overview
+  if (snapshotSection) {
+    sections.push(snapshotSection)
+  }
 
   // Inject Org context from ContextStore (authoritative org graph)
   // Use specialized context if available, otherwise use generic section

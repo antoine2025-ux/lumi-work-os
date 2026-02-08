@@ -21,6 +21,10 @@ import {
   ThumbsDown,
   ChevronsUp,
   ChevronsDown,
+  Clock,
+  Lock,
+  Bell,
+  CircleDot,
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -526,6 +530,35 @@ export function LoopbrainAssistantPanel({
                                           )}
                                         </div>
                                       ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Open Loops (World Model v0) */}
+                                {lastLoopbrainResponse.openLoops && lastLoopbrainResponse.openLoops.length > 0 && (
+                                  <div className="mt-4 pt-4 border-t border-border">
+                                    <p className="text-xs font-medium text-muted-foreground mb-2">Open loops:</p>
+                                    <div className="space-y-1.5">
+                                      {lastLoopbrainResponse.openLoops.map((loop) => {
+                                        const LoopIcon = loop.type === "OVERDUE" ? Clock
+                                          : loop.type === "BLOCKED" ? Lock
+                                          : loop.type === "NEEDS_RESPONSE" ? Bell
+                                          : CircleDot
+                                        return (
+                                          <div
+                                            key={loop.id}
+                                            className="flex items-start gap-2 text-xs text-muted-foreground"
+                                          >
+                                            <LoopIcon className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                                            <div className="min-w-0">
+                                              <span className="font-medium text-foreground truncate block">{loop.title}</span>
+                                              {loop.detail && (
+                                                <span className="text-muted-foreground/70">{loop.detail}</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
                                     </div>
                                   </div>
                                 )}

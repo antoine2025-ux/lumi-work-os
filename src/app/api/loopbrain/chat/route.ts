@@ -154,8 +154,14 @@ export async function POST(request: NextRequest) {
     // Pass requestId to orchestrator for logging
     ;(loopbrainRequest as any).requestId = baseContext.requestId
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat/route.ts:pre-run',message:'Before runLoopbrainQuery',data:{mode:finalMode,workspaceId,userId:userId?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+    // #endregion
     // Run Loopbrain query
     const result = await runLoopbrainQuery(loopbrainRequest)
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat/route.ts:post-run',message:'After runLoopbrainQuery',data:{hasResult:!!result},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+    // #endregion
 
     // Log completion
     const durationMs = Date.now() - startTime
@@ -182,6 +188,10 @@ export async function POST(request: NextRequest) {
       ...baseContext,
       durationMs,
     }, error)
+    // #region agent log
+    const err = error instanceof Error ? error : new Error(String(error))
+    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat/route.ts:catch',message:'Chat route caught',data:{message:err.message,stack:err.stack?.slice(0,500),name:err.name},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+    // #endregion
 
     // Handle auth errors
     if (error instanceof Error) {

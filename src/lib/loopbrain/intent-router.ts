@@ -12,6 +12,9 @@ import { ContextObject } from '@/lib/context/context-types'
  * Detected intent types
  */
 export type LoopbrainIntent =
+  | 'task_status'
+  | 'task_priority'
+  | 'open_loops'
   | 'status_update'
   | 'list_entities'
   | 'find_document'
@@ -183,7 +186,7 @@ function isStopword(token: string): boolean {
 /**
  * Detect intent from keywords
  */
-function detectIntentFromKeywords(
+export function detectIntentFromKeywords(
   queryLower: string,
   tokens: string[]
 ): { intent: LoopbrainIntent; confidence: number; reasons: string[] } {
@@ -191,6 +194,39 @@ function detectIntentFromKeywords(
   let confidence = 0.5
   let intent: LoopbrainIntent = 'unknown'
   
+  // ----- Task-specific intents (checked first so they win over generic status_update) -----
+
+  // Task status: user asking about their personal task progress
+  const taskStatusKeywords = ['my task', 'my tasks', 'task status', 'overdue task', 'blocked task', 'how am i doing', 'doing with my task', 'task progress', 'my assignments', 'assigned to me']
+  const taskStatusRegex = /\b(doing with|progress on|status of)\b.*\btask/
+  if (taskStatusKeywords.some(kw => queryLower.includes(kw)) || taskStatusRegex.test(queryLower)) {
+    intent = 'task_status'
+    confidence = 0.9
+    reasons.push('Detected personal task status keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // Task priority: user asking what to work on next
+  const taskPriorityKeywords = ['work on next', 'my priorities', 'most urgent for me', 'what should i focus', 'what to focus on next', 'what should i work', 'my most important']
+  if (taskPriorityKeywords.some(kw => queryLower.includes(kw)) ||
+      (queryLower.includes('what') && queryLower.includes('next') && (queryLower.includes('task') || queryLower.includes('work')))) {
+    intent = 'task_priority'
+    confidence = 0.85
+    reasons.push('Detected task priority/next-action keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // Open loops: user asking what Loopbrain is tracking
+  const openLoopsKeywords = ['open loop', 'open loops', 'tracking for me', 'what are you tracking', "what's pending", 'whats pending', 'pending items', 'my pending']
+  if (openLoopsKeywords.some(kw => queryLower.includes(kw))) {
+    intent = 'open_loops'
+    confidence = 0.9
+    reasons.push('Detected open loops keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Existing intents -----
+
   // Capacity planning
   const capacityKeywords = ['capacity', 'available', 'timeoff', 'vacation', 'bandwidth', 'allocation', 'next weeks', 'support', 'who can help', 'who can', 'who has time']
   if (capacityKeywords.some(kw => queryLower.includes(kw)) || 
@@ -276,6 +312,17 @@ function selectModeFromIntent(
   let mode: LoopbrainMode | undefined
   
   switch (intent) {
+    case 'task_status':
+    case 'task_priority':
+      // Task intents always route to spaces (where task context lives)
+      mode = 'spaces'
+      reasons.push('Task intent requires spaces mode for task context')
+      break
+
+    case 'open_loops':
+      // Open loops are injected in all modes, keep current
+      break
+
     case 'capacity_planning':
       // Prefer org if org data exists, else dashboard
       if (availableContextHints?.hasOrgPeople || availableContextHints?.hasTeams || availableContextHints?.hasRoles) {

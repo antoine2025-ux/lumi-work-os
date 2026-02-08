@@ -2,8 +2,8 @@
  * POST /api/loopbrain/feedback
  *
  * Chat-level feedback endpoint for Loopbrain responses.
- * Stores feedback in LoopBrainFeedback and adjusts the user's
- * LoopbrainUserProfile (personalization).
+ * Stores feedback in LoopbrainChatFeedback (workspace+user scoped)
+ * and adjusts the user's LoopbrainUserProfile (personalization).
  *
  * Auth: getUnifiedAuth + assertAccess (workspace MEMBER+).
  */
@@ -21,13 +21,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type FeedbackRequestBody = {
-  messageId?: string;
-  rating: FeedbackRating;
-  signal?: FeedbackSignal;
-  comment?: string;
-};
-
 const VALID_RATINGS: FeedbackRating[] = ["up", "down"];
 const VALID_SIGNALS: FeedbackSignal[] = [
   "too_long",
@@ -35,6 +28,9 @@ const VALID_SIGNALS: FeedbackSignal[] = [
   "wrong_tone",
   "good",
 ];
+
+const MAX_COMMENT_LENGTH = 500;
+const MAX_MESSAGE_ID_LENGTH = 100;
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,10 +51,16 @@ export async function POST(req: NextRequest) {
     const workspaceId = auth.workspaceId;
     const userId = auth.user.userId;
 
-    const body = (await req.json()) as FeedbackRequestBody;
+    const body = (await req.json()) as {
+      messageId?: string;
+      rating?: string;
+      signal?: string;
+      comment?: string;
+    };
 
     // Validate rating
-    if (!body.rating || !VALID_RATINGS.includes(body.rating)) {
+    const rating = body.rating as FeedbackRating | undefined;
+    if (!rating || !VALID_RATINGS.includes(rating)) {
       return NextResponse.json(
         { ok: false, error: "Invalid or missing 'rating'. Must be 'up' or 'down'." },
         { status: 400 },
@@ -66,34 +68,40 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate signal (optional)
-    if (body.signal && !VALID_SIGNALS.includes(body.signal)) {
+    const signal = (body.signal as FeedbackSignal | undefined) || undefined;
+    if (signal && !VALID_SIGNALS.includes(signal)) {
       return NextResponse.json(
         { ok: false, error: `Invalid 'signal'. Must be one of: ${VALID_SIGNALS.join(", ")}` },
         { status: 400 },
       );
     }
 
-    // 1) Store feedback record
-    // Re-use LoopBrainFeedback with scope "chat" and orgId = workspaceId (workspace fallback)
-    await prisma.loopBrainFeedback.create({
+    // Sanitize string inputs
+    const messageId = body.messageId
+      ? String(body.messageId).slice(0, MAX_MESSAGE_ID_LENGTH)
+      : undefined;
+    const notes = body.comment
+      ? String(body.comment).slice(0, MAX_COMMENT_LENGTH)
+      : undefined;
+
+    // 1) Store feedback record in the dedicated chat feedback table
+    await prisma.loopbrainChatFeedback.create({
       data: {
-        orgId: workspaceId,
+        workspaceId,
+        userId,
         scope: "chat",
-        feedback: JSON.stringify({
-          messageId: body.messageId,
-          rating: body.rating,
-          signal: body.signal,
-          comment: body.comment,
-        }),
-        accepted: body.rating === "up",
+        rating,
+        signal: signal ?? null,
+        messageId: messageId ?? null,
+        notes: notes ?? null,
       },
     });
 
     // 2) Adjust user profile
     const chatFeedback: ChatFeedback = {
-      rating: body.rating,
-      signal: body.signal,
-      comment: body.comment,
+      rating,
+      signal,
+      comment: notes,
     };
     const updatedProfile = await updateProfileFromFeedback(
       workspaceId,
