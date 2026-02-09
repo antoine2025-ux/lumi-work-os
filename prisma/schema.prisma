@@ -103,6 +103,7 @@ model User {
   loopbrainUserProfiles LoopbrainUserProfile[]
   loopbrainChatFeedback LoopbrainChatFeedback[]
   loopbrainOpenLoops    LoopbrainOpenLoop[]
+  ledTeams              OrgTeam[]              @relation("TeamLeader")
 
   @@map("users")
 }
@@ -126,6 +127,14 @@ model Workspace {
   updatedAt                      DateTime                   @updatedAt
   ownerId                        String
   orgCenterOnboardingCompletedAt DateTime? // Org Center onboarding completion timestamp
+  
+  // Phase 1: Workspace onboarding fields
+  mission              String?   // Company mission/description
+  industry             String?   // Industry vertical
+  companySize          String?   // "1-10", "11-50", "51-200", "201-500", "501+"
+  timezone             String?   // IANA timezone (e.g., "America/New_York")
+  onboardingCompletedAt DateTime? // Timestamp when onboarding finished
+  
   chatSessions                   ChatSession[]
   featureFlags                   FeatureFlag[]
   integrations                   Integration[]
@@ -205,6 +214,15 @@ model Workspace {
   // W1.5: Recommendation Closure
   workRecommendationLogs WorkRecommendationLog[]
 
+  // Foundation: Org ↔ Loopbrain Integration
+  personRelationships    PersonRelationship[]
+  personActivityMetrics  PersonActivityMetric[]
+  leaveRequests          LeaveRequest[]
+  onboardingProgress     OnboardingProgress?
+  
+  // Phase 1: Workspace onboarding state
+  onboardingState        WorkspaceOnboardingState?
+
   @@map("workspaces")
 }
 
@@ -237,6 +255,31 @@ model WorkspaceMember {
   @@index([workspaceId, joinedAt(sort: Desc)], map: "idx_workspace_members_workspace_joined")
   @@index([workspaceId, employmentStatus])
   @@map("workspace_members")
+}
+
+// Phase 1: Workspace onboarding state tracking
+model WorkspaceOnboardingState {
+  id                String    @id @default(cuid())
+  workspaceId       String    @unique
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  // Checklist steps (for future phases)
+  profileSetup      Boolean   @default(false)
+  orgStructure      Boolean   @default(false)
+  firstDepartment   Boolean   @default(false)
+  firstTeam         Boolean   @default(false)
+  firstInvite       Boolean   @default(false)
+  
+  // Admin profile data captured during onboarding
+  adminName         String?
+  adminRole         String?
+  adminDepartment   String?   // Intent, not actual department ID yet
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@index([workspaceId])
+  @@map("workspace_onboarding_states")
 }
 
 // Phase 2: Employment status for HRIS-lite tracking
@@ -517,11 +560,13 @@ model OrgTeam {
   order         Int            @default(0)
   isActive      Boolean        @default(true)
   ownerPersonId String? // Person (via OrgPosition.userId) who owns this team
+  leaderId      String? // Team leader (references User directly)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   positions     OrgPosition[]
   department        OrgDepartment?    @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  leader            User?             @relation("TeamLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   teamCapacityPlan  TeamCapacityPlan?
 
   // Note: Unique constraint removed because Prisma doesn't support unique constraints with nullable fields
@@ -529,6 +574,7 @@ model OrgTeam {
   @@index([workspaceId])
   @@index([departmentId])
   @@index([ownerPersonId])
+  @@index([leaderId])
   @@map("org_teams")
 }
 
@@ -3144,4 +3190,138 @@ model ProactiveInsight {
   @@index([workspaceId, expiresAt])
   @@index([workspaceId, createdAt(sort: Desc)])
   @@map("proactive_insights")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Foundation: Org ↔ Loopbrain Integration Models
+// ─────────────────────────────────────────────────────────────
+
+model PersonRelationship {
+  id               String    @id @default(uuid())
+  workspaceId      String
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  personAId        String
+  personBId        String
+
+  relationshipType String    // COLLABORATOR, REPORTS_TO, PEER, CROSS_TEAM
+  strength         Float     // 0.0–1.0 (calculated from interaction frequency)
+
+  meetingsShared   Int       @default(0)
+  projectsShared   Int       @default(0)
+  tasksShared      Int       @default(0)
+  wikisShared      Int       @default(0)
+  lastInteraction  DateTime?
+
+  metadata         Json?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([workspaceId, personAId, personBId])
+  @@index([workspaceId, personAId])
+  @@index([workspaceId, personBId])
+  @@index([workspaceId, relationshipType])
+  @@index([workspaceId, strength])
+  @@map("person_relationships")
+}
+
+model PersonActivityMetric {
+  id                 String    @id @default(uuid())
+  workspaceId        String
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  personId           String
+  weekStarting       DateTime
+
+  tasksCompleted     Int       @default(0)
+  tasksCreated       Int       @default(0)
+  avgCompletionDays  Float?
+  tasksOverdue       Int       @default(0)
+
+  meetingsAttended   Int       @default(0)
+  meetingHours       Float     @default(0)
+
+  commentsPosted     Int       @default(0)
+  wikisEdited        Int       @default(0)
+  wikisCreated       Int       @default(0)
+
+  avgResponseTimeHrs Float?
+
+  tasksReopened      Int       @default(0)
+
+  metadata           Json?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([workspaceId, personId, weekStarting])
+  @@index([workspaceId, personId])
+  @@index([weekStarting])
+  @@index([workspaceId, personId, weekStarting])
+  @@map("person_activity_metrics")
+}
+
+model LeaveRequest {
+  id              String    @id @default(uuid())
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  personId        String
+  requesterId     String
+
+  startDate       DateTime
+  endDate         DateTime
+  totalDays       Float
+  leaveType       String    // VACATION, SICK, PERSONAL, PARENTAL, UNPAID
+
+  status          String    @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  reason          String?
+  notes           String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([workspaceId, personId, status])
+  @@index([workspaceId, status])
+  @@index([workspaceId, approvedById])
+  @@index([startDate, endDate])
+  @@index([workspaceId, personId, startDate])
+  @@map("leave_requests")
+}
+
+model OnboardingProgress {
+  id                    String    @id @default(uuid())
+  workspaceId           String    @unique
+  workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  currentStep           Int       @default(1)
+  completedSteps        Int[]     @default([])
+
+  orgBasicsComplete     Boolean   @default(false)
+  departmentsCreated    Boolean   @default(false)
+  teamsCreated          Boolean   @default(false)
+  peopleInvited         Boolean   @default(false)
+  capacitySet           Boolean   @default(false)
+  integrationsConnected Boolean   @default(false)
+
+  orgName               String?
+  orgIndustry           String?
+  orgSize               String?
+  skipReason            String?
+
+  isComplete            Boolean   @default(false)
+  completedAt           DateTime?
+  skippedAt             DateTime?
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([workspaceId, isComplete])
+  @@map("onboarding_progress")
 }

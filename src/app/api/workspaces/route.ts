@@ -137,6 +137,18 @@ export async function POST(request: NextRequest) {
         },
       })
 
+      // Initialize onboarding state for new workspace
+      await tx.workspaceOnboardingState.create({
+        data: {
+          workspaceId: workspace.id,
+          profileSetup: false,
+          orgStructure: false,
+          firstDepartment: false,
+          firstTeam: false,
+          firstInvite: false,
+        },
+      })
+
       return workspace
     })
 

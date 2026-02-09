@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { WelcomeScreen } from '@/components/onboarding/welcome-screen'
 import { Loader2 } from 'lucide-react'
 import { WorkspaceCreationLoader } from '@/components/auth/workspace-creation-loader'
@@ -14,6 +15,7 @@ interface User {
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const { update: updateSession } = useSession()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false)
@@ -213,12 +215,18 @@ export default function OnboardingPage() {
     
     try {
       console.log('[welcome] Creating workspace with data:', workspaceData)
+      
+      // Step 1: Create workspace
       const response = await fetch('/api/workspace/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(workspaceData),
+        body: JSON.stringify({
+          name: workspaceData.name,
+          slug: workspaceData.slug,
+          description: workspaceData.description,
+        }),
       })
 
       // Check content type before parsing JSON
@@ -236,25 +244,58 @@ export default function OnboardingPage() {
       const data = await response.json()
       console.log('[welcome] Workspace creation response:', data)
 
-      if (response.ok) {
-        // Workspace created successfully - wait for minimum loader duration
+      // #region agent log
+      const workspaceIdFromWorkspace = data?.workspace?.id
+      const workspaceIdFromUser = data?.user?.workspaceId
+      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'welcome/page.tsx:handleCreateWorkspace',message:'Workspace create response check',data:{responseOk:response.ok,hasDataWorkspace:!!data?.workspace,workspaceIdFromWorkspace,workspaceIdFromUser,hasDataUser:!!data?.user},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
+
+      if (response.ok && (data.workspace?.id ?? data.user?.workspaceId)) {
+        const workspaceId = data.workspace?.id ?? data.user?.workspaceId
+        console.log('[welcome] Workspace created:', workspaceId)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'welcome/page.tsx:successBranch',message:'Success branch taken',data:{workspaceId},timestamp:Date.now(),runId:'post-fix',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
+        // Step 2: Save onboarding data
+        console.log('[welcome] Saving onboarding data...')
+        const onboardingResponse = await fetch(`/api/workspaces/${workspaceId}/onboarding`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            mission: workspaceData.mission,
+            industry: workspaceData.industry,
+            companySize: workspaceData.teamSize,
+            timezone: workspaceData.timezone,
+            adminName: workspaceData.adminName,
+            adminRole: workspaceData.adminRole,
+            adminDepartment: workspaceData.adminDepartment,
+          }),
+        })
+
+        if (!onboardingResponse.ok) {
+          console.error('[welcome] Failed to save onboarding data')
+          // Continue anyway - workspace is created
+        } else {
+          console.log('[welcome] Onboarding data saved successfully')
+        }
+        
+        // Wait for minimum loader duration
         const elapsed = Date.now() - startTime
         const remainingTime = Math.max(0, minLoaderDuration - elapsed)
         
-        setTimeout(() => {
-          console.log('[welcome] Workspace created, redirecting to dashboard...')
-          
-          // PHASE B2: Removed workspace creation flags - session update will refresh JWT
-          
-          // DON'T clear user status cache - let it update naturally
-          // The workspace was just created, the API will return it on next fetch
-          
-          // Clear cache
-          if (typeof window !== 'undefined') {
-            localStorage.clear()
+        setTimeout(async () => {
+          console.log('[welcome] Onboarding complete, refreshing session...')
+          // Refresh session so JWT gets workspaceId and isFirstTime: false (avoids redirect to /welcome when visiting /org etc.)
+          try {
+            await updateSession()
+          } catch (e) {
+            console.warn('[welcome] Session refresh failed, redirecting anyway', e)
           }
-          
-          // Force hard redirect to dashboard
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('loopwell-onboarding-form-data')
+          }
           window.location.href = '/home'
         }, remainingTime)
       } else {

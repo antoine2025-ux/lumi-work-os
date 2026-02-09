@@ -4,6 +4,9 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
+import { emitEvent } from '@/lib/events/emit'
+import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
+import { logger } from '@/lib/logger'
 
 // GET /api/wiki/pages/[id] - Get a specific wiki page by ID or slug
 export async function GET(
@@ -306,6 +309,16 @@ export async function PUT(
         }
       })
     }
+
+    // Emit activity event
+    emitEvent(ACTIVITY_EVENTS.WIKI_PAGE_EDITED, {
+      workspaceId: auth.workspaceId,
+      userId: auth.user.userId,
+      wikiPageId: resolvedParams.id,
+      timestamp: new Date()
+    }).catch((err) => 
+      logger.error('Failed to emit wiki page edited event', { pageId: resolvedParams.id, error: err })
+    )
 
     return NextResponse.json(updatedPage)
   } catch (error: any) {

@@ -2,6 +2,9 @@ import { Server as NetServer } from 'http'
 import { Server as SocketIOServer } from 'socket.io'
 import { PrismaClient } from '@prisma/client'
 import { startEntityGraphListener } from '@/lib/loopbrain/event-listener'
+import { emitEvent } from '@/lib/events/emit'
+import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
+import { calculateCompletionDays } from '@/lib/org/listeners/utils'
 
 const prisma = new PrismaClient()
 
@@ -236,6 +239,17 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
       if (!socket.data) return
       
       try {
+        // Get existing task to check if status is changing to DONE
+        const existingTask = await prisma.task.findUnique({
+          where: { id: data.taskId },
+          select: {
+            status: true,
+            completedAt: true,
+            createdAt: true,
+            projectId: true
+          }
+        })
+        
         // Update task in database
         const updatedTask = await prisma.task.update({
           where: { id: data.taskId },
@@ -245,6 +259,25 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
             project: true
           }
         })
+        
+        // Emit activity event if task was just completed
+        if (existingTask && data.updates.status === 'DONE' && !existingTask.completedAt) {
+          const completionDays = calculateCompletionDays(
+            existingTask.createdAt,
+            new Date()
+          )
+          
+          emitEvent(ACTIVITY_EVENTS.TASK_COMPLETED, {
+            workspaceId: socket.data.workspaceId,
+            userId: socket.data.userId,
+            taskId: data.taskId,
+            projectId: existingTask.projectId,
+            completionDays,
+            timestamp: new Date()
+          }).catch((err) => 
+            console.error('Failed to emit task completed event', err)
+          )
+        }
         
         // Broadcast to project room
         socket.to(`project:${updatedTask.projectId}`).emit('taskUpdated', {
@@ -281,6 +314,18 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
             project: true
           }
         })
+        
+        // Emit activity event
+        emitEvent(ACTIVITY_EVENTS.TASK_CREATED, {
+          workspaceId: socket.data.workspaceId,
+          userId: socket.data.userId,
+          taskId: newTask.id,
+          projectId: data.projectId,
+          assigneeId: newTask.assigneeId,
+          timestamp: new Date()
+        }).catch((err) => 
+          console.error('Failed to emit task created event', err)
+        )
         
         // Broadcast to project room
         socket.to(`project:${data.projectId}`).emit('taskCreated', {
@@ -373,6 +418,16 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
           data: data.updates
         })
         
+        // Emit activity event
+        emitEvent(ACTIVITY_EVENTS.WIKI_PAGE_EDITED, {
+          workspaceId: socket.data.workspaceId,
+          userId: socket.data.userId,
+          wikiPageId: data.pageId,
+          timestamp: new Date()
+        }).catch((err) => 
+          console.error('Failed to emit wiki page edited event', err)
+        )
+        
         // Broadcast to wiki page room
         socket.to(`wiki:${data.pageId}`).emit('wikiPageUpdated', {
           pageId: data.pageId,
@@ -409,6 +464,18 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
         }
         
         if (comment) {
+          // Emit activity event
+          emitEvent(ACTIVITY_EVENTS.COMMENT_POSTED, {
+            workspaceId: socket.data.workspaceId,
+            userId: socket.data.userId,
+            commentId: comment.id,
+            taskId: data.taskId,
+            projectId: comment.task?.projectId,
+            timestamp: new Date()
+          }).catch((err) => 
+            console.error('Failed to emit comment posted event', err)
+          )
+          
           // For task comments, we need to get the project ID from the task
           let projectId = data.projectId
           if (data.taskId && comment.task) {

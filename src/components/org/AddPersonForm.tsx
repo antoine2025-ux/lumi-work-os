@@ -59,13 +59,17 @@ export function AddPersonForm() {
 
     setSaving(true);
     try {
-      const result = await OrgApi.createPerson({
+      const payload = {
         fullName: name,
         email: email.trim() || null,
         title: title.trim() || null,
         departmentId,
         teamId,
-      });
+      };
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AddPersonForm.tsx:onSubmit',message:'Payload before createPerson',data:{payloadKeys:Object.keys(payload),fullName:payload.fullName,fullNameLength:(payload.fullName||'').length,departmentId:payload.departmentId,teamId:payload.teamId},timestamp:Date.now(),hypothesisId:'H1-H2-H5'})}).catch(()=>{});
+      // #endregion
+      const result = await OrgApi.createPerson(payload);
 
       // Redirect first, then trigger refresh
       router.push("/org/people");

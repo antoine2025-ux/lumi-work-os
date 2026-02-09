@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
+import { OrgSetupBanner } from "@/components/onboarding/org-setup-banner"
 // Lazy load heavy components for better initial page load
 const MeetingsCard = dynamic(() => import("@/components/dashboard/meetings-card").then(mod => ({ default: mod.MeetingsCard })), {
   loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />,
@@ -146,6 +147,11 @@ export default function HomePage() {
     <div className="min-h-screen bg-background" data-testid="dashboard-container">
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Onboarding Banner */}
+        {currentWorkspace?.slug && (
+          <OrgSetupBanner workspaceSlug={currentWorkspace.slug} />
+        )}
+        
         {/* Welcome Section */}
         <div className="mb-8 flex items-start justify-between">
           <div>

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { emitEvent } from '@/lib/events/emit'
+import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
+import { calculateCompletionDays } from '@/lib/org/listeners/utils'
 
 // Shared include for task queries
 const taskInclude = {
@@ -153,7 +156,13 @@ export async function PUT(
         id: taskId,
         workspaceId: auth.workspaceId
       },
-      select: { id: true }
+      select: { 
+        id: true,
+        completedAt: true,
+        createdAt: true,
+        projectId: true,
+        status: true
+      }
     })
 
     if (!existingTask) {
@@ -184,12 +193,34 @@ export async function PUT(
       updateData.completedAt = null
     }
 
+    // Check if task is being completed
+    const isBeingCompleted = status === 'DONE' && !existingTask.completedAt
+
     // 4. Update task (safe because we verified ownership above)
     const task = await prisma.task.update({
       where: { id: taskId },
       data: updateData,
       include: taskInclude
     })
+
+    // Emit activity event if task was just completed
+    if (isBeingCompleted) {
+      const completionDays = calculateCompletionDays(
+        existingTask.createdAt,
+        new Date()
+      )
+      
+      emitEvent(ACTIVITY_EVENTS.TASK_COMPLETED, {
+        workspaceId: auth.workspaceId,
+        userId: auth.user.userId,
+        taskId,
+        projectId: existingTask.projectId,
+        completionDays,
+        timestamp: new Date()
+      }).catch((err) => 
+        console.error('Failed to emit task completed event', err)
+      )
+    }
 
     return NextResponse.json(task)
   } catch (error: unknown) {

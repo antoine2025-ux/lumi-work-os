@@ -10,6 +10,8 @@ import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import { getTasksOptimized } from '@/lib/db-optimization'
 import { upsertTaskContext } from '@/lib/loopbrain/context-engine'
 import { logger } from '@/lib/logger'
+import { emitEvent } from '@/lib/events/emit'
+import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
 
 // GET /api/tasks - Get all tasks for a project
 export async function GET(request: NextRequest) {
@@ -409,6 +411,18 @@ export async function POST(request: NextRequest) {
         }
       })
       
+      // Emit activity event
+      emitEvent(ACTIVITY_EVENTS.TASK_CREATED, {
+        workspaceId: auth.workspaceId,
+        userId: auth.user.userId,
+        taskId: task.id,
+        projectId: task.projectId,
+        assigneeId: task.assigneeId,
+        timestamp: new Date()
+      }).catch((err) => 
+        logger.error('Failed to emit task created event', { taskId: task.id, error: err })
+      )
+      
       // Upsert task context for Loopbrain
       upsertTaskContext(task.id).catch((err) => 
         logger.error('Failed to update task context after creation', { taskId: task.id, error: err })
@@ -416,6 +430,18 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json(taskWithSubtasks)
     }
+
+    // Emit activity event
+    emitEvent(ACTIVITY_EVENTS.TASK_CREATED, {
+      workspaceId: auth.workspaceId,
+      userId: auth.user.userId,
+      taskId: task.id,
+      projectId: task.projectId,
+      assigneeId: task.assigneeId,
+      timestamp: new Date()
+    }).catch((err) => 
+      logger.error('Failed to emit task created event', { taskId: task.id, error: err })
+    )
 
     // Upsert task context for Loopbrain
     upsertTaskContext(task.id).catch((err) => 

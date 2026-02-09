@@ -7,6 +7,8 @@ import { logger } from '@/lib/logger'
 import { parsePaginationParams, createPaginationResult, getSkipValue, getOrderByClause } from '@/lib/pagination'
 import { cache } from '@/lib/cache'
 import { handleApiError } from '@/lib/api-errors'
+import { emitEvent } from '@/lib/events/emit'
+import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
 
 // GET /api/wiki/pages - List all wiki pages for a workspace
 export async function GET(request: NextRequest) {
@@ -314,6 +316,16 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Page created successfully with workspace_type:', page.workspace_type)
     logger.info('Wiki page created successfully', { pageId: page.id, title, workspaceId: auth.workspaceId, workspace_type: page.workspace_type })
+    
+    // Emit activity event
+    emitEvent(ACTIVITY_EVENTS.WIKI_PAGE_CREATED, {
+      workspaceId: auth.workspaceId,
+      userId: auth.user.userId,
+      wikiPageId: page.id,
+      timestamp: new Date()
+    }).catch((err) => 
+      logger.error('Failed to emit wiki page created event', { pageId: page.id, error: err })
+    )
     
     // Invalidate wiki pages cache for this workspace
     await cache.invalidatePattern(`wiki_pages_${auth.workspaceId}_*`)

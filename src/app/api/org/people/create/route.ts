@@ -47,6 +47,9 @@ export async function POST(request: NextRequest) {
 
     // Step 4: Parse and validate request body
     const body = await request.json();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create/route.ts:body',message:'Parsed body',data:{bodyKeys:body!=null?Object.keys(body):[],fullNameType:typeof body?.fullName,fullNameValue:body?.fullName,hasFullName:'fullName' in (body||{})},timestamp:Date.now(),hypothesisId:'H1-H3-H5'})}).catch(()=>{});
+    // #endregion
     const fullName = requireNonEmptyString(body.fullName, "fullName");
     const email = optionalString(body.email);
     const title = optionalString(body.title);
@@ -94,6 +97,9 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("[POST /api/org/people/create] Error:", error);
     console.error("[POST /api/org/people/create] Error stack:", error?.stack);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create/route.ts:catch',message:'Caught error',data:{errorMessage:error?.message,errorCode:error?.code,hasInvalid:error?.message?.includes?.('Invalid')},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
 
     // Log full error in development for debugging
     if (process.env.NODE_ENV !== "production") {
@@ -115,6 +121,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle unique constraint violations first (e.g., duplicate email)
+    // Prisma P2002 message includes "Invalid", so check before the generic Invalid handler
+    if (
+      error?.code === "P2002" ||
+      error?.message?.includes("Unique constraint") ||
+      error?.message?.includes("unique constraint")
+    ) {
+      return NextResponse.json(
+        { 
+          error: "A person with this email already exists. Please use a different email.",
+          hint: "This email is already associated with another person in the organization."
+        },
+        { status: 409 }
+      );
+    }
+
     if (error?.message?.includes("Invalid")) {
       return NextResponse.json(
         { 
@@ -132,21 +154,6 @@ export async function POST(request: NextRequest) {
           hint: "You don't have permission to create people in this workspace."
         },
         { status: 403 }
-      );
-    }
-
-    // Handle unique constraint violations (e.g., duplicate email)
-    if (
-      error?.message?.includes("Unique constraint") ||
-      error?.message?.includes("unique constraint") ||
-      error?.code === "P2002"
-    ) {
-      return NextResponse.json(
-        { 
-          error: "A person with this email already exists. Please use a different email.",
-          hint: "This email is already associated with another person in the organization."
-        },
-        { status: 409 }
       );
     }
 
