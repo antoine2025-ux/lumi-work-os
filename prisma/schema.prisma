@@ -199,6 +199,9 @@ model Workspace {
   loopbrainChatFeedback  LoopbrainChatFeedback[]
   loopbrainOpenLoops     LoopbrainOpenLoop[]
 
+  // Loopbrain proactive insights
+  proactiveInsights ProactiveInsight[]
+
   // W1.5: Recommendation Closure
   workRecommendationLogs WorkRecommendationLog[]
 
@@ -623,6 +626,8 @@ model OrgPosition {
   @@index([workspaceId, mergedIntoId])
   @@index([teamId])
   @@index([level])
+  // Entity Graph: Optimized for MEMBER_OF and REPORTS_TO link queries
+  @@index([workspaceId, teamId, userId], map: "idx_org_positions_entity_graph")
   @@map("org_positions")
 }
 
@@ -2414,6 +2419,8 @@ model PersonSkill {
   @@index([workspaceId, personId])
   @@index([workspaceId, skillId])
   @@index([skillId, proficiency])
+  // Entity Graph: Optimized for expertise map queries
+  @@index([workspaceId, skillId, proficiency], map: "idx_person_skills_expertise")
   @@map("person_skills")
 }
 
@@ -2618,6 +2625,8 @@ model CapacityContract {
   @@index([workspaceId, personId])
   @@index([personId, effectiveFrom])
   @@index([workspaceId, effectiveFrom])
+  // Entity Graph: Optimized for capacity map queries with date range
+  @@index([workspaceId, personId, effectiveFrom, effectiveTo], map: "idx_capacity_contracts_capacity")
   @@map("capacity_contracts")
 }
 
@@ -2648,6 +2657,8 @@ model WorkAllocation {
   @@index([workspaceId, personId])
   @@index([personId, startDate])
   @@index([workspaceId, contextType])
+  // Entity Graph: Optimized for capacity map queries with date range
+  @@index([workspaceId, personId, startDate, endDate], map: "idx_work_allocations_capacity")
   @@map("work_allocations")
 }
 
@@ -3065,4 +3076,72 @@ model WorkRecommendationLog {
 
   @@index([workspaceId, workRequestId, createdAt])
   @@map("work_recommendation_logs")
+}
+
+// =============================================================================
+// Loopbrain: Proactive Insights
+// =============================================================================
+
+/**
+ * ProactiveInsight - Autonomous intelligence recommendations
+ *
+ * Stores insights detected by Loopbrain's insight detector, including
+ * capacity issues, deadline clusters, blocked work, coverage gaps, etc.
+ *
+ * Lifecycle:
+ * - ACTIVE: Insight is current and actionable
+ * - EXPIRED: Insight has passed its expiration date
+ * - DISMISSED: User has dismissed the insight
+ * - SUPERSEDED: A newer insight has replaced this one
+ *
+ * @see src/lib/loopbrain/contract/proactiveInsight.v0.ts
+ */
+model ProactiveInsight {
+  id          String @id @default(cuid())
+  workspaceId String
+
+  // Core fields from contract
+  trigger     String // InsightTriggerV0: THRESHOLD_BREACH, PATTERN_DETECTED, etc.
+  category    String // InsightCategoryV0: CAPACITY, WORKLOAD, DEADLINE, etc.
+  priority    String // InsightPriorityV0: CRITICAL, HIGH, MEDIUM, LOW, INFO
+  title       String
+  description String
+  confidence  Float  // 0.0–1.0
+
+  // Recommendations stored as JSON array
+  recommendations Json // RecommendationV0[]
+
+  // Evidence stored as JSON array
+  evidence Json // InsightEvidenceV0[]
+
+  // Affected entities stored as JSON array
+  affectedEntities Json // AffectedEntityV0[]
+
+  // Lifecycle
+  status    String    @default("ACTIVE") // InsightStatusV0
+  expiresAt DateTime?
+
+  // Dismissal tracking
+  dismissedAt     DateTime?
+  dismissedBy     String?
+  dismissalReason String? // DismissalReasonV0
+  dismissalNote   String?
+
+  // Supersession (newer insight replaces older)
+  supersedesId String?
+
+  // Metadata for extensibility
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, category])
+  @@index([workspaceId, priority])
+  @@index([workspaceId, expiresAt])
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@map("proactive_insights")
 }

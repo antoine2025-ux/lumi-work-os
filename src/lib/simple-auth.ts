@@ -192,6 +192,9 @@ export async function createUserWorkspace(userData: {
     // Try Prisma upsert first, fall back to raw SQL if it fails
     let user
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'simple-auth.ts:createUserWorkspace:beforeUpsert',message:'Before prisma.user.upsert',data:{email:userData.email},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       // Try Prisma upsert first
       user = await prisma.user.upsert({
         where: { email: userData.email },
@@ -217,11 +220,35 @@ export async function createUserWorkspace(userData: {
           themePreference: true,
         }
       })
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'simple-auth.ts:createUserWorkspace:afterUpsert',message:'Prisma upsert succeeded',data:{userId:user.id},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
     } catch (prismaError: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'simple-auth.ts:createUserWorkspace:catchPrisma',message:'Prisma upsert failed',data:{code:prismaError?.code,message:prismaError?.message?.slice(0,200),willTryRaw:!!(prismaError?.code==='P2022'||prismaError?.message?.includes('does not exist'))},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
       console.error('[createUserWorkspace] Prisma upsert failed, trying raw SQL:', prismaError.message)
       
-      // If Prisma fails due to schema mismatch, use raw SQL
+      // If Prisma fails because the table does not exist, do not fall back to raw SQL
+      // (raw SQL will fail the same way). Throw a clear message so the user can run migrations.
+      const tableMissing =
+        prismaError.code === 'P2021' ||
+        prismaError.code === 'P2022' ||
+        (prismaError.message?.includes('does not exist') && prismaError.message?.includes('users'));
+
+      if (tableMissing) {
+        const schemaHint = new Error(
+          'Database schema is not initialized. The "users" table is missing. Run: npm run db:push (or npx prisma migrate deploy) then try again.'
+        );
+        (schemaHint as any).code = prismaError.code;
+        throw schemaHint;
+      }
+
+      // Legacy: other schema mismatch (e.g. column missing) – use raw SQL
       if (prismaError.code === 'P2022' || prismaError.message?.includes('does not exist')) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'simple-auth.ts:createUserWorkspace:beforeRawUser',message:'About to run INSERT INTO users raw SQL',data:{},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
         // Use raw SQL to insert/update user with only existing columns
         // Escape single quotes in user input
         const escapedEmail = userData.email.replace(/'/g, "''")
@@ -249,6 +276,9 @@ export async function createUserWorkspace(userData: {
           RETURNING id, email, name, image, "emailVerified", "createdAt", "updatedAt", "themePreference"
         `)
         
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'simple-auth.ts:createUserWorkspace:afterRawUser',message:'Raw INSERT INTO users completed',data:{rowCount:result?.length},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+        // #endregion
         if (result && result.length > 0) {
           user = {
             id: result[0].id,
@@ -435,6 +465,11 @@ export async function createUserWorkspace(userData: {
       isFirstTime: false
     }
   } catch (error) {
+    // #region agent log
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errCode = (error as any)?.code;
+    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'simple-auth.ts:createUserWorkspace:outerCatch',message:'createUserWorkspace outer catch',data:{errorMessage:errMsg?.slice(0,300),code:errCode},timestamp:Date.now(),hypothesisId:'H6'})}).catch(()=>{});
+    // #endregion
     console.error('[createUserWorkspace] Error creating workspace:', error)
     
     // Extract serializable error details

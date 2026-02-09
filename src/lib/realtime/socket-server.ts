@@ -1,6 +1,7 @@
 import { Server as NetServer } from 'http'
 import { Server as SocketIOServer } from 'socket.io'
 import { PrismaClient } from '@prisma/client'
+import { startEntityGraphListener } from '@/lib/loopbrain/event-listener'
 
 const prisma = new PrismaClient()
 
@@ -135,6 +136,8 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
     allowEIO3: true, // Allow Engine.IO v3 clients
     serveClient: false // Don't serve client files
   })
+
+  startEntityGraphListener(io)
 
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`)
