@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { Search } from "lucide-react"
+import { useOrgUrl } from "@/hooks/useOrgUrl"
 
 type Dept = { id: string; name: string }
 type Team = { id: string; name: string; departmentId: string | null }
@@ -38,6 +39,8 @@ export function PeopleDirectoryHeader(props: PeopleDirectoryHeaderProps) {
     teams,
   } = props
 
+  const orgUrl = useOrgUrl();
+
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
       {/* Title + Subtitle + Add Button */}
@@ -50,7 +53,7 @@ export function PeopleDirectoryHeader(props: PeopleDirectoryHeaderProps) {
         </div>
 
         <Link
-          href="/org/people/new"
+          href={orgUrl.newPerson}
           className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-medium text-white hover:bg-white/[0.08] transition-colors"
         >
           Add person

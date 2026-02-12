@@ -14,6 +14,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Gauge, Users, AlertTriangle, ArrowDown, CheckCircle2, Loader2 } from "lucide-react";
+import { useOrgUrl } from "@/hooks/useOrgUrl";
 import { cn } from "@/lib/utils";
 
 type CapacitySummary = {
@@ -30,6 +31,7 @@ type CapacitySummary = {
 };
 
 export function CapacityOverviewCard() {
+  const orgUrl = useOrgUrl();
   const [summary, setSummary] = useState<CapacitySummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -116,7 +118,7 @@ export function CapacityOverviewCard() {
         <div className="space-y-1.5">
           {summary.missingCount > 0 && !fullCoverage && (
             <Link
-              href="/org/people"
+              href={orgUrl.directory}
               className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-gray-400 shrink-0" />
@@ -127,7 +129,7 @@ export function CapacityOverviewCard() {
 
           {hasOverload && (
             <Link
-              href="/org/issues?types=CAPACITY_OVERLOADED_TEAM,CAPACITY_SEVERELY_OVERLOADED_TEAM,OVERALLOCATED_PERSON"
+              href={`${orgUrl.adminHealth}?types=CAPACITY_OVERLOADED_TEAM,CAPACITY_SEVERELY_OVERLOADED_TEAM,OVERALLOCATED_PERSON`}
               className="flex items-center gap-2 text-xs text-orange-400 hover:text-orange-300 transition-colors group"
             >
               <AlertTriangle className="h-3 w-3 shrink-0" />
@@ -144,7 +146,7 @@ export function CapacityOverviewCard() {
 
           {summary.underutilizedTeamCount > 0 && (
             <Link
-              href="/org/issues?types=CAPACITY_UNDERUTILIZED_TEAM"
+              href={`${orgUrl.adminHealth}?types=CAPACITY_UNDERUTILIZED_TEAM`}
               className="flex items-center gap-2 text-xs text-yellow-400 hover:text-yellow-300 transition-colors group"
             >
               <ArrowDown className="h-3 w-3 shrink-0" />
@@ -159,14 +161,14 @@ export function CapacityOverviewCard() {
 
         {/* Link to full view */}
         <div className="flex items-center gap-2 text-xs pt-1">
-          <Link href="/org/intelligence/capacity" className="text-primary hover:underline">
+          <Link href={orgUrl.admin} className="text-primary hover:underline">
             View capacity intelligence
           </Link>
           {hasIssues && (
             <>
               <span className="text-muted-foreground">|</span>
               <Link
-                href={`/org/issues?types=CAPACITY_MISSING_DATA_PERSON,CAPACITY_OVERLOADED_TEAM,CAPACITY_SEVERELY_OVERLOADED_TEAM,CAPACITY_UNDERUTILIZED_TEAM,CAPACITY_TEAM_NO_MEMBERS`}
+                href={`/org/admin/health?types=CAPACITY_MISSING_DATA_PERSON,CAPACITY_OVERLOADED_TEAM,CAPACITY_SEVERELY_OVERLOADED_TEAM,CAPACITY_UNDERUTILIZED_TEAM,CAPACITY_TEAM_NO_MEMBERS`}
                 className="text-muted-foreground hover:text-primary hover:underline"
               >
                 View issues

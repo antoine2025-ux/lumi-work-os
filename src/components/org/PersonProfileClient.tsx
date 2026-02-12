@@ -16,6 +16,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { OrgApi, type OrgPersonDTO } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
+import { useOrgUrl } from "@/hooks/useOrgUrl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,6 +41,7 @@ type PersonProfileClientProps = {
 };
 
 export function PersonProfileClient({ personId, onEditButtonRender, initialFocusField }: PersonProfileClientProps) {
+  const orgUrl = useOrgUrl();
   const { toast } = useToast();
   const [personKey, setPersonKey] = useState(0);
   const [editPanelOpen, setEditPanelOpen] = useState(false);
@@ -96,10 +98,30 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
     return <div className="text-sm text-slate-400">Loading profile…</div>;
   }
   if (personQ.error) {
-    return <div className="text-sm text-red-400">Failed to load profile</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[200px] gap-4 text-center">
+        <h2 className="text-lg font-semibold text-slate-200">Person Not Found in Org</h2>
+        <p className="text-sm text-slate-400 max-w-md">
+          This person may be in the workspace but not in the org structure yet.
+        </p>
+        <Button asChild variant="outline">
+          <Link href={orgUrl.directory}>Back to Directory</Link>
+        </Button>
+      </div>
+    );
   }
   if (!person) {
-    return <div className="text-sm text-slate-400">Not found</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[200px] gap-4 text-center">
+        <h2 className="text-lg font-semibold text-slate-200">Person Not Found in Org</h2>
+        <p className="text-sm text-slate-400 max-w-md">
+          This person is in the workspace but not in the org structure yet.
+        </p>
+        <Button asChild variant="outline">
+          <Link href={orgUrl.directory}>Back to Directory</Link>
+        </Button>
+      </div>
+    );
   }
 
   // Get initials for avatar
@@ -498,7 +520,7 @@ function EditProfilePanel({
       publishMutationResult(result);
       
       // Apply returned state - update personQ with new team
-      personQ.setData((prev) => {
+      personQ.updateData((prev) => {
         if (!prev) return prev;
         const selectedTeam = teams.find(t => t.id === result.data.teamId);
         return {
@@ -523,6 +545,14 @@ function EditProfilePanel({
       console.warn("Cannot change manager: canReporting is false");
       return;
     }
+    if (!person?.id) {
+      toast({
+        title: "Cannot Update Manager",
+        description: "This person is not in the org structure yet. Please add them to the directory first.",
+        variant: "destructive",
+      });
+      return;
+    }
     const newManagerId = managerId === "__none__" || managerId === null ? null : managerId;
     setSelectedManagerId(newManagerId ?? "__none__");
     setManagerPopoverOpen(false);
@@ -542,7 +572,7 @@ function EditProfilePanel({
       publishMutationResult(result);
       
       // Apply returned state - update personQ with new manager from result.data
-      personQ.setData((prev) => {
+      personQ.updateData((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
@@ -566,13 +596,24 @@ function EditProfilePanel({
       onSave();
     } catch (error: any) {
       console.error("Failed to set manager:", error);
-      toast({ title: "Failed to update manager", description: error?.message || "Please try again.", variant: "destructive" });
+      const errMsg = error?.message || "";
+      const isNotFound =
+        errMsg.includes("Person position not found") ||
+        errMsg.includes("Person not found") ||
+        errMsg.includes("not found");
+      toast({
+        title: "Failed to update manager",
+        description: isNotFound
+          ? "This person is not in the org structure yet. Please add them to the directory first."
+          : errMsg || "Please try again.",
+        variant: "destructive",
+      });
       // Revert on error
       setSelectedManagerId(person.manager?.id ?? "__none__");
     } finally {
       setSaving(false);
     }
-  }, [personId, person.manager?.id, canReporting, toast, onSave, personQ]);
+  }, [personId, person?.id, person?.manager?.id, canReporting, toast, onSave, personQ]);
 
   // Cleanup timers on unmount
   useEffect(() => {

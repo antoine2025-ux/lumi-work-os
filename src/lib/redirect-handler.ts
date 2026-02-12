@@ -62,8 +62,8 @@ export function isInviteRoute(pathname: string): boolean {
  * Determines if a route should never trigger redirects (special cases)
  */
 export function shouldNeverRedirect(pathname: string): boolean {
-  // People page has special handling - never redirect from it
-  return pathname === '/org/people'
+  // People page has special handling - never redirect from it (workspace-agnostic check)
+  return pathname.includes('/org/people')
 }
 
 /**

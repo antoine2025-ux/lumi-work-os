@@ -4,32 +4,45 @@
  * Ownership rule: ALL issue fix URLs must be generated via this module.
  * No issue may inline hardcoded routes (e.g. "/org/structure") directly.
  * This prevents drift when routes evolve.
+ * 
+ * All functions now accept workspaceSlug to generate workspace-scoped URLs.
  */
 
 import type { OrgIssue } from "@/lib/org/deriveIssues";
+
+/**
+ * Build workspace-scoped org base URL
+ */
+function buildOrgBase(workspaceSlug: string): string {
+  return `/w/${workspaceSlug}/org`;
+}
 
 // ---------------------------------------------------------------------------
 // Structure deep links
 // ---------------------------------------------------------------------------
 
 /** Open the "Assign Department" panel for a specific unassigned team. */
-export function deepLinkForUnassignedTeam(teamId: string): string {
-  return `/org/structure?tab=teams&teamId=${encodeURIComponent(teamId)}&panel=assignDepartment`;
+export function deepLinkForUnassignedTeam(workspaceSlug: string, teamId: string): string {
+  const base = buildOrgBase(workspaceSlug);
+  return `${base}/structure?tab=teams&teamId=${encodeURIComponent(teamId)}&panel=assignDepartment`;
 }
 
 /** Navigate to a specific team detail page (for ownership, capacity, etc.). */
-export function deepLinkForTeam(teamId: string): string {
-  return `/org/structure/teams/${encodeURIComponent(teamId)}`;
+export function deepLinkForTeam(workspaceSlug: string, teamId: string): string {
+  const base = buildOrgBase(workspaceSlug);
+  return `${base}/structure/teams/${encodeURIComponent(teamId)}`;
 }
 
 /** Navigate to a specific department detail page. */
-export function deepLinkForDepartment(departmentId: string): string {
-  return `/org/structure/departments/${encodeURIComponent(departmentId)}`;
+export function deepLinkForDepartment(workspaceSlug: string, departmentId: string): string {
+  const base = buildOrgBase(workspaceSlug);
+  return `${base}/structure/departments/${encodeURIComponent(departmentId)}`;
 }
 
 /** Navigate to the structure page with the teams tab and a team highlighted. */
-export function deepLinkForTeamInStructure(teamId: string): string {
-  return `/org/structure?tab=teams&teamId=${encodeURIComponent(teamId)}`;
+export function deepLinkForTeamInStructure(workspaceSlug: string, teamId: string): string {
+  const base = buildOrgBase(workspaceSlug);
+  return `${base}/structure?tab=teams&teamId=${encodeURIComponent(teamId)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -37,8 +50,9 @@ export function deepLinkForTeamInStructure(teamId: string): string {
 // ---------------------------------------------------------------------------
 
 /** Open the Capacity Quick Entry popover for a specific person. */
-export function deepLinkForPersonCapacity(personId: string): string {
-  return `/org/people?person=${encodeURIComponent(personId)}&openCapacity=true`;
+export function deepLinkForPersonCapacity(workspaceSlug: string, personId: string): string {
+  const base = buildOrgBase(workspaceSlug);
+  return `${base}/directory?person=${encodeURIComponent(personId)}&openCapacity=true`;
 }
 
 // ---------------------------------------------------------------------------
@@ -46,8 +60,9 @@ export function deepLinkForPersonCapacity(personId: string): string {
 // ---------------------------------------------------------------------------
 
 /** Navigate to a specific work request's detail/feasibility page. */
-export function deepLinkForWorkRequest(workRequestId: string): string {
-  return `/org/work/${encodeURIComponent(workRequestId)}`;
+export function deepLinkForWorkRequest(workspaceSlug: string, workRequestId: string): string {
+  const base = buildOrgBase(workspaceSlug);
+  return `${base}/work/${encodeURIComponent(workRequestId)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,13 +70,15 @@ export function deepLinkForWorkRequest(workRequestId: string): string {
 // ---------------------------------------------------------------------------
 
 /** Navigate to decision authority settings, auto-focusing a specific domain. */
-export function deepLinkForDecisionDomain(domainKey: string): string {
-  return `/org/settings/decision-authority?domain=${encodeURIComponent(domainKey)}`;
+export function deepLinkForDecisionDomain(workspaceSlug: string, domainKey: string): string {
+  const base = buildOrgBase(workspaceSlug);
+  return `${base}/admin/decisions?domain=${encodeURIComponent(domainKey)}`;
 }
 
 /** Navigate to responsibility settings, auto-focusing a specific role profile. */
-export function deepLinkForResponsibilityProfile(roleType: string): string {
-  return `/org/settings/responsibility?roleType=${encodeURIComponent(roleType)}`;
+export function deepLinkForResponsibilityProfile(workspaceSlug: string, roleType: string): string {
+  const base = buildOrgBase(workspaceSlug);
+  return `${base}/admin/responsibility?roleType=${encodeURIComponent(roleType)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,11 +86,12 @@ export function deepLinkForResponsibilityProfile(roleType: string): string {
 // ---------------------------------------------------------------------------
 
 /** Navigate to the Issues page, optionally pre-filtered by severity. */
-export function deepLinkForIssues(severity?: string): string {
+export function deepLinkForIssues(workspaceSlug: string, severity?: string): string {
+  const base = buildOrgBase(workspaceSlug);
   if (severity) {
-    return `/org/issues?severity=${encodeURIComponent(severity)}`;
+    return `${base}/admin/health?severity=${encodeURIComponent(severity)}`;
   }
-  return `/org/issues`;
+  return `${base}/admin/health`;
 }
 
 // ---------------------------------------------------------------------------
@@ -81,16 +99,17 @@ export function deepLinkForIssues(severity?: string): string {
 // ---------------------------------------------------------------------------
 
 /** Navigate to Issues page pre-filtered to specific issue types. */
-export function deepLinkForIssuesByTypes(types: OrgIssue[]): string {
+export function deepLinkForIssuesByTypes(workspaceSlug: string, types: OrgIssue[]): string {
+  const base = buildOrgBase(workspaceSlug);
   if (types.length === 0) {
-    return `/org/issues`;
+    return `${base}/admin/health`;
   }
-  return `/org/issues?types=${types.map(encodeURIComponent).join(",")}`;
+  return `${base}/admin/health?types=${types.map(encodeURIComponent).join(",")}`;
 }
 
 /** Issues page filtered to ownership-related issues. */
-export function deepLinkForOwnershipIssues(): string {
-  return deepLinkForIssuesByTypes([
+export function deepLinkForOwnershipIssues(workspaceSlug: string): string {
+  return deepLinkForIssuesByTypes(workspaceSlug, [
     "UNOWNED_TEAM",
     "UNOWNED_DEPARTMENT",
     "OWNERSHIP_CONFLICT",
@@ -98,8 +117,8 @@ export function deepLinkForOwnershipIssues(): string {
 }
 
 /** Issues page filtered to capacity-related issues. */
-export function deepLinkForCapacityIssues(): string {
-  return deepLinkForIssuesByTypes([
+export function deepLinkForCapacityIssues(workspaceSlug: string): string {
+  return deepLinkForIssuesByTypes(workspaceSlug, [
     "OVERALLOCATED_PERSON",
     "LOW_EFFECTIVE_CAPACITY",
     "CAPACITY_CONTRACT_CONFLICT",
@@ -107,16 +126,16 @@ export function deepLinkForCapacityIssues(): string {
 }
 
 /** Issues page filtered to decision authority issues. */
-export function deepLinkForDecisionIssues(): string {
-  return deepLinkForIssuesByTypes([
+export function deepLinkForDecisionIssues(workspaceSlug: string): string {
+  return deepLinkForIssuesByTypes(workspaceSlug, [
     "DECISION_AUTHORITY_MISSING",
     "DECISION_DOMAIN_NO_COVERAGE",
   ]);
 }
 
 /** Issues page filtered to role responsibility/alignment issues. */
-export function deepLinkForResponsibilityIssues(): string {
-  return deepLinkForIssuesByTypes([
+export function deepLinkForResponsibilityIssues(workspaceSlug: string): string {
+  return deepLinkForIssuesByTypes(workspaceSlug, [
     "ROLE_ALIGNMENT_UNKNOWN",
     "WORK_ROLE_MISALIGNED",
     "ROLE_PROFILE_MISSING",

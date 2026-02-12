@@ -10,6 +10,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useOrgUrl } from "@/hooks/useOrgUrl";
 import { OrgApi } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export function AddPersonForm() {
   const router = useRouter();
+  const orgUrl = useOrgUrl();
   const flagsQ = useOrgQuery(() => OrgApi.getFlags(), []);
   const structureQ = useOrgQuery(() => OrgApi.getStructure(), []);
 
@@ -72,7 +74,7 @@ export function AddPersonForm() {
       const result = await OrgApi.createPerson(payload);
 
       // Redirect first, then trigger refresh
-      router.push("/org/people");
+      router.push(orgUrl.directory);
       
       // Use router.refresh() to force server-side revalidation
       // This ensures the people list is updated with the new person
@@ -217,7 +219,7 @@ export function AddPersonForm() {
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => router.push("/org/people")}
+                onClick={() => router.push(peopleHref)}
                 disabled={saving}
               >
                 Cancel

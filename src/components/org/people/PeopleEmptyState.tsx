@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OrgPrimaryCta } from "@/components/org/ui/OrgCtaButton";
+import { useOrgUrl } from "@/hooks/useOrgUrl";
 
 type PeopleEmptyStateProps = {
   hasFilters: boolean;
@@ -25,6 +26,8 @@ export function PeopleEmptyState({
   onResetSearch,
   onAddPerson,
 }: PeopleEmptyStateProps) {
+  const orgUrl = useOrgUrl();
+
   // Empty state when no people exist (no filters)
   if (!hasFilters) {
     return (
@@ -62,7 +65,7 @@ export function PeopleEmptyState({
             </OrgPrimaryCta>
           ) : (
             <OrgPrimaryCta asChild size="sm">
-              <Link href="/org/people/new">Add person</Link>
+              <Link href={orgUrl.newPerson}>Add person</Link>
             </OrgPrimaryCta>
           )}
         </div>

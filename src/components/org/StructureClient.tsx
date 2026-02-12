@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { useOrgUrl } from "@/hooks/useOrgUrl";
 import { OrgApi } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
 import { useOrgReadiness } from "@/components/org/useOrgReadiness";
@@ -34,6 +35,7 @@ import { StructureWriteControls } from "@/components/org/StructureWriteControls"
 import { OrgSectionEmpty } from "@/components/org/OrgSectionState";
 
 export function StructureClient() {
+  const orgUrl = useOrgUrl();
   const [structureKey, setStructureKey] = useState(0);
   const flagsQ = useOrgQuery(() => OrgApi.getFlags(), []);
   const structureQ = useOrgQuery(() => OrgApi.getStructure(), [structureKey]);
@@ -204,7 +206,7 @@ export function StructureClient() {
           title="Define your org structure"
           message="Create departments or teams so people have a place in the org."
           ctaLabel="Create structure"
-          href="/org/structure"
+          href={orgUrl.structure}
           severity="warning"
         />
       )}
@@ -215,7 +217,7 @@ export function StructureClient() {
           title="Departments are optional"
           message="You have teams but no departments. Departments help organize teams into larger groups."
           ctaLabel="Create department"
-          href="/org/structure"
+          href={orgUrl.structure}
           severity="info"
         />
       )}

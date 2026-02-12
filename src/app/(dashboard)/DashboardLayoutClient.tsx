@@ -63,8 +63,8 @@ export function DashboardLayoutClient({
     // Check for logout flag - if set, redirect to login immediately and clear flag
     const logoutFlag = sessionStorage.getItem('__logout_flag__');
     if (logoutFlag === 'true') {
-      // Don't redirect from People page
-      if (pathname === '/org/people') {
+      // Don't redirect from People/Directory page (workspace-agnostic check)
+      if (pathname.includes('/org/people') || pathname.includes('/org/directory')) {
         return;
       }
       sessionStorage.removeItem('__logout_flag__');

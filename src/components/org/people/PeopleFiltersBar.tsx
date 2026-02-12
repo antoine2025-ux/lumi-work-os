@@ -7,6 +7,7 @@ import { PeopleViewToggle, type ViewMode } from "./PeopleViewToggle";
 import { SavedViewsDropdown } from "./SavedViewsDropdown";
 import { ShortlistsDropdown } from "./ShortlistsDropdown";
 import { chipBaseClass, chipInactiveClass, chipActiveClass, focusRingClass } from "./people-styles";
+import { useOrgUrl } from "@/hooks/useOrgUrl";
 import type { QuickChip } from "./people-filters";
 import type { PeopleFilters } from "./people-filters";
 import type { Shortlist } from "@/hooks/useShortlists";
@@ -54,6 +55,8 @@ export function PeopleFiltersBar({
   onClearShortlist,
   canManagePeople = true,
 }: PeopleFiltersBarProps) {
+  const orgUrl = useOrgUrl();
+  
   const handleClearSearch = () => {
     onSearchChange("");
   };
@@ -197,7 +200,7 @@ export function PeopleFiltersBar({
           {/* Add person button */}
           {canManagePeople && (
             <Link
-              href="/org/people/new"
+              href={orgUrl.newPerson}
               className={cn(
                 "inline-flex items-center justify-center gap-2",
                 "rounded-full",

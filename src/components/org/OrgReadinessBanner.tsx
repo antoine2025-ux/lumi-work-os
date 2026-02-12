@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { OrgPrimaryCta } from "@/components/org/ui/OrgCtaButton";
 import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
 import { useOrgSemanticSnapshot } from "@/hooks/useOrgSemanticSnapshot";
+import { useOrgUrl } from "@/hooks/useOrgUrl";
 import type { OrgReadinessBlocker } from "@/lib/org/snapshot/types";
 import {
   deepLinkForOwnershipIssues,
@@ -34,23 +35,28 @@ const BLOCKER_COPY: Record<OrgReadinessBlocker, string> = {
   WORK_CANNOT_EVALUATE_BASELINE: "Work baseline not established",
 };
 
-const BLOCKER_TO_LINK: Record<OrgReadinessBlocker, string> = {
-  NO_ACTIVE_PEOPLE: "/org/people",
-  NO_TEAMS: "/org/structure",
-  OWNERSHIP_INCOMPLETE: deepLinkForOwnershipIssues(),
-  NO_DECISION_DOMAINS: deepLinkForDecisionIssues(),
-  CAPACITY_COVERAGE_BELOW_MIN: deepLinkForCapacityIssues(),
-  RESPONSIBILITY_PROFILES_MISSING: deepLinkForResponsibilityIssues(),
-  WORK_CANNOT_EVALUATE_BASELINE: "/org/onboarding/work",
-};
-
 export function OrgReadinessBanner({
   onboardingIncomplete = false,
 }: {
   onboardingIncomplete?: boolean;
 }) {
+  const orgUrl = useOrgUrl();
   const { role, isLoading: roleLoading } = useCurrentOrgRole();
   const { data, isLoading: snapshotLoading, error } = useOrgSemanticSnapshot();
+
+  // Extract workspace slug from orgUrl.base
+  const workspaceSlug = orgUrl.base.split('/')[2]; // /w/{slug}/org → slug
+
+  // Build blocker links using workspace-scoped URLs
+  const BLOCKER_TO_LINK: Record<OrgReadinessBlocker, string> = {
+    NO_ACTIVE_PEOPLE: orgUrl.directory,
+    NO_TEAMS: orgUrl.structure,
+    OWNERSHIP_INCOMPLETE: deepLinkForOwnershipIssues(workspaceSlug),
+    NO_DECISION_DOMAINS: deepLinkForDecisionIssues(workspaceSlug),
+    CAPACITY_COVERAGE_BELOW_MIN: deepLinkForCapacityIssues(workspaceSlug),
+    RESPONSIBILITY_PROFILES_MISSING: deepLinkForResponsibilityIssues(workspaceSlug),
+    WORK_CANNOT_EVALUATE_BASELINE: orgUrl.path("onboarding/work"),
+  };
 
   if (roleLoading || snapshotLoading || error || !data) {
     return null;
@@ -78,10 +84,10 @@ export function OrgReadinessBanner({
 
   const ctaHref =
     onboardingIncomplete && readiness.blockers.includes("WORK_CANNOT_EVALUATE_BASELINE")
-      ? "/org/onboarding/work"
+      ? orgUrl.path("onboarding/work")
       : displayBlockers.length > 0
         ? BLOCKER_TO_LINK[displayBlockers[0]]
-        : "/org/issues";
+        : orgUrl.adminHealth;
   const ctaLabel =
     onboardingIncomplete && readiness.blockers.includes("WORK_CANNOT_EVALUATE_BASELINE")
       ? "Resume onboarding"

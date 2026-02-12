@@ -14,6 +14,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
+import { useOrgUrl } from "@/hooks/useOrgUrl";
 import type { OrgIssueMetadata } from "@/lib/org/deriveIssues";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 import { IssueAttentionRow } from "@/components/org/issues/IssueAttentionRow";
@@ -23,6 +24,8 @@ type Props = {
 };
 
 export function IntelligenceIssuesInbox({ issues }: Props) {
+  const orgUrl = useOrgUrl();
+  
   if (issues.length === 0) {
     return (
       <Card>
@@ -44,7 +47,7 @@ export function IntelligenceIssuesInbox({ issues }: Props) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg">What Needs Attention</CardTitle>
-        <Link href="/org/issues">
+        <Link href={orgUrl.adminHealth}>
           <Button variant="ghost" size="sm" className="text-xs">
             View all issues
             <ExternalLink className="ml-1 h-3 w-3" />

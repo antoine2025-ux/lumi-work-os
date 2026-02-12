@@ -5,6 +5,7 @@ import { CheckCircle2, Users, Building2, UserPlus, ShieldCheck, ArrowRight } fro
 import Link from "next/link";
 import { OrgApi } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
+import { useOrgUrl } from "@/hooks/useOrgUrl";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ type OrgSetupGuidePanelProps = {
 };
 
 export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
+  const orgUrl = useOrgUrl();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const overviewQ = useOrgQuery(() => OrgApi.getOrgOverview(), []);
   const peopleQ = useOrgQuery(() => OrgApi.listPeople(), []);
@@ -75,28 +77,28 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
       id: "add-people",
       title: "Add people",
       description: "Add people to your organization",
-      href: "/org/people/new",
+      href: orgUrl.newPerson,
       icon: Users,
     },
     {
       id: "create-team",
       title: "Create a team",
       description: "Create your first team",
-      href: "/org/structure?tab=teams",
+      href: `${orgUrl.structure}?tab=teams`,
       icon: Building2,
     },
     {
       id: "assign-people",
       title: "Assign people to teams",
       description: "Assign people to their teams",
-      href: "/org/people",
+      href: orgUrl.directory,
       icon: UserPlus,
     },
     {
       id: "assign-ownership",
       title: "Assign ownership",
       description: "Assign owners to teams and departments",
-      href: "/org/ownership",
+      href: orgUrl.ownership,
       icon: ShieldCheck,
     },
   ];

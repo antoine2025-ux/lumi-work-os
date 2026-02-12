@@ -30,11 +30,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
+import { useOrgUrl } from "@/hooks/useOrgUrl";
 import type { OrgPerson } from "@/types/org";
 
 export function PeopleListClient() {
   const pathname = usePathname();
   const router = useRouter();
+  const orgUrl = useOrgUrl();
   const flagsQ = useOrgQuery(() => OrgApi.getFlags(), []);
   const peopleQ = useOrgQuery(() => OrgApi.listPeople(), []);
   const [q, setQ] = useState("");
@@ -167,10 +169,13 @@ export function PeopleListClient() {
 
   const canAdd = flagsQ.data?.flags?.peopleWrite === true;
 
-  // Handle row click navigation
-  const handleRowClick = useCallback((person: OrgPerson) => {
-    router.push(`/org/people/${person.id}`);
-  }, [router]);
+  // Handle row click navigation (workspace-scoped when in /w/[workspaceSlug]/org)
+  const handleRowClick = useCallback(
+    (person: OrgPerson) => {
+      router.push(orgUrl.person(person.id));
+    },
+    [router, orgUrl]
+  );
 
   const handleRowKeyDown = useCallback((person: OrgPerson, e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -226,7 +231,7 @@ export function PeopleListClient() {
           />
           {canAdd ? (
             <Button asChild>
-              <Link href="/org/people/new">Add person</Link>
+              <Link href={orgUrl.newPerson}>Add person</Link>
             </Button>
           ) : (
             <Button variant="secondary" disabled title="Enabled via feature flag">
@@ -255,7 +260,7 @@ export function PeopleListClient() {
           />
           {canAdd ? (
             <Button asChild>
-              <Link href="/org/people/new">Add person</Link>
+              <Link href={orgUrl.newPerson}>Add person</Link>
             </Button>
           ) : (
             <Button variant="secondary" disabled title="Enabled via feature flag">
@@ -284,7 +289,7 @@ export function PeopleListClient() {
           />
           {canAdd ? (
             <Button asChild>
-              <Link href="/org/people/new">Add person</Link>
+              <Link href={orgUrl.newPerson}>Add person</Link>
             </Button>
           ) : (
             <Button variant="secondary" disabled title="Enabled via feature flag">
@@ -316,7 +321,7 @@ export function PeopleListClient() {
           />
           {canAdd ? (
             <Button asChild>
-              <Link href="/org/people/new">Add person</Link>
+              <Link href={orgUrl.newPerson}>Add person</Link>
             </Button>
           ) : (
             <Button variant="secondary" disabled title="Enabled via feature flag">
@@ -328,7 +333,7 @@ export function PeopleListClient() {
         <PeopleEmptyState
           hasFilters={false}
           onAddPerson={() => {
-            router.push("/org/people/new");
+            router.push(orgUrl.newPerson);
           }}
         />
       </div>
@@ -453,7 +458,7 @@ export function PeopleListClient() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              router.push(`/org/people/${person.id}?focus=manager`);
+                              router.push(`${orgUrl.person(person.id)}?focus=manager`);
                             }}
                             className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-slate-800/35 text-slate-500 border border-white/5 hover:bg-slate-800/50 hover:text-slate-400 transition-colors cursor-pointer"
                             title="Click to assign a manager"

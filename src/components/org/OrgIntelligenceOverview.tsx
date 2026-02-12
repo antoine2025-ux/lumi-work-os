@@ -15,9 +15,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
 import { useOrgIssuesSummary } from "@/hooks/useOrgIssuesSummary";
+import { useOrgUrl } from "@/hooks/useOrgUrl";
 import { IssueAttentionRow } from "@/components/org/issues/IssueAttentionRow";
 
 export function OrgIntelligenceOverview() {
+  const orgUrl = useOrgUrl();
   const { data, isLoading, error } = useOrgIssuesSummary();
 
   if (isLoading) {
@@ -66,7 +68,7 @@ export function OrgIntelligenceOverview() {
             What needs attention
           </CardTitle>
           <Button asChild size="sm" variant="secondary">
-            <Link href="/org/intelligence">View intelligence</Link>
+            <Link href={orgUrl.admin}>View intelligence</Link>
           </Button>
         </CardHeader>
         <CardContent>
@@ -86,7 +88,7 @@ export function OrgIntelligenceOverview() {
           What needs attention
         </CardTitle>
         <Button asChild size="sm" variant="secondary">
-          <Link href="/org/intelligence">View intelligence</Link>
+          <Link href="/org/admin">View intelligence</Link>
         </Button>
       </CardHeader>
 
@@ -106,7 +108,7 @@ export function OrgIntelligenceOverview() {
         {total > displayIssues.length && (
           <div className="pt-1">
             <Button asChild variant="ghost" size="sm" className="text-xs w-full">
-              <Link href="/org/issues">
+              <Link href={orgUrl.adminHealth}>
                 View all {total} issues
               </Link>
             </Button>
