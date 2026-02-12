@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { logOrgAuditEvent } from "@/server/audit/orgAudit";
+import { ensureOrgPositionForUser } from "@/lib/org/ensure-org-position";
 
 type AcceptOrgInvitationResult = {
   workspace: {
@@ -68,6 +69,12 @@ export async function acceptOrgInvitationByToken(
           role: "MEMBER",
         },
       });
+      if (invitation.workspaceId) {
+        await ensureOrgPositionForUser(prisma, {
+          workspaceId: invitation.workspaceId,
+          userId,
+        });
+      }
       return {
         workspace: invitation.workspace,
         membershipCreated: true,
@@ -131,6 +138,13 @@ export async function acceptOrgInvitationByToken(
         role: "MEMBER",
       },
     });
+
+    if (invitation.workspaceId) {
+      await ensureOrgPositionForUser(tx, {
+        workspaceId: invitation.workspaceId,
+        userId,
+      });
+    }
 
     await tx.orgInvitation.update({
       where: { id: invitation.id },

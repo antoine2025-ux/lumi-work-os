@@ -1,11 +1,11 @@
-import { SnapshotDetailClient } from "@/components/org/SnapshotDetailClient";
+/**
+ * Legacy org intelligence snapshot — redirects to workspace-scoped intelligence.
+ */
 
-export default async function SnapshotDetailPage({
-  params,
-}: {
-  params: Promise<{ snapshotId: string }>;
-}) {
-  const { snapshotId } = await params;
-  return <SnapshotDetailClient snapshotId={snapshotId} />;
+import { redirectToWorkspaceOrg } from "@/lib/org/redirectToWorkspaceOrg";
+
+export const dynamic = "force-dynamic";
+
+export default async function OldOrgIntelligenceSnapshotPage() {
+  await redirectToWorkspaceOrg("intelligence");
 }
-

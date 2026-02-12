@@ -11,6 +11,9 @@ import { getTeamById, getDepartmentsWithTeams } from "@/lib/org/queries";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { TeamPageClient } from "@/app/org/structure/teams/[teamId]/TeamPageClient";
 import { cn } from "@/lib/utils";
+import { prisma } from "@/lib/db";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type PageProps = {
   params: Promise<{ workspaceSlug: string; teamId: string }>;
@@ -23,6 +26,20 @@ export default async function WorkspaceOrgTeamPage({ params }: PageProps) {
 
   const department = (team as any).department;
   const allDepartments = await getDepartmentsWithTeams();
+
+  setWorkspaceContext(team.workspaceId);
+  const teamProjects = await prisma.project.findMany({
+    where: {
+      teamId: team.id,
+      workspaceId: team.workspaceId,
+    },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      _count: { select: { tasks: true } },
+    },
+  });
 
   const departments = allDepartments
     .filter((d: any) => d.name?.trim().toLowerCase() !== "unassigned")
@@ -42,7 +59,7 @@ export default async function WorkspaceOrgTeamPage({ params }: PageProps) {
   return (
     <div className="space-y-8">
       <OrgPageHeader
-        breadcrumb={breadcrumb}
+        legacyBreadcrumb={breadcrumb}
         title={team.name}
         description="Manage this team's details, ownership, and membership."
         backLink={
@@ -61,6 +78,32 @@ export default async function WorkspaceOrgTeamPage({ params }: PageProps) {
       />
 
       <TeamPageClient team={team as any} departments={departments} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Team Projects ({teamProjects.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {teamProjects.length > 0 ? (
+            <div className="space-y-2">
+              {teamProjects.map((project) => (
+                <Link
+                  key={project.id}
+                  href={`/w/${workspaceSlug}/projects/${project.id}`}
+                  className="block p-3 rounded-lg bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <p className="font-medium">{project.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {project._count.tasks} tasks · {project.status}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No projects assigned</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

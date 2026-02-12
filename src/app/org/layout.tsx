@@ -200,6 +200,20 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
           }
         }
 
+        // #region agent log
+        fetch("http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "org/layout.tsx:pathname-check",
+            message: "OrgLayout onboarding redirect pre-check",
+            data: { pathname, fullUrl: fullUrl?.slice(0, 80), nextUrl, isOnOnboardingPage, hasSkipParam, orgId: context.orgId },
+            timestamp: Date.now(),
+            hypothesisId: "H1",
+          }),
+        }).catch(() => {});
+        // #endregion
+
         if (!isOnOnboardingPage && !hasSkipParam) {
           const workspace = await prisma.workspace.findUnique({
             where: { id: context.orgId },
@@ -211,6 +225,24 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
             const provisionalCount = await prisma.workRequest.count({
               where: { workspaceId: context.orgId, isProvisional: true, status: "OPEN" },
             });
+
+            // #region agent log
+            fetch("http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                location: "org/layout.tsx:redirect-decision",
+                message: "OrgLayout onboarding redirect decision",
+                data: {
+                  orgCenterOnboardingCompletedAt: workspace?.orgCenterOnboardingCompletedAt ?? null,
+                  provisionalCount,
+                  willRedirect: provisionalCount === 0,
+                },
+                timestamp: Date.now(),
+                hypothesisId: "H2,H3",
+              }),
+            }).catch(() => {});
+            // #endregion
 
             if (provisionalCount === 0) {
               redirect("/org/onboarding/work");

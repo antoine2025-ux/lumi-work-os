@@ -321,36 +321,45 @@ async function executeTimeOffCreate(
     })
   }
 
-  // Create time off
-  logger.debug('Creating time off row', {
+  const leaveTypeMap: Record<string, string> = {
+    vacation: 'VACATION',
+    sick: 'SICK',
+    personal: 'PERSONAL',
+    other: 'PERSONAL',
+  }
+  const leaveType = leaveTypeMap[action.timeOffType || 'vacation'] ?? 'VACATION'
+  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+  logger.debug('Creating leave request', {
     requestId,
     workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
     userId: action.userId ? `${action.userId.substring(0, 8)}...` : undefined,
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
-    type: action.timeOffType || 'vacation',
+    leaveType,
   })
 
-  let timeOff
+  let leaveRequest
   try {
-    timeOff = await prisma.timeOff.create({
+    leaveRequest = await prisma.leaveRequest.create({
       data: {
         workspaceId,
-        userId: action.userId,
+        personId: action.userId,
+        requesterId: userId,
         startDate,
         endDate,
-        type: action.timeOffType || 'vacation',
-        status: 'approved', // MVP: auto-approve
+        totalDays,
+        leaveType,
+        status: 'PENDING',
         notes: action.notes || null,
       },
     })
-    logger.debug('Time off row created successfully', {
+    logger.debug('Leave request created successfully', {
       requestId,
-      timeOffId: timeOff.id,
+      leaveRequestId: leaveRequest.id,
     })
   } catch (prismaError) {
-    // Preserve the actual Prisma error
-    logger.error('Failed to create time off row', {
+    logger.error('Failed to create leave request', {
       requestId,
       workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
       userId: action.userId ? `${action.userId.substring(0, 8)}...` : undefined,
@@ -360,8 +369,7 @@ async function executeTimeOffCreate(
         stack: prismaError.stack,
       } : String(prismaError),
     })
-    // Re-throw as LoopbrainError with cause preserved
-    throw new LoopbrainError('INTERNAL_ERROR', 500, 'Failed to create time off entry', {
+    throw new LoopbrainError('INTERNAL_ERROR', 500, 'Failed to create leave request', {
       isUserSafe: false,
       details: {
         requestId,
@@ -371,24 +379,22 @@ async function executeTimeOffCreate(
     })
   }
 
-  // Index the time off (non-blocking)
   indexOne({
     workspaceId,
     userId,
-    entityType: 'time_off',
-    entityId: timeOff.id,
+    entityType: 'leave_request',
+    entityId: leaveRequest.id,
     action: 'upsert',
     reason: 'action:timeoff.create',
     requestId,
   }).catch(err => {
-    logger.error('Failed to index time off after creation', {
+    logger.error('Failed to index leave request after creation', {
       requestId,
-      timeOffId: timeOff.id,
+      leaveRequestId: leaveRequest.id,
       error: err,
     })
   })
 
-  // Index the person (non-blocking)
   indexOne({
     workspaceId,
     userId,
@@ -398,17 +404,17 @@ async function executeTimeOffCreate(
     reason: 'action:timeoff.create (person)',
     requestId,
   }).catch(err => {
-    logger.error('Failed to index person after time off creation', {
+    logger.error('Failed to index person after leave request creation', {
       requestId,
       personId: action.userId,
       error: err,
     })
   })
 
-  logger.info('Time off created via action', {
+  logger.info('Leave request created via action', {
     requestId,
     workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
-    timeOffId: timeOff.id,
+    leaveRequestId: leaveRequest.id,
     userId: action.userId,
     startDate: action.startDate,
     endDate: action.endDate,
@@ -418,8 +424,8 @@ async function executeTimeOffCreate(
     ok: true,
     result: {
       actionType: 'timeoff.create',
-      entityId: timeOff.id,
-      message: `Time off created from ${action.startDate} to ${action.endDate}`,
+      entityId: leaveRequest.id,
+      message: `Leave request submitted from ${action.startDate} to ${action.endDate} (pending approval)`,
     },
     requestId,
   }

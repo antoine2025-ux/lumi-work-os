@@ -26,11 +26,12 @@ import {
   buildContextObjectForRole 
 } from './builders/org'
 import { buildContextObjectForTimeOff } from './builders/time-off'
+import { buildContextObjectForLeaveRequest } from './builders/leave-request'
 
 /**
  * Supported entity types for indexing
  */
-export type IndexEntityType = 'project' | 'task' | 'page' | 'epic' | 'person' | 'team' | 'role' | 'time_off'
+export type IndexEntityType = 'project' | 'task' | 'page' | 'epic' | 'person' | 'team' | 'role' | 'time_off' | 'leave_request'
 
 /**
  * Index action type
@@ -239,6 +240,8 @@ async function buildContextObjectForIndexing(
       return buildContextObjectForRole({ workspaceId, entityId, prisma: prismaClient })
     case 'time_off':
       return buildContextObjectForTimeOff({ workspaceId, entityId, prisma: prismaClient })
+    case 'leave_request':
+      return buildContextObjectForLeaveRequest({ workspaceId, entityId, prisma: prismaClient })
     default:
       throw new Error(`Unknown entity type: ${entityType}`)
   }

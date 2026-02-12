@@ -18,20 +18,32 @@ type OrgLayoutClientProps = {
   children: ReactNode;
   beta?: boolean;
   showHeader?: boolean;
+  workspaceSlug?: string;
+  isAdmin?: boolean;
+  isTeamLead?: boolean;
 };
 
-export function OrgLayoutClient({ children, beta = false, showHeader = true }: OrgLayoutClientProps) {
+export function OrgLayoutClient({
+  children,
+  beta = false,
+  showHeader = true,
+  workspaceSlug = "",
+  isAdmin = false,
+  isTeamLead = false,
+}: OrgLayoutClientProps) {
   const pathname = usePathname();
-  
+
   return (
     <div className="flex min-h-screen flex-col bg-[#020617]">
-      {/* Global Loopwell header: logo + blue pill tabs + avatar */}
-      {/* Only render if showHeader is true (default) - skip when nested in dashboard layout */}
       {showHeader && <Header />}
 
-      {/* Org shell: sidebar + content */}
       <div className="flex flex-1">
-        <OrgSidebar beta={beta} />
+        <OrgSidebar
+          beta={beta}
+          workspaceSlug={workspaceSlug}
+          isAdmin={isAdmin}
+          isTeamLead={isTeamLead}
+        />
         <main className="relative flex-1 overflow-y-auto bg-[#020617]">
           {/* Smooth page transitions - doesn't block data load */}
           <OrgPageTransition key={pathname}>

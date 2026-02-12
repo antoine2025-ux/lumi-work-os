@@ -1,12 +1,11 @@
 /**
- * Legacy Decision Page - Redirects to new location
- * 
- * Old route: /org/decision
- * New route: /org/settings/decision-authority
+ * Legacy org decision page — redirects to workspace-scoped admin/decisions.
  */
 
-import { redirect } from "next/navigation";
+import { redirectToWorkspaceOrg } from "@/lib/org/redirectToWorkspaceOrg";
 
-export default function OrgDecisionPage() {
-  redirect("/org/settings/decision-authority");
+export const dynamic = "force-dynamic";
+
+export default async function OldOrgDecisionPage() {
+  await redirectToWorkspaceOrg("admin/decisions");
 }

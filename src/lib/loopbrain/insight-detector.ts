@@ -854,7 +854,7 @@ export async function detectCommunicationInsights(
               id: randomUUID(),
               action: "Assign owners to decision domains",
               actionType: "CONFIGURE",
-              deepLink: "/org/decisions",
+              deepLink: "/org/admin/decisions",
               confidence: 0.85,
             },
           ],

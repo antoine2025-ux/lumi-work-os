@@ -24,7 +24,7 @@ export function PeopleFilterControls({ filters }: PeopleFilterControlsProps) {
       params.set(key, value);
     }
 
-    router.push(`/org/people${params.toString() ? `?${params.toString()}` : ""}`);
+    router.push(`/org/directory${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
   return (

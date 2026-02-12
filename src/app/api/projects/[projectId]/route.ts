@@ -6,6 +6,11 @@ import { ProjectRole } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
+import {
+  createProjectAllocation,
+  canTakeOnWork,
+} from '@/lib/org/capacity/project-capacity'
+import { logger } from '@/lib/logger'
 
 
 // GET /api/projects/[projectId] - Get a specific project
@@ -22,17 +27,6 @@ export async function GET(
 
   try {
     const auth = await getUnifiedAuth(request)
-
-    // Phase A: Log database connection info when debugging (DEV ONLY)
-    if (process.env.NODE_ENV === 'development' && process.env.DEBUG_DB === 'true') {
-      try {
-        const dbInfo = await prisma.$queryRaw<Array<{ current_database: string }>>`SELECT current_database()`
-        console.log(`[GET /api/projects/${projectId}] Database: ${dbInfo[0]?.current_database}`)
-        console.log(`[GET /api/projects/${projectId}] DATABASE_URL: ${process.env.DATABASE_URL?.replace(/:[^@]+@/, ':***@') || 'NOT SET'}`)
-      } catch (e) {
-        console.error(`[GET /api/projects/${projectId}] Could not query DB info:`, e)
-      }
-    }
 
     // Phase A: Log database connection info when debugging (DEV ONLY)
     if (process.env.NODE_ENV === 'development' && process.env.DEBUG_DB === 'true') {
@@ -66,6 +60,7 @@ export async function GET(
         color: true,
         department: true,
         team: true,
+        teamId: true,
         ownerId: true,
         isArchived: true,
         startDate: true,
@@ -112,6 +107,12 @@ export async function GET(
             email: true
           }
         },
+        orgTeam: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         tasks: {
           select: {
             id: true,
@@ -127,9 +128,11 @@ export async function GET(
               }
             }
           },
-          orderBy: {
-            createdAt: 'asc'
-          }
+          take: 50, // CRITICAL: Limit to first 50 tasks for performance
+          orderBy: [
+            { status: 'asc' }, // Show incomplete tasks first
+            { createdAt: 'asc' }
+          ]
         },
         _count: {
           select: {
@@ -141,7 +144,7 @@ export async function GET(
             id: true,
             title: true,
             slug: true,
-            content: true,
+            // content: true, // REMOVED - load separately when viewing wiki
             updatedAt: true
           }
         }
@@ -152,7 +155,98 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    return NextResponse.json(project)
+    // Enrich members with org position data (ProjectMember has no orgPositionId FK; lookup by userId)
+    const workspaceId = project.workspaceId as string
+    const memberUserIds = project.members.map((m: { userId: string }) => m.userId)
+    if (memberUserIds.length > 0 && workspaceId) {
+      const orgPositions = await prisma.orgPosition.findMany({
+        where: {
+          userId: { in: memberUserIds },
+          workspaceId,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          userId: true,
+          title: true,
+          team: {
+            select: {
+              name: true,
+              department: { select: { name: true } },
+            },
+          },
+        },
+      })
+      const now = new Date()
+      const weekStart = new Date(now)
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+      weekStart.setHours(0, 0, 0, 0)
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekEnd.getDate() + 7)
+
+      const workAllocations = await prisma.workAllocation.findMany({
+        where: {
+          personId: { in: memberUserIds },
+          workspaceId,
+          OR: [
+            {
+              startDate: { lte: weekEnd },
+              OR: [
+                { endDate: null },
+                { endDate: { gte: weekStart } },
+              ],
+            },
+          ],
+        },
+        select: {
+          personId: true,
+          allocationPercent: true,
+        },
+      })
+
+      const orgByUser = new Map(orgPositions.map((op) => [op.userId, op]))
+      const hoursByUser = new Map<string, number>()
+      for (const alloc of workAllocations) {
+        const current = hoursByUser.get(alloc.personId) ?? 0
+        hoursByUser.set(alloc.personId, current + alloc.allocationPercent * 40)
+      }
+
+      const enrichedMembers = project.members.map((m: { id: string; userId: string; role: string; user: { id: string; name: string; email: string } }) => {
+        const op = orgByUser.get(m.userId)
+        const totalHours = hoursByUser.get(m.userId) ?? 0
+        return {
+          ...m,
+          orgPosition: op
+            ? {
+                id: op.id,
+                title: op.title,
+                department: op.team?.department?.name ?? null,
+                team: op.team ? { name: op.team.name } : null,
+                workAllocations: totalHours > 0 ? [{ hoursAllocated: totalHours, projectId: null }] : [],
+              }
+            : undefined,
+        }
+      })
+      project.members = enrichedMembers
+    }
+
+    // Add task pagination metadata
+    const totalTaskCount = project._count.tasks
+    const hasMoreTasks = totalTaskCount > 50
+    const loadedTaskCount = project.tasks.length
+
+    // Enhance response with pagination info
+    const enrichedProject = {
+      ...project,
+      taskPagination: {
+        totalTaskCount,
+        loadedTaskCount,
+        hasMoreTasks,
+        limit: 50
+      }
+    }
+
+    return NextResponse.json(enrichedProject)
   } catch (error: any) {
     console.error('Error fetching project:', error)
     
@@ -250,6 +344,7 @@ export async function PUT(
       color,
       department,
       team,
+      teamId,
       wikiPageId,
       ownerId,
       dailySummaryEnabled,
@@ -257,79 +352,147 @@ export async function PUT(
       memberUserIds = []
     } = validatedData
 
-    // Check if project exists and get current ProjectSpace info
+    // Check if project exists (ProjectSpace is not in schema; no projectSpace include)
     const existingProject = await prisma.project.findUnique({
       where: { id: projectId },
-      include: {
-        projectSpace: {
-          select: {
-            id: true,
-            visibility: true,
-            name: true
-          }
-        }
-      }
     })
 
     if (!existingProject) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Handle visibility changes
-    let newProjectSpaceId: string | undefined = existingProject.projectSpaceId || undefined
-    
-    if (visibility !== undefined) {
-      const { getOrCreateGeneralProjectSpace, createPrivateProjectSpace } = await import('@/lib/pm/project-space-helpers')
-      
-      if (visibility === 'PUBLIC') {
-        // Switch to PUBLIC: move to General space
-        newProjectSpaceId = await getOrCreateGeneralProjectSpace(auth.workspaceId) ?? undefined
-        // If migration not run, newProjectSpaceId will be null - that's OK (legacy mode)
-      } else if (visibility === 'TARGETED') {
-        // Switch to TARGETED: create new private space or use existing
-        const currentSpace = existingProject.projectSpace
-        if (currentSpace && currentSpace.visibility === 'TARGETED') {
-          // Already TARGETED: update members if provided
-          newProjectSpaceId = currentSpace.id
-          
-          if (memberUserIds.length > 0) {
-            // Add new members (creator is always included)
-            const allMemberIds = [auth.user.userId, ...memberUserIds.filter(id => id !== auth.user.userId)]
-            await prisma.projectSpaceMember.createMany({
-              data: allMemberIds.map(userId => ({
-                projectSpaceId: currentSpace.id,
-                userId
-              })),
-              skipDuplicates: true
-            })
-          }
-        } else {
-          // Switching from PUBLIC to TARGETED: create new private space
-          newProjectSpaceId = await createPrivateProjectSpace(
-            auth.workspaceId,
-            existingProject.name,
-            auth.user.userId,
-            memberUserIds
-          ) ?? undefined
-          // If migration not run, newProjectSpaceId will be null - that's OK (legacy mode)
-        }
-      }
-    }
+    // Visibility / memberUserIds: ProjectSpace not in schema; access is workspace + project members (see guards.ts)
 
-    // Handle assignee updates if provided
+    // Handle assignee updates if provided (with org linking and WorkAllocations)
+    const capacityWarnings: Array<{
+      userId: string
+      reason: string
+      currentPct: number
+    }> = []
+    
     if (assigneeIds !== undefined) {
-      // Remove existing assignees
+      const startTime = Date.now()
+      
+      // Delete existing assignees
       await prisma.projectAssignee.deleteMany({
         where: { projectId }
       })
       
-      // Add new assignees
       if (assigneeIds.length > 0) {
-        await prisma.projectAssignee.createMany({
-          data: assigneeIds.map((userId: string) => ({
+        const defaultHours = 10
+        
+        // BATCH 1: Get all org positions in single query (instead of N queries)
+        const orgPositions = await prisma.orgPosition.findMany({
+          where: {
+            userId: { in: assigneeIds },
+            workspaceId: auth.workspaceId,
+          },
+          select: {
+            id: true,
+            userId: true,
+          }
+        })
+        
+        // Create lookup map for O(1) access
+        const positionMap = new Map(
+          orgPositions.map(pos => [pos.userId, pos])
+        )
+        
+        // Filter to only valid assignees (those with org positions)
+        const validAssigneeIds = assigneeIds.filter((id: string) => positionMap.has(id))
+        
+        if (validAssigneeIds.length > 0) {
+          // BATCH 2: Create all assignee records at once (instead of N creates)
+          await prisma.projectAssignee.createMany({
+            data: validAssigneeIds.map((userId: string) => ({
+              projectId,
+              userId,
+            })),
+            skipDuplicates: true
+          })
+          
+          // BATCH 3: Run capacity checks and allocations in parallel (instead of sequential)
+          const allocationPromises = validAssigneeIds.map(async (assigneeUserId: string) => {
+            const orgPosition = positionMap.get(assigneeUserId)
+            if (!orgPosition) return null
+            
+            const estimatedHours = defaultHours
+            
+            // Run capacity check
+            const capacityCheck = await canTakeOnWork(
+              assigneeUserId,
+              auth.workspaceId,
+              estimatedHours,
+              120
+            )
+            
+            // Track capacity warnings
+            if (!capacityCheck.canTake && capacityCheck.reason) {
+              capacityWarnings.push({
+                userId: assigneeUserId,
+                reason: capacityCheck.reason,
+                currentPct: capacityCheck.currentPct,
+              })
+            }
+            
+            // Create allocation
+            try {
+              await createProjectAllocation({
+                workspaceId: auth.workspaceId,
+                orgPositionId: orgPosition.id,
+                projectId,
+                hoursAllocated: estimatedHours,
+                description: `Project assignment: ${existingProject.name}`,
+              })
+            } catch (err) {
+              console.error('Failed to create assignee WorkAllocation', {
+                projectId,
+                userId: assigneeUserId,
+                error: err,
+              })
+            }
+            
+            return { assigneeUserId, success: true }
+          })
+          
+          // Wait for all operations to complete in parallel
+          await Promise.all(allocationPromises)
+          
+          // Performance logging (development only)
+          const endTime = Date.now()
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`✅ Assignee batch operations completed in ${endTime - startTime}ms for ${validAssigneeIds.length} assignees`)
+          }
+        }
+      }
+    }
+
+    // If owner changed, ensure new owner is a ProjectMember
+    const newOwnerId = ownerId !== undefined ? (ownerId || null) : null
+    if (newOwnerId) {
+      const existingMember = await prisma.projectMember.findFirst({
+        where: {
+          projectId,
+          userId: newOwnerId,
+        },
+      })
+
+      if (!existingMember) {
+        await prisma.projectMember.create({
+          data: {
             projectId,
-            userId
-          }))
+            userId: newOwnerId,
+            role: 'OWNER',
+          },
+        })
+        logger.info('[Project Update] Added new owner as member', {
+          projectId,
+          ownerId: newOwnerId,
+        })
+      } else {
+        await prisma.projectMember.update({
+          where: { id: existingMember.id },
+          data: { role: 'OWNER' },
         })
       }
     }
@@ -347,10 +510,10 @@ export async function PUT(
         ...(color && { color }),
         ...(department && { department }),
         ...(team && { team }),
+        ...(teamId !== undefined && { teamId: teamId ?? null }),
         ...(wikiPageId !== undefined && { wikiPageId: wikiPageId || null }),
         ...(ownerId !== undefined && { ownerId: ownerId || null }),
         ...(dailySummaryEnabled !== undefined && { dailySummaryEnabled }),
-        ...(newProjectSpaceId !== undefined && { projectSpaceId: newProjectSpaceId }),
       },
       include: {
         createdBy: {
@@ -389,6 +552,12 @@ export async function PUT(
             email: true
           }
         },
+        orgTeam: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         tasks: {
           select: {
             id: true,
@@ -404,9 +573,11 @@ export async function PUT(
               }
             }
           },
-          orderBy: {
-            createdAt: 'asc'
-          }
+          take: 50, // CRITICAL: Limit to first 50 tasks for performance
+          orderBy: [
+            { status: 'asc' }, // Show incomplete tasks first
+            { createdAt: 'asc' }
+          ]
         },
         _count: {
           select: {
@@ -418,7 +589,7 @@ export async function PUT(
             id: true,
             title: true,
             slug: true,
-            content: true,
+            // content: true, // REMOVED - load separately when viewing wiki
             updatedAt: true
           }
         }
@@ -430,12 +601,25 @@ export async function PUT(
       console.error('Failed to upsert project context after update', { projectId, error })
     })
 
-    // Include slackChannelHints in response if provided (not persisted, but returned for UI)
-    const responseProject = project as any
+    // Add task pagination metadata to update response
+    const totalTaskCount = project._count.tasks
+    const hasMoreTasks = totalTaskCount > 50
+
+    // Include slackChannelHints, capacityWarnings, and taskPagination in response
+    const responseProject = project as Record<string, unknown>
+    responseProject.taskPagination = {
+      totalTaskCount,
+      loadedTaskCount: project.tasks.length,
+      hasMoreTasks,
+      limit: 50
+    }
     if (slackChannelHints) {
       responseProject.slackChannelHints = slackChannelHints
     }
-    
+    if (capacityWarnings.length > 0) {
+      responseProject.capacityWarnings = capacityWarnings
+    }
+
     return NextResponse.json(responseProject)
   } catch (error: unknown) {
     console.error('Error updating project:', error)

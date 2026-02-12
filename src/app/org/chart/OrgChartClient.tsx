@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { OrgDepartmentRow } from "@/components/org/OrgDepartmentRow";
@@ -8,7 +8,9 @@ import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 import { OrgNoAccessState } from "@/components/org/OrgNoAccessState";
 import { OrgChartFilters, type OrgChartFilter } from "@/components/org/OrgChartFilters";
 import { OrgChartEmptyState } from "@/components/org/OrgChartEmptyState";
+import { OrgChartTreeView } from "@/components/org/OrgChartTreeView";
 import { getInitials } from "@/components/org/structure/utils";
+import type { OrgChartTree } from "@/lib/org/projections/buildOrgChartTree";
 
 type OrgChartClientProps = {
   orgId: string;
@@ -26,8 +28,11 @@ type OrgChartClientProps = {
       }>;
     }>;
   } | null;
+  chartTree?: OrgChartTree | null;
   validation?: any;
 };
+
+type ViewMode = "flat" | "tree";
 
 type DepartmentRowData = {
   id: string;
@@ -75,7 +80,7 @@ function normalizeOrgForOrgChart(
   });
 }
 
-export function OrgChartClient({ orgId, chartData, validation }: OrgChartClientProps) {
+export function OrgChartClient({ orgId, chartData, chartTree, validation }: OrgChartClientProps) {
   const isLoading = !chartData;
   const noAccess = false; // Permission checked server-side
   const router = useRouter();
@@ -83,6 +88,21 @@ export function OrgChartClient({ orgId, chartData, validation }: OrgChartClientP
   const [activeFilter, setActiveFilter] = useState<OrgChartFilter>("all");
   const [error, setError] = useState<Error | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("flat");
+
+  // Load view preference from localStorage
+  useEffect(() => {
+    const savedView = localStorage.getItem("orgChartViewMode");
+    if (savedView === "tree" || savedView === "flat") {
+      setViewMode(savedView);
+    }
+  }, []);
+
+  // Save view preference to localStorage
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("orgChartViewMode", mode);
+  };
 
   // Normalize department data into view model
   const departments = useMemo<DepartmentRowData[]>(
@@ -172,29 +192,61 @@ export function OrgChartClient({ orgId, chartData, validation }: OrgChartClientP
           <OrgNoAccessState />
         ) : chartData ? (
           <>
-            {/* Query bar: Search + Filters - consistent placement under header */}
+            {/* Query bar: Search + Filters + View Toggle */}
             <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-              {/* Left: Search */}
-              <div className="flex-1 max-w-xl">
-                <div className="relative">
-                  <input
-                    ref={searchInputRef}
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search departments or leaders…"
-                    className="w-full rounded-full border border-white/10 bg-slate-900/60 px-4 py-2 pl-9 text-sm text-white/90 placeholder:text-white/40 transition-all duration-200 focus:border-primary/70 focus:outline-none focus:ring-2 focus:ring-primary/60"
-                  />
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/40">
-                    🔍
-                  </span>
+              {/* Left: Search (only in flat view) */}
+              {viewMode === "flat" && (
+                <div className="flex-1 max-w-xl">
+                  <div className="relative">
+                    <input
+                      ref={searchInputRef}
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search departments or leaders…"
+                      className="w-full rounded-full border border-white/10 bg-slate-900/60 px-4 py-2 pl-9 text-sm text-white/90 placeholder:text-white/40 transition-all duration-200 focus:border-primary/70 focus:outline-none focus:ring-2 focus:ring-primary/60"
+                    />
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/40">
+                      🔍
+                    </span>
+                  </div>
                 </div>
+              )}
+
+              {/* Spacer for tree view */}
+              {viewMode === "tree" && <div className="flex-1" />}
+
+              {/* View Toggle */}
+              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 p-1">
+                <button
+                  onClick={() => handleViewModeChange("flat")}
+                  className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                    viewMode === "flat"
+                      ? "bg-primary text-white"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  List View
+                </button>
+                <button
+                  onClick={() => handleViewModeChange("tree")}
+                  className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                    viewMode === "tree"
+                      ? "bg-primary text-white"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  disabled={!chartTree}
+                >
+                  Tree View
+                </button>
               </div>
 
-              {/* Right: Filters */}
-              <OrgChartFilters
-                activeFilter={activeFilter}
-                onChange={setActiveFilter}
-              />
+              {/* Right: Filters (only in flat view) */}
+              {viewMode === "flat" && (
+                <OrgChartFilters
+                  activeFilter={activeFilter}
+                  onChange={setActiveFilter}
+                />
+              )}
             </div>
 
             {/* Error banner */}
@@ -221,37 +273,58 @@ export function OrgChartClient({ orgId, chartData, validation }: OrgChartClientP
               />
             )}
 
-            {/* Department rows list or empty state */}
+            {/* View-specific content */}
             {!isLoading && departments.length > 0 && (
-              <div className="mt-8 space-y-4">
-                {visibleDepartments.length === 0 ? (
-                  <OrgChartEmptyState
-                    activeFilter={activeFilter}
-                    searchQuery={query}
-                    onClearFilters={handleClearFilters}
-                  />
+              <>
+                {viewMode === "flat" ? (
+                  <div className="mt-8 space-y-4">
+                    {visibleDepartments.length === 0 ? (
+                      <OrgChartEmptyState
+                        activeFilter={activeFilter}
+                        searchQuery={query}
+                        onClearFilters={handleClearFilters}
+                      />
+                    ) : (
+                      visibleDepartments.map((dept) => (
+                        <OrgDepartmentRow
+                          key={dept.id}
+                          id={dept.id}
+                          name={dept.name}
+                          leaderName={dept.leaderName}
+                          leaderInitials={dept.leaderInitials}
+                          leaderRole="Department lead"
+                          reportsToName={dept.reportsToName}
+                          teamsCount={dept.teamsCount}
+                          peopleCount={dept.peopleCount}
+                          isHiring={dept.isHiring}
+                          recentChangeSummary={dept.recentChangeSummary}
+                          isReorg={dept.isReorg}
+                          onOpenStructure={handleOpenStructure}
+                          onViewPeople={handleViewPeople}
+                          accentIndex={dept.accentIndex}
+                        />
+                      ))
+                    )}
+                  </div>
                 ) : (
-                  visibleDepartments.map((dept) => (
-                    <OrgDepartmentRow
-                      key={dept.id}
-                      id={dept.id}
-                      name={dept.name}
-                      leaderName={dept.leaderName}
-                      leaderInitials={dept.leaderInitials}
-                      leaderRole="Department lead"
-                      reportsToName={dept.reportsToName}
-                      teamsCount={dept.teamsCount}
-                      peopleCount={dept.peopleCount}
-                      isHiring={dept.isHiring}
-                      recentChangeSummary={dept.recentChangeSummary}
-                      isReorg={dept.isReorg}
-                      onOpenStructure={handleOpenStructure}
-                      onViewPeople={handleViewPeople}
-                      accentIndex={dept.accentIndex}
-                    />
-                  ))
+                  <div className="mt-8">
+                    {chartTree ? (
+                      <OrgChartTreeView
+                        tree={chartTree}
+                        onNodeClick={(node) => {
+                          if (node.personId) {
+                            router.push(`/org/people/${node.personId}`);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-[500px] text-slate-400">
+                        Tree view is not available
+                      </div>
+                    )}
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </>
         ) : (

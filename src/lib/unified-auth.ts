@@ -189,6 +189,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
   const hasExplicitWorkspace = request && (
     new URL(request.url).pathname.match(/^\/w\/([^\/]+)/) ||
     new URL(request.url).searchParams.get('workspaceId') ||
+    new URL(request.url).searchParams.get('workspaceSlug') ||
     new URL(request.url).searchParams.get('projectId') ||
     request.headers.get('x-workspace-id')
   )
@@ -378,6 +379,28 @@ async function resolveActiveWorkspaceIdWithMember(
   // Priority 2: URL query params
   if (request) {
     const url = new URL(request.url)
+    const workspaceSlug = url.searchParams.get('workspaceSlug')
+    if (workspaceSlug) {
+      const workspace = await prisma.workspace.findUnique({
+        where: { slug: workspaceSlug },
+        select: { id: true },
+      })
+      if (workspace) {
+        const member = await prisma.workspaceMember.findUnique({
+          where: {
+            workspaceId_userId: {
+              workspaceId: workspace.id,
+              userId,
+            },
+          },
+          select: WORKSPACE_MEMBER_SELECT,
+        })
+        if (member) {
+          return { workspaceId: workspace.id, workspaceMember: member }
+        }
+      }
+    }
+
     const workspaceId = url.searchParams.get('workspaceId')
     if (workspaceId) {
       // Validate workspace access and get member in one query

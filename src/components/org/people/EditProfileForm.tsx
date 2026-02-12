@@ -56,7 +56,7 @@ export function EditProfileForm(props: Props) {
       
       // Navigate back to people page after a brief delay to show "Saved" feedback
       setTimeout(() => {
-        router.push("/org/people")
+        router.push("/org/directory")
       }, 500)
     } catch (e: any) {
       setError(e?.message || "Failed to save changes")

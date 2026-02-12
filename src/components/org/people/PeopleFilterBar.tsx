@@ -53,13 +53,13 @@ export function PeopleFilterBar({
     params.delete("departmentId");
     params.delete("roleId");
     // Keep search query if present
-    router.push(`/org/people${params.toString() ? `?${params.toString()}` : ""}`);
+    router.push(`/org/directory${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
   function handleRemoveFilter(key: keyof PeopleFilters) {
     const params = new URLSearchParams(searchParams.toString());
     params.delete(key);
-    router.push(`/org/people${params.toString() ? `?${params.toString()}` : ""}`);
+    router.push(`/org/directory${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
   return (

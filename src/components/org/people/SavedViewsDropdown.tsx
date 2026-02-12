@@ -157,7 +157,7 @@ export function SavedViewsDropdown({
     (view: SavedView) => {
       if (view.urlParams) {
         // Use URL params for presets - navigate directly
-        router.push(`/org/people?${view.urlParams}`, { scroll: false });
+        router.push(`/org/directory?${view.urlParams}`, { scroll: false });
       } else if (onViewSelectWithURL) {
         // Fallback to callback if provided
         onViewSelectWithURL(view.urlParams || "");

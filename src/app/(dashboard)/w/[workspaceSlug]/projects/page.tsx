@@ -93,6 +93,7 @@ interface Project {
   _count: {
     tasks: number
   }
+  userRole?: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
 }
 
 interface Epic {
@@ -404,6 +405,14 @@ export default function ProjectsDashboard() {
                           <h3 className="text-lg font-bold group-hover:opacity-80 transition-all" style={{ color: colors.text }}>
                             {project.name}
                           </h3>
+                          {project.userRole && (
+                            <Badge
+                              variant={project.userRole === 'OWNER' ? 'default' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {project.userRole === 'OWNER' ? 'Owner' : 'Member'}
+                            </Badge>
+                          )}
                         </div>
 
                         <div className="mb-4">

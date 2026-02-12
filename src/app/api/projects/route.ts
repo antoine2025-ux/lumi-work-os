@@ -11,6 +11,11 @@ import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
 import { projectToContext } from '@/lib/context/context-builders'
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
+import {
+  createProjectAllocation,
+  canTakeOnWork,
+} from '@/lib/org/capacity/project-capacity'
+// Phase 5: Org sync event - no-op for now (pm/events is Socket.IO only)
 
 /**
  * GET /api/projects - Get all projects for a workspace
@@ -353,35 +358,52 @@ export async function POST(request: NextRequest) {
       color,
       department,
       team,
+      teamId,
       ownerId,
+      assigneeIds = [],
       wikiPageId,
       dailySummaryEnabled = false,
       visibility,
       memberUserIds = []
     } = validatedData
 
-    // Extract watcher and assignee IDs from the request body
-    // NOTE: projectSpaceId/projectSpace logic removed - those fields do not exist on Project model
-    const { watcherIds = [], assigneeIds = [] } = body
+    // Extract watcher IDs from the request body
+    const { watcherIds = [] } = body
 
     // Handle empty strings as null/undefined
     const cleanData = {
       ...validatedData,
       department: department || undefined,
       team: team || undefined,
+      teamId: teamId ?? undefined,
       ownerId: ownerId || undefined,
       wikiPageId: wikiPageId || undefined
     }
 
     // NOTE: spaceId logic removed - Space model and spaceId field do not exist on Project model
 
-    // Create the project and creator's membership atomically in a transaction
-    // This guarantees immediate access for the creator and avoids race conditions with assertProjectAccess
+    const effectiveOwnerId = cleanData.ownerId || auth.user.userId
+
+    // Collect all member IDs (owner + assignees, deduplicated)
+    const allMemberIds = Array.from(
+      new Set([effectiveOwnerId, ...assigneeIds].filter(Boolean))
+    ) as string[]
+
+    // Lookup org positions for all members (batch before transaction)
+    const orgPositionByUserId = new Map<string, { id: string } | null>()
+    for (const userId of allMemberIds) {
+      const pos = await prisma.orgPosition.findFirst({
+        where: { userId, workspaceId: auth.workspaceId },
+        select: { id: true },
+      })
+      orgPositionByUserId.set(userId, pos)
+    }
+
+    // Create the project and all ProjectMembers atomically
     const project = await prisma.$transaction(async (tx) => {
-      // Create the project
       const createdProject = await (tx.project.create as Function)({
         data: {
-          workspaceId: auth.workspaceId, // 5. Use activeWorkspaceId
+          workspaceId: auth.workspaceId,
           name,
           description,
           status: status as any,
@@ -391,19 +413,19 @@ export async function POST(request: NextRequest) {
           color,
           department: cleanData.department,
           team: cleanData.team,
-          ownerId: cleanData.ownerId || auth.user.userId, // Use provided owner or default to creator
+          teamId: cleanData.teamId ?? null,
+          ownerId: effectiveOwnerId,
           wikiPageId: cleanData.wikiPageId,
-          // NOTE: projectSpaceId and spaceId removed - fields do not exist on Project model
           dailySummaryEnabled,
-          createdById: auth.user.userId // 3. Use userId from auth
+          createdById: auth.user.userId,
         },
         include: {
           createdBy: {
             select: {
               id: true,
               name: true,
-              email: true
-            }
+              email: true,
+            },
           },
           members: {
             include: {
@@ -411,39 +433,44 @@ export async function POST(request: NextRequest) {
                 select: {
                   id: true,
                   name: true,
-                  email: true
-                }
-              }
-            }
+                  email: true,
+                },
+              },
+            },
           },
           _count: {
             select: {
-              tasks: true
-            }
-          }
-        }
+              tasks: true,
+            },
+          },
+        },
       })
 
-      // Add the creator as a project member with OWNER role
-      // This is always created, even if no watchers/assignees/owner are passed
-      await tx.projectMember.create({
-        data: {
-          projectId: createdProject.id,
-          userId: auth.user.userId, // 3. Use userId from auth
-          role: 'OWNER'
-        }
-      })
+      // Create ProjectMember for each (owner + assignees) with orgPositionId
+      for (const userId of allMemberIds) {
+        const role = userId === effectiveOwnerId ? 'OWNER' : 'MEMBER'
+        const orgPositionId = orgPositionByUserId.get(userId)?.id ?? null
 
-      // Reload project to include the newly created member in the response
-      const projectWithMember = await tx.project.findUnique({
+        await tx.projectMember.create({
+          data: {
+            projectId: createdProject.id,
+            userId,
+            orgPositionId,
+            role,
+          },
+        })
+      }
+
+      // Reload project with all members
+      const projectWithMembers = await tx.project.findUnique({
         where: { id: createdProject.id },
         include: {
           createdBy: {
             select: {
               id: true,
               name: true,
-              email: true
-            }
+              email: true,
+            },
           },
           members: {
             include: {
@@ -451,40 +478,59 @@ export async function POST(request: NextRequest) {
                 select: {
                   id: true,
                   name: true,
-                  email: true
-                }
-              }
-            }
+                  email: true,
+                },
+              },
+            },
           },
           _count: {
             select: {
-              tasks: true
-            }
-          }
-        }
+              tasks: true,
+            },
+          },
+        },
       })
 
-      return projectWithMember || createdProject
+      return projectWithMembers || createdProject
     })
+
+    // Create WorkAllocations for all members with org positions
+    const ownerHours = 15
+    const memberHours = 10
+    for (const userId of allMemberIds) {
+      const orgPosition = orgPositionByUserId.get(userId)
+      if (!orgPosition) {
+        logger.warn('[Project Create] User has no OrgPosition, skipping WorkAllocation', {
+          userId,
+          workspaceId: auth.workspaceId,
+        })
+        continue
+      }
+      const hours = userId === effectiveOwnerId ? ownerHours : memberHours
+      const roleLabel = userId === effectiveOwnerId ? 'Owner' : 'Member'
+
+      await createProjectAllocation({
+        workspaceId: auth.workspaceId,
+        orgPositionId: orgPosition.id,
+        projectId: project.id,
+        hoursAllocated: hours,
+        description: `${roleLabel} of ${project.name}`,
+      }).catch((err) => {
+        logger.warn('[Project Create] Could not create WorkAllocation', {
+          userId,
+          projectId: project.id,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      })
+    }
 
     // Create watchers
     if (watcherIds && watcherIds.length > 0) {
       await prisma.projectWatcher.createMany({
         data: watcherIds.map((watcherUserId: string) => ({
           projectId: project.id,
-          userId: watcherUserId
-        }))
-      })
-    }
-
-    // Create assignees
-    if (assigneeIds && assigneeIds.length > 0) {
-      await prisma.projectAssignee.createMany({
-        data: assigneeIds.map((assigneeUserId: string) => ({
-          projectId: project.id,
-          userId: assigneeUserId,
-          role: 'MEMBER' // Default role for assignees
-        }))
+          userId: watcherUserId,
+        })),
       })
     }
 
@@ -493,8 +539,34 @@ export async function POST(request: NextRequest) {
       console.error('Failed to upsert project context after creation', { projectId: project.id, error })
     })
 
-    return NextResponse.json(project)
+    // Build warnings for members without org positions
+    const membersWithoutOrg = allMemberIds.filter((id) => !orgPositionByUserId.get(id))
+    const warnings =
+      membersWithoutOrg.length > 0
+        ? `${membersWithoutOrg.length} member(s) do not have org positions and won't have capacity tracking`
+        : undefined
+
+    return NextResponse.json({
+      ...project,
+      id: project.id,
+      membersCreated: allMemberIds.length,
+      warnings,
+    })
   } catch (error: unknown) {
+    try {
+      const fs = await import('fs')
+      const path = await import('path')
+      fs.appendFileSync(
+        path.join(process.cwd(), '.cursor', 'debug.log'),
+        JSON.stringify({
+          message: 'POST /api/projects error',
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorName: error instanceof Error ? error.name : undefined,
+          code: (error as { code?: string })?.code,
+          meta: (error as { meta?: unknown })?.meta,
+        }) + '\n'
+      )
+    } catch (_) {}
     return handleApiError(error, request)
   }
 }

@@ -1,26 +1,11 @@
 /**
- * Org Work Requests Page
- * 
- * Lists work requests and allows creating new ones.
- * Phase H: Work Intake Sizing foundation.
+ * Legacy org work — redirects to workspace-scoped org home.
  */
 
-import { OrgPageHeader } from "@/components/org/OrgPageHeader";
-import { WorkRequestListClient } from "@/components/org/work/WorkRequestListClient";
+import { redirectToWorkspaceOrg } from "@/lib/org/redirectToWorkspaceOrg";
 
 export const dynamic = "force-dynamic";
 
-export default function OrgWorkPage() {
-  return (
-    <>
-      <OrgPageHeader
-        breadcrumb="ORG / WORK"
-        title="Work Requests"
-        description="View and manage work intake requests for staffing and capacity planning."
-      />
-      <div className="px-10 pb-10">
-        <WorkRequestListClient />
-      </div>
-    </>
-  );
+export default async function OldOrgWorkPage() {
+  await redirectToWorkspaceOrg();
 }

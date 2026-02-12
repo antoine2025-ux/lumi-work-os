@@ -1,15 +1,44 @@
 /**
- * Person Profile Page
- * 
- * Route for viewing an individual person's profile.
- * Uses PersonProfilePageClient component for client-side rendering.
+ * Legacy person profile route — redirects to workspace-scoped profile or directory.
+ * Pre-Phase 2.5 route; kept so old links and directory clicks resolve correctly.
  */
 
-import { PersonProfilePageClient } from "./PersonProfilePageClient";
+import { redirect } from "next/navigation";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { prisma } from "@/lib/db";
 
-export default async function PersonProfilePage({ params }: { params: Promise<{ personId: string }> }) {
-  const { personId } = await params;
-  
-  return <PersonProfilePageClient personId={personId} />;
+interface PageProps {
+  params: Promise<{ personId: string }>;
 }
 
+export default async function OldPersonProfilePage({ params }: PageProps) {
+  const { personId } = await params;
+  const auth = await getUnifiedAuth();
+
+  if (!auth.isAuthenticated || !auth.workspaceId) {
+    redirect("/login");
+  }
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: auth.workspaceId },
+    select: { slug: true },
+  });
+
+  if (!workspace) {
+    redirect("/welcome");
+  }
+
+  if (auth.user && personId === auth.user.userId) {
+    redirect(`/w/${workspace.slug}/org/profile`);
+  }
+
+  const position = await prisma.orgPosition.findUnique({
+    where: { id: personId },
+    select: { userId: true },
+  });
+  if (position?.userId === auth.user?.userId) {
+    redirect(`/w/${workspace.slug}/org/profile`);
+  }
+
+  redirect(`/w/${workspace.slug}/org/directory`);
+}

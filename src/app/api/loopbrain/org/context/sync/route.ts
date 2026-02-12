@@ -69,43 +69,80 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    /**
-     * Step 2:
-     *  - Sync ORG-level ContextItem for the same workspace (type="org").
-     */
-    const orgItem = await syncOrgContext(workspaceId);
+    // Track sync performance
+    const syncStartTime = Date.now();
+    console.log("🔄 Starting parallel context sync for all entity types...");
 
     /**
-     * Step 3:
-     *  - Sync DEPARTMENT-level ContextItems for this workspace (type="department")
-     *  - One ContextItem per department.
+     * Steps 2-6: Run all context syncs in parallel
+     * 
+     * Using Promise.allSettled instead of Promise.all because:
+     * - Individual sync failures shouldn't block other syncs
+     * - Partial success is valuable (some contexts better than none)
+     * - Better error visibility and debugging
      */
-    const departmentItems = await syncDepartmentContexts(workspaceId);
+    const [
+      orgResult,
+      departmentResult,
+      teamResult,
+      personResult,
+      roleResult
+    ] = await Promise.allSettled([
+      syncOrgContext(workspaceId),
+      syncDepartmentContexts(workspaceId),
+      syncTeamContexts(workspaceId),
+      syncPersonContexts(workspaceId),
+      syncRoleContexts(workspaceId)
+    ]);
 
-    /**
-     * Step 4:
-     *  - Sync TEAM-level ContextItems for this workspace (type="team")
-     *  - One ContextItem per team.
-     */
-    const teamItems = await syncTeamContexts(workspaceId);
+    // Extract successful results and handle failures gracefully
+    const orgItem = orgResult.status === 'fulfilled' ? orgResult.value : null;
+    const departmentItems = departmentResult.status === 'fulfilled' ? departmentResult.value : [];
+    const teamItems = teamResult.status === 'fulfilled' ? teamResult.value : [];
+    const personItems = personResult.status === 'fulfilled' ? personResult.value : [];
+    const roleItems = roleResult.status === 'fulfilled' ? roleResult.value : [];
 
-    /**
-     * Step 5:
-     *  - Sync PERSON-level ContextItems for this workspace (type="person")
-     *  - One ContextItem per person.
-     */
-    const personItems = await syncPersonContexts(workspaceId);
+    // Log results and any failures
+    const syncEndTime = Date.now();
+    const syncDuration = syncEndTime - syncStartTime;
+    
+    console.log(`✅ Org context: ${orgItem ? 'synced' : 'FAILED'}`);
+    console.log(`✅ Department contexts synced: ${departmentItems.length}`);
+    console.log(`✅ Team contexts synced: ${teamItems.length}`);
+    console.log(`✅ Person contexts synced: ${personItems.length}`);
+    console.log(`✅ Role contexts synced: ${roleItems.length}`);
 
-    /**
-     * Step 6:
-     *  - Sync ROLE-level ContextItems for this workspace (type="role")
-     *  - One ContextItem per role/position.
-     */
-    const roleItems = await syncRoleContexts(workspaceId);
+    // Log any failures for debugging
+    const failures: string[] = [];
+    if (orgResult.status === 'rejected') failures.push(`Org: ${orgResult.reason}`);
+    if (departmentResult.status === 'rejected') failures.push(`Departments: ${departmentResult.reason}`);
+    if (teamResult.status === 'rejected') failures.push(`Teams: ${teamResult.reason}`);
+    if (personResult.status === 'rejected') failures.push(`Persons: ${personResult.reason}`);
+    if (roleResult.status === 'rejected') failures.push(`Roles: ${roleResult.reason}`);
+
+    if (failures.length > 0) {
+      console.warn("⚠️ Some context syncs failed:", failures);
+    }
+
+    console.log(`🎉 Context sync completed in ${syncDuration}ms`);
+    
+    // If org context failed, that's critical - throw error
+    if (!orgItem) {
+      throw new Error("Failed to sync org context (critical)");
+    }
 
     return NextResponse.json(
       {
         ok: true,
+        syncDurationMs: syncDuration,
+        failures: failures.length > 0 ? failures : undefined,
+        breakdown: {
+          org: orgItem ? 1 : 0,
+          departments: departmentItems.length,
+          teams: teamItems.length,
+          persons: personItems.length,
+          roles: roleItems.length
+        },
         workspaceItem: {
           id: workspaceItem.id,
           workspaceId: workspaceItem.workspaceId,
@@ -115,7 +152,7 @@ export async function POST(request: NextRequest) {
           summary: workspaceItem.summary,
           updatedAt: workspaceItem.updatedAt,
         },
-        orgItem: {
+        orgItem: orgItem ? {
           id: orgItem.id,
           workspaceId: orgItem.workspaceId,
           type: orgItem.type,
@@ -123,7 +160,7 @@ export async function POST(request: NextRequest) {
           title: orgItem.title,
           summary: orgItem.summary,
           updatedAt: orgItem.updatedAt,
-        },
+        } : null,
         departmentItems: departmentItems.map((item) => ({
           id: item.id,
           workspaceId: item.workspaceId,

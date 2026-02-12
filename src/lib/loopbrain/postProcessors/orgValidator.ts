@@ -184,6 +184,95 @@ export function validateOrgResponse(
     "structure",
     "organization",
     "organizational",
+    "role",
+    "roles",
+    "position",
+    "positions",
+    "assigned",
+    "holds",
+    "holding",
+    "holder",
+    "filled",
+    "filling",
+    "defined",
+    "within",
+    "currently",
+    "based",
+    "according",
+    "context",
+    "provided",
+    "available",
+    "information",
+    "details",
+    "specific",
+    "following",
+    "below",
+    "above",
+    "overview",
+    "summary",
+    "report",
+    "line",
+    "lines",
+    "direct",
+    "level",
+    "top",
+    "hierarchy",
+    "whom",
+    "whose",
+    "between",
+    "each",
+    "other",
+    "both",
+    "also",
+    "includes",
+    "including",
+    "member",
+    "members",
+    "ceo",
+    "cto",
+    "cfo",
+    "coo",
+    "executive",
+    "product",
+    "engineering",
+    "design",
+    "marketing",
+    "sales",
+    "operations",
+    "finance",
+    "support",
+    "about",
+    "their",
+    "those",
+    "these",
+    "only",
+    "does",
+    "into",
+    "work",
+    "working",
+    "identified",
+    "affiliations",
+    "mentioned",
+    "mentioned",
+    "listed",
+    "note",
+    "that",
+    "which",
+    "would",
+    "could",
+    "should",
+    "there",
+    "more",
+    "complete",
+    "comprehensive",
+    "clear",
+    "detailed",
+    "indicate",
+    "indicates",
+    "show",
+    "shows",
+    "list",
+    "listed",
   ]);
 
   // Detect potentially invented names/entities
@@ -229,11 +318,16 @@ export function validateOrgResponse(
     }
   }
 
-  // If we detect too many potentially invented names, sanitize the response
+  // If we detect too many potentially invented names, log a warning.
+  // Only sanitize if there are clear hallucinated PROPER NAMES (very high threshold).
+  // Previously this was too aggressive and blocked legitimate answers containing
+  // common English words like "whom", "defined", "identified", etc.
   let sanitizedOutput = modelOutput;
-  if (potentiallyInvented.length > 3) {
-    console.warn("[OrgValidator] Detected potentially invented entities:", potentiallyInvented.slice(0, 5));
+  if (potentiallyInvented.length > 10) {
+    console.warn("[OrgValidator] Detected many potentially invented entities:", potentiallyInvented.slice(0, 5));
     sanitizedOutput = `I'm not able to answer this using the provided org data. Some required details were missing from the context.`;
+  } else if (potentiallyInvented.length > 0) {
+    console.debug("[OrgValidator] Minor entity mentions (not blocking):", potentiallyInvented.slice(0, 5));
   }
 
   // Check for explicit "I don't know" patterns - if present, that's good

@@ -80,27 +80,27 @@ export async function GET(request: NextRequest) {
     // Set workspace context
     setWorkspaceContext(auth.workspaceId)
     
-    // Get user timezone for todo filtering (needed before parallel queries)
-    const userTimezoneStart = performance.now()
-    const user = await prisma.user.findUnique({
-      where: { id: auth.user.userId },
-      select: { timezone: true }
-    })
-    const userTimezone = user?.timezone || null
-    const userTimezoneDurationMs = performance.now() - userTimezoneStart
-    
     // Compute today's start for overdue task filtering
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
     
     // Parallel DB queries - all execute simultaneously
     const dbStart = performance.now()
-    const [projects, wikiPages, workspaces, todos, taskStatusCounts, overdueTaskCount] = await Promise.all([
-      // 1. Projects (minimal fields, strict limit)
+    const [projects, wikiPages, workspaces, todos, taskStatusCounts, overdueTaskCount, workspace] = await Promise.all([
+      // 1. Projects (minimal fields, strict limit) - only projects user owns or is member of
       prisma.project.findMany({
         where: {
-          workspaceId: auth.workspaceId
-          // NOTE: projectSpaceId/projectSpace visibility filtering removed - fields do not exist on Project model
+          workspaceId: auth.workspaceId,
+          OR: [
+            { ownerId: auth.user.userId },
+            {
+              members: {
+                some: {
+                  userId: auth.user.userId,
+                },
+              },
+            },
+          ],
         },
         // ⚠️ GUARDRAIL: Must use select (never include), minimal fields only
         select: {
@@ -110,20 +110,27 @@ export async function GET(request: NextRequest) {
           status: true,
           priority: true,
           color: true,
+          ownerId: true,
           updatedAt: true,
           createdAt: true,
-          // Use _count for task count (never load full task list)
+          members: {
+            where: { userId: auth.user.userId },
+            select: {
+              userId: true,
+              role: true,
+            },
+          },
           _count: {
             select: {
-              tasks: true
-            }
-          }
+              tasks: true,
+            },
+          },
         },
         // ⚠️ GUARDRAIL: Strict limit enforced
         take: MAX_PROJECTS,
         orderBy: {
-          updatedAt: 'desc'
-        }
+          updatedAt: 'desc',
+        },
       }),
       
       // 2. Wiki pages (minimal fields, strict limit)
@@ -163,8 +170,13 @@ export async function GET(request: NextRequest) {
       }),
       
       // 4. Today's todos (minimal fields, strict limit)
+      // Note: This needs user timezone, so we fetch it inline within this async function
       (async () => {
-        const todayWindow = getTodayWindow(userTimezone)
+        const userForTimezone = await prisma.user.findUnique({
+          where: { id: auth.user.userId },
+          select: { timezone: true }
+        })
+        const todayWindow = getTodayWindow(userForTimezone?.timezone || null)
         return prisma.todo.findMany({
           where: {
             workspaceId: auth.workspaceId,
@@ -212,22 +224,26 @@ export async function GET(request: NextRequest) {
           dueDate: { lt: todayStart },
           status: { notIn: ['DONE'] }
         }
+      }),
+      
+      // 7. Workspace name (moved from sequential fetch for parallel execution)
+      prisma.workspace.findUnique({
+        where: { id: auth.workspaceId },
+        select: { id: true, name: true }
       })
     ])
     const dbDurationMs = performance.now() - dbStart
     
-    // Build page counts (reuse logic from /api/wiki/page-counts)
+    // Build page counts (parallel batch instead of sequential loop)
     const pageCountsStart = performance.now()
-    const pageCounts: Record<string, number> = {}
     
-    for (const workspace of workspaces) {
-      if (!workspace.id) continue
+    const pageCountPromises = workspaces.map(workspace => {
+      if (!workspace.id) return Promise.resolve([workspace.id || '', 0] as const)
       
       const workspaceType = workspace.type || null
-      let count = 0
       
       if (workspaceType === 'personal') {
-        count = await prisma.wikiPage.count({
+        return prisma.wikiPage.count({
           where: {
             workspaceId: auth.workspaceId,
             isPublished: true,
@@ -246,9 +262,9 @@ export async function GET(request: NextRequest) {
               }
             ]
           }
-        })
+        }).then(count => [workspace.id, count] as const)
       } else if (workspaceType === 'team') {
-        count = await prisma.wikiPage.count({
+        return prisma.wikiPage.count({
           where: {
             workspaceId: auth.workspaceId,
             isPublished: true,
@@ -276,9 +292,9 @@ export async function GET(request: NextRequest) {
               }
             ]
           }
-        })
+        }).then(count => [workspace.id, count] as const)
       } else {
-        count = await prisma.wikiPage.count({
+        return prisma.wikiPage.count({
           where: {
             workspaceId: auth.workspaceId,
             isPublished: true,
@@ -290,18 +306,13 @@ export async function GET(request: NextRequest) {
               ]
             }
           }
-        })
+        }).then(count => [workspace.id, count] as const)
       }
-      
-      pageCounts[workspace.id] = count
-    }
-    const pageCountsDurationMs = performance.now() - pageCountsStart
-    
-    // Get workspace name
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: auth.workspaceId },
-      select: { id: true, name: true }
     })
+    
+    const pageCountResults = await Promise.all(pageCountPromises)
+    const pageCounts = Object.fromEntries(pageCountResults)
+    const pageCountsDurationMs = performance.now() - pageCountsStart
     
     // Build task summary from groupBy results
     const statusCountMap: Record<string, number> = {}
@@ -316,17 +327,26 @@ export async function GET(request: NextRequest) {
         id: auth.workspaceId,
         name: workspace?.name
       },
-      projects: projects.map(p => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        status: p.status,
-        priority: p.priority,
-        color: p.color,
-        updatedAt: p.updatedAt.toISOString(),
-        createdAt: p.createdAt.toISOString(),
-        taskCount: p._count.tasks
-      })),
+      projects: projects.map(p => {
+        const membership = p.members?.[0]
+        const userRole =
+          p.ownerId === auth.user.userId
+            ? ('OWNER' as const)
+            : (membership?.role as 'ADMIN' | 'MEMBER' | 'VIEWER' | undefined)
+        return {
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          status: p.status,
+          priority: p.priority,
+          color: p.color,
+          updatedAt: p.updatedAt.toISOString(),
+          createdAt: p.createdAt.toISOString(),
+          taskCount: p._count.tasks,
+          _count: { tasks: p._count.tasks },
+          userRole,
+        }
+      }),
       wikiPages: wikiPages.map(p => ({
         id: p.id,
         title: p.title,
@@ -366,7 +386,6 @@ export async function GET(request: NextRequest) {
       todoCount: todos.length,
       authDurationMs: Math.round(authDurationMs * 100) / 100,
       accessDurationMs: Math.round(accessDurationMs * 100) / 100,
-      userTimezoneDurationMs: Math.round(userTimezoneDurationMs * 100) / 100,
       dbDurationMs: Math.round(dbDurationMs * 100) / 100,
       pageCountsDurationMs: Math.round(pageCountsDurationMs * 100) / 100,
       totalDurationMs: Math.round(totalDurationMs * 100) / 100

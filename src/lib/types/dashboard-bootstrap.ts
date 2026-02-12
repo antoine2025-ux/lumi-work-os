@@ -20,6 +20,8 @@ export interface DashboardBootstrap {
     updatedAt: string
     createdAt: string
     taskCount?: number
+    _count?: { tasks: number }
+    userRole?: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
   }>
   wikiPages: Array<{
     id: string

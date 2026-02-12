@@ -176,11 +176,14 @@ export function buildPersonContext(
       positionTitle ? `role:${positionTitle}` : "role:unknown",
       teamId ? `team_id:${teamId}` : "team:unknown",
       departmentId ? `department_id:${departmentId}` : "department:unknown",
+      managerId ? `manager_id:${managerId}` : null,
+      managerName ? `reports_to:${managerName}` : null,
+      directReportsCount > 0 ? `direct_reports:${directReportsCount}` : null,
       `projects:${activeProjectsCount ?? 0}`,
       `tasks_active:${activeTasksCount ?? 0}`,
       `tasks_blocked:${blockedTasksCount ?? 0}`,
       ...tags,
-    ],
+    ].filter(Boolean) as string[],
     meta: {},
   };
 

@@ -47,6 +47,7 @@ interface Project {
     visibility: 'PUBLIC' | 'TARGETED'
   }
   projectSpaceId?: string | null
+  teamId?: string | null
 }
 
 interface ProjectEditDialogProps {
@@ -86,6 +87,7 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
   const [isLoading, setIsLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [workspaceMembers, setWorkspaceMembers] = useState<Array<{ id: string; name: string; email: string }>>([])
+  const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([])
   const [visibility, setVisibility] = useState<'PUBLIC' | 'TARGETED'>('PUBLIC')
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
   const [formData, setFormData] = useState({
@@ -97,6 +99,7 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
     endDate: '',
     color: '#3b82f6',
     ownerId: '',
+    teamId: '',
     assigneeIds: [] as string[],
     slackChannelHints: [] as string[]
   })
@@ -104,11 +107,15 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
   // Channel input state for UI
   const [channelInput, setChannelInput] = useState('')
 
-  // Load users when dialog opens
+  // Load users and teams when dialog opens
   useEffect(() => {
     if (isOpen && workspaceId) {
       loadUsers()
       loadWorkspaceMembers()
+      fetch('/api/org/teams')
+        .then((r) => r.json())
+        .then((data) => setTeams(data.teams || []))
+        .catch(() => setTeams([]))
     }
   }, [isOpen, workspaceId])
 
@@ -129,6 +136,7 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
         endDate: project.endDate ? project.endDate.split('T')[0] : '',
         color: project.color || '#3b82f6',
         ownerId: project.ownerId || 'none',
+        teamId: project.teamId ?? '',
         assigneeIds: project.assignees?.map(a => a.user.id) || [],
         // Load channel hints from localStorage (fallback) or from project if it exists
         slackChannelHints: (project as any).slackChannelHints || getProjectSlackHints(project.id) || []
@@ -253,6 +261,9 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
       if (formData.ownerId && formData.ownerId !== 'none' && formData.ownerId.trim()) {
         requestBody.ownerId = formData.ownerId.trim()
       }
+
+      // Owning team (optional org team assignment)
+      requestBody.teamId = formData.teamId?.trim() || null
       
       // Include assigneeIds separately (not in schema, extracted before validation)
       if (formData.assigneeIds && Array.isArray(formData.assigneeIds)) {
@@ -618,6 +629,29 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="teamId">Owning Team (Optional)</Label>
+              <Select
+                value={formData.teamId || 'none'}
+                onValueChange={(value) => handleInputChange('teamId', value === 'none' ? '' : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="No team assigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No team assigned</SelectItem>
+                  {teams.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Links this project to an org team
+              </p>
             </div>
           </div>
 

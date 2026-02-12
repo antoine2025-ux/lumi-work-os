@@ -227,7 +227,7 @@ export const PeopleTable = memo(function PeopleTable({
               <td className="px-6 py-3">
                 {person.team && (
                   <Link
-                    href={`/org/people?teamId=${person.teamId}`}
+                    href={`/org/directory?teamId=${person.teamId}`}
                     className="text-[12px] text-slate-500 hover:text-slate-400 hover:underline transition-colors duration-150 truncate block max-w-[150px]"
                     onClick={(e) => e.stopPropagation()}
                     title={person.team}

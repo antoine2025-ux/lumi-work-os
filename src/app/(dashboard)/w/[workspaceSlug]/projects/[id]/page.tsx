@@ -67,6 +67,8 @@ const LoopbrainAssistantLauncher = dynamic(() => import("@/components/loopbrain/
 const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
 const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
 
+import { ProjectOrgStatus } from '@/components/projects/project-org-status'
+
 interface Project {
   id: string
   name: string
@@ -77,6 +79,7 @@ interface Project {
   endDate?: string
   color?: string
   ownerId?: string
+  workspaceId?: string
   createdAt: string
   updatedAt: string
   createdBy: {
@@ -91,6 +94,18 @@ interface Project {
       id: string
       name: string
       email: string
+    }
+    orgPosition?: {
+      id: string
+      title: string | null
+      department: string | null
+      team: {
+        name: string
+      } | null
+      workAllocations: Array<{
+        hoursAllocated: number | null
+        projectId: string | null
+      }>
     }
   }>
   assignees: Array<{
@@ -128,6 +143,12 @@ interface Project {
     updatedAt: string
   }
   slackChannelHints?: string[] // From API (not persisted, but returned in response)
+  taskPagination?: {
+    totalTaskCount: number
+    loadedTaskCount: number
+    hasMoreTasks: boolean
+    limit: number
+  }
 }
 
 export default function ProjectDetailPage() {
@@ -663,22 +684,70 @@ export default function ProjectDetailPage() {
                   <div className="text-center">
                     <h3 className="text-sm font-medium mb-3" style={{ color: colors.text }}>Team</h3>
                     <div className="space-y-2">
-                      {project?.members.slice(0, 3).map((member) => (
-                        <div key={member.id} className="flex items-center space-x-2">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.borderLight }}>
-                            <User className="h-3 w-3" style={{ color: colors.textSecondary }} />
+                      {project?.members.slice(0, 3).map((member) => {
+                        const totalHours = member.orgPosition?.workAllocations.reduce(
+                          (sum, alloc) => sum + (alloc.hoursAllocated || 0),
+                          0
+                        ) || 0
+                        const utilizationPct = Math.round((totalHours / 40) * 100)
+
+                        return (
+                          <div key={member.id} className="flex items-center justify-between space-x-2">
+                            <div className="flex items-center space-x-2 flex-1 min-w-0">
+                              <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.borderLight }}>
+                                <User className="h-3 w-3" style={{ color: colors.textSecondary }} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium truncate" style={{ color: colors.text }}>
+                                  {member.user.name}
+                                </p>
+                                {member.orgPosition ? (
+                                  <p className="text-xs truncate" style={{ color: colors.textSecondary }}>
+                                    {member.orgPosition.title}
+                                    {member.orgPosition.department && ` • ${member.orgPosition.department}`}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs italic truncate" style={{ color: colors.textSecondary }}>
+                                    Not in org
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {member.orgPosition && totalHours > 0 && (
+                              <div className="flex items-center gap-1">
+                                <div className="text-right">
+                                  <p className="text-xs font-medium" style={{ color: colors.text }}>
+                                    {utilizationPct}%
+                                  </p>
+                                </div>
+                                <div
+                                  className="h-1.5 w-12 rounded-full overflow-hidden"
+                                  style={{ backgroundColor: colors.borderLight }}
+                                >
+                                  <div
+                                    className="h-full transition-all"
+                                    style={{
+                                      width: `${Math.min(utilizationPct, 100)}%`,
+                                      backgroundColor:
+                                        utilizationPct > 100
+                                          ? colors.error
+                                          : utilizationPct > 80
+                                            ? colors.warning
+                                            : colors.success,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium truncate" style={{ color: colors.text }}>{member.user.name}</p>
-                            <p className="text-xs truncate" style={{ color: colors.textSecondary }}>{member.role}</p>
-                          </div>
-                        </div>
-                      ))}
-                      {project && project.members && project.members.length > 3 && (
+                        )
+                      })}
+                      {(project?.members?.length ?? 0) > 3 ? (
                         <p className="text-xs" style={{ color: colors.textSecondary }}>
-                          +{project.members.length - 3} more
+                          +{(project?.members?.length ?? 0) - 3} more
                         </p>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </CardContent>
@@ -758,6 +827,13 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
+      {/* Project-Org Status */}
+      {project?.members && project.members.length > 0 && (
+        <div className="max-w-[1600px] mx-auto px-6 py-2">
+          <ProjectOrgStatus members={project.members} />
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-6 pb-8">
         <div className="space-y-6">
@@ -783,6 +859,27 @@ export default function ProjectDetailPage() {
                         onFilterChange={handleFilterChange}
                         onFilterReset={handleFilterReset}
                       />
+                    </div>
+                  )}
+                  
+                  {/* Task pagination notice */}
+                  {project?.taskPagination?.hasMoreTasks && (
+                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          Showing first {project.taskPagination.loadedTaskCount} of {project.taskPagination.totalTaskCount} tasks
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // TODO: Implement load all tasks functionality
+                            console.log('Load all tasks - to be implemented')
+                          }}
+                        >
+                          Load All Tasks
+                        </Button>
+                      </div>
                     </div>
                   )}
                   

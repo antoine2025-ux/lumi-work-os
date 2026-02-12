@@ -4,6 +4,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from "@/lib/db"
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
+import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
 
 // POST /api/invites/[token]/accept - Accept workspace invite
 export async function POST(
@@ -176,25 +177,28 @@ export async function POST(
       )
     }
 
-    // Verify email matches logged-in user's email (case-insensitive)
-    const user = await prisma.user.findUnique({
-      where: { id: auth.user.userId },
-      select: { email: true }
+    // Resolve user by invite email so we always use a DB-backed userId for FK (avoids workspace_members_userId_fkey)
+    const userByEmail = await prisma.user.findFirst({
+      where: { email: { equals: invite.email, mode: 'insensitive' } },
+      select: { id: true, email: true }
     })
 
-    if (!user) {
+    if (!userByEmail) {
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
       )
     }
 
-    if (user.email.toLowerCase() !== invite.email.toLowerCase()) {
+    // Only the logged-in user for this email may accept (auth must match invite recipient)
+    if (auth.user.userId !== userByEmail.id) {
       return NextResponse.json(
         { error: "This invite was sent to a different email address" },
         { status: 403 }
       )
     }
+
+    const dbUserId = userByEmail.id
 
     // Set workspace context for Prisma middleware
     setWorkspaceContext(invite.workspaceId)
@@ -238,7 +242,7 @@ export async function POST(
       }
       
       // Step 3: Verify email matches (re-check inside transaction)
-      if (user.email.toLowerCase() !== currentInvite.email.toLowerCase()) {
+      if (userByEmail.email.toLowerCase() !== currentInvite.email.toLowerCase()) {
         throw new Error('This invite was sent to a different email address') // 403
       }
       
@@ -248,7 +252,7 @@ export async function POST(
         where: {
           workspaceId_userId: {
             workspaceId: currentInvite.workspaceId,
-            userId: auth.user.userId
+            userId: dbUserId
           }
         },
         select: {
@@ -277,7 +281,7 @@ export async function POST(
           where: {
             workspaceId_userId: {
                 workspaceId: currentInvite.workspaceId,
-              userId: auth.user.userId
+              userId: dbUserId
             }
           },
             data: { role: currentInvite.role as any }
@@ -287,14 +291,21 @@ export async function POST(
         finalRole = existingMember.role
       }
     } else {
-      // Create new membership
+      // Create new membership (use dbUserId from invite-email lookup to satisfy FK)
         await tx.workspaceMember.create({
         data: {
             workspaceId: currentInvite.workspaceId,
-          userId: auth.user.userId,
+          userId: dbUserId,
             role: currentInvite.role as any
         }
       })
+      // Auto-create OrgPosition so user appears in org directory (when not position-based invite)
+      if (!currentInvite.positionId) {
+        await ensureOrgPositionForUser(tx, {
+          workspaceId: currentInvite.workspaceId,
+          userId: dbUserId,
+        })
+      }
     }
 
       // Step 5: If position-based invite, assign user to position (atomic)
@@ -316,28 +327,28 @@ export async function POST(
         }
         
         // 5b. If occupied by different user, throw 409
-        if (position.userId && position.userId !== auth.user.userId) {
+        if (position.userId && position.userId !== dbUserId) {
           throw new Error('Position already occupied')
         }
-        
+
         // 5c. Remove user from other positions in same workspace (atomic)
         // Invariant: one position per user per workspace
         await tx.orgPosition.updateMany({
           where: {
             workspaceId: currentInvite.workspaceId,
-            userId: auth.user.userId,
+            userId: dbUserId,
             id: { not: currentInvite.positionId }
           },
           data: { userId: null }
         })
-        
+
         // 5d. Atomic conditional update: assign only if unoccupied
         const updateResult = await tx.orgPosition.updateMany({
           where: {
             id: currentInvite.positionId,
             userId: null  // CRITICAL: Only update if currently unoccupied
           },
-          data: { userId: auth.user.userId }
+          data: { userId: dbUserId }
         })
         
         // 5e. Verify update succeeded (race condition check)
@@ -374,7 +385,7 @@ export async function POST(
       // Since we don't have the session token here, we'll let the cache expire naturally
       // But we can add a header to tell the client to invalidate
       logger.info('Workspace membership created, cache will refresh on next request', {
-        userId: auth.user.userId,
+        userId: dbUserId,
         workspaceId: invite.workspaceId
       })
     } catch (cacheError) {
@@ -456,7 +467,17 @@ export async function POST(
         { status: 404 }
       )
     }
-    
+    if (errorMessage.includes('workspace_members_userId_fkey') || errorMessage.includes('Foreign key constraint violated')) {
+      logger.error('Invite accept: FK violation (userId not in users table)', {
+        ...baseContext,
+        errorMessage,
+      })
+      return NextResponse.json(
+        { error: "We couldn't link your account to this workspace. Please try signing out and back in, then use the invite link again." },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json(
       { error: "Failed to accept invite", details: errorMessage },
       { status: 500 }

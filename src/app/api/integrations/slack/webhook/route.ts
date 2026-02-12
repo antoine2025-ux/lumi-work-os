@@ -1,0 +1,243 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
+import { logger } from '@/lib/logger'
+
+/**
+ * Slack Webhook Handler
+ * 
+ * Receives incoming events from Slack:
+ * - URL verification challenges
+ * - Interactive button clicks
+ * - Direct messages
+ * - App mentions
+ */
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    
+    logger.info('[Slack Webhook] Received event', { 
+      type: body.type,
+      hasPayload: !!body.payload 
+    })
+    
+    // Slack URL verification challenge (required for setup)
+    if (body.type === 'url_verification') {
+      logger.info('[Slack Webhook] URL verification challenge')
+      return NextResponse.json({ challenge: body.challenge })
+    }
+
+    // Handle different event types
+    switch (body.type) {
+      case 'event_callback':
+        await handleEventCallback(body)
+        break
+      
+      case 'block_actions':
+        await handleInteractiveAction(body)
+        break
+      
+      default:
+        logger.warn('[Slack Webhook] Unknown event type', { type: body.type })
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    logger.error('[Slack Webhook] Error processing event', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    })
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
+}
+
+/**
+ * Handle Slack event callbacks (messages, mentions, etc.)
+ */
+async function handleEventCallback(body: any) {
+  const event = body.event
+  
+  logger.info('[Slack Event]', { 
+    type: event.type,
+    channelType: event.channel_type 
+  })
+  
+  switch (event.type) {
+    case 'message':
+      // Handle direct messages to Loopbrain
+      if (event.channel_type === 'im' && !event.bot_id) {
+        await handleDirectMessage(event)
+      }
+      break
+    
+    case 'app_mention':
+      // Handle @Loopwell mentions
+      await handleMention(event)
+      break
+    
+    default:
+      logger.info('[Slack Event] Unhandled event type', { type: event.type })
+  }
+}
+
+/**
+ * Handle interactive actions (button clicks, menu selections, etc.)
+ */
+async function handleInteractiveAction(body: any) {
+  const payload = typeof body.payload === 'string' 
+    ? JSON.parse(body.payload) 
+    : body.payload
+
+  const action = payload.actions?.[0]
+  if (!action) {
+    logger.warn('[Slack Interactive] No action in payload')
+    return
+  }
+
+  const messageTs = payload.message?.ts || payload.container?.message_ts
+  const userId = payload.user?.id
+  const actionValue = action.value
+
+  logger.info('[Slack Interactive] Button click', {
+    actionId: action.action_id,
+    value: actionValue,
+    messageTs,
+    userId,
+  })
+
+  if (!messageTs) {
+    logger.warn('[Slack Interactive] No message timestamp found')
+    return
+  }
+
+  // Find the pending action by message timestamp
+  const pendingAction = await prisma.loopbrainPendingAction.findFirst({
+    where: {
+      slackMessageTs: messageTs,
+      status: 'AWAITING_RESPONSE',
+    },
+  })
+
+  if (!pendingAction) {
+    logger.warn('[Slack Interactive] No pending action found', { messageTs })
+    return
+  }
+
+  // Check if action has expired
+  if (pendingAction.expiresAt < new Date()) {
+    logger.warn('[Slack Interactive] Action expired', { 
+      messageTs,
+      expiresAt: pendingAction.expiresAt 
+    })
+    
+    await prisma.loopbrainPendingAction.update({
+      where: { id: pendingAction.id },
+      data: { status: 'EXPIRED' },
+    })
+    
+    return
+  }
+
+  // Route to appropriate handler based on action type
+  switch (pendingAction.type) {
+    case 'time_off_approval':
+      await handleTimeOffApprovalAction(pendingAction, action, userId)
+      break
+    
+    default:
+      logger.warn('[Slack Interactive] Unknown action type', { 
+        type: pendingAction.type 
+      })
+  }
+}
+
+/**
+ * Handle direct messages to the bot
+ * Placeholder for Week 3: Natural language processing
+ */
+async function handleDirectMessage(event: any) {
+  logger.info('[Slack DM]', { 
+    user: event.user,
+    text: event.text?.substring(0, 100) 
+  })
+  // TODO: Implement natural language command processing
+}
+
+/**
+ * Handle @mentions of the bot
+ * Placeholder for Week 3: Loopbrain Q&A via Slack
+ */
+async function handleMention(event: any) {
+  logger.info('[Slack Mention]', { 
+    user: event.user,
+    channel: event.channel,
+    text: event.text?.substring(0, 100) 
+  })
+  // TODO: Implement mention-based Q&A
+}
+
+/**
+ * Handle time off approval button clicks
+ */
+async function handleTimeOffApprovalAction(
+  pendingAction: any,
+  action: any,
+  slackUserId: string
+) {
+  const actionValue = action.value // "approve" or "deny"
+  const contextId = pendingAction.contextId // LeaveRequest ID
+
+  logger.info('[Slack Interactive] Processing time off approval', {
+    action: actionValue,
+    leaveRequestId: contextId,
+    slackUserId,
+  })
+
+  try {
+    // Get the base URL for the API call
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    
+    // Execute the approval action via the existing API
+    const response = await fetch(
+      `${baseUrl}/api/org/leave-requests/${contextId}/approve`,
+      {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          // Note: This is an internal call, auth will be handled by the API
+          // In a production setup, you'd want to pass proper auth context
+        },
+        body: JSON.stringify({
+          action: actionValue,
+          denialReason: actionValue === 'deny' ? 'Denied via Slack' : null,
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+      throw new Error(`Approval action failed: ${errorData.error || response.statusText}`)
+    }
+
+    // Mark pending action as completed
+    await prisma.loopbrainPendingAction.update({
+      where: { id: pendingAction.id },
+      data: {
+        status: 'COMPLETED',
+        completedAt: new Date(),
+      },
+    })
+
+    logger.info(`[Slack Interactive] Time off ${actionValue}d successfully`, {
+      leaveRequestId: contextId,
+    })
+  } catch (error) {
+    logger.error('[Slack Interactive] Error executing approval action', {
+      error: error instanceof Error ? error.message : String(error),
+      leaveRequestId: contextId,
+      action: actionValue,
+    })
+    
+    // Don't mark as completed if it failed - allow retry
+  }
+}

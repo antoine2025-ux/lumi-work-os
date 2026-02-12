@@ -1,12 +1,11 @@
 /**
- * O1: Intent-Driven Onboarding - Work Question Entry Page
- *
- * Server component that renders the onboarding work question form.
- * This replaces the old checklist-style onboarding as the default first step.
+ * Legacy onboarding work — redirects to workspace-scoped org home.
  */
 
-import { WorkOnboardingClient } from "@/components/org/work/WorkOnboardingClient";
+import { redirectToWorkspaceOrg } from "@/lib/org/redirectToWorkspaceOrg";
 
-export default function WorkOnboardingPage() {
-  return <WorkOnboardingClient />;
+export const dynamic = "force-dynamic";
+
+export default async function OldOrgOnboardingWorkPage() {
+  await redirectToWorkspaceOrg();
 }

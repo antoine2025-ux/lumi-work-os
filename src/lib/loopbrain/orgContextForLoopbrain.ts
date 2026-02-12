@@ -40,24 +40,25 @@ export async function getOrgContextForLoopbrain(
   const related: ContextObject[] = [];
 
   for (const item of items) {
-    const ctx = item.data as ContextObject;
-
-    // Skip if data is not a valid ContextObject
-    if (!ctx || typeof ctx !== "object" || !ctx.id || !ctx.type) {
-      continue;
-    }
-
-    // Ensure the ContextObject has all required fields
+    // Build ContextObject from ContextItem row fields, NOT from item.data
+    // The data field contains domain-specific payloads (PersonContextData, etc.),
+    // not ContextObject structure
+    const tags = (item.data as any)?.tags ?? [];
+    
+    // Extract owner from tags (e.g., "holder:Antoine Morlet")
+    const holderTag = tags.find((t: string) => t.startsWith("holder:") && t !== "holder:none");
+    const owner = holderTag ? holderTag.replace("holder:", "") : null;
+    
     const contextObj: ContextObject = {
-      id: ctx.id,
-      type: ctx.type,
-      title: ctx.title ?? "",
-      summary: ctx.summary ?? "",
-      tags: ctx.tags ?? [],
-      relations: ctx.relations ?? [],
-      owner: ctx.owner ?? null,
-      status: ctx.status ?? "ACTIVE",
-      updatedAt: ctx.updatedAt ?? new Date(item.updatedAt).toISOString(),
+      id: item.contextId,                              // ✅ Use row field
+      type: item.type as ContextObject["type"],        // ✅ Use row field
+      title: item.title,                               // ✅ Use row field
+      summary: item.summary ?? "",                     // ✅ Use row field
+      tags,                                             // Extract from payload if present
+      relations: (item.data as any)?.relations ?? [],  // Extract from payload if present
+      owner,                                           // ✅ Extract from tags
+      status: "ACTIVE",                                // Default for active items
+      updatedAt: new Date(item.updatedAt).toISOString(), // ✅ Use row field
     };
 
     byId[contextObj.id] = contextObj;

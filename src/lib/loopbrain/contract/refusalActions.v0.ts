@@ -17,24 +17,24 @@ type Action = { label: string; deepLink?: string };
 
 /** Imperative actions per blocker. Static data. */
 export const BLOCKER_ACTIONS_V0: Record<OrgReadinessBlocker, Action[]> = {
-  NO_ACTIVE_PEOPLE: [{ label: "Add people", deepLink: "/org/people" }],
+  NO_ACTIVE_PEOPLE: [{ label: "Add people", deepLink: "/org/directory" }],
   NO_TEAMS: [{ label: "Add teams", deepLink: "/org/structure" }],
   OWNERSHIP_INCOMPLETE: [
     { label: "Resolve ownership issues", deepLink: deepLinkForOwnershipIssues() },
   ],
   NO_DECISION_DOMAINS: [
-    { label: "Define decision domains", deepLink: "/org/settings/decision-authority" },
+    { label: "Define decision domains", deepLink: "/org/admin/decisions" },
   ],
   CAPACITY_COVERAGE_BELOW_MIN: [
     { label: "Configure capacity", deepLink: deepLinkForCapacityIssues() },
-    { label: "Add people", deepLink: "/org/people" },
+    { label: "Add people", deepLink: "/org/directory" },
   ],
   RESPONSIBILITY_PROFILES_MISSING: [
     {
       label: "Configure responsibility profiles",
       deepLink: deepLinkForResponsibilityIssues(),
     },
-    { label: "Configure responsibility", deepLink: "/org/settings/responsibility" },
+    { label: "Configure responsibility", deepLink: "/org/admin/responsibility" },
   ],
   WORK_CANNOT_EVALUATE_BASELINE: [
     { label: "Resume onboarding", deepLink: "/org/onboarding/work" },

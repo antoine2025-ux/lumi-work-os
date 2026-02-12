@@ -69,6 +69,22 @@ export async function POST(req: NextRequest) {
       take: limit,
     });
 
+    // Check if we have any org context
+    if (items.length === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "No org context available",
+          detail:
+            "Your org data hasn't been synced to Loopbrain yet. Please run the sync process first.",
+          syncUrl: "/api/loopbrain/org/context/sync",
+          statusUrl: "/api/loopbrain/org/context/status",
+          contextItemsCount: 0,
+        },
+        { status: 400 }
+      );
+    }
+
     const prompt = buildOrgQuestionPrompt({
       question,
       workspaceId,

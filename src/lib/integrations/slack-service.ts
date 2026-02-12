@@ -451,6 +451,63 @@ export async function getSlackChannelMessages(
 }
 
 /**
+ * Get or open a DM channel with a Slack user
+ * 
+ * This is useful for sending direct messages to specific users
+ * (e.g., sending approval requests to managers)
+ */
+export async function getSlackUserDMChannel(
+  workspaceId: string,
+  slackUserId: string
+): Promise<string> {
+  try {
+    logger.info('Opening Slack DM channel', { workspaceId, slackUserId })
+
+    const integration = await getSlackIntegration(workspaceId)
+    if (!integration) {
+      throw new Error('Slack not connected')
+    }
+    
+    const token = await getValidAccessToken(workspaceId)
+    
+    const response = await fetch('https://api.slack.com/api/conversations.open', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ users: slackUserId })
+    })
+    
+    const result = await response.json()
+    
+    if (!result.ok) {
+      logger.error('Failed to open Slack DM channel', {
+        workspaceId,
+        slackUserId,
+        error: result.error
+      })
+      throw new Error(`Slack API error: ${result.error}`)
+    }
+
+    logger.info('Slack DM channel opened', {
+      workspaceId,
+      slackUserId,
+      channelId: result.channel.id
+    })
+    
+    return result.channel.id
+  } catch (error) {
+    logger.error('Error opening Slack DM channel', {
+      workspaceId,
+      slackUserId,
+      error: error instanceof Error ? error.message : String(error)
+    })
+    throw error
+  }
+}
+
+/**
  * Deactivate Slack integration
  */
 export async function deactivateSlackIntegration(workspaceId: string): Promise<void> {

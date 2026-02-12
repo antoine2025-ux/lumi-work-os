@@ -181,8 +181,10 @@ export function buildRoleContext(
       jobFamily ? `job_family:${jobFamily}` : "job_family:unknown",
       isVacant ? "vacant:true" : "vacant:false",
       isSinglePoint ? "single_point:true" : "single_point:false",
+      primaryHolderId ? `holder_id:${primaryHolderId}` : "holder:none",
+      primaryHolderName ? `holder:${primaryHolderName}` : null,
       ...tags,
-    ],
+    ].filter(Boolean) as string[],
     meta: {},
   };
 

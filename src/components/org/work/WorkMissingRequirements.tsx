@@ -50,7 +50,7 @@ export function WorkMissingRequirements({ missingRequirements, workRequestId }: 
           icon={<Layers className="h-4 w-4 text-blue-400" />}
           message="To decide this work, you need a decision domain."
           ctaLabel="Create decision domain"
-          href={`/org/settings/decision-authority?returnTo=${returnTo}`}
+          href={`/org/admin/decisions?returnTo=${returnTo}`}
         />
       )}
 
@@ -63,7 +63,7 @@ export function WorkMissingRequirements({ missingRequirements, workRequestId }: 
               : `We can't assess capacity for roles: ${capacityRoles.join(", ")}.`
           }
           ctaLabel="Set capacity for this role"
-          href={`/org/people?openCapacity=true&roles=${capacityRoles.map(encodeURIComponent).join(",")}&returnTo=${returnTo}`}
+          href={`/org/directory?openCapacity=true&roles=${capacityRoles.map(encodeURIComponent).join(",")}&returnTo=${returnTo}`}
         />
       )}
 
@@ -76,7 +76,7 @@ export function WorkMissingRequirements({ missingRequirements, workRequestId }: 
               : `Role responsibilities for ${responsibilityRoles.join(", ")} are undefined.`
           }
           ctaLabel="Define role responsibilities"
-          href={`/org/settings/responsibility?roleType=${encodeURIComponent(responsibilityRoles[0])}&returnTo=${returnTo}`}
+          href={`/org/admin/responsibility?roleType=${encodeURIComponent(responsibilityRoles[0])}&returnTo=${returnTo}`}
         />
       )}
     </div>

@@ -33,7 +33,7 @@ export function PeopleSortControls({ filters }: PeopleSortControlsProps) {
       params.set("direction", direction || "asc");
     }
 
-    router.push(`/org/people${params.toString() ? `?${params.toString()}` : ""}`);
+    router.push(`/org/directory${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
   function toggleDirection() {
@@ -43,7 +43,7 @@ export function PeopleSortControls({ filters }: PeopleSortControlsProps) {
     // Ensure sort has some value if direction exists
     params.set("sort", sort || "name");
 
-    router.push(`/org/people${params.toString() ? `?${params.toString()}` : ""}`);
+    router.push(`/org/directory${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
   return (

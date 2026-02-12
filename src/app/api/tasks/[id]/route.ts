@@ -5,6 +5,10 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { emitEvent } from '@/lib/events/emit'
 import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
 import { calculateCompletionDays } from '@/lib/org/listeners/utils'
+import {
+  createProjectAllocation,
+  canTakeOnWork,
+} from '@/lib/org/capacity/project-capacity'
 
 // Shared include for task queries
 const taskInclude = {
@@ -203,6 +207,61 @@ export async function PUT(
       include: taskInclude
     })
 
+    // Link to org and create WorkAllocation when assignee is set
+    let capacityWarning: { message: string; currentUtilization: number; newUtilization: number } | null = null
+    if (assigneeId !== undefined && assigneeId) {
+      const { hasProjectAccess } = await import('@/lib/pm/guards')
+      const assigneeHasAccess = await hasProjectAccess(
+        assigneeId,
+        existingTask.projectId,
+        auth.workspaceId
+      )
+      if (assigneeHasAccess) {
+        const orgPosition = await prisma.orgPosition.findFirst({
+          where: {
+            userId: assigneeId,
+            workspaceId: auth.workspaceId,
+          },
+        })
+        const estimatedHours = 5
+        const capacityCheck = await canTakeOnWork(
+          assigneeId,
+          auth.workspaceId,
+          estimatedHours,
+          120
+        )
+        if (!capacityCheck.canTake && capacityCheck.reason) {
+          capacityWarning = {
+            message: capacityCheck.reason,
+            currentUtilization: capacityCheck.currentPct,
+            newUtilization: Math.round(capacityCheck.currentPct + (estimatedHours / 40) * 100),
+          }
+        }
+        await prisma.projectAssignee.upsert({
+          where: {
+            projectId_userId: { projectId: existingTask.projectId, userId: assigneeId },
+          },
+          create: { projectId: existingTask.projectId, userId: assigneeId },
+          update: {},
+        })
+        if (orgPosition) {
+          await createProjectAllocation({
+            workspaceId: auth.workspaceId,
+            orgPositionId: orgPosition.id,
+            projectId: existingTask.projectId,
+            hoursAllocated: estimatedHours,
+            description: `Task: ${task.title}`,
+          }).catch((err) => {
+            console.error('Failed to create task assignment WorkAllocation', {
+              taskId,
+              assigneeId,
+              error: err,
+            })
+          })
+        }
+      }
+    }
+
     // Emit activity event if task was just completed
     if (isBeingCompleted) {
       const completionDays = calculateCompletionDays(
@@ -222,7 +281,9 @@ export async function PUT(
       )
     }
 
-    return NextResponse.json(task)
+    const response = task as Record<string, unknown>
+    if (capacityWarning) response.capacityWarning = capacityWarning
+    return NextResponse.json(response)
   } catch (error: unknown) {
     console.error('Error updating task:', error)
     

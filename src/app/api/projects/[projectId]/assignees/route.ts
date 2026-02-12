@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { prisma } from '@/lib/db'
-import { ProjectSpaceVisibility } from '@prisma/client'
 
 // GET /api/projects/[projectId]/assignees - Get users who can be assigned to tasks in this project
 // Policy B compliant: Only returns users who have project access
+// ProjectSpace is not in the schema; assignable = workspace members (per guards.ts)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
@@ -29,67 +29,21 @@ export async function GET(
     // Verify requester has access to the project
     await assertProjectAccess(nextAuthUser, projectId, undefined, auth.workspaceId)
 
-    // Get project with ProjectSpace info
+    // Get project (no projectSpace - not in schema)
     const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      include: {
-        projectSpace: {
-          include: {
-            members: {
-              select: {
-                userId: true
-              }
-            }
-          }
-        },
-        members: {
-          select: {
-            userId: true
-          }
-        }
-      }
+      where: { id: projectId }
     })
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Determine which users can be assigned based on ProjectSpace visibility
-    let assignableUserIds: string[] = []
-
-    if (project.projectSpace) {
-      const space = project.projectSpace
-      
-      if (space.visibility === ProjectSpaceVisibility.PUBLIC) {
-        // PUBLIC: All workspace members can be assigned
-        const workspaceMembers = await prisma.workspaceMember.findMany({
-          where: { workspaceId: auth.workspaceId },
-          select: { userId: true }
-        })
-        assignableUserIds = workspaceMembers.map(m => m.userId)
-      } else {
-        // TARGETED: Only ProjectSpaceMembers + ProjectMembers + creator/owner
-        const spaceMemberIds = space.members.map(m => m.userId)
-        const projectMemberIds = project.members.map(m => m.userId)
-        
-        // Combine and deduplicate
-        assignableUserIds = [
-          ...new Set([
-            ...spaceMemberIds,
-            ...projectMemberIds,
-            project.createdById,
-            project.ownerId
-          ].filter((id): id is string => Boolean(id)))
-        ]
-      }
-    } else {
-      // Legacy project (no ProjectSpace): All workspace members can be assigned
-      const workspaceMembers = await prisma.workspaceMember.findMany({
-        where: { workspaceId: auth.workspaceId },
-        select: { userId: true }
-      })
-      assignableUserIds = workspaceMembers.map(m => m.userId)
-    }
+    // Workspace members can be assigned (ProjectSpace not in schema; matches guards.ts)
+    const workspaceMembers = await prisma.workspaceMember.findMany({
+      where: { workspaceId: auth.workspaceId },
+      select: { userId: true }
+    })
+    const assignableUserIds = workspaceMembers.map(m => m.userId)
 
     // Get user details for assignable users
     const assignableUsers = await prisma.user.findMany({

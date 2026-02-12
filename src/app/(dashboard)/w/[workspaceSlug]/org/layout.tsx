@@ -20,6 +20,7 @@ import {
 } from "@/lib/org/feature-flags";
 import { OrgCenterDisabled } from "@/components/org/OrgCenterDisabled";
 import { prisma } from "@/lib/db";
+import { ensureOrgContextSynced } from "@/lib/loopbrain/ensureOrgContextSynced";
 
 type WorkspaceOrgLayoutProps = {
   children: ReactNode;
@@ -109,13 +110,39 @@ export default async function WorkspaceOrgLayout({
     notFound();
   }
 
-  // Map to client permissions shape
+  const isAdmin = context.role === "OWNER" || context.role === "ADMIN";
+  const [isTeamLead, isManager] = await Promise.all([
+    prisma.orgTeam.findFirst({
+      where: {
+        leaderId: context.userId,
+        workspaceId: context.orgId,
+      },
+    }),
+    prisma.personManagerLink.findFirst({
+      where: {
+        managerId: context.userId,
+        workspaceId: context.orgId,
+      },
+    }),
+  ]);
+
   const clientPermissions = { role: context.role };
+
+  // Ensure org context is synced for Loopbrain (non-blocking)
+  // This runs in the background and doesn't block rendering
+  ensureOrgContextSynced(context.orgId).catch(err => {
+    console.error('[WorkspaceOrgLayout] Failed to ensure org context synced:', err)
+  })
 
   return (
     <OrgPermissionsProvider value={clientPermissions}>
-      {/* showHeader={false} because dashboard layout already provides Header */}
-      <OrgLayoutClient beta={isOrgCenterBeta()} showHeader={false}>
+      <OrgLayoutClient
+        beta={isOrgCenterBeta()}
+        showHeader={false}
+        workspaceSlug={workspaceSlug}
+        isAdmin={isAdmin}
+        isTeamLead={!!isTeamLead || !!isManager}
+      >
         {children}
       </OrgLayoutClient>
     </OrgPermissionsProvider>

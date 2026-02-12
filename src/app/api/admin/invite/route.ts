@@ -4,6 +4,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
 
 // POST /api/admin/invite - Invite a user via Supabase Auth
 export async function POST(request: NextRequest) {
@@ -163,6 +164,10 @@ export async function POST(request: NextRequest) {
               joinedAt: new Date(),
             }
           })
+          await ensureOrgPositionForUser(prisma, {
+            workspaceId: auth.workspaceId,
+            userId: existingUser.id,
+          })
 
           return NextResponse.json({ 
             message: 'User added to workspace successfully',
@@ -215,6 +220,10 @@ export async function POST(request: NextRequest) {
           joinedAt: new Date(),
         }
       })
+      await ensureOrgPositionForUser(prisma, {
+        workspaceId: auth.workspaceId,
+        userId: newUser.id,
+      })
 
       return NextResponse.json({ 
         message: 'Invitation sent successfully',
@@ -230,6 +239,10 @@ export async function POST(request: NextRequest) {
           role: role as 'OWNER' | 'ADMIN' | 'MEMBER',
           joinedAt: new Date(),
         }
+      })
+      await ensureOrgPositionForUser(prisma, {
+        workspaceId: auth.workspaceId,
+        userId: existingUser.id,
       })
 
       return NextResponse.json({ 

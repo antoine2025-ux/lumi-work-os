@@ -5,6 +5,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
+import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
 
 // Helper to hash workspaceId for logging (privacy/correlation protection)
 function hashWorkspaceId(workspaceId: string | null): string | undefined {
@@ -173,6 +174,10 @@ export async function POST(request: NextRequest) {
         role: role as 'OWNER' | 'ADMIN' | 'MEMBER',
         joinedAt: new Date(),
       }
+    })
+    await ensureOrgPositionForUser(prisma, {
+      workspaceId,
+      userId: newUser.id,
     })
 
     return NextResponse.json(newUser, { status: 201 })

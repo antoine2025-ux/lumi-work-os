@@ -22,8 +22,10 @@ export const ProjectCreateSchema = z.object({
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').optional(),
   department: z.string().max(100).optional(),
   team: z.string().max(100).optional(),
+  teamId: z.string().optional().nullable(),
   wikiPageId: z.string().optional(),
   ownerId: z.string().optional(),
+  assigneeIds: z.array(z.string()).optional(), // Team members for project assignment
   projectSpaceId: z.string().optional().nullable(), // Legacy support
   visibility: z.enum(['PUBLIC', 'TARGETED']).optional(), // New: simplified visibility
   memberUserIds: z.array(z.string()).optional(), // New: members for TARGETED projects
@@ -51,6 +53,7 @@ export const ProjectUpdateSchema = z.object({
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').optional(),
   department: z.string().max(100).optional(),
   team: z.string().max(100).optional(),
+  teamId: z.string().optional().nullable(),
   wikiPageId: z.string().optional(),
   ownerId: z.string().optional(),
   visibility: z.enum(['PUBLIC', 'TARGETED']).optional(), // New: simplified visibility

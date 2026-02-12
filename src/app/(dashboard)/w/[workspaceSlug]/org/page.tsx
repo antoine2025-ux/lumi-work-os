@@ -1,22 +1,17 @@
 /**
- * Workspace-Scoped Org Overview Page
- * 
- * This is the canonical /w/[workspaceSlug]/org route that renders the NEW Org UI.
- * The layout.tsx handles permissions and workspace validation.
- * 
- * PERFORMANCE NOTE:
- * - getOrgPermissionContext() is cached per-request, reusing layout's result
+ * Workspace-Scoped Org Entry — Role-Based Router
+ *
+ * Redirects to the appropriate landing page by role:
+ * - OWNER/ADMIN → /w/[workspaceSlug]/org/admin
+ * - MEMBER/VIEWER + team lead → /w/[workspaceSlug]/org/my-team
+ * - Else → /w/[workspaceSlug]/org/profile
  */
 
+import { redirect } from "next/navigation";
 import { getOrgPermissionContext } from "@/lib/org/permissions.server";
-import { OrgPageViewTracker } from "@/components/org/telemetry/OrgPageViewTracker";
+import { prisma } from "@/lib/db";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
-import { OverviewSummaryCards } from "@/components/org/OverviewSummaryCards";
-import { NextStepCard } from "@/components/org/NextStepCard";
-import { OrgIntelligenceOverview } from "@/components/org/OrgIntelligenceOverview";
-import { OrgSectionBoundary } from "@/components/org/OrgSectionBoundary";
-import { IntegrityBanner } from "@/components/org/IntegrityBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -24,81 +19,47 @@ type PageProps = {
   params: Promise<{ workspaceSlug: string }>;
 };
 
-export default async function WorkspaceOrgOverviewPage({ params }: PageProps) {
+export default async function WorkspaceOrgPage({ params }: PageProps) {
   const { workspaceSlug } = await params;
-  
-  try {
-    // PERFORMANCE: This call is cached per-request, reusing layout's result
-    const context = await getOrgPermissionContext().catch((error) => {
-      console.error("[WorkspaceOrgOverviewPage] Error in getOrgPermissionContext:", error);
-      return null;
-    });
-    
-    if (!context) {
-      return (
-        <>
-          <OrgPageHeader
-            breadcrumb="ORG / OVERVIEW"
-            title="Overview"
-            description="See a high-level view of your organization's people, teams, and structure."
-          />
-          <div className="px-10 pb-10">
-            <OrgEmptyState
-              title="Get started with your organization"
-              description="Create a workspace to start organizing your team, roles, and structure."
-              primaryActionLabel="Create workspace"
-              primaryActionHref="/welcome?from=org"
-            />
-          </div>
-        </>
-      );
-    }
 
-    return (
-      <>
-        <OrgPageViewTracker route={`/w/${workspaceSlug}/org`} name="Org Overview" />
-        <OrgPageHeader
-          breadcrumb="ORG / OVERVIEW"
-          title="Org overview"
-          description="See a high-level view of your organization's people, teams, and structure."
-        />
-        <div className="px-10 pb-10 space-y-6">
-          <IntegrityBanner />
-          <OrgSectionBoundary title="Next step">
-            <NextStepCard />
-          </OrgSectionBoundary>
-          <OrgSectionBoundary title="Overview">
-            <OverviewSummaryCards />
-          </OrgSectionBoundary>
-          <OrgSectionBoundary title="Intelligence">
-            <OrgIntelligenceOverview />
-          </OrgSectionBoundary>
-        </div>
-      </>
-    );
-  } catch (error: any) {
-    console.error("[WorkspaceOrgOverviewPage] Unexpected error:", error);
+  const context = await getOrgPermissionContext().catch((error) => {
+    console.error("[WorkspaceOrgPage] Error in getOrgPermissionContext:", error);
+    return null;
+  });
+
+  if (!context) {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / OVERVIEW"
-          title="Org overview"
-          description="See a high-level view of your organization's people, teams, and structure."
+          breadcrumb="ORG"
+          title="Org"
+          description="See your organization's people, teams, and structure."
         />
         <div className="px-10 pb-10">
-          <div className="rounded-2xl border border-red-900/60 bg-red-950/60 px-6 py-6 text-[13px] text-red-100">
-            <div className="font-semibold">Error loading org overview</div>
-            <div className="mt-2 text-red-200">
-              {error?.message || String(error) || "An unexpected error occurred. Please try refreshing the page."}
-            </div>
-            {process.env.NODE_ENV === "development" && error?.stack && (
-              <pre className="mt-4 whitespace-pre-wrap text-xs opacity-75">
-                {error.stack}
-              </pre>
-            )}
-          </div>
+          <OrgEmptyState
+            title="Get started with your organization"
+            description="Create a workspace to start organizing your team, roles, and structure."
+            primaryActionLabel="Create workspace"
+            primaryActionHref="/welcome?from=org"
+          />
         </div>
       </>
     );
   }
+
+  const isAdmin = context.role === "OWNER" || context.role === "ADMIN";
+  const isTeamLead = !!(await prisma.orgTeam.findFirst({
+    where: {
+      leaderId: context.userId,
+      workspaceId: context.orgId,
+    },
+  }));
+
+  if (isAdmin) {
+    redirect(`/w/${workspaceSlug}/org/admin`);
+  }
+  if (isTeamLead) {
+    redirect(`/w/${workspaceSlug}/org/my-team`);
+  }
+  redirect(`/w/${workspaceSlug}/org/profile`);
 }

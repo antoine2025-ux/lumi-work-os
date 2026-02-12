@@ -12,6 +12,10 @@ import { upsertTaskContext } from '@/lib/loopbrain/context-engine'
 import { logger } from '@/lib/logger'
 import { emitEvent } from '@/lib/events/emit'
 import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
+import {
+  createProjectAllocation,
+  canTakeOnWork,
+} from '@/lib/org/capacity/project-capacity'
 
 // GET /api/tasks - Get all tasks for a project
 export async function GET(request: NextRequest) {
@@ -358,6 +362,54 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Link to org and create WorkAllocation when task is assigned
+    let capacityWarning: { message: string; currentUtilization: number; newUtilization: number } | null = null
+    if (assigneeId) {
+      const orgPosition = await prisma.orgPosition.findFirst({
+        where: {
+          userId: assigneeId,
+          workspaceId: auth.workspaceId,
+        },
+      })
+      const estimatedHours = 5
+      const capacityCheck = await canTakeOnWork(
+        assigneeId,
+        auth.workspaceId,
+        estimatedHours,
+        120
+      )
+      if (!capacityCheck.canTake && capacityCheck.reason) {
+        capacityWarning = {
+          message: capacityCheck.reason,
+          currentUtilization: capacityCheck.currentPct,
+          newUtilization: Math.round(capacityCheck.currentPct + (estimatedHours / 40) * 100),
+        }
+      }
+      // Ensure ProjectAssignee exists for project-level tracking
+      await prisma.projectAssignee.upsert({
+        where: {
+          projectId_userId: { projectId, userId: assigneeId },
+        },
+        create: { projectId, userId: assigneeId },
+        update: {},
+      })
+      if (orgPosition) {
+        await createProjectAllocation({
+          workspaceId: auth.workspaceId,
+          orgPositionId: orgPosition.id,
+          projectId,
+          hoursAllocated: estimatedHours,
+          description: `Task: ${title}`,
+        }).catch((err) => {
+          console.error('Failed to create task assignment WorkAllocation', {
+            taskId: task.id,
+            assigneeId,
+            error: err,
+          })
+        })
+      }
+    }
+
     // Create subtasks if provided
     if (subtasks && subtasks.length > 0) {
       await prisma.subtask.createMany({
@@ -428,7 +480,9 @@ export async function POST(request: NextRequest) {
         logger.error('Failed to update task context after creation', { taskId: task.id, error: err })
       )
       
-      return NextResponse.json(taskWithSubtasks)
+      const response = taskWithSubtasks as Record<string, unknown>
+      if (capacityWarning) response.capacityWarning = capacityWarning
+      return NextResponse.json(response)
     }
 
     // Emit activity event
@@ -448,7 +502,9 @@ export async function POST(request: NextRequest) {
       logger.error('Failed to update task context after creation', { taskId: task.id, error: err })
     )
 
-    return NextResponse.json(task)
+    const response = task as Record<string, unknown>
+    if (capacityWarning) response.capacityWarning = capacityWarning
+    return NextResponse.json(response)
   } catch (error: unknown) {
     return handleApiError(error, request)
   }

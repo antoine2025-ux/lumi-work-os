@@ -44,7 +44,6 @@ export async function loadRoleContexts(
       budget: true,
       reportingStructure: true,
       teamId: true,
-      departmentId: true,
       parentId: true,
       children: {
         select: {
@@ -62,6 +61,13 @@ export async function loadRoleContexts(
           responsibilities: true,
           requiredSkills: true,
           preferredSkills: true,
+        },
+      },
+      team: {
+        select: {
+          id: true,
+          name: true,
+          departmentId: true,
         },
       },
     },
@@ -82,7 +88,7 @@ export async function loadRoleContexts(
   const departmentIds = Array.from(
     new Set(
       positions
-        .map((p) => p.departmentId)
+        .map((p) => p.team?.departmentId)
         .filter((id): id is string => Boolean(id))
     )
   );
@@ -187,12 +193,9 @@ export async function loadRoleContexts(
   const results: RoleContextObject[] = [];
 
   for (const pos of positions) {
-    const team = pos.teamId ? teamById.get(pos.teamId) ?? null : null;
+    const team = pos.team ?? (pos.teamId ? teamById.get(pos.teamId) ?? null : null);
 
-    const departmentIdFromPos = pos.departmentId ?? null;
-    const departmentIdFromTeam = team?.departmentId ?? null;
-
-    const departmentId = departmentIdFromPos ?? departmentIdFromTeam;
+    const departmentId = team?.departmentId ?? null;
 
     const department =
       departmentId ? departmentById.get(departmentId) ?? null : null;

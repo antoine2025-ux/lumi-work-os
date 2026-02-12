@@ -3,6 +3,7 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma, prismaUnscoped } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { ensureOrgPositionForUser } from "@/lib/org/ensure-org-position";
 
 // E2E Test Auth: Only enabled when E2E_TEST_AUTH=true AND not in production
 const isE2ETestAuthEnabled = 
@@ -473,6 +474,10 @@ export const authOptions: NextAuthOptions = {
                   role: 'OWNER'
                 },
                 include: { workspace: true }
+              });
+              await ensureOrgPositionForUser(prismaUnscoped, {
+                workspaceId: workspace.id,
+                userId: user.id,
               });
             }
             

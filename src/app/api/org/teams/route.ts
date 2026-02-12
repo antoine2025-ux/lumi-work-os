@@ -7,6 +7,22 @@ import {
 } from "@/lib/org/permissions.server";
 import { logOrgAudit } from "@/lib/orgAudit";
 
+export async function GET(req: NextRequest) {
+  const context = await getOrgPermissionContext(req);
+  if (!context) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const teams = await prisma.orgTeam.findMany({
+    where: {
+      workspaceId: context.orgId,
+      isActive: true,
+    },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+  return NextResponse.json({ teams });
+}
+
 type CreateTeamBody = {
   name: string;
   departmentId?: string | null;

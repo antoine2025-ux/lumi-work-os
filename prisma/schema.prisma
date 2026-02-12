@@ -207,6 +207,7 @@ model Workspace {
   loopbrainUserProfiles  LoopbrainUserProfile[]
   loopbrainChatFeedback  LoopbrainChatFeedback[]
   loopbrainOpenLoops     LoopbrainOpenLoop[]
+  loopbrainPendingActions LoopbrainPendingAction[]
 
   // Loopbrain proactive insights
   proactiveInsights ProactiveInsight[]
@@ -568,10 +569,12 @@ model OrgTeam {
   workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   leader            User?             @relation("TeamLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   teamCapacityPlan  TeamCapacityPlan?
+  projects          Project[]
 
   // Note: Unique constraint removed because Prisma doesn't support unique constraints with nullable fields
   // Uniqueness is enforced at the application level for teams within the same department
   @@index([workspaceId])
+  @@index([workspaceId, isActive])  // Active teams listing
   @@index([departmentId])
   @@index([ownerPersonId])
   @@index([leaderId])
@@ -658,12 +661,19 @@ model OrgPosition {
   teamIntentionallyUnassigned    Boolean @default(false)
   managerIntentionallyUnassigned Boolean @default(false)
 
+  // Employment details
+  startDate      DateTime?
+  employmentType String?   @default("full-time") // full-time | part-time | contract | intern
+  location       String?
+  timezone       String?
+
   parent    OrgPosition?  @relation("OrgHierarchy", fields: [parentId], references: [id])
   children  OrgPosition[] @relation("OrgHierarchy")
   team      OrgTeam?      @relation(fields: [teamId], references: [id])
   user      User?         @relation(fields: [userId], references: [id])
   workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  roleCard  RoleCard?
+  roleCard       RoleCard?
+  projectMembers ProjectMember[]
 
   @@index([workspaceId])
   @@index([workspaceId, isActive], map: "idx_org_positions_workspace_active")
@@ -671,6 +681,7 @@ model OrgPosition {
   @@index([workspaceId, archivedAt])
   @@index([workspaceId, mergedIntoId])
   @@index([teamId])
+  @@index([parentId])  // Fast reporting chain traversal
   @@index([level])
   // Entity Graph: Optimized for MEMBER_OF and REPORTS_TO link queries
   @@index([workspaceId, teamId, userId], map: "idx_org_positions_entity_graph")
@@ -797,6 +808,41 @@ model Integration {
   @@map("integrations")
 }
 
+model LoopbrainPendingAction {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  // Action type and status
+  type          String   // "time_off_approval", "task_assignment", "decision_request"
+  status        String   @default("AWAITING_RESPONSE") // "AWAITING_RESPONSE", "COMPLETED", "EXPIRED"
+  
+  // Context about what action is being requested
+  contextType   String   // "LeaveRequest", "Task", "Project", "WorkRequest"
+  contextId     String   // ID of the related entity
+  contextData   Json?    // Additional context (analysis, recommendations, etc.)
+  
+  // Slack tracking (for matching button clicks to actions)
+  slackChannelId   String?
+  slackMessageTs   String? // Slack message timestamp (unique thread ID)
+  slackUserId      String? // Slack user ID who should respond
+  
+  // Internal tracking
+  createdBy     String   // userId who triggered this action
+  assignedTo    String   // userId who should respond
+  
+  expiresAt     DateTime // When this action expires
+  completedAt   DateTime? // When action was completed
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([workspaceId, status])
+  @@index([slackMessageTs])
+  @@index([assignedTo, status])
+  @@map("loopbrain_pending_actions")
+}
+
 model Migration {
   id             String          @id @default(cuid())
   workspaceId    String
@@ -859,6 +905,7 @@ model ChatMessage {
 model Project {
   id                  String                 @id @default(cuid())
   workspaceId         String
+  teamId              String? // Optional org team assignment
   orgId               String? // Org identifier (same as workspaceId for v1, optional for backward compatibility)
   name                String
   description         String?
@@ -890,11 +937,15 @@ model Project {
   wikiPage               WikiPage?              @relation(fields: [wikiPageId], references: [id])
   projectDocumentation   ProjectDocumentation[]
   workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  orgTeam                OrgTeam?               @relation(fields: [teamId], references: [id], onDelete: SetNull)
   tasks                  Task[]
 
   @@index([workspaceId, status], map: "idx_projects_workspace_status")
+  @@index([workspaceId, ownerId])  // Dashboard "my projects" query
+  @@index([status])                // Project filtering by status
   @@index([updatedAt(sort: Desc)], map: "idx_projects_updated_at")
   @@index([orgId])
+  @@index([teamId])
   @@map("projects")
 }
 
@@ -977,7 +1028,9 @@ model Task {
   workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId, status], map: "idx_tasks_project_status")
+  @@index([projectId])        // Standalone for JOINs and foreign key lookups
   @@index([workspaceId, assigneeId], map: "idx_tasks_workspace_assignee")
+  @@index([workspaceId, assigneeId, dueDate])  // Dashboard overdue tasks query
   @@index([epicId], map: "idx_tasks_epic")
   @@index([milestoneId], map: "idx_tasks_milestone")
   @@index([workspaceId, status], map: "idx_tasks_workspace_status")
@@ -1019,16 +1072,20 @@ model TaskComment {
 }
 
 model ProjectMember {
-  id        String      @id @default(cuid())
-  projectId String
-  userId    String
-  role      ProjectRole @default(MEMBER)
-  joinedAt  DateTime    @default(now())
-  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String       @id @default(cuid())
+  projectId     String
+  userId        String
+  orgPositionId String?      // Link to org position for capacity tracking
+  role          ProjectRole  @default(MEMBER)
+  joinedAt      DateTime     @default(now())
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgPosition   OrgPosition? @relation(fields: [orgPositionId], references: [id], onDelete: SetNull)
 
   @@unique([projectId, userId])
+  @@index([projectId])  // Fast members by project lookup
   @@index([userId], map: "idx_project_members_user")
+  @@index([orgPositionId])
   @@map("project_members")
 }
 
@@ -1054,6 +1111,8 @@ model ProjectAssignee {
   user       User     @relation("ProjectAssignee", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
+  @@index([projectId])    // Fast project → assignees lookup
+  @@index([userId])       // Fast user → projects lookup
   @@map("project_assignees")
 }
 

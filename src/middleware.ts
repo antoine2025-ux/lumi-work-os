@@ -79,8 +79,9 @@ export async function middleware(request: NextRequest) {
   }
   
   // --- Auth Route Check ---
-  // If authenticated user tries to access login/register, redirect to home
-  if (isAuthRoute(pathname) && isAuthenticated) {
+  // Don't redirect authenticated users from /login - "Sign In" from landing should show the auth flow,
+  // not redirect to create-workspace. Only redirect from register/signup when authenticated.
+  if (isAuthRoute(pathname) && isAuthenticated && pathname !== '/login') {
     return NextResponse.redirect(new URL('/home', request.url))
   }
   

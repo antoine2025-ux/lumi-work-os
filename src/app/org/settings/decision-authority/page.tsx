@@ -1,98 +1,11 @@
 /**
- * Decision Authority Settings Page
- * 
- * Route: /org/settings/decision-authority
- * 
- * Configure decision domains and authority:
- * - Create/archive decision domains (SECURITY, HIRING, etc.)
- * - Set primary authority (person or role)
- * - Configure escalation paths
- * 
- * This page answers: "Who decides this type of thing?"
+ * Legacy org decision authority settings — redirects to workspace-scoped admin/decisions.
  */
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { OrgPageHeader } from "@/components/org/OrgPageHeader";
-import { DecisionDomainListClient } from "@/components/org/decision/DecisionDomainListClient";
-import { OrgPageViewTracker } from "@/components/org/telemetry/OrgPageViewTracker";
-import { getOrgPermissionContext } from "@/lib/org/permissions.server";
-import { hasOrgCapability } from "@/lib/org/capabilities";
-import { OrgEmptyState } from "@/components/org/OrgEmptyState";
+import { redirectToWorkspaceOrg } from "@/lib/org/redirectToWorkspaceOrg";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = {
-  searchParams: Promise<{ returnTo?: string; domain?: string }>;
-};
-
-export default async function DecisionAuthoritySettingsPage({ searchParams }: PageProps) {
-  const params = await searchParams;
-  const context = await getOrgPermissionContext();
-
-  if (!context) {
-    return (
-      <>
-        <OrgPageHeader
-          breadcrumb="ORG / SETTINGS / DECISION AUTHORITY"
-          title="Decision Authority"
-          description="Configure who decides for each domain and escalation paths."
-        />
-        <div className="px-10 pb-10">
-          <OrgEmptyState
-            title="No organization selected"
-            description="You need to create or select a workspace to access settings."
-            primaryActionLabel="Create workspace"
-            primaryActionHref="/welcome"
-          />
-        </div>
-      </>
-    );
-  }
-
-  // Admin-only access
-  const canManage = hasOrgCapability(context.role, "org:org:update");
-  if (!canManage) {
-    return (
-      <>
-        <OrgPageHeader
-          breadcrumb="ORG / SETTINGS / DECISION AUTHORITY"
-          title="Decision Authority"
-          description="Configure who decides for each domain and escalation paths."
-        />
-        <div className="px-10 pb-10">
-          <OrgEmptyState
-            title="Access restricted"
-            description="You need admin permissions to configure decision authority."
-          />
-        </div>
-      </>
-    );
-  }
-
-  // O1: returnTo affordance — visible link back to work request during onboarding
-  const returnTo = params.returnTo;
-
-  return (
-    <>
-      <OrgPageViewTracker route="/org/settings/decision-authority" name="Decision Authority Settings" />
-      <OrgPageHeader
-        breadcrumb="ORG / SETTINGS / DECISION AUTHORITY"
-        title="Decision Authority"
-        description="Configure who decides for each domain and escalation paths."
-      />
-      <div className="px-10 pb-10 space-y-4">
-        {returnTo && (
-          <Link
-            href={decodeURIComponent(returnTo)}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to work request
-          </Link>
-        )}
-        <DecisionDomainListClient />
-      </div>
-    </>
-  );
+export default async function OldOrgDecisionAuthoritySettingsPage() {
+  await redirectToWorkspaceOrg("admin/decisions");
 }

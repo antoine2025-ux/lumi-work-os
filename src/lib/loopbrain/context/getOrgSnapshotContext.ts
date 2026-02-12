@@ -149,10 +149,10 @@ function formatBlockersOnlySection(snapshot: OrgSemanticSnapshotV0): string {
   const lines: string[] = [];
   lines.push(`## Org Semantic Snapshot (v0)`);
   lines.push(`Generated: ${snapshot.generatedAt}`);
-  lines.push(`Readiness: NOT answerable`);
-  lines.push(`Blockers: ${snapshot.readiness.blockers.join(", ")}`);
+  lines.push(`Readiness: partial — some org setup steps remain`);
+  lines.push(`Setup gaps: ${snapshot.readiness.blockers.join(", ")}`);
   lines.push("");
-  lines.push(`Note: Org data is incomplete. Answers about org structure may be unreliable.`);
+  lines.push(`Note: Some advanced org features (decision domains, responsibility profiles) are not yet configured. However, basic org structure data (people, roles, teams, reporting lines) IS available in the ORGANIZATIONAL CONTEXT section below. Use that data to answer questions.`);
   return lines.join("\n");
 }
 

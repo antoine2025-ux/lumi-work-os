@@ -65,12 +65,14 @@ export async function PUT(
       // This check is informational - we don't block the request
     }
 
-    // Step 6: Get current position to find position ID
-    const position = await prisma.orgPosition.findFirst({
+    // Step 6: Get current position (personId may be OrgPosition ID or User ID)
+    let position = await prisma.orgPosition.findFirst({
       where: {
-        userId: personId,
+        OR: [
+          { id: personId },
+          { userId: personId, workspaceId, isActive: true },
+        ],
         workspaceId,
-        isActive: true,
       },
       select: { id: true, userId: true },
     });
@@ -87,10 +89,10 @@ export async function PUT(
     // Step 8: Set manager (returns previous managerId for audit logging)
     const updated = await setOrgPersonManager(position.id, managerId);
 
-    // Step 9: Get direct reports (manager change affects them too for MISSING_MANAGER cascade)
+    // Step 9: Get direct reports (parentId = this position's id)
     const directReports = await prisma.orgPosition.findMany({
       where: {
-        managerId: position.userId,
+        parentId: position.id,
         workspaceId,
         isActive: true,
       },

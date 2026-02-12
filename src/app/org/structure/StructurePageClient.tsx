@@ -544,7 +544,7 @@ const TeamsTab = memo(function TeamsTab({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem asChild>
-                        <Link href={`/org/people?teamId=${team.id}`} className="cursor-pointer">
+                        <Link href={`/org/directory?teamId=${team.id}`} className="cursor-pointer">
                           <Eye className="h-4 w-4 mr-2" />
                           View
                         </Link>
@@ -837,7 +837,7 @@ const DepartmentsTab = memo(function DepartmentsTab({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem asChild>
-                            <Link href={`/org/people?departmentId=${d.id}`} className="cursor-pointer">
+                            <Link href={`/org/directory?departmentId=${d.id}`} className="cursor-pointer">
                               <Eye className="h-4 w-4 mr-2" />
                               View
                             </Link>
@@ -952,7 +952,7 @@ const DepartmentsTab = memo(function DepartmentsTab({
                               </div>
                             </div>
                             <Link
-                              href={`/org/people?teamId=${team.id}`}
+                              href={`/org/directory?teamId=${team.id}`}
                               className="text-xs text-blue-400 hover:text-blue-300 hover:underline shrink-0"
                             >
                               View

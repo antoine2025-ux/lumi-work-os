@@ -6,6 +6,7 @@
 
 import { getOrgPermissionContext } from "@/lib/org/permissions.server";
 import { getOrgChartData } from "@/lib/org/data.server";
+import { buildOrgChartTree } from "@/lib/org/projections/buildOrgChartTree";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { OrgChartClient } from "@/app/org/chart/OrgChartClient";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
@@ -41,6 +42,12 @@ export default async function WorkspaceOrgChartPage({ params }: PageProps) {
   }
 
   const chartData = await getOrgChartData(context.orgId);
+  
+  // Build hierarchical tree for tree view
+  const chartTree = await buildOrgChartTree(context.orgId, {
+    includeVacant: true,
+    maxDepth: 10,
+  });
 
   return (
     <>
@@ -50,7 +57,11 @@ export default async function WorkspaceOrgChartPage({ params }: PageProps) {
         description="Visual overview of departments, teams, and people in your organization."
       />
       <div className="px-10 pb-10">
-        <OrgChartClient orgId={context.orgId} chartData={chartData} />
+        <OrgChartClient 
+          orgId={context.orgId} 
+          chartData={chartData}
+          chartTree={chartTree}
+        />
       </div>
     </>
   );

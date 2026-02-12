@@ -174,6 +174,19 @@ export async function runLoopbrainQuery(
     req = { ...req, mode: 'spaces' }
   }
 
+  // Override mode for org questions: detect org-related queries regardless of
+  // the mode the UI sent (e.g. dashboard) and route them to the org handler
+  if (req.mode !== 'org' && !isTaskIntent) {
+    const wantsOrg = isOrgQuestion(req.query, { requestedMode: null })
+    if (wantsOrg) {
+      logger.debug('Org question detected, overriding mode to org', {
+        workspaceId: req.workspaceId,
+        fromMode: req.mode,
+      })
+      req = { ...req, mode: 'org' }
+    }
+  }
+
   try {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orchestrator.ts:before-switch',message:'Before mode switch',data:{mode:req.mode},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
@@ -647,7 +660,10 @@ async function handleOrgMode(
         maxRoles: 10,
       })
       
-      hasOrgContext = true
+      // Only set hasOrgContext if actual org entities exist
+      hasOrgContext = orgPromptContext.people.length > 0 || 
+                      orgPromptContext.teams.length > 0 || 
+                      orgPromptContext.departments.length > 0
       
       logger.debug('Org prompt context loaded successfully from ContextStore', {
         workspaceId: req.workspaceId,
@@ -1982,38 +1998,61 @@ function buildOrgPrompt(
     const { type, context } = orgContextForPrompt;
 
     if (type === "org.headcount") {
-      sections.push(`\n## Org Context (Headcount & Composition Focus)`);
-      if (context.org) {
-        const orgSummary = context.org.summary || "Organization structure";
-        sections.push(`Org: ${context.org.title} | ${orgSummary}`);
+      // Use the clean generic context section which already has structured headcount data
+      if (orgGraphContextSection) {
+        sections.push(orgGraphContextSection);
+      } else {
+        sections.push(`\n## Org Context (Headcount & Composition Focus)`);
+        if (context.org) {
+          const orgSummary = context.org.summary || "Organization structure";
+          sections.push(`Org: ${context.org.title} | ${orgSummary}`);
+        }
+        sections.push(``);
+        sections.push(`### Teams (${context.teams.length} total):`);
+        context.teams.slice(0, 25).forEach((team) => {
+          const name = team.title.replace(/ – Team Context$/, "");
+          const peopleTag = team.tags.find((t: string) => t.startsWith("people:"));
+          const people = peopleTag ? peopleTag.slice(7) : "?";
+          sections.push(`- **${name}**: ${people} member(s)`);
+        });
+        sections.push(``);
+        sections.push(`### Departments (${context.departments.length} total):`);
+        context.departments.slice(0, 25).forEach((dept) => {
+          const name = dept.title.replace(/ – Department Context$/, "");
+          const peopleTag = dept.tags.find((t: string) => t.startsWith("people:"));
+          const people = peopleTag ? peopleTag.slice(7) : "?";
+          sections.push(`- **${name}**: ${people} person(s)`);
+        });
+        sections.push(``);
+        sections.push(`Use this context to answer headcount and composition questions. Return concrete numbers when possible.`);
       }
-      sections.push(``);
-      sections.push(`### Teams (${context.teams.length} total):`);
-      context.teams.slice(0, 25).forEach((team) => {
-        sections.push(`- ${team.title} | ${team.summary || "No summary"}`);
-      });
-      sections.push(``);
-      sections.push(`### Departments (${context.departments.length} total):`);
-      context.departments.slice(0, 25).forEach((dept) => {
-        sections.push(`- ${dept.title} | ${dept.summary || "No summary"}`);
-      });
-      sections.push(``);
-      sections.push(`Use this context to answer headcount and composition questions. Return concrete numbers when possible.`);
     } else if (type === "org.reporting") {
-      sections.push(`\n## Org Context (Reporting Lines Focus)`);
-      if (context.org) {
-        const orgSummary = context.org.summary || "Organization structure";
-        sections.push(`Org: ${context.org.title} | ${orgSummary}`);
+      // Use the clean generic context section which includes the REPORTING STRUCTURE tree
+      if (orgGraphContextSection) {
+        sections.push(orgGraphContextSection);
+      } else {
+        sections.push(`\n## Org Context (Reporting Lines Focus)`);
+        if (context.org) {
+          const orgSummary = context.org.summary || "Organization structure";
+          sections.push(`Org: ${context.org.title} | ${orgSummary}`);
+        }
+        sections.push(``);
+        sections.push(`### People (${context.people.length} total, showing up to 40):`);
+        context.people.slice(0, 40).forEach((person) => {
+          const name = person.title.replace(/ – Person Context$/, "");
+          const roleTag = person.tags.find((t: string) => t.startsWith("role:"));
+          const role = roleTag ? roleTag.slice(5) : "Unknown role";
+          const reportsToTag = person.tags.find((t: string) => t.startsWith("reports_to:"));
+          const reportsTo = reportsToTag ? reportsToTag.slice(11) : null;
+          const directReportsTag = person.tags.find((t: string) => t.startsWith("direct_reports:"));
+          const directReports = directReportsTag ? directReportsTag.slice(15) : null;
+          let info = `- **${name}** — ${role}`;
+          if (reportsTo) info += ` | Reports to: ${reportsTo}`;
+          if (directReports && directReports !== "0") info += ` | Direct reports: ${directReports}`;
+          sections.push(info);
+        });
+        sections.push(``);
       }
-      sections.push(``);
-      sections.push(`### People (${context.people.length} total, showing up to 40):`);
-      context.people.slice(0, 40).forEach((person) => {
-        const reportsTo = person.relations.find((r) => r.type === "reports_to");
-        const reportsToInfo = reportsTo ? ` | Reports to: ${reportsTo.targetId}` : "";
-        sections.push(`- ${person.title}${reportsToInfo} | ${person.summary || "No summary"}`);
-      });
-      sections.push(``);
-      sections.push(`Use the "reports_to" relations to answer reporting line questions. If a relationship is not present, say you don't know.`);
     } else if (type === "org.risk") {
       sections.push(`\n## Org Context (Risk Analysis Focus)`);
       if (context.org) {
@@ -2030,18 +2069,14 @@ function buildOrgPrompt(
       sections.push(``);
       sections.push(`Use org health tags (org_health_score, org_health_label, org_depth, org_single_point_teams, org_overloaded_managers) and team summaries to evaluate risk. Do not invent risks not justified by the data.`);
     } else {
-      // Generic org context (use existing section)
+      // Generic org context — use the clean structured context section
       if (orgGraphContextSection) {
-        sections.push(`\n## Org Context (Authoritative Organizational Structure from ContextStore)`);
         sections.push(orgGraphContextSection);
-        sections.push(``);
       }
     }
   } else if (orgGraphContextSection) {
     // Fallback to generic section if specialized context not available
-    sections.push(`\n## Org Context (Authoritative Organizational Structure from ContextStore)`);
     sections.push(orgGraphContextSection);
-    sections.push(``);
   }
 
   // Add Org Health signals (including role risks) if available
@@ -2262,9 +2297,9 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
     sections.push(`- If there are no people in the data, say so clearly: "I don't see any people in your organization yet."`)
     sections.push(`- Do NOT use Slack for these org-people questions unless the user explicitly asks to send something to Slack.`)
   } else {
-    // Even if there are no org people, add a note so the LLM knows to check
-    sections.push(`\n## Org People ContextObjects:`)
-    sections.push(`The organization has 0 people with assigned roles. If the user asks about people in the organization, inform them that no people are currently assigned to roles.`)
+    // No legacy orgPeople available — skip this section entirely.
+    // The cleaned-up ORGANIZATIONAL CONTEXT and PEOPLE sections above
+    // already provide all the necessary people data from ContextStore.
   }
 
   // User question
@@ -2274,7 +2309,8 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
   // Instructions
   sections.push(`\n## Instructions:`)
   sections.push(`- Provide a clear answer about organizational structure, roles, or teams.
-- **For people questions:** Always list actual people by name from the Org People ContextObjects, including their role and team. Do not just say "you have N people" - name them explicitly.
+- **For people questions:** Always list actual people by name from the PEOPLE and ROLES sections above, including their role and team. Do not just say "you have N people" - name them explicitly.
+- **For reporting questions:** Use the REPORTING STRUCTURE section to answer who reports to whom.
 - Use markdown formatting for readability.
 - If the context doesn't contain enough information, say so clearly.
 - Focus on clarity about who does what and how teams are structured.`)

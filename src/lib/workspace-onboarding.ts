@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { WorkspaceRole } from '@prisma/client'
+import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
 
 export interface WorkspaceTemplate {
   id: string
@@ -395,6 +396,10 @@ export async function createWorkspaceWithOnboarding(
               role: member.role
             }
           })
+          await ensureOrgPositionForUser(prisma, {
+            workspaceId: workspace.id,
+            userId: existingUser.id,
+          })
         } else {
           // Create user and add to workspace
           const newUser = await prisma.user.create({
@@ -411,6 +416,10 @@ export async function createWorkspaceWithOnboarding(
               userId: newUser.id,
               role: member.role
             }
+          })
+          await ensureOrgPositionForUser(prisma, {
+            workspaceId: workspace.id,
+            userId: newUser.id,
           })
         }
       })

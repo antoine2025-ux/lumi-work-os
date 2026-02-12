@@ -1,25 +1,14 @@
 /**
- * Workspace-Scoped Org Issues Inbox Page
- * 
- * Displays structural issues with resolution state overlay.
+ * Redirect: /org/issues → /org/admin/health
  */
 
-import { OrgPageHeader } from "@/components/org/OrgPageHeader";
-import { OrgIssuesInboxClient } from "@/components/org/issues/OrgIssuesInboxClient";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
+type PageProps = {
+  params: Promise<{ workspaceSlug: string }>;
+};
 
-export default function WorkspaceOrgIssuesPage() {
-  return (
-    <>
-      <OrgPageHeader
-        breadcrumb="ORG / ISSUES"
-        title="Issues"
-        description="Review and manage structural issues in your organization."
-      />
-      <div className="px-10 pb-10">
-        <OrgIssuesInboxClient />
-      </div>
-    </>
-  );
+export default async function WorkspaceOrgIssuesRedirect({ params }: PageProps) {
+  const { workspaceSlug } = await params;
+  redirect(`/w/${workspaceSlug}/org/admin/health`);
 }

@@ -52,18 +52,21 @@ export async function upsertContextItem(
 }
 
 /**
- * Convenience helper: upsert many ContextObjects in sequence.
- * For now we keep it simple (no transaction batching), but we can
- * optimize later if needed.
+ * Upsert many ContextObjects in parallel (optimized for performance).
+ * Uses Promise.all for concurrent upserts since each operation is independent.
  */
 export async function upsertContextItems(
   contexts: BaseContextObject[]
 ) {
-  const results = [];
-  for (const ctx of contexts) {
-    const item = await upsertContextItem(ctx);
-    results.push(item);
+  if (contexts.length === 0) {
+    return [];
   }
+  
+  // Execute all upserts in parallel - they're independent operations
+  const results = await Promise.all(
+    contexts.map(ctx => upsertContextItem(ctx))
+  );
+  
   return results;
 }
 

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useSession } from "next-auth/react"
 import { useWorkspace } from "@/lib/workspace-context"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -9,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, Loader2, Target, Calendar, Sparkles, X } from "lucide-react"
+import { AlertCircle, Loader2, Target, Calendar, Sparkles, X, Users } from "lucide-react"
 import { setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
 
 interface CreateProjectDialogProps {
@@ -68,34 +69,48 @@ export function CreateProjectDialog({
   // Visibility state
   const [visibility, setVisibility] = useState<'PUBLIC' | 'TARGETED'>('PUBLIC')
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
-  const [workspaceMembers, setWorkspaceMembers] = useState<Array<{ id: string; name: string; email: string }>>([])
+  const [workspaceMembers, setWorkspaceMembers] = useState<Array<{ id: string; name: string; email: string; orgPositionTitle?: string }>>([])
   const [loadingMembers, setLoadingMembers] = useState(false)
+
+  // Owner and team members (assignees)
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string>('')
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([])
 
   // Resolve workspaceId: use initialWorkspaceId if provided, otherwise use current workspace
   // Note: This design supports a future visible workspace selector in the UI
   const resolvedWorkspaceId = initialWorkspaceId || currentWorkspace?.id
 
-  const loadWorkspaceMembers = async () => {
+  const { data: session } = useSession()
+
+  const loadWorkspaceMembers = useCallback(async () => {
     if (!resolvedWorkspaceId) return
     try {
       setLoadingMembers(true)
-      const response = await fetch(`/api/workspaces/${resolvedWorkspaceId}/members`)
+      const response = await fetch('/api/workspaces/current/members')
       if (response.ok) {
         const data = await response.json()
-        setWorkspaceMembers(data.members?.map((m: any) => ({
-          id: m.userId,
-          name: m.user?.name || m.user?.email || 'Unknown',
-          email: m.user?.email || ''
-        })) || [])
+        type MemberItem = {
+          userId: string
+          user?: { name?: string; email?: string }
+          orgPositionTitle?: string | null
+        }
+        setWorkspaceMembers(
+          (data.members as MemberItem[] | undefined)?.map((m) => ({
+            id: m.userId,
+            name: m.user?.name || m.user?.email || 'Unknown',
+            email: (m.user?.email as string) || '',
+            orgPositionTitle: m.orgPositionTitle ?? undefined,
+          })) ?? []
+        )
       }
     } catch (error) {
       console.error('Error loading workspace members:', error)
     } finally {
       setLoadingMembers(false)
     }
-  }
+  }, [resolvedWorkspaceId])
 
-  // Load workspace members when dialog opens and visibility is TARGETED
+  // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       setFormData({
@@ -111,20 +126,30 @@ export function CreateProjectDialog({
       setErrors({})
       setVisibility('PUBLIC')
       setSelectedMemberIds([])
-      
-      if (visibility === 'TARGETED' && resolvedWorkspaceId) {
-        loadWorkspaceMembers()
-      }
+      setSelectedOwnerId('')
+      setSelectedAssigneeIds([])
     }
   }, [open])
 
+  // Load workspace members whenever dialog opens (for owner and assignee pickers)
   useEffect(() => {
-    if (open && visibility === 'TARGETED' && resolvedWorkspaceId) {
+    if (open && resolvedWorkspaceId) {
       loadWorkspaceMembers()
     } else {
       setWorkspaceMembers([])
     }
-  }, [open, visibility, resolvedWorkspaceId])
+  }, [open, resolvedWorkspaceId, loadWorkspaceMembers])
+
+  // Default owner to current user when members load
+  const currentUserId = session?.user?.id
+  useEffect(() => {
+    if (open && workspaceMembers.length > 0 && currentUserId && selectedOwnerId === '') {
+      const found = workspaceMembers.some((m) => m.id === currentUserId)
+      if (found) {
+        setSelectedOwnerId(currentUserId)
+      }
+    }
+  }, [open, workspaceMembers, currentUserId, selectedOwnerId])
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -185,6 +210,13 @@ export function CreateProjectDialog({
         requestBody.memberUserIds = selectedMemberIds
       }
 
+      if (selectedOwnerId) {
+        requestBody.ownerId = selectedOwnerId
+      }
+      if (selectedAssigneeIds.length > 0) {
+        requestBody.assigneeIds = selectedAssigneeIds
+      }
+
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: {
@@ -210,7 +242,10 @@ export function CreateProjectDialog({
         onOpenChange(false)
       } else {
         const errorData = await response.json().catch(() => ({}))
-        const errorMessage = errorData.error || errorData.message || 'Failed to create project'
+        const raw = errorData.error ?? errorData.message
+        const errorMessage = typeof raw === 'object' && raw !== null && 'message' in raw
+          ? (raw as { message?: string }).message ?? 'Failed to create project'
+          : (typeof raw === 'string' ? raw : 'Failed to create project')
         setErrors({ submit: errorMessage })
       }
     } catch (error) {
@@ -242,7 +277,7 @@ export function CreateProjectDialog({
             <span>Create New Project</span>
           </DialogTitle>
           <DialogDescription>
-            Create a new project to organize your team's work
+            Create a new project to organize your team&apos;s work
           </DialogDescription>
         </DialogHeader>
 
@@ -355,6 +390,113 @@ export function CreateProjectDialog({
               </p>
             </div>
           )}
+
+          {/* Project Owner */}
+          <div className="space-y-2">
+            <Label htmlFor="owner" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Project Owner
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Who is responsible for this project?
+            </p>
+            {loadingMembers ? (
+              <div className="text-sm text-muted-foreground">Loading members...</div>
+            ) : (
+              <Select
+                value={selectedOwnerId || '_none'}
+                onValueChange={(v) => setSelectedOwnerId(v === '_none' ? '' : v)}
+                disabled={isLoading}
+              >
+                <SelectTrigger id="owner">
+                  <SelectValue placeholder="Select owner" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">No owner</SelectItem>
+                  {workspaceMembers.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.name}
+                      {member.orgPositionTitle ? ` - ${member.orgPositionTitle}` : ''}
+                      {member.email && (
+                        <span className="text-muted-foreground ml-1">({member.email})</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* Team Members (assignees) */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Assign Team Members
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Who will work on this project?
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {selectedAssigneeIds.map((id) => {
+                const member = workspaceMembers.find((m) => m.id === id)
+                return (
+                  <Badge
+                    key={id}
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                  >
+                    {member?.name ?? id}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAssigneeIds((prev) => prev.filter((i) => i !== id))}
+                      className="ml-1 hover:opacity-70"
+                      disabled={isLoading}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )
+              })}
+            </div>
+            {loadingMembers ? (
+              <div className="text-sm text-muted-foreground">Loading members...</div>
+            ) : workspaceMembers.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No workspace members found.</div>
+            ) : (() => {
+              const available = workspaceMembers.filter((m) => !selectedAssigneeIds.includes(m.id))
+              return available.length > 0 ? (
+                <Select
+                  value="_add"
+                  onValueChange={(v) => {
+                    if (v !== '_add' && !selectedAssigneeIds.includes(v)) {
+                      setSelectedAssigneeIds((prev) => [...prev, v])
+                    }
+                  }}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Add member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_add" disabled>
+                      Add member
+                    </SelectItem>
+                    {available.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name}
+                        {member.orgPositionTitle ? ` - ${member.orgPositionTitle}` : ''}
+                        {member.email && (
+                          <span className="text-muted-foreground ml-1">({member.email})</span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="text-sm text-muted-foreground">All members added</div>
+              )
+            })()}
+          </div>
 
           {/* Slack Channels (client-side only) */}
           <div className="space-y-2">
@@ -523,7 +665,7 @@ export function CreateProjectDialog({
             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm text-red-600 flex items-center space-x-1">
                 <AlertCircle className="h-4 w-4" />
-                <span>{errors.submit}</span>
+                <span>{typeof errors.submit === 'string' ? errors.submit : (errors.submit as { message?: string })?.message ?? String(errors.submit)}</span>
               </p>
             </div>
           )}
@@ -532,7 +674,7 @@ export function CreateProjectDialog({
             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm text-red-600 flex items-center space-x-1">
                 <AlertCircle className="h-4 w-4" />
-                <span>{errors.workspace}</span>
+                <span>{typeof errors.workspace === 'string' ? errors.workspace : (errors.workspace as { message?: string })?.message ?? String(errors.workspace)}</span>
               </p>
             </div>
           )}

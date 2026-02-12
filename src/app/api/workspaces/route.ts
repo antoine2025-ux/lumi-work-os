@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { WorkspaceRole } from "@prisma/client"
 import { logOrgAuditEvent } from "@/server/audit/orgAudit"
 import { handleApiError } from '@/lib/api-errors'
+import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
 
 export async function GET(request: NextRequest) {
   try {
@@ -123,6 +124,11 @@ export async function POST(request: NextRequest) {
           userId: auth.user.userId,
           role: WorkspaceRole.OWNER
         }
+      })
+
+      await ensureOrgPositionForUser(tx, {
+        workspaceId: workspace.id,
+        userId: auth.user.userId,
       })
 
       // Log workspace creation

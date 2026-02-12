@@ -15,6 +15,7 @@ import { LoopbrainMode, LoopbrainRequest } from '@/lib/loopbrain/orchestrator-ty
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
 import { isOrgLoopbrainEnabled } from '@/lib/loopbrain/orgGate'
+import { ensureOrgContextSyncedSync } from '@/lib/loopbrain/ensureOrgContextSynced'
 
 /**
  * POST /api/loopbrain/chat
@@ -127,6 +128,24 @@ export async function POST(request: NextRequest) {
           },
           { status: 403 }
         )
+      }
+
+      // Ensure org context is synced before answering org queries
+      // This is a preflight check that syncs if no context exists
+      try {
+        const didSync = await ensureOrgContextSyncedSync(workspaceId)
+        if (didSync) {
+          logger.info('Org context synced before query', {
+            ...baseContext,
+            workspaceId,
+          })
+        }
+      } catch (error) {
+        logger.error('Failed to ensure org context synced', {
+          ...baseContext,
+          workspaceId,
+        }, error)
+        // Don't fail the request - continue with potentially incomplete context
       }
     }
 

@@ -135,7 +135,7 @@ function getRecommendationLinks(
     case "DELAY":
       return [
         { label: "Review capacity gaps", href: deepLinkForCapacityIssues() },
-        { label: "Set missing capacity data", href: "/org/people" },
+        { label: "Set missing capacity data", href: "/org/directory" },
       ];
     case "REASSIGN":
       return [
@@ -156,7 +156,7 @@ function getRecommendationLinks(
         },
       ];
     default:
-      return [{ label: "Review configuration", href: "/org/issues" }];
+      return [{ label: "Review configuration", href: "/org/admin/health" }];
   }
 }
 
@@ -509,7 +509,7 @@ export function WorkRequestDetailClient({ id }: { id: string }) {
         const domainKey = feasibility?.escalationContacts?.domainKey ?? null;
         const links = action
           ? getRecommendationLinks(action, domainKey)
-          : [{ label: "Review configuration", href: "/org/issues" }];
+          : [{ label: "Review configuration", href: "/org/admin/health" }];
 
         return (
           <Card>

@@ -101,7 +101,7 @@ export function BlockedAnswerNotice({
             <div className="flex flex-wrap gap-2">
               {actions.map((a, i) => (
                 <OrgPrimaryCta key={i} size="sm" asChild>
-                  <Link href={a.deepLink ?? "/org/issues"}>
+                  <Link href={a.deepLink ?? "/org/admin/health"}>
                     {a.label}
                   </Link>
                 </OrgPrimaryCta>
