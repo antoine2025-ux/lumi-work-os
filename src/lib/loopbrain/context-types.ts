@@ -17,7 +17,9 @@ export enum ContextType {
   ORG = 'org',
   ACTIVITY = 'activity',
   UNIFIED = 'unified',
-  GOAL = 'goal'
+  GOAL = 'goal',
+  PERFORMANCE_CYCLE = 'performance_cycle',
+  ONE_ON_ONE = 'one_on_one'
 }
 
 /**
@@ -102,6 +104,7 @@ export interface ProjectContext extends BaseContext {
   team?: string
   epics?: EpicSummary[]
   tasks?: TaskSummary[]
+  people?: PersonSummary[]
   recentActivity?: ActivitySummary[]
 }
 
@@ -228,6 +231,28 @@ export interface GoalContext extends BaseContext {
 }
 
 /**
+ * 1:1 Meeting context
+ * Represents a 1:1 meeting between manager and report
+ */
+export interface OneOnOneContext extends BaseContext {
+  type: ContextType.ONE_ON_ONE
+  scheduledAt: string
+  status: string
+  manager: {
+    id: string
+    name: string
+  }
+  employee: {
+    id: string
+    name: string
+  }
+  talkingPointCount: number
+  actionItemCount: number
+  openActionItemCount: number
+  seriesFrequency?: string
+}
+
+/**
  * Unified context
  * Combines multiple context types for comprehensive AI understanding
  */
@@ -257,6 +282,7 @@ export type ContextObject =
   | ActivityContext
   | UnifiedContext
   | GoalContext
+  | OneOnOneContext
 
 /**
  * Supporting types for context composition
@@ -278,6 +304,16 @@ export interface RelatedDoc {
   relevanceScore?: number
   category?: string
   tags?: string[]
+}
+
+export interface PersonSummary {
+  id: string
+  name: string
+  title?: string
+  team?: string
+  department?: string
+  role: string
+  allocatedHours?: number
 }
 
 export interface EpicSummary {

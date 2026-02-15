@@ -18,7 +18,8 @@ import {
   Calendar,
   Clock,
   Workflow,
-  CheckSquare
+  CheckSquare,
+  Users2
 } from "lucide-react"
 
 // Core navigation items (always visible)
@@ -94,6 +95,13 @@ const featureNavigationItems = [
     description: "Automate workflows and notifications",
     roles: ['OWNER', 'ADMIN'],
     featureFlag: "automations"
+  },
+  {
+    name: "1:1s",
+    href: "/one-on-ones",
+    icon: Users2,
+    description: "One-on-one meetings with your manager or reports",
+    roles: ['OWNER', 'ADMIN', 'MEMBER']
   }
 ]
 

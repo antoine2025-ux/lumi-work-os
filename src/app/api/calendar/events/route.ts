@@ -1,292 +1,372 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/server/authOptions'
-import { google } from 'googleapis'
+import { getGoogleCalendarClient, handleGoogleApiError } from '@/lib/google-calendar'
+import {
+  CalendarEventCreateSchema,
+  CalendarEventUpdateSchema,
+  CalendarEventDeleteSchema,
+} from '@/lib/validations/calendar'
+import type { calendar_v3 } from 'googleapis'
+import crypto from 'crypto'
 
-// Helper function to extract meeting links from description or location
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Extract meeting links from event description or location */
 function extractMeetingLink(description: string, location: string): string | null {
-  // Common meeting platform patterns
   const patterns = [
-    // Google Meet
     /https?:\/\/meet\.google\.com\/[a-z0-9-]+/gi,
-    // Zoom
     /https?:\/\/[a-z0-9.-]*zoom\.us\/j\/[0-9]+/gi,
     /https?:\/\/[a-z0-9.-]*zoom\.us\/my\/[a-z0-9.-]+/gi,
-    // Microsoft Teams
     /https?:\/\/teams\.microsoft\.com\/l\/meetup-join\/[a-z0-9-]+/gi,
-    // Webex
     /https?:\/\/[a-z0-9.-]*webex\.com\/meet\/[a-z0-9.-]+/gi,
-    // GoToMeeting
     /https?:\/\/[a-z0-9.-]*gotomeeting\.com\/join\/[0-9]+/gi,
-    // Generic meeting links
-    /https?:\/\/[^\s]+(?:meet|join|conference|webinar)[^\s]*/gi
+    /https?:\/\/[^\s]+(?:meet|join|conference|webinar)[^\s]*/gi,
   ]
 
-  // Search in description first
   for (const pattern of patterns) {
     const match = description.match(pattern)
-    if (match) {
-      return match[0]
-    }
+    if (match) return match[0]
   }
-
-  // Search in location
   for (const pattern of patterns) {
     const match = location.match(pattern)
-    if (match) {
-      return match[0]
-    }
+    if (match) return match[0]
   }
 
-  // Fallback: look for any https link
-  const fallbackPattern = /https?:\/\/[^\s]+/gi
-  const descMatch = description.match(fallbackPattern)
-  if (descMatch) {
-    return descMatch[0]
-  }
-  
-  const locMatch = location.match(fallbackPattern)
-  if (locMatch) {
-    return locMatch[0]
-  }
+  const fallback = /https?:\/\/[^\s]+/gi
+  const descMatch = description.match(fallback)
+  if (descMatch) return descMatch[0]
+  const locMatch = location.match(fallback)
+  if (locMatch) return locMatch[0]
 
   return null
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+const VIDEO_DOMAINS = [
+  'meet.google.com',
+  'zoom.us',
+  'teams.microsoft.com',
+  'webex.com',
+  'gotomeeting.com',
+]
 
-        // Check if we have an access token
-        if (!session.accessToken) {
-          console.log('No access token found in session')
-          return NextResponse.json({ 
-            error: 'Google Calendar not connected',
-            needsAuth: true 
-          }, { status: 403 })
-        }
+/** Check if text references a known video conferencing platform */
+function hasVideoReference(text: string): boolean {
+  return VIDEO_DOMAINS.some((d) => text.includes(d))
+}
 
-        console.log('Session data:', {
-          hasAccessToken: !!session.accessToken,
-          hasRefreshToken: !!session.refreshToken,
-          expiresAt: session.expiresAt,
-          isExpired: session.expiresAt ? Date.now() > session.expiresAt * 1000 : 'unknown'
-        })
+/** Transform a Google Calendar event into our CalendarEvent shape */
+function transformGoogleEvent(event: calendar_v3.Schema$Event) {
+  const start = event.start?.dateTime || event.start?.date
+  const end = event.end?.dateTime || event.end?.date
 
-    // Determine the correct base URL for OAuth callback
-    // In development: always use localhost unless NEXTAUTH_URL is explicitly set to localhost
-    // In production: NEXTAUTH_URL > VERCEL_URL > default
-    const getBaseUrl = () => {
-      if (process.env.NODE_ENV === 'development') {
-        // If NEXTAUTH_URL is set and points to localhost, use it (allows custom ports)
-        if (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL.includes('localhost')) {
-          return process.env.NEXTAUTH_URL
-        }
-        // Otherwise, always default to localhost:3000 in development
-        return 'http://localhost:3000'
-      }
-      
-      // In production, use NEXTAUTH_URL or VERCEL_URL
-      if (process.env.NEXTAUTH_URL) {
-        return process.env.NEXTAUTH_URL
-      }
-      if (process.env.VERCEL_URL) {
-        return `https://${process.env.VERCEL_URL}`
-      }
-      return 'http://localhost:3000'
-    }
-
-    // Check if Google OAuth credentials are configured
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      console.log('Google OAuth credentials not configured')
-      return NextResponse.json({ 
-        error: 'Google Calendar integration not configured',
-        needsAuth: true 
-      }, { status: 503 })
-    }
-
-    const baseUrl = getBaseUrl()
-    
-    // Create OAuth2 client
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      `${baseUrl}/api/auth/callback/google`
-    )
-
-    // Set credentials with automatic token refresh
-    oauth2Client.setCredentials({
-      access_token: session.accessToken,
-      refresh_token: session.refreshToken,
+  let timeString = 'All day'
+  if (start && event.start?.dateTime) {
+    const startDate = new Date(start)
+    timeString = startDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
     })
+  }
 
-    // Handle token refresh automatically
-    oauth2Client.on('tokens', (tokens) => {
-      if (tokens.refresh_token) {
-        // Store new refresh token if provided
-        console.log('Token refreshed, new refresh_token provided')
-      }
-      if (tokens.access_token) {
-        // Update session with new access token
-        console.log('Token refreshed, new access_token provided')
-        // Note: In production, you'd want to update the session here
-        // For now, the token will be refreshed automatically on next request
-      }
-    })
-
-    // Create Calendar API instance
-    const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
-
-    // Get today's date range
-    const today = new Date()
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
-
-        // Fetch today's events - extend range to show next few days too
-        console.log('Fetching calendar events...')
-        const endOfWeek = new Date(today)
-        endOfWeek.setDate(today.getDate() + 7) // Get next 7 days
-        
-        const response = await calendar.events.list({
-          calendarId: 'primary',
-          timeMin: startOfDay.toISOString(),
-          timeMax: endOfWeek.toISOString(),
-          singleEvents: true,
-          orderBy: 'startTime',
-          maxResults: 10
-        })
-        
-        console.log('Calendar API response:', {
-          status: response.status,
-          dataLength: response.data.items?.length || 0,
-          hasItems: !!response.data.items
-        })
-
-    const events = response.data.items || []
-
-        // Transform events to match our interface
-        const transformedEvents = events.map((event) => {
-          // Debug logging for meeting link detection
-          console.log('Processing event:', {
-            title: event.summary,
-            description: event.description,
-            location: event.location,
-            hasVideoLink: event.description?.includes('meet.google.com') || 
-                         event.description?.includes('zoom.us') || 
-                         event.description?.includes('teams.microsoft.com') ||
-                         event.description?.includes('webex.com') ||
-                         event.description?.includes('gotomeeting.com') ||
-                         event.location?.includes('meet.google.com') ||
-                         event.location?.includes('zoom.us') ||
-                         event.location?.includes('teams.microsoft.com') ||
-                         event.location?.includes('webex.com') ||
-                         event.location?.includes('gotomeeting.com')
-          })
-      const start = event.start?.dateTime || event.start?.date
-      const end = event.end?.dateTime || event.end?.date
-      
-      // Parse start time to get time string
-      let timeString = 'All day'
-      if (start) {
-        const startDate = new Date(start)
-        timeString = startDate.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        })
-      }
-
-      // Calculate duration
-      let duration = 'Unknown'
-      if (start && end) {
-        const startDate = new Date(start)
-        const endDate = new Date(end)
-        const diffMs = endDate.getTime() - startDate.getTime()
-        const diffMins = Math.round(diffMs / (1000 * 60))
-        
-        if (diffMins < 60) {
-          duration = `${diffMins}m`
-        } else {
-          const hours = Math.floor(diffMins / 60)
-          const mins = diffMins % 60
-          duration = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
-        }
-      }
-
-      // Determine meeting type based on description or location
-      const description = event.description || ''
-      const location = event.location || ''
-      const hasVideoLink = description.includes('meet.google.com') || 
-                          description.includes('zoom.us') || 
-                          description.includes('teams.microsoft.com') ||
-                          description.includes('webex.com') ||
-                          description.includes('gotomeeting.com') ||
-                          location.includes('meet.google.com') ||
-                          location.includes('zoom.us') ||
-                          location.includes('teams.microsoft.com') ||
-                          location.includes('webex.com') ||
-                          location.includes('gotomeeting.com')
-      
-      const type = hasVideoLink ? 'video' : 'phone'
-
-      // Get attendees count
-      const attendees = event.attendees?.length || 0
-
-      // Determine priority based on event properties
-      let priority = 'MEDIUM'
-      if (event.summary?.toLowerCase().includes('urgent') || 
-          event.summary?.toLowerCase().includes('important')) {
-        priority = 'HIGH'
-      } else if (event.summary?.toLowerCase().includes('casual') ||
-                 event.summary?.toLowerCase().includes('optional')) {
-        priority = 'LOW'
-      }
-
-      return {
-        id: event.id || Math.random().toString(),
-        title: event.summary || 'Untitled Event',
-        time: timeString,
-        duration: duration,
-        attendees: attendees,
-        team: event.organizer?.displayName || 'Unknown',
-        priority: priority,
-        type: type,
-        description: description,
-        location: location,
-        startTime: start,
-        endTime: end,
-        meetingLink: hasVideoLink ? (() => {
-          const link = extractMeetingLink(description, location)
-          console.log('Extracted meeting link:', { title: event.summary, link })
-          return link
-        })() : null
-      }
-    })
-
-    return NextResponse.json({ events: transformedEvents })
-
-  } catch (error) {
-    console.error('Error fetching calendar events:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    const errorStack = error instanceof Error ? error.stack : undefined
-    console.error('Error details:', { errorMessage, errorStack })
-    
-    // Handle token refresh if needed
-    if (error instanceof Error && error.message.includes('invalid_grant')) {
-      return NextResponse.json({ 
-        error: 'Google Calendar token expired',
-        needsAuth: true 
-      }, { status: 403 })
+  let duration = 'Unknown'
+  if (start && end) {
+    const diffMs = new Date(end).getTime() - new Date(start).getTime()
+    const diffMins = Math.round(diffMs / (1000 * 60))
+    if (diffMins < 60) {
+      duration = `${diffMins}m`
+    } else {
+      const hours = Math.floor(diffMins / 60)
+      const mins = diffMins % 60
+      duration = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
     }
+  }
 
-    return NextResponse.json({ 
-      error: 'Failed to fetch calendar events',
-      details: errorMessage,
-      ...(process.env.NODE_ENV === 'development' && { stack: errorStack })
-    }, { status: 500 })
+  const description = event.description || ''
+  const location = event.location || ''
+  const isVideo = hasVideoReference(description) || hasVideoReference(location)
+  const type = isVideo ? 'video' : 'phone'
+
+  const attendees = event.attendees?.length || 0
+
+  let priority = 'MEDIUM'
+  const titleLower = event.summary?.toLowerCase() || ''
+  if (titleLower.includes('urgent') || titleLower.includes('important')) {
+    priority = 'HIGH'
+  } else if (titleLower.includes('casual') || titleLower.includes('optional')) {
+    priority = 'LOW'
+  }
+
+  // Extract Meet link from conferenceData first, then fallback to description/location
+  let meetingLink: string | null = null
+  if (event.conferenceData?.entryPoints) {
+    const videoEntry = event.conferenceData.entryPoints.find((ep) => ep.entryPointType === 'video')
+    if (videoEntry?.uri) meetingLink = videoEntry.uri
+  }
+  if (!meetingLink && isVideo) {
+    meetingLink = extractMeetingLink(description, location)
+  }
+
+  return {
+    id: event.id || crypto.randomUUID(),
+    title: event.summary || 'Untitled Event',
+    time: timeString,
+    duration,
+    attendees,
+    team: event.organizer?.displayName || 'Unknown',
+    priority,
+    type,
+    description,
+    location,
+    startTime: start,
+    endTime: end,
+    meetingLink,
   }
 }
+
+// ---------------------------------------------------------------------------
+// GET /api/calendar/events — List events for a date range
+// ---------------------------------------------------------------------------
+export async function GET(request: NextRequest) {
+  try {
+    const result = await getGoogleCalendarClient()
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error, needsAuth: result.needsAuth },
+        { status: result.status },
+      )
+    }
+
+    const { calendar } = result
+    const { searchParams } = new URL(request.url)
+    const startParam = searchParams.get('start')
+    const endParam = searchParams.get('end')
+
+    const today = new Date()
+    const defaultStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const defaultEnd = new Date(today)
+    defaultEnd.setDate(today.getDate() + 7)
+
+    const timeMin = startParam ? new Date(startParam) : defaultStart
+    const timeMax = endParam ? new Date(endParam) : defaultEnd
+
+    const response = await calendar.events.list({
+      calendarId: 'primary',
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime',
+    })
+
+    const events = (response.data.items || []).map(transformGoogleEvent)
+    return NextResponse.json({ events })
+  } catch (error) {
+    try {
+      const apiError = handleGoogleApiError(error)
+      return NextResponse.json(apiError, { status: apiError.status })
+    } catch {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return NextResponse.json(
+        { error: 'Failed to fetch calendar events', details: errorMessage },
+        { status: 500 },
+      )
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/calendar/events — Create a new event
+// ---------------------------------------------------------------------------
+export async function POST(request: NextRequest) {
+  try {
+    const result = await getGoogleCalendarClient()
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error, needsAuth: result.needsAuth, needsReAuth: result.needsReAuth },
+        { status: result.status },
+      )
+    }
+
+    const body = await request.json()
+    const data = CalendarEventCreateSchema.parse(body)
+
+    const { calendar } = result
+
+    // Build the Google Calendar event resource
+    const eventResource: calendar_v3.Schema$Event = {
+      summary: data.title,
+      description: data.description || undefined,
+      location: data.location || undefined,
+    }
+
+    if (data.allDay) {
+      // All-day events use date (not dateTime)
+      eventResource.start = { date: data.startTime.split('T')[0] }
+      eventResource.end = { date: data.endTime.split('T')[0] }
+    } else {
+      const tz = data.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone
+      eventResource.start = { dateTime: new Date(data.startTime).toISOString(), timeZone: tz }
+      eventResource.end = { dateTime: new Date(data.endTime).toISOString(), timeZone: tz }
+    }
+
+    if (data.attendees && data.attendees.length > 0) {
+      eventResource.attendees = data.attendees.map((email) => ({ email }))
+    }
+
+    if (data.enableMeet) {
+      eventResource.conferenceData = {
+        createRequest: {
+          requestId: crypto.randomUUID(),
+          conferenceSolutionKey: { type: 'hangoutsMeet' },
+        },
+      }
+    }
+
+    const response = await calendar.events.insert({
+      calendarId: 'primary',
+      requestBody: eventResource,
+      conferenceDataVersion: data.enableMeet ? 1 : 0,
+    })
+
+    const created = response.data
+    return NextResponse.json({ event: transformGoogleEvent(created) }, { status: 201 })
+  } catch (error) {
+    // Zod validation error
+    if (error && typeof error === 'object' && 'issues' in error) {
+      return NextResponse.json({ error: 'Validation failed', details: error }, { status: 400 })
+    }
+
+    try {
+      const apiError = handleGoogleApiError(error)
+      return NextResponse.json(apiError, { status: apiError.status })
+    } catch {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return NextResponse.json(
+        { error: 'Failed to create calendar event', details: errorMessage },
+        { status: 500 },
+      )
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PUT /api/calendar/events — Update an existing event
+// ---------------------------------------------------------------------------
+export async function PUT(request: NextRequest) {
+  try {
+    const result = await getGoogleCalendarClient()
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error, needsAuth: result.needsAuth, needsReAuth: result.needsReAuth },
+        { status: result.status },
+      )
+    }
+
+    const body = await request.json()
+    const data = CalendarEventUpdateSchema.parse(body)
+
+    const { calendar } = result
+    const { eventId, ...updates } = data
+
+    // Build partial event resource
+    const eventResource: calendar_v3.Schema$Event = {}
+
+    if (updates.title !== undefined) eventResource.summary = updates.title
+    if (updates.description !== undefined) eventResource.description = updates.description
+    if (updates.location !== undefined) eventResource.location = updates.location
+
+    if (updates.startTime !== undefined) {
+      const tz = updates.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone
+      eventResource.start = { dateTime: new Date(updates.startTime).toISOString(), timeZone: tz }
+    }
+    if (updates.endTime !== undefined) {
+      const tz = updates.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone
+      eventResource.end = { dateTime: new Date(updates.endTime).toISOString(), timeZone: tz }
+    }
+
+    if (updates.attendees !== undefined) {
+      eventResource.attendees = updates.attendees.map((email) => ({ email }))
+    }
+
+    let conferenceDataVersion = 0
+    if (updates.enableMeet) {
+      eventResource.conferenceData = {
+        createRequest: {
+          requestId: crypto.randomUUID(),
+          conferenceSolutionKey: { type: 'hangoutsMeet' },
+        },
+      }
+      conferenceDataVersion = 1
+    }
+
+    const response = await calendar.events.patch({
+      calendarId: 'primary',
+      eventId,
+      requestBody: eventResource,
+      conferenceDataVersion,
+    })
+
+    return NextResponse.json({ event: transformGoogleEvent(response.data) })
+  } catch (error) {
+    if (error && typeof error === 'object' && 'issues' in error) {
+      return NextResponse.json({ error: 'Validation failed', details: error }, { status: 400 })
+    }
+
+    try {
+      const apiError = handleGoogleApiError(error)
+      return NextResponse.json(apiError, { status: apiError.status })
+    } catch {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return NextResponse.json(
+        { error: 'Failed to update calendar event', details: errorMessage },
+        { status: 500 },
+      )
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// DELETE /api/calendar/events — Delete an event
+// ---------------------------------------------------------------------------
+export async function DELETE(request: NextRequest) {
+  try {
+    const result = await getGoogleCalendarClient()
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error, needsAuth: result.needsAuth, needsReAuth: result.needsReAuth },
+        { status: result.status },
+      )
+    }
+
+    const body = await request.json()
+    const data = CalendarEventDeleteSchema.parse(body)
+
+    const { calendar } = result
+
+    await calendar.events.delete({
+      calendarId: 'primary',
+      eventId: data.eventId,
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    if (error && typeof error === 'object' && 'issues' in error) {
+      return NextResponse.json({ error: 'Validation failed', details: error }, { status: 400 })
+    }
+
+    try {
+      const apiError = handleGoogleApiError(error)
+      return NextResponse.json(apiError, { status: apiError.status })
+    } catch {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return NextResponse.json(
+        { error: 'Failed to delete calendar event', details: errorMessage },
+        { status: 500 },
+      )
+    }
+  }
+}
+
+// Cache calendar data for 30 minutes (applies to GET only)
+export const revalidate = 1800

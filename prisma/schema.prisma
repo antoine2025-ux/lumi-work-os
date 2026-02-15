@@ -121,8 +121,12 @@ model User {
   managerReviews        PerformanceReview[]    @relation("ManagerReviews")
   employeeOneOnOnes     OneOnOneMeeting[]      @relation("Employee1on1s")
   managerOneOnOnes      OneOnOneMeeting[]      @relation("Manager1on1s")
+  managerSeries         OneOnOneSeries[]       @relation("ManagerSeries")
+  employeeSeries        OneOnOneSeries[]       @relation("EmployeeSeries")
   goalCheckIns          GoalCheckIn[]          @relation("GoalCheckIns")
+  createdPerformanceCycles PerformanceCycle[]   @relation("CycleCreator")
   projectSpaceMemberships ProjectSpaceMember[]
+  projectPersonLinks      ProjectPersonLink[]
 
   @@map("users")
 }
@@ -250,9 +254,15 @@ model Workspace {
   
   // Enterprise OKR
   performanceReviews   PerformanceReview[]
-  oneOnOneTemplates    OneOnOneTemplate[]
-  oneOnOneMeetings     OneOnOneMeeting[]
-  goalWorkflowRules    GoalWorkflowRule[]
+  performanceCycles    PerformanceCycle[]
+  reviewQuestions       ReviewQuestion[]
+  reviewResponses       ReviewResponse[]
+  oneOnOneTemplates      OneOnOneTemplate[]
+  oneOnOneMeetings       OneOnOneMeeting[]
+  oneOnOneSeries         OneOnOneSeries[]
+  oneOnOneTalkingPoints  OneOnOneTalkingPoint[]
+  oneOnOneActionItems    OneOnOneActionItem[]
+  goalWorkflowRules      GoalWorkflowRule[]
 
   // Workspace-scoped child models (added for direct workspaceId scoping)
   // Task children
@@ -264,6 +274,7 @@ model Workspace {
   projectMembers              ProjectMember[]
   projectWatchers             ProjectWatcher[]
   projectAssignees            ProjectAssignee[]
+  projectPersonLinks          ProjectPersonLink[]
   projectDocumentation        ProjectDocumentation[]
   projectAccountabilities     ProjectAccountability[]
   projectDailySummaries       ProjectDailySummary[]
@@ -805,8 +816,10 @@ model OrgPosition {
   team      OrgTeam?      @relation(fields: [teamId], references: [id])
   user      User?         @relation(fields: [userId], references: [id])
   workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  roleCard       RoleCard?
-  projectMembers ProjectMember[]
+  roleCard           RoleCard?
+  projectMembers     ProjectMember[]
+  projectAssignees   ProjectAssignee[]
+  projectPersonLinks ProjectPersonLink[]
 
   @@index([workspaceId])
   @@index([workspaceId, isActive], map: "idx_org_positions_workspace_active")
@@ -1079,6 +1092,7 @@ model Project {
   orgTeam                OrgTeam?               @relation(fields: [teamId], references: [id], onDelete: SetNull)
   tasks                  Task[]
   goalLinks              ProjectGoalLink[]
+  personLinks            ProjectPersonLink[]
 
   @@index([workspaceId, status], map: "idx_projects_workspace_status")
   @@index([workspaceId, ownerId])  // Dashboard "my projects" query
@@ -1260,21 +1274,49 @@ model ProjectWatcher {
 }
 
 model ProjectAssignee {
-  id          String    @id @default(cuid())
-  projectId   String
-  workspaceId String
-  userId      String
-  role        String?
-  assignedAt  DateTime  @default(now())
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user        User      @relation("ProjectAssignee", fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id            String       @id @default(cuid())
+  projectId     String
+  workspaceId   String
+  userId        String
+  role          String?
+  orgPositionId String?
+  assignedAt    DateTime     @default(now())
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user          User         @relation("ProjectAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  orgPosition   OrgPosition? @relation(fields: [orgPositionId], references: [id], onDelete: SetNull)
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
   @@index([projectId])    // Fast project → assignees lookup
   @@index([userId])       // Fast user → projects lookup
+  @@index([orgPositionId])
   @@index([workspaceId])
   @@map("project_assignees")
+}
+
+model ProjectPersonLink {
+  id             String       @id @default(cuid())
+  projectId      String
+  userId         String
+  orgPositionId  String?
+  role           String       // OWNER, CONTRIBUTOR, REVIEWER, STAKEHOLDER
+  allocatedHours Float?       // weekly hours allocated to this project
+  startDate      DateTime?
+  endDate        DateTime?
+  workspaceId    String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id])
+  orgPosition OrgPosition? @relation(fields: [orgPositionId], references: [id], onDelete: SetNull)
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([orgPositionId])
+  @@map("project_person_links")
 }
 
 model FeatureFlag {
@@ -3430,12 +3472,40 @@ enum ContributionType {
 enum ReviewStatus {
   DRAFT
   IN_PROGRESS
+  SUBMITTED
+  IN_REVIEW
   PENDING_APPROVAL
+  FINALIZED
   COMPLETED
+}
+
+enum CycleStatus {
+  SETUP
+  ACTIVE
+  CLOSED
+  FINALIZED
+}
+
+enum CycleReviewType {
+  SELF_ONLY
+  MANAGER_ONLY
+  COMBINED
+}
+
+enum ReviewerRole {
+  SELF
+  MANAGER
+}
+
+enum QuestionType {
+  RATING_ONLY
+  TEXT_ONLY
+  RATING_AND_TEXT
 }
 
 enum MeetingStatus {
   SCHEDULED
+  IN_PROGRESS
   COMPLETED
   CANCELLED
   RESCHEDULED
@@ -4030,6 +4100,10 @@ model PerformanceReview {
   period       String       // "2026-Q1", "2026-H1", "2026"
   status       ReviewStatus @default(DRAFT)
   
+  // Cycle linkage (nullable for backward compat with existing flat reviews)
+  cycleId      String?
+  reviewerRole ReviewerRole @default(MANAGER)
+  
   // Goal achievement scoring
   goalIds      String[]     // Goals evaluated in this review
   goalScores   Json?        // Goal ID -> achievement score
@@ -4041,17 +4115,102 @@ model PerformanceReview {
   improvements String?
   nextGoals    String?
   
+  // Employee sign-off
+  acknowledgedAt DateTime?
+  
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   
   workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   employee     User         @relation("EmployeeReviews", fields: [employeeId], references: [id])
   manager      User         @relation("ManagerReviews", fields: [managerId], references: [id])
+  cycle        PerformanceCycle? @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  responses    ReviewResponse[]
   
-  @@unique([workspaceId, employeeId, period])
+  @@unique([workspaceId, employeeId, period, reviewerRole])
   @@index([workspaceId, managerId, status])
   @@index([workspaceId, period])
+  @@index([workspaceId, cycleId])
   @@map("performance_reviews")
+}
+
+/**
+ * PerformanceCycle - Groups reviews into admin-managed review cycles
+ */
+model PerformanceCycle {
+  id          String          @id @default(cuid())
+  workspaceId String
+  name        String          // "Q1 2026 Review"
+  description String?
+  status      CycleStatus     @default(SETUP)
+  reviewType  CycleReviewType @default(COMBINED)
+  
+  startDate   DateTime
+  endDate     DateTime
+  dueDate     DateTime        // Deadline for all reviews
+  
+  createdById String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User            @relation("CycleCreator", fields: [createdById], references: [id])
+  questions   ReviewQuestion[]
+  reviews     PerformanceReview[]
+  
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@map("performance_cycles")
+}
+
+/**
+ * ReviewQuestion - Structured questions/rubrics per cycle
+ */
+model ReviewQuestion {
+  id          String       @id @default(cuid())
+  cycleId     String
+  workspaceId String
+  text        String
+  description String?
+  type        QuestionType @default(RATING_AND_TEXT)
+  sortOrder   Int          @default(0)
+  isRequired  Boolean      @default(true)
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  cycle       PerformanceCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  responses   ReviewResponse[]
+  
+  @@index([cycleId])
+  @@index([workspaceId])
+  @@map("review_questions")
+}
+
+/**
+ * ReviewResponse - Per-question answer linked to a specific review
+ */
+model ReviewResponse {
+  id          String   @id @default(cuid())
+  reviewId    String
+  questionId  String
+  workspaceId String
+  rating      Int?     // 1-5 scale
+  text        String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  review      PerformanceReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  question    ReviewQuestion    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@unique([reviewId, questionId])
+  @@index([reviewId])
+  @@index([questionId])
+  @@index([workspaceId])
+  @@map("review_responses")
 }
 
 /**
@@ -4072,33 +4231,117 @@ model OneOnOneTemplate {
 }
 
 /**
+ * OneOnOneSeries - Recurring 1:1 meeting series between manager and report
+ */
+model OneOnOneSeries {
+  id          String   @id @default(cuid())
+  workspaceId String
+  managerId   String
+  employeeId  String
+  frequency   String   // WEEKLY, BIWEEKLY, MONTHLY
+  dayOfWeek   Int?     // 0-6 for recurring scheduling (0=Sunday)
+  duration    Int      @default(30) // minutes
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  manager     User             @relation("ManagerSeries", fields: [managerId], references: [id])
+  employee    User             @relation("EmployeeSeries", fields: [employeeId], references: [id])
+  meetings    OneOnOneMeeting[]
+
+  @@unique([managerId, employeeId, workspaceId])
+  @@index([workspaceId])
+  @@index([managerId])
+  @@index([employeeId])
+  @@map("one_on_one_series")
+}
+
+/**
  * OneOnOneMeeting - 1:1 meetings with goal progress discussion
  */
 model OneOnOneMeeting {
-  id           String        @id @default(cuid())
-  workspaceId  String
-  employeeId   String
-  managerId    String
-  scheduledAt  DateTime
-  status       MeetingStatus @default(SCHEDULED)
+  id              String        @id @default(cuid())
+  workspaceId     String
+  employeeId      String
+  managerId       String
+  seriesId        String?
+  scheduledAt     DateTime
+  status          MeetingStatus @default(SCHEDULED)
+  calendarEventId String?       // Google Calendar event ID (if linked)
   
-  // Goal-related discussion
-  goalProgress Json?         // Goal ID -> discussion notes
+  // Goal-related discussion (legacy fields, kept for backward compat)
+  goalProgress Json?            // Goal ID -> discussion notes
   blockers     String?
   support      String?
   nextActions  String?
+
+  // Rich notes
+  managerNotes  String?  @db.Text
+  employeeNotes String?  @db.Text
+  sharedNotes   String?  @db.Text
   
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   
-  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  employee     User          @relation("Employee1on1s", fields: [employeeId], references: [id])
-  manager      User          @relation("Manager1on1s", fields: [managerId], references: [id])
+  workspace      Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  employee       User                   @relation("Employee1on1s", fields: [employeeId], references: [id])
+  manager        User                   @relation("Manager1on1s", fields: [managerId], references: [id])
+  series         OneOnOneSeries?        @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  talkingPoints  OneOnOneTalkingPoint[]
+  actionItems    OneOnOneActionItem[]
   
   @@index([workspaceId, employeeId])
   @@index([workspaceId, managerId])
   @@index([scheduledAt])
+  @@index([seriesId])
   @@map("one_on_one_meetings")
+}
+
+/**
+ * OneOnOneTalkingPoint - Discussion topics for a 1:1 meeting
+ */
+model OneOnOneTalkingPoint {
+  id          String   @id @default(cuid())
+  workspaceId String
+  meetingId   String
+  content     String
+  addedBy     String   // userId who added this point
+  isDiscussed Boolean  @default(false)
+  source      String?  // GOAL, REVIEW, ACTION_ITEM, MANUAL
+  sourceId    String?  // goalId, reviewId, or actionItemId if auto-generated
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  meeting     OneOnOneMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([meetingId])
+  @@map("one_on_one_talking_points")
+}
+
+/**
+ * OneOnOneActionItem - Action items from 1:1 meetings
+ */
+model OneOnOneActionItem {
+  id          String    @id @default(cuid())
+  workspaceId String
+  meetingId   String
+  content     String
+  assigneeId  String    // userId responsible
+  status      String    @default("OPEN") // OPEN, DONE, CANCELLED
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  meeting     OneOnOneMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([meetingId])
+  @@index([assigneeId])
+  @@map("one_on_one_action_items")
 }
 
 /**

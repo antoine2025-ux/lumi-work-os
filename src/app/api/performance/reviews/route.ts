@@ -2,20 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const CreateReviewSchema = z.object({
-  employeeId: z.string(),
-  managerId: z.string(),
-  period: z.string(), // "2026-Q1", "2026-H1", "2026"
-  goalIds: z.array(z.string()).optional().default([]),
-})
+import { CreateReviewSchema } from '@/lib/validations/performance'
 
 // ============================================================================
 // GET /api/performance/reviews - List reviews
@@ -39,6 +28,8 @@ export async function GET(request: NextRequest) {
     const managerId = searchParams.get('managerId')
     const status = searchParams.get('status')
     const period = searchParams.get('period')
+    const cycleId = searchParams.get('cycleId')
+    const reviewerRole = searchParams.get('reviewerRole')
 
     const where: Record<string, unknown> = {
       workspaceId: auth.workspaceId,
@@ -48,6 +39,8 @@ export async function GET(request: NextRequest) {
     if (managerId) where.managerId = managerId
     if (status) where.status = status
     if (period) where.period = period
+    if (cycleId) where.cycleId = cycleId
+    if (reviewerRole) where.reviewerRole = reviewerRole
 
     const reviews = await prisma.performanceReview.findMany({
       where,
@@ -57,6 +50,9 @@ export async function GET(request: NextRequest) {
         },
         manager: {
           select: { id: true, name: true, email: true, image: true },
+        },
+        cycle: {
+          select: { id: true, name: true, status: true, reviewType: true, dueDate: true },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -88,18 +84,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const data = CreateReviewSchema.parse(body)
 
-    // Check for existing review
+    // Check for existing review with same unique key
     const existing = await prisma.performanceReview.findFirst({
       where: {
         workspaceId: auth.workspaceId,
         employeeId: data.employeeId,
         period: data.period,
+        reviewerRole: data.reviewerRole,
       },
     })
 
     if (existing) {
       return NextResponse.json(
-        { error: 'A review already exists for this employee and period' },
+        { error: 'A review already exists for this employee, period, and role' },
         { status: 409 }
       )
     }
@@ -110,6 +107,8 @@ export async function POST(request: NextRequest) {
         employeeId: data.employeeId,
         managerId: data.managerId,
         period: data.period,
+        cycleId: data.cycleId,
+        reviewerRole: data.reviewerRole,
         goalIds: data.goalIds,
         status: 'DRAFT',
       },
@@ -119,6 +118,9 @@ export async function POST(request: NextRequest) {
         },
         manager: {
           select: { id: true, name: true, email: true, image: true },
+        },
+        cycle: {
+          select: { id: true, name: true, status: true, reviewType: true, dueDate: true },
         },
       },
     })

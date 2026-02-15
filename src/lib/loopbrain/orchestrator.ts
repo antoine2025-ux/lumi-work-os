@@ -1207,6 +1207,8 @@ async function loadOrgContextForRequest(
   // Set primary context to org root if available
   if (loopbrainOrgBundle.org) {
     // Convert ContextObject to the format expected by summary.primaryContext
+    // Convert ContextObject to primary context format — uses `as` cast because
+    // the org bundle shape doesn't directly match the ContextObject union.
     summary.primaryContext = {
       id: loopbrainOrgBundle.org.id,
       type: loopbrainOrgBundle.org.type as any,
@@ -1223,7 +1225,7 @@ async function loadOrgContextForRequest(
       status: loopbrainOrgBundle.org.status as any,
       updatedAt: new Date(loopbrainOrgBundle.org.updatedAt),
       workspaceId: req.workspaceId,
-    }
+    } as any
   }
 
   // Also load legacy org slice for backward compatibility

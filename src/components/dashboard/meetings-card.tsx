@@ -1,12 +1,14 @@
 "use client"
 
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Video, Phone, Calendar, RefreshCw, AlertCircle, ExternalLink } from "lucide-react"
+import { Video, Phone, Calendar, RefreshCw, AlertCircle, ExternalLink, Maximize2 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { useCalendarEvents, CalendarEvent } from "@/hooks/use-calendar-events"
 import { signIn } from "next-auth/react"
+import { CalendarModal } from "@/components/calendar/calendar-modal"
 
 interface MeetingsCardProps {
   className?: string
@@ -15,9 +17,14 @@ interface MeetingsCardProps {
 export function MeetingsCard({ className }: MeetingsCardProps) {
   const { themeConfig } = useTheme()
   const { events, isLoading, error, needsAuth, refetch } = useCalendarEvents()
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false)
 
   const handleConnectCalendar = () => {
     signIn('google', { callbackUrl: '/' })
+  }
+
+  const handleOpenCalendar = () => {
+    setCalendarModalOpen(true)
   }
 
   const handleMeetingClick = (meeting: CalendarEvent) => {
@@ -46,26 +53,37 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
   }
 
   return (
-    <Card className={className}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center justify-between">
-          <span>Today's Meetings</span>
-          <div className="flex items-center space-x-2">
-            <Badge variant="outline" className="text-xs">
-              {isLoading ? '...' : events.length}
-            </Badge>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={refetch}
-              disabled={isLoading}
-              className="h-6 w-6 p-0"
-            >
-              <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
-        </CardTitle>
-      </CardHeader>
+    <>
+      <Card className={className}>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center justify-between">
+            <span>Today&apos;s Meetings</span>
+            <div className="flex items-center space-x-2">
+              <Badge variant="outline" className="text-xs">
+                {isLoading ? '...' : events.length}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleOpenCalendar}
+                disabled={isLoading}
+                className="h-6 w-6 p-0"
+                title="Open full calendar"
+              >
+                <Maximize2 className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={refetch}
+                disabled={isLoading}
+                className="h-6 w-6 p-0"
+              >
+                <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </CardTitle>
+        </CardHeader>
       <CardContent className="space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
         {isLoading ? (
           <div className="space-y-3">
@@ -84,7 +102,7 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
           <div className="text-center py-6">
             <Calendar className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
             <p className="text-sm text-muted-foreground mb-3">
-              Connect your Google Calendar to see today's meetings
+              Connect your Google Calendar to see today&apos;s meetings
             </p>
             <Button onClick={handleConnectCalendar} size="sm">
               <Calendar className="h-4 w-4 mr-2" />
@@ -163,5 +181,11 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
         )}
       </CardContent>
     </Card>
+    
+    <CalendarModal 
+      open={calendarModalOpen} 
+      onOpenChange={setCalendarModalOpen} 
+    />
+  </>
   )
 }

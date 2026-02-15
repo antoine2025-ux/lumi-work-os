@@ -14,6 +14,7 @@ import {
   Scale,
   UserCog,
   Settings,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +54,7 @@ export function OrgSidebar({
     { href: `${base}/structure`, label: "Teams & Departments", icon: Network },
     { href: `${base}/chart`, label: "Org Chart", icon: Building2 },
     { href: `${base}/positions`, label: "Positions & Roles", icon: Briefcase },
+    { href: `${base}/performance`, label: "Performance", icon: ClipboardCheck },
   ];
 
   const adminSection = isAdmin

@@ -18,6 +18,7 @@ const PROTECTED_ROUTES = [
   '/org',
   '/goals',
   '/spaces',
+  '/one-on-ones',
 ]
 
 /**

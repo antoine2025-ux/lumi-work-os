@@ -393,7 +393,7 @@ export const authOptions: NextAuthOptions = {
               'openid',
               'https://www.googleapis.com/auth/userinfo.email',
               'https://www.googleapis.com/auth/userinfo.profile',
-              'https://www.googleapis.com/auth/calendar.readonly',
+              'https://www.googleapis.com/auth/calendar.events',
             ].join(' '),
             access_type: 'offline',
             prompt: 'consent', // Force consent screen to get refresh token

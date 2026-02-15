@@ -2,24 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const UpdateReviewSchema = z.object({
-  status: z.enum(['DRAFT', 'IN_PROGRESS', 'PENDING_APPROVAL', 'COMPLETED']).optional(),
-  goalScores: z.record(z.string(), z.number()).optional(),
-  overallScore: z.number().min(0).max(100).optional(),
-  feedback: z.string().optional(),
-  strengths: z.string().optional(),
-  improvements: z.string().optional(),
-  nextGoals: z.string().optional(),
-  goalIds: z.array(z.string()).optional(),
-})
+import { UpdateReviewSchema } from '@/lib/validations/performance'
 
 // ============================================================================
 // GET /api/performance/reviews/[id]
@@ -51,6 +36,14 @@ export async function GET(
         manager: {
           select: { id: true, name: true, email: true, image: true },
         },
+        cycle: {
+          include: {
+            questions: {
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
+        },
+        responses: true,
       },
     })
 
@@ -96,14 +89,57 @@ export async function PATCH(
       return NextResponse.json({ error: 'Review not found' }, { status: 404 })
     }
 
-    // Only manager or admin can update
-    if (existing.managerId !== auth.user.userId) {
+    // Access control:
+    // - Employee can edit their own self-review (reviewerRole=SELF && employeeId matches)
+    // - Manager can edit manager reviews for their direct reports
+    // - ADMIN/OWNER can edit any review
+    const isEmployee = existing.employeeId === auth.user.userId
+    const isManager = existing.managerId === auth.user.userId
+    const isSelfReview = existing.reviewerRole === 'SELF'
+
+    if (isSelfReview && isEmployee) {
+      // Employee editing their self-review - allowed
+    } else if (!isSelfReview && isManager) {
+      // Manager editing manager review - allowed
+    } else {
+      // Must be ADMIN/OWNER
       await assertAccess({
         userId: auth.user.userId,
         workspaceId: auth.workspaceId,
         scope: 'workspace',
         requireRole: ['ADMIN', 'OWNER'],
       })
+    }
+
+    // Validate status transitions
+    if (data.status) {
+      const validTransitions: Record<string, string[]> = {
+        DRAFT: ['SUBMITTED', 'IN_PROGRESS'],
+        IN_PROGRESS: ['SUBMITTED'],
+        SUBMITTED: ['IN_REVIEW', 'DRAFT'], // Can be sent back to draft
+        IN_REVIEW: ['FINALIZED', 'SUBMITTED'], // Can be sent back
+        PENDING_APPROVAL: ['COMPLETED', 'IN_REVIEW'],
+        FINALIZED: [], // Terminal for cycle-based reviews
+        COMPLETED: [], // Terminal for legacy reviews
+      }
+
+      const allowed = validTransitions[existing.status] ?? []
+      if (!allowed.includes(data.status)) {
+        return NextResponse.json(
+          {
+            error: `Invalid status transition: ${existing.status} → ${data.status}`,
+          },
+          { status: 400 }
+        )
+      }
+
+      // Self-reviews can only go DRAFT → SUBMITTED
+      if (isSelfReview && isEmployee && !['DRAFT', 'IN_PROGRESS', 'SUBMITTED'].includes(data.status)) {
+        return NextResponse.json(
+          { error: 'Employees can only submit self-reviews (DRAFT → SUBMITTED)' },
+          { status: 403 }
+        )
+      }
     }
 
     // Calculate overall score from goal scores if provided
@@ -124,6 +160,7 @@ export async function PATCH(
     if (data.improvements !== undefined) updatePayload.improvements = data.improvements
     if (data.nextGoals !== undefined) updatePayload.nextGoals = data.nextGoals
     if (data.goalIds) updatePayload.goalIds = data.goalIds
+    if (data.acknowledgedAt) updatePayload.acknowledgedAt = data.acknowledgedAt
 
     const updated = await prisma.performanceReview.update({
       where: { id },
@@ -134,6 +171,9 @@ export async function PATCH(
         },
         manager: {
           select: { id: true, name: true, email: true, image: true },
+        },
+        cycle: {
+          select: { id: true, name: true, status: true, reviewType: true, dueDate: true },
         },
       },
     })

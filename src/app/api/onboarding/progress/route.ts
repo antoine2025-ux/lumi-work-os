@@ -8,6 +8,13 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
 import { OnboardingStepSubmissionSchema } from '@/lib/validations/onboarding'
 import { createUserWorkspace } from '@/lib/simple-auth'
+import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
+import { syncOrgContext } from '@/lib/context/org/syncOrgContext'
+import { syncDepartmentContexts } from '@/lib/context/org/syncDepartmentContexts'
+import { syncTeamContexts } from '@/lib/context/org/syncTeamContexts'
+import { syncPersonContexts } from '@/lib/context/org/syncPersonContexts'
+import { syncRoleContexts } from '@/lib/context/org/syncRoleContexts'
+import { logger } from '@/lib/logger'
 
 // ---------------------------------------------------------------------------
 // GET /api/onboarding/progress — Fetch current onboarding progress
@@ -151,16 +158,19 @@ export async function POST(request: NextRequest) {
         workspaceId = authUser.workspaceId
         setWorkspaceContext(workspaceId)
 
-        // Update admin title on the OrgPosition
-        const position = await prisma.orgPosition.findFirst({
-          where: { userId: session.user.id, workspaceId },
+        // createUserWorkspace doesn't set companySize — persist it now
+        await prisma.workspace.update({
+          where: { id: workspaceId },
+          data: { companySize: data.companySize },
         })
-        if (position) {
-          await prisma.orgPosition.update({
-            where: { id: position.id },
-            data: { title: data.adminTitle },
-          })
-        }
+
+        // createUserWorkspace doesn't create an OrgPosition — create one with
+        // the admin's title so they appear in the org directory
+        await ensureOrgPositionForUser(prisma, {
+          workspaceId,
+          userId: session.user.id,
+          title: data.adminTitle,
+        })
       }
 
       // Upsert OnboardingProgress
@@ -270,6 +280,8 @@ export async function POST(request: NextRequest) {
                 data: {
                   workspaceId,
                   name: dept.name,
+                  // Preserve lead name from onboarding for later assignment
+                  description: dept.leadName ? `Department lead: ${dept.leadName}` : null,
                 },
               })
               createdDepartments.push({ id: created.id, name: created.name })
@@ -328,11 +340,22 @@ export async function POST(request: NextRequest) {
     if (step === 4) {
       // Map onboarding visibility (PUBLIC | PRIVATE) to DB enum (PUBLIC | TARGETED)
       const visibility = data.visibility === 'PRIVATE' ? 'TARGETED' : 'PUBLIC'
+
+      // Apply template description so the space has useful context
+      const templateDescriptions: Record<string, string> = {
+        blank: '',
+        engineering: 'Engineering space — sprints, bugs, and roadmap tracking.',
+        marketing: 'Marketing space — campaigns, content planning, and analytics.',
+        operations: 'Operations space — processes, SOPs, and workflow management.',
+        hr: 'HR space — people management, policies, and onboarding.',
+      }
+      const description = templateDescriptions[data.template] || null
+
       const space = await prisma.projectSpace.create({
         data: {
           workspaceId,
           name: data.spaceName,
-          description: null,
+          description,
           visibility,
         },
       })
@@ -373,6 +396,20 @@ export async function POST(request: NextRequest) {
       await prisma.workspace.update({
         where: { id: workspaceId },
         data: { onboardingCompletedAt: now },
+      })
+
+      // Fire-and-forget: sync all org data into Loopbrain context engine
+      Promise.allSettled([
+        syncOrgContext(workspaceId),
+        syncDepartmentContexts(workspaceId),
+        syncTeamContexts(workspaceId),
+        syncPersonContexts(workspaceId),
+        syncRoleContexts(workspaceId),
+      ]).catch((err) => {
+        logger.warn('[onboarding] Loopbrain context sync failed', {
+          workspaceId,
+          error: err instanceof Error ? err.message : String(err),
+        })
       })
 
       return NextResponse.json({

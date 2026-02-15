@@ -377,15 +377,35 @@ export async function PUT(
         const validAssigneeIds = assigneeIds.filter((id: string) => positionMap.has(id))
         
         if (validAssigneeIds.length > 0) {
-          // BATCH 2: Create all assignee records at once (instead of N creates)
+          // BATCH 2: Create all assignee records at once (with orgPositionId)
           await prisma.projectAssignee.createMany({
             data: validAssigneeIds.map((userId: string) => ({
               projectId,
               userId,
+              orgPositionId: positionMap.get(userId)?.id ?? null,
               workspaceId: auth.workspaceId,
             })),
             skipDuplicates: true
           })
+
+          // BATCH 2b: Upsert ProjectPersonLink for each assignee (Loopbrain bridge)
+          await Promise.all(
+            validAssigneeIds.map((userId: string) =>
+              prisma.projectPersonLink.upsert({
+                where: { projectId_userId: { projectId, userId } },
+                create: {
+                  projectId,
+                  userId,
+                  orgPositionId: positionMap.get(userId)?.id ?? null,
+                  role: 'CONTRIBUTOR',
+                  workspaceId: auth.workspaceId,
+                },
+                update: {
+                  orgPositionId: positionMap.get(userId)?.id ?? null,
+                },
+              })
+            )
+          )
           
           // BATCH 3: Run capacity checks and allocations in parallel (instead of sequential)
           const allocationPromises = validAssigneeIds.map(async (assigneeUserId: string) => {
@@ -472,6 +492,26 @@ export async function PUT(
           data: { role: 'OWNER' },
         })
       }
+
+      // Auto-link owner in ProjectPersonLink
+      const ownerPosition = await prisma.orgPosition.findFirst({
+        where: { userId: newOwnerId, workspaceId: auth.workspaceId, isActive: true },
+        select: { id: true },
+      })
+      await prisma.projectPersonLink.upsert({
+        where: { projectId_userId: { projectId, userId: newOwnerId } },
+        create: {
+          projectId,
+          userId: newOwnerId,
+          orgPositionId: ownerPosition?.id ?? null,
+          role: 'OWNER',
+          workspaceId: auth.workspaceId,
+        },
+        update: {
+          role: 'OWNER',
+          orgPositionId: ownerPosition?.id ?? null,
+        },
+      })
     }
 
     // Update the project

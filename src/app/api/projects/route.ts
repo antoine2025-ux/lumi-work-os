@@ -406,6 +406,18 @@ export async function POST(request: NextRequest) {
             workspaceId: auth.workspaceId,
           },
         })
+
+        // Auto-create ProjectPersonLink for Loopbrain
+        const linkRole = role === 'OWNER' ? 'OWNER' : role === 'VIEWER' ? 'STAKEHOLDER' : 'CONTRIBUTOR'
+        await (tx.projectPersonLink as any).create({
+          data: {
+            projectId: createdProject.id,
+            userId,
+            orgPositionId,
+            role: linkRole,
+            workspaceId: auth.workspaceId,
+          },
+        })
       }
 
       // Reload project with all members

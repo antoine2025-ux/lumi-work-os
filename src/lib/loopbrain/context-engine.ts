@@ -23,12 +23,14 @@ import {
   RelatedDoc,
   EpicSummary,
   TaskSummary,
+  PersonSummary,
   ProjectSummary,
   TeamSummary,
   RoleSummary,
   DepartmentSummary,
   OrgHierarchyNode,
-  ActivitySummary
+  ActivitySummary,
+  OneOnOneContext
 } from './context-types'
 import {
   saveContextItem,
@@ -378,6 +380,25 @@ export class PrismaContextEngine implements ContextEngine {
             orderBy: {
               updatedAt: 'desc'
             }
+          },
+          personLinks: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+              orgPosition: {
+                select: {
+                  id: true,
+                  title: true,
+                  team: {
+                    select: {
+                      id: true,
+                      name: true,
+                      department: { select: { name: true } }
+                    }
+                  }
+                }
+              }
+            },
+            take: 50
           }
         }
       })
@@ -385,6 +406,17 @@ export class PrismaContextEngine implements ContextEngine {
       if (!project) {
         return null
       }
+
+      // Map person links to PersonSummary
+      const people: PersonSummary[] = project.personLinks.map(link => ({
+        id: link.user.id,
+        name: link.user.name || 'Unknown',
+        title: link.orgPosition?.title || undefined,
+        team: link.orgPosition?.team?.name || undefined,
+        department: link.orgPosition?.team?.department?.name || undefined,
+        role: link.role,
+        allocatedHours: link.allocatedHours || undefined
+      }))
 
       // Map epics to EpicSummary
       const epics: EpicSummary[] = project.epics.map(epic => ({
@@ -426,6 +458,7 @@ export class PrismaContextEngine implements ContextEngine {
         team: project.team || undefined,
         epics: epics.length > 0 ? epics : undefined,
         tasks: tasks.length > 0 ? tasks : undefined,
+        people: people.length > 0 ? people : undefined,
         recentActivity: undefined // Will be populated if needed
       }
 
@@ -1055,6 +1088,13 @@ export async function upsertProjectContext(projectId: string): Promise<void> {
           select: {
             tasks: true
           }
+        },
+        personLinks: {
+          include: {
+            user: { select: { id: true, name: true } },
+            orgPosition: { select: { title: true } }
+          },
+          take: 20
         }
       }
     })
@@ -1082,6 +1122,18 @@ export async function upsertProjectContext(projectId: string): Promise<void> {
       endDate: unifiedContext.metadata?.endDate as string | undefined,
       department: unifiedContext.metadata?.department as string | undefined,
       team: unifiedContext.metadata?.team as string | undefined,
+      people: ((project as Record<string, unknown>).personLinks as Array<{
+        user: { id: string; name: string | null }
+        orgPosition?: { title: string | null } | null
+        role: string
+        allocatedHours: number | null
+      }> | undefined)?.map(link => ({
+        id: link.user.id,
+        name: link.user.name || 'Unknown',
+        title: link.orgPosition?.title || undefined,
+        role: link.role,
+        allocatedHours: link.allocatedHours || undefined
+      })),
       metadata: {
         ...unifiedContext.metadata,
         unifiedContextObject: unifiedContext // Store the full UnifiedContextObject in metadata for retrieval
@@ -1770,12 +1822,45 @@ export async function getOrgPeopleContext(params: {
       }
     })
 
+    // Get project assignments for each person (batch query)
+    const userIds = positions
+      .map(p => p.userId)
+      .filter((id): id is string => id !== null)
+
+    const projectLinks = userIds.length > 0
+      ? await prisma.projectPersonLink.findMany({
+          where: { userId: { in: userIds }, workspaceId: params.workspaceId },
+          select: {
+            userId: true,
+            role: true,
+            project: { select: { id: true, name: true, status: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        })
+      : []
+
+    // Group project links by userId
+    const projectsByUser = new Map<string, Array<{ name: string; role: string; status: string }>>()
+    for (const link of projectLinks) {
+      const existing = projectsByUser.get(link.userId) ?? []
+      if (existing.length < 5) { // Limit to 5 projects per person
+        existing.push({ name: link.project.name, role: link.role, status: link.project.status })
+      }
+      projectsByUser.set(link.userId, existing)
+    }
+
     // Convert positions to ContextObjects using roleToContext
     const peopleContextObjects = positions.map(position => {
-      return roleToContext(position, {
+      const ctx = roleToContext(position, {
         person: position.user || null,
         team: position.team || null
       })
+      // Inject project assignments into metadata
+      const userProjects = position.userId ? projectsByUser.get(position.userId) : undefined
+      if (userProjects && userProjects.length > 0) {
+        ctx.metadata = { ...ctx.metadata, projects: userProjects }
+      }
+      return ctx
     })
 
     return peopleContextObjects
@@ -1786,5 +1871,137 @@ export async function getOrgPeopleContext(params: {
     })
     // Return empty array on error to avoid breaking the flow
     return []
+  }
+}
+
+/**
+ * Get person workload context across all projects
+ *
+ * Used by Loopbrain to answer "what is X working on" and "is X overloaded".
+ */
+export async function getPersonWorkloadContext(
+  userId: string,
+  workspaceId: string
+): Promise<{
+  totalAllocated: number
+  totalCapacity: number
+  utilizationPct: number
+  projects: Array<{ name: string; role: string; hours: number | null }>
+}> {
+  try {
+    const links = await prisma.projectPersonLink.findMany({
+      where: { userId, workspaceId },
+      include: {
+        project: { select: { name: true, status: true } },
+      },
+    })
+
+    // Get capacity contract
+    const now = new Date()
+    const contract = await prisma.capacityContract.findFirst({
+      where: {
+        personId: userId,
+        workspaceId,
+        effectiveFrom: { lte: now },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+      },
+      orderBy: { effectiveFrom: 'desc' },
+    })
+
+    const totalCapacity = contract?.weeklyCapacityHours ?? 40
+    const totalAllocated = links.reduce((sum, l) => sum + (l.allocatedHours ?? 0), 0)
+    const utilizationPct = totalCapacity > 0
+      ? Math.round((totalAllocated / totalCapacity) * 1000) / 10
+      : 0
+
+    return {
+      totalAllocated,
+      totalCapacity,
+      utilizationPct,
+      projects: links.map(l => ({
+        name: l.project.name,
+        role: l.role,
+        hours: l.allocatedHours,
+      })),
+    }
+  } catch (error) {
+    logger.error('Error fetching person workload context', { userId, workspaceId, error })
+    return { totalAllocated: 0, totalCapacity: 40, utilizationPct: 0, projects: [] }
+  }
+}
+
+// ============================================================================
+// 1:1 Meeting Context Upsert
+// ============================================================================
+
+/**
+ * Upsert context for a 1:1 meeting so Loopbrain can answer questions like
+ * "When is my next 1:1?" and "What action items are open from my 1:1s?"
+ *
+ * @param meetingId - The OneOnOneMeeting ID
+ */
+export async function upsertOneOnOneContext(meetingId: string): Promise<void> {
+  try {
+    const meeting = await prisma.oneOnOneMeeting.findUnique({
+      where: { id: meetingId },
+      include: {
+        manager: { select: { id: true, name: true, email: true } },
+        employee: { select: { id: true, name: true, email: true } },
+        series: { select: { frequency: true } },
+        _count: {
+          select: { talkingPoints: true, actionItems: true },
+        },
+      },
+    })
+
+    if (!meeting) {
+      logger.warn('Meeting not found for context upsert', { meetingId })
+      return
+    }
+
+    // Count open action items specifically
+    const openActionItems = await prisma.oneOnOneActionItem.count({
+      where: {
+        meetingId,
+        status: 'OPEN',
+      },
+    })
+
+    const context: OneOnOneContext = {
+      type: ContextType.ONE_ON_ONE,
+      id: `one_on_one:${meeting.id}`,
+      workspaceId: meeting.workspaceId,
+      timestamp: new Date().toISOString(),
+      scheduledAt: meeting.scheduledAt.toISOString(),
+      status: meeting.status,
+      manager: {
+        id: meeting.manager.id,
+        name: meeting.manager.name ?? meeting.manager.email,
+      },
+      employee: {
+        id: meeting.employee.id,
+        name: meeting.employee.name ?? meeting.employee.email,
+      },
+      talkingPointCount: meeting._count.talkingPoints,
+      actionItemCount: meeting._count.actionItems,
+      openActionItemCount: openActionItems,
+      seriesFrequency: meeting.series?.frequency ?? undefined,
+    }
+
+    try {
+      await saveContextItem(context)
+      logger.debug('1:1 meeting context upserted successfully', {
+        meetingId,
+        workspaceId: meeting.workspaceId,
+      })
+    } catch (error) {
+      logger.error('Failed to save 1:1 meeting context to store', {
+        meetingId,
+        workspaceId: meeting.workspaceId,
+        error,
+      })
+    }
+  } catch (error) {
+    logger.error('Error upserting 1:1 meeting context', { meetingId, error })
   }
 }
