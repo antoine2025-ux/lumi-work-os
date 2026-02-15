@@ -2,6 +2,9 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'
 
+// Mark as dynamic since we use authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * Legacy calendar route redirect
  * Redirects /calendar to /w/[workspaceSlug]/calendar
