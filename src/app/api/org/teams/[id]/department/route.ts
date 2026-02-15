@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 
 type RouteParams = {
   params: Promise<{
@@ -169,16 +170,6 @@ export async function PATCH(
           isExistingTeam: t.id === existingTeam.id,
         }));
         
-        // #region agent log
-        console.log("[PATCH /api/org/teams/[id]/department] Duplicate team detected:", {
-          currentTeam: { id, name: team.name, departmentId: team.departmentId },
-          existingTeam: { id: existingTeam.id, name: existingTeam.name, departmentId: existingTeam.departmentId },
-          allTeamsWithSameName: teamsWithSameName,
-          targetDepartmentId: body.departmentId,
-          targetDepartmentName: departmentName,
-        });
-        // #endregion
-        
         // Check if current team is unassigned to provide more specific guidance
         const currentTeamIsUnassigned = team.departmentId === null;
         const duplicateCount = teamsWithSameName.length;
@@ -252,18 +243,8 @@ export async function PATCH(
         departmentId: updatedTeam.departmentId,
       },
     });
-  } catch (error: any) {
-    console.error("Error updating team department:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message: error?.message || "Failed to update team department.",
-        },
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req);
   }
 }
 

@@ -104,6 +104,24 @@ model User {
   loopbrainChatFeedback LoopbrainChatFeedback[]
   loopbrainOpenLoops    LoopbrainOpenLoop[]
   ledTeams              OrgTeam[]              @relation("TeamLeader")
+  
+  // Goals & OKRs relations
+  ownedGoals            Goal[]                 @relation("GoalOwner")
+  createdGoals          Goal[]                 @relation("GoalCreatedBy")
+  goalComments          GoalComment[]          @relation("GoalCommenter")
+  goalUpdates           GoalUpdate[]           @relation("GoalUpdater")
+  keyResultUpdates      KeyResultUpdate[]      @relation("KeyResultUpdater")
+  createdGoalTemplates  GoalTemplate[]         @relation("GoalTemplateCreator")
+  
+  // Enterprise OKR relations
+  goalStakeholders      GoalStakeholder[]      @relation("GoalStakeholders")
+  goalApprovals         GoalApproval[]         @relation("GoalApprovers")
+  goalProgressUpdates   GoalProgressUpdate[]   @relation("GoalProgressUpdater")
+  employeeReviews       PerformanceReview[]    @relation("EmployeeReviews")
+  managerReviews        PerformanceReview[]    @relation("ManagerReviews")
+  employeeOneOnOnes     OneOnOneMeeting[]      @relation("Employee1on1s")
+  managerOneOnOnes      OneOnOneMeeting[]      @relation("Manager1on1s")
+  goalCheckIns          GoalCheckIn[]          @relation("GoalCheckIns")
 
   @@map("users")
 }
@@ -223,6 +241,64 @@ model Workspace {
   
   // Phase 1: Workspace onboarding state
   onboardingState        WorkspaceOnboardingState?
+  
+  // Goals & OKRs
+  goals               Goal[]
+  goalTemplates        GoalTemplate[]
+  
+  // Enterprise OKR
+  performanceReviews   PerformanceReview[]
+  oneOnOneTemplates    OneOnOneTemplate[]
+  oneOnOneMeetings     OneOnOneMeeting[]
+  goalWorkflowRules    GoalWorkflowRule[]
+
+  // Workspace-scoped child models (added for direct workspaceId scoping)
+  // Task children
+  subtasks                    Subtask[]
+  taskComments                TaskComment[]
+  taskHistories               TaskHistory[]
+  customFieldVals             CustomFieldVal[]
+  // Project children
+  projectMembers              ProjectMember[]
+  projectWatchers             ProjectWatcher[]
+  projectAssignees            ProjectAssignee[]
+  projectDocumentation        ProjectDocumentation[]
+  projectAccountabilities     ProjectAccountability[]
+  projectDailySummaries       ProjectDailySummary[]
+  customFieldDefs             CustomFieldDef[]
+  // WikiPage children
+  wikiVersions                WikiVersion[]
+  wikiComments                WikiComment[]
+  wikiEmbeds                  WikiEmbed[]
+  wikiAttachments             WikiAttachment[]
+  wikiPagePermissions         WikiPagePermission[]
+  wikiFavorites               WikiFavorite[]
+  wikiAiInteractions          wiki_ai_interactions[]
+  wikiPageViews               wiki_page_views[]
+  // Goal children
+  objectives                  Objective[]
+  goalComments                GoalComment[]
+  goalUpdates                 GoalUpdate[]
+  projectGoalLinks            ProjectGoalLink[]
+  goalStakeholders            GoalStakeholder[]
+  goalApprovals               GoalApproval[]
+  goalProgressUpdates         GoalProgressUpdate[]
+  goalAnalytics               GoalAnalytics[]
+  goalRecommendations         GoalRecommendation[]
+  goalCheckIns                GoalCheckIn[]
+  // Goal grandchildren
+  keyResults                  KeyResult[]
+  keyResultUpdates            KeyResultUpdate[]
+  // Other parent chains
+  chatMessages                ChatMessage[]
+  onboardingTasks             OnboardingTask[]
+  onboardingTaskAssignments   onboarding_task_assignments[]
+  taskTemplateItems           TaskTemplateItem[]
+  workflowAssignments         WorkflowAssignment[]
+  roleCardSkills              RoleCardSkill[]
+  // Decision domain children
+  decisionAuthorities         DecisionAuthority[]
+  decisionEscalationSteps     DecisionEscalationStep[]
 
   @@map("workspaces")
 }
@@ -371,61 +447,73 @@ model WikiPage {
 }
 
 model WikiFavorite {
-  id         String    @id @default(cuid()) @db.VarChar(50)
-  page_id    String    @db.VarChar(50)
-  user_id    String    @db.VarChar(50)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  wiki_pages WikiPage  @relation(fields: [page_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users      User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id           String    @id @default(cuid()) @db.VarChar(50)
+  page_id      String    @db.VarChar(50)
+  user_id      String    @db.VarChar(50)
+  workspaceId  String
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  wiki_pages   WikiPage  @relation(fields: [page_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([page_id, user_id])
   @@index([page_id], map: "idx_wiki_favorites_page_id")
   @@index([user_id], map: "idx_wiki_favorites_user_id")
   @@index([user_id, page_id], map: "idx_wiki_favorites_user_workspace")
+  @@index([workspaceId])
   @@map("wiki_favorites")
 }
 
 model WikiAttachment {
-  id        String   @id @default(cuid())
-  pageId    String
-  fileName  String
-  fileSize  Int
-  fileType  String
-  fileUrl   String
-  createdAt DateTime @default(now())
-  page      WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  pageId      String
+  workspaceId String
+  fileName    String
+  fileSize    Int
+  fileType    String
+  fileUrl     String
+  createdAt   DateTime  @default(now())
+  page        WikiPage  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  @@index([workspaceId])
   @@map("wiki_attachments")
 }
 
 model WikiComment {
-  id        String   @id @default(cuid())
-  pageId    String
-  userId    String
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  page      WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  pageId      String
+  workspaceId String
+  userId      String
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  page        WikiPage  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([pageId, createdAt(sort: Desc)], map: "idx_wiki_comments_page_created")
+  @@index([workspaceId])
   @@map("wiki_comments")
 }
 
 model WikiVersion {
-  id           String         @id @default(cuid())
-  pageId       String
-  content      String
-  contentJson  Json?
+  id            String        @id @default(cuid())
+  pageId        String
+  workspaceId   String
+  content       String
+  contentJson   Json?
   contentFormat ContentFormat @default(HTML)
-  textContent  String?
-  version      Int
-  createdAt    DateTime       @default(now())
-  createdById  String
-  createdBy    User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  page         WikiPage       @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  textContent   String?
+  version       Int
+  createdAt     DateTime      @default(now())
+  createdById   String
+  createdBy     User          @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  page          WikiPage      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([pageId, version], map: "idx_wiki_versions_page_version")
+  @@index([workspaceId])
   @@map("wiki_versions")
 }
 
@@ -443,25 +531,29 @@ model WikiChunk {
 }
 
 model WikiPagePermission {
-  id         String         @id @default(cuid())
-  pageId     String
-  userId     String?
-  role       WorkspaceRole?
-  permission String
-  granted    Boolean        @default(true)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-  page       WikiPage       @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  user       User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String         @id @default(cuid())
+  pageId      String
+  workspaceId String
+  userId      String?
+  role        WorkspaceRole?
+  permission  String
+  granted     Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  page        WikiPage       @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  user        User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([pageId, userId, permission])
   @@index([pageId, userId], map: "idx_wiki_page_permissions_page_user")
+  @@index([workspaceId])
   @@map("wiki_page_permissions")
 }
 
 model WikiEmbed {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   pageId      String
+  workspaceId String
   provider    String
   url         String?
   resourceId  String?
@@ -469,11 +561,13 @@ model WikiEmbed {
   description String?
   thumbnail   String?
   metadata    Json?
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  page        WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  page        WikiPage  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  @@index([workspaceId])
   @@map("wiki_embeds")
 }
 
@@ -497,6 +591,7 @@ model OnboardingTemplate {
 model OnboardingTask {
   id                          String                        @id @default(cuid())
   templateId                  String
+  workspaceId                 String
   title                       String
   description                 String?
   order                       Int
@@ -506,8 +601,10 @@ model OnboardingTask {
   updatedAt                   DateTime
   onboarding_task_assignments onboarding_task_assignments[]
   onboarding_templates        OnboardingTemplate            @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  workspace                   Workspace                     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   users                       User[]                        @relation("OnboardingTaskToUser")
 
+  @@index([workspaceId])
   @@map("onboarding_tasks")
 }
 
@@ -780,6 +877,7 @@ model WorkflowInstance {
 model WorkflowAssignment {
   id          String           @id @default(cuid())
   instanceId  String
+  workspaceId String
   userId      String
   stepName    String
   status      AssignmentStatus @default(PENDING)
@@ -787,8 +885,10 @@ model WorkflowAssignment {
   assignedAt  DateTime         @default(now())
   completedAt DateTime?
   instance    WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([workspaceId])
   @@map("workflow_assignments")
 }
 
@@ -890,15 +990,18 @@ model ChatSession {
 }
 
 model ChatMessage {
-  id        String      @id @default(cuid())
-  sessionId String
-  type      MessageType
-  content   String
-  metadata  Json?
-  createdAt DateTime    @default(now())
-  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id          String      @id @default(cuid())
+  sessionId   String
+  workspaceId String
+  type        MessageType
+  content     String
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+  session     ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([sessionId, createdAt], map: "idx_chat_messages_session_created")
+  @@index([workspaceId])
   @@map("chat_messages")
 }
 
@@ -939,6 +1042,7 @@ model Project {
   workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   orgTeam                OrgTeam?               @relation(fields: [teamId], references: [id], onDelete: SetNull)
   tasks                  Task[]
+  goalLinks              ProjectGoalLink[]
 
   @@index([workspaceId, status], map: "idx_projects_workspace_status")
   @@index([workspaceId, ownerId])  // Dashboard "my projects" query
@@ -950,23 +1054,27 @@ model Project {
 }
 
 model ProjectDocumentation {
-  id         String   @id @default(cuid())
-  projectId  String
-  wikiPageId String
-  order      Int      @default(0)
-  createdAt  DateTime @default(now())
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  wikiPage   WikiPage @relation(fields: [wikiPageId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  projectId   String
+  workspaceId String
+  wikiPageId  String
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  wikiPage    WikiPage  @relation(fields: [wikiPageId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, wikiPageId])
   @@index([projectId], map: "idx_project_documentation_project")
   @@index([wikiPageId], map: "idx_project_documentation_wiki_page")
+  @@index([workspaceId])
   @@map("project_documentation")
 }
 
 model ProjectAccountability {
-  id        String @id @default(cuid())
-  projectId String @unique
+  id          String @id @default(cuid())
+  projectId   String @unique
+  workspaceId String
 
   // Ownership
   ownerPersonId String?
@@ -989,9 +1097,11 @@ model ProjectAccountability {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+  @@index([workspaceId])
   @@map("project_accountability")
 }
 
@@ -1040,6 +1150,7 @@ model Task {
 model Subtask {
   id          String            @id @default(cuid())
   taskId      String
+  workspaceId String
   title       String
   description String?
   status      ProjectTaskStatus @default(TODO)
@@ -1051,29 +1162,35 @@ model Subtask {
   updatedAt   DateTime          @updatedAt
   assignee    User?             @relation(fields: [assigneeId], references: [id])
   task        Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([taskId, order], map: "idx_subtasks_task_order")
+  @@index([workspaceId])
   @@map("subtasks")
 }
 
 model TaskComment {
-  id        String   @id @default(cuid())
-  taskId    String
-  userId    String
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  mentions  String[]
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  taskId      String
+  workspaceId String
+  userId      String
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  mentions    String[]
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([taskId, createdAt(sort: Desc)], map: "idx_task_comments_task_created")
+  @@index([workspaceId])
   @@map("task_comments")
 }
 
 model ProjectMember {
   id            String       @id @default(cuid())
   projectId     String
+  workspaceId   String
   userId        String
   orgPositionId String?      // Link to org position for capacity tracking
   role          ProjectRole  @default(MEMBER)
@@ -1081,38 +1198,46 @@ model ProjectMember {
   project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   orgPosition   OrgPosition? @relation(fields: [orgPositionId], references: [id], onDelete: SetNull)
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
   @@index([projectId])  // Fast members by project lookup
   @@index([userId], map: "idx_project_members_user")
   @@index([orgPositionId])
+  @@index([workspaceId])
   @@map("project_members")
 }
 
 model ProjectWatcher {
-  id        String   @id @default(cuid())
-  projectId String
-  userId    String
-  addedAt   DateTime @default(now())
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user      User     @relation("ProjectWatcher", fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  projectId   String
+  workspaceId String
+  userId      String
+  addedAt     DateTime  @default(now())
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User      @relation("ProjectWatcher", fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
+  @@index([workspaceId])
   @@map("project_watchers")
 }
 
 model ProjectAssignee {
-  id         String   @id @default(cuid())
-  projectId  String
-  userId     String
-  role       String?
-  assignedAt DateTime @default(now())
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user       User     @relation("ProjectAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  projectId   String
+  workspaceId String
+  userId      String
+  role        String?
+  assignedAt  DateTime  @default(now())
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User      @relation("ProjectAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
   @@index([projectId])    // Fast project → assignees lookup
   @@index([userId])       // Fast user → projects lookup
+  @@index([workspaceId])
   @@map("project_assignees")
 }
 
@@ -1234,6 +1359,7 @@ model TaskTemplate {
 model TaskTemplateItem {
   id                String            @id @default(cuid())
   templateId        String
+  workspaceId       String
   title             String
   description       String?
   status            ProjectTaskStatus @default(TODO)
@@ -1244,13 +1370,16 @@ model TaskTemplateItem {
   dependencies      String[]
   order             Int               @default(0)
   template          TaskTemplate      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  @@index([workspaceId])
   @@map("task_template_items")
 }
 
 model onboarding_task_assignments {
   id               String         @id
   planId           String
+  workspaceId      String
   taskId           String
   status           TaskStatus     @default(PENDING)
   completedAt      DateTime?
@@ -1259,8 +1388,10 @@ model onboarding_task_assignments {
   updatedAt        DateTime
   onboarding_plans OnboardingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
   onboarding_tasks OnboardingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  workspace        Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([planId, taskId])
+  @@index([workspaceId])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1269,33 +1400,39 @@ model wiki_ai_interactions {
   id               String    @id @db.VarChar(50)
   page_id          String?   @db.VarChar(50)
   user_id          String    @db.VarChar(50)
+  workspace_id     String    @db.VarChar(50)
   interaction_type String    @db.VarChar(50)
   input_data       Json?
   output_data      Json?
   created_at       DateTime? @default(now()) @db.Timestamp(6)
   wiki_pages       WikiPage? @relation(fields: [page_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users            User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workspace        Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
 
   @@index([created_at(sort: Desc)], map: "idx_wiki_ai_interactions_created_at")
   @@index([page_id], map: "idx_wiki_ai_interactions_page_id")
   @@index([interaction_type], map: "idx_wiki_ai_interactions_type")
   @@index([user_id], map: "idx_wiki_ai_interactions_user_id")
+  @@index([workspace_id])
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model wiki_page_views {
-  id         String    @id @db.VarChar(50)
-  page_id    String    @db.VarChar(50)
-  user_id    String?   @db.VarChar(50)
-  viewed_at  DateTime? @default(now()) @db.Timestamp(6)
-  ip_address String?   @db.Inet
-  user_agent String?
-  wiki_pages WikiPage  @relation(fields: [page_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users      User?     @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  id           String    @id @db.VarChar(50)
+  page_id      String    @db.VarChar(50)
+  user_id      String?   @db.VarChar(50)
+  workspace_id String    @db.VarChar(50)
+  viewed_at    DateTime? @default(now()) @db.Timestamp(6)
+  ip_address   String?   @db.Inet
+  user_agent   String?
+  wiki_pages   WikiPage  @relation(fields: [page_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        User?     @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  workspace    Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
 
   @@index([page_id], map: "idx_wiki_page_views_page_id")
   @@index([user_id], map: "idx_wiki_page_views_user_id")
   @@index([viewed_at(sort: Desc)], map: "idx_wiki_page_views_viewed_at")
+  @@index([workspace_id])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1355,60 +1492,72 @@ model Milestone {
 }
 
 model CustomFieldDef {
-  id        String           @id @default(cuid())
-  projectId String
-  key       String
-  label     String
-  type      String
-  options   Json?
-  uniqueKey String           @unique
-  createdAt DateTime         @default(now())
-  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  values    CustomFieldVal[]
+  id          String           @id @default(cuid())
+  projectId   String
+  workspaceId String
+  key         String
+  label       String
+  type        String
+  options     Json?
+  uniqueKey   String           @unique
+  createdAt   DateTime         @default(now())
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  values      CustomFieldVal[]
 
   @@index([projectId, key], map: "idx_custom_field_defs_project_key")
+  @@index([workspaceId])
   @@map("custom_field_defs")
 }
 
 model CustomFieldVal {
-  id      String         @id @default(cuid())
-  taskId  String
-  fieldId String
-  value   Json
-  field   CustomFieldDef @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  task    Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id          String         @id @default(cuid())
+  taskId      String
+  workspaceId String
+  fieldId     String
+  value       Json
+  field       CustomFieldDef @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  task        Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, fieldId])
   @@index([taskId], map: "idx_custom_field_vals_task")
   @@index([fieldId], map: "idx_custom_field_vals_field")
+  @@index([workspaceId])
   @@map("custom_field_vals")
 }
 
 model TaskHistory {
-  id      String   @id @default(cuid())
-  taskId  String
-  actorId String
-  field   String
-  from    Json?
-  to      Json?
-  at      DateTime @default(now())
-  actor   User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
-  task    Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  taskId      String
+  workspaceId String
+  actorId     String
+  field       String
+  from        Json?
+  to          Json?
+  at          DateTime  @default(now())
+  actor       User      @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([taskId, at(sort: Desc)], map: "idx_task_history_task_at")
+  @@index([workspaceId])
   @@map("task_history")
 }
 
 model ProjectDailySummary {
-  id        String   @id @default(cuid())
-  projectId String
-  date      DateTime @db.Date
-  text      String
-  createdAt DateTime @default(now())
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  projectId   String
+  workspaceId String
+  date        DateTime  @db.Date
+  text        String
+  createdAt   DateTime  @default(now())
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, date])
   @@index([projectId, date(sort: Desc)], map: "idx_project_daily_summary_project_date")
+  @@index([workspaceId])
   @@map("project_daily_summaries")
 }
 
@@ -2531,23 +2680,26 @@ model PersonSkill {
 
 // Junction table for RoleCard skill requirements
 model RoleCardSkill {
-  id         String            @id @default(cuid())
-  roleCardId String
-  skillId    String
-  type       RoleCardSkillType // REQUIRED or PREFERRED
+  id          String            @id @default(cuid())
+  roleCardId  String
+  workspaceId String
+  skillId     String
+  type        RoleCardSkillType // REQUIRED or PREFERRED
 
   // Minimum proficiency level required (1-5)
   minProficiency Int @default(3)
 
   createdAt DateTime @default(now())
 
-  roleCard RoleCard @relation(fields: [roleCardId], references: [id], onDelete: Cascade)
-  skill    Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  roleCard  RoleCard  @relation(fields: [roleCardId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  skill     Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
   @@unique([roleCardId, skillId, type])
   @@index([roleCardId])
   @@index([skillId])
   @@index([type])
+  @@index([workspaceId])
   @@map("role_card_skills")
 }
 
@@ -2950,8 +3102,9 @@ model DecisionDomain {
 }
 
 model DecisionAuthority {
-  id              String   @id @default(cuid())
-  domainId        String   @unique
+  id              String    @id @default(cuid())
+  domainId        String    @unique
+  workspaceId     String
 
   // Primary decider (one of these is set)
   primaryPersonId String?
@@ -2961,14 +3114,17 @@ model DecisionAuthority {
   updatedAt DateTime @updatedAt
 
   domain          DecisionDomain           @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  workspace       Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   escalationSteps DecisionEscalationStep[]
 
+  @@index([workspaceId])
   @@map("decision_authorities")
 }
 
 model DecisionEscalationStep {
-  id          String @id @default(cuid())
+  id          String    @id @default(cuid())
   authorityId String
+  workspaceId String
   stepOrder   Int // 0, 1, 2... explicit ordering
 
   // One of these is set
@@ -2976,9 +3132,11 @@ model DecisionEscalationStep {
   roleType String?
 
   authority DecisionAuthority @relation(fields: [authorityId], references: [id], onDelete: Cascade)
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([authorityId, stepOrder])
   @@index([authorityId])
+  @@index([workspaceId])
   @@map("decision_escalation_steps")
 }
 
@@ -3149,6 +3307,133 @@ enum WorkRecommendationAction {
   DELAY
   REASSIGN
   REQUEST_SUPPORT
+}
+
+// =============================================================================
+// Goals & OKRs Enums
+// =============================================================================
+
+enum GoalLevel {
+  COMPANY
+  DEPARTMENT
+  TEAM
+  INDIVIDUAL
+}
+
+enum GoalPeriod {
+  QUARTERLY
+  ANNUAL
+  CUSTOM
+}
+
+enum GoalStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum ObjectiveStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  AT_RISK
+  COMPLETED
+  CANCELLED
+}
+
+enum KeyResultStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  AT_RISK
+  COMPLETED
+  CANCELLED
+}
+
+enum MetricType {
+  PERCENT
+  NUMBER
+  BOOLEAN
+  CURRENCY
+}
+
+enum GoalUpdateType {
+  PROGRESS_UPDATE
+  STATUS_CHANGE
+  OBJECTIVE_ADDED
+  OBJECTIVE_UPDATED
+  OBJECTIVE_REMOVED
+  KEY_RESULT_UPDATED
+  COMMENT_ADDED
+  PROJECT_LINKED
+  PROJECT_UNLINKED
+}
+
+// Enterprise OKR enums
+
+enum StakeholderRole {
+  OWNER
+  CONTRIBUTOR
+  VIEWER
+  REVIEWER
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+enum ContributionType {
+  REQUIRED      // Project must complete for goal success
+  CONTRIBUTING  // Project significantly impacts goal
+  SUPPORTING    // Project provides minor contribution
+}
+
+enum ReviewStatus {
+  DRAFT
+  IN_PROGRESS
+  PENDING_APPROVAL
+  COMPLETED
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum RecommendationType {
+  PROGRESS_AT_RISK
+  RESOURCE_REALLOCATION
+  TIMELINE_ADJUSTMENT
+  STAKEHOLDER_ENGAGEMENT
+  PROJECT_PRIORITIZATION
+}
+
+enum RecommendationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum RecommendationStatus {
+  PENDING
+  ACKNOWLEDGED
+  IMPLEMENTING
+  COMPLETED
+  DISMISSED
+}
+
+enum WorkflowTrigger {
+  GOAL_PROGRESS_STALLED
+  GOAL_AT_RISK
+  PROJECT_COMPLETION
+  DEADLINE_APPROACHING
+  STAKEHOLDER_UPDATE_REQUIRED
 }
 
 /**
@@ -3352,6 +3637,558 @@ model LeaveRequest {
   @@index([startDate, endDate])
   @@index([workspaceId, personId, startDate])
   @@map("leave_requests")
+}
+
+// =============================================================================
+// Goals & OKRs Models
+// =============================================================================
+
+/**
+ * Goal - Strategic goals and OKRs system
+ *
+ * Supports hierarchical goals (company → department → team → individual)
+ * with quarterly/annual periods and cascading progress tracking.
+ */
+model Goal {
+  id          String     @id @default(cuid())
+  workspaceId String
+  title       String
+  description String?
+  
+  // Goal hierarchy and scoping
+  level       GoalLevel
+  ownerId     String?
+  parentId    String?
+  
+  // Timeline
+  period      GoalPeriod
+  startDate   DateTime
+  endDate     DateTime
+  quarter     String?
+  
+  // Status and progress
+  status      GoalStatus @default(DRAFT)
+  progress    Float      @default(0)
+  
+  // Alignment & performance integration
+  alignmentScore   Float    @default(0) // 0-100% alignment with parent
+  performanceWeight Float   @default(1.0) // Weight in performance reviews
+  reviewCycle      String?  // e.g. "2026-Q1"
+  
+  // Metadata
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  createdById String
+  
+  // Relations
+  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner          User?             @relation("GoalOwner", fields: [ownerId], references: [id])
+  createdBy      User              @relation("GoalCreatedBy", fields: [createdById], references: [id])
+  parent         Goal?             @relation("GoalHierarchy", fields: [parentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  children       Goal[]            @relation("GoalHierarchy")
+  objectives     Objective[]
+  linkedProjects ProjectGoalLink[]
+  comments       GoalComment[]
+  updates        GoalUpdate[]
+  
+  // Conflict tracking (self-relation)
+  conflictsWith  Goal[]   @relation("GoalConflicts")
+  conflictedWith Goal[]   @relation("GoalConflicts")
+  
+  // Enterprise relations
+  stakeholders     GoalStakeholder[]
+  approvals        GoalApproval[]
+  progressUpdates  GoalProgressUpdate[]
+  analytics        GoalAnalytics[]
+  recommendations  GoalRecommendation[]
+  checkIns         GoalCheckIn[]
+  
+  @@index([workspaceId])
+  @@index([workspaceId, level])
+  @@index([workspaceId, ownerId])
+  @@index([workspaceId, quarter])
+  @@index([workspaceId, status])
+  @@index([parentId])
+  @@index([workspaceId, level, reviewCycle])
+  @@map("goals")
+}
+
+/**
+ * Objective - Key objectives within a goal (the "O" in OKR)
+ */
+model Objective {
+  id          String           @id @default(cuid())
+  goalId      String
+  workspaceId String
+  title       String
+  description String?
+  weight      Float            @default(1)
+  
+  // Progress tracking
+  progress    Float            @default(0)
+  status      ObjectiveStatus  @default(NOT_STARTED)
+  
+  // Metadata
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  // Relations
+  goal        Goal             @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  keyResults  KeyResult[]
+  
+  @@index([goalId])
+  @@index([workspaceId])
+  @@map("objectives")
+}
+
+/**
+ * KeyResult - Measurable key results within an objective (the "KR" in OKR)
+ */
+model KeyResult {
+  id           String          @id @default(cuid())
+  objectiveId  String
+  workspaceId  String
+  title        String
+  description  String?
+  
+  // Measurement
+  metricType   MetricType
+  targetValue  Float
+  currentValue Float           @default(0)
+  unit         String?
+  
+  // Progress
+  progress     Float           @default(0)
+  status       KeyResultStatus @default(NOT_STARTED)
+  
+  // Timeline
+  dueDate      DateTime?
+  
+  // Metadata
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  
+  // Relations
+  objective    Objective       @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  updates      KeyResultUpdate[]
+  
+  @@index([objectiveId])
+  @@index([workspaceId])
+  @@map("key_results")
+}
+
+/**
+ * KeyResultUpdate - History of key result value changes
+ */
+model KeyResultUpdate {
+  id            String    @id @default(cuid())
+  keyResultId   String
+  workspaceId   String
+  previousValue Float
+  newValue      Float
+  note          String?
+  updatedById   String
+  createdAt     DateTime  @default(now())
+  
+  keyResult     KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  updatedBy     User      @relation("KeyResultUpdater", fields: [updatedById], references: [id])
+  
+  @@index([keyResultId])
+  @@index([createdAt])
+  @@index([workspaceId])
+  @@map("key_result_updates")
+}
+
+/**
+ * GoalComment - Comments and discussions on goals
+ */
+model GoalComment {
+  id          String    @id @default(cuid())
+  goalId      String
+  workspaceId String
+  content     String
+  authorId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  goal        Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author      User      @relation("GoalCommenter", fields: [authorId], references: [id])
+  
+  @@index([goalId])
+  @@index([createdAt])
+  @@index([workspaceId])
+  @@map("goal_comments")
+}
+
+/**
+ * GoalUpdate - Activity log for goal changes
+ */
+model GoalUpdate {
+  id           String         @id @default(cuid())
+  goalId       String
+  workspaceId  String
+  updateType   GoalUpdateType
+  content      String
+  previousData Json?
+  newData      Json?
+  authorId     String
+  createdAt    DateTime       @default(now())
+  
+  goal         Goal           @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  workspace    Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author       User           @relation("GoalUpdater", fields: [authorId], references: [id])
+  
+  @@index([goalId])
+  @@index([createdAt])
+  @@index([workspaceId])
+  @@map("goal_updates")
+}
+
+/**
+ * ProjectGoalLink - Many-to-many relationship between projects and goals
+ */
+model ProjectGoalLink {
+  id               String           @id @default(cuid())
+  goalId           String
+  projectId        String
+  workspaceId      String
+  createdAt        DateTime         @default(now())
+  
+  // Contribution tracking
+  contributionType ContributionType @default(CONTRIBUTING)
+  expectedImpact   Float            @default(50) // 0-100%
+  actualImpact     Float            @default(0)
+  
+  // Auto-sync configuration
+  autoUpdate       Boolean          @default(true)
+  syncRules        Json?            // Rules for automatic progress updates
+  
+  goal             Goal             @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@unique([goalId, projectId])
+  @@index([goalId])
+  @@index([projectId])
+  @@index([workspaceId])
+  @@map("project_goal_links")
+}
+
+/**
+ * GoalTemplate - Reusable goal templates for quick goal creation
+ */
+model GoalTemplate {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  level       GoalLevel
+  template    Json
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  createdById String
+  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation("GoalTemplateCreator", fields: [createdById], references: [id])
+  
+  @@index([workspaceId])
+  @@index([workspaceId, level])
+  @@index([workspaceId, isActive])
+  @@map("goal_templates")
+}
+
+// ============================================================================
+// Enterprise OKR Models (Phase A: Cascading Goals + Project Integration)
+// ============================================================================
+
+/**
+ * GoalStakeholder - People involved in a goal with specific roles
+ */
+model GoalStakeholder {
+  id          String          @id @default(cuid())
+  goalId      String
+  workspaceId String
+  userId      String
+  role        StakeholderRole
+  canEdit     Boolean         @default(false)
+  canApprove  Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  
+  goal        Goal            @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User            @relation("GoalStakeholders", fields: [userId], references: [id])
+  
+  @@unique([goalId, userId])
+  @@index([goalId])
+  @@index([userId])
+  @@index([workspaceId])
+  @@map("goal_stakeholders")
+}
+
+/**
+ * GoalApproval - Approval workflow for goal changes
+ */
+model GoalApproval {
+  id          String         @id @default(cuid())
+  goalId      String
+  workspaceId String
+  approverId  String
+  status      ApprovalStatus @default(PENDING)
+  comment     String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  goal        Goal           @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  approver    User           @relation("GoalApprovers", fields: [approverId], references: [id])
+  
+  @@index([goalId])
+  @@index([approverId, status])
+  @@index([workspaceId])
+  @@map("goal_approvals")
+}
+
+/**
+ * GoalProgressUpdate - Audit trail for goal progress changes
+ */
+model GoalProgressUpdate {
+  id               String    @id @default(cuid())
+  goalId           String
+  workspaceId      String
+  triggeredBy      String    // 'project_completion', 'manual_update', 'key_result_change', 'agent_action'
+  sourceId         String?   // Project ID, Key Result ID, etc.
+  
+  previousProgress Float
+  newProgress      Float
+  confidence       Float     @default(1.0) // How confident is this update (0-1)
+  
+  createdAt        DateTime  @default(now())
+  updatedById      String
+  
+  goal             Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  updatedBy        User      @relation("GoalProgressUpdater", fields: [updatedById], references: [id])
+  
+  @@index([goalId, createdAt])
+  @@index([updatedById])
+  @@index([workspaceId])
+  @@map("goal_progress_updates")
+}
+
+// ============================================================================
+// Enterprise OKR Models (Phase B: Performance Management + Analytics)
+// ============================================================================
+
+/**
+ * PerformanceReview - Goal-based performance evaluation
+ */
+model PerformanceReview {
+  id           String       @id @default(cuid())
+  workspaceId  String
+  employeeId   String
+  managerId    String
+  period       String       // "2026-Q1", "2026-H1", "2026"
+  status       ReviewStatus @default(DRAFT)
+  
+  // Goal achievement scoring
+  goalIds      String[]     // Goals evaluated in this review
+  goalScores   Json?        // Goal ID -> achievement score
+  overallScore Float?       // Calculated from goal achievement
+  
+  // Traditional review fields
+  feedback     String?
+  strengths    String?
+  improvements String?
+  nextGoals    String?
+  
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  employee     User         @relation("EmployeeReviews", fields: [employeeId], references: [id])
+  manager      User         @relation("ManagerReviews", fields: [managerId], references: [id])
+  
+  @@unique([workspaceId, employeeId, period])
+  @@index([workspaceId, managerId, status])
+  @@index([workspaceId, period])
+  @@map("performance_reviews")
+}
+
+/**
+ * OneOnOneTemplate - Reusable templates for 1:1 meetings
+ */
+model OneOnOneTemplate {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  sections    Json      // Goal progress, blockers, feedback, development
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@index([workspaceId])
+  @@map("one_on_one_templates")
+}
+
+/**
+ * OneOnOneMeeting - 1:1 meetings with goal progress discussion
+ */
+model OneOnOneMeeting {
+  id           String        @id @default(cuid())
+  workspaceId  String
+  employeeId   String
+  managerId    String
+  scheduledAt  DateTime
+  status       MeetingStatus @default(SCHEDULED)
+  
+  // Goal-related discussion
+  goalProgress Json?         // Goal ID -> discussion notes
+  blockers     String?
+  support      String?
+  nextActions  String?
+  
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  employee     User          @relation("Employee1on1s", fields: [employeeId], references: [id])
+  manager      User          @relation("Manager1on1s", fields: [managerId], references: [id])
+  
+  @@index([workspaceId, employeeId])
+  @@index([workspaceId, managerId])
+  @@index([scheduledAt])
+  @@map("one_on_one_meetings")
+}
+
+/**
+ * GoalAnalytics - Computed analytics for goal intelligence (on-write)
+ */
+model GoalAnalytics {
+  id                    String    @id @default(cuid())
+  goalId                String
+  workspaceId           String
+  period                String    // "daily", "weekly", etc.
+  
+  // Progress metrics
+  progressVelocity      Float     // Rate of progress change
+  projectedCompletion   DateTime? // Estimated completion date
+  riskScore             Float     // 0-100 risk of missing goal
+  
+  // Engagement metrics
+  updateFrequency       Float     // How often goal is updated (updates/week)
+  stakeholderEngagement Float     @default(0)
+  
+  // Performance correlations
+  teamProductivity      Float?
+  projectAlignment      Float?
+  
+  calculatedAt          DateTime  @default(now())
+  
+  goal                  Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@unique([goalId, period])
+  @@index([riskScore])
+  @@index([workspaceId])
+  @@map("goal_analytics")
+}
+
+/**
+ * GoalRecommendation - AI-generated recommendations for goal achievement
+ */
+model GoalRecommendation {
+  id              String                 @id @default(cuid())
+  goalId          String
+  workspaceId     String
+  type            RecommendationType
+  priority        RecommendationPriority
+  
+  title           String
+  description     String
+  suggestedActions Json                  // Actionable steps
+  
+  // Agent-ready fields
+  automatable     Boolean                @default(false)
+  confidence      Float                  // How confident is this recommendation (0-1)
+  impact          Float                  // Expected impact if implemented (0-1)
+  
+  status          RecommendationStatus   @default(PENDING)
+  implementedAt   DateTime?
+  feedback        String?
+  
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  
+  goal            Goal                   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  workspace       Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@index([goalId, status])
+  @@index([priority, status])
+  @@index([workspaceId])
+  @@map("goal_recommendations")
+}
+
+// ============================================================================
+// Enterprise OKR Models (Phase C: Workflow Automation + Agent)
+// ============================================================================
+
+/**
+ * GoalCheckIn - Periodic check-ins on goal progress
+ */
+model GoalCheckIn {
+  id               String    @id @default(cuid())
+  goalId           String
+  workspaceId      String
+  userId           String
+  period           String    // "2026-W07" for weekly check-ins
+  
+  progressUpdate   Float?
+  blockers         String?
+  support          String?
+  confidence       Float?    // Confidence in achieving goal (0-1)
+  
+  // Auto-generated fields
+  systemUpdates    Json?     // What system auto-updated
+  recommendations  Json?     // AI-generated suggestions
+  
+  createdAt        DateTime  @default(now())
+  
+  goal             Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user             User      @relation("GoalCheckIns", fields: [userId], references: [id])
+  
+  @@unique([goalId, userId, period])
+  @@index([goalId, createdAt])
+  @@index([workspaceId])
+  @@map("goal_check_ins")
+}
+
+/**
+ * GoalWorkflowRule - Automated workflow rules for goals
+ */
+model GoalWorkflowRule {
+  id          String          @id @default(cuid())
+  workspaceId String
+  name        String
+  trigger     WorkflowTrigger
+  conditions  Json            // When to execute
+  actions     Json            // What to do
+  
+  isActive    Boolean         @default(true)
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@index([workspaceId, isActive])
+  @@index([trigger])
+  @@map("goal_workflow_rules")
 }
 
 model OnboardingProgress {

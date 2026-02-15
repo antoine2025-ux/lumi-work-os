@@ -89,21 +89,9 @@ export function getBlockAtPos(editor: Editor, pos: number): ActiveBlockInfo | nu
 
 /**
  * Get information about the block the cursor is currently in
- * 
- * This handles all block types including:
- * - Paragraph, headings (direct blocks)
- * - Lists (bulletList, orderedList, taskList - the list container)
- * - List items (listItem, taskItem - treated as part of parent list)
- * - Code blocks
- * - Blockquotes
- * - Tables (entire table treated as one block)
- */
-/**
- * Get information about the block the cursor is currently in
- * 
- * SAFE: Never accesses depth 0 (doc root) to avoid RangeError
- * Uses $anchor.node(-1) which is safe (gets node at depth - 1, i.e., depth 1)
- * But we must ensure depth > 0 before calling before(depth)
+ *
+ * Handles all supported block types by walking up the node tree once.
+ * SAFE: Never accesses depth 0 (doc root) to avoid RangeError.
  */
 export function getActiveBlock(editor: Editor): ActiveBlockInfo | null {
   if (!editor) {
@@ -113,156 +101,23 @@ export function getActiveBlock(editor: Editor): ActiveBlockInfo | null {
   try {
     const { selection } = editor.state
     const { $anchor } = selection
-    
-    // Safety check: ensure we have valid depth
+
     if ($anchor.depth === 0) {
-      // At document root - no block to return
       return null
     }
 
-    // Helper to safely get block info from a node at a specific depth
-    const getBlockAtDepth = (depth: number): ActiveBlockInfo | null => {
-      if (depth <= 0) return null // Never access depth 0
-      
-      try {
-        const node = $anchor.node(depth)
-        const nodeType = node.type.name
-        
-        if (SUPPORTED_BLOCK_TYPES.includes(nodeType as SupportedBlockType)) {
-          const blockPos = $anchor.before(depth)
-          return {
-            type: nodeType,
-            from: blockPos,
-            to: blockPos + node.nodeSize,
-            node: node,
-            isSupported: true,
-          }
-        }
-      } catch (error) {
-        // Ignore errors at this depth, try next
-        return null
-      }
-      
-      return null
-    }
-
-    // For tables, check if we're inside a table first
-    if (editor.isActive('table')) {
-      // Walk up to find table node (depth > 0)
-      for (let depth = $anchor.depth; depth > 0; depth--) {
-        const node = $anchor.node(depth)
-        if (node && node.type.name === 'table') {
-          const blockPos = $anchor.before(depth)
-          return {
-            type: 'table',
-            from: blockPos,
-            to: blockPos + node.nodeSize,
-            node: node,
-            isSupported: true,
-          }
-        }
-      }
-    }
-
-    // For code blocks
-    if (editor.isActive('codeBlock')) {
-      for (let depth = $anchor.depth; depth > 0; depth--) {
-        const node = $anchor.node(depth)
-        if (node && node.type.name === 'codeBlock') {
-          const blockPos = $anchor.before(depth)
-          return {
-            type: 'codeBlock',
-            from: blockPos,
-            to: blockPos + node.nodeSize,
-            node: node,
-            isSupported: true,
-          }
-        }
-      }
-    }
-
-    // For blockquotes
-    if (editor.isActive('blockquote')) {
-      for (let depth = $anchor.depth; depth > 0; depth--) {
-        const node = $anchor.node(depth)
-        if (node && node.type.name === 'blockquote') {
-          const blockPos = $anchor.before(depth)
-          return {
-            type: 'blockquote',
-            from: blockPos,
-            to: blockPos + node.nodeSize,
-            node: node,
-            isSupported: true,
-          }
-        }
-      }
-    }
-
-    // For lists (bulletList, orderedList, taskList)
-    // We want to treat the entire list as one block
-    const listTypes = ['bulletList', 'orderedList', 'taskList']
-    for (const listType of listTypes) {
-      if (editor.isActive(listType)) {
-        // Walk up the node tree to find the list container (depth > 0)
-        for (let depth = $anchor.depth; depth > 0; depth--) {
-          const node = $anchor.node(depth)
-          if (node && listTypes.includes(node.type.name)) {
-            const blockPos = $anchor.before(depth)
-            return {
-              type: node.type.name,
-              from: blockPos,
-              to: blockPos + node.nodeSize,
-              node: node,
-              isSupported: true,
-            }
-          }
-        }
-      }
-    }
-
-    // For headings
-    if (editor.isActive('heading')) {
-      for (let depth = $anchor.depth; depth > 0; depth--) {
-        const node = $anchor.node(depth)
-        if (node && node.type.name === 'heading') {
-          const blockPos = $anchor.before(depth)
-          return {
-            type: 'heading',
-            from: blockPos,
-            to: blockPos + node.nodeSize,
-            node: node,
-            isSupported: true,
-          }
-        }
-      }
-    }
-
-    // For paragraphs (default case) - walk up to find paragraph
-    for (let depth = $anchor.depth; depth > 0; depth--) {
-      const node = $anchor.node(depth)
-      if (node && node.type.name === 'paragraph') {
-        const blockPos = $anchor.before(depth)
-        return {
-          type: 'paragraph',
-          from: blockPos,
-          to: blockPos + node.nodeSize,
-          node: node,
-          isSupported: true,
-        }
-      }
-    }
-
-    // Fallback: try to find any supported block type
+    // Single upward walk — check node type directly instead of calling isActive() per type
     for (let depth = $anchor.depth; depth > 0; depth--) {
       const node = $anchor.node(depth)
       const nodeType = node.type.name
+
       if (SUPPORTED_BLOCK_TYPES.includes(nodeType as SupportedBlockType)) {
         const blockPos = $anchor.before(depth)
         return {
           type: nodeType,
           from: blockPos,
           to: blockPos + node.nodeSize,
-          node: node,
+          node,
           isSupported: true,
         }
       }

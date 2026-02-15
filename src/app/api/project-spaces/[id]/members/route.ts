@@ -3,6 +3,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/project-spaces/[id]/members - List members of a ProjectSpace
 export async function GET(
@@ -63,20 +64,8 @@ export async function GET(
     })
 
     return NextResponse.json({ members })
-  } catch (error: any) {
-    console.error('Error fetching ProjectSpace members:', error)
-    
-    if (error.message?.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error.message?.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden: Only workspace administrators can manage ProjectSpace members' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to fetch members' 
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -183,23 +172,7 @@ export async function POST(
     })
 
     return NextResponse.json({ member }, { status: 201 })
-  } catch (error: any) {
-    console.error('Error adding ProjectSpace member:', error)
-    
-    if (error.code === 'P2002') {
-      return NextResponse.json({ error: 'User is already a member of this ProjectSpace' }, { status: 400 })
-    }
-    
-    if (error.message?.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error.message?.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden: Only workspace administrators can manage ProjectSpace members' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to add member' 
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

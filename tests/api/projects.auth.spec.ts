@@ -77,7 +77,7 @@ describe('Projects API Auth', () => {
     
     expect(response.status).toBe(401)
     const data = await response.json()
-    expect(data.error).toBe('Unauthorized')
+    expect(data.error).toMatchObject({ code: 'AUTHENTICATION_REQUIRED' })
   })
 
   it('should return 200 with valid auth', async () => {
@@ -151,6 +151,7 @@ describe('Tasks API Auth', () => {
     
     expect(response.status).toBe(401)
     const data = await response.json()
+    // Tasks route has manual error handling - returns string error, not structured
     expect(data.error).toBe('Unauthorized')
   })
 
@@ -177,7 +178,7 @@ describe('Tasks API Auth', () => {
 
     const request = new NextRequest('http://localhost:3000/api/tasks?projectId=project-1')
     const response = await getTasks(request)
-    
+
     expect(response.status).toBe(200)
   })
 

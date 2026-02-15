@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertWorkspaceAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/wiki/favorites/check - Check if a page is favorited
 export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
-    if (!auth.isAuthenticated) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
+    await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['MEMBER'])
+    setWorkspaceContext(auth.workspaceId)
     
     const { searchParams } = new URL(request.url)
     const pageId = searchParams.get('pageId')
@@ -33,7 +35,6 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error checking favorite status:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return handleApiError(error)
   }
 }

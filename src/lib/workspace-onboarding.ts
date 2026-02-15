@@ -370,7 +370,8 @@ export async function createWorkspaceWithOnboarding(
           members: {
             create: {
               userId,
-              role: 'OWNER'
+              role: 'OWNER',
+              workspaceId: workspace.id
             }
           }
         }

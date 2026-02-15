@@ -123,13 +123,9 @@ export function useSlashCommand(editor: Editor | null) {
     }
 
     editor.on('update', handleUpdate)
-    editor.on('selectionUpdate', handleUpdate)
-    editor.on('transaction', handleUpdate)
 
     return () => {
       editor.off('update', handleUpdate)
-      editor.off('selectionUpdate', handleUpdate)
-      editor.off('transaction', handleUpdate)
     }
   }, [editor, checkSlashCommand])
 

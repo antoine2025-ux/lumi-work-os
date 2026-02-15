@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import OpenAI from 'openai'
 import { searchWikiKnowledge, formatWikiKnowledgeForAI } from '@/lib/wiki-knowledge'
+import { handleApiError } from '@/lib/api-errors'
 
 // Lazy initialization - only create client when needed
 function getOpenAIClient(): OpenAI | null {
@@ -131,6 +134,12 @@ Our mission is to deliver exceptional value to our clients while fostering a pos
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
+    }
+    setWorkspaceContext(auth.workspaceId)
+
     const { sessionId } = await request.json()
 
     if (!sessionId) {
@@ -259,10 +268,6 @@ The document should be production-ready and comprehensive.${wikiContext}`
     })
 
   } catch (error) {
-    console.error('Error generating draft:', error)
-    return NextResponse.json({ 
-      error: 'Failed to generate draft', 
-      details: error instanceof Error ? error.message : 'Unknown error' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

@@ -1,11 +1,19 @@
 // NOTE: Loopbrain consumes Org directly; this endpoint remains for UI/utility.
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { requireActiveOrgId } from "@/server/org/context"
+import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertWorkspaceAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { handleApiError } from "@/lib/api-errors"
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const orgId = await requireActiveOrgId(req as any)
+    // Replace legacy requireActiveOrgId with standard auth pattern
+    const auth = await getUnifiedAuth(req)
+    await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['MEMBER'])
+    setWorkspaceContext(auth.workspaceId)
+    const orgId = auth.workspaceId
+    
     const url = new URL(req.url)
     const take = Math.max(1, Math.min(50, Number(url.searchParams.get("take") ?? 20)))
 
@@ -59,8 +67,8 @@ export async function GET(req: Request) {
     })
 
     return NextResponse.json({ people: out.slice(0, take) })
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 

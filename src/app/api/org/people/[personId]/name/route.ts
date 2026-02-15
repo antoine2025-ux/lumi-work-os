@@ -13,6 +13,7 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { requireNonEmptyString } from "@/server/org/validate";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function PUT(
   request: NextRequest,
@@ -35,7 +36,7 @@ export async function PUT(
       userId,
       workspaceId,
       scope: "workspace",
-      requireRole: ["MEMBER"],
+      requireRole: ["ADMIN"],
     });
 
     // Step 3: Set workspace context (enables automatic Prisma scoping)
@@ -84,39 +85,8 @@ export async function PUT(
       { id: personId, fullName: updatedUser.name },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("[PUT /api/org/people/[personId]/name] Error:", error);
-    console.error("[PUT /api/org/people/[personId]/name] Error stack:", error?.stack);
-    console.error("[PUT /api/org/people/[personId]/name] Error details:", {
-      message: error?.message,
-      code: error?.code,
-      name: error?.name,
-    });
-
-    if (error?.message?.includes("Person not found") || error?.message?.includes("not linked")) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
-    }
-
-    if (error?.message?.includes("Invalid name") || error?.message?.includes("must be a non-empty string")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-
-    // Return more detailed error message in development
-    const errorMessage = process.env.NODE_ENV === "development"
-      ? `${error?.message || "Internal server error"} (${error?.code || "unknown"})`
-      : "Internal server error";
-
-    return NextResponse.json(
-      { 
-        error: errorMessage,
-        hint: error?.message || "An unexpected error occurred. Please check the server logs.",
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

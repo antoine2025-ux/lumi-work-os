@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { blogPrisma } from "@/lib/blog-db"
+import { handleApiError } from "@/lib/api-errors"
 
 const prisma = blogPrisma
 
@@ -113,16 +114,7 @@ export async function POST(request: NextRequest) {
       message: "Blog migration completed successfully",
     })
   } catch (error) {
-    console.error("[MIGRATIONS] Error running blog migration:", error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: errorMessage,
-        details: process.env.NODE_ENV === "development" ? errorMessage : undefined,
-      },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 
@@ -134,7 +126,7 @@ export async function GET() {
   try {
     const tableExists = await prisma.$queryRaw<Array<{ exists: boolean }>>`
       SELECT EXISTS (
-        SELECT FROM information_schema.tables 
+        SELECT FROM information_schema.tables
         WHERE table_schema = 'public' AND table_name = 'blog_posts'
       ) as exists
     `
@@ -144,15 +136,7 @@ export async function GET() {
       tableExists: tableExists[0]?.exists || false,
     })
   } catch (error) {
-    console.error("[MIGRATIONS] Error checking blog migration:", error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return NextResponse.json(
-      {
-        migrated: false,
-        error: errorMessage,
-      },
-      { status: 500 }
-    )
+    return handleApiError(error)
   }
 }
 

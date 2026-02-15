@@ -2,15 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { getOrgContext, requireEdit } from "@/server/rbac";
-
-type Body = {
-  id: string; // user ID
-  patch: {
-    managerId?: string | null;
-    managerName?: string | null;
-    teamName?: string | null;
-  };
-};
+import { handleApiError } from "@/lib/api-errors";
+import { OrgPersonPatchSchema } from "@/lib/validations/org";
 
 export async function POST(req: Request) {
   try {
@@ -19,14 +12,7 @@ export async function POST(req: Request) {
     requireEdit(ctx.canEdit);
 
     const workspaceId = await getCurrentWorkspaceId(req as any);
-    const body = (await req.json()) as Body;
-
-    if (!body?.id) {
-      return NextResponse.json({ error: "id is required" }, { status: 400 });
-    }
-    if (!body.patch || typeof body.patch !== "object") {
-      return NextResponse.json({ error: "patch is required" }, { status: 400 });
-    }
+    const body = OrgPersonPatchSchema.parse(await req.json());
 
     const patch = body.patch;
 
@@ -111,9 +97,7 @@ export async function POST(req: Request) {
     revalidateTag(`org:${ctx.orgId}:audit`);
 
     return NextResponse.json({ ok: true, position: updated });
-  } catch (e: any) {
-    const status = e?.status === 403 ? 403 : 500;
-    const msg = e?.message === "FORBIDDEN" ? "Forbidden" : e?.message === "Unauthenticated" ? "Unauthenticated" : "Update failed";
-    return NextResponse.json({ error: msg, details: e?.message ?? String(e) }, { status });
+  } catch (error) {
+    return handleApiError(error);
   }
 }

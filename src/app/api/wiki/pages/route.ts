@@ -9,6 +9,7 @@ import { cache } from '@/lib/cache'
 import { handleApiError } from '@/lib/api-errors'
 import { emitEvent } from '@/lib/events/emit'
 import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
+import { WikiPageCreateSchema } from '@/lib/validations/wiki'
 
 // GET /api/wiki/pages - List all wiki pages for a workspace
 export async function GET(request: NextRequest) {
@@ -22,23 +23,28 @@ export async function GET(request: NextRequest) {
     
     // Assert workspace access
     const accessStart = performance.now()
-    await assertAccess({ 
-      userId: auth.user.userId, 
-      workspaceId: auth.workspaceId, 
-      scope: 'workspace', 
-      requireRole: ['MEMBER'] 
+    // VIEWER and above can list wiki pages
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['VIEWER']
     })
     const accessDurationMs = performance.now() - accessStart
 
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
+    // RLS defense-in-depth: set app.user_id so RLS policies pass
+    await prisma.$executeRaw`SELECT set_config('app.user_id', ${auth.user.userId}, true)`
+
     const { searchParams } = new URL(request.url)
     const pagination = parsePaginationParams(searchParams)
     // NOTE: spaceId filter removed - spaceId field does not exist on WikiPage model
     
     // OPTIMIZED: Check cache first (non-blocking with timeout)
-    const cacheKey = `wiki_pages_${auth.workspaceId}_all_${pagination.page || 1}_${pagination.limit || 10}_${pagination.sortBy || 'order'}_${pagination.sortOrder || 'asc'}`
+    // SECURITY: Cache key includes userId because personal page visibility is per-user
+    const cacheKey = `wiki_pages_${auth.workspaceId}_${auth.user.userId}_${pagination.page || 1}_${pagination.limit || 10}_${pagination.sortBy || 'order'}_${pagination.sortOrder || 'asc'}`
     const cachePromise = cache.get(cacheKey)
     const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 50)) // 50ms timeout
     
@@ -59,10 +65,20 @@ export async function GET(request: NextRequest) {
     const includeContent = searchParams.get('includeContent') === 'true'
     
     // Build where clause
-    // NOTE: spaceId filtering removed - spaceId field does not exist on WikiPage model
+    // SECURITY: Personal pages are only visible to their creator.
+    // We use an OR clause so that:
+    //   - Non-personal pages are returned for all workspace members
+    //   - Personal pages are returned ONLY if createdById matches the requesting user
     const baseWhere: any = {
       workspaceId: auth.workspaceId,
-      isPublished: true
+      isPublished: true,
+      OR: [
+        // Non-personal pages: visible to all workspace members
+        { workspace_type: { not: 'personal' } },
+        { workspace_type: null },
+        // Personal pages: only visible to the creator
+        { workspace_type: 'personal', createdById: auth.user.userId },
+      ],
     }
     
     // Get total count and pages in parallel
@@ -140,9 +156,6 @@ export async function GET(request: NextRequest) {
 
     const result = createPaginationResult(pages, total, pagination.page!, pagination.limit!)
     
-    // Add debug logging for workspace_type
-    console.log('🔍 Pages with workspace_type:', pages.map((p: any) => ({ id: p.id, title: p.title, workspace_type: p.workspace_type })))
-    
     // Cache the result for 5 minutes
     cache.set(cacheKey, result, 300)
     
@@ -191,10 +204,9 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(auth.workspaceId)
 
     logger.info('Creating new wiki page')
-    const body = await request.json()
-    console.log('📝 Request body:', { workspaceId: auth.workspaceId, title: body.title, contentFormat: body.contentFormat, workspace_type: body.workspace_type, permissionLevel: body.permissionLevel })
+    const body = WikiPageCreateSchema.parse(await request.json())
     
-    const { title, content, contentJson, contentFormat, parentId, tags = [], category = 'general', permissionLevel, workspace_type } = body
+    const { title, content, contentJson, parentId, tags = [], category = 'general', permissionLevel, workspace_type } = body
     
     // Enforce JSON format for all new pages created via POST /api/wiki/pages
     // This ensures all new pages use the TipTap editor (Stage 1 requirement)
@@ -202,13 +214,6 @@ export async function POST(request: NextRequest) {
     // Legacy HTML creation is not supported for new pages (existing HTML pages remain unchanged)
     const finalContentFormat: 'HTML' | 'JSON' = 'JSON'
     
-    console.log('🔍 Extracted workspace_type:', workspace_type, 'permissionLevel:', permissionLevel, 'contentFormat:', finalContentFormat)
-
-    if (!title) {
-      console.log('❌ Missing required field: title')
-      return NextResponse.json({ error: 'Title is required' }, { status: 400 })
-    }
-
     // Import constants and validation
     const { EMPTY_TIPTAP_DOC } = await import('@/lib/wiki/constants')
     const { isValidProseMirrorJSON } = await import('@/lib/wiki/text-extract')
@@ -216,7 +221,6 @@ export async function POST(request: NextRequest) {
     // For JSON format, use provided contentJson or default to empty doc
     let finalContentJson = contentJson
     if (!finalContentJson || !isValidProseMirrorJSON(finalContentJson)) {
-      console.log('⚠️ Invalid or missing contentJson, using EMPTY_TIPTAP_DOC')
       finalContentJson = EMPTY_TIPTAP_DOC
     }
 
@@ -225,8 +229,6 @@ export async function POST(request: NextRequest) {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '')
-
-    console.log('🔗 Generated slug:', slug)
 
     // Check if slug already exists in workspace
     const existingPage = await prisma.wikiPage.findUnique({
@@ -262,15 +264,11 @@ export async function POST(request: NextRequest) {
       // No workspace_type but permissionLevel is 'personal' - infer personal workspace
       finalWorkspaceType = 'personal'
       finalPermissionLevel = 'personal'
-      console.log('⚠️ No workspace_type provided, but permissionLevel is personal - setting workspace_type to personal')
     } else {
       // Default fallback - but log a warning
       finalWorkspaceType = 'team'
       finalPermissionLevel = permissionLevel || 'team'
-      console.log('⚠️ No workspace_type provided, defaulting to team. This may cause incorrect classification.')
     }
-    
-    console.log('💾 Saving page with workspace_type:', finalWorkspaceType, 'permissionLevel:', finalPermissionLevel, 'contentFormat:', finalContentFormat)
     
     // NOTE: spaceId logic removed - spaceId field does not exist on WikiPage model
     
@@ -314,7 +312,6 @@ export async function POST(request: NextRequest) {
       })
     })
 
-    console.log('✅ Page created successfully with workspace_type:', page.workspace_type)
     logger.info('Wiki page created successfully', { pageId: page.id, title, workspaceId: auth.workspaceId, workspace_type: page.workspace_type })
     
     // Emit activity event
@@ -329,8 +326,7 @@ export async function POST(request: NextRequest) {
     
     // Invalidate wiki pages cache for this workspace
     await cache.invalidatePattern(`wiki_pages_${auth.workspaceId}_*`)
-    console.log('🗑️ Cleared wiki pages cache for workspace:', auth.workspaceId)
-    
+
     return NextResponse.json(page, { status: 201 })
   } catch (error) {
     const err = error instanceof Error ? error : error

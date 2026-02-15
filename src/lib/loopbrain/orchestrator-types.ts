@@ -15,7 +15,7 @@ import { ContextObject as UnifiedContextObject } from '@/lib/context/context-typ
  * - org: Organization mode - focuses on teams, roles, hierarchy
  * - dashboard: Dashboard mode - focuses on workspace overview and activity
  */
-export type LoopbrainMode = 'spaces' | 'org' | 'dashboard'
+export type LoopbrainMode = 'spaces' | 'org' | 'dashboard' | 'goals'
 
 /**
  * Loopbrain request parameters

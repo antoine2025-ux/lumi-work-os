@@ -89,7 +89,8 @@ export async function POST(
       data: {
         projectId: project.id,
         userId: createdById,
-        role: 'OWNER'
+        role: 'OWNER',
+        workspaceId: auth.workspaceId
       }
     })
 

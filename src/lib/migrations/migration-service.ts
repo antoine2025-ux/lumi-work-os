@@ -73,7 +73,8 @@ export class MigrationService {
             pageId: page.id,
             content: item.content,
             version: 1,
-            createdById: this.userId
+            createdById: this.userId,
+            workspaceId: this.workspaceId
           }
         })
 
@@ -86,7 +87,8 @@ export class MigrationService {
                 fileName: attachment.name,
                 fileSize: attachment.size,
                 fileType: attachment.type,
-                fileUrl: attachment.url
+                fileUrl: attachment.url,
+                workspaceId: this.workspaceId
               }
             })
           }

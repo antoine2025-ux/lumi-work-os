@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { getOrgContext } from "@/server/rbac";
+import { handleApiError } from "@/lib/api-errors"
 
 function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
@@ -29,12 +30,8 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json({ ok: true, views });
-  } catch (error: any) {
-    console.error("Error fetching saved views:", error);
-    return NextResponse.json(
-      { ok: false, error: { code: "INTERNAL_ERROR", message: error.message || "Failed to fetch views" } },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req)
   }
 }
 
@@ -81,11 +78,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true, view: created });
-  } catch (error: any) {
-    console.error("Error creating saved view:", error);
-    return NextResponse.json(
-      { ok: false, error: { code: "INTERNAL_ERROR", message: error.message || "Failed to create view" } },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req)
   }
 }

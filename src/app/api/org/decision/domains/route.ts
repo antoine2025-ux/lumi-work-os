@@ -11,7 +11,9 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors";
 import { getDecisionResponseMeta } from "@/lib/org/decision/types";
+import { DecisionDomainCreateSchema } from "@/lib/validations/org";
 
 export async function GET(request: NextRequest) {
   try {
@@ -82,9 +84,8 @@ export async function GET(request: NextRequest) {
       count: serialized.length,
       responseMeta: getDecisionResponseMeta(),
     });
-  } catch (error: unknown) {
-    console.error("[GET /api/org/decision/domains] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }
 
@@ -110,32 +111,16 @@ export async function POST(request: NextRequest) {
     // Step 3: Set workspace context
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Parse and validate request body
-    const body = await request.json();
-
-    if (!body.key?.trim()) {
-      return NextResponse.json({ error: "key is required" }, { status: 400 });
-    }
-    if (!body.name?.trim()) {
-      return NextResponse.json({ error: "name is required" }, { status: 400 });
-    }
+    // Step 4: Parse and validate request body (Zod)
+    const body = DecisionDomainCreateSchema.parse(await request.json());
 
     // Normalize key to uppercase
     const key = body.key.trim().toUpperCase().replace(/\s+/g, "_");
 
-    // Validate key format (alphanumeric + underscore only)
+    // Validate key format (alphanumeric + underscore only) — business logic check
     if (!/^[A-Z0-9_]+$/.test(key)) {
       return NextResponse.json(
         { error: "key must contain only letters, numbers, and underscores" },
-        { status: 400 }
-      );
-    }
-
-    // Validate scope if provided
-    const validScopes = ["TEAM", "DEPARTMENT", "FUNCTION", "WORKSPACE"];
-    if (body.scope && !validScopes.includes(body.scope)) {
-      return NextResponse.json(
-        { error: `scope must be one of: ${validScopes.join(", ")}` },
         { status: 400 }
       );
     }
@@ -180,8 +165,7 @@ export async function POST(request: NextRequest) {
       },
       responseMeta: getDecisionResponseMeta(),
     });
-  } catch (error: unknown) {
-    console.error("[POST /api/org/decision/domains] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }

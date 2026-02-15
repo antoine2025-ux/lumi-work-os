@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertWorkspaceAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 
 // POST /api/wiki/pages/[id]/favorite - Add page to favorites
@@ -7,29 +11,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['MEMBER'])
+    setWorkspaceContext(auth.workspaceId)
     const resolvedParams = await params
-    
-    // For now, create a mock user - in production this would come from auth
-    const mockUser = {
-      id: 'user-1',
-      email: 'demo@example.com',
-      name: 'Demo User'
-    }
-
-    // Check if user exists, create if not
-    let user = await prisma.user.findUnique({
-      where: { email: mockUser.email }
-    })
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          id: mockUser.id,
-          email: mockUser.email,
-          name: mockUser.name
-        }
-      })
-    }
 
     // Check if page exists
     const page = await prisma.wikiPage.findUnique({
@@ -49,9 +34,8 @@ export async function POST(
     })
 
     return NextResponse.json({ message: 'Page added to favorites', page: updatedPage })
-  } catch (error: unknown) {
-    console.error('Error adding page to favorites:', error)
-    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 
@@ -61,29 +45,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await getUnifiedAuth(request)
+    await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['MEMBER'])
+    setWorkspaceContext(auth.workspaceId)
     const resolvedParams = await params
-    
-    // For now, create a mock user - in production this would come from auth
-    const mockUser = {
-      id: 'user-1',
-      email: 'demo@example.com',
-      name: 'Demo User'
-    }
-
-    // Check if user exists, create if not
-    let user = await prisma.user.findUnique({
-      where: { email: mockUser.email }
-    })
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          id: mockUser.id,
-          email: mockUser.email,
-          name: mockUser.name
-        }
-      })
-    }
 
     // Check if page exists
     const page = await prisma.wikiPage.findUnique({
@@ -103,9 +68,8 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: 'Page removed from favorites', page: updatedPage })
-  } catch (error: unknown) {
-    console.error('Error removing page from favorites:', error)
-    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 

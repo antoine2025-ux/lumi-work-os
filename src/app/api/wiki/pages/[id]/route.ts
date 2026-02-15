@@ -7,6 +7,47 @@ import { handleApiError } from '@/lib/api-errors'
 import { emitEvent } from '@/lib/events/emit'
 import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
 import { logger } from '@/lib/logger'
+import { WikiPageUpdateSchema } from '@/lib/validations/wiki'
+
+// Shared include clause for wiki page queries (DRY)
+const WIKI_PAGE_INCLUDE = {
+  createdBy: {
+    select: { id: true, name: true, email: true }
+  },
+  parent: {
+    select: { id: true, title: true, slug: true }
+  },
+  children: {
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      order: true,
+      excerpt: true,
+      updatedAt: true
+    },
+    orderBy: { order: 'asc' } as const
+  },
+  comments: {
+    include: {
+      user: {
+        select: { id: true, name: true, email: true }
+      }
+    },
+    orderBy: { createdAt: 'asc' } as const
+  },
+  attachments: {
+    orderBy: { createdAt: 'desc' } as const
+  },
+  versions: {
+    include: {
+      createdBy: {
+        select: { id: true, name: true, email: true }
+      }
+    },
+    orderBy: { version: 'desc' } as const
+  }
+} as const
 
 // GET /api/wiki/pages/[id] - Get a specific wiki page by ID or slug
 export async function GET(
@@ -15,119 +56,65 @@ export async function GET(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
-    
+
     if (!auth.workspaceId) {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 400 })
     }
-    
-    await assertAccess({ 
-      userId: auth.user.userId, 
-      workspaceId: auth.workspaceId, 
-      scope: 'workspace', 
-      requireRole: ['MEMBER'] 
+
+    // VIEWER and above can read wiki pages
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['VIEWER']
     })
 
     setWorkspaceContext(auth.workspaceId)
-    
-    const resolvedParams = await params
-    const pageIdOrSlug = resolvedParams.id
-    
-    // Try to find by ID first (with workspaceId filter for security)
-    let page = await prisma.wikiPage.findFirst({
-      where: { 
-        id: pageIdOrSlug,
-        workspaceId: auth.workspaceId
-      },
-      include: {
-        createdBy: {
-          select: { id: true, name: true, email: true }
-        },
-        parent: {
-          select: { id: true, title: true, slug: true }
-        },
-        children: {
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            order: true,
-            excerpt: true,
-            updatedAt: true
-          },
-          orderBy: { order: 'asc' }
-        },
-        comments: {
-          include: {
-            user: {
-              select: { id: true, name: true, email: true }
-            }
-          },
-          orderBy: { createdAt: 'asc' }
-        },
-        attachments: {
-          orderBy: { createdAt: 'desc' }
-        },
-        versions: {
-          include: {
-            createdBy: {
-              select: { id: true, name: true, email: true }
-            }
-          },
-          orderBy: { version: 'desc' }
-        }
-      }
-    })
 
-    // If not found by ID, try by slug
-    if (!page) {
-      page = await prisma.wikiPage.findFirst({
+    const resolvedParams = await params
+    const pageIdOrSlug = decodeURIComponent(resolvedParams.id)
+
+    // RLS defense-in-depth: set app.user_id so RLS policies pass
+    // (Prisma service role bypasses RLS, but this guards against config changes)
+    const page = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.user_id', ${auth.user.userId}, true)`
+
+      // Try to find by ID first (for direct ID lookups)
+      let found = await tx.wikiPage.findFirst({
         where: {
-          slug: pageIdOrSlug,
+          id: pageIdOrSlug,
           workspaceId: auth.workspaceId
         },
-        include: {
-          createdBy: {
-            select: { id: true, name: true, email: true }
-          },
-          parent: {
-            select: { id: true, title: true, slug: true }
-          },
-          children: {
-            select: {
-              id: true,
-              title: true,
-              slug: true,
-              order: true,
-              excerpt: true,
-              updatedAt: true
-            },
-            orderBy: { order: 'asc' }
-          },
-          comments: {
-            include: {
-              user: {
-                select: { id: true, name: true, email: true }
-              }
-            },
-            orderBy: { createdAt: 'asc' }
-          },
-          attachments: {
-            orderBy: { createdAt: 'desc' }
-          },
-          versions: {
-            include: {
-              createdBy: {
-                select: { id: true, name: true, email: true }
-              }
-            },
-            orderBy: { version: 'desc' }
-          }
-        }
+        include: WIKI_PAGE_INCLUDE
       })
-    }
+
+      // If not found by ID, try by slug using the compound unique key
+      if (!found) {
+        found = await tx.wikiPage.findUnique({
+          where: {
+            workspaceId_slug: {
+              workspaceId: auth.workspaceId,
+              slug: pageIdOrSlug
+            }
+          },
+          include: WIKI_PAGE_INCLUDE
+        })
+      }
+
+      return found
+    })
 
     if (!page) {
-      return NextResponse.json({ 
+      return NextResponse.json({
+        error: 'Page not found'
+      }, { status: 404 })
+    }
+
+    // SECURITY: Personal pages are only visible to their creator.
+    // Return 404 (not 403) to avoid revealing the page exists.
+    const pageWorkspaceType = (page as any).workspace_type
+    if (pageWorkspaceType === 'personal' && page.createdById !== auth.user.userId) {
+      return NextResponse.json({
         error: 'Page not found'
       }, { status: 404 })
     }
@@ -161,23 +148,33 @@ export async function PUT(
     })
 
     setWorkspaceContext(auth.workspaceId)
-    
+
     const resolvedParams = await params
-    const body = await request.json()
+    const body = WikiPageUpdateSchema.parse(await request.json())
     const { title, content, contentJson, contentFormat, parentId, tags, isPublished, permissionLevel, category } = body
 
-    const currentPage = await prisma.wikiPage.findUnique({
-      where: { id: resolvedParams.id },
-      include: {
-        versions: {
-          orderBy: { version: 'desc' },
-          take: 1
+    // RLS defense-in-depth: set app.user_id so RLS policies pass
+    const currentPage = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.user_id', ${auth.user.userId}, true)`
+      return tx.wikiPage.findUnique({
+        where: { id: resolvedParams.id },
+        include: {
+          versions: {
+            orderBy: { version: 'desc' },
+            take: 1
+          }
         }
-      }
+      })
     })
 
     if (!currentPage) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 })
+    }
+
+    // SECURITY: Personal pages can only be edited by their creator
+    const currentPageWorkspaceType = (currentPage as any).workspace_type
+    if (currentPageWorkspaceType === 'personal' && currentPage.createdById !== auth.user.userId) {
+      return NextResponse.json({ error: 'Forbidden: You can only edit your own personal pages' }, { status: 403 })
     }
 
     const existingFormat = (currentPage as any).contentFormat as string | null
@@ -256,7 +253,7 @@ export async function PUT(
         ...(title && { title }),
         ...(finalFormat === 'JSON' && contentJson
           ? { 
-              contentJson, 
+              contentJson: contentJson as object, 
               ...(textContent && { textContent }),
               ...(excerpt && { excerpt })
             }
@@ -305,7 +302,8 @@ export async function PUT(
           contentFormat: finalFormat,
           textContent: textContent || null,
           version: nextVersion,
-          createdById: auth.user.userId
+          createdById: auth.user.userId,
+          workspaceId: auth.workspaceId
         }
       })
     }
@@ -343,19 +341,37 @@ export async function DELETE(
     })
 
     setWorkspaceContext(auth.workspaceId)
-    
+
     const resolvedParams = await params
-    const page = await prisma.wikiPage.findUnique({
-      where: { id: resolvedParams.id }
+
+    // RLS defense-in-depth: set app.user_id so RLS policies pass
+    const deleted = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.user_id', ${auth.user.userId}, true)`
+
+      const page = await tx.wikiPage.findUnique({
+        where: { id: resolvedParams.id }
+      })
+
+      if (!page) {
+        return null
+      }
+
+      // SECURITY: Personal pages can only be deleted by their creator
+      const delPageWorkspaceType = (page as any).workspace_type
+      if (delPageWorkspaceType === 'personal' && page.createdById !== auth.user.userId) {
+        throw new Error('Forbidden: You can only delete your own personal pages')
+      }
+
+      await tx.wikiPage.delete({
+        where: { id: resolvedParams.id }
+      })
+
+      return page
     })
 
-    if (!page) {
+    if (!deleted) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 })
     }
-
-    await prisma.wikiPage.delete({
-      where: { id: resolvedParams.id }
-    })
 
     return NextResponse.json({ message: 'Page deleted successfully' })
   } catch (error: any) {

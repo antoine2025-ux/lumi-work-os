@@ -226,6 +226,7 @@ async function seedGoldenPath() {
       backupOwnerPersonId: alex.id, // v1.1 coverage
     },
     create: {
+      workspaceId: workspace.id,
       projectId: project.id,
       ownerRole: 'Product Manager',
       decisionRole: 'Engineering Manager',

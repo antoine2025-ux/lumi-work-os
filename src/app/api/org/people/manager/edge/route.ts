@@ -1,18 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertWorkspaceAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { getOrgContext } from "@/server/rbac";
+import { OrgManagerEdgeSchema } from "@/lib/validations/org";
 
 function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ ok: false, error: "Unauthenticated" }, { status: 401 });
     }
+
+    // Assert user has workspace access (ADMIN+ can edit org structure)
+    await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['ADMIN']);
+    setWorkspaceContext(auth.workspaceId);
 
     let ctx;
     try {
@@ -34,15 +42,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "No workspace" }, { status: 403 });
     }
 
-    const body = await req.json().catch(() => null);
-    if (!body) return badRequest("Invalid JSON body");
-
-    const { personId, newManagerId } = body ?? {};
-
-    if (!personId || typeof personId !== "string") return badRequest("personId is required");
-    if (newManagerId !== null && newManagerId !== undefined && typeof newManagerId !== "string") {
-      return badRequest("newManagerId must be a string or null");
-    }
+    // Validate request body (Zod)
+    const { personId, newManagerId } = OrgManagerEdgeSchema.parse(await req.json());
 
     // Get the person's position
     const position = await prisma.orgPosition.findFirst({
@@ -81,12 +82,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    console.error("Error updating edge:", error);
-    return NextResponse.json(
-      { ok: false, error: { code: "INTERNAL_ERROR", message: error.message || "Failed to update edge" } },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 

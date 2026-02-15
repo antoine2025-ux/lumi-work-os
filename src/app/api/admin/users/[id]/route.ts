@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { safeRebuildOrgContext } from '@/lib/org/org-context-service'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/admin/users/[id] - Get a specific user
 export async function GET(
@@ -14,6 +17,10 @@ export async function GET(
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Set workspace context for Prisma scoping
+    const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
 
     const { id } = await params
     const user = await prisma.user.findUnique({
@@ -34,8 +41,7 @@ export async function GET(
 
     return NextResponse.json(user)
   } catch (error) {
-    console.error('Error fetching user:', error)
-    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -49,6 +55,10 @@ export async function PUT(
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Set workspace context for Prisma scoping
+    const authCtx = await getUnifiedAuth(request)
+    setWorkspaceContext(authCtx.workspaceId)
 
     const { id } = await params
     const body = await request.json()
@@ -314,8 +324,7 @@ export async function PUT(
       user: updatedUser 
     })
   } catch (error) {
-    console.error('Error updating user:', error)
-    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -329,6 +338,10 @@ export async function DELETE(
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Set workspace context for Prisma scoping
+    const authDel = await getUnifiedAuth(request)
+    setWorkspaceContext(authDel.workspaceId)
 
     const { id } = await params
     const { searchParams } = new URL(request.url)
@@ -366,7 +379,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'User removed from workspace successfully' })
   } catch (error) {
-    console.error('Error deleting user:', error)
-    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

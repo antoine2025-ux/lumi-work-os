@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 
@@ -24,6 +27,10 @@ export async function PATCH(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Set workspace context for Prisma scoping
+    const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
 
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
@@ -68,18 +75,7 @@ export async function PATCH(
       message: `Daily summaries ${validatedData.dailySummaryEnabled ? 'enabled' : 'disabled'} for project`,
       project: updatedProject
     })
-  } catch (error: unknown) {
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json({
-        error: 'Validation error',
-        details: (error as any).errors
-      }, { status: 400 })
-    }
-
-    console.error('Error updating daily summary setting:', error)
-    return NextResponse.json({
-      error: 'Failed to update daily summary setting',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

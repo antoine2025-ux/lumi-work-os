@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { ProjectRole } from '@prisma/client'
 import { prisma } from '@/lib/db'
@@ -27,6 +28,7 @@ export async function GET(
 
     // Get authenticated user with workspace context
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     
     // Get authenticated user from database
     const user = await prisma.user.findUnique({

@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { answerQ3 } from "@/lib/loopbrain/reasoning/q3";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,27 +51,8 @@ export async function POST(request: NextRequest) {
       ok: true,
       result,
     });
-  } catch (error: any) {
-    console.error("Q3 reasoning error:", error);
-
-    if (error.message?.includes("Unauthorized") || error.message?.includes("Forbidden")) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Unauthorized",
-        },
-        { status: 401 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Failed to answer Q3",
-        details: error.message,
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

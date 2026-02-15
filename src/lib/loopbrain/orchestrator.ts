@@ -46,7 +46,6 @@ import { searchSimilarContextItems } from './embedding-service'
 import { generateAIResponse } from '@/lib/ai/providers'
 import { logger } from '@/lib/logger'
 import { ORG_SYSTEM_PROMPT } from './prompts/org-system-prompt'
-import type { OrgQuestionContext } from './org-question-types'
 import {
   LoopbrainRequest,
   LoopbrainResponse,
@@ -76,6 +75,7 @@ import { fetchOpenLoops } from './world/openLoops/fetchOpenLoops'
 import { formatOpenLoopsForPrompt } from './world/openLoops/formatOpenLoopsForPrompt'
 import { detectIntentFromKeywords, type LoopbrainIntent } from './intent-router'
 import { getUserTaskContext } from './context/getUserTaskContext'
+import { isGoalQuestion, handleGoalQuery } from './goals/goal-queries'
 
 /**
  * Default LLM model for Loopbrain
@@ -142,17 +142,11 @@ export async function runLoopbrainQuery(
   // Refresh open loops (World Model v0) — bounded, idempotent
   try {
     await deriveOpenLoops(req.workspaceId, req.userId)
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orchestrator.ts:after-derive',message:'deriveOpenLoops ok',data:{mode:req.mode},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
   } catch (err) {
     logger.debug('Open loop derivation failed, continuing', {
       workspaceId: req.workspaceId,
       error: err instanceof Error ? err.message : String(err),
     })
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orchestrator.ts:derive-catch',message:'deriveOpenLoops threw',data:{message:err instanceof Error ? err.message : String(err)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
   }
 
   // Classify intent (lightweight, rule-based — no LLM)
@@ -187,10 +181,12 @@ export async function runLoopbrainQuery(
     }
   }
 
+  // Check for goal-related queries
+  if (intent === 'goal_progress' || intent === 'goal_risk' || intent === 'goal_status' || intent === 'goal_recommendation' || isGoalQuestion(req.query)) {
+    return await handleGoalMode(req)
+  }
+
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orchestrator.ts:before-switch',message:'Before mode switch',data:{mode:req.mode},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
     // Route to mode-specific handler
     let result: LoopbrainResponse
     switch (req.mode) {
@@ -453,9 +449,6 @@ async function handleSpacesMode(
   
   // Open Loops: fetch and inject into prompt
   const openLoops = await fetchOpenLoops(req.workspaceId, req.userId)
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orchestrator.ts:spaces-after-fetch',message:'fetchOpenLoops done',data:{count:openLoops?.length??-1},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-  // #endregion
   const openLoopsSection = formatOpenLoopsForPrompt(openLoops)
   if (openLoopsSection) {
     prompt = prompt + "\n\n" + openLoopsSection
@@ -477,9 +470,6 @@ async function handleSpacesMode(
   // Build suggestions
   const suggestions = buildSpacesSuggestions(slackAvailable)
   
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orchestrator.ts:spaces-before-return',message:'Building spaces response',data:{openLoopsCount:openLoops.length},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-  // #endregion
   // Build response
   return {
     mode: 'spaces',
@@ -3550,3 +3540,98 @@ function buildDashboardSuggestions(slackAvailable: boolean = false): LoopbrainSu
   return suggestions
 }
 
+/**
+ * Handle goal-related queries
+ */
+async function handleGoalMode(req: LoopbrainRequest): Promise<LoopbrainResponse> {
+  try {
+    // Get structured goal data from query handlers
+    const goalData = await handleGoalQuery(req.query, req.workspaceId)
+    
+    // Retrieve goal contexts from context store for semantic search
+    const goalContexts = await contextEngine.getContextsByType(
+      req.workspaceId,
+      ContextType.GOAL
+    )
+    
+    // Build prompt with goal data
+    const systemPrompt = `You are Loopbrain, an AI assistant with deep knowledge of organizational goals and OKRs.
+
+Current workspace goals data:
+${JSON.stringify(goalData, null, 2)}
+
+Provide insights about goals, progress, risks, and recommendations based on the data above.
+Format your response in a clear, actionable way.`
+
+    const userPrompt = `User query: ${req.query}
+
+Based on the goal data provided, answer the user's question with specific insights and recommendations.`
+
+    // Call LLM
+    const llmResponse = await callLoopbrainLLM(userPrompt, systemPrompt, {
+      model: DEFAULT_LOOPBRAIN_MODEL,
+    })
+
+    // Format response
+    return {
+      mode: 'goals' as LoopbrainMode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {
+        retrievedItems: goalContexts.map((ctx: ContextObject) => ({
+          contextItemId: ctx.id,
+          contextId: ctx.id,
+          type: ContextType.GOAL,
+          title: ctx.title,
+          score: 0.9,
+        })),
+      },
+      answer: llmResponse.content,
+      suggestions: generateGoalSuggestions(goalData),
+      metadata: {
+        model: llmResponse.model,
+        retrievedCount: goalContexts.length,
+      },
+    }
+  } catch (error) {
+    logger.error('Goal mode handler failed', {
+      workspaceId: req.workspaceId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    
+    return {
+      mode: 'goals' as LoopbrainMode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {
+        retrievedItems: [],
+      },
+      answer: 'I encountered an error retrieving goal information. Please try again.',
+      suggestions: [],
+    }
+  }
+}
+
+function generateGoalSuggestions(goalData: any): LoopbrainSuggestion[] {
+  const suggestions: LoopbrainSuggestion[] = []
+
+  if (goalData.recommendations && Array.isArray(goalData.recommendations)) {
+    goalData.recommendations.slice(0, 3).forEach((rec: string, index: number) => {
+      suggestions.push({
+        label: rec,
+        action: `goal_recommendation_${index}`,
+      })
+    })
+  }
+
+  if (goalData.type === 'goal_analysis' && goalData.goals?.length > 0) {
+    suggestions.push({
+      label: 'View goal details',
+      action: 'view_goal_details',
+    })
+  }
+
+  return suggestions
+}

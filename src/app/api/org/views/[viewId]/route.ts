@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { getOrgContext } from "@/server/rbac";
+import { handleApiError } from "@/lib/api-errors"
 
 function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
@@ -50,12 +51,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ viewI
 
     await prisma.orgSavedView.delete({ where: { id: resolvedParams.viewId } });
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    console.error("Error deleting saved view:", error);
-    return NextResponse.json(
-      { ok: false, error: { code: "INTERNAL_ERROR", message: error.message || "Failed to delete view" } },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req)
   }
 }
 

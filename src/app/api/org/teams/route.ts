@@ -6,6 +6,8 @@ import {
   mapPermissionErrorToStatus,
 } from "@/lib/org/permissions.server";
 import { logOrgAudit } from "@/lib/orgAudit";
+import { OrgTeamCreateSchema } from "@/lib/validations/org";
+import { handleApiError } from "@/lib/api-errors";
 
 export async function GET(req: NextRequest) {
   const context = await getOrgPermissionContext(req);
@@ -23,29 +25,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ teams });
 }
 
-type CreateTeamBody = {
-  name: string;
-  departmentId?: string | null;
-  description?: string | null;
-};
-
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as CreateTeamBody;
-    const name = body.name?.trim();
-
-    if (!name) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: {
-            code: "INVALID_NAME",
-            message: "Team name is required.",
-          },
-        },
-        { status: 400 }
-      );
-    }
+    const body = OrgTeamCreateSchema.parse(await req.json());
+    const name = body.name;
 
     const context = await getOrgPermissionContext(req);
 
@@ -163,16 +146,6 @@ export async function POST(req: NextRequest) {
       data: team,
     });
   } catch (error) {
-    console.error("[POST /api/org/teams] Error creating team:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message: "Something went wrong while creating the team.",
-        },
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, req);
   }
 }

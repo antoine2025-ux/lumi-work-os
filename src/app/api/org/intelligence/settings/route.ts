@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { handleApiError } from "@/lib/api-errors";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
@@ -44,14 +45,8 @@ export async function GET(request: NextRequest) {
     const settings = await getOrCreateIntelligenceSettings();
 
     return NextResponse.json({ settings }, { status: 200 });
-  } catch (error: any) {
-    console.error("[GET /api/org/intelligence/settings] Error:", error);
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-
-    return NextResponse.json({ error: "Failed to load settings" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -100,28 +95,11 @@ export async function PUT(request: NextRequest) {
       });
 
       return NextResponse.json({ ok: true }, { status: 200 });
-    } catch (error: any) {
-      // Validation errors return 400
-      if (
-        error?.message?.includes("must be an integer") ||
-        error?.message?.includes("must be greater than") ||
-        error?.message?.includes("between") ||
-        error?.message?.includes("between 5 and 10080") ||
-        error?.message?.includes("between snapshotFreshMinutes and 20160")
-      ) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
-      }
-      // Re-throw other errors to be caught by outer catch
-      throw error;
-    }
-  } catch (error: any) {
-    console.error("[PUT /api/org/intelligence/settings] Error:", error);
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-
-    return NextResponse.json({ error: "Failed to load settings" }, { status: 500 });
+    } catch (error) {
+    return handleApiError(error, request)
+  }
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

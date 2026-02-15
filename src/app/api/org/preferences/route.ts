@@ -10,6 +10,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { getOrgPreferenceForUser, setOrgPreferenceForUser } from "@/server/org/preferences";
+import { handleApiError } from "@/lib/api-errors"
 
 const KEY_INTELLIGENCE_FILTERS = "org.intelligence.filters.v1";
 
@@ -42,14 +43,8 @@ export async function GET(request: NextRequest) {
       { key: KEY_INTELLIGENCE_FILTERS, value: prefs },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("[GET /api/org/preferences] Error:", error);
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -93,14 +88,8 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (error: any) {
-    console.error("[PUT /api/org/preferences] Error:", error);
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

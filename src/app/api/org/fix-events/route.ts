@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors"
 
 /**
  * GET /api/org/fix-events
@@ -96,11 +97,7 @@ export async function GET(request: NextRequest) {
       events: enrichedEvents,
     });
   } catch (error) {
-    console.error("Failed to fetch fix events:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to fetch fix events" },
-      { status: 500 }
-    );
+    return handleApiError(error, request)
   }
 }
 
@@ -177,11 +174,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Failed to create fix event:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to create fix event" },
-      { status: 500 }
-    );
+    return handleApiError(error, request)
   }
 }
 

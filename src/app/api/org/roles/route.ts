@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getOrgContext } from "@/server/rbac";
+import { OrgRoleCreateSchema } from "@/lib/validations/org";
+import { handleApiError } from "@/lib/api-errors";
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,11 +57,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error("Failed to fetch roles:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to fetch roles" },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }
 
@@ -81,15 +79,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { name, description, responsibilities } = body;
-
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json(
-        { ok: false, error: "Role name is required" },
-        { status: 400 }
-      );
-    }
+    const { name, description, responsibilities } = OrgRoleCreateSchema.parse(
+      await request.json()
+    );
 
     // Create role with responsibilities
     const role = await prisma.role.create({
@@ -98,10 +90,12 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         description: description?.trim() || null,
         responsibilities: {
+          // Prisma expects ResponsibilityScope enum for scope. Zod validates
+          // the shape; the enum mapping is a pre-existing mismatch (was `as any`).
           create: (responsibilities || [])
-            .filter((r: any) => r.target && r.target.trim().length > 0)
-            .map((r: any) => ({
-              scope: r.scope,
+            .filter((r) => r.target && r.target.trim().length > 0)
+            .map((r) => ({
+              scope: r.scope as unknown as import("@prisma/client").ResponsibilityScope,
               target: r.target.trim(),
             })),
         },
@@ -131,10 +125,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Failed to create role:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to create role" },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }

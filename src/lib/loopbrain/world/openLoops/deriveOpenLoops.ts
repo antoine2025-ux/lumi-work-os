@@ -31,9 +31,6 @@ export async function deriveOpenLoops(
   workspaceId: string,
   userId: string,
 ): Promise<void> {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'deriveOpenLoops.ts:entry',message:'deriveOpenLoops entry',data:{workspaceId:workspaceId?.slice(0,8),userId:userId?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
   if (!workspaceId || !userId) return;
 
   const now = new Date();
@@ -66,9 +63,6 @@ export async function deriveOpenLoops(
       detail: daysAgo > 0 ? `due ${daysAgo} day(s) ago` : "due today",
     });
   }
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'deriveOpenLoops.ts:after-overdue',message:'After overdueTasks',data:{overdueCount:overdueTasks.length,derivedLen:derived.length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
 
   // -----------------------------------------------------------------------
   // 2. BLOCKED tasks: assigned to user, status = BLOCKED
@@ -163,9 +157,6 @@ export async function deriveOpenLoops(
   const derivedEntityKeys = new Set(
     derived.map((d) => `${d.entityType}::${d.entityId}`),
   );
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'deriveOpenLoops.ts:before-upsert',message:'Before upsert loop',data:{derivedLen:derived.length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
 
   for (const loop of derived) {
     await prisma.loopbrainOpenLoop.upsert({

@@ -7,12 +7,26 @@ import { PrismaClient } from '@prisma/client'
 import { getWorkspaceContext, WORKSPACE_SCOPED_MODELS } from './scopingMiddleware'
 
 /**
+ * Models that use snake_case `workspace_id` instead of camelCase `workspaceId`.
+ * These are legacy snake_case Prisma models that use @@map but keep snake_case field names.
+ */
+const SNAKE_CASE_WORKSPACE_FIELD_MODELS = new Set([
+  'wiki_ai_interactions',
+  'wiki_page_views',
+])
+
+/**
+ * Get the correct workspace field name for a given model.
+ */
+function getWorkspaceField(model: string): string {
+  return SNAKE_CASE_WORKSPACE_FIELD_MODELS.has(model) ? 'workspace_id' : 'workspaceId'
+}
+
+/**
  * Create a scoped Prisma client that automatically adds workspaceId to queries
  * Uses Prisma v5+ $extends pattern
  */
 export function createScopedPrisma(baseClient: PrismaClient) {
-  const isProduction = process.env.NODE_ENV === 'production'
-  
   return baseClient.$extends({
     query: {
       $allOperations({ operation, model, args, query }) {
@@ -23,6 +37,7 @@ export function createScopedPrisma(baseClient: PrismaClient) {
 
         // Get current workspace context
         const workspaceId = getWorkspaceContext()
+        const wsField = getWorkspaceField(model)
 
         // Skip if finding by ID (for lookups)
         if (operation === 'findFirst' && args?.where?.id) {
@@ -38,45 +53,41 @@ export function createScopedPrisma(baseClient: PrismaClient) {
           throw new Error(errorMessage)
         }
 
-        // Add workspaceId to queries (only if model has workspaceId field)
-        // Some models like WikiFavorite don't have workspaceId - they scope through relations
+        // Add workspaceId filter to read queries
+        // All models in WORKSPACE_SCOPED_MODELS have a direct workspaceId column
         if (operation === 'findMany' || operation === 'findFirst' || operation === 'count') {
           if (!args.where) {
             args.where = {}
           }
-          // Skip adding workspaceId for models that don't have it (they scope through relations)
-          if (model !== 'WikiFavorite' && !args.where.workspaceId && workspaceId) {
-            args.where.workspaceId = workspaceId
+          if (!args.where[wsField] && workspaceId) {
+            args.where[wsField] = workspaceId
           }
         }
 
-        // For create operations, ensure workspaceId is set (only if model has workspaceId field)
+        // For create operations, ensure workspaceId is set
         if (operation === 'create' || operation === 'createMany') {
           if (operation === 'createMany' && Array.isArray(args.data)) {
-            args.data = args.data.map((item: any) => {
-              // Skip adding workspaceId for models that don't have it
-              if (model !== 'WikiFavorite' && !item.workspaceId && workspaceId) {
-                item.workspaceId = workspaceId
+            args.data = args.data.map((item: Record<string, unknown>) => {
+              if (!item[wsField] && workspaceId) {
+                item[wsField] = workspaceId
               }
               return item
             })
-          } else if (args.data && model !== 'WikiFavorite' && !args.data.workspaceId && workspaceId) {
-            args.data.workspaceId = workspaceId
+          } else if (args.data && !args.data[wsField] && workspaceId) {
+            args.data[wsField] = workspaceId
           }
         }
 
-        // For update/delete operations, ensure workspaceId is in where clause (only if model has workspaceId field)
+        // For update/delete operations, ensure workspaceId is in where clause
         if (operation === 'update' || operation === 'updateMany' || operation === 'delete' || operation === 'deleteMany') {
           if (!args.where) {
-            // STRICT: Require where clause for update/delete operations
             throw new Error(
               `Workspace scoping enabled: No where clause provided for ${operation} on ${model}. ` +
               `Update/delete operations must include a where clause for safety.`
             )
           }
-          // Skip adding workspaceId for models that don't have it
-          if (model !== 'WikiFavorite' && !args.where.workspaceId && workspaceId) {
-            args.where.workspaceId = workspaceId
+          if (!args.where[wsField] && workspaceId) {
+            args.where[wsField] = workspaceId
           }
         }
 

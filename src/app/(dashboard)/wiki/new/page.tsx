@@ -1,39 +1,40 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { WikiNavigation } from "@/components/wiki/wiki-navigation"
 import { WikiEditorShell } from "@/components/wiki/wiki-editor-shell"
-import { 
-  ArrowLeft,
+import {
+  Save,
   X,
-  Loader2
+  Loader2,
+  Settings,
+  Download,
+  FileText,
+  MoreHorizontal
 } from "lucide-react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { JSONContent } from '@tiptap/core'
+import { JSONContent, Editor } from '@tiptap/core'
 import { createWikiPage } from '@/lib/wiki/create-page'
 import { useUserStatusContext } from '@/providers/user-status-provider'
 
 export default function NewWikiPage() {
   const router = useRouter()
-  // Use centralized UserStatusContext - no separate API call needed
   const { workspaceId } = useUserStatusContext()
   const [isSaving, setIsSaving] = useState(false)
   const [title, setTitle] = useState("")
-  const [contentJson, setContentJson] = useState<JSONContent | null>({
+  const [category] = useState("general")
+  const [error, setError] = useState<string | null>(null)
+  const [pageCreated, setPageCreated] = useState(false)
+  const editorRef = useRef<Editor | null>(null)
+
+  const initialContent: JSONContent = {
     type: 'doc',
     content: [{ type: 'paragraph' }],
-  })
-  const [category, setCategory] = useState("general")
-  const [error, setError] = useState<string | null>(null)
+  }
 
   const handleSave = async (jsonContent: JSONContent) => {
+    if (pageCreated) return // Prevent double-creation
     if (!title.trim()) {
       setError("Please enter a title")
       return
@@ -41,9 +42,9 @@ export default function NewWikiPage() {
 
     try {
       setIsSaving(true)
+      setPageCreated(true)
       setError(null)
-      
-      // Use centralized helper to create page
+
       const newPage = await createWikiPage({
         workspaceId: workspaceId || '',
         title: title.trim(),
@@ -52,15 +53,29 @@ export default function NewWikiPage() {
         category
       })
 
-      // Redirect to edit mode so content persists immediately
-      router.push(`/wiki/${newPage.slug}?edit=1`)
-    } catch (error) {
-      console.error('Error creating page:', error)
-      setError(error instanceof Error ? error.message : 'Failed to create page. Please try again.')
-      throw error // Re-throw for autosave error handling
+      router.push(`/wiki/${newPage.slug}?edit=true`)
+    } catch (err) {
+      console.error('Error creating page:', err)
+      setPageCreated(false)
+      setError(err instanceof Error ? err.message : 'Failed to create page. Please try again.')
+      throw err
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleCreateClick = async () => {
+    if (!title.trim()) {
+      setError("Please enter a title")
+      return
+    }
+
+    // Read live content from the editor (not stale parent state)
+    const liveContent = editorRef.current
+      ? editorRef.current.getJSON()
+      : initialContent
+
+    await handleSave(liveContent)
   }
 
   const handleCancel = () => {
@@ -68,129 +83,91 @@ export default function NewWikiPage() {
   }
 
   return (
-    <div className="flex h-full">
-      {/* Wiki Navigation Sidebar */}
-      <WikiNavigation currentPath="/wiki/new" />
-      
-      {/* Main Content */}
-      <div className="flex-1 p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link href="/wiki">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold">New Wiki Page</h1>
-              <p className="text-muted-foreground">
-                Create a new page in your knowledge base
-              </p>
+    <div className="h-full bg-background min-h-screen w-full min-w-0 relative">
+      {/* Floating Vertical Sidebar - Right Side (matches [slug] edit mode) */}
+      <div className="fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 right-8">
+        <Button
+          onClick={handleCreateClick}
+          disabled={isSaving || !title.trim()}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10 rounded-full flex items-center justify-center p-0"
+          title={isSaving ? 'Creating...' : 'Create Page'}
+        >
+          {isSaving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          onClick={handleCancel}
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
+          title="Cancel"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Main Editor Area */}
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen overflow-x-hidden w-full min-w-0">
+        <div className="max-w-4xl mx-auto w-full min-w-0">
+          {/* Page Info */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
+            <div className="text-sm text-muted-foreground">
+              New document
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button onClick={handleCancel} variant="outline" disabled={isSaving}>
-              <X className="mr-2 h-4 w-4" />
-              Cancel
-            </Button>
-            <Button 
-              onClick={() => contentJson && handleSave(contentJson)} 
-              disabled={isSaving || !title.trim()}
-            >
-              {isSaving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              {isSaving ? 'Creating...' : 'Create Page'}
-            </Button>
-          </div>
-        </div>
 
-        {/* Error Display */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <div className="flex items-center">
-              <X className="h-5 w-5 text-red-600 dark:text-red-400 mr-2" />
-              <p className="text-red-800 dark:text-red-200 font-medium">Error</p>
+          {/* Error Display */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-200 text-sm">
+              {error}
             </div>
-            <p className="text-red-700 dark:text-red-300 mt-1">{error}</p>
-          </div>
-        )}
+          )}
 
-        {/* Page Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            <Card>
-              <CardHeader>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="text-2xl font-bold border-none p-0 h-auto"
-                  placeholder="Page title..."
-                />
-              </CardHeader>
-              <CardContent>
-                <WikiEditorShell
-                  initialContent={contentJson}
-                  onSave={handleSave}
-                  placeholder="Start writing your page content..."
-                />
-              </CardContent>
-            </Card>
+          {/* Title Input */}
+          <div className="mb-8">
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="text-4xl font-bold border-none p-0 h-auto focus:ring-0 focus:outline-none focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder-muted-foreground bg-transparent text-foreground"
+              placeholder="Give your doc a title"
+              autoFocus
+            />
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Page Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Page Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4 text-sm">
-                  <div>
-                    <label className="text-muted-foreground">Status</label>
-                    <Badge className="ml-2">Draft</Badge>
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground">Visibility</label>
-                    <Badge variant="secondary" className="ml-2">Private</Badge>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category" className="text-muted-foreground">Category</Label>
-                    <Select value={category} onValueChange={setCategory}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="general">General</SelectItem>
-                        <SelectItem value="engineering">Engineering</SelectItem>
-                        <SelectItem value="sales">Sales</SelectItem>
-                        <SelectItem value="marketing">Marketing</SelectItem>
-                        <SelectItem value="hr">HR</SelectItem>
-                        <SelectItem value="product">Product</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Content Editor */}
+          <div className="min-h-[400px]">
+            <WikiEditorShell
+              initialContent={initialContent}
+              onSave={handleSave}
+              placeholder="Start writing your page content..."
+              className="min-h-[400px] border-none shadow-none bg-transparent"
+              onEditorReady={(editor) => {
+                editorRef.current = editor
+              }}
+            />
 
-            {/* Tips */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Tips</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p>• Use clear, descriptive titles</p>
-                  <p>• Add tags to help with organization</p>
-                  <p>• Include an introduction paragraph</p>
-                  <p>• Use headings to structure content</p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Action Suggestions */}
+            <div className="flex items-center gap-3 sm:gap-6 text-sm text-muted-foreground mt-8 flex-wrap overflow-x-auto w-full">
+              <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                <Settings className="h-4 w-4 flex-shrink-0" />
+                Use a template
+              </button>
+              <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                <Download className="h-4 w-4 flex-shrink-0" />
+                Import
+              </button>
+              <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                <FileText className="h-4 w-4 flex-shrink-0" />
+                New subdoc
+              </button>
+              <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                <MoreHorizontal className="h-4 w-4 flex-shrink-0" />
+                Convert to collection
+              </button>
+            </div>
           </div>
         </div>
       </div>

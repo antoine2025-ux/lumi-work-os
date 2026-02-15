@@ -6,6 +6,7 @@ import {
   mapPermissionErrorToStatus,
 } from "@/lib/org/permissions.server";
 import { logOrgAudit } from "@/lib/orgAudit";
+import { handleApiError } from "@/lib/api-errors";
 
 type Params = {
   params: Promise<{ memberId: string }>;
@@ -177,11 +178,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     return NextResponse.json({ membership: updatedMembership }, { status: 200 });
   } catch (error) {
-    console.error("[PATCH /api/org/members/[memberId]/custom-role] Error", error);
-    return NextResponse.json(
-      { error: "Something went wrong while updating the custom role." },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
 

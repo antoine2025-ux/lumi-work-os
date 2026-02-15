@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
+import { SubtaskCreateSchema } from '@/lib/validations/tasks'
 
 // POST /api/tasks/[id]/subtasks - Create or update subtasks for a task
 export async function POST(
@@ -28,14 +30,7 @@ export async function POST(
 
     setWorkspaceContext(auth.workspaceId)
 
-    const body = await request.json()
-    const { subtasks } = body
-
-    if (!Array.isArray(subtasks)) {
-      return NextResponse.json({ 
-        error: 'subtasks must be an array' 
-      }, { status: 400 })
-    }
+    const { subtasks } = SubtaskCreateSchema.parse(await request.json())
 
     // Verify task exists and user has access
     const task = await prisma.task.findUnique({
@@ -65,7 +60,8 @@ export async function POST(
           description: subtask.description || null,
           assigneeId: subtask.assigneeId || null,
           dueDate: subtask.dueDate ? new Date(subtask.dueDate) : null,
-          order: index
+          order: index,
+          workspaceId: auth.workspaceId
         }))
       })
     }
@@ -93,11 +89,7 @@ export async function POST(
 
     return NextResponse.json(updatedTask)
   } catch (error) {
-    console.error('Error managing subtasks:', error)
-    return NextResponse.json({ 
-      error: 'Failed to manage subtasks',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 

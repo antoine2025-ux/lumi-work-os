@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getOrgContext, requireAdmin } from "@/server/rbac";
 import { sendEmail } from "@/server/mailer";
 import crypto from "crypto";
+import { OrgInvitationSchema } from "@/lib/validations/org";
+import { handleApiError } from "@/lib/api-errors";
 
 function token() {
   return crypto.randomBytes(24).toString("hex");
@@ -24,7 +26,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as { email: string; role: "VIEWER" | "EDITOR" | "ADMIN" };
+    const body = OrgInvitationSchema.parse(await req.json());
     const ctx = await getOrgContext(req);
     if (!ctx.orgId) return NextResponse.json({ ok: false, error: "Unauthenticated" }, { status: 401 });
 
@@ -61,9 +63,8 @@ export async function POST(req: NextRequest) {
     }).catch(() => null);
 
     return NextResponse.json({ ok: true, invite: created, inviteLink: link, orgName });
-  } catch (e: any) {
-    const status = e?.status === 403 ? 403 : 500;
-    return NextResponse.json({ ok: false, error: e?.message ?? "Failed" }, { status });
+  } catch (error) {
+    return handleApiError(error, req);
   }
 }
 

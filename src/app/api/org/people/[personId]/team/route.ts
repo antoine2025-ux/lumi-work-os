@@ -10,8 +10,9 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
-import { optionalString } from "@/server/org/validate";
+import { OrgPersonTeamSchema } from "@/lib/validations/org";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors";
 import type { OrgIssueMetadata } from "@/lib/org/deriveIssues";
 import {
   buildResponseMeta,
@@ -49,15 +50,14 @@ export async function PUT(
       userId,
       workspaceId,
       scope: "workspace",
-      requireRole: ["MEMBER"],
+      requireRole: ["ADMIN"],
     });
 
     // Step 3: Set workspace context (enables automatic Prisma scoping)
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Parse and validate request body
-    const body = await request.json();
-    const teamId = optionalString(body.teamId);
+    // Step 4: Parse and validate request body (Zod)
+    const { teamId } = OrgPersonTeamSchema.parse(await request.json());
 
     // Step 5: Verify person exists and belongs to workspace
     // personId from URL can be either OrgPosition ID or User ID (userId)
@@ -169,82 +169,8 @@ export async function PUT(
     };
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error: any) {
-    console.error("[PUT /api/org/people/[personId]/team] Error:", error);
-    console.error("[PUT /api/org/people/[personId]/team] Error stack:", error?.stack);
-    console.error("[PUT /api/org/people/[personId]/team] Error meta:", {
-      code: error?.code,
-      meta: error?.meta,
-      cause: error?.cause,
-    });
-
-    // Handle specific error cases with structured responses
-    if (error?.message?.includes("Person not found") || error?.message?.includes("does not belong to this workspace")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error.message || "Person not found",
-          hint: "The person you're trying to update does not exist or doesn't belong to this workspace."
-        },
-        { status: 404 }
-      );
-    }
-
-    if (error?.message?.includes("Team not found") || error?.message?.includes("does not belong to this workspace")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error.message || "Team not found",
-          hint: "The team you're trying to assign does not exist or doesn't belong to this workspace."
-        },
-        { status: 404 }
-      );
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error.message || "Forbidden",
-          hint: "You don't have permission to update team assignments."
-        },
-        { status: 403 }
-      );
-    }
-
-    // Handle assertAccess errors
-    if (error?.status === 401 || error?.status === 403) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error?.message || "Unauthorized",
-          hint: "Please ensure you're logged in and have access to this workspace."
-        },
-        { status: error.status }
-      );
-    }
-
-    // Handle Prisma errors
-    if (error?.code?.startsWith('P') || error?.message?.includes('prisma') || error?.message?.includes('database')) {
-      console.error("[PUT /api/org/people/[personId]/team] Database error:", error.message);
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: "Database error",
-          hint: "An error occurred while updating the team assignment. Please try again."
-        },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(
-      { 
-        ok: false,
-        error: "Internal server error",
-        hint: error?.message || "An unexpected error occurred while updating team assignment. Please try again."
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }
 

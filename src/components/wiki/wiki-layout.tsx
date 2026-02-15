@@ -1,7 +1,7 @@
 // Enhanced Wiki Layout Component
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -10,7 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RichTextEditor } from "@/components/wiki/rich-text-editor"
+import { WikiEditorShell } from "@/components/wiki/wiki-editor-shell"
 import { WikiAIAssistant } from "@/components/wiki/wiki-ai-assistant"
+import { JSONContent, Editor } from '@tiptap/core'
 import {
   Dialog,
   DialogContent,
@@ -58,6 +60,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { AILogo } from "@/components/ai-logo"
 import { useUserStatusContext } from '@/providers/user-status-provider'
+import { useWorkspace } from '@/lib/workspace-context'
 
 interface WikiLayoutProps {
   children: React.ReactNode
@@ -105,6 +108,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
   const router = useRouter()
   // Use centralized UserStatusContext as fallback if no prop provided
   const { workspaceId: contextWorkspaceId } = useUserStatusContext()
+  const { currentWorkspace } = useWorkspace()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [workspaceId, setWorkspaceId] = useState<string>(propWorkspaceId || contextWorkspaceId || '')
@@ -118,7 +122,6 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
   const [isLoading, setIsLoading] = useState(true)
   const [isCreatingPage, setIsCreatingPage] = useState(false)
   const [newPageTitle, setNewPageTitle] = useState("")
-  const [newPageContent, setNewPageContent] = useState("")
   const [newPageCategory, setNewPageCategory] = useState("general")
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -131,6 +134,12 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
   const [showWorkspaceSelectDialog, setShowWorkspaceSelectDialog] = useState(false)
   const [selectedWorkspaceForPage, setSelectedWorkspaceForPage] = useState<string | null>(null)
   const pathname = usePathname() || ''
+  const editorRef = useRef<Editor | null>(null)
+
+  const initialContent: JSONContent = {
+    type: 'doc',
+    content: [{ type: 'paragraph' }],
+  }
 
   const toggleWorkspace = (workspaceId: string) => {
     setExpandedWorkspaces(prev => ({
@@ -296,7 +305,6 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     // Now open the page creation dialog
     setIsCreatingPage(true)
     setNewPageTitle("")
-    setNewPageContent("")
     setNewPageCategory("general")
     setError(null)
   }, [])
@@ -339,7 +347,6 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
   const handleCancelCreate = () => {
     setIsCreatingPage(false)
     setNewPageTitle("")
-    setNewPageContent("")
     setNewPageCategory("general")
     setSelectedWorkspaceForPage(null)
     setError(null)
@@ -380,10 +387,9 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     }
   }
 
-  const handleSavePage = async () => {
-    console.log('Save button clicked!', { newPageTitle, hasContent: !!newPageContent.trim(), workspaceId })
+  const handleSavePage = async (jsonContent?: JSONContent) => {
+    console.log('Save button clicked!', { newPageTitle, workspaceId })
     
-    // Allow saving with just a title, don't require content
     if (!newPageTitle.trim()) {
       setError("Please enter a title")
       return
@@ -395,11 +401,14 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
       return
     }
 
+    // Read live content from editor if not provided
+    const contentToSave = jsonContent || (editorRef.current 
+      ? editorRef.current.getJSON() 
+      : initialContent)
+
     try {
       setIsSaving(true)
       setError(null)
-      
-      // Ensure we have at least a space for content since API requires it
       
       // Determine workspace_type based on selected workspace
       let workspaceType = 'team'
@@ -448,13 +457,14 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
         }
       }
       
-      console.log('💾 Saving page with title:', newPageTitle, 'content length:', newPageContent.length, 'workspaceId:', workspaceId, 'workspaceType:', workspaceType)
+      console.log('💾 Saving page with title:', newPageTitle, 'workspaceId:', workspaceId, 'workspaceType:', workspaceType)
       
       // Use centralized helper to create page
       const { createWikiPage } = await import('@/lib/wiki/create-page')
       const newPage = await createWikiPage({
         workspaceId,
         title: newPageTitle.trim(),
+        contentJson: contentToSave,
         tags: [],
         category: newPageCategory,
         permissionLevel: isPersonalPage ? 'personal' : 'team',
@@ -466,7 +476,6 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
       
       setIsCreatingPage(false)
       setNewPageTitle("")
-      setNewPageContent("")
       setNewPageCategory("general")
       
       // Refresh recent pages
@@ -488,7 +497,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
       window.dispatchEvent(new CustomEvent('pageCreated'))
       
       // Navigate to the new page in edit mode so content persists immediately
-      router.push(`/wiki/${newPage.slug}?edit=true&ai=open`)
+      router.push(`/wiki/${newPage.slug}?edit=true`)
     } catch (error) {
       console.error('Error creating page:', error)
       setError(error instanceof Error ? error.message : 'Failed to create page. Please try again.')
@@ -785,9 +794,9 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                 {/* Home Section */}
                 <div className="mb-3">
                   <Link
-                    href="/wiki/home"
+                    href={currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/spaces/home` : '/spaces/home'}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
-                      (pathname || '') === '/wiki/home' || (pathname || '') === '/wiki' || (pathname || '') === '/spaces'
+                      (pathname || '').includes('/spaces/home') || (pathname || '') === '/wiki' || (pathname || '').includes('/spaces')
                         ? 'bg-muted text-foreground' 
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
@@ -1042,7 +1051,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
 
                 {/* Projects Section */}
                 <div className="mb-3">
-                  <Link href="/projects">
+                  <Link href={currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/projects` : '/projects'}>
                     <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 hover:text-slate-100 cursor-pointer">PROJECTS</h3>
                   </Link>
                   
@@ -1051,7 +1060,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                       {projects.map((project) => (
                         <Link
                           key={project.id}
-                          href={`/projects/${project.id}`}
+                          href={currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/projects/${project.id}` : `/projects/${project.id}`}
                           className="flex items-center gap-3 px-3 py-2 text-gray-200 hover:text-white hover:bg-slate-900 rounded-lg group"
                         >
                           <div 
@@ -1066,7 +1075,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                       
                       {/* New Project Button */}
                       <Link
-                        href="/projects/new"
+                        href={currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/projects/new` : '/projects/new'}
                         className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                       >
                         <Plus className="h-4 w-4" />
@@ -1075,7 +1084,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
                     </div>
                   ) : (
                     <Link
-                      href="/projects/new"
+                      href={currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/projects/new` : '/projects/new'}
                       className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:text-slate-100 hover:bg-slate-900 rounded-lg"
                     >
                       <Plus className="h-4 w-4" />
@@ -1303,12 +1312,17 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
 
                 {/* Content Editor - No Border */}
                 <div className="min-h-[400px]">
-                  <RichTextEditor
-                    content={newPageContent}
-                    onChange={setNewPageContent}
+                  <WikiEditorShell
+                    initialContent={initialContent}
+                    onSave={async () => {
+                      // No-op: Disable autosave for new page creation
+                      // Only manual save via the button should create the page
+                    }}
                     placeholder="Click here to start writing"
-                    className="min-h-[400px] border-none shadow-none bg-transparent focus:ring-0 focus:outline-none"
-                    showToolbar={false}
+                    className="min-h-[400px] border-none shadow-none bg-transparent"
+                    onEditorReady={(editor) => {
+                      editorRef.current = editor
+                    }}
                   />
                 </div>
 
@@ -1338,8 +1352,8 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
             {/* AI Assistant - Bottom bar mode when creating/editing */}
             <WikiAIAssistant 
               currentTitle={newPageTitle}
-              currentContent={newPageContent}
-              onContentUpdate={setNewPageContent}
+              currentContent=""
+              onContentUpdate={() => {}}
               onTitleUpdate={setNewPageTitle}
               workspaces={workspaces}
               recentPages={recentPages}

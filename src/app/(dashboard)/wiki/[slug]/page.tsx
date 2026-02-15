@@ -66,6 +66,7 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
   const searchParams = useSearchParams()
   const [isEditing, setIsEditing] = useState(searchParams?.get('edit') === 'true')
   const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState<{ status: number; message: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [pageData, setPageData] = useState<any>(null)
   const [relatedPages, setRelatedPages] = useState<any[]>([])
@@ -188,8 +189,9 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
     const loadPage = async () => {
       try {
         setIsLoading(true)
+        setLoadError(null)
         console.log('Loading page with slug:', resolvedParams.slug)
-        const response = await fetch(`/api/wiki/pages/${resolvedParams.slug}`)
+        const response = await fetch(`/api/wiki/pages/${encodeURIComponent(resolvedParams.slug)}`)
         console.log('Response status:', response.status)
         if (response.ok) {
           const page = await response.json()
@@ -272,12 +274,13 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
             errorData = { error: response.statusText || 'Unknown error' }
           }
           console.error('Failed to load page:', response.status, response.statusText, errorData)
-          // Set pageData to null to show the "Page not found" UI
+          const errorMessage = errorData?.error?.message || errorData?.error || errorData?.message || 'Unknown error'
+          setLoadError({ status: response.status, message: errorMessage })
           setPageData(null)
         }
       } catch (error) {
         console.error('Error loading page:', error)
-        // Set pageData to null to show the "Page not found" UI
+        setLoadError({ status: 0, message: 'Network error — could not reach server' })
         setPageData(null)
       } finally {
         setIsLoading(false)
@@ -574,12 +577,36 @@ export default function WikiPageDetail({ params }: WikiPageProps) {
   }
 
   if (!pageData) {
+    const isAuthError = loadError && (loadError.status === 401 || loadError.status === 403)
+    const isServerError = loadError && loadError.status >= 500
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-xl font-semibold text-foreground mb-2">Page not found</h2>
-          <p className="text-muted-foreground">The page you're looking for doesn't exist.</p>
+          {isAuthError ? (
+            <>
+              <Lock className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+              <h2 className="text-xl font-semibold text-foreground mb-2">
+                {loadError.status === 401 ? 'Sign in required' : 'Access denied'}
+              </h2>
+              <p className="text-muted-foreground">
+                {loadError.status === 401
+                  ? 'Please sign in to view this page.'
+                  : 'You do not have permission to view this page.'}
+              </p>
+            </>
+          ) : isServerError ? (
+            <>
+              <FileText className="h-16 w-16 mx-auto mb-4 text-destructive" />
+              <h2 className="text-xl font-semibold text-foreground mb-2">Something went wrong</h2>
+              <p className="text-muted-foreground">An error occurred while loading this page. Please try again.</p>
+            </>
+          ) : (
+            <>
+              <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+              <h2 className="text-xl font-semibold text-foreground mb-2">Page not found</h2>
+              <p className="text-muted-foreground">The page you&apos;re looking for doesn&apos;t exist.</p>
+            </>
+          )}
         </div>
       </div>
     )

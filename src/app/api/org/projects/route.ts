@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function GET(request: NextRequest) {
   try {
@@ -167,12 +168,8 @@ export async function GET(request: NextRequest) {
       ok: true,
       projects: projectsWithNames,
     });
-  } catch (error: any) {
-    console.error("Error fetching org projects:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to fetch projects" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

@@ -16,6 +16,8 @@ const PROTECTED_ROUTES = [
   '/calendar',
   '/ask',
   '/org',
+  '/goals',
+  '/spaces',
 ]
 
 /**
@@ -66,15 +68,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
   
-  // --- Workspace Check (PHASE C1) ---
-  // If authenticated user without workspace tries to access protected route, redirect to welcome
-  // Skip this check for /welcome itself to avoid redirect loops
-  if (isProtectedRoute(pathname) && isAuthenticated && pathname !== '/welcome') {
+  // --- Onboarding Redirect Gates ---
+  // Skip onboarding checks for /onboarding/* and /welcome to avoid redirect loops
+  const isOnboardingRoute = pathname.startsWith('/onboarding')
+  
+  // Gate 1: No workspace (isFirstTime) → redirect to /onboarding/1
+  if (isProtectedRoute(pathname) && isAuthenticated && !isOnboardingRoute && pathname !== '/welcome') {
     const isFirstTime = token.isFirstTime as boolean | undefined
     if (isFirstTime === true) {
-      // User has no workspace - redirect to welcome
-      const welcomeUrl = new URL('/welcome', request.url)
-      return NextResponse.redirect(welcomeUrl)
+      const onboardingUrl = new URL('/onboarding/1', request.url)
+      return NextResponse.redirect(onboardingUrl)
+    }
+  }
+  
+  // Gate 2: Workspace exists but onboarding incomplete → redirect to /onboarding/1
+  // The onboarding page reads currentStep from DB and navigates to the correct step
+  if (isProtectedRoute(pathname) && isAuthenticated && !isOnboardingRoute) {
+    const onboardingComplete = token.onboardingComplete as boolean | undefined
+    if (onboardingComplete === false) {
+      const onboardingUrl = new URL('/onboarding/1', request.url)
+      return NextResponse.redirect(onboardingUrl)
     }
   }
   

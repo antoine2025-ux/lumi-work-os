@@ -9,6 +9,7 @@ import { syncPersonContexts } from "@/lib/context/org/syncPersonContexts";
 import { syncRoleContexts } from "@/lib/context/org/syncRoleContexts";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { handleApiError } from "@/lib/api-errors"
 
 export const dynamic = "force-dynamic";
 
@@ -200,36 +201,8 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("POST /api/loopbrain/org/context/sync error:", error);
-
-    const message = error?.message ?? "Unknown error";
-
-    // Handle authentication errors
-    if (
-      message.includes("Unauthorized") ||
-      message.includes("No workspace found") ||
-      message.includes("no current workspace found")
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Unauthenticated",
-          detail: message,
-        },
-        { status: 401 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          "Failed to sync Org Context (workspace + org + departments + teams + people + roles)",
-        detail: message,
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

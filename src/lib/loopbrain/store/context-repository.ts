@@ -14,7 +14,7 @@
  */
 
 import { prisma } from '@/lib/db'
-import { ContextObject, ContextType, BaseContext } from '../context-types'
+import { ContextObject, ContextType } from '../context-types'
 
 /**
  * Prisma model type for ContextItem (inferred from schema)
@@ -153,6 +153,31 @@ export async function listContextItems(
 }
 
 /**
+ * Get context items by workspace and type
+ * 
+ * @param workspaceId - The workspace ID
+ * @param type - The context type to filter by
+ * @returns Array of context items
+ */
+export async function findByWorkspaceAndType(
+  workspaceId: string,
+  type: ContextType
+): Promise<ContextItemRecord[]> {
+  const items = await prisma.contextItem.findMany({
+    where: {
+      workspaceId,
+      type,
+    },
+    orderBy: {
+      updatedAt: 'desc',
+    },
+    take: 100, // Limit to most recent 100 items
+  })
+
+  return items as ContextItemRecord[]
+}
+
+/**
  * Delete a context item by ID and workspaceId (for safety)
  * 
  * @param id - The ContextItem ID
@@ -192,6 +217,8 @@ function extractTitle(context: ContextObject): string {
       return `Activity Context for ${context.workspaceId}`
     case ContextType.UNIFIED:
       return `Unified Context for ${context.workspaceId}`
+    case ContextType.GOAL:
+      return context.title
     default:
       return 'Unknown Context'
   }

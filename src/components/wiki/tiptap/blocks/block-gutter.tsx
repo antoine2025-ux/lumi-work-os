@@ -75,7 +75,7 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
   // State-driven: Track active block by position (not hover)
   const [activeBlockPos, setActiveBlockPos] = useState<number | null>(null)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
-  const [isGutterHovered, setIsGutterHovered] = useState(false)
+  const isGutterHoveredRef = useRef(false)
   const gutterRef = useRef<HTMLDivElement>(null)
   const positioningRootRef = useRef<HTMLElement | null>(null)
   const scrollContainerRef = useRef<HTMLElement | Window | null>(null)
@@ -116,7 +116,7 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
     if (!editor) return
 
     // Validate blockPos: must be > 0 and within document bounds
-    if (blockPos <= 0 || blockPos >= editor.state.doc.content.size) {
+    if (blockPos < 0 || blockPos >= editor.state.doc.content.size) {
       if (CANARY_MODE) {
         console.log('[GUTTER] updatePosition: invalid blockPos', blockPos)
       }
@@ -137,20 +137,21 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
         const top = blockRect.top + (blockRect.height / 2) - (GUTTER_HEIGHT / 2)
         const left = blockRect.left - GUTTER_OFFSET
 
-        // Clamp to avoid negative/NaN
-        const safeTop = isNaN(top) || top < 0 ? 0 : top
-        const safeLeft = isNaN(left) || left < 0 ? 0 : left
+        // Skip rendering if block is off-screen (avoid placing gutter at viewport corner)
+        if (isNaN(top) || isNaN(left) || top < -50 || left < -50) {
+          return
+        }
 
         if (CANARY_MODE) {
           console.log('[GUTTER] updatePosition: block element found', {
             blockPos,
-            top: safeTop,
-            left: safeLeft,
+            top,
+            left,
             blockRect: { top: blockRect.top, left: blockRect.left, height: blockRect.height }
           })
         }
 
-        setPosition({ top: safeTop, left: safeLeft })
+        setPosition({ top, left })
         return
       } else if (CANARY_MODE) {
         console.log('[GUTTER] updatePosition: block element not found, falling back to coordsAtPos')
@@ -170,20 +171,21 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
         const top = coords.top
         const left = coords.left - GUTTER_OFFSET
 
-        // Clamp to avoid negative/NaN
-        const safeTop = isNaN(top) || top < 0 ? 0 : top
-        const safeLeft = isNaN(left) || left < 0 ? 0 : left
+        // Skip rendering if block is off-screen
+        if (isNaN(top) || isNaN(left) || top < -50 || left < -50) {
+          return
+        }
 
         if (CANARY_MODE) {
           console.log('[GUTTER] updatePosition: using coordsAtPos fallback', {
             blockPos,
-            top: safeTop,
-            left: safeLeft,
+            top,
+            left,
             coords
           })
         }
 
-        setPosition({ top: safeTop, left: safeLeft })
+        setPosition({ top, left })
       }
     } catch (error) {
       if (CANARY_MODE) {
@@ -239,7 +241,7 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
         }
         setActiveBlockPos(blockPos)
         updatePosition(blockPos)
-      } else if (!isGutterHovered) {
+      } else if (!isGutterHoveredRef.current) {
         // PHASE 5: Only clear if gutter is not hovered (hover lock)
         if (CANARY_MODE) {
           console.log('[GUTTER] Selection update: no block, clearing')
@@ -259,7 +261,7 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
       editor.off('selectionUpdate', handleSelectionUpdate)
       editor.off('update', handleSelectionUpdate)
     }
-  }, [editor, determineActiveBlock, updatePosition, isGutterHovered])
+  }, [editor, determineActiveBlock, updatePosition])
 
   // Listen to scroll events to update position (throttled with requestAnimationFrame)
   useEffect(() => {
@@ -337,7 +339,7 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
       } else {
         // Mouse left editor - hide gutter after delay (unless selection is in block or gutter is hovered)
         hideTimeout = setTimeout(() => {
-          if (isGutterHovered) return // Don't hide if gutter is hovered
+          if (isGutterHoveredRef.current) return // Don't hide if gutter is hovered
           
           const selectionBlock = getActiveBlock(editor)
           if (!selectionBlock || !selectionBlock.isSupported) {
@@ -354,7 +356,7 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
       const relatedTarget = e.relatedTarget as Node | null
       if (!editorElement.contains(relatedTarget) && !gutterRef.current?.contains(relatedTarget)) {
         // Mouse truly left editor - check if we should hide
-        if (isGutterHovered) return // Don't hide if gutter is hovered
+        if (isGutterHoveredRef.current) return // Don't hide if gutter is hovered
         
         const selectionBlock = getActiveBlock(editor)
         if (!selectionBlock || !selectionBlock.isSupported) {
@@ -374,15 +376,15 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
         clearTimeout(hideTimeout)
       }
     }
-  }, [editor, determineActiveBlock, updatePosition, isGutterHovered])
+  }, [editor, determineActiveBlock, updatePosition])
 
   // Handle gutter hover to "lock" visibility
   const handleGutterMouseEnter = useCallback(() => {
-    setIsGutterHovered(true)
+    isGutterHoveredRef.current = true
   }, [])
 
   const handleGutterMouseLeave = useCallback(() => {
-    setIsGutterHovered(false)
+    isGutterHoveredRef.current = false
     // When leaving gutter, check if we should keep it visible
     if (!editor) return
     
@@ -431,7 +433,7 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
 
   // PHASE 2: Only render if we have an active block and position
   // Validate activeBlockPos: must be > 0
-  if (!editor || activeBlockPos === null || activeBlockPos <= 0 || !position) {
+  if (!editor || activeBlockPos === null || activeBlockPos < 0 || !position) {
     if (CANARY_MODE && editor) {
       console.log('[GUTTER] Not rendering:', {
         hasEditor: !!editor,
@@ -451,7 +453,7 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
   const gutterContent = (
     <div
       ref={gutterRef}
-      className="flex flex-col gap-1 group pointer-events-auto transition-opacity duration-150"
+      className="flex flex-col gap-1 group pointer-events-auto transition-opacity duration-150 hover:!opacity-100"
       style={{
         position: 'fixed', // PHASE 2: Fixed positioning
         top: `${position.top}px`,
@@ -459,7 +461,7 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
         zIndex: 99999, // PHASE 2: High z-index to ensure visibility
         display: 'block', // PHASE 2: Force display
         visibility: 'visible', // PHASE 2: Force visibility
-        opacity: isGutterHovered ? 1 : 0.7, // PHASE 6: Subtle when active, fully opaque when hovered
+        opacity: 0.7, // PHASE 6: Subtle when active, fully opaque on hover via CSS
         pointerEvents: 'auto', // PHASE 2: Ensure clickable
       }}
       onMouseEnter={handleGutterMouseEnter}

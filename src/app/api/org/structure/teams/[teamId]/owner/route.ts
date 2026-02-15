@@ -20,6 +20,7 @@ import {
   type MutationResult,
 } from "@/lib/org/mutations/types";
 import { computeIssueResolution } from "@/lib/org/mutations/utils";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function PUT(request: NextRequest, ctx: { params: Promise<{ teamId: string }> }) {
   try {
@@ -104,82 +105,8 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ teamId:
     };
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error: any) {
-    console.error("[PUT /api/org/structure/teams/[teamId]/owner] Error:", error);
-    console.error("[PUT /api/org/structure/teams/[teamId]/owner] Error stack:", error?.stack);
-    console.error("[PUT /api/org/structure/teams/[teamId]/owner] Error meta:", {
-      code: error?.code,
-      meta: error?.meta,
-      cause: error?.cause,
-    });
-
-    // Handle specific error cases with structured responses
-    if (error?.message?.includes("Team not found") || error?.message?.includes("does not belong to this workspace")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error.message,
-          hint: "The team you're trying to update does not exist or you don't have access to it."
-        },
-        { status: 404 }
-      );
-    }
-
-    if (error?.message?.includes("Person not found") || error?.message?.includes("does not belong to this workspace")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error.message,
-          hint: "The person you're trying to assign as owner does not exist or doesn't belong to this workspace."
-        },
-        { status: 404 }
-      );
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error.message || "Forbidden",
-          hint: "You don't have permission to update team ownership."
-        },
-        { status: 403 }
-      );
-    }
-
-    // Handle assertAccess errors
-    if (error?.status === 401 || error?.status === 403) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error?.message || "Unauthorized",
-          hint: "Please ensure you're logged in and have access to this workspace."
-        },
-        { status: error.status }
-      );
-    }
-
-    // Handle Prisma errors
-    if (error?.code?.startsWith('P') || error?.message?.includes('prisma') || error?.message?.includes('database')) {
-      console.error("[PUT /api/org/structure/teams/[teamId]/owner] Database error:", error.message);
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: "Database error",
-          hint: "An error occurred while updating the team owner. Please try again."
-        },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(
-      { 
-        ok: false,
-        error: "Internal server error",
-        hint: error?.message || "An unexpected error occurred while updating team owner. Please try again."
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

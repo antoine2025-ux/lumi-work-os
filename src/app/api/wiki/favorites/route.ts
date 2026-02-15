@@ -4,6 +4,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/wiki/favorites - Get all favorite pages for the authenticated user
 export async function GET(request: NextRequest) {
@@ -77,8 +78,17 @@ export async function GET(request: NextRequest) {
     })
 
     // Transform to match RecentPage interface
+    // SECURITY: Exclude personal pages not created by the requesting user
     const formattedPages = favorites
       .filter(fav => fav.wiki_pages) // Filter out any null pages
+      .filter(fav => {
+        const page = fav.wiki_pages!
+        // If the page is personal, only include if the current user created it
+        if (page.workspace_type === 'personal' && page.createdBy?.id !== auth.user.userId) {
+          return false
+        }
+        return true
+      })
       .map(fav => ({
         id: fav.wiki_pages!.id,
         title: fav.wiki_pages!.title,
@@ -100,10 +110,6 @@ export async function GET(request: NextRequest) {
     response.headers.set('X-Cache', 'MISS')
     return response
   } catch (error) {
-    console.error('Error fetching favorite pages:', error)
-    return NextResponse.json({ 
-      error: 'Internal server error', 
-      details: error instanceof Error ? error.message : 'Unknown error' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

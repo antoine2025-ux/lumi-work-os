@@ -12,6 +12,7 @@ declare module "next-auth" {
       workspaceId?: string
       role?: string
       isFirstTime?: boolean
+      onboardingComplete?: boolean
     }
     accessToken?: string
     refreshToken?: string
@@ -29,5 +30,6 @@ declare module "next-auth/jwt" {
     workspaceId?: string
     role?: string
     isFirstTime?: boolean
+    onboardingComplete?: boolean
   }
 }

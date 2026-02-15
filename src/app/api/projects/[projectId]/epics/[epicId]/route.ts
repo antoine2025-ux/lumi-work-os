@@ -6,6 +6,8 @@ import { prisma } from '@/lib/db'
 import { upsertEpicContext } from '@/lib/loopbrain/context-engine'
 import { logger } from '@/lib/logger'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { ProjectRole } from '@prisma/client'
 
 
@@ -16,6 +18,7 @@ export async function GET(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -64,10 +67,7 @@ export async function GET(
 
     return NextResponse.json(epic)
   } catch (error) {
-    console.error('Error fetching epic:', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch epic' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -78,6 +78,7 @@ export async function PATCH(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -151,18 +152,8 @@ export async function PATCH(
       .catch((error) => logger.error('Failed to upsert epic context after update', { epicId, error }))
 
     return NextResponse.json(epic)
-  } catch (error: unknown) {
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json({ 
-        error: 'Validation error',
-        details: (error as any).issues 
-      }, { status: 400 })
-    }
-
-    console.error('Error updating epic:', error)
-    return NextResponse.json({ 
-      error: 'Failed to update epic' 
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -173,6 +164,7 @@ export async function DELETE(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -225,9 +217,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting epic:', error)
-    return NextResponse.json({ 
-      error: 'Failed to delete epic' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

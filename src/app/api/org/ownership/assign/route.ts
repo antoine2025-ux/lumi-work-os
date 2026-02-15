@@ -20,6 +20,7 @@ import {
   type MutationResult,
 } from "@/lib/org/mutations/types";
 import { computeIssueResolution } from "@/lib/org/mutations/utils";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function POST(request: NextRequest) {
   let userId: string | undefined;
@@ -142,51 +143,7 @@ export async function POST(request: NextRequest) {
     };
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error: any) {
-    console.error("[POST /api/org/ownership/assign] Error:", error);
-    console.error("[POST /api/org/ownership/assign] Error stack:", error?.stack);
-
-    if (!userId || !workspaceId) {
-      console.error("[POST /api/org/ownership/assign] Missing userId or workspaceId", { userId, workspaceId });
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: "Unauthorized",
-          hint: "Authentication failed. Please ensure you are logged in and have workspace access."
-        },
-        { status: 401 }
-      );
-    }
-
-    if (error?.message?.includes("Invalid")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error.message,
-          hint: "Please check the input fields and try again."
-        },
-        { status: 400 }
-      );
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error.message || "Forbidden",
-          hint: "You don't have permission to assign ownership in this workspace."
-        },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json(
-      { 
-        ok: false,
-        error: "Failed to assign ownership",
-        hint: error?.message || "An unexpected error occurred. Please try again."
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

@@ -3,10 +3,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { prisma } from "@/lib/db";
 import { logOrgAuditEventStandalone } from "@/server/audit/orgAudit";
 import { createErrorResponse, createSuccessResponse } from "@/server/api/responses";
-
-type Body = {
-  workspaceId?: string;
-};
+import { handleApiError } from "@/lib/api-errors";
+import { OrgMemberLeaveSchema } from "@/lib/validations/org";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,15 +17,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = (await req.json().catch(() => ({}))) as Body;
-    const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : null;
-
-    if (!workspaceId) {
-      return createErrorResponse(
-        "VALIDATION_ERROR",
-        "Missing workspaceId."
-      );
-    }
+    const { workspaceId } = OrgMemberLeaveSchema.parse(
+      await req.json().catch(() => ({}))
+    );
 
     const membership = await prisma.workspaceMember.findFirst({
       where: {
@@ -88,12 +80,8 @@ export async function POST(req: NextRequest) {
     });
 
     return createSuccessResponse<{}>({});
-  } catch (err) {
-    console.error("[ORG_MEMBER_LEAVE_ERROR]", err);
-    return createErrorResponse(
-      "INTERNAL_SERVER_ERROR",
-      "Something went wrong while leaving the workspace."
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 

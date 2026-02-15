@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { emitEvent } from '@/lib/events/emit'
 import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
 import { calculateCompletionDays } from '@/lib/org/listeners/utils'
@@ -9,6 +11,8 @@ import {
   createProjectAllocation,
   canTakeOnWork,
 } from '@/lib/org/capacity/project-capacity'
+import { syncProjectToGoals } from '@/lib/goals/project-sync'
+import { TaskPutSchema } from '@/lib/pm/schemas'
 
 // Shared include for task queries
 const taskInclude = {
@@ -78,6 +82,7 @@ export async function GET(
   try {
     // 1. Authenticate user
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     
     // 2. Check workspace access
     await assertAccess({
@@ -105,22 +110,8 @@ export async function GET(
     }
 
     return NextResponse.json(task)
-  } catch (error: unknown) {
-    console.error('Error fetching task:', error)
-    
-    // Handle auth errors
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to fetch task' 
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -132,6 +123,7 @@ export async function PUT(
   try {
     // 1. Authenticate user
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     
     // 2. Check workspace access (MEMBER can update)
     await assertAccess({
@@ -142,7 +134,7 @@ export async function PUT(
     })
 
     const { id: taskId } = await params
-    const body = await request.json()
+    const body = TaskPutSchema.parse(await request.json())
     const { 
       title, 
       description,
@@ -241,7 +233,7 @@ export async function PUT(
           where: {
             projectId_userId: { projectId: existingTask.projectId, userId: assigneeId },
           },
-          create: { projectId: existingTask.projectId, userId: assigneeId },
+          create: { projectId: existingTask.projectId, userId: assigneeId, workspaceId: auth.workspaceId },
           update: {},
         })
         if (orgPosition) {
@@ -279,28 +271,18 @@ export async function PUT(
       }).catch((err) => 
         console.error('Failed to emit task completed event', err)
       )
+
+      // Sync to goals if project has goal links
+      syncProjectToGoals(existingTask.projectId, auth.user.userId).catch(err => 
+        console.error('Failed to sync task completion to goals:', err)
+      )
     }
 
     const response = task as Record<string, unknown>
     if (capacityWarning) response.capacityWarning = capacityWarning
     return NextResponse.json(response)
-  } catch (error: unknown) {
-    console.error('Error updating task:', error)
-    
-    // Handle auth errors
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to update task',
-      details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -312,6 +294,7 @@ export async function DELETE(
   try {
     // 1. Authenticate user
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     
     // 2. Check workspace access (MEMBER can delete)
     await assertAccess({
@@ -346,22 +329,7 @@ export async function DELETE(
     return NextResponse.json({ 
       message: 'Task deleted successfully' 
     })
-  } catch (error: unknown) {
-    console.error('Error deleting task:', error)
-    
-    // Handle auth errors
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to delete task',
-      details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

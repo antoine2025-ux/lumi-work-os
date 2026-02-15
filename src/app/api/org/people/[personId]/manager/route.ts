@@ -10,10 +10,11 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
-import { optionalString } from "@/server/org/validate";
+import { OrgPersonManagerSchema } from "@/lib/validations/org";
 import { setOrgPersonManager } from "@/server/org/people/write";
 import { isPersonManagerExempt } from "@/lib/org/manager-exemption";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors";
 import type { OrgIssueMetadata } from "@/lib/org/deriveIssues";
 import {
   buildResponseMeta,
@@ -47,15 +48,15 @@ export async function PUT(
       userId,
       workspaceId,
       scope: "workspace",
-      requireRole: ["MEMBER"],
+      requireRole: ["ADMIN"],
     });
 
     // Step 3: Set workspace context (enables automatic Prisma scoping)
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Parse and validate request body
-    const body = await request.json();
-    managerId = optionalString(body.managerId);
+    // Step 4: Parse and validate request body (Zod)
+    const parsed = OrgPersonManagerSchema.parse(await request.json());
+    managerId = parsed.managerId ?? null;
 
     // Step 5: Check if person is exempt from manager requirement (using centralized exemption)
     // Note: personId is actually userId (User.id), so we can pass it directly
@@ -167,36 +168,8 @@ export async function PUT(
     };
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error: any) {
-    console.error("[PUT /api/org/people/[personId]/manager] Error:", error);
-    console.error("[PUT /api/org/people/[personId]/manager] Error details:", {
-      message: error?.message,
-      stack: error?.stack,
-      personId,
-      managerId,
-    });
-
-    if (error?.message?.includes("Manager cannot be self")) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
-    }
-
-    if (error?.message?.includes("Person not found")) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 404 });
-    }
-
-    if (error?.message?.includes("Manager not found")) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 404 });
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 403 });
-    }
-
-    return NextResponse.json({ 
-      ok: false,
-      error: error?.message || "Internal server error",
-      hint: "Check server logs for details"
-    }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }
 

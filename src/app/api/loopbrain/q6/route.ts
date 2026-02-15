@@ -6,14 +6,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { prisma } from "@/lib/db";
 import { answerQ6 } from "@/lib/loopbrain/q6";
+import { handleApiError } from "@/lib/api-errors";
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request);
     const workspaceId = auth.workspaceId;
+    setWorkspaceContext(workspaceId);
 
     // Assert workspace access
     await assertAccess({
@@ -159,47 +162,8 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(resp);
-  } catch (error: any) {
-    console.error("Q6 reasoning error:", error);
-
-    if (error.message?.includes("Unauthorized") || error.message?.includes("Forbidden")) {
-      return NextResponse.json(
-        {
-          questionId: "Q6",
-          assumptions: [],
-          constraints: [],
-          risks: [],
-          confidence: "low",
-          errors: [{ code: "UNAUTHORIZED", message: "Unauthorized" }],
-          projectId: "",
-          primaryOwner: { type: "unset" },
-          backups: { backupOwner: { type: "unset" } },
-          candidates: [],
-        },
-        { status: 401 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        questionId: "Q6",
-        assumptions: [],
-        constraints: [],
-        risks: [],
-        confidence: "low",
-        errors: [
-          {
-            code: "INTERNAL_ERROR",
-            message: `Failed to answer Q6: ${error.message}`,
-          },
-        ],
-        projectId: "",
-        primaryOwner: { type: "unset" },
-        backups: { backupOwner: { type: "unset" } },
-        candidates: [],
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

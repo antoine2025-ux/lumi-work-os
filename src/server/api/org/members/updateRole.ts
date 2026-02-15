@@ -8,15 +8,8 @@ import {
   getOrgPermissionContext,
   mapPermissionErrorToStatus,
 } from "@/lib/org/permissions.server";
-
-const ALLOWED_ROLES = ["ADMIN", "MEMBER"] as const;
-type AllowedRole = (typeof ALLOWED_ROLES)[number];
-
-type Body = {
-  workspaceId?: string;
-  membershipId?: string;
-  role?: string;
-};
+import { handleApiError } from "@/lib/api-errors";
+import { OrgMemberUpdateRoleSchema } from "@/lib/validations/org";
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,25 +27,9 @@ export async function POST(req: NextRequest) {
     }
 
     const auth = await getUnifiedAuth(req);
-    const body = (await req.json().catch(() => ({}))) as Body;
-    const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : null;
-    const membershipId =
-      typeof body.membershipId === "string" ? body.membershipId : null;
-    const role = typeof body.role === "string" ? body.role : null;
-
-    if (!workspaceId || !membershipId || !role) {
-      return createErrorResponse(
-        "VALIDATION_ERROR",
-        "Missing workspaceId, membershipId, or role."
-      );
-    }
-
-    if (!ALLOWED_ROLES.includes(role as AllowedRole)) {
-      return createErrorResponse(
-        "VALIDATION_ERROR",
-        "Invalid role."
-      );
-    }
+    const { workspaceId, membershipId, role } = OrgMemberUpdateRoleSchema.parse(
+      await req.json().catch(() => ({}))
+    );
 
     // Verify workspaceId matches context
     if (context!.orgId !== workspaceId) {
@@ -93,7 +70,7 @@ export async function POST(req: NextRequest) {
 
     // Prevent removing the last ADMIN/OWNER by demoting them.
     const isDemotingAdmin =
-      (targetMembership.role === "ADMIN" || targetMembership.role === "OWNER") && role !== "ADMIN" && role !== "OWNER";
+      (targetMembership.role === "ADMIN" || targetMembership.role === "OWNER") && (role as string) !== "ADMIN" && (role as string) !== "OWNER";
 
     if (isDemotingAdmin) {
       const adminCount = await prisma.workspaceMember.count({
@@ -122,7 +99,7 @@ export async function POST(req: NextRequest) {
     await prisma.workspaceMember.update({
       where: { id: targetMembership.id },
       data: {
-        role: role as AllowedRole,
+        role,
       },
     });
 
@@ -138,12 +115,8 @@ export async function POST(req: NextRequest) {
     });
 
     return createSuccessResponse<{}>({});
-  } catch (err) {
-    console.error("[ORG_MEMBER_UPDATE_ROLE_ERROR]", err);
-    return createErrorResponse(
-      "INTERNAL_SERVER_ERROR",
-      "Something went wrong while updating the member role."
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 

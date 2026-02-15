@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 
 type Verdict = "proceed" | "reassign" | "delay" | "request_support";
 
@@ -60,6 +62,7 @@ export async function GET(req: Request) {
     if (!workspaceId) {
       return NextResponse.json({ error: "No active org found." }, { status: 400 });
     }
+    setWorkspaceContext(workspaceId);
 
     const now = new Date();
     const lookahead = new Date(now);
@@ -531,11 +534,7 @@ export async function GET(req: Request) {
     };
 
     return NextResponse.json(payload);
-  } catch (err: any) {
-    console.error("[GET /api/org/readiness] Error:", err);
-    return NextResponse.json(
-      { error: "Failed to compute org readiness.", detail: String(err?.message ?? err) },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req);
   }
 }

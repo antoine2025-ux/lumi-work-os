@@ -4,6 +4,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { z } from 'zod'
+import { handleApiError } from '@/lib/api-errors'
 
 // SpaceType and SpaceVisibility enum values (pending prisma generate)
 const SpaceType = {
@@ -129,17 +130,8 @@ export async function GET(request: NextRequest) {
         _count: space._count
       }))
     })
-  } catch (error: any) {
-    console.error('Error fetching spaces:', error)
-    
-    if (error.message?.includes('Unauthorized') || error.message?.includes('Forbidden')) {
-      return NextResponse.json({ error: error.message }, { status: 401 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      message: process.env.NODE_ENV === 'development' ? error.message : undefined
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -251,23 +243,7 @@ export async function POST(request: NextRequest) {
       createdAt: space.createdAt,
       updatedAt: space.updatedAt
     }, { status: 201 })
-  } catch (error: any) {
-    console.error('Error creating space:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({
-        error: 'Validation error',
-        details: error.issues
-      }, { status: 400 })
-    }
-    
-    if (error.message?.includes('Unauthorized') || error.message?.includes('Forbidden')) {
-      return NextResponse.json({ error: error.message }, { status: 401 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      message: process.env.NODE_ENV === 'development' ? error.message : undefined
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

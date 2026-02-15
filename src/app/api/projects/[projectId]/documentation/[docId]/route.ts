@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 
 // DELETE /api/projects/[projectId]/documentation/[docId] - Detach documentation from a project
@@ -10,6 +12,7 @@ export async function DELETE(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     const resolvedParams = await params
     const { projectId, docId } = resolvedParams
 
@@ -47,39 +50,8 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true }, { status: 200 })
-  } catch (error: any) {
-    console.error('Error detaching documentation:', error)
-    
-    if (error.message === 'Unauthorized: User not authenticated.') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error.message === 'Project not found.') {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    if (error.message === 'Forbidden: Insufficient project permissions.') {
-      return NextResponse.json({ error: 'Forbidden: Insufficient project permissions' }, { status: 403 })
-    }
-    
-    console.error('[ProjectDocumentation] Unexpected error:', error)
-    console.error('[ProjectDocumentation] Error stack:', error.stack)
-    
-    // In development, return full error details to help debug
-    const errorDetails = process.env.NODE_ENV === 'development' ? {
-      code: error.code,
-      message: error.message,
-      name: error.name,
-      stack: error.stack?.split('\n').slice(0, 10).join('\n')
-    } : {
-      code: error.code,
-      message: error.message
-    }
-    
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      details: errorDetails
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

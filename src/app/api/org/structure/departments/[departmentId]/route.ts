@@ -11,6 +11,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function DELETE(
   request: NextRequest,
@@ -113,52 +114,8 @@ export async function DELETE(
       { ok: true },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("[DELETE /api/org/structure/departments/[departmentId]] Error:", error);
-    console.error("[DELETE /api/org/structure/departments/[departmentId]] Error stack:", error?.stack);
-
-    if (!userId || !workspaceId) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: "UNAUTHORIZED",
-          hint: "Authentication failed. Please ensure you are logged in and have workspace access."
-        },
-        { status: 401 }
-      );
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: "FORBIDDEN",
-          hint: "Only workspace owners and admins can delete departments."
-        },
-        { status: 403 }
-      );
-    }
-
-    if (error?.code === "P2025") {
-      // Record not found
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: "NOT_FOUND",
-          hint: "The department may have already been deleted."
-        },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(
-      { 
-        ok: false,
-        error: "DELETE_FAILED",
-        hint: error?.message || "An unexpected error occurred. Please try again."
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

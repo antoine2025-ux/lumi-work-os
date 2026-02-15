@@ -29,9 +29,18 @@ export function Breadcrumbs({ className, items }: BreadcrumbsProps) {
   // Fetch project name if we're on a project page
   useEffect(() => {
     const segments = pathname.split('/').filter(Boolean)
+    let projectId: string | null = null
+    
+    // Check for legacy route: /projects/[id]
     if (segments[0] === 'projects' && segments[1] && segments[1] !== 'new') {
-      const projectId = segments[1]
-      
+      projectId = segments[1]
+    }
+    // Check for workspace-scoped route: /w/[slug]/projects/[id]
+    else if (segments[0] === 'w' && segments[2] === 'projects' && segments[3] && segments[3] !== 'new') {
+      projectId = segments[3]
+    }
+    
+    if (projectId) {
       setIsLoadingProject(true)
       // Fetch project name
       fetch(`/api/projects/${projectId}`)
@@ -101,8 +110,86 @@ function generateBreadcrumbsFromPath(pathname: string, projectName?: string | nu
     return breadcrumbs
   }
 
-  // Projects section
-  if (segments[0] === 'projects') {
+  // Handle workspace-scoped routes: /w/[workspaceSlug]/...
+  if (segments[0] === 'w' && segments[1]) {
+    const workspaceSlug = segments[1]
+    
+    // Workspace-scoped projects: /w/[slug]/projects
+    if (segments[2] === 'projects') {
+      breadcrumbs.push({
+        label: "Projects",
+        href: `/w/${workspaceSlug}/projects`,
+        icon: FolderOpen
+      })
+
+      // Specific project
+      if (segments[3] && segments[3] !== 'new') {
+        const projectId = segments[3]
+        let displayName: string
+        if (isLoadingProject) {
+          displayName = "Loading..."
+        } else if (projectName) {
+          displayName = projectName
+        } else {
+          displayName = `Project ${projectId.slice(0, 8)}...`
+        }
+        
+        breadcrumbs.push({
+          label: displayName,
+          href: `/w/${workspaceSlug}/projects/${projectId}`,
+          current: segments.length === 4
+        })
+
+        // Project sub-pages
+        if (segments[4]) {
+          if (segments[4] === 'tasks') {
+            breadcrumbs.push({
+              label: "Tasks",
+              href: `/w/${workspaceSlug}/projects/${projectId}/tasks`,
+              icon: CheckSquare,
+              current: segments.length === 5
+            })
+          } else if (segments[4] === 'settings') {
+            breadcrumbs.push({
+              label: "Settings",
+              current: true
+            })
+          }
+        }
+      } else if (segments[3] === 'new') {
+        breadcrumbs.push({
+          label: "New Project",
+          current: true
+        })
+      }
+    }
+    // Workspace-scoped spaces: /w/[slug]/spaces
+    else if (segments[2] === 'spaces') {
+      breadcrumbs.push({
+        label: "Spaces",
+        href: `/w/${workspaceSlug}/spaces/home`,
+        icon: FolderOpen
+      })
+      
+      if (segments[3] === 'home') {
+        breadcrumbs.push({
+          label: "Home",
+          current: true
+        })
+      }
+    }
+    // Other workspace-scoped routes
+    else if (segments[2]) {
+      const sectionName = segments[2].charAt(0).toUpperCase() + segments[2].slice(1)
+      breadcrumbs.push({
+        label: sectionName,
+        href: `/w/${workspaceSlug}/${segments[2]}`,
+        current: segments.length === 3
+      })
+    }
+  }
+  // Legacy projects section: /projects
+  else if (segments[0] === 'projects') {
     breadcrumbs.push({
       label: "Projects",
       href: "/projects",

@@ -10,8 +10,9 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
-import { requireNonEmptyString, optionalString } from "@/server/org/validate";
+import { OrgPersonUpdateSchema } from "@/lib/validations/org";
 import { updateOrgPerson } from "@/server/org/people/write";
+import { handleApiError } from "@/lib/api-errors";
 
 export async function PUT(
   request: NextRequest,
@@ -34,29 +35,26 @@ export async function PUT(
       userId,
       workspaceId,
       scope: "workspace",
-      requireRole: ["MEMBER"],
+      requireRole: ["ADMIN"],
     });
 
     // Step 3: Set workspace context (enables automatic Prisma scoping)
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Parse and validate request body
-    const body = await request.json();
-    const fullName = requireNonEmptyString(body.fullName, "fullName");
-    const email = optionalString(body.email);
-    const title = optionalString(body.title);
-    const departmentId = optionalString(body.departmentId);
-    const teamId = optionalString(body.teamId);
-    const managerId = optionalString(body.managerId);
+    // Step 4: Parse and validate request body (Zod)
+    const { fullName, email, title, departmentId, teamId, managerId } =
+      OrgPersonUpdateSchema.parse(await request.json());
 
     // Step 5: Update person
+    // Convert Zod optional (undefined) to null for Prisma compatibility
     const updated = await updateOrgPerson(personId, {
+      workspaceId,
       fullName,
-      email,
-      title,
-      departmentId,
-      teamId,
-      managerId: managerId !== null ? managerId : undefined,
+      email: email ?? null,
+      title: title ?? null,
+      departmentId: departmentId ?? null,
+      teamId: teamId ?? null,
+      managerId: managerId ?? undefined,
     });
 
     // Step 6: Emit Loopbrain context (persist + trigger indexing non-blocking)
@@ -69,22 +67,8 @@ export async function PUT(
     });
 
     return NextResponse.json({ id: updated.id }, { status: 200 });
-  } catch (error: any) {
-    console.error("[PUT /api/org/people/[personId]/update] Error:", error);
-
-    if (error?.message?.includes("Invalid")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    if (error?.message?.includes("Person not found")) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }
 

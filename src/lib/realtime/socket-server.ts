@@ -450,7 +450,8 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
             data: {
               taskId: data.taskId,
               userId: socket.data.userId,
-              content: data.content
+              content: data.content,
+              workspaceId: socket.data.workspaceId
             },
             include: {
               user: true,

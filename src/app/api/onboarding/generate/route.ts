@@ -3,6 +3,9 @@ import { z } from 'zod'
 import OpenAI from 'openai'
 import { getWikiContext } from '@/lib/wiki'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 // Lazy initialization - only create client when needed
 function getOpenAIClient(): OpenAI | null {
@@ -76,6 +79,12 @@ function generateFallbackTasks(role: string, seniority: string, department: stri
 // POST /api/onboarding/generate
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
+    }
+    setWorkspaceContext(auth.workspaceId)
+
     const body = await request.json()
     const validatedData = generatePlanSchema.parse(body)
 
@@ -186,39 +195,29 @@ Generate a comprehensive onboarding plan for this role.`
       }
     }
 
-    // Get the workspace and a valid user ID
-    const workspace = await prisma.workspace.findFirst({
-      where: { slug: 'default' },
-    })
-
-    if (!workspace) {
-      throw new Error('Default workspace not found')
-    }
-
-    // Get a valid user ID (use the workspace owner or first available user)
-    const user = await prisma.user.findFirst({
-      where: { id: workspace.ownerId },
-    })
-
-    if (!user) {
-      throw new Error('No valid user found for creating templates')
+    // Use authenticated user's workspace and user ID
+    const workspaceId = auth.workspaceId
+    const userId = auth.user?.id
+    if (!userId) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
 
     // Create template (private visibility)
     const template = await prisma.onboardingTemplate.create({
       data: {
-        workspaceId: workspace.id,
+        workspaceId,
         name: planData.planName,
         durationDays: validatedData.durationDays,
         description: `AI-generated onboarding plan for ${validatedData.role} in ${validatedData.department}`,
         visibility: 'PRIVATE',
-        createdById: user.id,
+        createdById: userId,
         tasks: {
           create: tasks.map((task: any, index: number) => ({
             title: task.title || `Task ${index + 1}`,
             description: task.description || '',
             order: index,
             dueDay: task.dueDay || Math.min(index + 1, validatedData.durationDays),
+            workspaceId,
           })),
         },
       },
@@ -228,12 +227,12 @@ Generate a comprehensive onboarding plan for this role.`
     const startDate = new Date(validatedData.startDate)
     const plan = await prisma.onboardingPlan.create({
       data: {
-        workspaceId: workspace.id,
+        workspaceId,
         employeeId: validatedData.employeeId,
         templateId: template.id,
         name: planData.planName,
         startDate,
-        createdById: user.id,
+        createdById: userId,
         tasks: {
           create: tasks.map((task: any, index: number) => ({
             title: task.title || `Task ${index + 1}`,
@@ -241,6 +240,7 @@ Generate a comprehensive onboarding plan for this role.`
             order: index,
             status: 'PENDING',
             dueDate: task.dueDay ? new Date(startDate.getTime() + task.dueDay * 24 * 60 * 60 * 1000) : null,
+            workspaceId,
           })),
         },
       },
@@ -265,18 +265,6 @@ Generate a comprehensive onboarding plan for this role.`
     }, { status: 201 })
 
   } catch (error) {
-    console.error('Error generating plan:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input data', details: error.errors } },
-        { status: 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: { code: 'GENERATION_ERROR', message: 'Failed to generate onboarding plan', details: error instanceof Error ? error.message : 'Unknown error' } },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }

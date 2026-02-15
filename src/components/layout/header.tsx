@@ -6,7 +6,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/workspace-context"
 import { WorkspaceAccountMenu } from "@/components/layout/workspace-account-menu"
-import { LayoutDashboard, FolderKanban, Brain, Network, Sliders, Users, Bell } from "lucide-react"
+import { LayoutDashboard, FolderKanban, Brain, Network, Sliders, Users, Bell, Target } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Logo } from "@/components/logo"
 import { useSession, signOut } from "next-auth/react"
@@ -25,7 +25,7 @@ import { clearUserStatusCache } from "@/hooks/use-user-status"
 // Prefetch common routes on mount for instant navigation
 function prefetchRoutes() {
   const commonRoutes = [
-    '/wiki/home',
+    '/spaces/home',
     '/ask',
     '/settings',
     '/org'
@@ -51,8 +51,8 @@ const navigationItems = [
     description: "Overview and quick actions"
   },
   {
-    name: "Projects",
-    href: "/projects", // Will be prefixed with /w/[slug] in component
+    name: "Spaces",
+    href: "/spaces/home",
     icon: FolderKanban,
     description: "Project management and tasks"
   },
@@ -67,6 +67,12 @@ const navigationItems = [
     href: "/org", // Will be prefixed with /w/[slug] in component
     icon: Network,
     description: "Organization chart and structure"
+  },
+  {
+    name: "Goals",
+    href: "/goals", // Will be prefixed with /w/[slug] in component
+    icon: Target,
+    description: "Goals and OKRs tracking"
   },
   // Part from Org repo
   // {
@@ -126,7 +132,7 @@ export function Header() {
     if (currentWorkspace?.slug) {
       const commonRoutes = [
         `/w/${currentWorkspace.slug}`,
-        `/w/${currentWorkspace.slug}/projects`,
+        `/w/${currentWorkspace.slug}/spaces/home`,
         `/w/${currentWorkspace.slug}/ask`,
         `/w/${currentWorkspace.slug}/settings`,
         `/w/${currentWorkspace.slug}/org`

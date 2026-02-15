@@ -1,13 +1,16 @@
 /**
  * Standardized API Error Handling
- * 
+ *
  * Provides consistent error responses across all API routes with:
  * - Typed error codes
  * - Consistent response format
  * - User-safe messages
  * - Request ID tracking
  * - Secret sanitization
+ * - Structured server-side logging
  */
+
+import { logger } from '@/lib/logger'
 
 /**
  * API Error codes
@@ -374,24 +377,29 @@ export function formatErrorResponse(error: ApiError, includeDetails: boolean = f
  */
 export function handleApiError(
   error: unknown,
-  request?: { headers?: Headers | { get: (name: string) => string | null } }
+  request?: { url?: string; headers?: Headers | { get: (name: string) => string | null } }
 ): Response {
   const requestId = request?.headers?.get?.('x-request-id') || undefined
   const apiError = toApiError(error, requestId)
   const response = formatErrorResponse(apiError, process.env.NODE_ENV === 'development')
 
-  // Log error with full details (server-side only)
-  console.error('[API Error]', {
+  // Extract route path for log context
+  let route: string | undefined
+  try {
+    if (request?.url) {
+      route = new URL(request.url as string).pathname
+    }
+  } catch {
+    // url may not be a full URL string — ignore
+  }
+
+  // Log error with full details (server-side only, structured)
+  logger.error('[API Error]', {
     code: apiError.code,
-    status: apiError.status,
-    message: apiError.message,
+    status: String(apiError.status),
     requestId: apiError.requestId,
-    cause: apiError.cause instanceof Error ? {
-      name: apiError.cause.name,
-      message: apiError.cause.message,
-      stack: apiError.cause.stack,
-    } : apiError.cause,
-  })
+    route,
+  }, apiError.cause ?? apiError)
 
   return Response.json(response, { status: apiError.status })
 }

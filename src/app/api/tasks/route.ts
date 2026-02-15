@@ -390,7 +390,7 @@ export async function POST(request: NextRequest) {
         where: {
           projectId_userId: { projectId, userId: assigneeId },
         },
-        create: { projectId, userId: assigneeId },
+        create: { projectId, userId: assigneeId, workspaceId: auth.workspaceId },
         update: {},
       })
       if (orgPosition) {
@@ -419,7 +419,8 @@ export async function POST(request: NextRequest) {
           description: subtask.description || null,
           assigneeId: subtask.assigneeId || null,
           dueDate: subtask.dueDate ? new Date(subtask.dueDate) : null,
-          order: index
+          order: index,
+          workspaceId: auth.workspaceId
         }))
       })
       

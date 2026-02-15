@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { logTaskHistory } from '@/lib/pm/history'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { z } from 'zod'
@@ -31,11 +35,21 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Set workspace context for Prisma scoping
+    const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
+    })
+
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
     })
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
@@ -139,7 +153,8 @@ export async function POST(
         create: {
           taskId,
           fieldId,
-          value: JSON.stringify(validatedValue)
+          value: JSON.stringify(validatedValue),
+          workspaceId: auth.workspaceId
         }
       })
 
@@ -169,18 +184,7 @@ export async function POST(
       message: 'Custom fields updated successfully',
       customFields: results 
     })
-  } catch (error: unknown) {
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json({ 
-        error: 'Validation error',
-        details: (error as any).issues 
-      }, { status: 400 })
-    }
-
-    console.error('Error updating task custom fields:', error)
-    return NextResponse.json({ 
-      error: 'Failed to update custom fields',
-      details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

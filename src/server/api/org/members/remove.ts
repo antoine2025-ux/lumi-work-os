@@ -8,11 +8,8 @@ import {
   getOrgPermissionContext,
   mapPermissionErrorToStatus,
 } from "@/lib/org/permissions.server";
-
-type Body = {
-  workspaceId?: string;
-  membershipId?: string;
-};
+import { handleApiError } from "@/lib/api-errors";
+import { OrgMemberRemoveSchema } from "@/lib/validations/org";
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,17 +27,9 @@ export async function POST(req: NextRequest) {
     }
 
     const auth = await getUnifiedAuth(req);
-    const body = (await req.json().catch(() => ({}))) as Body;
-    const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : null;
-    const membershipId =
-      typeof body.membershipId === "string" ? body.membershipId : null;
-
-    if (!workspaceId || !membershipId) {
-      return createErrorResponse(
-        "VALIDATION_ERROR",
-        "Missing workspaceId or membershipId."
-      );
-    }
+    const { workspaceId, membershipId } = OrgMemberRemoveSchema.parse(
+      await req.json().catch(() => ({}))
+    );
 
     // Verify workspaceId matches context
     if (context!.orgId !== workspaceId) {
@@ -123,12 +112,8 @@ export async function POST(req: NextRequest) {
     });
 
     return createSuccessResponse<{}>({});
-  } catch (err) {
-    console.error("[ORG_MEMBER_REMOVE_ERROR]", err);
-    return createErrorResponse(
-      "INTERNAL_SERVER_ERROR",
-      "Something went wrong while removing the member."
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 

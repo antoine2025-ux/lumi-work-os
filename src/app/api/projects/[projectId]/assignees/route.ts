@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 
 // GET /api/projects/[projectId]/assignees - Get users who can be assigned to tasks in this project
@@ -12,6 +14,7 @@ export async function GET(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
 
@@ -64,23 +67,7 @@ export async function GET(
     })
 
     return NextResponse.json({ users: assignableUsers })
-  } catch (error: any) {
-    console.error('Error fetching project assignees:', error)
-    
-    if (error.message?.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error.message?.includes('Forbidden') || error.message?.includes('Insufficient')) {
-      return NextResponse.json({ error: 'Forbidden: Insufficient project permissions' }, { status: 403 })
-    }
-    
-    if (error.message?.includes('not found')) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to fetch assignees' 
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

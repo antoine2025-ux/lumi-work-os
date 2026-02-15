@@ -3,6 +3,9 @@ import { prisma } from '@/lib/db'
 import { generateAIResponse, AISource } from '@/lib/ai/providers'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 // Type definitions for LoopwellAI structured response
 export interface LoopwellAIResponse {
@@ -90,7 +93,13 @@ export async function POST(request: NextRequest) {
     let auth
     try {
       auth = await getUnifiedAuth(request)
-      console.log('✅ Authentication successful, workspaceId:', auth.workspaceId)
+      setWorkspaceContext(auth.workspaceId)
+      await assertAccess({
+        userId: auth.user.userId,
+        workspaceId: auth.workspaceId,
+        scope: 'workspace',
+        requireRole: ['MEMBER'],
+      })
     } catch (authError) {
       console.error('❌ Authentication failed:', authError)
       return NextResponse.json({ 
@@ -673,7 +682,8 @@ Remember to return your response as JSON in triple backticks with the exact stru
           data: {
             sessionId,
             type: 'USER',
-            content: message
+            content: message,
+            workspaceId: auth.workspaceId
           }
         })
 
@@ -688,7 +698,8 @@ Remember to return your response as JSON in triple backticks with the exact stru
               usage: aiResponse.usage,
           structuredResponse,
           rawResponse: aiResponse.content
-            } as any
+            } as any,
+            workspaceId: auth.workspaceId
           }
         })
 
@@ -720,15 +731,6 @@ Remember to return your response as JSON in triple backticks with the exact stru
     })
 
   } catch (error) {
-    console.error('❌ Error in LoopwellAI chat:', error)
-    console.error('   Error type:', error instanceof Error ? error.constructor.name : typeof error)
-    console.error('   Error message:', error instanceof Error ? error.message : String(error))
-    if (error instanceof Error && error.stack) {
-      console.error('   Stack trace:', error.stack)
-    }
-    return NextResponse.json({ 
-      error: 'Failed to process request',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

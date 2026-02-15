@@ -20,6 +20,7 @@ import {
   type MutationResult,
 } from "@/lib/org/mutations/types";
 import { computeIssueResolution } from "@/lib/org/mutations/utils";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function PUT(request: NextRequest, ctx: { params: Promise<{ departmentId: string }> }) {
   try {
@@ -221,61 +222,8 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
     };
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error: any) {
-    console.error("[PUT /api/org/structure/departments/[departmentId]/owner] Error:", error);
-
-    if (error?.message?.includes("Department not found") || error?.message?.includes("does not belong to this workspace")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error.message,
-          hint: "The department you're trying to update does not exist or you don't have access to it."
-        },
-        { status: 404 }
-      );
-    }
-
-    if (error?.message?.includes("Person not found") || error?.message?.includes("does not belong to this workspace")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error.message,
-          hint: "The person you're trying to assign as owner does not exist or doesn't belong to this workspace."
-        },
-        { status: 404 }
-      );
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error.message || "Forbidden",
-          hint: "You don't have permission to update department ownership."
-        },
-        { status: 403 }
-      );
-    }
-
-    if (error?.status === 401 || error?.status === 403) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: error?.message || "Unauthorized",
-          hint: "Please ensure you're logged in and have access to this workspace."
-        },
-        { status: error.status }
-      );
-    }
-
-    return NextResponse.json(
-      { 
-        ok: false,
-        error: "Internal server error",
-        hint: error?.message || "An unexpected error occurred while updating department owner. Please try again."
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

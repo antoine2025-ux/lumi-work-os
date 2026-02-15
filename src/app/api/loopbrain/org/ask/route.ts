@@ -7,7 +7,9 @@ import {
   createAnswerPreview,
 } from "@/lib/loopbrain/orgQueryLogger";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { handleApiError } from "@/lib/api-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    setWorkspaceContext(auth.workspaceId);
     await assertAccess({
       userId: auth.user.userId,
       workspaceId: auth.workspaceId,
@@ -134,15 +137,7 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("[loopbrain/org/ask] Failed to process Org question", error);
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Failed to process Org-aware Loopbrain question.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, req)
   }
 }
 

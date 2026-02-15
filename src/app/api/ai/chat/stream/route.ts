@@ -3,12 +3,22 @@ import { prisma } from '@/lib/db'
 import { generateAIStream, getProvider } from '@/lib/ai/providers'
 import { cache, CACHE_KEYS } from '@/lib/cache'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 // POST /api/ai/chat/stream - Stream chat response
 export async function POST(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
-    
+    setWorkspaceContext(auth.workspaceId)
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
+    })
+
     const { message, sessionId, model = 'gpt-4-turbo' } = await request.json()
 
     if (!message) {
@@ -77,7 +87,8 @@ export async function POST(request: NextRequest) {
       data: {
         sessionId,
         type: 'USER',
-        content: message
+        content: message,
+        workspaceId: auth.workspaceId
       }
     })
 
@@ -138,7 +149,8 @@ export async function POST(request: NextRequest) {
               metadata: {
                 model: model,
                 streaming: true
-              } as any
+              } as any,
+              workspaceId: auth.workspaceId
             }
           })
 
@@ -174,14 +186,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Error in streaming chat:', error)
-    return new Response(JSON.stringify({ 
-      error: 'Failed to start streaming',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }), { 
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return handleApiError(error, request)
   }
 }
 

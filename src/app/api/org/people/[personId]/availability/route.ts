@@ -12,6 +12,7 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { optionalEnum } from "@/server/org/validate";
 import { updateAvailability } from "@/server/org/availability/write";
+import { handleApiError } from "@/lib/api-errors"
 
 const ALLOWED_STATUSES = ["UNKNOWN", "AVAILABLE", "PARTIALLY_AVAILABLE", "UNAVAILABLE"] as const;
 
@@ -36,7 +37,7 @@ export async function PUT(
       userId,
       workspaceId,
       scope: "workspace",
-      requireRole: ["MEMBER"],
+      requireRole: ["ADMIN"],
     });
 
     // Step 3: Set workspace context (enables automatic Prisma scoping)
@@ -89,53 +90,8 @@ export async function PUT(
       },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("[PUT /api/org/people/[personId]/availability] Error:", error);
-    console.error("[PUT /api/org/people/[personId]/availability] Error details:", {
-      message: error?.message,
-      code: error?.code,
-      stack: error?.stack,
-    });
-
-    // Return structured error responses with hints
-    if (error?.message?.includes("Person not found")) {
-      return NextResponse.json(
-        { 
-          error: error.message,
-          hint: "The person you're trying to update does not exist or you don't have access to them."
-        },
-        { status: 404 }
-      );
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { 
-          error: error.message,
-          hint: "You don't have permission to update availability for this person."
-        },
-        { status: 403 }
-      );
-    }
-
-    // Handle assertAccess errors
-    if (error?.status === 401 || error?.status === 403) {
-      return NextResponse.json(
-        { 
-          error: error?.message || "Unauthorized",
-          hint: "Please ensure you're logged in and have access to this workspace."
-        },
-        { status: error.status }
-      );
-    }
-
-    return NextResponse.json(
-      { 
-        error: "Internal server error",
-        hint: "An unexpected error occurred while updating availability. Please try again."
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

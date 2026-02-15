@@ -1,18 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertWorkspaceAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { getOrgContext } from "@/server/rbac";
+import { OrgBulkPatchSchema } from "@/lib/validations/org";
 
 function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ ok: false, error: "Unauthenticated" }, { status: 401 });
     }
+
+    // Assert user has workspace access (ADMIN+ can bulk edit people)
+    await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['ADMIN']);
+    setWorkspaceContext(auth.workspaceId);
 
     let ctx;
     try {
@@ -29,21 +37,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 
-    const body = await req.json().catch(() => null);
-    if (!body) return badRequest("Invalid JSON body");
-
-    const { personIds, patch } = body ?? {};
-    if (!Array.isArray(personIds) || personIds.length === 0) return badRequest("personIds must be a non-empty array");
-    if (!patch || typeof patch !== "object") return badRequest("patch is required");
-
-    // Allowed patch keys (keep this strict)
-    const allowedKeys = new Set(["managerId", "teamName", "roleName", "title"]);
-    for (const k of Object.keys(patch)) {
-      if (!allowedKeys.has(k)) return badRequest(`Unsupported patch field: ${k}`);
-      if (patch[k] !== null && patch[k] !== undefined && typeof patch[k] !== "string") {
-        return badRequest(`${k} must be a string or null`);
-      }
-    }
+    // Validate request body (Zod)
+    const { personIds, patch } = OrgBulkPatchSchema.parse(await req.json());
 
     const workspaceId = auth.workspaceId;
 
@@ -132,11 +127,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    console.error("Error in bulk people update:", error);
-    return NextResponse.json(
-      { ok: false, error: { code: "INTERNAL_ERROR", message: error.message || "Failed to update people" } },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prismaUnscoped } from '@/lib/db'
+import { handleApiError } from '@/lib/api-errors'
 
 /**
  * GET /api/debug/db
@@ -125,11 +126,7 @@ export async function GET(request: NextRequest) {
       },
       timestamp: new Date().toISOString()
     })
-  } catch (error: any) {
-    return NextResponse.json({
-      error: 'Failed to query database',
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

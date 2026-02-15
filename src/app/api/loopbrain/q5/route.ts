@@ -9,6 +9,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { prisma } from "@/lib/db";
 import { answerQ5 } from "@/lib/loopbrain/q5";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function GET(request: NextRequest) {
   try {
@@ -99,45 +100,8 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(resp);
-  } catch (error: any) {
-    console.error("Q5 reasoning error:", error);
-
-    if (error.message?.includes("Unauthorized") || error.message?.includes("Forbidden")) {
-      return NextResponse.json(
-        {
-          questionId: "Q5",
-          assumptions: [],
-          constraints: [],
-          risks: [],
-          confidence: "low",
-          errors: [{ code: "UNAUTHORIZED", message: "Unauthorized" }],
-          personId: "",
-          currentStatus: "available" as const,
-          activeWindows: [],
-        },
-        { status: 401 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        questionId: "Q5",
-        assumptions: [],
-        constraints: [],
-        risks: [],
-        confidence: "low",
-        errors: [
-          {
-            code: "INTERNAL_ERROR",
-            message: `Failed to answer Q5: ${error.message}`,
-          },
-        ],
-        personId: "",
-        currentStatus: "available" as const,
-        activeWindows: [],
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

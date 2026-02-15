@@ -16,7 +16,8 @@ export enum ContextType {
   EPIC = 'epic',
   ORG = 'org',
   ACTIVITY = 'activity',
-  UNIFIED = 'unified'
+  UNIFIED = 'unified',
+  GOAL = 'goal'
 }
 
 /**
@@ -179,6 +180,54 @@ export interface ActivityContext extends BaseContext {
 }
 
 /**
+ * Goal context
+ * Represents goals, OKRs, objectives, and key results
+ */
+export interface GoalContext extends BaseContext {
+  type: ContextType.GOAL
+  title: string
+  description?: string
+  level: string
+  status: string
+  progress: number
+  period: string
+  quarter?: string
+  startDate: string
+  endDate: string
+  owner?: {
+    id: string
+    name: string
+  }
+  objectives?: Array<{
+    id: string
+    title: string
+    progress: number
+    keyResults?: Array<{
+      id: string
+      title: string
+      currentValue: number
+      targetValue: number
+      unit?: string
+      progress: number
+    }>
+  }>
+  linkedProjects?: Array<{
+    id: string
+    name: string
+    status: string
+  }>
+  parentGoal?: {
+    id: string
+    title: string
+  }
+  childGoals?: Array<{
+    id: string
+    title: string
+    progress: number
+  }>
+}
+
+/**
  * Unified context
  * Combines multiple context types for comprehensive AI understanding
  */
@@ -207,6 +256,7 @@ export type ContextObject =
   | OrgContext
   | ActivityContext
   | UnifiedContext
+  | GoalContext
 
 /**
  * Supporting types for context composition
@@ -336,6 +386,10 @@ export function isActivityContext(context: ContextObject): context is ActivityCo
 
 export function isUnifiedContext(context: ContextObject): context is UnifiedContext {
   return context.type === ContextType.UNIFIED
+}
+
+export function isGoalContext(context: ContextObject): context is GoalContext {
+  return context.type === ContextType.GOAL
 }
 
 

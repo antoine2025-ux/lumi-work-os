@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { OrgDepartmentUpdateSchema } from "@/lib/validations/org";
+import { handleApiError } from "@/lib/api-errors";
 
 type RouteParams = {
   params: Promise<{
@@ -88,11 +90,7 @@ export async function GET(
 
     return NextResponse.json({ ok: true, department: dto });
   } catch (error) {
-    console.error("Error loading department detail:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to load department" },
-      { status: 500 }
-    );
+    return handleApiError(error, _req);
   }
 }
 
@@ -107,7 +105,7 @@ export async function PUT(
   try {
     const workspaceId = await getCurrentWorkspaceId(req);
     const { id } = await params;
-    const body = await req.json();
+    const body = OrgDepartmentUpdateSchema.parse(await req.json());
 
     // Verify department exists
     const existing = await prisma.orgDepartment.findFirst({
@@ -133,11 +131,7 @@ export async function PUT(
 
     return NextResponse.json({ ok: true, department: updated });
   } catch (error) {
-    console.error("Error updating department:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to update department" },
-      { status: 500 }
-    );
+    return handleApiError(error, req);
   }
 }
 
@@ -272,10 +266,6 @@ export async function DELETE(
       });
     }
   } catch (error) {
-    console.error("Error deleting department:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to delete department" },
-      { status: 500 }
-    );
+    return handleApiError(error, req);
   }
 }

@@ -25,11 +25,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const workspaceType = searchParams.get('workspace_type') // Filter by workspace_type if provided
 
-    // Generate cache key
+    // Generate cache key — include userId so personal page results aren't shared across users
     const cacheKey = cache.generateKey(
       CACHE_KEYS.WIKI_PAGES,
       auth.workspaceId,
-      `recent_${limit}_${workspaceType || 'all'}`
+      `recent_${auth.user.userId}_${limit}_${workspaceType || 'all'}`
     )
 
     // OPTIMIZED: Check cache first (non-blocking)
@@ -45,19 +45,17 @@ export async function GET(request: NextRequest) {
       return response
     }
 
-    // Build where clause - filter by workspaceId and optionally by workspace_type
+    // SECURITY: Personal pages must only be visible to their creator.
     const baseWhere: any = {
       workspaceId: auth.workspaceId,
       isPublished: true
     }
 
-    // If workspace_type is provided, filter by it
-    // This allows filtering for 'personal', 'team', or custom workspace IDs
-    let whereClause: any = baseWhere
-    
+    let whereClause: any
+
     if (workspaceType) {
       if (workspaceType === 'team') {
-        // For team workspace, include pages with workspace_type='team' OR legacy pages (null workspace_type with non-personal permission)
+        // Team workspace: pages with workspace_type='team' OR legacy pages (null with non-personal permission)
         whereClause = {
           ...baseWhere,
           OR: [
@@ -72,12 +70,29 @@ export async function GET(request: NextRequest) {
             }
           ]
         }
+      } else if (workspaceType === 'personal') {
+        // Personal workspace: ONLY return pages created by this user
+        whereClause = {
+          ...baseWhere,
+          workspace_type: 'personal',
+          createdById: auth.user.userId,
+        }
       } else {
-        // For personal or custom workspaces, filter strictly by workspace_type
+        // Custom workspaces: filter strictly by workspace_type
         whereClause = {
           ...baseWhere,
           workspace_type: workspaceType
         }
+      }
+    } else {
+      // No filter: return all pages, but restrict personal pages to creator only
+      whereClause = {
+        ...baseWhere,
+        OR: [
+          { workspace_type: { not: 'personal' } },
+          { workspace_type: null },
+          { workspace_type: 'personal', createdById: auth.user.userId },
+        ],
       }
     }
 

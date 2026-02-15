@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { convertHtmlToTipTap } from '@/lib/wiki/html-to-tiptap'
 import { extractTextFromProseMirror } from '@/lib/wiki/text-extract'
 import { logger } from '@/lib/logger'
@@ -164,7 +165,8 @@ export async function POST(
           contentFormat: 'JSON',
           textContent: textContent || null,
           version: nextVersion,
-          createdById: auth.user.userId
+          createdById: auth.user.userId,
+          workspaceId: auth.workspaceId
         }
       })
 
@@ -192,12 +194,7 @@ export async function POST(
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
     })
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' 
-        ? (error instanceof Error ? error.message : String(error))
-        : undefined
-    }, { status: 500 })
+    return handleApiError(error)
   }
 }
 

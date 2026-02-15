@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { logTaskHistory } from '@/lib/pm/history'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { z } from 'zod'
@@ -27,11 +31,21 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Set workspace context for Prisma scoping
+    const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['VIEWER'],
+    })
+
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
     })
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
@@ -66,12 +80,7 @@ export async function GET(
 
     return NextResponse.json(comments)
   } catch (error) {
-    console.error('Error fetching comments:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch comments',
-      details: errorMessage
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -91,11 +100,21 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Set workspace context for Prisma scoping
+    const authCtx = await getUnifiedAuth(request)
+    setWorkspaceContext(authCtx.workspaceId)
+    await assertAccess({
+      userId: authCtx.user.userId,
+      workspaceId: authCtx.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
+    })
+
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
     })
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
@@ -153,7 +172,8 @@ export async function POST(
         taskId,
         userId: session.user.id,
         content: validatedData.content,
-        mentions: validatedData.mentions || undefined
+        mentions: validatedData.mentions || undefined,
+        workspaceId: authCtx.workspaceId
       },
       include: {
         user: {
@@ -204,18 +224,7 @@ export async function POST(
     }
 
     return NextResponse.json(comment)
-  } catch (error: unknown) {
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json({ 
-        error: 'Validation error',
-        details: (error as any).issues 
-      }, { status: 400 })
-    }
-
-    console.error('Error creating comment:', error)
-    return NextResponse.json({ 
-      error: 'Failed to create comment',
-      details: error instanceof Error ? error.message : String(error) 
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

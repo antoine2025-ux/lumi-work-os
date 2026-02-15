@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { ProjectRole } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
@@ -31,6 +33,7 @@ export async function GET(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
 
@@ -113,43 +116,8 @@ export async function GET(
     }))
 
     return NextResponse.json(docs)
-  } catch (error: any) {
-    console.error('Error fetching project documentation:', error)
-    console.error('Error code:', error.code)
-    console.error('Error message:', error.message)
-    console.error('Error name:', error.name)
-    console.error('Full error:', JSON.stringify(error, null, 2))
-    
-    if (error.message === 'Unauthorized: User not authenticated.') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error.message === 'Project not found.') {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    if (error.message === 'Forbidden: Insufficient project permissions.') {
-      return NextResponse.json({ error: 'Forbidden: Insufficient project permissions' }, { status: 403 })
-    }
-    
-    console.error('[ProjectDocumentation] Unexpected error:', error)
-    console.error('[ProjectDocumentation] Error stack:', error.stack)
-    
-    // In development, return full error details to help debug
-    const errorDetails = process.env.NODE_ENV === 'development' ? {
-      code: error.code,
-      message: error.message,
-      name: error.name,
-      stack: error.stack?.split('\n').slice(0, 10).join('\n')
-    } : {
-      code: error.code,
-      message: error.message
-    }
-    
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      details: errorDetails
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -161,6 +129,7 @@ export async function POST(
   try {
     console.log('[ProjectDocumentation] POST: Starting attachment process')
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     console.log('[ProjectDocumentation] POST: Auth successful, userId:', auth.user.userId)
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
@@ -280,7 +249,8 @@ export async function POST(
       data: {
         projectId,
         wikiPageId,
-        order: newOrder
+        order: newOrder,
+        workspaceId: auth.workspaceId
       },
       include: {
         wikiPage: {
@@ -310,54 +280,8 @@ export async function POST(
     }
 
     return NextResponse.json(doc, { status: 201 })
-  } catch (error: any) {
-    console.error('Error attaching documentation:', error)
-    
-    // Handle Zod validation errors
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({
-        error: 'Validation error',
-        details: error.issues
-      }, { status: 400 })
-    }
-    
-    // Handle Prisma unique constraint violation (duplicate)
-    if (error.code === 'P2002') {
-      return NextResponse.json({ 
-        error: 'This documentation is already attached to the project' 
-      }, { status: 409 })
-    }
-    
-    if (error.message === 'Unauthorized: User not authenticated.') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error.message === 'Project not found.') {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    if (error.message === 'Forbidden: Insufficient project permissions.') {
-      return NextResponse.json({ error: 'Forbidden: Insufficient project permissions' }, { status: 403 })
-    }
-    
-    console.error('[ProjectDocumentation] Unexpected error:', error)
-    console.error('[ProjectDocumentation] Error stack:', error.stack)
-    
-    // In development, return full error details to help debug
-    const errorDetails = process.env.NODE_ENV === 'development' ? {
-      code: error.code,
-      message: error.message,
-      name: error.name,
-      stack: error.stack?.split('\n').slice(0, 10).join('\n')
-    } : {
-      code: error.code,
-      message: error.message
-    }
-    
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      details: errorDetails
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

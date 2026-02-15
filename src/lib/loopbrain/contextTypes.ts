@@ -9,7 +9,8 @@ export type ContextType =
   | "project"
   | "task"
   | "page"
-  | "note";
+  | "note"
+  | "goal";
 
 export type ContextRelationType =
   | "reports_to"

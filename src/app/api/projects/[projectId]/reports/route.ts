@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { prisma } from '@/lib/db'
 
@@ -15,6 +17,10 @@ export async function GET(
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Set workspace context for Prisma scoping
+    const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
 
     const { projectId } = await params
     const { searchParams } = new URL(request.url)

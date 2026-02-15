@@ -10,6 +10,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors";
 
 const ALLOWED_TYPES = ["REQUIRED", "PREFERRED"] as const;
 type RoleCardSkillType = typeof ALLOWED_TYPES[number];
@@ -84,9 +85,8 @@ export async function GET(
         minProficiency: rcs.minProficiency,
       })),
     });
-  } catch (error: unknown) {
-    console.error("[GET /api/org/role-cards/[id]/skills] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }
 
@@ -183,6 +183,7 @@ export async function POST(
         skillId: body.skillId,
         type: body.type as RoleCardSkillType,
         minProficiency,
+        workspaceId: auth.workspaceId,
       },
       include: {
         skill: {
@@ -209,9 +210,8 @@ export async function POST(
         minProficiency: roleCardSkill.minProficiency,
       },
     });
-  } catch (error: unknown) {
-    console.error("[POST /api/org/role-cards/[id]/skills] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }
 

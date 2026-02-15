@@ -1,21 +1,17 @@
 import { Prisma } from '@prisma/client'
 
 // Models that require workspace scoping
+// All models listed here have a direct workspaceId column in the database.
+// The scoping middleware injects workspaceId into where/create clauses.
 export const WORKSPACE_SCOPED_MODELS = [
+  // Core workspace models
   'Project',
   'Task',
   'Epic',
   'Milestone',
   'WikiPage',
   'WikiChunk',
-  'WikiEmbed',
-  'WikiAttachment',
-  'WikiComment',
-  'WikiVersion',
-  'WikiPagePermission',
-  'WikiFavorite',
   'ChatSession',
-  'ChatMessage',
   'FeatureFlag',
   'Integration',
   'Migration',
@@ -23,49 +19,97 @@ export const WORKSPACE_SCOPED_MODELS = [
   'WorkflowInstance',
   'OnboardingTemplate',
   'OnboardingPlan',
-  'OnboardingTask',
   'OrgPosition',
   'ProjectTemplate',
   'TaskTemplate',
-  'TaskTemplateItem',
   'Activity',
-  'CustomFieldDef',
-  'CustomFieldVal',
+  'ContextItem',
+  'ContextEmbedding',
+  'ContextSummary',
+  'Goal',
+  'GoalTemplate',
+  'PerformanceReview',
+  'OneOnOneTemplate',
+  'OneOnOneMeeting',
+  'GoalWorkflowRule',
+  // Task children (workspaceId added via migration)
+  'Subtask',
+  'TaskComment',
   'TaskHistory',
-  'ProjectDailySummary',
+  'CustomFieldVal',
+  // Project children
   'ProjectMember',
   'ProjectWatcher',
   'ProjectAssignee',
-  'Subtask',
-  'TaskComment',
-  'ContextItem',
-  'ContextEmbedding',
-  'ContextSummary'
+  'ProjectDocumentation',
+  'ProjectAccountability',
+  'ProjectDailySummary',
+  'CustomFieldDef',
+  // WikiPage children
+  'WikiVersion',
+  'WikiComment',
+  'WikiEmbed',
+  'WikiAttachment',
+  'WikiPagePermission',
+  'WikiFavorite',
+  'wiki_ai_interactions',
+  'wiki_page_views',
+  // Goal children
+  'Objective',
+  'GoalComment',
+  'GoalUpdate',
+  'ProjectGoalLink',
+  'GoalStakeholder',
+  'GoalApproval',
+  'GoalProgressUpdate',
+  'GoalAnalytics',
+  'GoalRecommendation',
+  'GoalCheckIn',
+  // Goal grandchildren
+  'KeyResult',
+  'KeyResultUpdate',
+  // Other parent chains
+  'ChatMessage',
+  'OnboardingTask',
+  'onboarding_task_assignments',
+  'TaskTemplateItem',
+  'WorkflowAssignment',
+  'RoleCardSkill',
+  // Decision domain children
+  'DecisionAuthority',
+  'DecisionEscalationStep',
 ] as const
 
 // Context for workspace scoping
-let currentWorkspaceId: string | null = null
+// IMPORTANT: Use globalThis to store workspace context so it survives
+// module cache clearing in development mode (see db.ts lines 95-102).
+// Module-level variables get reset when require.cache is cleared,
+// causing setWorkspaceContext and getWorkspaceContext to use different instances.
+const _global = globalThis as unknown as { __workspaceContextId: string | null }
+if (_global.__workspaceContextId === undefined) {
+  _global.__workspaceContextId = null
+}
 let isProduction = process.env.NODE_ENV === 'production'
 
 /**
  * Set the current workspace context for scoping
  */
 export function setWorkspaceContext(workspaceId: string | null): void {
-  currentWorkspaceId = workspaceId
+  _global.__workspaceContextId = workspaceId
 }
 
 /**
  * Get the current workspace context
  */
 export function getWorkspaceContext(): string | null {
-  return currentWorkspaceId
+  return _global.__workspaceContextId
 }
 
 /**
  * Clear the workspace context
  */
 export function clearWorkspaceContext(): void {
-  currentWorkspaceId = null
+  _global.__workspaceContextId = null
 }
 
 /**

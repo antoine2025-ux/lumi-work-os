@@ -1,7 +1,6 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/db'
 import { generateAIResponse } from '@/lib/ai/providers'
-
-const prisma = new PrismaClient()
+import { getWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 export interface DailySummaryData {
   projectId: string
@@ -288,6 +287,18 @@ function buildSummaryPrompt(project: { name: string; description: string | null 
 
 export async function saveDailySummary(projectId: string, date: string, summary: string): Promise<void> {
   try {
+    // Resolve workspaceId from the project or current context
+    const wsId = getWorkspaceContext()
+    let workspaceId: string | null = wsId
+    if (!workspaceId) {
+      const project = await prisma.project.findUnique({ where: { id: projectId }, select: { workspaceId: true } })
+      workspaceId = project?.workspaceId ?? null
+    }
+
+    if (!workspaceId) {
+      throw new Error(`Cannot save daily summary: no workspaceId found for project ${projectId}`)
+    }
+
     await prisma.projectDailySummary.upsert({
       where: {
         projectId_date: {
@@ -301,7 +312,8 @@ export async function saveDailySummary(projectId: string, date: string, summary:
       create: {
         projectId,
         date: new Date(date),
-        text: summary
+        text: summary,
+        workspaceId
       }
     })
   } catch (error) {

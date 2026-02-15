@@ -38,6 +38,7 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { deriveAllIssues } from "@/lib/org/issues/deriveAllIssues";
 import type { OrgIssueMetadata } from "@/lib/org/deriveIssues";
+import { handleApiError } from "@/lib/api-errors"
 
 export type IntegrityIssue = {
   issueKey: string; // PRIMARY IDENTIFIER: `${issueType}:${entityType}:${entityId}`
@@ -275,14 +276,7 @@ export async function GET(request: NextRequest) {
       issues: filteredIssues,
       summary,
     } as IntegrityResponse);
-  } catch (error: unknown) {
-    console.error("[GET /api/org/integrity] Error:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Failed to check integrity",
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

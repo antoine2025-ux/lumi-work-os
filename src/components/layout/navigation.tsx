@@ -38,8 +38,8 @@ const coreNavigationItems = [
     roles: ['OWNER', 'ADMIN', 'MEMBER']
   },
   {
-    name: "Projects",
-    href: "/projects",
+    name: "Spaces",
+    href: "/spaces/home",
     icon: Building2,
     description: "Project management and tasks",
     roles: ['OWNER', 'ADMIN', 'MEMBER']
@@ -139,7 +139,7 @@ export function Navigation() {
   const pathname = usePathname()
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
-  const { userRole, canManageWorkspace, canViewAnalytics } = useWorkspace()
+  const { userRole, canManageWorkspace, canViewAnalytics, currentWorkspace } = useWorkspace()
   
   // Filter navigation items based on user role and feature flags
   const getVisibleNavigationItems = () => {
@@ -193,13 +193,19 @@ export function Navigation() {
         {/* Navigation Items */}
         <div className="flex items-center space-x-1">
           {navigationItems.map((item) => {
-            const isActive = pathname === item.href || 
-              (item.href !== "/" && pathname.startsWith(item.href))
+            // Build workspace-scoped href for workspace-aware routes
+            const slugHref = currentWorkspace?.slug 
+              ? `/w/${currentWorkspace.slug}${item.href === '/' ? '' : item.href}`
+              : item.href // Fallback to original if no workspace
+            
+            const isActive = pathname === slugHref || 
+              pathname === item.href ||
+              (item.href !== "/" && (pathname?.startsWith(slugHref) || pathname?.startsWith(item.href)))
             
             return (
               <Link
                 key={item.name}
-                href={item.href}
+                href={slugHref}
                 className={cn(
                   "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative",
                   isActive

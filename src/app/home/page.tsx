@@ -1,4 +1,5 @@
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { getUserCapacity } from '@/lib/org/capacity/get-user-capacity'
 import { getTodayWindow } from '@/lib/datetime'
@@ -8,6 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
   const auth = await getUnifiedAuth()
+  setWorkspaceContext(auth.workspaceId)
 
   // Get user timezone for todo filtering
   const user = await prisma.user.findUnique({

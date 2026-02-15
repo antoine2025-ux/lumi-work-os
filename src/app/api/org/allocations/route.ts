@@ -17,7 +17,9 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors";
 import type { AllocationContextType, AllocationSource } from "@prisma/client";
+import { AllocationCreateSchema } from "@/lib/validations/org";
 import type { OrgIssueMetadata } from "@/lib/org/deriveIssues";
 import { resolveEffectiveCapacity } from "@/lib/org/capacity/resolveEffectiveCapacity";
 import {
@@ -112,9 +114,8 @@ export async function GET(request: NextRequest) {
         updatedAt: a.updatedAt.toISOString(),
       })),
     });
-  } catch (error: unknown) {
-    console.error("[GET /api/org/allocations] Error:", error);
-    return NextResponse.json({ ok: false, error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }
 
@@ -140,66 +141,12 @@ export async function POST(request: NextRequest) {
     // Step 3: Set workspace context
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Parse and validate request body
-    const body = await request.json();
-
-    // Validate required fields
-    if (!body.personId) {
-      return NextResponse.json({ ok: false, error: "personId is required" }, { status: 400 });
-    }
-
-    if (body.allocationPercent === undefined || body.allocationPercent === null) {
-      return NextResponse.json({ ok: false, error: "allocationPercent is required" }, { status: 400 });
-    }
-
-    const allocationPercent = Number(body.allocationPercent);
-    if (isNaN(allocationPercent) || allocationPercent < 0 || allocationPercent > 1) {
-      return NextResponse.json(
-        { ok: false, error: "allocationPercent must be between 0 and 1" },
-        { status: 400 }
-      );
-    }
-
-    if (!body.contextType) {
-      return NextResponse.json({ ok: false, error: "contextType is required" }, { status: 400 });
-    }
-
-    if (!ALLOWED_CONTEXT_TYPES.includes(body.contextType)) {
-      return NextResponse.json(
-        { ok: false, error: `contextType must be one of: ${ALLOWED_CONTEXT_TYPES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    if (!body.startDate) {
-      return NextResponse.json({ ok: false, error: "startDate is required" }, { status: 400 });
-    }
-
+    // Step 4: Parse and validate request body (Zod)
+    const body = AllocationCreateSchema.parse(await request.json());
+    const allocationPercent = body.allocationPercent;
     const startDate = new Date(body.startDate);
-    if (isNaN(startDate.getTime())) {
-      return NextResponse.json({ ok: false, error: "Invalid startDate" }, { status: 400 });
-    }
-
     const endDate = body.endDate ? new Date(body.endDate) : null;
-    if (endDate && isNaN(endDate.getTime())) {
-      return NextResponse.json({ ok: false, error: "Invalid endDate" }, { status: 400 });
-    }
-
-    if (endDate && endDate <= startDate) {
-      return NextResponse.json(
-        { ok: false, error: "endDate must be after startDate" },
-        { status: 400 }
-      );
-    }
-
-    // Validate source if provided
-    const source: AllocationSource = body.source ?? "MANUAL";
-    if (!ALLOWED_SOURCES.includes(source)) {
-      return NextResponse.json(
-        { ok: false, error: `source must be one of: ${ALLOWED_SOURCES.join(", ")}` },
-        { status: 400 }
-      );
-    }
+    const source: AllocationSource = (body.source as AllocationSource) ?? "MANUAL";
 
     // Step 5: Verify person exists in workspace
     const position = await prisma.orgPosition.findFirst({
@@ -310,8 +257,7 @@ export async function POST(request: NextRequest) {
     };
 
     return NextResponse.json(response);
-  } catch (error: unknown) {
-    console.error("[POST /api/org/allocations] Error:", error);
-    return NextResponse.json({ ok: false, error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }

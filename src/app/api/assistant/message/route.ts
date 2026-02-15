@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import OpenAI from 'openai'
 import { searchWikiKnowledge, formatWikiKnowledgeForAI } from '@/lib/wiki-knowledge'
+import { handleApiError } from '@/lib/api-errors'
 
 // Lazy initialization - only create client when needed
 function getOpenAIClient(): OpenAI | null {
@@ -69,6 +72,12 @@ function getMockResponse(session: any, message: string, messageCount: number): s
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
+    }
+    setWorkspaceContext(auth.workspaceId)
+
     const { sessionId, message, phase } = await request.json()
 
     if (!sessionId || !message) {
@@ -95,7 +104,8 @@ export async function POST(request: NextRequest) {
         sessionId: sessionId,
         type: 'USER',
         content: message,
-        metadata: {}
+        metadata: {},
+        workspaceId: auth.workspaceId
       }
     })
 
@@ -368,7 +378,8 @@ Be conversational, helpful, and guide them through the project creation process 
         sessionId: sessionId,
         type: 'AI',
         content: aiResponse,
-        metadata: {}
+        metadata: {},
+        workspaceId: auth.workspaceId
       }
     })
 
@@ -434,12 +445,6 @@ Be conversational, helpful, and guide them through the project creation process 
     })
 
   } catch (error) {
-    console.error('Error processing assistant message:', error)
-    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack')
-    return NextResponse.json({ 
-      error: 'Failed to process message', 
-      details: error instanceof Error ? error.message : 'Unknown error' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

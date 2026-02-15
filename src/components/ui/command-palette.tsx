@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
+import { useWorkspace } from "@/lib/workspace-context"
 import { 
   Search, 
   Plus, 
@@ -45,6 +46,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState("")
   const [selectedIndex, setSelectedIndex] = useState(0)
   const router = useRouter()
+  const { currentWorkspace } = useWorkspace()
   // const { enabled: cmdKEnabled } = useFeatureFlag("cmd_k_palette")
 
   // Fetch search results
@@ -98,7 +100,7 @@ export function CommandPalette() {
       title: "Go to Projects",
       description: "Manage projects and tasks",
       icon: FileText,
-      action: () => router.push("/projects"),
+      action: () => router.push(currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/projects` : "/projects"),
       keywords: ["projects", "tasks", "kanban"],
       category: "navigation"
     },

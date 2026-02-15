@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { loadCurrentWorkspaceOrgContextBundle } from "@/lib/context/org/loadCurrentWorkspaceOrgContextBundle";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { handleApiError } from "@/lib/api-errors"
 
 export const dynamic = "force-dynamic";
 
@@ -89,39 +90,8 @@ export async function GET(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error(
-      "GET /api/loopbrain/org/context/bundle error:",
-      error
-    );
-
-    const message = error?.message ?? "Unknown error";
-
-    // Handle authentication errors
-    if (
-      message.includes("Unauthorized") ||
-      message.includes("No workspace found") ||
-      message.includes("no current workspace found")
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Unauthenticated",
-          detail: message,
-        },
-        { status: 401 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          "Failed to load Org Context bundle from Context Store",
-        detail: message,
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

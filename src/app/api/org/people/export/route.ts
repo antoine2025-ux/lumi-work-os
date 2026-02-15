@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertWorkspaceAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { getOrgContext } from "@/server/rbac";
 
 function csvEscape(v: any) {
@@ -9,12 +12,16 @@ function csvEscape(v: any) {
   return s;
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ ok: false, error: "Unauthenticated" }, { status: 401 });
     }
+
+    // Assert user has workspace access (MEMBER+ can export org data)
+    await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['MEMBER']);
+    setWorkspaceContext(auth.workspaceId);
 
     let ctx;
     try {
@@ -91,12 +98,8 @@ export async function GET(req: Request) {
         "Content-Disposition": `attachment; filename="people-${workspaceId}.csv"`,
       },
     });
-  } catch (error: any) {
-    console.error("Error exporting people:", error);
-    return NextResponse.json(
-      { ok: false, error: { code: "INTERNAL_ERROR", message: error.message || "Failed to export" } },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 

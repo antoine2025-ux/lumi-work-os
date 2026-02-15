@@ -13,6 +13,7 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { buildLoopbrainOrgContext } from "@/server/org/loopbrainContext/build";
 import { buildLoopbrainOrgContextV2 } from "@/server/org/loopbrainContext/build_v2";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function GET(request: NextRequest) {
   try {
@@ -53,14 +54,8 @@ export async function GET(request: NextRequest) {
       console.error("[GET /api/org/loopbrain/context] Context build/validation error:", buildError);
       return NextResponse.json({ error: "Loopbrain context invalid" }, { status: 500 });
     }
-  } catch (error: any) {
-    console.error("[GET /api/org/loopbrain/context] Error:", error);
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

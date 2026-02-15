@@ -14,6 +14,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors";
+import { CapacityContractCreateSchema } from "@/lib/validations/org";
 import type { OrgIssueMetadata } from "@/lib/org/deriveIssues";
 import { resolveEffectiveCapacity } from "@/lib/org/capacity/resolveEffectiveCapacity";
 import {
@@ -88,9 +90,8 @@ export async function GET(request: NextRequest) {
         updatedAt: c.updatedAt.toISOString(),
       })),
     });
-  } catch (error: unknown) {
-    console.error("[GET /api/org/capacity/contract] Error:", error);
-    return NextResponse.json({ ok: false, error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }
 
@@ -116,46 +117,11 @@ export async function POST(request: NextRequest) {
     // Step 3: Set workspace context
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Parse and validate request body
-    const body = await request.json();
-
-    // Validate required fields
-    if (!body.personId) {
-      return NextResponse.json({ ok: false, error: "personId is required" }, { status: 400 });
-    }
-
-    if (body.weeklyCapacityHours === undefined || body.weeklyCapacityHours === null) {
-      return NextResponse.json({ ok: false, error: "weeklyCapacityHours is required" }, { status: 400 });
-    }
-
-    const weeklyCapacityHours = Number(body.weeklyCapacityHours);
-    if (isNaN(weeklyCapacityHours) || weeklyCapacityHours < 0 || weeklyCapacityHours > 168) {
-      return NextResponse.json(
-        { ok: false, error: "weeklyCapacityHours must be between 0 and 168" },
-        { status: 400 }
-      );
-    }
-
-    if (!body.effectiveFrom) {
-      return NextResponse.json({ ok: false, error: "effectiveFrom is required" }, { status: 400 });
-    }
-
+    // Step 4: Parse and validate request body (Zod)
+    const body = CapacityContractCreateSchema.parse(await request.json());
+    const weeklyCapacityHours = body.weeklyCapacityHours;
     const effectiveFrom = new Date(body.effectiveFrom);
-    if (isNaN(effectiveFrom.getTime())) {
-      return NextResponse.json({ ok: false, error: "Invalid effectiveFrom date" }, { status: 400 });
-    }
-
     const effectiveTo = body.effectiveTo ? new Date(body.effectiveTo) : null;
-    if (effectiveTo && isNaN(effectiveTo.getTime())) {
-      return NextResponse.json({ ok: false, error: "Invalid effectiveTo date" }, { status: 400 });
-    }
-
-    if (effectiveTo && effectiveTo <= effectiveFrom) {
-      return NextResponse.json(
-        { ok: false, error: "effectiveTo must be after effectiveFrom" },
-        { status: 400 }
-      );
-    }
 
     // Step 5: Verify person exists in workspace
     const position = await prisma.orgPosition.findFirst({
@@ -258,8 +224,7 @@ export async function POST(request: NextRequest) {
     };
 
     return NextResponse.json(response);
-  } catch (error: unknown) {
-    console.error("[POST /api/org/capacity/contract] Error:", error);
-    return NextResponse.json({ ok: false, error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }

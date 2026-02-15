@@ -169,7 +169,7 @@ export function prefetchRoute(route: string, queryClient: QueryClient, workspace
   if (!workspaceId) return
 
   // Prefetch based on route pattern
-  if (route === '/wiki/home' || route === '/wiki' || route === '/spaces') {
+  if (route === '/spaces/home' || route === '/wiki' || route === '/spaces') {
     // Already prefetched, but ensure it's fresh
     queryClient.prefetchQuery({
       queryKey: ['workspaces', workspaceId],

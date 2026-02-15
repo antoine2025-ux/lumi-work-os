@@ -10,6 +10,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function PATCH(
   request: NextRequest,
@@ -31,12 +32,12 @@ export async function PATCH(
       );
     }
 
-    // Step 2: Assert access (TODO: add org:write/admin permission check)
+    // Step 2: Assert access (ADMIN required for unarchiving people)
     await assertAccess({
       userId,
       workspaceId,
       scope: "workspace",
-      requireRole: ["MEMBER"], // TODO: restrict to admin/write permissions
+      requireRole: ["ADMIN"],
     });
 
     // Step 3: Set workspace context
@@ -102,26 +103,8 @@ export async function PATCH(
       },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("[PATCH /api/org/people/[personId]/unarchive] Error:", error);
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { 
-          error: error.message || "Forbidden",
-          hint: "You don't have permission to perform this action.",
-        },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json(
-      { 
-        error: "Failed to unarchive person",
-        hint: error?.message || "An unexpected error occurred. Please try again.",
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

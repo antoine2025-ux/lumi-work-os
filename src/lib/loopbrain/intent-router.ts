@@ -23,6 +23,10 @@ export type LoopbrainIntent =
   | 'capacity_planning'
   | 'prioritization'
   | 'how_to'
+  | 'goal_status'
+  | 'goal_progress'
+  | 'goal_risk'
+  | 'goal_recommendation'
   | 'unknown'
 
 /**
@@ -222,6 +226,46 @@ export function detectIntentFromKeywords(
     intent = 'open_loops'
     confidence = 0.9
     reasons.push('Detected open loops keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // Goal progress: user asking about goal tracking
+  const goalProgressKeywords = ['goal progress', 'okr progress', 'how are goals', 'goal tracking', 'goals tracking', 'quarterly goals', 'key result progress']
+  if (goalProgressKeywords.some(kw => queryLower.includes(kw)) ||
+      (queryLower.includes('progress') && (queryLower.includes('goal') || queryLower.includes('okr')))) {
+    intent = 'goal_progress'
+    confidence = 0.85
+    reasons.push('Detected goal progress keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // Goal risk: user asking about at-risk goals or risk analysis
+  const goalRiskKeywords = ['goal risk', 'goals at risk', 'at risk goals', 'risk score', 'goal analytics', 'goal velocity', 'stalled goals']
+  if (goalRiskKeywords.some(kw => queryLower.includes(kw)) ||
+      (queryLower.includes('risk') && queryLower.includes('goal'))) {
+    intent = 'goal_risk'
+    confidence = 0.88
+    reasons.push('Detected goal risk/analytics keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // Goal recommendation: user asking for suggestions or what to do about goals
+  const goalRecKeywords = ['goal recommendation', 'goal suggestion', 'improve goal', 'help with goal', 'what should we do about goal', 'fix goal']
+  if (goalRecKeywords.some(kw => queryLower.includes(kw)) ||
+      (queryLower.includes('recommend') && queryLower.includes('goal'))) {
+    intent = 'goal_recommendation'
+    confidence = 0.85
+    reasons.push('Detected goal recommendation keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // Goal status: user asking about specific goals
+  const goalStatusKeywords = ['goal status', 'behind goal', 'which goals', 'company goals', 'team goals']
+  if (goalStatusKeywords.some(kw => queryLower.includes(kw)) ||
+      (queryLower.includes('goal') && (queryLower.includes('behind') || queryLower.includes('status')))) {
+    intent = 'goal_status'
+    confidence = 0.85
+    reasons.push('Detected goal status keywords')
     return { intent, confidence, reasons }
   }
 

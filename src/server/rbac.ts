@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { getSessionUser } from "./auth";
 import { getActiveOrgContext } from "./orgContext";
 import { NextRequest } from "next/server";
@@ -15,6 +16,12 @@ export async function getOrgContext(request?: NextRequest) {
 
   const canEdit = role === "EDITOR" || role === "ADMIN";
   const canAdmin = role === "ADMIN";
+
+  // Set workspace context for Prisma scoping middleware
+  // orgId is the workspaceId in workspace-based org resolution
+  if (orgId) {
+    setWorkspaceContext(orgId);
+  }
 
   return { user, orgId, orgName, role, canEdit, canAdmin };
 }

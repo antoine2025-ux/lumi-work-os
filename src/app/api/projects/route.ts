@@ -41,12 +41,6 @@ export async function GET(request: NextRequest) {
     const auth = await getUnifiedAuth(request)
     const authDurationMs = performance.now() - authStart
     
-    console.log('[PROJECTS API] Auth context:', {
-      userId: auth.user.userId,
-      userEmail: auth.user.email,
-      workspaceId: auth.workspaceId
-    })
-    
     // 2. Assert workspace access (VIEWER can see projects)
     const accessStart = performance.now()
     try {
@@ -83,11 +77,6 @@ export async function GET(request: NextRequest) {
           // Exclude employmentStatus - may not exist in database yet
         }
       })
-      console.log('[PROJECTS API] WorkspaceMember check:', workspaceMember ? {
-        found: true,
-        role: workspaceMember.role
-      } : { found: false })
-      
       throw accessError
     }
     const accessDurationMs = performance.now() - accessStart
@@ -145,8 +134,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Optimized query: Use select instead of include, limit tasks loaded
-    console.log('[PROJECTS API] About to query Prisma with where:', JSON.stringify(where, null, 2))
-    console.log('[PROJECTS API] User ID:', auth.user.userId, 'Workspace ID:', auth.workspaceId)
     const dbStart = performance.now()
     const projects = await prisma.project.findMany({
       where,
@@ -226,47 +213,6 @@ export async function GET(request: NextRequest) {
       }
     })
     const dbDurationMs = performance.now() - dbStart
-
-    console.log('[PROJECTS API] Found projects:', projects.length)
-    if (projects.length === 0) {
-      // Debug: Check if there are any projects in the workspace at all
-      const allProjectsInWorkspace = await prisma.project.findMany({
-        where: { workspaceId: auth.workspaceId },
-        select: { id: true, name: true },
-        take: 5
-      })
-      console.log('[PROJECTS API] Debug - Total projects in workspace:', allProjectsInWorkspace.length)
-      console.log('[PROJECTS API] Sample projects:', allProjectsInWorkspace.map(p => ({
-        id: p.id,
-        name: p.name
-      })))
-      
-      // Check workspace membership
-      // PHASE 1: Use explicit select to exclude employmentStatus
-      const workspaceMember = await prisma.workspaceMember.findUnique({
-        where: {
-          workspaceId_userId: {
-            workspaceId: auth.workspaceId,
-            userId: auth.user.userId
-          }
-        },
-        select: {
-          id: true,
-          workspaceId: true,
-          userId: true,
-          role: true,
-          joinedAt: true,
-          // Exclude employmentStatus - may not exist in database yet
-        }
-      })
-      console.log('[PROJECTS API] User workspace membership:', workspaceMember ? 'YES' : 'NO')
-      
-      console.log('[PROJECTS API] No projects found. Query details:', {
-        workspaceId: auth.workspaceId,
-        userId: auth.user.userId,
-        whereClause: JSON.stringify(where, null, 2)
-      })
-    }
 
     // Build ContextObjects for each project
     const contextObjects = projects.map(project => {
@@ -457,6 +403,7 @@ export async function POST(request: NextRequest) {
             userId,
             orgPositionId,
             role,
+            workspaceId: auth.workspaceId,
           },
         })
       }
@@ -530,6 +477,7 @@ export async function POST(request: NextRequest) {
         data: watcherIds.map((watcherUserId: string) => ({
           projectId: project.id,
           userId: watcherUserId,
+          workspaceId: auth.workspaceId,
         })),
       })
     }
@@ -552,21 +500,7 @@ export async function POST(request: NextRequest) {
       membersCreated: allMemberIds.length,
       warnings,
     })
-  } catch (error: unknown) {
-    try {
-      const fs = await import('fs')
-      const path = await import('path')
-      fs.appendFileSync(
-        path.join(process.cwd(), '.cursor', 'debug.log'),
-        JSON.stringify({
-          message: 'POST /api/projects error',
-          errorMessage: error instanceof Error ? error.message : String(error),
-          errorName: error instanceof Error ? error.name : undefined,
-          code: (error as { code?: string })?.code,
-          meta: (error as { meta?: unknown })?.meta,
-        }) + '\n'
-      )
-    } catch (_) {}
+  } catch (error) {
     return handleApiError(error, request)
   }
 }

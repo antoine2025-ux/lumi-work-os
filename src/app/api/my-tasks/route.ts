@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 
 
@@ -10,6 +13,10 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Set workspace context for Prisma scoping
+    const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
@@ -133,10 +140,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(tasks)
   } catch (error) {
-    console.error('Error fetching my tasks:', error)
-    return NextResponse.json({
-      error: 'Failed to fetch tasks',
-      details: error.message
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

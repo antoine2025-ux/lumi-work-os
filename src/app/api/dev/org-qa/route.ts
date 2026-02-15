@@ -16,13 +16,10 @@ import { isOrgLoopbrainEnabled } from "@/lib/loopbrain/orgGate";
 
 export async function POST(req: NextRequest) {
   try {
-    // Optional: restrict to authenticated admins/devs
-    // For now, we'll allow it in dev mode without auth check
-    // Uncomment if you want auth:
-    // const session = await getServerSession(authOptions);
-    // if (!session) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
+    // DEV ONLY - block in production
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+    }
 
     // Get userId for telemetry (optional, won't fail if unavailable)
     let userId: string | undefined = undefined;

@@ -3,6 +3,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
+import { handleApiError } from '@/lib/api-errors'
 
 export async function POST(request: NextRequest) {
   try {
@@ -89,7 +90,8 @@ export async function POST(request: NextRequest) {
       data: {
         projectId: project.id,
         userId: auth.user.userId,
-        role: 'OWNER'
+        role: 'OWNER',
+        workspaceId: auth.workspaceId
       }
     })
 
@@ -199,9 +201,6 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error creating project:', error)
-    return NextResponse.json({ 
-      error: 'Failed to create project' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

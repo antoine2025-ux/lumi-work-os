@@ -4,6 +4,7 @@ import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { ProjectRole } from '@prisma/client'
 
 
@@ -14,6 +15,7 @@ export async function GET(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -76,6 +78,7 @@ export async function PATCH(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -165,6 +168,7 @@ export async function DELETE(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

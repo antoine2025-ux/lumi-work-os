@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 
 const createPlanSchema = z.object({
@@ -77,21 +78,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Error fetching plans:', error)
-    
-    // Handle auth errors
-    if (error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json(
-      { error: { code: 'FETCH_ERROR', message: 'Failed to fetch plans' } },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 
@@ -148,7 +135,7 @@ export async function POST(request: NextRequest) {
         startDate: new Date(validatedData.startDate),
         createdById: auth.user.userId,
         tasks: {
-          create: tasksData,
+          create: tasksData.map(t => ({ ...t, workspaceId: auth.workspaceId })),
         },
       },
       include: {
@@ -166,27 +153,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(plan, { status: 201 })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input data', details: error.errors } },
-        { status: 400 }
-      )
-    }
-
-    console.error('Error creating plan:', error)
-    
-    // Handle auth errors
-    if (error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json(
-      { error: { code: 'CREATE_ERROR', message: 'Failed to create plan' } },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }

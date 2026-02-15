@@ -9,6 +9,7 @@ import {
   onOrgPositionDeleted,
 } from '@/lib/org/liveUpdateHooks'
 import { safeRebuildOrgContext } from '@/lib/org/org-context-service'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/org/positions/[id] - Get a specific org position
 export async function GET(
@@ -94,8 +95,7 @@ export async function GET(
 
     return NextResponse.json(position)
   } catch (error) {
-    console.error('Error fetching org position:', error)
-    return NextResponse.json({ error: 'Failed to fetch org position' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -271,17 +271,8 @@ export async function PUT(
     void safeRebuildOrgContext(auth.workspaceId);
 
     return NextResponse.json(position)
-  } catch (error: any) {
-    console.error('Error updating org position:', error)
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      stack: error.stack
-    })
-    return NextResponse.json({ 
-      error: error.message || 'Failed to update org position',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -398,7 +389,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Position deleted successfully' })
   } catch (error) {
-    console.error('Error deleting org position:', error)
-    return NextResponse.json({ error: 'Failed to delete org position' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

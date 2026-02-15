@@ -33,7 +33,7 @@ export function PrefetchLink({
     if (!prefetchOnHover || !workspaceId || typeof href !== 'string') return
 
     // If this is a specific page link, prefetch the page content (the "most likely next" page)
-    if (pageIdOrSlug && href.startsWith('/wiki/') && href !== '/wiki/home') {
+    if (pageIdOrSlug && href.startsWith('/wiki/') && href !== '/wiki/home' && href !== '/spaces/home') {
       // Extract slug from href if not provided
       const slug = pageIdOrSlug || href.replace('/wiki/', '')
       prefetchPageContent(slug, queryClient)

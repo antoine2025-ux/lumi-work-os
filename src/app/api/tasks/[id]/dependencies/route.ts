@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError, ApiError } from '@/lib/api-errors'
+import { assertProjectAccess } from '@/lib/pm/guards'
 import { prisma } from '@/lib/db'
+import { TaskDependencySchema } from '@/lib/validations/tasks'
 
 
 // POST /api/tasks/[id]/dependencies - Add or remove task dependencies
@@ -8,14 +14,21 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Set workspace context for Prisma scoping
+    const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
+    })
+
     const resolvedParams = await params
     const taskId = resolvedParams.id
-    const body = await request.json()
-    const { 
-      dependsOn = [],
-      blocks = [],
-      action = 'set' // 'set', 'add', 'remove'
-    } = body
+    const { dependsOn, blocks, action } = TaskDependencySchema.parse(
+      await request.json()
+    )
 
     if (!taskId) {
       return NextResponse.json({ 
@@ -39,10 +52,13 @@ export async function POST(
     })
 
     if (!currentTask) {
-      return NextResponse.json({ 
-        error: 'Task not found' 
+      return NextResponse.json({
+        error: 'Task not found'
       }, { status: 404 })
     }
+
+    // Verify user has write access to the project
+    await assertProjectAccess({ id: auth.user.userId } as any, currentTask.projectId, 'MEMBER', auth.workspaceId)
 
     // Validate that all dependency tasks exist and are in the same project
     if (dependsOn.length > 0) {
@@ -133,12 +149,8 @@ export async function POST(
     await updateReverseDependencies(taskId, newDependsOn, newBlocks)
 
     return NextResponse.json(updatedTask)
-  } catch (error: unknown) {
-    console.error('Error updating task dependencies:', error)
-    return NextResponse.json({ 
-      error: 'Failed to update task dependencies',
-      details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 
@@ -152,11 +164,20 @@ export async function GET(
     const taskId = resolvedParams.id
 
     if (!taskId) {
-      return NextResponse.json({ 
-        error: 'Task ID is required' 
-      }, { status: 400 })
+      throw new ApiError('VALIDATION_ERROR', 400, 'Task ID is required')
     }
 
+    // Authenticate and set workspace context
+    const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['VIEWER'],
+    })
+
+    // Fetch task to get projectId for authorization
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
@@ -165,6 +186,7 @@ export async function GET(
         status: true,
         dependsOn: true,
         blocks: true,
+        projectId: true,
         project: {
           select: {
             id: true,
@@ -175,10 +197,11 @@ export async function GET(
     })
 
     if (!task) {
-      return NextResponse.json({ 
-        error: 'Task not found' 
-      }, { status: 404 })
+      throw new ApiError('NOT_FOUND', 404, 'Task not found')
     }
+
+    // Verify user has access to the project (VIEWER+ can view task dependencies)
+    await assertProjectAccess({ id: auth.user.userId } as any, task.projectId, 'VIEWER', auth.workspaceId)
 
     // Get dependency details
     const dependencies = await prisma.task.findMany({
@@ -232,12 +255,8 @@ export async function GET(
       dependencies,
       blockedTasks
     })
-  } catch (error: unknown) {
-    console.error('Error fetching task dependencies:', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch task dependencies',
-      details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 

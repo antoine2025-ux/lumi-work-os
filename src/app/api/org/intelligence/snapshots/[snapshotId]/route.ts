@@ -10,6 +10,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { getIntelligenceSnapshot } from "@/server/org/intelligence/snapshots";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function GET(
   request: NextRequest,
@@ -55,14 +56,8 @@ export async function GET(
       },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("[GET /api/org/intelligence/snapshots/[snapshotId]] Error:", error);
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

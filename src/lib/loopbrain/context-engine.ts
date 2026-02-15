@@ -155,6 +155,17 @@ export interface ContextEngine {
     userId?: string
     options?: ContextOptions
   }): Promise<UnifiedContext | null>
+
+  /**
+   * Get all contexts of a specific type for a workspace
+   * @param workspaceId - The workspace ID
+   * @param type - The context type to retrieve
+   * @returns Array of context objects of the specified type
+   */
+  getContextsByType(
+    workspaceId: string,
+    type: ContextType
+  ): Promise<ContextObject[]>
 }
 
 /**
@@ -977,6 +988,22 @@ export class PrismaContextEngine implements ContextEngine {
     }
 
     return rootNodes
+  }
+
+  /**
+   * Get context items by type for a workspace
+   * 
+   * @param workspaceId - The workspace ID
+   * @param type - The context type to filter by
+   * @returns Array of context objects of the specified type
+   */
+  async getContextsByType(
+    workspaceId: string,
+    type: ContextType
+  ): Promise<ContextObject[]> {
+    const { findByWorkspaceAndType } = await import('./store/context-repository')
+    const items = await findByWorkspaceAndType(workspaceId, type)
+    return items.map(item => item.data as ContextObject)
   }
 }
 

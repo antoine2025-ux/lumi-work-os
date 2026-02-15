@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useUserStatusContext } from "@/providers/user-status-provider"
+import { useWorkspace } from "@/lib/workspace-context"
 import { useWorkspaces } from "@/hooks/use-workspaces"
 import { useRecentPages } from "@/hooks/use-wiki-pages"
 import { useProjects } from "@/hooks/use-projects"
@@ -76,6 +77,7 @@ interface AISuggestion {
 
 export default function SpacesHomePage() {
   const router = useRouter()
+  const { currentWorkspace } = useWorkspace()
   // Use centralized UserStatusContext - no separate API call needed
   const userStatus = useUserStatusContext()
   const userStatusLoading = userStatus.isLoading
@@ -229,11 +231,11 @@ export default function SpacesHomePage() {
         title: project.name,
         type: 'project' as const,
         updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
-        url: `/projects/${project.id}`,
+        url: currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/projects/${project.id}` : `/projects/${project.id}`,
         icon: <Target className="h-4 w-4" />
       }))
     ].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 8)
-  }, [recentPagesData, projectsData])
+  }, [recentPagesData, projectsData, currentWorkspace])
 
   if (userStatusLoading || isLoading) {
     return (
@@ -254,7 +256,7 @@ export default function SpacesHomePage() {
   }
 
   const handleCreateProject = () => {
-    router.push('/projects/new')
+    router.push(currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/projects/new` : '/projects/new')
   }
 
   return (
@@ -292,9 +294,8 @@ export default function SpacesHomePage() {
                   className={cn(
                     "cursor-pointer transition-all duration-200",
                     "hover:shadow-lg hover:border-primary/50",
-                    "group"
+                    "group bg-card border-border"
                   )}
-                  className="bg-card border-border"
                   onClick={() => router.push(getWorkspaceRoute(workspace))}
                 >
                   <CardContent className="p-4">
@@ -340,9 +341,8 @@ export default function SpacesHomePage() {
                     className={cn(
                       "cursor-pointer transition-all duration-200",
                       "hover:shadow-lg hover:border-primary/50",
-                      "group"
+                      "group bg-card border-border"
                     )}
-                    className="bg-card border-border"
                     onClick={() => router.push(item.url)}
                   >
                     <CardContent className="p-4">
@@ -377,9 +377,8 @@ export default function SpacesHomePage() {
                     className={cn(
                       "cursor-pointer transition-all duration-200",
                       "hover:shadow-lg hover:border-primary/50",
-                      "group border-dashed"
+                      "group border-dashed bg-card border-border"
                     )}
-                    className="bg-card border-border"
                     onClick={() => {
                       if (draft.type === 'session') {
                         router.push(`/assistant?session=${draft.id}`)
@@ -426,9 +425,8 @@ export default function SpacesHomePage() {
                     className={cn(
                       "transition-all duration-200",
                       "hover:shadow-md hover:border-primary/30",
-                      "border-l-4"
+                      "bg-card border-primary border-l-4"
                     )}
-                    className="bg-card border-primary border-l-4"
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">

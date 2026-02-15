@@ -144,6 +144,9 @@ vi.mock('@/lib/db', () => {
         findMany: vi.fn().mockResolvedValue([]),
         findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn()
+      },
+      orgPosition: {
+        findFirst: vi.fn().mockResolvedValue(null)
       }
     }
   }
@@ -168,7 +171,7 @@ describe('Phase 1 Migrated Routes - Projects API', () => {
     
     expect(response.status).toBe(401)
     const data = await response.json()
-    expect(data.error).toBe('Unauthorized')
+    expect(data.error).toMatchObject({ code: 'AUTHENTICATION_REQUIRED' })
   })
 
   it('should return 200 with proper auth flow', async () => {
@@ -233,7 +236,7 @@ describe('Phase 1 Migrated Routes - Projects API', () => {
     
     expect(response.status).toBe(403)
     const data = await response.json()
-    expect(data.error).toBe('Forbidden')
+    expect(data.error).toMatchObject({ code: 'AUTHORIZATION_DENIED' })
   })
 
   it('should create project with proper workspace scoping', async () => {
@@ -341,9 +344,10 @@ describe('Phase 1 Migrated Routes - Tasks API', () => {
 
     const request = new NextRequest('http://localhost:3000/api/tasks?projectId=project-1')
     const response = await getTasks(request)
-    
+
     expect(response.status).toBe(401)
     const data = await response.json()
+    // Tasks route has manual error handling - returns string error, not structured
     expect(data.error).toBe('Unauthorized')
   })
 
@@ -459,9 +463,10 @@ describe('Phase 1 Migrated Routes - Epics API', () => {
 
     const request = new NextRequest('http://localhost:3000/api/projects/project-1/epics')
     const response = await getEpics(request, { params: Promise.resolve({ projectId: 'project-1' }) })
-    
+
     expect(response.status).toBe(401)
     const data = await response.json()
+    // Epics route has manual error handling - returns string error, not structured
     expect(data.error).toBe('Unauthorized')
   })
 
@@ -597,8 +602,9 @@ describe('Phase 1 Migrated Routes - Epics API', () => {
     
     expect(response.status).toBe(403)
     const data = await response.json()
+    // Epics route has manual error handling - returns string error, not structured
     expect(data.error).toBe('Forbidden')
-    
+
     // Verify assertAccess was called
     expect(assertAccess).toHaveBeenCalled()
   })

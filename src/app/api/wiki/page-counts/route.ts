@@ -5,6 +5,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import { logger } from '@/lib/logger'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/wiki/page-counts - Get page counts per workspace type
 export async function GET(request: NextRequest) {
@@ -29,11 +30,11 @@ export async function GET(request: NextRequest) {
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
-    // Generate cache key
+    // Generate cache key — include userId so personal page counts are per-user
     const cacheKey = cache.generateKey(
       CACHE_KEYS.WIKI_PAGES,
       auth.workspaceId,
-      'page_counts'
+      `page_counts_${auth.user.userId}`
     )
 
     // Check cache first
@@ -76,11 +77,12 @@ export async function GET(request: NextRequest) {
       const workspaceType = workspace.type || null
 
       if (workspaceType === 'personal') {
-        // Personal Space: Count pages with workspace_type='personal' OR legacy pages with permissionLevel='personal'
+        // SECURITY: Personal Space counts only pages created by the requesting user
         count = await prisma.wikiPage.count({
           where: {
             workspaceId: auth.workspaceId,
             isPublished: true,
+            createdById: auth.user.userId,
             OR: [
               { workspace_type: 'personal' },
               {
@@ -173,15 +175,7 @@ export async function GET(request: NextRequest) {
     response.headers.set('X-Cache', 'MISS')
     return response
   } catch (error) {
-    const totalDurationMs = performance.now() - startTime
-    console.error('Error fetching page counts:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    const errorStack = error instanceof Error ? error.stack : undefined
-    console.error('Error details:', { errorMessage, errorStack })
-    return NextResponse.json({ 
-      error: 'Failed to fetch page counts',
-      details: errorMessage 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 

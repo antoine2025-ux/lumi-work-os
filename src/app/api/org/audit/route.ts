@@ -11,6 +11,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors"
 
 export type OrgAuditLogEntry = {
   id: string;
@@ -120,19 +121,7 @@ export async function GET(request: NextRequest) {
       limit,
       offset,
     });
-  } catch (error: any) {
-    console.error("[GET /api/org/audit] Error:", error);
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { ok: false, error: error.message },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json(
-      { ok: false, error: error?.message || "Failed to load audit logs" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

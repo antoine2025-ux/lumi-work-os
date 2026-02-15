@@ -16,6 +16,7 @@ import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
 import { isOrgLoopbrainEnabled } from '@/lib/loopbrain/orgGate'
 import { ensureOrgContextSyncedSync } from '@/lib/loopbrain/ensureOrgContextSynced'
+import { handleApiError } from '@/lib/api-errors'
 
 /**
  * POST /api/loopbrain/chat
@@ -173,14 +174,8 @@ export async function POST(request: NextRequest) {
     // Pass requestId to orchestrator for logging
     ;(loopbrainRequest as any).requestId = baseContext.requestId
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat/route.ts:pre-run',message:'Before runLoopbrainQuery',data:{mode:finalMode,workspaceId,userId:userId?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-    // #endregion
     // Run Loopbrain query
     const result = await runLoopbrainQuery(loopbrainRequest)
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat/route.ts:post-run',message:'After runLoopbrainQuery',data:{hasResult:!!result},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-    // #endregion
 
     // Log completion
     const durationMs = Date.now() - startTime
@@ -202,49 +197,7 @@ export async function POST(request: NextRequest) {
     // Return response
     return NextResponse.json(result)
   } catch (error) {
-    const durationMs = Date.now() - startTime
-    logger.error('Error in /api/loopbrain/chat', {
-      ...baseContext,
-      durationMs,
-    }, error)
-    // #region agent log
-    const err = error instanceof Error ? error : new Error(String(error))
-    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chat/route.ts:catch',message:'Chat route caught',data:{message:err.message,stack:err.stack?.slice(0,500),name:err.name},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-    // #endregion
-
-    // Handle auth errors
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json(
-          { error: 'Unauthorized' },
-          { status: 401 }
-        )
-      }
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json(
-          { error: 'Forbidden' },
-          { status: 403 }
-        )
-      }
-      if (error.message.includes('Unsupported Loopbrain mode')) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400 }
-        )
-      }
-      if (error.message.includes('LLM call failed')) {
-        return NextResponse.json(
-          { error: 'AI service temporarily unavailable' },
-          { status: 500 }
-        )
-      }
-    }
-
-    // Generic error
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 
@@ -30,6 +33,10 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Set workspace context for Prisma scoping
+    const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
+
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
@@ -54,12 +61,7 @@ export async function GET(
 
     return NextResponse.json(customField)
   } catch (error) {
-    console.error('Error fetching custom field:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch custom field',
-      details: errorMessage
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -78,6 +80,10 @@ export async function PATCH(
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Set workspace context for Prisma scoping
+    const authCtx = await getUnifiedAuth(request)
+    setWorkspaceContext(authCtx.workspaceId)
 
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
@@ -135,19 +141,7 @@ export async function PATCH(
 
     return NextResponse.json(customField)
   } catch (error) {
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json({ 
-        error: 'Validation error',
-        details: (error as any).errors 
-      }, { status: 400 })
-    }
-
-    console.error('Error updating custom field:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({ 
-      error: 'Failed to update custom field',
-      details: errorMessage
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -164,6 +158,10 @@ export async function DELETE(
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Set workspace context for Prisma scoping
+    const authDel = await getUnifiedAuth(request)
+    setWorkspaceContext(authDel.workspaceId)
 
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
@@ -195,11 +193,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Custom field deleted successfully' })
   } catch (error) {
-    console.error('Error deleting custom field:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({ 
-      error: 'Failed to delete custom field',
-      details: errorMessage
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

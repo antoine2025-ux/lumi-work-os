@@ -5,6 +5,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import { handleApiError } from '@/lib/api-errors'
+import { WikiWorkspaceCreateSchema } from '@/lib/validations/wiki'
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,14 +17,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
     }
 
+    // Assert workspace access
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['VIEWER']
+    })
+
     // Set workspace context for Prisma middleware
     setWorkspaceContext(workspaceId)
 
-    // Generate cache key
+    // SECURITY: Cache key includes userId because personal spaces are per-user
     const cacheKey = cache.generateKey(
       CACHE_KEYS.WORKSPACE_DATA,
       workspaceId,
-      'wiki_workspaces'
+      `wiki_workspaces_${auth.user.userId}`
     )
 
     // Check cache first
@@ -35,39 +44,33 @@ export async function GET(request: NextRequest) {
       return response
     }
 
-    // Get wiki workspaces for the current workspace
+    // SECURITY: Personal Space is per-user.
+    // Return: this user's personal space + all non-personal (shared) workspaces.
+    const personalSpaceId = `personal-space-${auth.user.userId}`
+
     const workspaces = await prisma.wiki_workspaces.findMany({
       where: {
-        workspace_id: workspaceId
+        workspace_id: workspaceId,
+        OR: [
+          // This user's personal space
+          { id: personalSpaceId, type: 'personal' },
+          // All non-personal workspaces (team, custom, null)
+          { type: { not: 'personal' } },
+          { type: null },
+        ],
       },
       orderBy: [
-        { type: 'asc' }, // Sort by type
-        { name: 'asc' } // Then alphabetically
+        { type: 'asc' },
+        { name: 'asc' }
       ]
     })
 
-    console.log('📋 Current workspaces:', workspaces.map(w => ({ id: w.id, name: w.name, type: w.type })))
-    console.log('🔍 Looking for Personal Space in workspace:', workspaceId)
+    // Check if this user's Personal Space exists
+    const hasPersonalSpace = workspaces.some(w => w.id === personalSpaceId)
 
-    // Check if Personal Space exists (ONLY default workspace)
-    const hasPersonalSpace = workspaces.some(w => w.type === 'personal')
-    
-    console.log('📊 Workspace types breakdown:', {
-      personal: workspaces.filter(w => w.type === 'personal').length,
-      custom: workspaces.filter(w => w.type !== 'personal').length,
-      total: workspaces.length
-    })
-    
-    console.log('✓ Has Personal Space:', hasPersonalSpace)
-    
-    // Create missing Personal Space (ONLY default workspace)
-    // Team Workspace is no longer auto-created - users create custom workspaces as needed
+    // Create this user's Personal Space if it doesn't exist
     if (!hasPersonalSpace) {
-      console.log('Creating Personal Space for workspace:', workspaceId)
-      
       try {
-        // Use workspace-specific ID
-        const personalSpaceId = `personal-space-${workspaceId}`
         await prisma.wiki_workspaces.create({
           data: {
             id: personalSpaceId,
@@ -81,47 +84,50 @@ export async function GET(request: NextRequest) {
             created_by_id: auth.user.userId
           }
         })
-        console.log('✅ Created Personal Space')
       } catch (error: any) {
-        console.error('❌ Error creating Personal Space:', error.message, error.code)
-        // Don't throw, just continue
+        // P2002 = unique constraint violation — another request may have created it concurrently
+        if (error.code !== 'P2002') {
+          console.error('Error creating Personal Space:', error.message)
+        }
       }
 
-      // Return the updated workspaces list
+      // Re-query to include the newly created personal space
       const updatedWorkspaces = await prisma.wiki_workspaces.findMany({
         where: {
-          workspace_id: workspaceId
-        }
+          workspace_id: workspaceId,
+          OR: [
+            { id: personalSpaceId, type: 'personal' },
+            { type: { not: 'personal' } },
+            { type: null },
+          ],
+        },
+        orderBy: [
+          { type: 'asc' },
+          { name: 'asc' }
+        ]
       })
 
-      console.log('📤 Returning updated workspaces:', updatedWorkspaces.map(w => ({ id: w.id, name: w.name, type: w.type })))
-      
-      // Normalize ONLY default workspace names (identified by ID pattern)
       const normalizedUpdated = updatedWorkspaces.map(w => {
         if (w.id?.startsWith('personal-space-')) return { ...w, name: 'Personal Space' }
         return w
       })
-      
-      // Cache the result
+
       await cache.set(cacheKey, normalizedUpdated, CACHE_TTL.MEDIUM)
-      
+
       const response = NextResponse.json(normalizedUpdated)
       response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
       response.headers.set('X-Cache', 'MISS')
       return response
     }
 
-    console.log('📤 Returning existing workspaces:', workspaces.map(w => ({ id: w.id, name: w.name, type: w.type })))
-    
-    // Normalize ONLY default workspace names (identified by ID pattern)
+    // Normalize personal space name
     const normalized = workspaces.map(w => {
       if (w.id?.startsWith('personal-space-')) return { ...w, name: 'Personal Space' }
       return w
     })
-    
-    // Cache the result
+
     await cache.set(cacheKey, normalized, CACHE_TTL.MEDIUM)
-    
+
     const response = NextResponse.json(normalized)
     response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600')
     response.headers.set('X-Cache', 'MISS')
@@ -136,43 +142,33 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
-    
+
     // Assert workspace access
-    await assertAccess({ 
-      userId: auth.user.userId, 
-      workspaceId: auth.workspaceId, 
-      scope: 'workspace', 
-      requireRole: ['MEMBER'] 
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER']
     })
 
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
-    const body = await request.json()
-    // Default to a custom workspace type (not 'team' or 'personal')
-    // Users can specify type if they want, but new workspaces are independent by default
+    // Validate body (Zod) — WikiWorkspaceCreateSchema rejects type='personal'
+    const body = WikiWorkspaceCreateSchema.parse(await request.json())
     const { name, description, type, color = '#3b82f6', icon = 'layers', isPrivate = false } = body
-    
-    // Validate type - don't allow creating 'personal' type workspaces (that's reserved)
-    if (type === 'personal') {
-      return NextResponse.json({ error: 'Personal Space is a reserved workspace type and cannot be created' }, { status: 400 })
-    }
-
-    if (!name || name.trim().length === 0) {
-      return NextResponse.json({ error: 'Workspace name is required' }, { status: 400 })
-    }
 
     // Generate a unique ID for the new workspace
-    const workspaceId = `wiki-${Date.now()}-${Math.random().toString(36).substring(7)}`
+    const newWikiWorkspaceId = `wiki-${Date.now()}-${Math.random().toString(36).substring(7)}`
 
     // Create the wiki workspace
     // If no type specified, create as a custom workspace (not 'team' or 'personal')
     // This ensures new workspaces are independent
     const workspaceType = type || null // null type means it's a custom workspace
-    
+
     const newWorkspace = await prisma.wiki_workspaces.create({
       data: {
-        id: workspaceId,
+        id: newWikiWorkspaceId,
         workspace_id: auth.workspaceId,
         name: name.trim(),
         description: description?.trim() || null,
@@ -195,13 +191,13 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
-    
+
     // Assert workspace access
-    await assertAccess({ 
-      userId: auth.user.userId, 
-      workspaceId: auth.workspaceId, 
-      scope: 'workspace', 
-      requireRole: ['MEMBER'] 
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER']
     })
 
     // Set workspace context for Prisma middleware
@@ -226,7 +222,6 @@ export async function DELETE(request: NextRequest) {
       }
     })
 
-    console.log('✅ Deleted workspace:', workspaceIdToDelete)
     return NextResponse.json({ success: true, message: 'Workspace deleted successfully' })
   } catch (error) {
     console.error('Error deleting wiki workspace:', error)

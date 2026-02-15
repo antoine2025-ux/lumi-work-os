@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { requireWorkspaceId } from "@/server/workspace/context"
+import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertWorkspaceAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { handleApiError } from "@/lib/api-errors"
 import { listWorkspaceMemberships } from "@/server/org/people/membershipDelegate"
 import { getProfileOverride } from "@/server/org/people/profileOverrides"
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const workspaceId = await requireWorkspaceId()
+    // Replace legacy requireWorkspaceId with standard auth pattern
+    const auth = await getUnifiedAuth(req)
+    await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['MEMBER'])
+    setWorkspaceContext(auth.workspaceId)
+    const workspaceId = auth.workspaceId
     const url = new URL(req.url)
     const q = (url.searchParams.get("q") || "").trim().toLowerCase()
     const teamId = url.searchParams.get("teamId")
@@ -205,22 +212,8 @@ export async function GET(req: Request) {
       },
       ...(debug ? { debug } : {}),
     })
-  } catch (error: any) {
-    console.error("[GET /api/org/people/directory] Error:", error)
-    
-    // Return a more informative error response
-    const errorMessage = error?.message || "Failed to load directory"
-    const statusCode = error?.status || 500
-    
-    return NextResponse.json(
-      { 
-        error: "Failed to load directory", 
-        detail: errorMessage,
-        // Include stack trace in dev for debugging
-        ...(process.env.NODE_ENV === "development" && { stack: error?.stack }),
-      },
-      { status: statusCode }
-    )
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 

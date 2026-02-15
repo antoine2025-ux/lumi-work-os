@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/task-templates - Get all task templates for a workspace
 export async function GET(request: NextRequest) {
@@ -58,18 +59,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(templates)
   } catch (error) {
-    console.error('Error fetching task templates:', error)
-    
-    // Handle auth errors
-    if (error instanceof Error && error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ error: 'Failed to fetch task templates' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -120,7 +110,8 @@ export async function POST(request: NextRequest) {
             status: 'TODO',
             priority: task.priority || 'MEDIUM',
             points: task.points || null,
-            tags: task.tags || []
+            tags: task.tags || [],
+            workspaceId: auth.workspaceId
           }))
         }
       },
@@ -140,17 +131,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(template, { status: 201 })
   } catch (error) {
-    console.error('Error creating task template:', error)
-    
-    // Handle auth errors
-    if (error instanceof Error && error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ error: 'Failed to create task template' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

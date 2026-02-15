@@ -1,11 +1,61 @@
-import { Page, expect } from '@playwright/test'
+import { Page, expect, test } from '@playwright/test'
 
 /**
  * E2E Test Helpers for Deterministic Page Waits
- * 
+ *
  * These helpers eliminate flaky waitForTimeout calls by waiting for
  * specific UI states or network conditions.
  */
+
+/**
+ * Check if the current session is authenticated.
+ * Returns true if the session API returns a valid user.
+ * Use with test.skip() to gracefully skip tests when auth is unavailable.
+ */
+export async function isAuthenticated(page: Page): Promise<boolean> {
+  try {
+    const response = await page.request.get('/api/auth/session')
+    if (!response.ok()) return false
+    const session = await response.json()
+    return !!session?.user
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Skip the current test if the user is not authenticated.
+ * Call at the start of any test that requires an active session.
+ */
+export async function skipIfNoAuth(page: Page): Promise<void> {
+  const authed = await isAuthenticated(page)
+  if (!authed) {
+    test.skip(true, 'No authenticated session — set up .auth/user.json or enable E2E_TEST_AUTH')
+  }
+}
+
+/**
+ * Navigate to a protected page, skipping the test if auth redirects to /login.
+ * Returns true if the page loaded successfully (not redirected to login).
+ */
+export async function gotoAuthenticated(
+  page: Page,
+  url: string,
+  options?: { timeout?: number }
+): Promise<boolean> {
+  await page.goto(url)
+  await page.waitForLoadState('domcontentloaded')
+
+  // Check if we were redirected to login
+  const currentUrl = page.url()
+  if (currentUrl.includes('/login')) {
+    test.skip(true, 'Redirected to login — no valid auth session')
+    return false
+  }
+
+  await waitForPageReady(page, options)
+  return true
+}
 
 /**
  * Wait for page to be ready for interaction.

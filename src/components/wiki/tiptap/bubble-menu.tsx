@@ -39,6 +39,22 @@ interface BubbleMenuProps {
 }
 
 export function BubbleMenu({ editor, onEscape }: BubbleMenuProps) {
+  // Handle Escape key — must be before any conditional returns (Rules of Hooks)
+  useEffect(() => {
+    if (!editor) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && onEscape) {
+        onEscape()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [editor, onEscape])
+
   if (!editor) {
     return null
   }
@@ -73,22 +89,6 @@ export function BubbleMenu({ editor, onEscape }: BubbleMenuProps) {
   const handleTurnInto = (targetType: string) => {
     turnIntoBlock(editor, targetType)
   }
-
-  // Handle Escape key
-  useEffect(() => {
-    if (!editor) return
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && onEscape) {
-        onEscape()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [editor, onEscape])
 
   return (
     <TipTapBubbleMenu

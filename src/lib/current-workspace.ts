@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 
 /**
  * Get the current workspace ID for the authenticated user
@@ -10,10 +11,16 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
  * - Without parameters in server components (uses cookies from next/headers)
  * 
  * Returns null if no workspace is found (instead of throwing)
+ * 
+ * Side effect: Sets workspace context for Prisma scoping middleware.
  */
 export async function getCurrentWorkspaceId(request?: NextRequest): Promise<string | null> {
   try {
     const auth = await getUnifiedAuth(request);
+    // Set workspace context for Prisma scoping middleware
+    if (auth.workspaceId) {
+      setWorkspaceContext(auth.workspaceId);
+    }
     return auth.workspaceId;
   } catch (error) {
     // If getUnifiedAuth throws (e.g., "No workspace found"), return null

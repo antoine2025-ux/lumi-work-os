@@ -3,6 +3,7 @@ import { getOrgPermissionContext } from "@/lib/org/permissions.server";
 import { getOrgInsightsSnapshot } from "@/lib/org/insights";
 import { hasOrgCapability } from "@/lib/org/capabilities";
 import { logOrgApiEvent } from "@/lib/org/observability.server";
+import { handleApiError } from "@/lib/api-errors"
 
 /**
  * API route for loading Org Insights data asynchronously.
@@ -69,28 +70,8 @@ export async function GET(request: NextRequest) {
       ok: true,
       insights: snapshot,
     });
-  } catch (error: any) {
-    const duration = Date.now() - startedAt;
-    
-    // Handle permission errors gracefully
-    if (error instanceof Error && error.message.includes("insights:view")) {
-      logOrgApiEvent("api_unauthorized", route, null, null, duration, {
-        message: error.message,
-      });
-      return NextResponse.json(
-        { ok: false, error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
-
-    logOrgApiEvent("api_error", route, null, null, duration, {
-      message: error?.message ?? "Unknown error",
-    });
-
-    return NextResponse.json(
-      { ok: false, error: "Failed to load insights" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

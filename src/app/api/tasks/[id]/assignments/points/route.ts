@@ -5,6 +5,9 @@ import { logTaskHistory } from '@/lib/pm/history'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 
 // PATCH /api/tasks/[id]/assignments/points - Update task story points
@@ -14,9 +17,16 @@ export async function PATCH(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
+    })
 
     const resolvedParams = await params
     const taskId = resolvedParams.id
@@ -88,17 +98,7 @@ export async function PATCH(
     )
 
     return NextResponse.json(updatedTask)
-  } catch (error: unknown) {
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json({ 
-        error: 'Validation error',
-        details: (error as any).issues 
-      }, { status: 400 })
-    }
-
-    console.error('Error updating task points:', error)
-    return NextResponse.json({ 
-      error: 'Failed to update task points' 
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

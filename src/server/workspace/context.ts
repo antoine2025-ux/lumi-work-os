@@ -5,6 +5,10 @@ import { getCurrentWorkspaceId } from "@/lib/current-workspace";
  * Throws if workspace ID cannot be resolved.
  */
 export async function requireWorkspaceId(): Promise<string> {
-  return await getCurrentWorkspaceId();
+  const workspaceId = await getCurrentWorkspaceId();
+  if (!workspaceId) {
+    throw new Error("No workspace found. User must be a member of a workspace.");
+  }
+  return workspaceId;
 }
 

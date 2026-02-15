@@ -10,6 +10,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { OrgSkillCreateSchema } from "@/lib/validations/org";
+import { handleApiError } from "@/lib/api-errors";
 
 /**
  * Normalize skill name for consistent storage.
@@ -74,9 +76,8 @@ export async function GET(request: NextRequest) {
         personCount: s._count.personSkills,
       })),
     });
-  } catch (error: unknown) {
-    console.error("[GET /api/org/skills] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }
 
@@ -102,20 +103,12 @@ export async function POST(request: NextRequest) {
     // Step 3: Set workspace context
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Parse and validate request body
-    const body = await request.json();
-
-    if (!body.name || typeof body.name !== "string") {
-      return NextResponse.json({ error: "name is required" }, { status: 400 });
-    }
+    // Step 4: Parse and validate request body (Zod)
+    const body = OrgSkillCreateSchema.parse(await request.json());
 
     const name = normalizeSkillName(body.name);
-    if (!name) {
-      return NextResponse.json({ error: "name cannot be empty" }, { status: 400 });
-    }
-
-    const category = body.category ? String(body.category).trim() : null;
-    const description = body.description ? String(body.description).trim() : null;
+    const category = body.category?.trim() ?? null;
+    const description = body.description?.trim() ?? null;
 
     // Step 5: Check for case-insensitive duplicate
     const existing = await prisma.skill.findFirst({
@@ -160,9 +153,8 @@ export async function POST(request: NextRequest) {
       },
       created: true,
     });
-  } catch (error: unknown) {
-    console.error("[POST /api/org/skills] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }
 

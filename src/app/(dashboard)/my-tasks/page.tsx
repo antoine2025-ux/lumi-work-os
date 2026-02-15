@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { useWorkspace } from "@/lib/workspace-context"
 import { 
   CheckSquare, 
   Calendar,
@@ -91,6 +92,7 @@ const priorityOptions = [
 ]
 
 export default function MyTasksPage() {
+  const { currentWorkspace } = useWorkspace()
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
@@ -412,7 +414,7 @@ export default function MyTasksPage() {
                   }
                 </p>
                 <Button asChild>
-                  <Link href="/projects">
+                  <Link href={currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/projects` : "/projects"}>
                     Browse Projects
                   </Link>
                 </Button>
@@ -522,7 +524,7 @@ export default function MyTasksPage() {
                         size="sm"
                         asChild
                       >
-                        <Link href={`/projects/${task.project.id}`}>
+                        <Link href={currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/projects/${task.project.id}` : `/projects/${task.project.id}`}>
                           <LinkIcon className="h-4 w-4 mr-1" />
                           View Project
                         </Link>

@@ -3,7 +3,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { handleApiError } from "@/lib/api-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +30,10 @@ export async function GET(req: NextRequest) {
           error: "No workspace found",
           detail: "User must have an active workspace",
         },
-        { status: 401 }
+        { status: 400 }
       );
     }
+    setWorkspaceContext(auth.workspaceId);
     await assertAccess({
       userId: auth.user.userId,
       workspaceId: auth.workspaceId,
@@ -112,33 +115,7 @@ export async function GET(req: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("GET /api/loopbrain/org/context/status error:", error);
-
-    const message = error?.message ?? "Unknown error";
-
-    // Handle authentication errors
-    if (
-      message.includes("Unauthorized") ||
-      message.includes("No workspace found")
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Unauthenticated",
-          detail: message,
-        },
-        { status: 401 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Failed to check org context sync status",
-        detail: message,
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req)
   }
 }

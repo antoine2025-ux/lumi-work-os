@@ -5,6 +5,7 @@
 
 import { redirect } from "next/navigation";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 
 interface PageProps {
@@ -14,6 +15,9 @@ interface PageProps {
 export default async function OldPersonProfilePage({ params }: PageProps) {
   const { personId } = await params;
   const auth = await getUnifiedAuth();
+  if (auth.workspaceId) {
+    setWorkspaceContext(auth.workspaceId);
+  }
 
   if (!auth.isAuthenticated || !auth.workspaceId) {
     redirect("/login");

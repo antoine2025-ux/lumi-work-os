@@ -10,8 +10,9 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
-import { requireNonEmptyString, optionalString } from "@/server/org/validate";
+import { OrgPersonCreateSchema } from "@/lib/validations/org";
 import { createOrgPerson } from "@/server/org/people/write";
+import { handleApiError } from "@/lib/api-errors";
 
 export async function POST(request: NextRequest) {
   let userId: string | undefined;
@@ -39,33 +40,25 @@ export async function POST(request: NextRequest) {
       userId,
       workspaceId,
       scope: "workspace",
-      requireRole: ["MEMBER"],
+      requireRole: ["ADMIN"],
     });
 
     // Step 3: Set workspace context (enables automatic Prisma scoping)
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Parse and validate request body
-    const body = await request.json();
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create/route.ts:body',message:'Parsed body',data:{bodyKeys:body!=null?Object.keys(body):[],fullNameType:typeof body?.fullName,fullNameValue:body?.fullName,hasFullName:'fullName' in (body||{})},timestamp:Date.now(),hypothesisId:'H1-H3-H5'})}).catch(()=>{});
-    // #endregion
-    const fullName = requireNonEmptyString(body.fullName, "fullName");
-    const email = optionalString(body.email);
-    const title = optionalString(body.title);
-    const departmentId = optionalString(body.departmentId);
-    const teamId = optionalString(body.teamId);
-    const managerId = optionalString(body.managerId);
+    // Step 4: Parse and validate request body (Zod)
+    const { fullName, email, title, departmentId, teamId, managerId } =
+      OrgPersonCreateSchema.parse(await request.json());
 
     // Step 5: Create person (explicitly pass workspaceId for database truth compliance)
     console.log("[POST /api/org/people/create] Creating person with workspaceId:", workspaceId, { fullName, email, title });
     const created = await createOrgPerson({
       workspaceId,
       fullName,
-      email,
-      title,
-      departmentId,
-      teamId,
+      email: email ?? null,
+      title: title ?? null,
+      departmentId: departmentId ?? null,
+      teamId: teamId ?? null,
       managerId: managerId || null,
     });
     console.log("[POST /api/org/people/create] Person created successfully:", created.id);
@@ -94,77 +87,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ id: created.id }, { status: 201 });
-  } catch (error: any) {
-    console.error("[POST /api/org/people/create] Error:", error);
-    console.error("[POST /api/org/people/create] Error stack:", error?.stack);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'create/route.ts:catch',message:'Caught error',data:{errorMessage:error?.message,errorCode:error?.code,hasInvalid:error?.message?.includes?.('Invalid')},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
-
-    // Log full error in development for debugging
-    if (process.env.NODE_ENV !== "production") {
-      console.error("[POST /api/org/people/create] Full error details:", {
-        message: error?.message,
-        stack: error?.stack,
-        code: error?.code,
-      });
-    }
-
-    if (!userId || !workspaceId) {
-      console.error("[POST /api/org/people/create] Missing userId or workspaceId", { userId, workspaceId });
-      return NextResponse.json(
-        { 
-          error: "Unauthorized",
-          hint: "Authentication failed. Please ensure you are logged in and have workspace access."
-        },
-        { status: 401 }
-      );
-    }
-
-    // Handle unique constraint violations first (e.g., duplicate email)
-    // Prisma P2002 message includes "Invalid", so check before the generic Invalid handler
-    if (
-      error?.code === "P2002" ||
-      error?.message?.includes("Unique constraint") ||
-      error?.message?.includes("unique constraint")
-    ) {
-      return NextResponse.json(
-        { 
-          error: "A person with this email already exists. Please use a different email.",
-          hint: "This email is already associated with another person in the organization."
-        },
-        { status: 409 }
-      );
-    }
-
-    if (error?.message?.includes("Invalid")) {
-      return NextResponse.json(
-        { 
-          error: error.message,
-          hint: "Please check the input fields and try again."
-        },
-        { status: 400 }
-      );
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { 
-          error: error.message || "Forbidden",
-          hint: "You don't have permission to create people in this workspace."
-        },
-        { status: 403 }
-      );
-    }
-
-    // Return user-safe error message (no Prisma internals)
-    return NextResponse.json(
-      { 
-        error: "Failed to create person",
-        hint: error?.message || "An unexpected error occurred. Please try again."
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }
 

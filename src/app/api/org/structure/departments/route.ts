@@ -5,6 +5,7 @@ import {
   getOrgPermissionContext,
   mapPermissionErrorToStatus,
 } from "@/lib/org/permissions.server";
+import { handleApiError } from "@/lib/api-errors";
 
 type OrgDepartmentStructureRow = {
   id: string;
@@ -159,12 +160,8 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ departments: payload });
-  } catch (err: any) {
-    console.error("[GET /api/org/structure/departments] Failed:", err);
-    return NextResponse.json(
-      { error: "Failed to load department structure.", detail: String(err?.message ?? err) },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 

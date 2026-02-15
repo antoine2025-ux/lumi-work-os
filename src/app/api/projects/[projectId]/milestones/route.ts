@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { CreateMilestoneSchema, UpdateMilestoneSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { ProjectRole } from '@prisma/client'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { prisma } from '@/lib/db'
@@ -17,6 +19,7 @@ export async function GET(
 
     // Get authenticated user with workspace context
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
@@ -63,12 +66,7 @@ export async function GET(
 
     return NextResponse.json(milestones)
   } catch (error) {
-    console.error('Error fetching milestones:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch milestones',
-      details: errorMessage
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -83,6 +81,7 @@ export async function POST(
 
     // Get authenticated user with workspace context
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -148,18 +147,6 @@ export async function POST(
 
     return NextResponse.json(milestone, { status: 201 })
   } catch (error) {
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json({ 
-        error: 'Validation error',
-        details: (error as any).errors 
-      }, { status: 400 })
-    }
-
-    console.error('Error creating milestone:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({ 
-      error: 'Failed to create milestone',
-      details: errorMessage
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

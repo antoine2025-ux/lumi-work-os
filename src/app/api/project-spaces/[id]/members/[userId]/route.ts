@@ -3,6 +3,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
+import { handleApiError } from '@/lib/api-errors'
 
 // DELETE /api/project-spaces/[id]/members/[userId] - Remove a member from ProjectSpace
 export async function DELETE(
@@ -69,19 +70,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true })
-  } catch (error: any) {
-    console.error('Error removing ProjectSpace member:', error)
-    
-    if (error.message?.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error.message?.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden: Only workspace administrators can manage ProjectSpace members' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to remove member' 
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

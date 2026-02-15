@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
 import { createUserWorkspace } from '@/lib/simple-auth'
+import { handleApiError } from '@/lib/api-errors'
 
 export async function POST(request: NextRequest) {
   try {
@@ -134,65 +135,6 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('[workspace/create] ========== ERROR CAUGHT ==========')
-    console.error('[workspace/create] Error type:', typeof error)
-    console.error('[workspace/create] Error constructor:', error?.constructor?.name)
-    console.error('[workspace/create] Error instanceof Error:', error instanceof Error)
-    console.error('[workspace/create] Error object:', error)
-    console.error('[workspace/create] Error message:', error instanceof Error ? error.message : 'N/A')
-    console.error('[workspace/create] Error stack:', error instanceof Error ? error.stack : 'No stack')
-    
-    // Helper to strip ANSI escape codes from strings
-    const stripAnsi = (str: string): string => {
-      return str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1B\]/g, '')
-    }
-    
-    // Extract serializable error details with fallbacks
-    let errorMessage = 'Unknown error occurred'
-    let errorName = 'Unknown'
-    let errorCode: string | undefined = undefined
-    
-    try {
-      if (error instanceof Error) {
-        errorMessage = stripAnsi(error.message || 'Error object has no message')
-        errorName = error.name || 'Error'
-        errorCode = (error as any)?.code
-      } else if (typeof error === 'string') {
-        errorMessage = stripAnsi(error)
-      } else if (error && typeof error === 'object') {
-        const rawMessage = (error as any)?.message || JSON.stringify(error)
-        errorMessage = stripAnsi(typeof rawMessage === 'string' ? rawMessage : String(rawMessage))
-        errorCode = (error as any)?.code
-      } else {
-        errorMessage = stripAnsi(String(error))
-      }
-    } catch (extractError) {
-      console.error('[workspace/create] Failed to extract error details:', extractError)
-      errorMessage = 'Failed to extract error details'
-    }
-    
-    const prismaError = error as any
-    console.error('[workspace/create] Extracted error details:', {
-      message: errorMessage,
-      name: errorName,
-      code: errorCode,
-      prismaCode: prismaError?.code,
-      prismaMeta: prismaError?.meta ? JSON.stringify(prismaError.meta) : undefined
-    })
-    
-    // Return serializable error response - ensure it's always a valid object
-    const errorResponse = { 
-      error: 'Failed to create workspace',
-      details: errorMessage || 'Unknown error',
-      code: errorCode || undefined
-    }
-    
-    // Only include stack in development
-    if (process.env.NODE_ENV === 'development' && error instanceof Error && error.stack) {
-      (errorResponse as any).stack = error.stack
-    }
-    
-    console.error('[workspace/create] Returning error response:', errorResponse)
-    return NextResponse.json(errorResponse, { status: 500 })
+    return handleApiError(error, request)
   }
 }

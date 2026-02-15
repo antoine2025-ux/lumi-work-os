@@ -6,29 +6,13 @@ import {
   mapPermissionErrorToStatus,
 } from "@/lib/org/permissions.server";
 import { logOrgAudit } from "@/lib/orgAudit";
-
-type CreateDepartmentBody = {
-  name: string;
-  description?: string | null;
-};
+import { OrgDepartmentCreateSchema } from "@/lib/validations/org";
+import { handleApiError } from "@/lib/api-errors";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as CreateDepartmentBody;
-    const name = body.name?.trim();
-
-    if (!name) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: {
-            code: "INVALID_NAME",
-            message: "Department name is required.",
-          },
-        },
-        { status: 400 }
-      );
-    }
+    const body = OrgDepartmentCreateSchema.parse(await req.json());
+    const name = body.name;
 
     const context = await getOrgPermissionContext(req);
 
@@ -114,16 +98,6 @@ export async function POST(req: NextRequest) {
       data: department,
     });
   } catch (error) {
-    console.error("[POST /api/org/departments] Error creating department:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message: "Something went wrong while creating the department.",
-        },
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, req);
   }
 }

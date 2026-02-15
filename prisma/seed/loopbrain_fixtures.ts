@@ -429,6 +429,7 @@ export async function seedLoopbrainFixtures() {
     where: { projectId: projectA.id },
     update: {},
     create: {
+      workspaceId: workspace.id,
       projectId: projectA.id,
       ownerRole: 'Product Manager',
       decisionRole: 'Engineering Manager',
@@ -455,6 +456,7 @@ export async function seedLoopbrainFixtures() {
     where: { projectId: projectB.id },
     update: {},
     create: {
+      workspaceId: workspace.id,
       projectId: projectB.id,
       ownerPersonId: sam.id,
       decisionPersonId: sam.id,
@@ -480,6 +482,7 @@ export async function seedLoopbrainFixtures() {
     where: { projectId: projectC.id },
     update: {},
     create: {
+      workspaceId: workspace.id,
       projectId: projectC.id,
       ownerRole: 'Product Manager',
       // No decision authority set
@@ -505,6 +508,7 @@ export async function seedLoopbrainFixtures() {
     where: { projectId: projectD.id },
     update: {},
     create: {
+      workspaceId: workspace.id,
       projectId: projectD.id,
       ownerRole: 'Product Manager',
       decisionRole: 'Product Manager',

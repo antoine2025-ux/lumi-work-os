@@ -11,6 +11,7 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { getOrgPerson } from "@/server/org/people/read";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function GET(
   request: NextRequest,
@@ -64,38 +65,8 @@ export async function GET(
     }
 
     return NextResponse.json(person, { status: 200 });
-  } catch (error: any) {
-    console.error("[GET /api/org/people/[personId]] Error:", error);
-    console.error("[GET /api/org/people/[personId]] Error stack:", error?.stack);
-
-    if (!userId || !workspaceId) {
-      console.error("[GET /api/org/people/[personId]] Missing userId or workspaceId in catch", { userId, workspaceId });
-      return NextResponse.json(
-        { 
-          error: "Unauthorized",
-          hint: "Authentication failed. Please ensure you are logged in and have workspace access."
-        },
-        { status: 401 }
-      );
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { 
-          error: error.message || "Forbidden",
-          hint: "You don't have permission to access this resource."
-        },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json(
-      { 
-        error: "Failed to load person",
-        hint: error?.message || "An unexpected error occurred. Please try again."
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -218,51 +189,7 @@ export async function DELETE(
       { ok: true },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("[DELETE /api/org/people/[personId]] Error:", error);
-    console.error("[DELETE /api/org/people/[personId]] Error stack:", error?.stack);
-
-    if (!userId || !workspaceId) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: "UNAUTHORIZED",
-          hint: "Authentication failed. Please ensure you are logged in and have workspace access."
-        },
-        { status: 401 }
-      );
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: "FORBIDDEN",
-          hint: "Only workspace owners and admins can delete people."
-        },
-        { status: 403 }
-      );
-    }
-
-    if (error?.code === "P2025") {
-      // Record not found
-      return NextResponse.json(
-        { 
-          ok: false,
-          error: "NOT_FOUND",
-          hint: "The person may have already been deleted."
-        },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(
-      { 
-        ok: false,
-        error: "DELETE_FAILED",
-        hint: error?.message || "An unexpected error occurred. Please try again."
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

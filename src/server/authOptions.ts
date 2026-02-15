@@ -159,6 +159,7 @@ export const authOptions: NextAuthOptions = {
         session.user.workspaceId = token.workspaceId as string | undefined;
         session.user.role = token.role as string | undefined;
         session.user.isFirstTime = token.isFirstTime as boolean | undefined;
+        session.user.onboardingComplete = token.onboardingComplete as boolean | undefined;
         session.accessToken = token.accessToken;
         session.refreshToken = token.refreshToken;
         session.expiresAt = token.expiresAt;
@@ -206,13 +207,14 @@ export const authOptions: NextAuthOptions = {
             const membership = await prismaUnscoped.workspaceMember.findFirst({
               where: { userId: dbUser.id },
               orderBy: { joinedAt: 'asc' },
-              select: { workspaceId: true, role: true }
+              select: { workspaceId: true, role: true, workspace: { select: { onboardingCompletedAt: true } } }
             });
             
             if (membership) {
               token.workspaceId = membership.workspaceId;
               token.role = membership.role;
               token.isFirstTime = false;
+              token.onboardingComplete = membership.workspace.onboardingCompletedAt !== null;
             } else {
               token.isFirstTime = true;
             }
@@ -253,13 +255,14 @@ export const authOptions: NextAuthOptions = {
             const membership = await prismaUnscoped.workspaceMember.findFirst({
               where: { userId: dbUser.id },
               orderBy: { joinedAt: 'asc' },
-              select: { workspaceId: true, role: true }
+              select: { workspaceId: true, role: true, workspace: { select: { onboardingCompletedAt: true } } }
             });
             
             if (membership) {
               token.workspaceId = membership.workspaceId;
               token.role = membership.role;
               token.isFirstTime = false;
+              token.onboardingComplete = membership.workspace.onboardingCompletedAt !== null;
               console.log('✅ JWT: Set workspaceId from DB fallback:', membership.workspaceId);
             } else {
               token.isFirstTime = true;
@@ -292,13 +295,14 @@ export const authOptions: NextAuthOptions = {
               const membership = await prismaUnscoped.workspaceMember.findFirst({
                 where: { userId: dbUser.id },
                 orderBy: { joinedAt: 'asc' },
-                select: { workspaceId: true, role: true }
+                select: { workspaceId: true, role: true, workspace: { select: { onboardingCompletedAt: true } } }
               });
               
               if (membership) {
                 token.workspaceId = membership.workspaceId;
                 token.role = membership.role;
                 token.isFirstTime = false;
+                token.onboardingComplete = membership.workspace.onboardingCompletedAt !== null;
               }
             }
           } catch (error) {

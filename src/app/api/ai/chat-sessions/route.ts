@@ -1,17 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/ai/chat-sessions - Get chat sessions
 export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
     if (!auth.isAuthenticated) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
-        error: 'Authentication required' 
+        error: 'Authentication required'
       }, { status: 401 })
     }
+
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
+    })
+    setWorkspaceContext(auth.workspaceId)
 
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -54,11 +65,7 @@ export async function GET(request: NextRequest) {
       total: formattedSessions.length
     })
   } catch (error) {
-    console.error('Error fetching chat sessions:', error)
-    return NextResponse.json({ 
-      success: false,
-      error: 'Failed to fetch chat sessions' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -67,25 +74,33 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
     if (!auth.isAuthenticated) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
-        error: 'Authentication required' 
+        error: 'Authentication required'
       }, { status: 401 })
     }
 
     if (!auth.workspaceId) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
-        error: 'No workspace found' 
+        error: 'No workspace found'
       }, { status: 404 })
     }
+
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
+    })
+    setWorkspaceContext(auth.workspaceId)
 
     const { model, title } = await request.json()
 
     if (!model) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
-        error: 'Model is required' 
+        error: 'Model is required'
       }, { status: 400 })
     }
 
@@ -111,13 +126,6 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Error creating chat session:', error)
-    console.error('Error details:', error.message)
-    console.error('Stack trace:', error.stack)
-    return NextResponse.json({ 
-      success: false,
-      error: 'Failed to create chat session',
-      details: error.message
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth, NoWorkspaceError } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { ProjectUpdateSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { ProjectRole } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
@@ -11,6 +13,7 @@ import {
   canTakeOnWork,
 } from '@/lib/org/capacity/project-capacity'
 import { logger } from '@/lib/logger'
+import { syncProjectToGoals } from '@/lib/goals/project-sync'
 
 
 // GET /api/projects/[projectId] - Get a specific project
@@ -27,6 +30,7 @@ export async function GET(
 
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
 
     // Phase A: Log database connection info when debugging (DEV ONLY)
     if (process.env.NODE_ENV === 'development' && process.env.DEBUG_DB === 'true') {
@@ -247,34 +251,8 @@ export async function GET(
     }
 
     return NextResponse.json(enrichedProject)
-  } catch (error: any) {
-    console.error('Error fetching project:', error)
-    
-    // Handle specific access control errors
-    if (error.message === 'Unauthorized: User not authenticated.') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error.message === 'Project not found.') {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    if (error.message === 'Forbidden: Insufficient project permissions.' ||
-        error.message === 'Forbidden: You do not have access to this project space.') {
-      return NextResponse.json({ error: 'Forbidden: Insufficient project permissions' }, { status: 403 })
-    }
-
-    // User has no workspace (e.g. not in any workspace/org) — often perceived as "org mismatch"
-    if (error instanceof NoWorkspaceError) {
-      return NextResponse.json(
-        { error: 'No workspace found. You must be a member of a workspace to open projects.' },
-        { status: 403 }
-      )
-    }
-
-    return NextResponse.json({ 
-      error: 'Failed to fetch project'
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -285,6 +263,7 @@ export async function PUT(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
     const body = await request.json()
@@ -329,11 +308,7 @@ export async function PUT(
     // Prisma will ignore unknown fields, so slackChannelHints won't cause errors
     const { assigneeIds: _, slackChannelHints: __, ...bodyWithoutExtras } = body
     
-    console.log('[PUT /api/projects] Request body (without assigneeIds):', JSON.stringify(bodyWithoutExtras, null, 2))
-    
     const validatedData = ProjectUpdateSchema.parse(bodyWithoutExtras)
-    
-    console.log('[PUT /api/projects] Validation passed:', Object.keys(validatedData))
     const { 
       name, 
       description, 
@@ -407,6 +382,7 @@ export async function PUT(
             data: validAssigneeIds.map((userId: string) => ({
               projectId,
               userId,
+              workspaceId: auth.workspaceId,
             })),
             skipDuplicates: true
           })
@@ -483,6 +459,7 @@ export async function PUT(
             projectId,
             userId: newOwnerId,
             role: 'OWNER',
+            workspaceId: auth.workspaceId,
           },
         })
         logger.info('[Project Update] Added new owner as member', {
@@ -601,6 +578,13 @@ export async function PUT(
       console.error('Failed to upsert project context after update', { projectId, error })
     })
 
+    // Sync to goals if project has goal links
+    if (status) {
+      syncProjectToGoals(projectId, auth.user.userId).catch(err =>
+        console.error('Failed to sync project status to goals:', err)
+      )
+    }
+
     // Add task pagination metadata to update response
     const totalTaskCount = project._count.tasks
     const hasMoreTasks = totalTaskCount > 50
@@ -621,39 +605,8 @@ export async function PUT(
     }
 
     return NextResponse.json(responseProject)
-  } catch (error: unknown) {
-    console.error('Error updating project:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    
-    // Handle Zod validation errors
-    if (error instanceof z.ZodError) {
-      console.error('Zod validation error:', error.issues)
-      return NextResponse.json({
-        error: 'Validation error',
-        details: error.issues.map((e: z.ZodIssue) => ({
-          path: e.path.join('.'),
-          message: e.message
-        }))
-      }, { status: 400 })
-    }
-    
-    // Handle RBAC errors
-    if (errorMessage === 'Unauthorized: User not authenticated.' || 
-        errorMessage === 'User not found.') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (errorMessage === 'Project not found.') {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    if (errorMessage === 'Forbidden: Insufficient project permissions.') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to update project' 
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -664,6 +617,7 @@ export async function DELETE(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     const resolvedParams = await params
     const projectId = resolvedParams.projectId
 
@@ -697,20 +651,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, message: 'Project deleted successfully' })
   } catch (error) {
-    console.error('Error deleting project:', error)
-    
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      
-      if (error.message === 'Forbidden: Insufficient project permissions.') {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to delete project' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

@@ -17,6 +17,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors";
 import { getDecisionResponseMeta } from "@/lib/org/decision/types";
 
 type RouteParams = { params: Promise<{ key: string }> };
@@ -157,6 +158,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           domainId: domain.id,
           primaryPersonId: primary.personId ?? null,
           primaryRoleType: primary.roleType ?? null,
+          workspaceId: auth.workspaceId,
         },
       });
 
@@ -168,6 +170,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             stepOrder: index,
             personId: step.personId ?? null,
             roleType: step.roleType ?? null,
+            workspaceId: auth.workspaceId,
           })),
         });
       }
@@ -233,8 +236,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
       responseMeta: getDecisionResponseMeta(),
     });
-  } catch (error: unknown) {
-    console.error("[PUT /api/org/decision/domains/[key]/authority] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request);
   }
 }

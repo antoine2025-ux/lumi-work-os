@@ -5,6 +5,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
+import { handleApiError } from '@/lib/api-errors'
 
 // POST /api/admin/invite - Invite a user via Supabase Auth
 export async function POST(request: NextRequest) {
@@ -129,10 +130,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Invite user via Supabase Auth
-    console.log('Attempting to invite user:', email)
-    console.log('Redirect URL:', inviteRedirectUrl)
-    console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       redirectTo: inviteRedirectUrl,
       data: {
@@ -251,11 +248,8 @@ export async function POST(request: NextRequest) {
         invited: true
       })
     }
-  } catch (error: any) {
-    console.error('Error inviting user:', error)
-    return NextResponse.json({ 
-      error: error.message || 'Failed to invite user' 
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

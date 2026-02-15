@@ -18,6 +18,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { answerQ4, type Q4Timeframe, type Q4Output } from "@/lib/loopbrain/reasoning/q4";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors"
 
 async function handleRequest(request: NextRequest) {
   const auth = await getUnifiedAuth(request);
@@ -216,60 +217,16 @@ function formatQ4Response(
 export async function GET(request: NextRequest) {
   try {
     return await handleRequest(request);
-  } catch (error: any) {
-    console.error("Q4 reasoning error:", error);
-
-    if (error.message?.includes("Unauthorized") || error.message?.includes("Forbidden")) {
-      return NextResponse.json(
-        {
-          errors: [{ code: "UNAUTHORIZED", message: "Unauthorized" }],
-        },
-        { status: 401 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        errors: [
-          {
-            code: "INTERNAL_ERROR",
-            message: "Failed to answer Q4",
-            details: error.message,
-          },
-        ],
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     return await handleRequest(request);
-  } catch (error: any) {
-    console.error("Q4 reasoning error:", error);
-
-    if (error.message?.includes("Unauthorized") || error.message?.includes("Forbidden")) {
-      return NextResponse.json(
-        {
-          errors: [{ code: "UNAUTHORIZED", message: "Unauthorized" }],
-        },
-        { status: 401 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        errors: [
-          {
-            code: "INTERNAL_ERROR",
-            message: "Failed to answer Q4",
-            details: error.message,
-          },
-        ],
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

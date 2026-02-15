@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/logo"
+import { useWorkspace } from "@/lib/workspace-context"
 import { 
   LayoutDashboard, 
   Users, 
@@ -17,7 +18,7 @@ import {
 
 const navigation = [
   { name: "Dashboard", href: "/home", icon: LayoutDashboard },
-  { name: "Projects", href: "/projects", icon: Target },
+  { name: "Spaces", href: "/spaces/home", icon: Target },
   { name: "Org Chart", href: "/org", icon: Users },
   { name: "Admin", href: "/admin", icon: Shield },
   { name: "Wiki", href: "/wiki", icon: BookOpen },
@@ -27,6 +28,7 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { currentWorkspace } = useWorkspace()
 
   return (
     <div className="flex h-full w-64 flex-col bg-card border-r">
@@ -44,11 +46,16 @@ export function Sidebar() {
       
       <nav className="flex-1 space-y-1 p-4">
         {navigation.map((item) => {
-          const isActive = pathname === item.href
+          // Build workspace-scoped href for workspace-aware routes
+          const slugHref = currentWorkspace?.slug 
+            ? `/w/${currentWorkspace.slug}${item.href === '/home' ? '' : item.href}`
+            : item.href // Fallback to original if no workspace
+          
+          const isActive = pathname === slugHref || pathname === item.href
           return (
             <Link
               key={item.name}
-              href={item.href}
+              href={slugHref}
               className={cn(
                 "flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive

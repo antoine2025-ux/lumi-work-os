@@ -1,18 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertWorkspaceAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { getOrgContext } from "@/server/rbac";
+import { OrgBulkManagerSchema } from "@/lib/validations/org";
 
 function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ ok: false, error: "Unauthenticated" }, { status: 401 });
     }
+
+    // Assert user has workspace access (ADMIN+ can edit org structure)
+    await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['ADMIN']);
+    setWorkspaceContext(auth.workspaceId);
 
     let ctx;
     try {
@@ -34,19 +42,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "No workspace" }, { status: 403 });
     }
 
-    const body = await req.json().catch(() => null);
-    if (!body) return badRequest("Invalid JSON body");
-
-    const { personIds, managerId } = body ?? {};
-
-    if (!Array.isArray(personIds) || personIds.length === 0) {
-      return badRequest("personIds must be a non-empty array");
-    }
-
-    // managerId can be string or null (clear)
-    if (managerId !== null && managerId !== undefined && typeof managerId !== "string") {
-      return badRequest("managerId must be a string or null");
-    }
+    // Validate request body (Zod)
+    const { personIds, managerId } = OrgBulkManagerSchema.parse(await req.json());
 
     // Get positions for the selected people
     const positions = await prisma.orgPosition.findMany({
@@ -99,12 +96,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    console.error("Error updating managers:", error);
-    return NextResponse.json(
-      { ok: false, error: { code: "INTERNAL_ERROR", message: error.message || "Failed to update managers" } },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 

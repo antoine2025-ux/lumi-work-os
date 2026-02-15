@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertWorkspaceAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { getOrgContext } from "@/server/rbac";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ ok: false, error: "Unauthenticated" }, { status: 401 });
     }
+
+    // Assert user has workspace access (MEMBER+ can view org structure)
+    await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['MEMBER']);
+    setWorkspaceContext(auth.workspaceId);
 
     let ctx;
     try {
@@ -108,12 +115,8 @@ export async function GET(req: Request) {
         .map((id) => ({ id, name: byId.get(id)?.name || "Unknown" })),
       topLevel: topLevel.slice(0, 25).map((p) => ({ id: p.id, name: p.name })),
     });
-  } catch (error: any) {
-    console.error("Error validating structure:", error);
-    return NextResponse.json(
-      { ok: false, error: { code: "INTERNAL_ERROR", message: error.message || "Failed to validate" } },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 

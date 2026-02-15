@@ -13,6 +13,7 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { createIntelligenceSnapshot } from "@/server/org/intelligence/snapshots";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,14 +62,8 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
-    console.error("[POST /api/org/intelligence/snapshots/create] Error:", error);
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

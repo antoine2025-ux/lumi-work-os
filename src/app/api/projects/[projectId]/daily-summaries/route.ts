@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { generateDailySummary, saveDailySummary, getDailySummaries } from '@/lib/ai/daily-summary'
 import { prisma } from '@/lib/db'
 
@@ -21,6 +24,10 @@ export async function GET(
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Set workspace context for Prisma scoping
+    const auth = await getUnifiedAuth(request)
+    setWorkspaceContext(auth.workspaceId)
     
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
@@ -53,12 +60,7 @@ export async function GET(
       return NextResponse.json([])
     }
   } catch (error) {
-    console.error('Error fetching daily summaries:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({
-      error: 'Failed to fetch daily summaries',
-      details: errorMessage
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -77,6 +79,10 @@ export async function POST(
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Set workspace context for Prisma scoping
+    const authCtx = await getUnifiedAuth(request)
+    setWorkspaceContext(authCtx.workspaceId)
 
     // Get authenticated user from database
     const user = await prisma.user.findUnique({
@@ -141,11 +147,6 @@ export async function POST(
       summary: savedSummary
     })
   } catch (error) {
-    console.error('Error generating daily summary:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({
-      error: 'Failed to generate daily summary',
-      details: errorMessage
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

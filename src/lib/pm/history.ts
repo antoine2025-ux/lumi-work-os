@@ -1,6 +1,5 @@
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/db'
+import { getWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 export interface TaskHistoryEntry {
   taskId: string
@@ -8,6 +7,7 @@ export interface TaskHistoryEntry {
   field: string
   from?: any
   to?: any
+  workspaceId?: string
 }
 
 /**
@@ -18,16 +18,23 @@ export async function logTaskHistory({
   actorId,
   field,
   from,
-  to
+  to,
+  workspaceId
 }: TaskHistoryEntry): Promise<void> {
   try {
+    const wsId = workspaceId ?? getWorkspaceContext()
+    if (!wsId) {
+      console.warn('logTaskHistory: no workspaceId available, skipping')
+      return
+    }
     await prisma.taskHistory.create({
       data: {
         taskId,
         actorId,
         field,
-        from: from ? JSON.stringify(from) : null,
-        to: to ? JSON.stringify(to) : null
+        from: from ? JSON.stringify(from) : undefined,
+        to: to ? JSON.stringify(to) : undefined,
+        workspaceId: wsId
       }
     })
   } catch (error) {
@@ -41,6 +48,11 @@ export async function logTaskHistory({
  */
 export async function logTaskHistoryBatch(entries: TaskHistoryEntry[]): Promise<void> {
   try {
+    const wsId = getWorkspaceContext()
+    if (!wsId) {
+      console.warn('logTaskHistoryBatch: no workspaceId available, skipping')
+      return
+    }
     await prisma.$transaction(
       entries.map(entry =>
         prisma.taskHistory.create({
@@ -48,8 +60,9 @@ export async function logTaskHistoryBatch(entries: TaskHistoryEntry[]): Promise<
             taskId: entry.taskId,
             actorId: entry.actorId,
             field: entry.field,
-            from: entry.from ? JSON.stringify(entry.from) : null,
-            to: entry.to ? JSON.stringify(entry.to) : null
+            from: entry.from ? JSON.stringify(entry.from) : undefined,
+            to: entry.to ? JSON.stringify(entry.to) : undefined,
+            workspaceId: entry.workspaceId ?? wsId
           }
         })
       )

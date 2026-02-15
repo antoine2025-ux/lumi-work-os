@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 const createTemplateSchema = z.object({
   name: z.string().min(1).max(80),
@@ -93,25 +94,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Error fetching templates:', error)
-    
-    // Handle auth errors
-    if (error instanceof Error && error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    if (error instanceof Error && error.message.includes('No workspace found')) {
-      return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
-    }
-    
-    return NextResponse.json(
-      { error: { code: 'FETCH_ERROR', message: 'Failed to fetch templates' } },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 
@@ -151,6 +134,7 @@ export async function POST(request: NextRequest) {
             description: task.description,
             order: task.order,
             dueDay: task.dueDay,
+            workspaceId,
           })),
         },
       },
@@ -166,32 +150,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(template, { status: 201 })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input data', details: error.errors } },
-        { status: 400 }
-      )
-    }
-
-    console.error('Error creating template:', error)
-    
-    // Handle auth errors
-    if (error instanceof Error && error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    if (error instanceof Error && error.message.includes('No workspace found')) {
-      return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
-    }
-    
-    return NextResponse.json(
-      { error: { code: 'CREATE_ERROR', message: 'Failed to create template' } },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 

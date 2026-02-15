@@ -10,6 +10,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { handleApiError } from "@/lib/api-errors"
 
 export async function GET(
   request: NextRequest,
@@ -114,38 +115,8 @@ export async function GET(
       },
       { status: 200 }
     );
-  } catch (error: any) {
-    console.error("[GET /api/org/structure/teams/[teamId]] Error:", error);
-    console.error("[GET /api/org/structure/teams/[teamId]] Error stack:", error?.stack);
-
-    if (!userId || !workspaceId) {
-      console.error("[GET /api/org/structure/teams/[teamId]] Missing userId or workspaceId in catch", { userId, workspaceId });
-      return NextResponse.json(
-        { 
-          error: "Unauthorized",
-          hint: "Authentication failed. Please ensure you are logged in and have workspace access."
-        },
-        { status: 401 }
-      );
-    }
-
-    if (error?.message?.includes("Forbidden") || error?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        { 
-          error: error.message || "Forbidden",
-          hint: "You don't have permission to access this resource."
-        },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json(
-      { 
-        error: "Failed to load team",
-        hint: error?.message || "An unexpected error occurred. Please try again."
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

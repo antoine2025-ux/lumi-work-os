@@ -1,0 +1,49 @@
+ℹ️ E2E_TEST_AUTH not set and no auth state found
+ℹ️ If browser is visible (headless: false), you can log in manually now
+ℹ️ Waiting 10 seconds for manual login (if needed)...
+⚠️ Still no auth - test will continue but may show unauthenticated state
+
+=== COOKIE NAMES ===
+next-auth.callback-url, next-auth.csrf-token
+
+=== NEXTAUTH COOKIE NAMES (not values) ===
+  - next-auth.csrf-token (httpOnly, not secure)
+  - next-auth.callback-url (httpOnly, not secure)
+
+=== /api/auth/session ===
+Status: 200
+❌ No session found (user not logged in)
+
+=== VISITING /home ===
+Final URL: http://localhost:3000/login?callbackUrl=%2Fhome
+  → Redirected to /login (unauthenticated)
+
+=== /api/projects ===
+Status: 401
+Content-Type: application/json
+
+=== /api/projects body (first 1000 chars) ===
+{
+  "error": {
+    "code": "AUTHENTICATION_REQUIRED",
+    "message": "You must be signed in to access this resource."
+  }
+}
+
+=== /api/auth/user-status ===
+Status: 200
+
+=== /api/auth/user-status JSON ===
+{
+  "isAuthenticated": false,
+  "isFirstTime": true,
+  "workspaceId": null,
+  "error": "Not authenticated"
+}
+
+=== DIAGNOSTIC SUMMARY ===
+Has session: NO
+Has workspaceId in session: NO
+isFirstTime flag: FALSE
+Final URL after /home: http://localhost:3000/login?callbackUrl=%2Fhome
+/api/projects status: 401
