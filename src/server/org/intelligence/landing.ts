@@ -27,7 +27,7 @@ import {
   RESPONSIBILITY_ISSUE_TYPES,
   DECISION_ISSUE_TYPES,
   IMPACT_ISSUE_TYPES,
-} from "./constants";
+} from "@/lib/org/intelligence/constants";
 
 // ============================================================================
 // Helper: Severity Ranking
