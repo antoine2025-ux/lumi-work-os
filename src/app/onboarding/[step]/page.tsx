@@ -107,14 +107,19 @@ export default function OnboardingStepPage() {
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({}))
-          throw new Error(err.error || 'Request failed')
+          const msg = typeof err?.error === 'object' && err?.error !== null && 'message' in err.error
+            ? String((err.error as { message?: unknown }).message)
+            : typeof err?.error === 'string'
+              ? err.error
+              : 'Request failed'
+          throw new Error(msg)
         }
 
         const result = await res.json()
 
         // After step 1 workspace creation, refresh session so JWT has workspaceId
         if (stepNumber === 1) {
-          await updateSession()
+          await updateSession({})
           setSummary(prev => ({ ...prev, workspaceName: (data as { workspaceName?: string }).workspaceName || '' }))
           setProgress({
             currentStep: 2,
@@ -141,9 +146,9 @@ export default function OnboardingStepPage() {
           setSummary(prev => ({ ...prev, spaceName: result.spaceName ?? null }))
         }
 
-        // Step 5 — onboarding is done
+        // Step 5 — onboarding is done; pass {} so JWT callback refreshes token
         if (stepNumber === 5) {
-          await updateSession()
+          await updateSession({})
           router.replace('/home')
           return
         }

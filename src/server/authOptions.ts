@@ -275,15 +275,17 @@ export const authOptions: NextAuthOptions = {
         }
       }
       
-      // Handle session update trigger (e.g., after workspace switch)
-      if (trigger === 'update' && session) {
+      // Handle session update trigger (e.g., after workspace switch or onboarding completion)
+      if (trigger === 'update') {
         // Allow client to update activeOrgId via session update
-        const nextOrg = (session as any).activeOrgId;
-        if (typeof nextOrg === "string") {
-          (token as any).activeOrgId = nextOrg;
+        if (session) {
+          const nextOrg = (session as any).activeOrgId;
+          if (typeof nextOrg === "string") {
+            (token as any).activeOrgId = nextOrg;
+          }
         }
 
-        // Also update workspace membership if email is available
+        // Always refresh workspace membership on update trigger
         if (token.email) {
           try {
             const dbUser = await prismaUnscoped.user.findUnique({

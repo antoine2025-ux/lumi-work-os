@@ -122,6 +122,7 @@ model User {
   employeeOneOnOnes     OneOnOneMeeting[]      @relation("Employee1on1s")
   managerOneOnOnes      OneOnOneMeeting[]      @relation("Manager1on1s")
   goalCheckIns          GoalCheckIn[]          @relation("GoalCheckIns")
+  projectSpaceMemberships ProjectSpaceMember[]
 
   @@map("users")
 }
@@ -226,6 +227,7 @@ model Workspace {
   loopbrainChatFeedback  LoopbrainChatFeedback[]
   loopbrainOpenLoops     LoopbrainOpenLoop[]
   loopbrainPendingActions LoopbrainPendingAction[]
+  projectSpaces           ProjectSpace[]
 
   // Loopbrain proactive insights
   proactiveInsights ProactiveInsight[]
@@ -332,6 +334,40 @@ model WorkspaceMember {
   @@index([workspaceId, joinedAt(sort: Desc)], map: "idx_workspace_members_workspace_joined")
   @@index([workspaceId, employmentStatus])
   @@map("workspace_members")
+}
+
+enum ProjectSpaceVisibility {
+  PUBLIC
+  TARGETED
+}
+
+model ProjectSpace {
+  id          String                 @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  visibility  ProjectSpaceVisibility @default(PUBLIC)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  workspace   Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members     ProjectSpaceMember[]
+
+  @@index([workspaceId], map: "idx_project_spaces_workspace")
+  @@map("project_spaces")
+}
+
+model ProjectSpaceMember {
+  id             String      @id @default(cuid())
+  projectSpaceId String
+  userId         String
+  joinedAt       DateTime    @default(now())
+  projectSpace   ProjectSpace @relation(fields: [projectSpaceId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectSpaceId, userId], name: "project_space_members_projectSpaceId_userId_key")
+  @@index([userId], map: "idx_project_space_members_user")
+  @@index([projectSpaceId], map: "idx_project_space_members_space")
+  @@map("project_space_members")
 }
 
 // Phase 1: Workspace onboarding state tracking

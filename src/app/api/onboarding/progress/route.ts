@@ -326,14 +326,14 @@ export async function POST(request: NextRequest) {
     // Step 4: First Space
     // -----------------------------------------------------------------------
     if (step === 4) {
-      // ProjectSpace model is pending migration — use type assertion for forward compatibility
-      // (matches pattern used in src/app/api/project-spaces/route.ts)
-      const space = await (prisma as unknown as { projectSpace: { create: (args: unknown) => Promise<{ id: string; name: string }> } }).projectSpace.create({
+      // Map onboarding visibility (PUBLIC | PRIVATE) to DB enum (PUBLIC | TARGETED)
+      const visibility = data.visibility === 'PRIVATE' ? 'TARGETED' : 'PUBLIC'
+      const space = await prisma.projectSpace.create({
         data: {
           workspaceId,
           name: data.spaceName,
-          visibility: data.visibility,
-          createdById: auth.user.userId,
+          description: null,
+          visibility,
         },
       })
 
