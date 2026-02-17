@@ -215,9 +215,21 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
 
           if (!workspace?.orgCenterOnboardingCompletedAt) {
             // Check if a provisional work request already exists (user is mid-onboarding)
-            const provisionalCount = await prisma.workRequest.count({
-              where: { workspaceId: context.orgId, isProvisional: true, status: "OPEN" },
-            });
+            // Handle missing table gracefully (P2021 error)
+            let provisionalCount = 0;
+            try {
+              provisionalCount = await prisma.workRequest.count({
+                where: { workspaceId: context.orgId, isProvisional: true, status: "OPEN" },
+              });
+            } catch (error: any) {
+              // Handle missing table (P2021) - table may not exist yet
+              if (error?.code === "P2021" || error?.message?.includes("does not exist")) {
+                provisionalCount = 0;
+              } else {
+                // Re-throw other errors
+                throw error;
+              }
+            }
 
             if (provisionalCount === 0) {
               redirect("/org/onboarding/work");
