@@ -99,10 +99,16 @@ export async function deriveAllIssues(
   // 2. Get thresholds (DB-backed with defaults fallback)
   const thresholds = await getWorkspaceThresholdsAsync(workspaceId);
 
-  // 3. Fetch teams and departments
+  // 3. Fetch workspace slug and teams/departments
   if (!prisma) {
     throw new Error("Prisma client not initialized");
   }
+  
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { slug: true }
+  });
+  const workspaceSlug = workspace?.slug || workspaceId;
   
   const [teams, departments] = await Promise.all([
     prisma.orgTeam.findMany({
@@ -138,6 +144,7 @@ export async function deriveAllIssues(
   }));
 
   const ownershipIssues = deriveOwnershipIssues(
+    workspaceSlug,
     teamInputs,
     deptInputs,
     teamResolutions,

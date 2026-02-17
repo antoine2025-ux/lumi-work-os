@@ -78,7 +78,7 @@ export default async function MyProfilePage({ params }: PageProps) {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / MY PROFILE"
+        legacyBreadcrumb="ORG / MY PROFILE"
         title="My Profile"
         description="Your personal information and settings"
       />

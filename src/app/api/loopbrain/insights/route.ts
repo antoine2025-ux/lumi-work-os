@@ -224,11 +224,12 @@ export async function POST(request: NextRequest) {
     // First, expire any stale insights
     await expireStaleInsights(auth.workspaceId);
 
-    // Detect new insights
+    // Detect new insights (includes user-scoped generators)
     const insights = await detectInsights(auth.workspaceId, {
       categories,
       minConfidence,
       maxInsights,
+      userId: auth.user.userId,
     });
 
     // Store insights if requested

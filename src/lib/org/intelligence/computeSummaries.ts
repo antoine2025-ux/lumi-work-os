@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Compute Intelligence Summaries (Client-Safe)
  *

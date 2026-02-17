@@ -137,7 +137,7 @@ export const authOptions: NextAuthOptions = {
         // Set user ID from token.sub or token.id
         if (token.sub) {
           session.user.id = token.sub;
-        } else if (token.id) {
+        } else if (token.id && typeof token.id === 'string') {
           session.user.id = token.id;
         } else if (token.email) {
           // Fallback: look up user by email if token doesn't have ID

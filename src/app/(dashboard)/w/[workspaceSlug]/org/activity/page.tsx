@@ -23,7 +23,7 @@ export default async function WorkspaceOrgActivityPage({ params }: PageProps) {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / ACTIVITY & EXPORTS"
+          legacyBreadcrumb="ORG / ACTIVITY & EXPORTS"
           title="Activity & exports"
           description="Review recent admin activity and export a snapshot of your org."
         />
@@ -60,7 +60,7 @@ export default async function WorkspaceOrgActivityPage({ params }: PageProps) {
     <>
       <OrgPageViewTracker route={`/w/${workspaceSlug}/org/activity`} name="Org Activity" />
       <OrgPageHeader
-        breadcrumb="ORG / ACTIVITY & EXPORTS"
+        legacyBreadcrumb="ORG / ACTIVITY & EXPORTS"
         title="Activity & exports"
         description="Review recent admin activity and export a snapshot of your org."
       />

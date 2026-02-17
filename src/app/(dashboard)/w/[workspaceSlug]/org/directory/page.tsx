@@ -21,7 +21,7 @@ export default async function DirectoryPage({ params }: PageProps) {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / DIRECTORY"
+          legacyBreadcrumb="ORG / DIRECTORY"
           title="Directory"
           description="Search and find people in your organization."
         />
@@ -41,7 +41,7 @@ export default async function DirectoryPage({ params }: PageProps) {
     <>
       <OrgPageViewTracker route={`/w/${workspaceSlug}/org/directory`} name="Org Directory" />
       <OrgPageHeader
-        breadcrumb="ORG / DIRECTORY"
+        legacyBreadcrumb="ORG / DIRECTORY"
         title="Directory"
         description="Search and find people in your organization."
       />

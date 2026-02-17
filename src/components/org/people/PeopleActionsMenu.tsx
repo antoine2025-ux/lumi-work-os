@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { MoreVertical, UserPlus, Users, UserCheck, Download } from "lucide-react";

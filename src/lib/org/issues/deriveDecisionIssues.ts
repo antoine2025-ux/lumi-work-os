@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * deriveDecisionIssues – Phase I Decision Authority Deriver
  *

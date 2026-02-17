@@ -680,7 +680,7 @@ export default function ProjectsDashboard() {
                             style={{ backgroundColor: colors.primary }}
                           />
                           <h3 className="text-lg font-bold group-hover:opacity-80 transition-all" style={{ color: colors.text }}>
-                            {epic.name}
+                            {epic?.title}
                           </h3>
                         </div>
 
@@ -720,13 +720,13 @@ export default function ProjectsDashboard() {
                           <div className="flex items-center space-x-1">
                             <Folder className="h-3 w-3" style={{ color: colors.textSecondary }} />
                             <span className="text-xs" style={{ color: colors.textSecondary }}>
-                              {epic.project?.name || 'No project'}
+                              {epic?.project?.name || 'No project'}
                             </span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-3 w-3" style={{ color: colors.textSecondary }} />
                             <span className="text-xs" style={{ color: colors.textSecondary }}>
-                              {epic.endDate ? new Date(epic.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No due date'}
+                              {epic?.createdAt ? new Date(epic.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No date'}
                             </span>
                           </div>
                         </div>
@@ -768,7 +768,7 @@ export default function ProjectsDashboard() {
                           <div className="flex items-center space-x-1">
                             <Folder className="h-3 w-3" style={{ color: colors.textSecondary }} />
                             <span className="text-xs" style={{ color: colors.textSecondary }}>
-                              {task.project?.name || 'No project'}
+                              {task?.project?.name || 'No project'}
                             </span>
                           </div>
                           <div className="flex items-center space-x-1">

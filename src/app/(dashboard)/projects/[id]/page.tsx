@@ -719,7 +719,7 @@ export default function ProjectDetailPage() {
               />
               <h1 className="text-3xl font-semibold" style={{ color: colors.text }}>{project?.name}</h1>
               {project?.projectSpace && (
-                <ProjectSpaceBadge visibility={project.projectSpace.visibility} />
+                <ProjectSpaceBadge visibility={project?.projectSpace?.visibility} />
               )}
             </div>
             <p className="text-base leading-relaxed mb-3" style={{ color: colors.textSecondary }}>
@@ -759,7 +759,7 @@ export default function ProjectDetailPage() {
                           </div>
                         </div>
                       ))}
-                      {project && project.members && project.members.length > 3 && (
+                      {project?.members && project.members.length > 3 && (
                         <p className="text-xs" style={{ color: colors.textSecondary }}>
                           +{project.members.length - 3} more
                         </p>

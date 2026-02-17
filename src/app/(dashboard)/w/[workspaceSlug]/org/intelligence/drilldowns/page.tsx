@@ -11,7 +11,7 @@ export default function WorkspaceOrgIntelligenceDrilldownsPage() {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / INTELLIGENCE / DRILLDOWNS"
+        legacyBreadcrumb="ORG / INTELLIGENCE / DRILLDOWNS"
         title="Intelligence drilldowns"
         description="Deep-dive into specific intelligence metrics and signals."
       />

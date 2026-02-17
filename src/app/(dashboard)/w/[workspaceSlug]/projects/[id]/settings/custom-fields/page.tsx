@@ -33,10 +33,15 @@ export default function CustomFieldsSettingsPage() {
   const [editingField, setEditingField] = useState<CustomFieldDef | null>(null)
   
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    key: string
+    label: string
+    type: 'text' | 'number' | 'select' | 'date' | 'boolean'
+    options: string
+  }>({
     key: '',
     label: '',
-    type: 'text' as const,
+    type: 'text',
     options: ''
   })
 

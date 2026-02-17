@@ -37,7 +37,7 @@ export async function computeLayerMetrics(orgId: string): Promise<LayerMetrics> 
     } as any).catch(() => [] as any[]),
 
     prisma.personManagerLink?.findMany?.({
-      where: { orgId } as any,
+      where: { workspaceId: orgId } as any,
       select: { personId: true, managerId: true, startsAt: true, endsAt: true } as any,
       take: 200000,
     } as any).catch(() => [] as any[]),

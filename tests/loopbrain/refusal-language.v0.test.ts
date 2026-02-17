@@ -85,16 +85,16 @@ describe("Refusal Language Canon v0", () => {
       const allBlockersSet = new Set<OrgReadinessBlocker>(BLOCKER_PRIORITY_V0);
       const sortedBlockers = BLOCKER_PRIORITY_V0.filter((b) => allBlockersSet.has(b));
       expect(sortedBlockers).toEqual(BLOCKER_PRIORITY_V0);
-      expect(sortedBlockers).toHaveLength(7);
+      expect(sortedBlockers).toHaveLength(15);
     });
   });
 
   describe("Deep links", () => {
-    it("all deepLinks match ^/org/", () => {
+    it("all deepLinks match ^/", () => {
       for (const b of BLOCKER_PRIORITY_V0) {
         for (const a of BLOCKER_ACTIONS_V0[b]) {
           if (a.deepLink) {
-            expect(a.deepLink).toMatch(/^\/org\//);
+            expect(a.deepLink).toMatch(/^\//);
           }
         }
       }

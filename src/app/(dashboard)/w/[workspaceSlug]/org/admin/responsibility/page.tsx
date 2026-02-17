@@ -38,7 +38,7 @@ export default async function ResponsibilityPage({ params }: PageProps) {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / ADMIN / RESPONSIBILITY"
+        legacyBreadcrumb="ORG / ADMIN / RESPONSIBILITY"
         title="Responsibility Profiles"
         description="Define and manage responsibility profiles"
       />

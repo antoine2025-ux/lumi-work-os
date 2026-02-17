@@ -7,6 +7,7 @@
 
 import { LoopbrainMode } from './orchestrator-types'
 import { ContextObject } from '@/lib/context/context-types'
+import type { MessageIntent } from './agent/types'
 
 /**
  * Detected intent types
@@ -27,6 +28,9 @@ export type LoopbrainIntent =
   | 'goal_progress'
   | 'goal_risk'
   | 'goal_recommendation'
+  | 'project_health'
+  | 'workload_analysis'
+  | 'calendar_availability'
   | 'unknown'
 
 /**
@@ -269,6 +273,47 @@ export function detectIntentFromKeywords(
     return { intent, confidence, reasons }
   }
 
+  // ----- Project Health & Workload intents -----
+
+  // Project health: user asking about project health, velocity, risks, momentum
+  const projectHealthKeywords = ['project health', 'project velocity', 'project risk', 'project momentum', 'project bottleneck', 'sprint velocity', 'cycle time', 'how healthy is']
+  const projectHealthRegex = /\b(health|velocity|momentum|bottleneck)\b.*\bproject/
+  const projectOnTrackRegex = /\bproject\b.*\b(on track|doing|healthy|at risk)\b/
+  if (projectHealthKeywords.some(kw => queryLower.includes(kw)) ||
+      projectHealthRegex.test(queryLower) ||
+      projectOnTrackRegex.test(queryLower) ||
+      (queryLower.includes('project') && queryLower.includes('health'))) {
+    intent = 'project_health'
+    confidence = 0.88
+    reasons.push('Detected project health keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // Workload analysis: user asking about workload, overloading, capacity usage
+  const workloadKeywords = ['workload', 'work load', 'overloaded', 'too much work', 'how busy', 'workload analysis', 'workload balance', 'workload distribution', 'spread too thin', 'task load']
+  const workloadRegex = /\bwho\b.*\b(overloaded|overwhelmed|swamped)\b/
+  if (workloadKeywords.some(kw => queryLower.includes(kw)) ||
+      workloadRegex.test(queryLower)) {
+    intent = 'workload_analysis'
+    confidence = 0.87
+    reasons.push('Detected workload analysis keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // Calendar availability: user asking about scheduling, free time, availability
+  const calendarKeywords = ['when am i free', 'when are you free', 'find time', 'schedule a meeting', 'schedule meeting', 'available slot', 'free slot', 'calendar availability', 'meeting time', 'open slot']
+  const calendarAvailRegex = /\b(is|are)\b.*\b(available|free)\b.*\b(today|tomorrow|this week|next week|monday|tuesday|wednesday|thursday|friday)\b/
+  const whenFreeRegex = /\bwhen\b.*\b(free|available|open)\b/
+  if (calendarKeywords.some(kw => queryLower.includes(kw)) ||
+      calendarAvailRegex.test(queryLower) ||
+      whenFreeRegex.test(queryLower) ||
+      (queryLower.includes('availability') && (queryLower.includes('calendar') || queryLower.includes('schedule')))) {
+    intent = 'calendar_availability'
+    confidence = 0.86
+    reasons.push('Detected calendar availability keywords')
+    return { intent, confidence, reasons }
+  }
+
   // ----- Existing intents -----
 
   // Capacity planning
@@ -365,6 +410,31 @@ function selectModeFromIntent(
 
     case 'open_loops':
       // Open loops are injected in all modes, keep current
+      break
+
+    case 'project_health':
+      mode = 'spaces'
+      reasons.push('Project health requires spaces mode for project context')
+      break
+
+    case 'workload_analysis':
+      if (availableContextHints?.hasOrgPeople || availableContextHints?.hasTeams) {
+        mode = 'org'
+        reasons.push('Workload analysis requires org data for capacity comparison')
+      } else {
+        mode = 'spaces'
+        reasons.push('Workload analysis fallback to spaces (no org data)')
+      }
+      break
+
+    case 'calendar_availability':
+      if (availableContextHints?.hasOrgPeople) {
+        mode = 'org'
+        reasons.push('Calendar availability uses org data for person context')
+      } else {
+        mode = 'spaces'
+        reasons.push('Calendar availability fallback to spaces')
+      }
       break
 
     case 'capacity_planning':
@@ -505,5 +575,56 @@ function detectClarificationNeeds(
   }
   
   return { needs: false }
+}
+
+// ---------------------------------------------------------------------------
+// Action vs Question classification (Phase 2 — no LLM, keyword-based)
+// ---------------------------------------------------------------------------
+
+const ACTION_VERBS = [
+  'create', 'make', 'add', 'set up', 'setup', 'build', 'start',
+  'schedule', 'assign', 'move', 'change', 'update', 'remove',
+  'delete', 'archive', 'write a wiki', 'draft a doc', 'draft a page',
+  'new project', 'new task', 'new goal', 'new page', 'new todo',
+]
+
+const QUESTION_ANCHORS = [
+  'who', 'what', 'when', 'where', 'how', 'why',
+  'is there', 'are there', 'can you tell', 'does',
+  'show me', 'tell me', 'explain', 'describe', 'summarize',
+]
+
+/** Phrases that indicate the user wants help THINKING, not just executing */
+const ADVISORY_SIGNALS = [
+  'how should i', 'how would you', 'how do i', 'how can i',
+  'what do you think', 'what would you suggest', 'what do you recommend',
+  'help me plan', 'help me think', 'help me figure out',
+  'suggest', 'recommend', 'advise', 'brainstorm',
+  "what's the best way", 'best approach', 'best structure',
+  'should i', 'would it make sense', 'ideas for',
+  "i'm thinking about", 'i want to', 'i need to figure out',
+]
+
+/**
+ * Classify whether the user message is a QUESTION (existing Q&A flow),
+ * an ACTION (agentic execution), ADVISORY (brainstorming that may lead
+ * to action), or HYBRID (both question and action).
+ *
+ * This runs BEFORE the existing intent router and does NOT replace it.
+ * Keyword-based, deterministic — no LLM call.
+ */
+export function classifyMessageIntent(message: string): MessageIntent {
+  const lower = message.toLowerCase().trim()
+
+  const hasAdvisory = ADVISORY_SIGNALS.some((s) => lower.includes(s))
+  const hasAction = ACTION_VERBS.some((v) => lower.includes(v))
+  const hasQuestion = QUESTION_ANCHORS.some((q) => lower.startsWith(q)) || lower.includes('?')
+
+  // Advisory takes priority — brainstorming phrases route to the planner
+  // in advisory mode, not the Q&A pipeline
+  if (hasAdvisory) return 'ADVISORY'
+  if (hasAction && hasQuestion) return 'HYBRID'
+  if (hasAction) return 'ACTION'
+  return 'QUESTION'
 }
 

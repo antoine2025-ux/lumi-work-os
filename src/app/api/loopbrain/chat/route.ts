@@ -12,6 +12,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { runLoopbrainQuery } from '@/lib/loopbrain/orchestrator'
 import { LoopbrainMode, LoopbrainRequest } from '@/lib/loopbrain/orchestrator-types'
+import type { AgentPlan, ClarificationContext, AdvisoryContext } from '@/lib/loopbrain/agent/types'
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
 import { isOrgLoopbrainEnabled } from '@/lib/loopbrain/orgGate'
@@ -75,6 +76,10 @@ export async function POST(request: NextRequest) {
       slackChannel?: string
       clientMetadata?: Record<string, unknown>
       slackChannelHints?: string[]
+      pendingPlan?: AgentPlan
+      conversationContext?: string
+      pendingClarification?: ClarificationContext
+      pendingAdvisory?: AdvisoryContext
     }
 
     try {
@@ -168,7 +173,11 @@ export async function POST(request: NextRequest) {
       sendToSlack: body.sendToSlack === true, // Only true if explicitly set
       slackChannel: body.slackChannel,
       clientMetadata: body.clientMetadata,
-      slackChannelHints: body.slackChannelHints // From project edit (sent in request body, not persisted)
+      slackChannelHints: body.slackChannelHints, // From project edit (sent in request body, not persisted)
+      pendingPlan: body.pendingPlan, // Agentic execution: plan from previous turn for confirmation
+      conversationContext: body.conversationContext, // Clarification follow-ups: prior turns for context
+      pendingClarification: body.pendingClarification, // Clarification answer routing
+      pendingAdvisory: body.pendingAdvisory, // Advisory→execution transition
     } as any
 
     // Pass requestId to orchestrator for logging

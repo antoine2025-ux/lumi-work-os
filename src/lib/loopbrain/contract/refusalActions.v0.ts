@@ -39,4 +39,32 @@ export const BLOCKER_ACTIONS_V0: Record<OrgReadinessBlocker, Action[]> = {
   WORK_CANNOT_EVALUATE_BASELINE: [
     { label: "Resume onboarding", deepLink: "/org/onboarding/work" },
   ],
+  // Project Health blockers (Phase 2)
+  NO_PROJECT_DATA: [
+    { label: "Create a project", deepLink: "/projects" },
+  ],
+  NO_TASKS: [
+    { label: "Add tasks to the project", deepLink: "/projects" },
+  ],
+  NO_ACTIVITY: [
+    { label: "Add tasks or updates", deepLink: "/projects" },
+  ],
+  INSUFFICIENT_HISTORY: [
+    { label: "Complete more tasks to build history", deepLink: "/projects" },
+  ],
+  // Workload Analysis blockers (Phase 2)
+  NO_PERSON_DATA: [
+    { label: "Add people to the org", deepLink: "/org/directory" },
+  ],
+  NO_TASK_DATA: [
+    { label: "Assign tasks to this person", deepLink: "/projects" },
+  ],
+  // Calendar Availability blockers (Phase 2)
+  NO_CALENDAR_DATA: [
+    { label: "Connect Google Calendar", deepLink: "/settings" },
+  ],
+  NO_AVAILABILITY_DATA: [
+    { label: "Configure availability", deepLink: "/org/directory" },
+    { label: "Set up capacity contracts", deepLink: "/org/admin/capacity" },
+  ],
 };

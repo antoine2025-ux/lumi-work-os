@@ -29,6 +29,7 @@ import {
   calculateBatchFreshness,
   sortInsightsByUrgency,
 } from "./contract/proactiveInsight.v0";
+import { generateProactiveInsights } from "./reasoning/proactiveInsights";
 
 // =============================================================================
 // Types
@@ -41,6 +42,8 @@ interface DetectionOptions {
   minConfidence?: number;
   /** Maximum insights to generate */
   maxInsights?: number;
+  /** User ID for user-scoped insights (overdue tasks, 1:1s) */
+  userId?: string;
 }
 
 interface InsightInput {
@@ -79,10 +82,10 @@ export async function detectInsights(
   options: DetectionOptions = {}
 ): Promise<ProactiveInsightV0[]> {
   const startTime = Date.now();
-  const { categories, minConfidence = 0.5, maxInsights = 100 } = options;
+  const { categories, minConfidence = 0.5, maxInsights = 100, userId } = options;
 
   try {
-    // Run all detectors in parallel
+    // Run all detectors in parallel (category-based + user-facing)
     const detectorResults = await Promise.all([
       categories?.includes("CAPACITY") !== false
         ? detectCapacityInsights(workspaceId)
@@ -105,6 +108,8 @@ export async function detectInsights(
       categories?.includes("COMMUNICATION") !== false
         ? detectCommunicationInsights(workspaceId)
         : [],
+      // User-facing proactive insights (overdue tasks, at-risk goals, etc.)
+      userId ? generateProactiveInsights(workspaceId, userId) : [],
     ]);
 
     // Flatten and filter results

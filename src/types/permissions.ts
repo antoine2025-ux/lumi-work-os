@@ -2,7 +2,7 @@ export type UserRole = 'admin' | 'editor' | 'viewer'
 
 export type PermissionLevel = 'public' | 'team' | 'private'
 
-export interface User {
+export interface PermissionUser {
   id: string
   name: string
   email: string
@@ -64,7 +64,7 @@ export interface PermissionCheck {
 }
 
 export interface PermissionContext {
-  user: User
+  user: PermissionUser
   resourceId: string
   resourceType: 'page' | 'folder'
   parentPermissions?: PermissionCheck

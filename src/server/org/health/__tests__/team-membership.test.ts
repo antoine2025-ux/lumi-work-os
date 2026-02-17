@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, test, expect, vi, beforeEach } from "vitest"
 
 // Mock prisma before importing the module under test

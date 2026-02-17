@@ -76,6 +76,22 @@ function pathExists(obj: unknown, path: string): boolean {
   return current !== undefined;
 }
 
+/** Question IDs that validate against non-org snapshot types (project health, workload, calendar, entity). */
+const NON_ORG_SNAPSHOT_QUESTIONS = new Set([
+  "project-health-overview",
+  "project-on-track",
+  "person-workload-assessment",
+  "team-workload-balance",
+  "calendar-availability",
+  "team-availability",
+  "entity-connections",
+]);
+
+/** Only org-domain questions — filters out project health and workload questions. */
+const ORG_QUESTIONS = LOOPBRAIN_QUESTIONS_V0.filter(
+  (q) => !NON_ORG_SNAPSHOT_QUESTIONS.has(q.id)
+);
+
 function isAnswerable(snapshot: { readiness: { blockers: string[] } }, q: LoopbrainQuestionV0): boolean {
   const blockers = new Set(snapshot.readiness.blockers);
   const blockingOn = new Set(q.blockingOn);
@@ -93,10 +109,10 @@ describe("Loopbrain Snapshot Contract", () => {
   });
 
   describe("B. Question Answerability", () => {
-    it("each question has valid requiredSnapshotPaths when snapshot is answerable", () => {
+    it("each org question has valid requiredSnapshotPaths when snapshot is answerable", () => {
       const snapshot = MINIMAL_VALID_SNAPSHOT as Record<string, unknown>;
 
-      for (const q of LOOPBRAIN_QUESTIONS_V0) {
+      for (const q of ORG_QUESTIONS) {
         if (!isAnswerable(MINIMAL_VALID_SNAPSHOT, q)) continue;
 
         for (const path of q.requiredSnapshotPaths) {
@@ -120,10 +136,10 @@ describe("Loopbrain Snapshot Contract", () => {
       expect(isAnswerable(blockedSnapshot, whoDecidesPricing)).toBe(false);
     });
 
-    it("each question has valid evidencePaths when answerable", () => {
+    it("each org question has valid evidencePaths when answerable", () => {
       const snapshot = MINIMAL_VALID_SNAPSHOT as Record<string, unknown>;
 
-      for (const q of LOOPBRAIN_QUESTIONS_V0) {
+      for (const q of ORG_QUESTIONS) {
         if (!isAnswerable(MINIMAL_VALID_SNAPSHOT, q)) continue;
 
         for (const path of q.evidencePaths) {

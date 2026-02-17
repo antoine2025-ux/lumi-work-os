@@ -9,7 +9,7 @@ export default function WorkspaceOrgNewPersonPage() {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / PEOPLE / ADD"
+        legacyBreadcrumb="ORG / PEOPLE / ADD"
         title="Add person"
         description="Add someone to your org. You can fill missing details later."
       />

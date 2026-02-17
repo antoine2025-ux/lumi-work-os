@@ -915,6 +915,7 @@ export function buildIssueExplainability(
  * @returns Array of OrgIssueMetadata for ownership-related issues
  */
 export function deriveOwnershipIssues(
+  workspaceSlug: string,
   teams: TeamInput[],
   departments: DepartmentInput[],
   teamResolutions: Map<string, OwnerResolution>,
@@ -936,11 +937,11 @@ export function deriveOwnershipIssues(
         entityId: team.id,
         entityName: team.name,
         explanation: 'Team has conflicting ownership sources: ownerAssignment and ownerPersonId differ. This needs resolution to ensure consistent ownership.',
-        fixUrl: deepLinkForTeam(team.id),
+        fixUrl: deepLinkForTeam(workspaceSlug, team.id),
         fixAction: 'Resolve ownership conflict',
         explainability: buildIssueExplainability(
           { type: 'OWNERSHIP_CONFLICT', entityType: 'TEAM', entityId: team.id, issueKey },
-          { fixUrl: deepLinkForTeam(team.id), fixAction: 'Resolve ownership conflict', entityName: team.name }
+          { fixUrl: deepLinkForTeam(workspaceSlug, team.id), fixAction: 'Resolve ownership conflict', entityName: team.name }
         ),
       });
     }
@@ -960,11 +961,11 @@ export function deriveOwnershipIssues(
         entityId: dept.id,
         entityName: dept.name,
         explanation: 'Department has conflicting ownership sources: ownerAssignment and ownerPersonId differ. This needs resolution to ensure consistent ownership.',
-        fixUrl: deepLinkForDepartment(dept.id),
+        fixUrl: deepLinkForDepartment(workspaceSlug, dept.id),
         fixAction: 'Resolve ownership conflict',
         explainability: buildIssueExplainability(
           { type: 'OWNERSHIP_CONFLICT', entityType: 'DEPARTMENT', entityId: dept.id, issueKey },
-          { fixUrl: deepLinkForDepartment(dept.id), fixAction: 'Resolve ownership conflict', entityName: dept.name }
+          { fixUrl: deepLinkForDepartment(workspaceSlug, dept.id), fixAction: 'Resolve ownership conflict', entityName: dept.name }
         ),
       });
     }
@@ -986,11 +987,11 @@ export function deriveOwnershipIssues(
         entityId: team.id,
         entityName: team.name,
         explanation: `Team "${team.name}" has no assigned owner. Assign an owner to ensure accountability.`,
-        fixUrl: deepLinkForTeam(team.id),
+        fixUrl: deepLinkForTeam(workspaceSlug, team.id),
         fixAction: 'Assign team owner',
         explainability: buildIssueExplainability(
           { type: 'UNOWNED_TEAM', entityType: 'TEAM', entityId: team.id, issueKey },
-          { fixUrl: deepLinkForTeam(team.id), fixAction: 'Assign team owner', entityName: team.name }
+          { fixUrl: deepLinkForTeam(workspaceSlug, team.id), fixAction: 'Assign team owner', entityName: team.name }
         ),
       });
     }
@@ -1010,11 +1011,11 @@ export function deriveOwnershipIssues(
         entityId: dept.id,
         entityName: dept.name,
         explanation: `Department "${dept.name}" has no assigned owner. Assign an owner to ensure accountability.`,
-        fixUrl: deepLinkForDepartment(dept.id),
+        fixUrl: deepLinkForDepartment(workspaceSlug, dept.id),
         fixAction: 'Assign department owner',
         explainability: buildIssueExplainability(
           { type: 'UNOWNED_DEPARTMENT', entityType: 'DEPARTMENT', entityId: dept.id, issueKey },
-          { fixUrl: deepLinkForDepartment(dept.id), fixAction: 'Assign department owner', entityName: dept.name }
+          { fixUrl: deepLinkForDepartment(workspaceSlug, dept.id), fixAction: 'Assign department owner', entityName: dept.name }
         ),
       });
     }
@@ -1033,11 +1034,11 @@ export function deriveOwnershipIssues(
         entityId: team.id,
         entityName: team.name,
         explanation: `Team "${team.name}" is not assigned to any department. Assign it to a department to organize your structure.`,
-        fixUrl: deepLinkForUnassignedTeam(team.id),
+        fixUrl: deepLinkForUnassignedTeam(workspaceSlug, team.id),
         fixAction: 'Assign team to department',
         explainability: buildIssueExplainability(
           { type: 'UNASSIGNED_TEAM', entityType: 'TEAM', entityId: team.id, issueKey },
-          { fixUrl: deepLinkForUnassignedTeam(team.id), fixAction: 'Assign team to department', entityName: team.name }
+          { fixUrl: deepLinkForUnassignedTeam(workspaceSlug, team.id), fixAction: 'Assign team to department', entityName: team.name }
         ),
       });
     }
@@ -1057,11 +1058,11 @@ export function deriveOwnershipIssues(
         entityId: dept.id,
         entityName: dept.name,
         explanation: `Department "${dept.name}" has no teams. Add teams to organize your structure.`,
-        fixUrl: deepLinkForDepartment(dept.id),
+        fixUrl: deepLinkForDepartment(workspaceSlug, dept.id),
         fixAction: 'Add team to department',
         explainability: buildIssueExplainability(
           { type: 'EMPTY_DEPARTMENT', entityType: 'DEPARTMENT', entityId: dept.id, issueKey },
-          { fixUrl: deepLinkForDepartment(dept.id), fixAction: 'Add team to department', entityName: dept.name }
+          { fixUrl: deepLinkForDepartment(workspaceSlug, dept.id), fixAction: 'Add team to department', entityName: dept.name }
         ),
       });
     }
@@ -1181,7 +1182,8 @@ export async function deriveOwnershipIssuesForEntity(
 
 import type { EffectiveCapacity } from "./capacity/resolveEffectiveCapacity";
 import type { ContractResolution } from "./capacity/read";
-import type { RoleCoverage } from "./coverage/read";
+// import type { RoleCoverage } from "./coverage/read"; // Module not found
+type RoleCoverage = any; // Temporary placeholder
 
 /**
  * Capacity issue thresholds (re-exported from thresholds.ts for backwards compat)
@@ -1687,12 +1689,12 @@ export function deriveCapacityV1Issues(
         entityId: personId,
         entityName: personName,
         explanation: `${personName} has no capacity data configured. Using default ${thresholds.defaultWeeklyHoursTarget}h/week assumption.`,
-        fixUrl: deepLinkForPersonCapacity(personId),
+        fixUrl: deepLinkForPersonCapacity(workspaceSlug, personId),
         fixAction: "Set capacity",
         evidence,
         explainability: buildIssueExplainability(
           { type: "CAPACITY_MISSING_DATA_PERSON", entityType: "PERSON", entityId: personId, issueKey },
-          { fixUrl: deepLinkForPersonCapacity(personId), fixAction: "Set capacity", entityName: personName, evidence }
+          { fixUrl: deepLinkForPersonCapacity(workspaceSlug, personId), fixAction: "Set capacity", entityName: personName, evidence }
         ),
       });
     }

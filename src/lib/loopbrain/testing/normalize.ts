@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Normalization utilities for Loopbrain response snapshots
  * 

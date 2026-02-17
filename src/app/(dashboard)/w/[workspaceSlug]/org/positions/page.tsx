@@ -25,7 +25,7 @@ export default async function PositionsPage({ params }: PageProps) {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / POSITIONS"
+          legacyBreadcrumb="ORG / POSITIONS"
           title="Positions & Roles"
           description="Define positions and role cards for your organization"
         />
@@ -44,7 +44,7 @@ export default async function PositionsPage({ params }: PageProps) {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / POSITIONS"
+        legacyBreadcrumb="ORG / POSITIONS"
         title="Positions & Roles"
         description="Define positions and role cards for your organization"
       />

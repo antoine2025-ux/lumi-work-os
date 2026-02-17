@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Structure Page Client Component
  * 

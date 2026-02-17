@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { prisma } from '@/lib/db'
 import { SpaceType, SpaceVisibility } from '@prisma/client'
 

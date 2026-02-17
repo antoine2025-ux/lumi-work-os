@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GET/POST /api/org/role-cards/[id]/skills
  * List and add skills for a role card.

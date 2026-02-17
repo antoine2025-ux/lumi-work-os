@@ -16,7 +16,18 @@ export type OrgReadinessBlocker =
   | "NO_DECISION_DOMAINS"
   | "CAPACITY_COVERAGE_BELOW_MIN"
   | "RESPONSIBILITY_PROFILES_MISSING"
-  | "WORK_CANNOT_EVALUATE_BASELINE";
+  | "WORK_CANNOT_EVALUATE_BASELINE"
+  // Project Health blockers (Phase 2)
+  | "NO_PROJECT_DATA"
+  | "NO_TASKS"
+  | "NO_ACTIVITY"
+  | "INSUFFICIENT_HISTORY"
+  // Workload Analysis blockers (Phase 2)
+  | "NO_PERSON_DATA"
+  | "NO_TASK_DATA"
+  // Calendar Availability blockers (Phase 2)
+  | "NO_CALENDAR_DATA"
+  | "NO_AVAILABILITY_DATA";
 
 /** Standard coverage metric with count, total, and percentage. */
 export type OrgCoverageMetric = {

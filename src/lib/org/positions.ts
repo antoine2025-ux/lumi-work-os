@@ -24,6 +24,9 @@ export type OrgPositionDetailDTO = OrgPositionListItemDTO & {
 
 export async function getOrgPositionsList(): Promise<OrgPositionListItemDTO[]> {
   const workspaceId = await getCurrentWorkspaceId();
+  if (!workspaceId) {
+    throw new Error("No workspace context");
+  }
 
   const positions = await prisma.orgPosition.findMany({
     where: {
@@ -45,7 +48,7 @@ export async function getOrgPositionsList(): Promise<OrgPositionListItemDTO[]> {
 
   return positions.map((pos) => ({
     id: pos.id,
-    title: pos.title,
+    title: pos.title || 'Untitled Position',
     level: pos.level ?? null,
     isActive: pos.isActive,
     teamId: pos.teamId,
@@ -62,6 +65,9 @@ export async function getOrgPositionById(
   positionId: string
 ): Promise<OrgPositionDetailDTO | null> {
   const workspaceId = await getCurrentWorkspaceId();
+  if (!workspaceId) {
+    throw new Error("No workspace context");
+  }
 
   const pos = await prisma.orgPosition.findFirst({
     where: {
@@ -84,7 +90,7 @@ export async function getOrgPositionById(
 
   return {
     id: pos.id,
-    title: pos.title,
+    title: pos.title || 'Untitled Position',
     level: pos.level ?? null,
     isActive: pos.isActive,
     teamId: pos.teamId,

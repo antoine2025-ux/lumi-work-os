@@ -56,6 +56,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
   // If your repo already has strong typed Org/People models, tighten these in later steps.
 
   let dataQualityScore: number | null = null
+  const signals: ComputedHealth["signals"] = []
 
   const [peopleCount, teamsCount] = await Promise.all([
     prisma.orgPosition
@@ -137,18 +138,20 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
       let availabilityByPerson = new Map<string, string>()
       try {
         const av = await prisma.personAvailability?.findMany?.({
-          where: { orgId },
-          select: { personId: true, status: true, startsAt: true, endsAt: true } as any,
+          where: { workspaceId: orgId },
+          select: { personId: true, type: true, startDate: true, endDate: true } as any,
           take: 5000,
         } as any)
 
         if (Array.isArray(av)) {
           const nowMs = Date.now()
           for (const a of av) {
-            const startsOk = !a.startsAt || new Date(a.startsAt).getTime() <= nowMs
-            const endsOk = !a.endsAt || new Date(a.endsAt).getTime() >= nowMs
+            const startsOk = !a.startDate || new Date(a.startDate).getTime() <= nowMs
+            const endsOk = !a.endDate || new Date(a.endDate).getTime() >= nowMs
             if (!startsOk || !endsOk) continue
-            availabilityByPerson.set(String(a.personId), String(a.status))
+            // Map type to status-like values for compatibility
+            const statusValue = a.type === "UNAVAILABLE" ? "UNAVAILABLE" : a.type === "PARTIAL" ? "LIMITED" : "AVAILABLE"
+            availabilityByPerson.set(String(a.personId), statusValue)
           }
         }
       } catch {
@@ -395,8 +398,6 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
   }
 
   let managementScore: number | null = null
-
-  const signals: ComputedHealth["signals"] = []
 
   if (t === 0) {
     signals.push({

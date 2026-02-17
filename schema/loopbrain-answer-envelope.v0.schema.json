@@ -58,7 +58,7 @@
         "properties": {
           "path": {
             "type": "string",
-            "pattern": "^(readiness|coverage|roles|decisionDomains|capacity|responsibility|work|issues)(\\.|$)"
+            "pattern": "^(readiness|coverage|roles|decisionDomains|capacity|responsibility|work|issues|velocity|progress|risks|resourceHealth|momentum|blockers|summary|taskLoad|projectLoad|projectLoadSummary|todoLoad|capacityComparison|temporalDistribution|signals|signalSummary|teamMetrics|members|weeklyPattern|weeklyPatternSummary|forecast|capacityImpact|conflicts|conflictSummary|links|maps|nodes)(\\.|$)"
           },
           "value": { "$ref": "#/definitions/EvidenceValue" }
         }
@@ -78,7 +78,7 @@
           "label": { "type": "string" },
           "deepLink": {
             "type": "string",
-            "pattern": "^/org/.*",
+            "pattern": "^/",
             "description": "Absolute path only, no protocol/external URLs."
           }
         }
@@ -135,7 +135,15 @@
         "NO_DECISION_DOMAINS",
         "CAPACITY_COVERAGE_BELOW_MIN",
         "RESPONSIBILITY_PROFILES_MISSING",
-        "WORK_CANNOT_EVALUATE_BASELINE"
+        "WORK_CANNOT_EVALUATE_BASELINE",
+        "NO_PROJECT_DATA",
+        "NO_TASKS",
+        "NO_ACTIVITY",
+        "INSUFFICIENT_HISTORY",
+        "NO_PERSON_DATA",
+        "NO_TASK_DATA",
+        "NO_CALENDAR_DATA",
+        "NO_AVAILABILITY_DATA"
       ]
     },
     "EvidenceValue": {

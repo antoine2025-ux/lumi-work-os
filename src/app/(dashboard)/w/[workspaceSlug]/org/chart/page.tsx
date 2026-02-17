@@ -25,7 +25,7 @@ export default async function WorkspaceOrgChartPage({ params }: PageProps) {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / CHART"
+          legacyBreadcrumb="ORG / CHART"
           title="Org Chart"
           description="Visualize your organization's structure"
         />
@@ -52,7 +52,7 @@ export default async function WorkspaceOrgChartPage({ params }: PageProps) {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / ORG CHART"
+        legacyBreadcrumb="ORG / ORG CHART"
         title="Org chart"
         description="Visual overview of departments, teams, and people in your organization."
       />

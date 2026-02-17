@@ -123,7 +123,7 @@ export async function answerQ3(
   }
 
   // Step 1: Establish accountability boundary
-  const accountability = deriveProjectAccountability(project.accountability);
+  const accountability = deriveProjectAccountability(project.accountability as any);
   const accountabilityBoundary = establishAccountabilityBoundary(
     accountability,
     people,
@@ -153,8 +153,7 @@ export async function answerQ3(
 
   // Step 5: Apply allocation sanity
   const finalCandidates = applyAllocationSanity(
-    candidatesAfterAvailability,
-    at
+    candidatesAfterAvailability
   );
 
   // Step 6: Decide output mode and format
@@ -265,7 +264,7 @@ function establishAccountabilityBoundary(
     ownerRoleNames.push(accountability.owner.role);
     // Resolve people holding this role
     const roleHolders = people.filter(
-      (p) => p.role?.toLowerCase() === accountability.owner.role.toLowerCase()
+      (p) => (p as any).role?.toLowerCase() === accountability.owner.role.toLowerCase()
     );
     ownerPersonIds.push(...roleHolders.map((p) => p.personId));
   }
@@ -701,7 +700,7 @@ async function fetchPeopleWithCapacity(
   const users = await prisma.user.findMany({
     where: {
       // Get users who have positions in this workspace
-      positions: {
+      orgPositions: {
         some: {
           workspaceId,
           isActive: true,
@@ -709,7 +708,7 @@ async function fetchPeopleWithCapacity(
       },
     },
     include: {
-      positions: {
+      orgPositions: {
         where: {
           workspaceId,
           isActive: true,
@@ -753,9 +752,9 @@ async function fetchPeopleWithCapacity(
 
   const at = new Date();
 
-  return users.map((user) => {
-    const position = user.positions[0];
-    const availabilityWindows = user.availability.map((a) => ({
+  return users.map((user: any) => {
+    const position = user.orgPositions[0];
+    const availabilityWindows = (user.personAvailability || []).map((a: any) => ({
       type: a.type === "UNAVAILABLE" ? ("unavailable" as const) : ("partial" as const),
       startDate: a.startDate,
       endDate: a.endDate ?? undefined,
@@ -772,7 +771,7 @@ async function fetchPeopleWithCapacity(
         status: availability.status,
         fraction: availability.fraction,
       },
-      allocations: user.allocations.map((a) => ({
+      allocations: (user.projectAllocations || []).map((a: any) => ({
         projectId: a.projectId,
         fraction: a.fraction,
         startDate: a.startDate.toISOString(),

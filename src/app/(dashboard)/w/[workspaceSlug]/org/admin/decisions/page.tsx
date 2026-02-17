@@ -38,7 +38,7 @@ export default async function AdminDecisionsPage({ params }: PageProps) {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / ADMIN / DECISIONS"
+        legacyBreadcrumb="ORG / ADMIN / DECISIONS"
         title="Decision Authority"
         description="Manage decision domains and authority mapping"
       />

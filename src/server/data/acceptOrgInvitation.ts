@@ -53,6 +53,10 @@ export async function acceptOrgInvitationByToken(
 
   if (invitation.status === "ACCEPTED") {
     // Already accepted – we still allow navigation into the workspace.
+    if (!invitation.workspaceId || !invitation.workspace) {
+      throw new Error("Invalid invitation: missing workspace information.");
+    }
+
     const existingMembership = await prisma.workspaceMember.findFirst({
       where: {
         workspaceId: invitation.workspaceId,
@@ -69,12 +73,10 @@ export async function acceptOrgInvitationByToken(
           role: "MEMBER",
         },
       });
-      if (invitation.workspaceId) {
-        await ensureOrgPositionForUser(prisma, {
-          workspaceId: invitation.workspaceId,
-          userId,
-        });
-      }
+      await ensureOrgPositionForUser(prisma, {
+        workspaceId: invitation.workspaceId,
+        userId,
+      });
       return {
         workspace: invitation.workspace,
         membershipCreated: true,
@@ -106,6 +108,10 @@ export async function acceptOrgInvitationByToken(
     }
   }
 
+  if (!invitation.workspaceId || !invitation.workspace) {
+    throw new Error("Invalid invitation: missing workspace information.");
+  }
+
   const existingMembership = await prisma.workspaceMember.findFirst({
     where: {
       workspaceId: invitation.workspaceId,
@@ -133,18 +139,16 @@ export async function acceptOrgInvitationByToken(
   await prisma.$transaction(async (tx) => {
     const membership = await tx.workspaceMember.create({
       data: {
-        workspaceId: invitation.workspaceId,
+        workspaceId: invitation.workspaceId!,
         userId,
         role: "MEMBER",
       },
     });
 
-    if (invitation.workspaceId) {
-      await ensureOrgPositionForUser(tx, {
-        workspaceId: invitation.workspaceId,
-        userId,
-      });
-    }
+    await ensureOrgPositionForUser(tx, {
+      workspaceId: invitation.workspaceId!,
+      userId,
+    });
 
     await tx.orgInvitation.update({
       where: { id: invitation.id },
@@ -155,7 +159,7 @@ export async function acceptOrgInvitationByToken(
     });
 
     await logOrgAuditEvent(tx as any, {
-      workspaceId: invitation.workspaceId,
+      workspaceId: invitation.workspaceId!,
       actorUserId: userId,
       targetUserId: userId,
       event: "MEMBER_ADDED",

@@ -1,3 +1,4 @@
+import { describe, it, expect, test } from "vitest";
 import { deriveCompleteness } from "../deriveCompleteness";
 
 test("empty org returns zero completeness", () => {

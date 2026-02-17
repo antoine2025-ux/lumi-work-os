@@ -31,7 +31,7 @@ export default async function WorkspaceOrgPage({ params }: PageProps) {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG"
+          legacyBreadcrumb="ORG"
           title="Org"
           description="See your organization's people, teams, and structure."
         />

@@ -4,9 +4,9 @@ import { useState, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { AILogo } from "@/components/ai-logo"
-import { 
-  Send, 
-  X, 
+import {
+  Send,
+  X,
   Minus,
   Maximize2,
   Loader2,
@@ -25,12 +25,19 @@ import {
   Lock,
   Bell,
   CircleDot,
+  AlertTriangle,
+  ArrowRight,
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { callLoopbrainAssistant } from "@/lib/loopbrain/client"
 import { useLoopbrainAssistant } from "./assistant-context"
 import type { LoopbrainResponse, LoopbrainSuggestion, LoopbrainMode } from "@/lib/loopbrain/orchestrator-types"
+import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from "@/lib/loopbrain/agent/types"
+import { PlanConfirmation } from "./plan-confirmation"
+import { ClarifyingQuestions } from "./clarifying-questions"
+import { ExecutionProgress } from "./execution-progress"
+import { AdvisorySuggestion } from "./advisory-suggestion"
 import { OrgRoutingBadge } from "@/components/debug/OrgRoutingBadge"
 
 interface Message {
@@ -86,6 +93,18 @@ export function LoopbrainAssistantPanel({
   const [displayMode, setDisplayMode] = useState<'sidebar' | 'floating'>(propDisplayMode || 'floating')
   const [lastLoopbrainResponse, setLastLoopbrainResponse] = useState<LoopbrainResponse | null>(null)
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, string>>({}) // messageId -> rating|signal
+  const [topInsights, setTopInsights] = useState<Array<{ id: string; title: string; priority: string; category: string; recommendations: Array<{ action: string; deepLink?: string }> }>>([])
+  const [pendingPlan, setPendingPlan] = useState<AgentPlan | null>(null)
+  const [isExecutingPlan, setIsExecutingPlan] = useState(false)
+  const [executingPlan, setExecutingPlan] = useState<AgentPlan | null>(null)
+  const [executionResult, setExecutionResult] = useState<string | null>(null)
+  const [pendingClarification, setPendingClarification] = useState(false)
+  const [clarifyingQuestions, setClarifyingQuestions] = useState<ClarifyingQuestion[] | null>(null)
+  const [clarifyPreamble, setClarifyPreamble] = useState<string>('')
+  const [clarificationContext, setClarificationContext] = useState<ClarificationContext | null>(null)
+  const [plannerInsights, setPlannerInsights] = useState<string[]>([])
+  const [advisoryContext, setAdvisoryContext] = useState<AdvisoryContext | null>(null)
+  const [advisoryResponse, setAdvisoryResponse] = useState<AdvisoryResponse | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -129,9 +148,228 @@ export function LoopbrainAssistantPanel({
     clearMessages()
     setInput("")
     setLastLoopbrainResponse(null)
+    setPendingPlan(null)
+    setIsExecutingPlan(false)
+    setExecutingPlan(null)
+    setExecutionResult(null)
+    setPendingClarification(false)
+    setClarifyingQuestions(null)
+    setClarifyPreamble('')
+    setClarificationContext(null)
+    setPlannerInsights([])
+    setAdvisoryContext(null)
+    setAdvisoryResponse(null)
     if (isOpen && !isMinimized) {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
+  }
+
+  const handlePlanConfirm = async () => {
+    if (!pendingPlan || isExecutingPlan) return
+
+    // Immediately show progress UI with animated steps
+    const planToExecute = pendingPlan
+    setExecutingPlan(planToExecute)
+    setExecutionResult(null)
+    setIsExecutingPlan(true)
+    setPendingPlan(null)
+
+    try {
+      const result = await callLoopbrainAssistant({
+        mode,
+        query: "yes",
+        pageId: anchors.pageId,
+        projectId: anchors.projectId,
+        taskId: anchors.taskId,
+        roleId: anchors.roleId,
+        teamId: anchors.teamId,
+        personId: anchors.personId,
+        pendingPlan: planToExecute,
+      })
+
+      setLastLoopbrainResponse(result)
+      setExecutionResult(result.answer || 'Done.')
+      setPendingPlan(result.pendingPlan ?? null)
+    } catch (error) {
+      console.error('Error executing plan:', error)
+      setExecutionResult(
+        error instanceof Error ? `\u2717 ${error.message}` : '\u2717 Plan execution failed. Please try again.'
+      )
+    } finally {
+      setIsExecutingPlan(false)
+      setClarificationContext(null)
+      setAdvisoryContext(null)
+      setAdvisoryResponse(null)
+    }
+  }
+
+  const handlePlanCancel = () => {
+    setPendingPlan(null)
+    setExecutingPlan(null)
+    setExecutionResult(null)
+    setClarificationContext(null)
+    setAdvisoryContext(null)
+    setAdvisoryResponse(null)
+    const cancelMessage: Message = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: 'Plan cancelled.',
+      timestamp: new Date(),
+    }
+    addMessage(cancelMessage)
+  }
+
+  /** Build conversationContext from recent messages for clarification follow-ups */
+  const buildConversationContext = (): string => {
+    const recent = messages.slice(-6) // last 3 turns (user+assistant pairs)
+    if (recent.length === 0) return ''
+    return recent.map((m) => `${m.role}: ${m.content}`).join('\n')
+  }
+
+  /** Handle user submitting answers to clarifying questions */
+  const handleClarifySubmit = async (answersText: string) => {
+    setPendingClarification(false)
+    setClarifyingQuestions(null)
+    setClarifyPreamble('')
+
+    // Add user's answers as a message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: answersText,
+      timestamp: new Date(),
+    }
+    addMessage(userMessage)
+    setIsLoading(true)
+
+    try {
+      const storedClarification = clarificationContext
+      const result = await callLoopbrainAssistant({
+        mode,
+        query: answersText,
+        pageId: anchors.pageId,
+        projectId: anchors.projectId,
+        taskId: anchors.taskId,
+        roleId: anchors.roleId,
+        teamId: anchors.teamId,
+        personId: anchors.personId,
+        pendingClarification: storedClarification ?? undefined,
+        conversationContext: buildConversationContext(),
+      })
+
+      setLastLoopbrainResponse(result)
+      setPendingPlan(result.pendingPlan ?? null)
+      setPendingClarification(result.pendingClarification ?? false)
+      setClarifyingQuestions(result.clarifyingQuestions ?? null)
+      setClarificationContext(result.clarificationContext ?? null)
+      setAdvisoryContext(result.advisoryContext ?? null)
+      setAdvisoryResponse(result.advisory ?? null)
+      setPlannerInsights(result.insights ?? [])
+
+      // Extract preamble from the answer if there are new clarifying questions
+      if (result.pendingClarification && result.clarifyingQuestions) {
+        // The preamble is embedded in the markdown answer — extract the first line
+        const firstLine = result.answer.split('\n')[0]
+        setClarifyPreamble(firstLine || 'A few more questions:')
+      }
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: result.answer || 'Got it.',
+        timestamp: new Date(),
+      }
+      addMessage(assistantMessage)
+    } catch (error) {
+      console.error('Error after clarification:', error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: error instanceof Error ? error.message : 'Something went wrong. Please try again.',
+        timestamp: new Date(),
+      }
+      addMessage(errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  /** Handle user skipping clarifying questions */
+  const handleClarifySkip = () => {
+    handleClarifySubmit('just do it with defaults')
+  }
+
+  /** Handle user approving an advisory suggestion → convert to execution */
+  const handleAdvisoryApprove = async () => {
+    if (!advisoryContext) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: 'Set it up',
+      timestamp: new Date(),
+    }
+    addMessage(userMessage)
+    setIsLoading(true)
+
+    const storedAdvisory = advisoryContext
+    setAdvisoryResponse(null)
+
+    try {
+      const result = await callLoopbrainAssistant({
+        mode,
+        query: 'set it up',
+        pageId: anchors.pageId,
+        projectId: anchors.projectId,
+        taskId: anchors.taskId,
+        roleId: anchors.roleId,
+        teamId: anchors.teamId,
+        personId: anchors.personId,
+        pendingAdvisory: storedAdvisory,
+        conversationContext: buildConversationContext(),
+      })
+
+      setLastLoopbrainResponse(result)
+      setPendingPlan(result.pendingPlan ?? null)
+      setPendingClarification(result.pendingClarification ?? false)
+      setClarifyingQuestions(result.clarifyingQuestions ?? null)
+      setClarificationContext(result.clarificationContext ?? null)
+      setAdvisoryContext(result.advisoryContext ?? null)
+      setAdvisoryResponse(result.advisory ?? null)
+      setPlannerInsights(result.insights ?? [])
+
+      if (result.pendingClarification && result.clarifyingQuestions) {
+        const firstLine = result.answer.split('\n')[0]
+        setClarifyPreamble(firstLine || 'A few quick questions:')
+      }
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: result.answer || 'Got it.',
+        timestamp: new Date(),
+      }
+      addMessage(assistantMessage)
+    } catch (error) {
+      console.error('Error approving advisory:', error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: error instanceof Error ? error.message : 'Something went wrong. Please try again.',
+        timestamp: new Date(),
+      }
+      addMessage(errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  /** Handle user wanting to refine an advisory suggestion */
+  const handleAdvisoryRefine = () => {
+    // Focus the input so the user can type their refinement
+    // The advisory context stays in state, so when they send a message
+    // it will be routed back to the planner with the advisory context
+    inputRef.current?.focus()
   }
 
   const scrollToBottom = () => {
@@ -149,6 +387,30 @@ export function LoopbrainAssistantPanel({
       inputRef.current?.focus()
     }
   }, [isOpen, isMinimized])
+
+  // Fetch top insights for the empty state
+  useEffect(() => {
+    if (isOpen && messages.length === 0 && topInsights.length === 0) {
+      fetch("/api/loopbrain/insights?status=ACTIVE&limit=3")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.insights) {
+            setTopInsights(
+              data.insights.slice(0, 3).map((i: Record<string, unknown>) => ({
+                id: i.id as string,
+                title: i.title as string,
+                priority: i.priority as string,
+                category: i.category as string,
+                recommendations: (i.recommendations as Array<{ action: string; deepLink?: string }>) || [],
+              }))
+            )
+          }
+        })
+        .catch(() => {
+          // Silent fail — insights are optional
+        })
+    }
+  }, [isOpen, messages.length, topInsights.length])
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
@@ -170,8 +432,27 @@ export function LoopbrainAssistantPanel({
     setInput("")
     setIsLoading(true)
 
+    // Clear execution progress from previous turn
+    setExecutingPlan(null)
+    setExecutionResult(null)
+
     try {
-      // Call Loopbrain assistant with mode and anchors
+      // If clarification is pending, attach context so orchestrator routes to planner
+      const activeClarification = pendingClarification ? clarificationContext : null
+      if (activeClarification) {
+        setPendingClarification(false)
+        setClarifyingQuestions(null)
+        setClarifyPreamble('')
+      }
+
+      // If advisory is pending, attach context so orchestrator routes refinement
+      const activeAdvisory = advisoryContext
+      if (activeAdvisory) {
+        setAdvisoryResponse(null)
+      }
+
+      // Call Loopbrain assistant with mode, anchors, and conversation context
+      const convContext = buildConversationContext()
       const result = await callLoopbrainAssistant({
         mode,
         query: currentInput,
@@ -182,11 +463,27 @@ export function LoopbrainAssistantPanel({
         teamId: anchors.teamId,
         personId: anchors.personId,
         useSemanticSearch: true,
-        maxContextItems: 10
+        maxContextItems: 10,
+        ...(convContext && { conversationContext: convContext }),
+        ...(activeClarification && { pendingClarification: activeClarification }),
+        ...(activeAdvisory && { pendingAdvisory: activeAdvisory }),
       })
 
       // Store response for suggestions/retrieved items
       setLastLoopbrainResponse(result)
+      setPendingPlan(result.pendingPlan ?? null)
+      setPendingClarification(result.pendingClarification ?? false)
+      setClarifyingQuestions(result.clarifyingQuestions ?? null)
+      setClarificationContext(result.clarificationContext ?? null)
+      setAdvisoryContext(result.advisoryContext ?? null)
+      setAdvisoryResponse(result.advisory ?? null)
+      setPlannerInsights(result.insights ?? [])
+
+      // Extract preamble from the answer if there are clarifying questions
+      if (result.pendingClarification && result.clarifyingQuestions) {
+        const firstLine = result.answer.split('\n')[0]
+        setClarifyPreamble(firstLine || 'A few quick questions:')
+      }
 
       // Add assistant message with answer
       const assistantMessage: Message = {
@@ -365,6 +662,53 @@ export function LoopbrainAssistantPanel({
                   <span className="text-xs px-2 py-0.5 rounded bg-blue-500 text-white">New</span>
                 </button>
               </div>
+
+              {/* Proactive Insights */}
+              {topInsights.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                    <AlertTriangle className="h-3 w-3" />
+                    Active Insights
+                  </p>
+                  <div className="space-y-1.5">
+                    {topInsights.map((insight) => {
+                      const topRec = insight.recommendations[0]
+                      return (
+                        <button
+                          key={insight.id}
+                          onClick={() => {
+                            if (topRec?.deepLink) {
+                              window.location.href = topRec.deepLink
+                            } else {
+                              setInput(`Tell me about: ${insight.title}`)
+                              inputRef.current?.focus()
+                            }
+                          }}
+                          className="w-full flex items-start gap-2 px-3 py-2 rounded-lg hover:bg-muted transition-colors text-left"
+                        >
+                          <span className={cn(
+                            "mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0",
+                            insight.priority === "CRITICAL" || insight.priority === "HIGH"
+                              ? "bg-red-500"
+                              : insight.priority === "MEDIUM"
+                                ? "bg-yellow-500"
+                                : "bg-blue-500"
+                          )} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate">{insight.title}</p>
+                            {topRec && (
+                              <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
+                                {topRec.action}
+                                <ArrowRight className="h-2.5 w-2.5" />
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="p-4">
@@ -562,6 +906,47 @@ export function LoopbrainAssistantPanel({
                                     </div>
                                   </div>
                                 )}
+
+                                {/* Clarifying Questions Card */}
+                                {pendingClarification && clarifyingQuestions && (
+                                  <ClarifyingQuestions
+                                    preamble={clarifyPreamble}
+                                    questions={clarifyingQuestions}
+                                    onSubmit={handleClarifySubmit}
+                                    onSkip={handleClarifySkip}
+                                    insights={plannerInsights.length > 0 ? plannerInsights : undefined}
+                                  />
+                                )}
+
+                                {/* Advisory Suggestion Card */}
+                                {advisoryResponse && advisoryContext && (
+                                  <AdvisorySuggestion
+                                    advisory={advisoryResponse}
+                                    onApprove={handleAdvisoryApprove}
+                                    onRefine={handleAdvisoryRefine}
+                                    insights={plannerInsights.length > 0 ? plannerInsights : undefined}
+                                  />
+                                )}
+
+                                {/* Plan Confirmation Card */}
+                                {pendingPlan && !executingPlan && (
+                                  <PlanConfirmation
+                                    plan={pendingPlan}
+                                    onConfirm={handlePlanConfirm}
+                                    onCancel={handlePlanCancel}
+                                    isExecuting={isExecutingPlan}
+                                    insights={plannerInsights.length > 0 ? plannerInsights : undefined}
+                                  />
+                                )}
+
+                                {/* Execution Progress */}
+                                {executingPlan && (
+                                  <ExecutionProgress
+                                    plan={executingPlan}
+                                    isExecuting={isExecutingPlan}
+                                    executionResult={executionResult ?? undefined}
+                                  />
+                                )}
                               </>
                             )}
                           </div>
@@ -598,14 +983,15 @@ export function LoopbrainAssistantPanel({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder="Ask, search, or make anything..."
+              placeholder={pendingPlan ? "Confirm or cancel the plan above..." : pendingClarification ? "Answer the questions above, or type here..." : advisoryResponse ? "Refine the suggestion or approve it above..." : "Ask, search, or make anything..."}
+              disabled={!!pendingPlan}
               className="flex-1 text-sm border border-border bg-background focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 rounded-md px-3 py-2"
             />
             
             {/* Send Button */}
             <button 
               onClick={handleSend}
-              disabled={!input.trim() || isLoading}
+              disabled={!input.trim() || isLoading || !!pendingPlan}
               className="p-2 hover:bg-muted rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
               title="Send"
             >

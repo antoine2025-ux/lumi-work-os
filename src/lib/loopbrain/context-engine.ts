@@ -677,7 +677,7 @@ export class PrismaContextEngine implements ContextEngine {
         // Build role summary
         roles.push({
           id: position.id,
-          title: position.title,
+          title: position.title || '',
           teamId: position.teamId || undefined,
           teamName: position.team?.name || undefined,
           department: position.team?.department?.name || undefined,
@@ -712,7 +712,7 @@ export class PrismaContextEngine implements ContextEngine {
       }
 
       // Build hierarchy (simple tree structure)
-      const hierarchy = this.buildOrgHierarchy(positions)
+      const hierarchy = this.buildOrgHierarchy(positions as any)
 
       // Map to OrgContext
       const context: OrgContext = {
@@ -794,8 +794,8 @@ export class PrismaContextEngine implements ContextEngine {
         activities: activitySummaries,
         timeRange: options?.filters?.dateRange || undefined,
         filters: options?.filters ? {
-          entityTypes: options.filters.entityTypes,
-          actions: options.filters.actions,
+          entityTypes: options.filters.entityTypes as any,
+          actions: options.filters.actions as any,
           userIds: options.filters.userIds
         } : undefined
       }
@@ -895,8 +895,9 @@ export class PrismaContextEngine implements ContextEngine {
     let level = 0
 
     // Traverse up the parent chain
+    let page: any
     while (currentPageId && level < 10) { // Limit depth to prevent infinite loops
-      const page = await prisma.wikiPage.findUnique({
+      page = await prisma.wikiPage.findUnique({
         where: { id: currentPageId },
         select: {
           id: true,
@@ -1067,7 +1068,7 @@ export async function upsertProjectContext(projectId: string): Promise<void> {
             email: true
           }
         },
-        documentationLinks: {
+        projectDocumentation: {
           include: {
             wikiPage: {
               select: {
@@ -1105,7 +1106,7 @@ export async function upsertProjectContext(projectId: string): Promise<void> {
     }
 
     // Build UnifiedContextObject
-    const unifiedContext = buildProjectContext(project)
+    const unifiedContext = buildProjectContext(project as any)
 
     // Convert UnifiedContextObject to ProjectContext format for storage
     // ProjectContext extends BaseContext which is what saveContextItem expects
@@ -1579,7 +1580,7 @@ export async function getProjectContextObject(
       return null
     }
 
-    return buildProjectContext(project)
+    return buildProjectContext(project as any)
   } catch (error) {
     logger.error('Error getting project context object', { projectId, workspaceId, error })
     return null
@@ -1627,7 +1628,7 @@ export async function getWorkspaceContextObjects(params: {
 
     // Convert projects to ContextObjects
     const projectContextObjects = projects.map(project => {
-      return projectToContext(project, {
+      return projectToContext(project as any, {
         owner: project.owner || null,
         team: null // Team is stored as string, not a relation
       })
@@ -1664,7 +1665,7 @@ export async function getWorkspaceContextObjects(params: {
 
       // Convert tasks to ContextObjects
       const taskContextObjects = tasks.map(task => {
-        return taskToContext(task, {
+        return taskToContext(task as any, {
           project: task.project || null,
           assignee: task.assignee || null
         })
@@ -1753,7 +1754,7 @@ export async function getPersonalSpaceDocs(params: {
     // Note: We don't include project relation for personal space pages
     // since they're typically not linked to projects
     const pageContextObjects = pages.map(page => {
-      return pageToContext(page, {
+      return pageToContext(page as any, {
         owner: page.createdBy || null,
         project: null // Personal space pages typically aren't linked to projects
       })
@@ -1851,7 +1852,7 @@ export async function getOrgPeopleContext(params: {
 
     // Convert positions to ContextObjects using roleToContext
     const peopleContextObjects = positions.map(position => {
-      const ctx = roleToContext(position, {
+      const ctx = roleToContext(position as any, {
         person: position.user || null,
         team: position.team || null
       })

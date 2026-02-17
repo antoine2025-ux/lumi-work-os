@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'

@@ -72,7 +72,7 @@ export function extractTextFromProseMirror(json: JSONContent | null | undefined)
       
       // Add line breaks for block-level elements
       const blockTypes = ['paragraph', 'heading', 'blockquote', 'listItem', 'taskList']
-      if (blockTypes.includes(node.type)) {
+      if (node.type && blockTypes.includes(node.type)) {
         return text + '\n'
       }
       

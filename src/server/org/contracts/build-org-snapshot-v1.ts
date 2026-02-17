@@ -74,8 +74,14 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
       .catch(() => [] as any[]),
   ])
 
-  const teamMembers = await prisma.teamMember
-    .findMany({ where: { orgId } as any, select: { teamId: true, personId: true } as any, take: 200000 })
+  // Get team memberships from OrgPosition (teamId + userId)
+  const teamMembers = await prisma.orgPosition
+    .findMany({ 
+      where: { workspaceId: orgId, teamId: { not: null }, userId: { not: null }, isActive: true } as any, 
+      select: { teamId: true, userId: true } as any, 
+      take: 200000 
+    })
+    .then((positions: any[]) => positions.map((p: any) => ({ teamId: p.teamId, personId: p.userId })))
     .catch(() => [] as any[])
 
   const managerLinks = await prisma.personManagerLink
@@ -171,7 +177,7 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
       managerIds: managerIdsByPerson.get(pid) ?? [],
       capacity: capacity ? { fte: capacity.fte, shrinkagePct: capacity.shrinkagePct, allocationPct: capacity.allocationPct } : undefined,
     }
-  }).filter(Boolean)
+  }).filter((p): p is NonNullable<typeof p> => p !== null)
 
   return {
     version: "v1",

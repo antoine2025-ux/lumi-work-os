@@ -122,8 +122,9 @@ export function clearWorkspaceContext(): void {
 /**
  * Prisma middleware to enforce workspace scoping
  */
-export const scopingMiddleware: Prisma.Middleware = async (params, next) => {
+export const scopingMiddleware = async (params: any, next: any) => {
   const { model, action, args } = params
+  const currentWorkspaceId = getWorkspaceContext()
 
   // Skip middleware for non-workspace-scoped models
   if (!model || !WORKSPACE_SCOPED_MODELS.includes(model as any)) {
@@ -240,7 +241,7 @@ export async function withWorkspaceContext<T>(
   workspaceId: string,
   operation: () => Promise<T>
 ): Promise<T> {
-  const previousContext = currentWorkspaceId
+  const previousContext = getWorkspaceContext()
   setWorkspaceContext(workspaceId)
   
   try {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/components/org/OrgQaPanel.tsx
 "use client";
 

@@ -9,6 +9,7 @@ import type {
   LoopbrainResponse,
   LoopbrainMode
 } from './orchestrator-types'
+import type { AgentPlan, ClarificationContext, AdvisoryContext } from './agent/types'
 import { getProjectSlackHints } from '@/lib/client-state/project-slack-hints'
 
 /**
@@ -37,6 +38,14 @@ export interface LoopbrainAssistantParams {
   maxContextItems?: number
   /** Slack channel hints from project (sent in request body, not persisted) */
   slackChannelHints?: string[]
+  /** Pending agent plan from previous turn (for confirmation flow) */
+  pendingPlan?: AgentPlan
+  /** Conversation context from previous turns (for clarification follow-ups) */
+  conversationContext?: string
+  /** Pending clarification context from previous turn (answer routing) */
+  pendingClarification?: ClarificationContext
+  /** Pending advisory context from previous turn (advisory→execution transition) */
+  pendingAdvisory?: AdvisoryContext
 }
 
 /**
@@ -122,7 +131,11 @@ export async function callLoopbrainAssistant(
     useSemanticSearch,
     maxContextItems,
     ...(Object.keys(clientMetadata).length > 0 && { clientMetadata }),
-    ...(finalSlackChannelHints && finalSlackChannelHints.length > 0 && { slackChannelHints: finalSlackChannelHints })
+    ...(finalSlackChannelHints && finalSlackChannelHints.length > 0 && { slackChannelHints: finalSlackChannelHints }),
+    ...(params.pendingPlan && { pendingPlan: params.pendingPlan }),
+    ...(params.conversationContext && { conversationContext: params.conversationContext }),
+    ...(params.pendingClarification && { pendingClarification: params.pendingClarification }),
+    ...(params.pendingAdvisory && { pendingAdvisory: params.pendingAdvisory }),
   }
 
   try {

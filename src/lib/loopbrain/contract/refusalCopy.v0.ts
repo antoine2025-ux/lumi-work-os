@@ -39,6 +39,41 @@ export const BLOCKER_COPY_V0: Record<
     label: "Work baseline not established",
     description: "No non-provisional work request has been evaluated yet.",
   },
+  // Project Health blockers (Phase 2)
+  NO_PROJECT_DATA: {
+    label: "No project data",
+    description: "The referenced project does not exist or has no data.",
+  },
+  NO_TASKS: {
+    label: "No tasks",
+    description: "The project has no tasks to analyze.",
+  },
+  NO_ACTIVITY: {
+    label: "No recent activity",
+    description: "The project has no recent activity for analysis.",
+  },
+  INSUFFICIENT_HISTORY: {
+    label: "Insufficient history",
+    description: "Not enough historical data for trend analysis.",
+  },
+  // Workload Analysis blockers (Phase 2)
+  NO_PERSON_DATA: {
+    label: "No person data",
+    description: "The referenced person does not exist or has no data.",
+  },
+  NO_TASK_DATA: {
+    label: "No task data",
+    description: "No task or allocation data exists for workload analysis.",
+  },
+  // Calendar Availability blockers (Phase 2)
+  NO_CALENDAR_DATA: {
+    label: "No calendar data",
+    description: "No calendar is connected for this person.",
+  },
+  NO_AVAILABILITY_DATA: {
+    label: "No availability data",
+    description: "No availability or capacity data exists for this person.",
+  },
 };
 
 /** Title for blocked refusal UI. Static. */

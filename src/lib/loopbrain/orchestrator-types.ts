@@ -7,6 +7,7 @@
 
 import { ContextObject, ContextType } from './context-types'
 import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
+import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from './agent/types'
 
 /**
  * Loopbrain operating modes
@@ -59,6 +60,14 @@ export interface LoopbrainRequest {
   clientMetadata?: Record<string, unknown>
   /** Slack channel hints from project (sent in request body, not persisted) */
   slackChannelHints?: string[]
+  /** Pending agent plan from previous turn (for confirmation flow) */
+  pendingPlan?: AgentPlan
+  /** Conversation context from previous turns (for clarification follow-ups) */
+  conversationContext?: string
+  /** Pending clarification context from previous turn (answer routing) */
+  pendingClarification?: ClarificationContext
+  /** Pending advisory context from previous turn (advisory→execution transition) */
+  pendingAdvisory?: AdvisoryContext
 }
 
 /**
@@ -162,6 +171,20 @@ export interface LoopbrainResponse {
     entityType: string
     entityId: string
   }[]
+  /** Pending agent plan awaiting user confirmation (agentic execution layer) */
+  pendingPlan?: AgentPlan
+  /** True when the agent is asking clarifying questions before building a plan */
+  pendingClarification?: boolean
+  /** Clarifying questions from the agent planner (when pendingClarification is true) */
+  clarifyingQuestions?: ClarifyingQuestion[]
+  /** Round-trip context for the frontend to send back with clarification answers */
+  clarificationContext?: ClarificationContext
+  /** Advisory response from brainstorming mode */
+  advisory?: AdvisoryResponse
+  /** Round-trip context for advisory→execution transition */
+  advisoryContext?: AdvisoryContext
+  /** Awareness observations and proactive suggestions from the planner */
+  insights?: string[]
   /** Optional metadata (model, tokens, etc.) */
   metadata?: {
     model?: string

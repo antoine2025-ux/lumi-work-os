@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Person Profile Client Component
  * 

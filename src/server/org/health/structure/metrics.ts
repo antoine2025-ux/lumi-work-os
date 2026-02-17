@@ -32,13 +32,9 @@ export async function computeStructureMetrics(orgId: string): Promise<StructureM
     // Try common membership models defensively.
     const memberCountByTeam = new Map<string, number>()
     const candidates: Array<() => Promise<any[]>> = [
-      async () => (await prisma.teamMember?.findMany?.({ where: { orgId } as any, select: { teamId: true } as any, take: 200000 } as any)) as any,
-      async () => (await prisma.teamMembership?.findMany?.({ where: { orgId } as any, select: { teamId: true } as any, take: 200000 } as any)) as any,
-      async () => (await prisma.personTeam?.findMany?.({ where: { orgId } as any, select: { teamId: true } as any, take: 200000 } as any)) as any,
-      async () => (await prisma.membership?.findMany?.({ where: { orgId } as any, select: { teamId: true } as any, take: 200000 } as any)) as any,
-      // Try OrgPosition with teamId
+      // Try OrgPosition with teamId (primary source)
       async () => {
-        const positions = await prisma.orgPosition?.findMany?.({
+        const positions = await prisma.orgPosition.findMany({
           where: { workspaceId: orgId, isActive: true, teamId: { not: null } } as any,
           select: { teamId: true } as any,
           take: 200000,

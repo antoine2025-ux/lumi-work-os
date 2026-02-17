@@ -26,7 +26,7 @@ export async function computeManagementLoad(orgId: string): Promise<{
   const p = typeof peopleCount === "number" ? peopleCount : 0
 
   const links = await prisma.personManagerLink.findMany({
-    where: { orgId },
+    where: { workspaceId: orgId },
     select: { personId: true, managerId: true, startsAt: true, endsAt: true } as any,
     take: 200000,
   })

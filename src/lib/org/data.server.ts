@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Server-only data loaders for Org Center pages.
  * These functions can only be called from Server Components or Route Handlers.

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'

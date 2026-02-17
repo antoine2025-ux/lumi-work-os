@@ -26,7 +26,7 @@ export default async function AdminSettingsPage({ params }: PageProps) {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / ADMIN / SETTINGS"
+          legacyBreadcrumb="ORG / ADMIN / SETTINGS"
           title="Org settings"
           description="Manage this organization's members, invites, and configuration."
         />
@@ -88,7 +88,7 @@ export default async function AdminSettingsPage({ params }: PageProps) {
         name="Org Admin Settings"
       />
       <OrgPageHeader
-        breadcrumb="ORG / ADMIN / SETTINGS"
+        legacyBreadcrumb="ORG / ADMIN / SETTINGS"
         title="Org settings"
         description="Manage this organization's members, invites, and configuration."
       />

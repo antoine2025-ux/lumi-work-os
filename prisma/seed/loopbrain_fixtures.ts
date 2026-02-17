@@ -106,41 +106,46 @@ export async function seedLoopbrainFixtures() {
   })
 
   // Create Teams
-  const productTeam = await prisma.orgTeam.upsert({
+  // Check if team already exists
+  let productTeam = await prisma.orgTeam.findFirst({
     where: {
-      workspaceId_departmentId_name: {
-        workspaceId: workspace.id,
-        departmentId: productDept.id,
-        name: 'Product',
-      },
-    },
-    update: {},
-    create: {
       workspaceId: workspace.id,
       departmentId: productDept.id,
       name: 'Product',
-      description: 'Product team',
-      isActive: true,
     },
   })
-
-  const engineeringTeam = await prisma.orgTeam.upsert({
-    where: {
-      workspaceId_departmentId_name: {
+  
+  if (!productTeam) {
+    productTeam = await prisma.orgTeam.create({
+      data: {
         workspaceId: workspace.id,
-        departmentId: engineeringDept.id,
-        name: 'Engineering',
+        departmentId: productDept.id,
+        name: 'Product',
+        description: 'Product team',
+        isActive: true,
       },
-    },
-    update: {},
-    create: {
+    })
+  }
+
+  let engineeringTeam = await prisma.orgTeam.findFirst({
+    where: {
       workspaceId: workspace.id,
       departmentId: engineeringDept.id,
       name: 'Engineering',
-      description: 'Engineering team',
-      isActive: true,
     },
   })
+  
+  if (!engineeringTeam) {
+    engineeringTeam = await prisma.orgTeam.create({
+      data: {
+        workspaceId: workspace.id,
+        departmentId: engineeringDept.id,
+        name: 'Engineering',
+        description: 'Engineering team',
+        isActive: true,
+      },
+    })
+  }
 
   console.log('✅ Created departments and teams')
 
@@ -387,6 +392,7 @@ export async function seedLoopbrainFixtures() {
   // Dana: UNAVAILABLE from 2025-12-20 to 2026-01-10
   await prisma.personAvailability.create({
     data: {
+      workspaceId: workspace.id,
       personId: dana.id,
       type: 'UNAVAILABLE',
       startDate: new Date('2025-12-20T00:00:00.000Z'),
@@ -398,6 +404,7 @@ export async function seedLoopbrainFixtures() {
   // Chris: PARTIAL 0.5 from 2025-12-16 to 2026-02-01
   await prisma.personAvailability.create({
     data: {
+      workspaceId: workspace.id,
       personId: chris.id,
       type: 'PARTIAL',
       startDate: new Date('2025-12-16T00:00:00.000Z'),

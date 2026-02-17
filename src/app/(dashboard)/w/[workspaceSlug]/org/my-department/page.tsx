@@ -58,7 +58,7 @@ export default async function MyDepartmentPage({ params }: PageProps) {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / MY DEPARTMENT"
+          legacyBreadcrumb="ORG / MY DEPARTMENT"
           title="My Department"
           description="Your department overview"
         />
@@ -77,7 +77,7 @@ export default async function MyDepartmentPage({ params }: PageProps) {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / MY DEPARTMENT"
+        legacyBreadcrumb="ORG / MY DEPARTMENT"
         title={department.name}
         description={department.description ?? undefined}
       />

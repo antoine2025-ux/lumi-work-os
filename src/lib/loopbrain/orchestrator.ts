@@ -73,9 +73,25 @@ import { getMemberRole } from './context/getMemberRole'
 import { deriveOpenLoops } from './world/openLoops/deriveOpenLoops'
 import { fetchOpenLoops } from './world/openLoops/fetchOpenLoops'
 import { formatOpenLoopsForPrompt } from './world/openLoops/formatOpenLoopsForPrompt'
-import { detectIntentFromKeywords, type LoopbrainIntent } from './intent-router'
+import { detectIntentFromKeywords, classifyMessageIntent, type LoopbrainIntent } from './intent-router'
+import { toolRegistry } from './agent/tool-registry'
+import { generatePlan, formatPlanForUser, formatClarifyForUser, formatAdvisoryForUser } from './agent/planner'
+import { executeAgentPlan } from './agent/executor'
+import type { AgentPlan, AgentContext, MessageIntent, PlannerResult } from './agent/types'
+import { buildPlannerContext, formatContextForPrompt } from './agent/context-builder'
 import { getUserTaskContext } from './context/getUserTaskContext'
 import { isGoalQuestion, handleGoalQuery } from './goals/goal-queries'
+import { buildProjectHealthSnapshot } from './reasoning/projectHealth'
+import { buildWorkloadAnalysis, buildTeamWorkloadSnapshot } from './workload-analysis'
+import { formatProjectHealthEnvelope } from './reasoning/projectHealthAnswer'
+import { formatWorkloadEnvelope, formatTeamWorkloadEnvelope } from './reasoning/workloadAnswer'
+import { buildCalendarAvailabilitySnapshot, buildTeamAvailabilitySnapshot } from './reasoning/calendarAvailability'
+import { formatCalendarAvailabilityEnvelope, formatTeamAvailabilityEnvelope } from './reasoning/calendarAvailabilityAnswer'
+import { extractEntityContext } from './reasoning/entityLinksAnswer'
+import { getCachedEntityGraph } from './entity-graph'
+import type { ProjectHealthSnapshotV0 } from './contract/projectHealth.v0'
+import type { WorkloadAnalysisSnapshotV0, TeamWorkloadSnapshotV0 } from './contract/workloadAnalysis.v0'
+import type { CalendarAvailabilitySnapshotV0, TeamAvailabilitySnapshotV0 } from './contract/calendarAvailability.v0'
 
 /**
  * Default LLM model for Loopbrain
@@ -149,6 +165,88 @@ export async function runLoopbrainQuery(
     })
   }
 
+  // ---- Agentic execution pre-check (Phase 2) ----
+  // 1. Check if this message is a confirmation of a previously proposed plan
+  const confirmTokens = new Set(['yes', 'y', 'go', 'proceed', 'do it', 'confirm', 'go ahead', 'ok'])
+  const lowerTrimmed = req.query.toLowerCase().trim()
+  if (req.pendingPlan && confirmTokens.has(lowerTrimmed)) {
+    return await handlePlanExecution(req, req.pendingPlan)
+  }
+
+  // 1.5a Check if this message is approving an advisory suggestion → convert to action
+  if (req.pendingAdvisory) {
+    const approvalTokens = ['set it up', 'go ahead', 'looks good', 'do it', "let's do", 'lets do', 'yes', 'proceed', 'create it', 'build it']
+    const lowerMsg = req.query.toLowerCase().trim()
+    const isApproval = approvalTokens.some((t) => lowerMsg.includes(t))
+
+    if (isApproval) {
+      // Convert advisory structure into an action request for the planner
+      const structureDesc = req.pendingAdvisory.suggestedStructure.items
+        .map((item) => `- ${item.type}: "${item.name}"${item.parent ? ` (under "${item.parent}")` : ''}${item.description ? ` — ${item.description}` : ''}`)
+        .join('\n')
+      const enrichedQuery = [
+        `Original request: ${req.pendingAdvisory.originalMessage}`,
+        `The user approved the following structure. Create it now:`,
+        structureDesc,
+      ].join('\n\n')
+
+      logger.info('Agent: advisory approval → converting to action plan', {
+        workspaceId: req.workspaceId,
+        itemCount: req.pendingAdvisory.suggestedStructure.items.length,
+      })
+      return await handleActionMode({
+        ...req,
+        query: enrichedQuery,
+        pendingAdvisory: undefined,
+      }, 'ACTION')
+    }
+
+    // Not an approval — treat as a refinement, route back to advisory
+    const enrichedQuery = [
+      `Original request: ${req.pendingAdvisory.originalMessage}`,
+      `Previous suggestion: ${req.pendingAdvisory.suggestedStructure.summary}`,
+      `User's feedback: ${req.query}`,
+    ].join('\n\n')
+    logger.info('Agent: advisory refinement → re-routing to planner', {
+      workspaceId: req.workspaceId,
+    })
+    return await handleActionMode({
+      ...req,
+      query: enrichedQuery,
+      pendingAdvisory: undefined,
+    }, 'ADVISORY')
+  }
+
+  // 1.5b Check if this message is answering clarifying questions
+  if (req.pendingClarification) {
+    const enrichedQuery = [
+      `Original request: ${req.pendingClarification.originalMessage}`,
+      `User's additional details: ${req.query}`,
+    ].join('\n\n')
+    logger.info('Agent: routing clarification answer to planner', {
+      workspaceId: req.workspaceId,
+      originalMessage: req.pendingClarification.originalMessage.slice(0, 120),
+    })
+    return await handleActionMode({
+      ...req,
+      query: enrichedQuery,
+      pendingClarification: undefined,
+    })
+  }
+
+  // 2. Classify ACTION vs QUESTION
+  const messageIntent = classifyMessageIntent(req.query)
+  logger.debug('Message intent classified', {
+    workspaceId: req.workspaceId,
+    messageIntent,
+  })
+
+  // ACTION, HYBRID, or ADVISORY → enter agentic planning path
+  if (messageIntent === 'ACTION' || messageIntent === 'HYBRID' || messageIntent === 'ADVISORY') {
+    return await handleActionMode(req, messageIntent)
+  }
+  // else: QUESTION — fall through to existing flow below
+
   // Classify intent (lightweight, rule-based — no LLM)
   const { intent, isTaskIntent } = classifyQueryIntent(req.query)
   logger.debug('Intent classified', {
@@ -184,6 +282,21 @@ export async function runLoopbrainQuery(
   // Check for goal-related queries
   if (intent === 'goal_progress' || intent === 'goal_risk' || intent === 'goal_status' || intent === 'goal_recommendation' || isGoalQuestion(req.query)) {
     return await handleGoalMode(req)
+  }
+
+  // Check for project health queries
+  if (intent === 'project_health') {
+    return await handleProjectHealthMode(req)
+  }
+
+  // Check for workload analysis queries
+  if (intent === 'workload_analysis') {
+    return await handleWorkloadAnalysisMode(req)
+  }
+
+  // Check for calendar availability queries
+  if (intent === 'calendar_availability') {
+    return await handleCalendarAvailabilityMode(req)
   }
 
   try {
@@ -489,7 +602,11 @@ async function handleSpacesMode(
     })),
     metadata: {
       model: llmResponse.model,
-      tokens: llmResponse.usage,
+      tokens: llmResponse.usage ? {
+        prompt: llmResponse.usage.promptTokens,
+        completion: llmResponse.usage.completionTokens,
+        total: llmResponse.usage.totalTokens
+      } : undefined,
       retrievedCount: contextSummary.retrievedItems?.length || 0
     }
   }
@@ -867,7 +984,11 @@ async function handleOrgMode(
     })),
     metadata: {
       model: llmResponse.model,
-      tokens: llmResponse.usage,
+      tokens: llmResponse.usage ? {
+        prompt: llmResponse.usage.promptTokens,
+        completion: llmResponse.usage.completionTokens,
+        total: llmResponse.usage.totalTokens
+      } : undefined,
       retrievedCount: contextSummary.retrievedItems?.length || 0,
       // Include routing metadata for debugging
       routing: {
@@ -979,7 +1100,11 @@ async function handleDashboardMode(
     })),
     metadata: {
       model: llmResponse.model,
-      tokens: llmResponse.usage,
+      tokens: llmResponse.usage ? {
+        prompt: llmResponse.usage.promptTokens,
+        completion: llmResponse.usage.completionTokens,
+        total: llmResponse.usage.totalTokens
+      } : undefined,
       retrievedCount: contextSummary.retrievedItems?.length || 0
     }
   }
@@ -1234,17 +1359,17 @@ async function loadOrgContextForRequest(
   
   // Use the Loopbrain org bundle's byId map (preferred)
   // This includes all org-related ContextObjects from ContextStore
-  const byId: Record<string, ContextObject> = loopbrainOrgBundle.byId
+  const byId: Record<string, ContextObject> = loopbrainOrgBundle.byId as any
   const allOrgObjects: ContextObject[] = [
     ...(loopbrainOrgBundle.org ? [loopbrainOrgBundle.org] : []),
     ...loopbrainOrgBundle.related,
-  ]
+  ] as any
   
   // Also merge in any items from legacy orgSlice that might not be in ContextStore yet
   // (for backward compatibility during migration)
   for (const obj of orgSlice.all) {
     if (!byId[obj.id]) {
-      const contextObj: ContextObject = {
+      const contextObj = {
         id: obj.id,
         type: obj.type as any,
         title: obj.title,
@@ -1256,11 +1381,11 @@ async function loadOrgContextForRequest(
           targetId: rel.targetId,
           label: rel.label,
         })),
-        owner: obj.owner,
+        owner: obj.owner as any,
         status: obj.status as any,
         updatedAt: new Date(obj.updatedAt),
         workspaceId: req.workspaceId,
-      }
+      } as ContextObject
       byId[obj.id] = contextObj
       allOrgObjects.push(contextObj)
     }
@@ -1305,7 +1430,7 @@ async function loadOrgContextForRequest(
   // Use type-specific expansion strategy
   const { related } = expandOrgBundleByType({
     orgQuestion,
-    primary,
+    primary: primary as any,
     byId,
     allObjects: allOrgObjects,
   })
@@ -1318,7 +1443,7 @@ async function loadOrgContextForRequest(
   expandedObjects.push(...related)
 
   // Store expanded org context
-  summary.structuredContext = expandedObjects
+  summary.structuredContext = expandedObjects as any
   
   // Store org question context for prompt building
   ;(summary as any).orgQuestion = orgQuestion
@@ -1340,10 +1465,10 @@ async function loadOrgContextForRequest(
   // Compute and include org health signals (including role risks)
   try {
     const { computeOrgHealthSignals } = await import('@/lib/org/healthService')
-    const people = allOrgObjects.filter(obj => obj.type === 'person')
-    const teams = allOrgObjects.filter(obj => obj.type === 'team')
-    const departments = allOrgObjects.filter(obj => obj.type === 'department')
-    const roles = allOrgObjects.filter(obj => obj.type === 'role')
+    const people = allOrgObjects.filter((obj: any) => obj.type === 'person')
+    const teams = allOrgObjects.filter((obj: any) => obj.type === 'team')
+    const departments = allOrgObjects.filter((obj: any) => obj.type === 'department')
+    const roles = allOrgObjects.filter((obj: any) => obj.type === 'role')
     
     // Estimate tree depth (simplified)
     const treeDepth = Math.max(
@@ -2153,10 +2278,10 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
   // Org ContextObjects (expanded via relations) - Category B bundling improvements
   if (ctx.structuredContext && ctx.structuredContext.length > 0) {
     // Group by type for better organization
-    const people = ctx.structuredContext.filter(obj => obj.type === 'person')
-    const teams = ctx.structuredContext.filter(obj => obj.type === 'team')
-    const departments = ctx.structuredContext.filter(obj => obj.type === 'department')
-    const positions = ctx.structuredContext.filter(obj => obj.type === 'role')
+    const people = ctx.structuredContext.filter((obj: any) => obj.type === 'person')
+    const teams = ctx.structuredContext.filter((obj: any) => obj.type === 'team')
+    const departments = ctx.structuredContext.filter((obj: any) => obj.type === 'department')
+    const positions = ctx.structuredContext.filter((obj: any) => obj.type === 'role')
     
     sections.push(`\n## Org ContextObjects (JSON, ${ctx.structuredContext.length} total):`)
     sections.push(`The following structured context objects represent the organizational structure. Use relations to traverse the graph (e.g., follow "reports_to" to find direct reports, follow "has_person" to find team members).`)
@@ -3585,7 +3710,7 @@ Based on the goal data provided, answer the user's question with specific insigh
           contextItemId: ctx.id,
           contextId: ctx.id,
           type: ContextType.GOAL,
-          title: ctx.title,
+          title: (ctx as any).title,
           score: 0.9,
         })),
       },
@@ -3636,4 +3761,635 @@ function generateGoalSuggestions(goalData: any): LoopbrainSuggestion[] {
   }
 
   return suggestions
+}
+
+// ---------------------------------------------------------------------------
+// Project Health Mode
+// ---------------------------------------------------------------------------
+
+async function handleProjectHealthMode(req: LoopbrainRequest): Promise<LoopbrainResponse> {
+  try {
+    const projectId = req.projectId
+
+    if (!projectId) {
+      return {
+        mode: 'spaces' as LoopbrainMode,
+        workspaceId: req.workspaceId,
+        userId: req.userId,
+        query: req.query,
+        context: { retrievedItems: [] },
+        answer: 'I need a specific project to analyze health. Please select a project or mention one by name.',
+        suggestions: [
+          { label: 'List all projects', action: 'list_projects' },
+        ],
+      }
+    }
+
+    const snapshot = await buildProjectHealthSnapshot(req.workspaceId, projectId)
+    const envelope = formatProjectHealthEnvelope(snapshot, 'project-health-overview')
+
+    const systemPrompt = `You are Loopbrain, an AI assistant with deep knowledge of project management and health metrics.
+
+Current project health data:
+${JSON.stringify(snapshot, null, 2)}
+
+Structured assessment:
+${JSON.stringify(envelope.answer, null, 2)}
+
+Evidence: ${JSON.stringify(envelope.supportingEvidence, null, 2)}
+
+Provide a clear, actionable analysis of the project's health.
+Focus on: overall health, velocity trends, risks, blockers, and resource utilization.
+Format your response in markdown with clear sections.
+Cite specific numbers from the data.`
+
+    const userPrompt = `User query: ${req.query}
+
+Based on the project health data, provide specific insights about ${snapshot.projectName}.`
+
+    const llmResponse = await callLoopbrainLLM(userPrompt, systemPrompt, {
+      model: process.env.LOOPBRAIN_MODEL || DEFAULT_LOOPBRAIN_MODEL,
+    })
+
+    return {
+      mode: 'spaces' as LoopbrainMode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: { retrievedItems: [] },
+      answer: llmResponse.content,
+      suggestions: generateProjectHealthSuggestions(snapshot),
+      metadata: {
+        model: llmResponse.model,
+        tokens: llmResponse.usage ? {
+          prompt: llmResponse.usage.promptTokens,
+          completion: llmResponse.usage.completionTokens,
+          total: llmResponse.usage.totalTokens,
+        } : undefined,
+      },
+    }
+  } catch (error) {
+    logger.error('Project health mode handler failed', {
+      workspaceId: req.workspaceId,
+      projectId: req.projectId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+
+    return {
+      mode: 'spaces' as LoopbrainMode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: { retrievedItems: [] },
+      answer: 'I encountered an error analyzing project health. Please try again.',
+      suggestions: [],
+    }
+  }
+}
+
+function generateProjectHealthSuggestions(snapshot: ProjectHealthSnapshotV0): LoopbrainSuggestion[] {
+  const suggestions: LoopbrainSuggestion[] = []
+
+  if (snapshot.risks.length > 0) {
+    suggestions.push({
+      label: `Review ${snapshot.risks.length} active risk${snapshot.risks.length !== 1 ? 's' : ''}`,
+      action: 'view_project_risks',
+      payload: { projectId: snapshot.projectId },
+    })
+  }
+
+  if (snapshot.blockers.length > 0) {
+    suggestions.push({
+      label: `Address ${snapshot.blockers.length} blocker${snapshot.blockers.length !== 1 ? 's' : ''}`,
+      action: 'view_project_blockers',
+      payload: { projectId: snapshot.projectId },
+    })
+  }
+
+  if (snapshot.momentum.trendDirection === 'DECLINING') {
+    suggestions.push({
+      label: 'Investigate velocity decline',
+      action: 'analyze_velocity',
+      payload: { projectId: snapshot.projectId },
+    })
+  }
+
+  if (snapshot.resourceHealth.bottlenecks.length > 0) {
+    suggestions.push({
+      label: 'Review resource bottlenecks',
+      action: 'view_bottlenecks',
+      payload: { projectId: snapshot.projectId },
+    })
+  }
+
+  return suggestions.slice(0, 3)
+}
+
+// ---------------------------------------------------------------------------
+// Workload Analysis Mode
+// ---------------------------------------------------------------------------
+
+async function handleWorkloadAnalysisMode(req: LoopbrainRequest): Promise<LoopbrainResponse> {
+  try {
+    const queryLower = req.query.toLowerCase()
+    const isTeamQuery = (queryLower.includes('team') && !!req.teamId)
+
+    if (isTeamQuery && req.teamId) {
+      return await handleTeamWorkloadQuery(req, req.teamId)
+    }
+
+    // Person workload: use personId from request, or fall back to userId
+    const personId = req.personId || req.userId
+
+    const snapshot = await buildWorkloadAnalysis(req.workspaceId, personId)
+    const envelope = formatWorkloadEnvelope(snapshot, 'person-workload-assessment')
+
+    const systemPrompt = `You are Loopbrain, an AI assistant with deep knowledge of workload management and capacity planning.
+
+Current workload data for ${snapshot.personName}:
+${JSON.stringify(snapshot, null, 2)}
+
+Structured assessment:
+${JSON.stringify(envelope.answer, null, 2)}
+
+Evidence: ${JSON.stringify(envelope.supportingEvidence, null, 2)}
+
+Provide a clear, actionable analysis of this person's workload.
+Focus on: overall assessment, capacity utilization, signals/alerts, and recommendations.
+Format your response in markdown with clear sections.
+Cite specific numbers from the data.`
+
+    const userPrompt = `User query: ${req.query}
+
+Based on the workload data, provide specific insights about ${snapshot.personName}'s current workload.`
+
+    const llmResponse = await callLoopbrainLLM(userPrompt, systemPrompt, {
+      model: process.env.LOOPBRAIN_MODEL || DEFAULT_LOOPBRAIN_MODEL,
+    })
+
+    return {
+      mode: 'spaces' as LoopbrainMode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: { retrievedItems: [] },
+      answer: llmResponse.content,
+      suggestions: generateWorkloadSuggestions(snapshot),
+      metadata: {
+        model: llmResponse.model,
+        tokens: llmResponse.usage ? {
+          prompt: llmResponse.usage.promptTokens,
+          completion: llmResponse.usage.completionTokens,
+          total: llmResponse.usage.totalTokens,
+        } : undefined,
+      },
+    }
+  } catch (error) {
+    logger.error('Workload analysis mode handler failed', {
+      workspaceId: req.workspaceId,
+      personId: req.personId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+
+    return {
+      mode: 'spaces' as LoopbrainMode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: { retrievedItems: [] },
+      answer: 'I encountered an error analyzing workload. Please try again.',
+      suggestions: [],
+    }
+  }
+}
+
+async function handleTeamWorkloadQuery(
+  req: LoopbrainRequest,
+  teamId: string
+): Promise<LoopbrainResponse> {
+  const snapshot = await buildTeamWorkloadSnapshot(req.workspaceId, teamId)
+  const envelope = formatTeamWorkloadEnvelope(snapshot, 'team-workload-balance')
+
+  const systemPrompt = `You are Loopbrain, an AI assistant analyzing team workload distribution.
+
+Team workload data for ${snapshot.teamName}:
+${JSON.stringify(snapshot, null, 2)}
+
+Structured assessment:
+${JSON.stringify(envelope.answer, null, 2)}
+
+Evidence: ${JSON.stringify(envelope.supportingEvidence, null, 2)}
+
+Analyze the team's workload balance. Identify overloaded and underutilized members.
+Recommend specific rebalancing actions. Format in markdown.`
+
+  const userPrompt = `User query: ${req.query}
+
+Analyze the ${snapshot.teamName} team's workload distribution.`
+
+  const llmResponse = await callLoopbrainLLM(userPrompt, systemPrompt, {
+    model: process.env.LOOPBRAIN_MODEL || DEFAULT_LOOPBRAIN_MODEL,
+  })
+
+  return {
+    mode: 'org' as LoopbrainMode,
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: { retrievedItems: [] },
+    answer: llmResponse.content,
+    suggestions: generateTeamWorkloadSuggestions(snapshot),
+    metadata: { model: llmResponse.model },
+  }
+}
+
+function generateWorkloadSuggestions(snapshot: WorkloadAnalysisSnapshotV0): LoopbrainSuggestion[] {
+  const suggestions: LoopbrainSuggestion[] = []
+
+  if (snapshot.summary.assessment === 'OVERLOADED' || snapshot.summary.assessment === 'CRITICAL') {
+    suggestions.push({
+      label: `Redistribute tasks from ${snapshot.personName}`,
+      action: 'reassign_tasks',
+      payload: { personId: snapshot.personId },
+    })
+  }
+
+  if (snapshot.taskLoad.overdue.count > 0) {
+    suggestions.push({
+      label: `Address ${snapshot.taskLoad.overdue.count} overdue task${snapshot.taskLoad.overdue.count !== 1 ? 's' : ''}`,
+      action: 'view_overdue_tasks',
+      payload: { personId: snapshot.personId },
+    })
+  }
+
+  if (snapshot.summary.assessment === 'LIGHT' && snapshot.capacityComparison.hasCapacity) {
+    suggestions.push({
+      label: `${snapshot.personName} has capacity for more work`,
+      action: 'assign_work',
+      payload: { personId: snapshot.personId },
+    })
+  }
+
+  return suggestions.slice(0, 3)
+}
+
+function generateTeamWorkloadSuggestions(snapshot: TeamWorkloadSnapshotV0): LoopbrainSuggestion[] {
+  const suggestions: LoopbrainSuggestion[] = []
+
+  if (snapshot.teamMetrics.membersOverloaded > 0) {
+    suggestions.push({
+      label: `Rebalance ${snapshot.teamMetrics.membersOverloaded} overloaded member${snapshot.teamMetrics.membersOverloaded !== 1 ? 's' : ''}`,
+      action: 'rebalance_team',
+      payload: { teamId: snapshot.teamId },
+    })
+  }
+
+  if (!snapshot.teamMetrics.isBalanced) {
+    suggestions.push({
+      label: 'View workload distribution details',
+      action: 'view_team_workload',
+      payload: { teamId: snapshot.teamId },
+    })
+  }
+
+  if (snapshot.teamMetrics.totalBlocked > 0) {
+    suggestions.push({
+      label: `Unblock ${snapshot.teamMetrics.totalBlocked} task${snapshot.teamMetrics.totalBlocked !== 1 ? 's' : ''}`,
+      action: 'unblock_tasks',
+      payload: { teamId: snapshot.teamId },
+    })
+  }
+
+  return suggestions.slice(0, 3)
+}
+
+// =============================================================================
+// Calendar Availability Mode
+// =============================================================================
+
+async function handleCalendarAvailabilityMode(req: LoopbrainRequest): Promise<LoopbrainResponse> {
+  try {
+    const queryLower = req.query.toLowerCase()
+    const isTeamQuery = queryLower.includes('team') && !!req.teamId
+
+    if (isTeamQuery && req.teamId) {
+      return await handleTeamAvailabilityQuery(req, req.teamId)
+    }
+
+    // Person availability: default to self-query (userId)
+    const personId = req.personId || req.userId
+
+    const snapshot = await buildCalendarAvailabilitySnapshot(req.workspaceId, personId)
+    const envelope = formatCalendarAvailabilityEnvelope(snapshot, 'calendar-availability')
+
+    // Enrich with entity graph context
+    let entityContext = ''
+    try {
+      const graph = await getCachedEntityGraph(req.workspaceId)
+      const context = extractEntityContext(graph, `person_${personId}`)
+      if (context && context.connections.length > 0) {
+        entityContext = `\n\nOrganizational context for ${context.entity.label}:\n${JSON.stringify(context.connections.slice(0, 10), null, 2)}`
+      }
+    } catch {
+      // Entity graph enrichment is best-effort
+    }
+
+    const systemPrompt = `You are Loopbrain, an AI assistant with deep knowledge of scheduling and availability management.
+
+Current availability data for ${snapshot.personName}:
+${JSON.stringify(snapshot, null, 2)}
+
+Structured assessment:
+${JSON.stringify(envelope.answer, null, 2)}
+
+Evidence: ${JSON.stringify(envelope.supportingEvidence, null, 2)}${entityContext}
+
+Provide a clear, actionable analysis of this person's availability.
+Focus on: current availability, next free slots, meeting load, upcoming absences.
+Format your response in markdown with clear sections.
+Cite specific times and dates from the data.`
+
+    const userPrompt = `User query: ${req.query}
+
+Based on the availability data, provide specific insights about ${snapshot.personName}'s schedule.`
+
+    const llmResponse = await callLoopbrainLLM(userPrompt, systemPrompt, {
+      model: process.env.LOOPBRAIN_MODEL || DEFAULT_LOOPBRAIN_MODEL,
+    })
+
+    return {
+      mode: 'org' as LoopbrainMode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: { retrievedItems: [] },
+      answer: llmResponse.content,
+      suggestions: generateCalendarAvailabilitySuggestions(snapshot),
+      metadata: {
+        model: llmResponse.model,
+        tokens: llmResponse.usage ? {
+          prompt: llmResponse.usage.promptTokens,
+          completion: llmResponse.usage.completionTokens,
+          total: llmResponse.usage.totalTokens,
+        } : undefined,
+      },
+    }
+  } catch (error) {
+    logger.error('Calendar availability mode failed', {
+      workspaceId: req.workspaceId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return {
+      mode: 'org' as LoopbrainMode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: { retrievedItems: [] },
+      answer: 'I encountered an error analyzing calendar availability. Please try again.',
+      suggestions: [],
+    }
+  }
+}
+
+async function handleTeamAvailabilityQuery(
+  req: LoopbrainRequest,
+  teamId: string
+): Promise<LoopbrainResponse> {
+  const snapshot = await buildTeamAvailabilitySnapshot(req.workspaceId, teamId)
+  const envelope = formatTeamAvailabilityEnvelope(snapshot, 'team-availability')
+
+  const systemPrompt = `You are Loopbrain, an AI assistant analyzing team availability.
+
+Team availability data for ${snapshot.teamName}:
+${JSON.stringify(snapshot, null, 2)}
+
+Structured assessment:
+${JSON.stringify(envelope.answer, null, 2)}
+
+Evidence: ${JSON.stringify(envelope.supportingEvidence, null, 2)}
+
+Analyze the team's availability. Identify who is on leave, who has capacity, and any coverage risks.
+Format in markdown.`
+
+  const userPrompt = `User query: ${req.query}
+
+Analyze the ${snapshot.teamName} team's availability.`
+
+  const llmResponse = await callLoopbrainLLM(userPrompt, systemPrompt, {
+    model: process.env.LOOPBRAIN_MODEL || DEFAULT_LOOPBRAIN_MODEL,
+  })
+
+  return {
+    mode: 'org' as LoopbrainMode,
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: { retrievedItems: [] },
+    answer: llmResponse.content,
+    suggestions: generateTeamAvailabilitySuggestions(snapshot),
+    metadata: { model: llmResponse.model },
+  }
+}
+
+function generateCalendarAvailabilitySuggestions(snapshot: CalendarAvailabilitySnapshotV0): LoopbrainSuggestion[] {
+  const suggestions: LoopbrainSuggestion[] = []
+
+  if (snapshot.summary.isOnExtendedLeave) {
+    suggestions.push({
+      label: 'View absence details',
+      action: 'view_absence',
+      payload: { personId: snapshot.personId },
+    })
+  }
+
+  if (snapshot.conflictSummary.totalCount > 0) {
+    suggestions.push({
+      label: `Resolve ${snapshot.conflictSummary.totalCount} conflict${snapshot.conflictSummary.totalCount !== 1 ? 's' : ''}`,
+      action: 'view_conflicts',
+      payload: { personId: snapshot.personId },
+    })
+  }
+
+  if (snapshot.forecast.nextAvailableSlot) {
+    suggestions.push({
+      label: 'Schedule in next available slot',
+      action: 'schedule_meeting',
+      payload: { personId: snapshot.personId, slot: snapshot.forecast.nextAvailableSlot },
+    })
+  }
+
+  return suggestions.slice(0, 3)
+}
+
+function generateTeamAvailabilitySuggestions(snapshot: TeamAvailabilitySnapshotV0): LoopbrainSuggestion[] {
+  const suggestions: LoopbrainSuggestion[] = []
+
+  if (snapshot.teamMetrics.isAtRisk) {
+    suggestions.push({
+      label: 'Review coverage plan',
+      action: 'review_coverage',
+      payload: { teamId: snapshot.teamId },
+    })
+  }
+
+  if (snapshot.teamMetrics.onLeaveCount > 0) {
+    suggestions.push({
+      label: `${snapshot.teamMetrics.onLeaveCount} member${snapshot.teamMetrics.onLeaveCount !== 1 ? 's' : ''} on leave`,
+      action: 'view_absences',
+      payload: { teamId: snapshot.teamId },
+    })
+  }
+
+  return suggestions.slice(0, 3)
+}
+
+// ---------------------------------------------------------------------------
+// Agentic execution layer (Phase 4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle ACTION messages: generate a plan or ask clarifying questions.
+ * The planner LLM decides whether to clarify or plan in a single call.
+ *
+ * - clarify mode → questions returned in `clarifyingQuestions`, no plan yet
+ * - plan mode → plan returned in `pendingPlan` for user confirmation
+ */
+async function handleActionMode(
+  req: LoopbrainRequest,
+  intent?: MessageIntent
+): Promise<LoopbrainResponse> {
+  const agentContext: AgentContext = {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    workspaceSlug: '', // populated at API layer if available
+  }
+
+  logger.info('Agent: entering action mode', {
+    workspaceId: req.workspaceId,
+    query: req.query.slice(0, 120),
+    hasConversationContext: !!req.conversationContext,
+  })
+
+  // Build workspace context snapshot for the planner
+  const plannerCtx = await buildPlannerContext(req.workspaceId)
+  const contextSnippet = formatContextForPrompt(plannerCtx)
+
+  const plannerResult = await generatePlan({
+    message: req.query,
+    registry: toolRegistry,
+    context: agentContext,
+    contextSnippet,
+    conversationContext: req.conversationContext,
+    intent,
+  })
+
+  const emptyContext = { primaryContext: undefined, relatedContext: [], retrievedItems: [] }
+
+  // --- Advisory mode: return suggested structure for brainstorming ---
+  if (plannerResult.mode === 'advisory' && plannerResult.advisory) {
+    const answer = formatAdvisoryForUser(plannerResult.advisory, plannerResult.insights)
+
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: emptyContext,
+      answer,
+      suggestions: [
+        { label: 'Set it up', action: 'approve_advisory' },
+        { label: 'Adjust', action: 'refine_advisory' },
+      ],
+      advisory: plannerResult.advisory,
+      advisoryContext: {
+        originalMessage: req.query,
+        suggestedStructure: plannerResult.advisory.suggestedStructure,
+      },
+      insights: plannerResult.insights,
+      metadata: { model: 'loopbrain-agent-planner', retrievedCount: 0 },
+    }
+  }
+
+  // --- Clarify mode: return questions, no plan ---
+  if (plannerResult.mode === 'clarify' && plannerResult.questions) {
+    const answer = formatClarifyForUser(
+      plannerResult.preamble ?? 'Before I proceed, a few quick questions:',
+      plannerResult.questions,
+      plannerResult.insights
+    )
+
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: emptyContext,
+      answer,
+      suggestions: [],
+      pendingClarification: true,
+      clarifyingQuestions: plannerResult.questions,
+      clarificationContext: {
+        originalMessage: req.query,
+        questionsAsked: plannerResult.questions.map((q) => q.field),
+      },
+      insights: plannerResult.insights,
+      metadata: { model: 'loopbrain-agent-planner', retrievedCount: 0 },
+    }
+  }
+
+  // --- Plan mode: return plan for confirmation ---
+  const plan = plannerResult.plan ?? {
+    reasoning: 'I couldn\'t build a plan for that request.',
+    steps: [],
+    requiresConfirmation: false,
+  }
+
+  const answer = formatPlanForUser(plan, plannerResult.insights)
+
+  return {
+    mode: req.mode,
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: emptyContext,
+    answer,
+    suggestions: plan.steps.length > 0
+      ? [{ label: 'Proceed', action: 'confirm_plan' }, { label: 'Cancel', action: 'cancel_plan' }]
+      : [],
+    pendingPlan: plan.steps.length > 0 ? plan : undefined,
+    insights: plannerResult.insights,
+    metadata: { model: 'loopbrain-agent-planner', retrievedCount: 0 },
+  }
+}
+
+/**
+ * Execute a previously confirmed plan.
+ */
+async function handlePlanExecution(
+  req: LoopbrainRequest,
+  plan: AgentPlan
+): Promise<LoopbrainResponse> {
+  const agentContext: AgentContext = {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    workspaceSlug: '',
+  }
+
+  logger.info('Agent: executing confirmed plan', {
+    workspaceId: req.workspaceId,
+    stepCount: plan.steps.length,
+  })
+
+  const result = await executeAgentPlan(plan, agentContext, toolRegistry)
+
+  return {
+    mode: req.mode,
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: { primaryContext: undefined, relatedContext: [], retrievedItems: [] },
+    answer: result.summary,
+    suggestions: [],
+    metadata: { model: 'loopbrain-agent-executor', retrievedCount: 0 },
+  }
 }

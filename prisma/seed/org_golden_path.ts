@@ -243,6 +243,7 @@ async function seedGoldenPath() {
 
   await prisma.personAvailability.create({
     data: {
+      workspaceId: workspace.id,
       personId: dana.id,
       type: 'UNAVAILABLE',
       startDate: new Date(),

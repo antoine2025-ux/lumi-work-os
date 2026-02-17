@@ -24,7 +24,7 @@ export default async function WorkspaceOrgOwnershipPage({ params }: PageProps) {
       return (
         <>
           <OrgPageHeader
-            breadcrumb="ORG / OWNERSHIP"
+            legacyBreadcrumb="ORG / OWNERSHIP"
             title="Ownership"
             description="Ownership shows whether every team and domain has a clear accountable owner."
           />
@@ -44,7 +44,7 @@ export default async function WorkspaceOrgOwnershipPage({ params }: PageProps) {
       <>
         <OrgPageViewTracker route={`/w/${workspaceSlug}/org/ownership`} name="Org Ownership" />
         <OrgPageHeader
-          breadcrumb="ORG / OWNERSHIP"
+          legacyBreadcrumb="ORG / OWNERSHIP"
           title="Ownership"
           description="Ownership shows whether every team and domain has a clear accountable owner."
         />
@@ -62,7 +62,7 @@ export default async function WorkspaceOrgOwnershipPage({ params }: PageProps) {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / OWNERSHIP"
+          legacyBreadcrumb="ORG / OWNERSHIP"
           title="Ownership"
           description="Ownership shows whether every team and domain has a clear accountable owner."
         />

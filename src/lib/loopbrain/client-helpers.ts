@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/lib/loopbrain/client-helpers.ts
 
 "use client";

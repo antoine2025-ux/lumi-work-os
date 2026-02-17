@@ -169,6 +169,10 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
 
     // O1: Intent-Driven Onboarding redirect
     // Redirect OWNER users to /org/onboarding/work if onboarding isn't complete
+    // DISABLED: This legacy /org layout is only used for redirects to workspace-scoped routes.
+    // Onboarding checks should happen in the workspace-scoped layout if needed.
+    // Keeping this commented out to avoid redirect loops during client-side navigation.
+    /*
     if (context && prisma && context.role === "OWNER") {
       try {
         // Read the request URL to check for escape hatch and current path
@@ -189,6 +193,9 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
         // Skip if already on the onboarding page
         const isOnOnboardingPage = pathname.startsWith("/org/onboarding");
 
+        // Skip if on structure pages (where users create departments/teams)
+        const isOnStructurePage = pathname.startsWith("/org/structure");
+
         // Skip if escape hatch ?skipOnboarding=true is present
         let hasSkipParam = false;
         if (fullUrl) {
@@ -200,7 +207,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
           }
         }
 
-        if (!isOnOnboardingPage && !hasSkipParam) {
+        if (!isOnOnboardingPage && !isOnStructurePage && !hasSkipParam) {
           const workspace = await prisma.workspace.findUnique({
             where: { id: context.orgId },
             select: { orgCenterOnboardingCompletedAt: true },
@@ -230,6 +237,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
         // Don't block rendering if onboarding check fails
       }
     }
+    */
 
     return (
       <OrgPermissionsProvider value={clientPermissions}>

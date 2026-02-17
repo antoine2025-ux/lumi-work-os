@@ -23,7 +23,7 @@ export default async function WorkspaceOrgPeoplePage({ params }: PageProps) {
     return (
       <>
         <OrgPageHeader
-          breadcrumb="ORG / PEOPLE"
+          legacyBreadcrumb="ORG / PEOPLE"
           title="People"
           description="View and manage everyone in your organization."
         />
@@ -43,7 +43,7 @@ export default async function WorkspaceOrgPeoplePage({ params }: PageProps) {
     <>
       <OrgPageViewTracker route={`/w/${workspaceSlug}/org/people`} name="Org People" />
       <OrgPageHeader
-        breadcrumb="ORG / PEOPLE"
+        legacyBreadcrumb="ORG / PEOPLE"
         title="People"
         description="View and manage everyone in your organization."
       />

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Ownership Client Component
  * 

@@ -35,10 +35,12 @@ export interface SlackMessageSummary {
   relevance: 'high' | 'medium' | 'low'
   summary: string
   messages: Array<{
-    ts: string
-    user?: string
+    user: string
+    userId?: string
     text: string
-    permalink?: string
+    ts: string
+    threadTs?: string
+    replies?: number
   }>
   messageCount: number
 }

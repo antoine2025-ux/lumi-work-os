@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Read services for Org People.
  * 

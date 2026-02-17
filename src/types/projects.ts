@@ -56,6 +56,8 @@ export interface Task {
   parentTask?: Task
   subtasks?: Task[]
   dependencies?: TaskDependency[]
+  dependsOn?: TaskDependency[]
+  blocks?: TaskDependency[]
   _count?: {
     subtasks: number
     comments: number

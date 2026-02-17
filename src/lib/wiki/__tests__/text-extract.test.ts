@@ -128,7 +128,8 @@ describe('text-extract', () => {
     it('has correct structure', () => {
       expect(EMPTY_TIPTAP_DOC.type).toBe('doc')
       expect(Array.isArray(EMPTY_TIPTAP_DOC.content)).toBe(true)
-      expect(EMPTY_TIPTAP_DOC.content.length).toBeGreaterThan(0)
+      expect(EMPTY_TIPTAP_DOC.content).toBeDefined()
+      expect(EMPTY_TIPTAP_DOC.content?.length ?? 0).toBeGreaterThan(0)
     })
 
     it('extracts to empty or minimal text', () => {

@@ -38,7 +38,7 @@ export default async function CapacityPlanningPage({ params }: PageProps) {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / ADMIN / CAPACITY"
+        legacyBreadcrumb="ORG / ADMIN / CAPACITY"
         title="Capacity Planning"
         description="Plan and track team capacity"
       />

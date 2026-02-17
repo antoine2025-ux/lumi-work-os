@@ -3,9 +3,9 @@ import { prisma } from "@/lib/db"
 type DedupResult = { table: string; removed: number }
 
 export async function dedupManagerLinks(orgId: string): Promise<DedupResult> {
-  // PersonManagerLink unique: (orgId, personId, managerId)
+  // PersonManagerLink unique: (workspaceId, personId, managerId)
   const rows = await prisma.personManagerLink.findMany({
-    where: { orgId },
+    where: { workspaceId: orgId },
     select: { id: true, personId: true, managerId: true, createdAt: true } as any,
     take: 200000,
     orderBy: { createdAt: "asc" } as any,
@@ -54,9 +54,9 @@ export async function dedupCapacity(orgId: string): Promise<DedupResult> {
 }
 
 export async function dedupAvailability(orgId: string): Promise<DedupResult> {
-  // PersonAvailability unique: (orgId, personId)
+  // PersonAvailability unique: (workspaceId, personId)
   const rows = await prisma.personAvailability.findMany({
-    where: { orgId },
+    where: { workspaceId: orgId },
     select: { id: true, personId: true, createdAt: true } as any,
     take: 200000,
     orderBy: { createdAt: "desc" } as any, // keep newest

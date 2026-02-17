@@ -57,7 +57,7 @@ export default async function AdminHealthPage({ params }: PageProps) {
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / ADMIN"
+        legacyBreadcrumb="ORG / ADMIN"
         title="Org Health & Issues"
         description="Monitor organizational health and resolve structural issues"
       />
