@@ -71,23 +71,27 @@ export async function GET(request: NextRequest) {
     // Create this user's Personal Space if it doesn't exist
     if (!hasPersonalSpace) {
       try {
+        const personalSpaceData = {
+          id: personalSpaceId,
+          workspace_id: workspaceId,
+          name: 'Personal Space',
+          type: 'personal',
+          color: '#10b981',
+          icon: 'file-text',
+          description: 'Your personal knowledge space',
+          is_private: true,
+          created_by_id: auth.user.userId
+        }
         await prisma.wiki_workspaces.create({
-          data: {
-            id: personalSpaceId,
-            workspace_id: workspaceId,
-            name: 'Personal Space',
-            type: 'personal',
-            color: '#10b981',
-            icon: 'file-text',
-            description: 'Your personal knowledge space',
-            is_private: true,
-            created_by_id: auth.user.userId
-          }
+          data: personalSpaceData
         })
       } catch (error: any) {
         // P2002 = unique constraint violation — another request may have created it concurrently
         if (error.code !== 'P2002') {
           console.error('Error creating Personal Space:', error.message)
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Personal Space data:', { id: personalSpaceId, workspace_id: workspaceId, created_by_id: auth.user.userId })
+          }
         }
       }
 

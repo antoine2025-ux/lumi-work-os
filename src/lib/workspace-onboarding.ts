@@ -321,19 +321,20 @@ export async function createWorkspaceWithOnboarding(
   })
 
   // Create wiki workspaces - ONLY Personal Space is a default workspace
+  const personalSpaceData = {
+    id: `personal-space-${workspace.id}`,
+    workspace_id: workspace.id,
+    name: 'Personal Space',
+    type: 'personal',
+    color: '#10b981',
+    icon: 'file-text',
+    description: 'Your personal knowledge space',
+    is_private: true,
+    created_by_id: userId
+  }
   const wikiWorkspaces = await Promise.all([
     prisma.wiki_workspaces.create({
-      data: {
-        id: `personal-space-${workspace.id}`,
-        workspace_id: workspace.id,
-        name: 'Personal Space',
-        type: 'personal',
-        color: '#10b981',
-        icon: 'file-text',
-        description: 'Your personal knowledge space',
-        is_private: true,
-        created_by_id: userId
-      }
+      data: personalSpaceData
     })
     // Team Workspace is no longer auto-created - users can create custom workspaces as needed
   ])
