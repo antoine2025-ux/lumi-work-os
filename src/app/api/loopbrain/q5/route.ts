@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const person = await prisma.user.findFirst({
       where: {
         id: personId,
-        positions: {
+        orgPositions: {
           some: {
             workspaceId,
             isActive: true,

@@ -555,6 +555,7 @@ export function roleToContext(
  */
 export function personToContext(
   user: UserModel,
+  workspaceId: string,
   options?: {
     role?: RoleModel | null
     team?: TeamModel | null
@@ -604,6 +605,7 @@ export function personToContext(
 
   return {
     id: user.id,
+    workspaceId,
     type: 'person',
     title: user.name || user.email || 'Unknown User',
     summary: `User: ${user.name || user.email || 'Unknown'}`,
@@ -635,6 +637,7 @@ export function teamToContext(
 
   return {
     id: team.id,
+    workspaceId: team.workspaceId,
     type: 'team',
     title: team.name,
     summary: `Team: ${team.name}`,
@@ -660,7 +663,8 @@ export function timeOffToContext(
     type: string
     status: string
     updatedAt: Date
-  }
+  },
+  workspaceId: string
 ): ContextObject {
   const relations: ContextRelation[] = []
 
@@ -681,6 +685,7 @@ export function timeOffToContext(
 
   return {
     id: timeOff.id,
+    workspaceId,
     type: 'time_off',
     title: `${timeOff.type} - ${timeOff.startDate.toISOString().split('T')[0]} to ${timeOff.endDate.toISOString().split('T')[0]}`,
     summary: `${timeOff.type} time off from ${timeOff.startDate.toISOString().split('T')[0]} to ${timeOff.endDate.toISOString().split('T')[0]}`,

@@ -23,16 +23,7 @@ export async function GET(request: NextRequest) {
     // Get migration sessions for the workspace
     const sessions = await prisma.migration.findMany({
       where: { workspaceId: auth.workspaceId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
+      orderBy: { createdAt: 'desc' }
     })
 
     return NextResponse.json({ sessions })
@@ -74,13 +65,17 @@ export async function POST(request: NextRequest) {
     const migrationSession = await prisma.migration.create({
       data: {
         workspaceId: auth.workspaceId,
-        platform: platform.toUpperCase(),
-        status: 'preview',
-        totalItems: items.length,
-        approvedItems: 0,
-        rejectedItems: 0,
-        items: items,
-        userId: auth.user.userId
+        sourcePlatform: platform.toUpperCase(),
+        status: 'PENDING',
+        progress: {
+          totalItems: items.length,
+          approvedItems: 0,
+          rejectedItems: 0,
+        },
+        config: {
+          items: items,
+          userId: auth.user.userId,
+        },
       }
     })
 

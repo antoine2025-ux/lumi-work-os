@@ -786,7 +786,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
                         {hasAnyPeopleFilter(filters) || deferredSearch.trim() ? (
                           <PeopleEmptyState
                             hasFilters={true}
-                            onClearFilters={handleClearAll}
+                            onClearFilters={handleClearAllFilters}
                             onResetSearch={handleResetSearch}
                           />
                         ) : (
@@ -845,7 +845,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
                         {hasAnyPeopleFilter(filters) || deferredSearch.trim() ? (
                           <PeopleEmptyState
                             hasFilters={true}
-                            onClearFilters={handleClearAll}
+                            onClearFilters={handleClearAllFilters}
                             onResetSearch={handleResetSearch}
                           />
                         ) : (

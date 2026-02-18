@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { getOrgContext } from "@/server/rbac";
@@ -8,7 +8,7 @@ function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
 }
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ viewId: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ viewId: string }> }) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {

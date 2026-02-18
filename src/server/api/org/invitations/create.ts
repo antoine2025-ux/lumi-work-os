@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { getAppBaseUrl } from "@/lib/appUrl";
 import { createErrorResponse, createSuccessResponse } from "@/server/api/responses";
@@ -56,30 +58,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const member = await prisma.workspaceMember.findFirst({
-      where: {
-        workspaceId,
-        userId: auth.user.userId,
-      },
-      select: {
-        id: true,
-        role: true,
-      },
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['ADMIN', 'OWNER'] 
     });
-
-    if (!member) {
-      return createErrorResponse(
-        "ORG_NOT_MEMBER",
-        "You are not a member of this workspace."
-      );
-    }
-
-    if (member.role !== "ADMIN" && member.role !== "OWNER") {
-      return createErrorResponse(
-        "FORBIDDEN",
-        "Only admins can invite new members."
-      );
-    }
+    setWorkspaceContext(workspaceId);
 
     const existingUser = await prisma.user.findUnique({
       where: { email },

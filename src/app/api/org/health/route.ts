@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { requireActiveOrgId } from "@/server/org/context";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { getLatestOrgHealth } from "@/server/org/health/store";
 import { refreshOrgHealth } from "@/server/org/health/refresh";
 
 export async function GET(req: NextRequest) {
   try {
-    const orgId = await requireActiveOrgId(req);
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
+    setWorkspaceContext(workspaceId);
 
-    const latest = await getLatestOrgHealth(orgId);
+    const latest = await getLatestOrgHealth(workspaceId);
     if (latest) {
       return NextResponse.json({
         snapshot: {
@@ -36,7 +44,7 @@ export async function GET(req: NextRequest) {
     }
 
     // No snapshot yet: compute + store first snapshot
-    const computed = await refreshOrgHealth(orgId);
+    const computed = await refreshOrgHealth(workspaceId);
     return NextResponse.json({
       snapshot: {
         ...computed.snapshot,
@@ -49,15 +57,21 @@ export async function GET(req: NextRequest) {
         resolvedAt: null,
       })),
     });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    return handleApiError(error, req);
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const orgId = await requireActiveOrgId(req);
-    const computed = await refreshOrgHealth(orgId);
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
+    setWorkspaceContext(workspaceId);
+
+    const computed = await refreshOrgHealth(workspaceId);
 
     return NextResponse.json({
       ok: true,
@@ -66,7 +80,7 @@ export async function POST(req: NextRequest) {
         capturedAt: computed.snapshot.capturedAt.toISOString(),
       },
     });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    return handleApiError(error, req);
   }
 }

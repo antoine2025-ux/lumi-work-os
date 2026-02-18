@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.personManagerLink.create({
       data: {
-        orgId,
+        workspaceId: orgId,
         personId: body.personId,
         managerId: body.managerId,
       },

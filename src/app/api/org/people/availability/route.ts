@@ -1,5 +1,5 @@
 // NOTE: Loopbrain consumes Org directly; this endpoint remains for UI/utility.
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertWorkspaceAccess } from "@/lib/auth/assertAccess"
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     })
 
     const availabilities = await prisma.personAvailabilityHealth.findMany({
-      where: { orgId },
+      where: { workspaceId: orgId },
       select: { personId: true, status: true, reason: true, updatedAt: true, createdAt: true },
       take: 5000,
     })

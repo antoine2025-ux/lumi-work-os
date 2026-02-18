@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  assertOrgCapability,
-  getOrgPermissionContext,
-  mapPermissionErrorToStatus,
-} from "@/lib/org/permissions.server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { isOrgCapacityEnabled } from "@/lib/org/feature-flags";
 
 /**
@@ -68,33 +67,15 @@ function roleFamilyFromTitle(title?: string | null): string {
 
 export async function GET(req: NextRequest) {
   try {
-    const context = await getOrgPermissionContext(req);
-
-    try {
-      assertOrgCapability(context, "org:overview:view");
-    } catch (permError) {
-      const status = mapPermissionErrorToStatus(permError);
-      return NextResponse.json(
-        {
-          error:
-            status === 401
-              ? "Unauthenticated."
-              : status === 403
-                ? "Not allowed to view org overview."
-                : "Failed to check permissions.",
-        },
-        { status }
-      );
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    if (!context) {
-      return NextResponse.json({ error: "No active org found." }, { status: 400 });
-    }
-
-    const orgId = context.orgId; // This is workspaceId in Prisma models
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
+    setWorkspaceContext(workspaceId);
 
     // Check if capacity feature is enabled
-    const capacityEnabled = await isOrgCapacityEnabled(orgId);
+    const capacityEnabled = await isOrgCapacityEnabled(workspaceId);
     if (!capacityEnabled) {
       return NextResponse.json(
         { error: "Capacity features are not enabled for this workspace." },
@@ -111,7 +92,7 @@ export async function GET(req: NextRequest) {
     // Get all active positions with users (these are our "people")
     const positions = await prisma.orgPosition.findMany({
       where: {
-        workspaceId: orgId,
+        workspaceId,
         isActive: true,
         userId: { not: null },
       },
@@ -160,7 +141,7 @@ export async function GET(req: NextRequest) {
     const allocationRecords = await prisma.projectAllocation.findMany({
       where: {
         personId: { in: userIds },
-        orgId: orgId,
+        orgId: workspaceId,
         startDate: { lte: lookahead },
         OR: [
           { endDate: null },
@@ -191,8 +172,8 @@ export async function GET(req: NextRequest) {
     const rows = positions
       .filter((p) => p.user)
       .map((p) => {
-        const user = p.user!;
-        const userId = user.id;
+        const posUser = p.user!;
+        const userId = posUser.id;
         const avRecords = availabilityByUser.get(userId) || [];
         const allocations = allocationByUser.get(userId) || 0;
 
@@ -224,8 +205,8 @@ export async function GET(req: NextRequest) {
         const effectiveCapacityUnits = availableNow ? freeFraction : 0;
 
         return {
-          id: user.id,
-          name: user.name || "Unnamed",
+          id: posUser.id,
+          name: posUser.name || "Unnamed",
           title: p.title || null,
           departmentId: p.team?.department?.id || null,
           departmentName: p.team?.department?.name || null,
@@ -308,12 +289,7 @@ export async function GET(req: NextRequest) {
     };
 
     return NextResponse.json(payload);
-  } catch (err: any) {
-    console.error("[GET /api/org/health/capacity] Error:", err);
-    return NextResponse.json(
-      { error: "Failed to load capacity snapshot.", detail: String(err?.message ?? err) },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req);
   }
 }
-

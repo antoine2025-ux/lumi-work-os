@@ -1,32 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  assertOrgCapability,
-  getOrgPermissionContext,
-  mapPermissionErrorToStatus,
-} from "@/lib/org/permissions.server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 
 export async function DELETE(req: NextRequest) {
   try {
-    const context = await getOrgPermissionContext(req);
-
-    try {
-      assertOrgCapability(context, "org:org:delete");
-    } catch (permError) {
-      const status = mapPermissionErrorToStatus(permError);
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+    if (!isAuthenticated || !workspaceId) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: {
-            code: status === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
-            message: "You are not allowed to delete this org.",
-          },
-        },
-        { status }
+        { ok: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } },
+        { status: 401 }
       );
     }
-
-    const orgId = context!.orgId;
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["OWNER"] });
+    setWorkspaceContext(workspaceId);
 
     if (!prisma) {
       return NextResponse.json(
@@ -58,7 +47,7 @@ export async function DELETE(req: NextRequest) {
 
     // Check if workspace exists
     const workspace = await prisma.workspace.findUnique({
-      where: { id: orgId },
+      where: { id: workspaceId },
       select: { id: true },
     });
 
@@ -77,22 +66,11 @@ export async function DELETE(req: NextRequest) {
 
     // Delete workspace (cascade will handle related data via Prisma relations)
     await prisma.workspace.delete({
-      where: { id: orgId },
+      where: { id: workspaceId },
     });
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
-    console.error("[DELETE /api/org/danger] Error:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message: "Something went wrong while deleting this org.",
-        },
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, req);
   }
 }
-

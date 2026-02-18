@@ -1,18 +1,28 @@
-import { NextResponse } from "next/server";
-import { getOrgPermissionContext } from "@/lib/org/permissions.server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 
-export async function GET() {
-  const context = await getOrgPermissionContext();
-  if (!context) return NextResponse.json({ preferences: {} });
+export async function GET(request: NextRequest) {
+  try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
+    setWorkspaceContext(workspaceId);
 
-  const membership = await prisma.workspaceMember.findFirst({
-    where: { workspaceId: context.orgId, userId: context.userId },
-    select: { preferences: true },
-  });
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { workspaceId, userId: user.userId },
+      select: { preferences: true },
+    });
 
-  return NextResponse.json({
-    preferences: (membership?.preferences as Record<string, any>) ?? {},
-  });
+    return NextResponse.json({
+      preferences: (membership?.preferences as Record<string, any>) ?? {},
+    });
+  } catch (error) {
+    return handleApiError(error, request);
+  }
 }
-

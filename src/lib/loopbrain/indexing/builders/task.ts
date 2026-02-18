@@ -34,7 +34,11 @@ export async function buildContextObjectForTask(
         workspaceId, // Enforce workspace scoping
       },
       include: {
-        project: true,
+        project: {
+          include: {
+            owner: true
+          }
+        },
         assignee: true,
       },
     })

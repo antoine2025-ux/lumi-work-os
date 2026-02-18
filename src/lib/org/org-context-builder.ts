@@ -17,13 +17,13 @@ export type OrgTeamInput = {
   description?: string | null;
   isActive: boolean;
   workspaceId: string;
-  departmentId: string;
+  departmentId: string | null;
   updatedAt: Date;
 };
 
 export type OrgPositionInput = {
   id: string;
-  title: string;
+  title: string | null;
   level?: number | null;
   roleDescription?: string | null;
   isActive: boolean;
@@ -131,34 +131,43 @@ export function buildTeamContext(
   const positionsCount = options?.positionsCount ?? 0;
 
   const summaryParts: string[] = [];
-  summaryParts.push(`Team in department ${team.departmentId}.`);
+  if (team.departmentId) {
+    summaryParts.push(`Team in department ${team.departmentId}.`);
+  } else {
+    summaryParts.push(`Unassigned team.`);
+  }
   if (team.description) {
     summaryParts.push(team.description);
   }
   if (peopleCount > 0) summaryParts.push(`People: ${peopleCount}.`);
   if (positionsCount > 0) summaryParts.push(`Positions: ${positionsCount}.`);
 
-  const relations: ContextRelation[] = [
-    {
+  const relations: ContextRelation[] = [];
+  if (team.departmentId) {
+    relations.push({
       type: "member_of_department",
       sourceId: `team:${team.workspaceId}:${team.id}`,
       targetId: `department:${team.workspaceId}:${team.departmentId}`,
       label: "Team belongs to department",
-    },
+    });
+  }
+
+  const tags: string[] = [
+    "team",
+    `workspace:${team.workspaceId}`,
+    `team:${team.id}`,
+    ...(team.isActive ? ["status:active"] : ["status:inactive"]),
   ];
+  if (team.departmentId) {
+    tags.push(`department:${team.departmentId}`);
+  }
 
   const base: ContextObject = {
     id: `team:${team.workspaceId}:${team.id}`,
     type: "team",
     title: team.name,
     summary: summaryParts.join(" ").trim() || `Team: ${team.name}`,
-    tags: [
-      "team",
-      `workspace:${team.workspaceId}`,
-      `team:${team.id}`,
-      `department:${team.departmentId}`,
-      ...(team.isActive ? ["status:active"] : ["status:inactive"]),
-    ],
+    tags,
     relations,
     owner: null,
     status: team.isActive ? "ACTIVE" : "INACTIVE",
@@ -170,7 +179,7 @@ export function buildTeamContext(
 
 export function buildPositionContext(position: OrgPositionInput): ContextObject {
   const labelParts: string[] = [];
-  labelParts.push(position.title);
+  labelParts.push(position.title || "Untitled Position");
   if (typeof position.level === "number") {
     labelParts.push(`L${position.level}`);
   }

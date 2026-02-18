@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { getOrgContext } from "@/server/rbac";
@@ -8,7 +8,7 @@ function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const auth = await getUnifiedAuth(req);
     if (!auth.isAuthenticated || !auth.user) {

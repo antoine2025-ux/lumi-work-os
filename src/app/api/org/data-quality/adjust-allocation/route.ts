@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { requireActiveOrgId } from "@/server/org/context"
+import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { handleApiError } from "@/lib/api-errors"
 
 type Body = {
   personId: string
@@ -9,7 +12,13 @@ type Body = {
 
 export async function POST(req: NextRequest) {
   try {
-    const orgId = await requireActiveOrgId(req)
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" })
+    setWorkspaceContext(workspaceId)
+
     const body = (await req.json()) as Body
     const personId = String(body.personId ?? "")
     const target = Number(body.targetTotalPct ?? 100)
@@ -19,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     // Normalize allocations for person proportionally (v0)
     const rows = await prisma.capacityAllocation.findMany({
-      where: { orgId, personId } as any,
+      where: { orgId: workspaceId, personId } as any,
       select: { id: true, percent: true } as any,
       take: 1000,
     })
@@ -40,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.orgHealthSignal.updateMany({
       where: {
-        orgId,
+        orgId: workspaceId,
         type: "DATA_QUALITY" as any,
         resolvedAt: null,
         dismissedAt: null,
@@ -52,8 +61,7 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json({ ok: true, updated: rows.length })
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  } catch (error) {
+    return handleApiError(error, req)
   }
 }
-

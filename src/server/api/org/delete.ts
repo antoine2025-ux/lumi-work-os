@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { logOrgAuditEvent } from "@/server/audit/orgAudit";
 import { createErrorResponse, createSuccessResponse } from "@/server/api/responses";
@@ -29,45 +31,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const membership = await prisma.workspaceMember.findFirst({
-      where: {
-        workspaceId,
-        userId: auth.user.userId,
-      },
-      select: {
-        id: true,
-        role: true,
-      },
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['OWNER'] 
     });
-
-    if (!membership) {
-      return createErrorResponse(
-        "ORG_NOT_MEMBER",
-        "You are not a member of this workspace."
-      );
-    }
-
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      select: {
-        id: true,
-        ownerId: true,
-      },
-    });
-
-    if (!workspace) {
-      return createErrorResponse(
-        "NOT_FOUND",
-        "Workspace not found."
-      );
-    }
-
-    if (workspace.ownerId !== auth.user.userId) {
-      return createErrorResponse(
-        "ORG_OWNER_ONLY",
-        "Only the owner can delete this workspace."
-      );
-    }
+    setWorkspaceContext(workspaceId);
 
     await prisma.$transaction(async (tx) => {
       await logOrgAuditEvent(tx as any, {

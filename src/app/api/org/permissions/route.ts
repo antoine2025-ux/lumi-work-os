@@ -1,45 +1,48 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { getOrgContext } from "@/server/rbac";
+import { prisma } from "@/lib/db";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+
+// Soft-fail fallback — header.tsx depends on this never throwing
+const FALLBACK = { ok: true, role: null, canEdit: false } as const;
+
+function mapRole(role: string): { role: string; canEdit: boolean } {
+  switch (role) {
+    case "OWNER":
+    case "ADMIN":
+      return { role: "ADMIN", canEdit: true };
+    case "MEMBER":
+    case "VIEWER":
+    default:
+      return { role: "VIEWER", canEdit: false };
+  }
+}
 
 export async function GET(req: NextRequest) {
   try {
-    const ctx = await getOrgContext(req);
-    
-    // If user is not authenticated, return empty permissions
-    if (!ctx.user) {
-      return NextResponse.json({
-        ok: true,
-        role: null,
-        canEdit: false,
-        hint: "Authentication required to load permissions.",
-      }, { status: 200 });
-    }
-    
-    // If user is authenticated but has no org membership, return minimal permissions
-    if (!ctx.orgId) {
-      return NextResponse.json({ 
-        ok: true,
-        role: null,
-        canEdit: false,
-        noOrgMembership: true,
-        hint: "No organization membership found.",
-      }, { status: 200 });
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ ...FALLBACK, hint: "Authentication required." }, { status: 200 });
     }
 
-    return NextResponse.json({
-      ok: true,
-      role: ctx.role,
-      canEdit: ctx.canEdit,
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
+    setWorkspaceContext(workspaceId);
+
+    const member = await prisma.workspaceMember.findFirst({
+      where: { workspaceId, userId: user.userId },
+      select: { role: true },
     });
+
+    if (!member) {
+      return NextResponse.json({ ...FALLBACK, noOrgMembership: true }, { status: 200 });
+    }
+
+    return NextResponse.json({ ok: true, ...mapRole(member.role) });
   } catch (error: any) {
     console.error("[GET /api/org/permissions] Error:", error);
-    // Return minimal permissions on error - never break the page
-    return NextResponse.json({
-      ok: true,
-      role: null,
-      canEdit: false,
-      hint: error?.message || "Failed to load permissions.",
-    }, { status: 200 });
+    return NextResponse.json({ ...FALLBACK, hint: error?.message || "Failed to load permissions." }, { status: 200 });
   }
 }

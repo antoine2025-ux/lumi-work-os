@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  assertOrgCapability,
-  getOrgPermissionContext,
-  mapPermissionErrorToStatus,
-} from "@/lib/org/permissions.server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 
 /**
  * Ownership Coverage Health
@@ -42,34 +41,18 @@ function hasOwner(value: any) {
 
 export async function GET(req: NextRequest) {
   try {
-    const context = await getOrgPermissionContext(req);
-
-    try {
-      assertOrgCapability(context, "org:overview:view");
-    } catch (permError) {
-      const status = mapPermissionErrorToStatus(permError);
-      return NextResponse.json(
-        {
-          error:
-            status === 401
-              ? "Unauthenticated."
-              : "Not allowed to view org ownership coverage.",
-        },
-        { status }
-      );
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    if (!context) {
-      return NextResponse.json({ error: "No active org found." }, { status: 400 });
-    }
-
-    const orgId = context.orgId; // workspaceId
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
+    setWorkspaceContext(workspaceId);
 
     // ----- PEOPLE -----
     // Count distinct users with active positions
     const peopleWithPositions = await prisma.orgPosition.findMany({
       where: {
-        workspaceId: orgId,
+        workspaceId,
         isActive: true,
         userId: { not: null },
       },
@@ -81,7 +64,7 @@ export async function GET(req: NextRequest) {
 
     // ----- DEPARTMENTS -----
     const departments = await prisma.orgDepartment.findMany({
-      where: { workspaceId: orgId, isActive: true },
+      where: { workspaceId, isActive: true },
       orderBy: { name: "asc" },
       select: {
         id: true,
@@ -92,7 +75,7 @@ export async function GET(req: NextRequest) {
     // Get teams per department to check ownership
     const teamsByDept = await prisma.orgTeam.findMany({
       where: {
-        workspaceId: orgId,
+        workspaceId,
         isActive: true,
         departmentId: { in: departments.map((d) => d.id) },
       },
@@ -115,6 +98,7 @@ export async function GET(req: NextRequest) {
     // Department is owned if any team in it has >=1 active filled position
     const deptOwnershipMap = new Map<string, boolean>();
     for (const team of teamsByDept) {
+      if (!team.departmentId) continue;
       const isOwned = team._count.positions > 0;
       if (!deptOwnershipMap.has(team.departmentId) || isOwned) {
         deptOwnershipMap.set(team.departmentId, isOwned);
@@ -130,7 +114,7 @@ export async function GET(req: NextRequest) {
 
     // ----- TEAMS -----
     const teams = await prisma.orgTeam.findMany({
-      where: { workspaceId: orgId, isActive: true },
+      where: { workspaceId, isActive: true },
       orderBy: { name: "asc" },
       select: {
         id: true,
@@ -163,7 +147,7 @@ export async function GET(req: NextRequest) {
 
     // ----- POSITIONS -----
     const positions = await prisma.orgPosition.findMany({
-      where: { workspaceId: orgId, isActive: true },
+      where: { workspaceId, isActive: true },
       orderBy: { title: "asc" },
       select: {
         id: true,
@@ -216,11 +200,7 @@ export async function GET(req: NextRequest) {
     };
 
     return NextResponse.json(payload);
-  } catch (err: any) {
-    console.error("[GET /api/org/health/ownership] Error:", err);
-    return NextResponse.json(
-      { error: "Failed to load ownership coverage.", detail: String(err?.message ?? err) },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req);
   }
 }

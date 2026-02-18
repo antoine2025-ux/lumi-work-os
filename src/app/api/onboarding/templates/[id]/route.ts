@@ -27,11 +27,8 @@ export async function GET(
     const template = await prisma.onboardingTemplate.findUnique({
       where: { id: resolvedParams.id },
       include: {
-        tasks: {
+        onboarding_tasks: {
           orderBy: { order: 'asc' },
-        },
-        createdBy: {
-          select: { name: true, email: true },
         },
       },
     })
@@ -78,25 +75,25 @@ export async function PATCH(
     // Prepare update data
     const updateData: any = {
       ...(validatedData.name && { name: validatedData.name }),
-      ...(validatedData.durationDays && { durationDays: validatedData.durationDays }),
+      ...(validatedData.durationDays && { duration: validatedData.durationDays }),
       ...(validatedData.description !== undefined && { description: validatedData.description }),
-      ...(validatedData.visibility && { visibility: validatedData.visibility }),
     }
 
     // Handle tasks update if provided
     if (validatedData.tasks) {
       // Delete existing tasks
-      await prisma.templateTask.deleteMany({
+      await prisma.onboardingTask.deleteMany({
         where: { templateId: resolvedParams.id },
       })
 
       // Create new tasks
-      updateData.tasks = {
+      updateData.onboarding_tasks = {
         create: validatedData.tasks.map(task => ({
           title: task.title,
           description: task.description,
           order: task.order,
-          dueDay: task.dueDay,
+          workspaceId: existingTemplate.workspaceId,
+          updatedAt: new Date(),
         })),
       }
     }
@@ -105,11 +102,8 @@ export async function PATCH(
       where: { id: resolvedParams.id },
       data: updateData,
       include: {
-        tasks: {
+        onboarding_tasks: {
           orderBy: { order: 'asc' },
-        },
-        createdBy: {
-          select: { name: true, email: true },
         },
       },
     })
@@ -118,7 +112,7 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input data', details: error.errors } },
+        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input data', details: error.issues } },
         { status: 400 }
       )
     }

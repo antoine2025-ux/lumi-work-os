@@ -136,7 +136,9 @@ export async function loadDepartmentContexts(
 
   // Map teamsByDepartment -> teamsCountMap
   for (const row of teamsByDepartment) {
-    teamsCountMap.set(row.departmentId, row._count.id);
+    if (row.departmentId) {
+      teamsCountMap.set(row.departmentId, row._count.id);
+    }
   }
 
   // Map positionsByDepartment -> positionsCountMap
@@ -152,7 +154,9 @@ export async function loadDepartmentContexts(
 
   const teamIdToDepartmentId = new Map<string, string>();
   for (const t of teamsForPositions) {
-    teamIdToDepartmentId.set(t.id, t.departmentId);
+    if (t.departmentId) {
+      teamIdToDepartmentId.set(t.id, t.departmentId);
+    }
   }
 
   for (const row of positionsByDepartment) {
@@ -174,7 +178,9 @@ export async function loadDepartmentContexts(
 
   const teamIdToDepartmentIdForFilled = new Map<string, string>();
   for (const t of teamsForFilled) {
-    teamIdToDepartmentIdForFilled.set(t.id, t.departmentId);
+    if (t.departmentId) {
+      teamIdToDepartmentIdForFilled.set(t.id, t.departmentId);
+    }
   }
 
   for (const row of filledPositionsByDepartment) {

@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { prisma } from "@/lib/db";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { requireNonEmptyString } from "@/server/org/validate";
 import { assignOwnership } from "@/server/org/ownership/write";
@@ -55,6 +56,12 @@ export async function POST(request: NextRequest) {
     // Step 3: Set workspace context (enables automatic Prisma scoping)
     setWorkspaceContext(workspaceId);
 
+    const workspaceRecord = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { slug: true },
+    });
+    const workspaceSlug = workspaceRecord?.slug ?? workspaceId;
+
     // Step 4: Parse and validate request body
     const body = await request.json();
     const entityType = requireNonEmptyString(body.entityType, "entityType") as "TEAM" | "DEPARTMENT";
@@ -72,7 +79,8 @@ export async function POST(request: NextRequest) {
     const issuesBefore = await deriveOwnershipIssuesForEntity(
       workspaceId,
       entityType,
-      entityId
+      entityId,
+      workspaceSlug
     );
 
     // Step 6: Assign ownership (returns previous owner for audit logging)
@@ -87,7 +95,8 @@ export async function POST(request: NextRequest) {
     const issuesAfter = await deriveOwnershipIssuesForEntity(
       workspaceId,
       entityType,
-      entityId
+      entityId,
+      workspaceSlug
     );
 
     // Step 8: Build response metadata (includes mutationId for resolution)

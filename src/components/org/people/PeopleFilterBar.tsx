@@ -26,21 +26,21 @@ export function PeopleFilterBar({
   const anyFilters = hasAnyPeopleFilter(filters);
   if (!anyFilters) return null;
 
-  const items: { key: keyof PeopleFilters; label: string; value?: string; displayValue?: string }[] = [
+  const items = [
     { 
-      key: "teamId", 
+      key: "teamId" as const, 
       label: "Team", 
       value: filters.teamId,
       displayValue: teamName || filters.teamId,
     },
     { 
-      key: "departmentId", 
+      key: "departmentId" as const, 
       label: "Department", 
       value: filters.departmentId,
       displayValue: departmentName || filters.departmentId,
     },
     { 
-      key: "roleId", 
+      key: "roleId" as const, 
       label: "Role", 
       value: filters.roleId,
       displayValue: roleName || filters.roleId,

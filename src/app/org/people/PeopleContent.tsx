@@ -5,7 +5,7 @@
 
 import { Suspense } from "react";
 import { getOrgPeople } from "@/lib/org/data.server";
-import PeopleClient from "@/app/(dashboard)/org-legacy/people/people.client";
+import { PeopleListClient } from "@/components/org/PeopleListClient";
 import { OrgPeopleTableSkeleton } from "@/components/org/skeletons/OrgPeopleSkeleton";
 import type { OrgPermissionContext } from "@/lib/org/permissions.server";
 
@@ -34,19 +34,7 @@ async function PeopleDataLoader({ context }: PeopleContentProps) {
     }
   }
 
-  // Convert OrgPerson[] to PersonRow[] format expected by PeopleClient
-  const initialPeople = result.items.map((p) => ({
-    id: p.id,
-    name: p.name,
-    email: p.email || null,
-    title: p.role || null,
-    roleName: p.role || null,
-    teamName: p.team || null,
-    managerId: null, // Will be loaded client-side
-    createdAt: p.joinedAt || undefined,
-  }));
-
-  return <PeopleClient orgId={context.orgId} initialPeople={initialPeople} />;
+  return <PeopleListClient />;
 }
 
 export function PeopleContent({ context }: PeopleContentProps) {

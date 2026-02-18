@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { isOrgCenterForceDisabled } from "@/lib/org/feature-flags";
 import { recordOrgApiHit } from "@/lib/org/monitoring.server";
 
@@ -13,15 +15,16 @@ export async function POST(req: NextRequest) {
       return new NextResponse(null, { status: 204 }); // No Content - optional endpoint
     }
 
-    // Use unified auth instead of old permission context
-    const auth = await getUnifiedAuth(req).catch(() => null);
-    if (!auth?.workspaceId || !auth?.user?.userId) {
+    // Use unified auth — this is a soft-fail tracking endpoint; any auth failure returns 204
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+    if (!isAuthenticated || !workspaceId) {
       await recordOrgApiHit(routeId, 204, null, null).catch(() => {});
       return new NextResponse(null, { status: 204 }); // No Content - optional endpoint
     }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
+    setWorkspaceContext(workspaceId);
 
-    const workspaceId = auth.workspaceId;
-    const userId = auth.user.userId;
+    const userId = user.userId;
     const body = await req.json().catch(() => ({} as any));
 
     const eventType =

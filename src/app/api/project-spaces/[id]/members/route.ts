@@ -137,12 +137,10 @@ export async function POST(
     }
 
     // Check if already a member
-    const existingMember = await prisma.projectSpaceMember.findUnique({
+    const existingMember = await prisma.projectSpaceMember.findFirst({
       where: {
-        projectSpaceId_userId: {
-          projectSpaceId,
-          userId
-        }
+        projectSpaceId,
+        userId
       }
     })
 

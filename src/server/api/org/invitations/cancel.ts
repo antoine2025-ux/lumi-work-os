@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
@@ -21,20 +23,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const membership = await prisma.workspaceMember.findFirst({
-      where: {
-        workspaceId,
-        userId: auth.user.userId,
-      },
-      select: {
-        id: true,
-        role: true,
-      },
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['ADMIN', 'OWNER'] 
     });
-
-    if (!membership || (membership.role !== "ADMIN" && membership.role !== "OWNER")) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-    }
+    setWorkspaceContext(workspaceId);
 
     const invitation = await prisma.orgInvitation.findFirst({
       where: {

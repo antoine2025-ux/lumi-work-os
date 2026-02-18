@@ -85,7 +85,7 @@ export function OrgHealthSignalsInbox(props: {
                   <div className="mt-1 text-sm text-muted-foreground">{s.description}</div>
                   {s.type === "OWNERSHIP" && s.contextLabel && (
                     <div className="mt-1 text-xs text-muted-foreground">
-                      Entity: {String(s.contextType ?? "ENTITY")} · {s.contextLabel}
+                      Entity: {s.contextLabel}
                     </div>
                   )}
                   <div className="mt-2 text-xs text-muted-foreground">

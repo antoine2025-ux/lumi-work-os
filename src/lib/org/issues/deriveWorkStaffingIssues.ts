@@ -27,6 +27,13 @@ const MAX_REQUESTS_PER_RUN = 50;
 export async function deriveWorkStaffingIssues(
   workspaceId: string
 ): Promise<OrgIssueMetadata[]> {
+  // Fetch workspace slug for deep links
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { slug: true },
+  });
+  const workspaceSlug = workspace?.slug || "";
+
   // 1. Fetch open work requests, deterministically ordered, capped
   const openRequests = await prisma.workRequest.findMany({
     where: { workspaceId, status: "OPEN" },
@@ -64,7 +71,7 @@ export async function deriveWorkStaffingIssues(
       entityId: wr.id,
       entityName: wr.title,
     };
-    const fixUrl = deepLinkForWorkRequest(wr.id);
+    const fixUrl = deepLinkForWorkRequest(workspaceSlug, wr.id);
 
     // ─── Step 0 (O1): Skip issue derivation for provisional work ────
     // Provisional work requests suppress all staffing issues except

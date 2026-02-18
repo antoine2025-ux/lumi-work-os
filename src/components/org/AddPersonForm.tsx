@@ -61,13 +61,19 @@ export function AddPersonForm() {
 
     setSaving(true);
     try {
-      const payload = {
-        fullName: name,
-        email: email.trim() || null,
-        title: title.trim() || null,
-        departmentId,
-        teamId,
-      };
+      const payload: {
+        fullName: string;
+        email?: string;
+        title?: string;
+        departmentId?: string;
+        teamId?: string;
+      } = { fullName: name };
+
+      if (email.trim()) payload.email = email.trim();
+      if (title.trim()) payload.title = title.trim();
+      if (departmentId) payload.departmentId = departmentId;
+      if (teamId) payload.teamId = teamId;
+
       const result = await OrgApi.createPerson(payload);
 
       // Redirect first, then trigger refresh
@@ -216,7 +222,7 @@ export function AddPersonForm() {
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => router.push(peopleHref)}
+                onClick={() => router.push(orgUrl.directory)}
                 disabled={saving}
               >
                 Cancel

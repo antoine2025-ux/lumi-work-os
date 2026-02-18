@@ -7,11 +7,6 @@
  */
 
 import type { OrgReadinessBlocker } from "@/lib/org/snapshot/types";
-import {
-  deepLinkForOwnershipIssues,
-  deepLinkForCapacityIssues,
-  deepLinkForResponsibilityIssues,
-} from "@/lib/org/issues/deepLinks";
 
 type Action = { label: string; deepLink?: string };
 
@@ -20,19 +15,19 @@ export const BLOCKER_ACTIONS_V0: Record<OrgReadinessBlocker, Action[]> = {
   NO_ACTIVE_PEOPLE: [{ label: "Add people", deepLink: "/org/directory" }],
   NO_TEAMS: [{ label: "Add teams", deepLink: "/org/structure" }],
   OWNERSHIP_INCOMPLETE: [
-    { label: "Resolve ownership issues", deepLink: deepLinkForOwnershipIssues() },
+    { label: "Resolve ownership issues", deepLink: "/org/admin/health?types=UNOWNED_TEAM,UNOWNED_DEPARTMENT,OWNERSHIP_CONFLICT" },
   ],
   NO_DECISION_DOMAINS: [
     { label: "Define decision domains", deepLink: "/org/admin/decisions" },
   ],
   CAPACITY_COVERAGE_BELOW_MIN: [
-    { label: "Configure capacity", deepLink: deepLinkForCapacityIssues() },
+    { label: "Configure capacity", deepLink: "/org/admin/health?types=OVERALLOCATED_PERSON,LOW_EFFECTIVE_CAPACITY,CAPACITY_CONTRACT_CONFLICT" },
     { label: "Add people", deepLink: "/org/directory" },
   ],
   RESPONSIBILITY_PROFILES_MISSING: [
     {
       label: "Configure responsibility profiles",
-      deepLink: deepLinkForResponsibilityIssues(),
+      deepLink: "/org/admin/health?types=ROLE_ALIGNMENT_UNKNOWN,WORK_ROLE_MISALIGNED,ROLE_PROFILE_MISSING",
     },
     { label: "Configure responsibility", deepLink: "/org/admin/responsibility" },
   ],

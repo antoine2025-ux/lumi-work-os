@@ -325,7 +325,7 @@ export function StructureClient() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">No owner</SelectItem>
-                            {people.map((p) => (
+                            {people.map((p: typeof people[0]) => (
                               <SelectItem key={p.id} value={p.id}>
                                 {p.fullName}
                               </SelectItem>
@@ -418,12 +418,12 @@ export function StructureClient() {
                                         <SelectContent>
                                           {people
                                             .filter(
-                                              (p) =>
+                                              (p: typeof people[0]) =>
                                                 !teamDetails[t.id]?.members?.some(
                                                   (m: any) => m.personId === p.id
                                                 )
                                             )
-                                            .map((p) => (
+                                            .map((p: typeof people[0]) => (
                                               <SelectItem key={p.id} value={p.id}>
                                                 {p.fullName}
                                               </SelectItem>

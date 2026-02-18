@@ -94,7 +94,7 @@ function RecommendationCard({ rec }: { rec: OrgReasoningRecommendation }) {
     : null;
 
   // Only render link if action exists and has valid href
-  const canRenderAction = primaryAction?.href && !primaryAction.disabled;
+  const canRenderAction = primaryAction?.href;
 
   return (
     <Card className="bg-slate-900/50 border-slate-800 hover:border-slate-700 transition-colors">

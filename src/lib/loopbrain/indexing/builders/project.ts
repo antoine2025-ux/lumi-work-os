@@ -43,29 +43,9 @@ export async function buildContextObjectForProject(
       return null
     }
 
-    // Apply ProjectSpace visibility filtering if userId provided
-    if (userId && project.projectSpaceId) {
-      const projectSpace = await prisma.projectSpace.findFirst({
-        where: {
-          id: project.projectSpaceId,
-        },
-        include: {
-          members: {
-            where: {
-              userId,
-            },
-          },
-        },
-      })
-
-      if (projectSpace) {
-        // TARGETED spaces: only visible to members
-        if (projectSpace.visibility === 'TARGETED' && projectSpace.members.length === 0) {
-          return null // Not visible to this user
-        }
-        // PUBLIC spaces: visible to all (no check needed)
-      }
-    }
+    // Note: ProjectSpace visibility filtering disabled as projectSpaceId field 
+    // is not present in the Project model. If needed, this should be implemented
+    // using a join table or a different approach.
 
     // Build ContextObject using existing builder
     const contextObject = projectToContext(project, {

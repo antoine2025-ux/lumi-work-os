@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
             endDate: true
           }
         },
-        customFields: {
+        customFieldValues: {
           include: {
             field: {
               select: {

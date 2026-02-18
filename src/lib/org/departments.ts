@@ -16,6 +16,9 @@ export async function getOrgDepartmentById(
   departmentId: string
 ): Promise<OrgDepartmentDetailDTO | null> {
   const workspaceId = await getCurrentWorkspaceId();
+  if (!workspaceId) {
+    return null;
+  }
 
   const department = await prisma.orgDepartment.findFirst({
     where: {

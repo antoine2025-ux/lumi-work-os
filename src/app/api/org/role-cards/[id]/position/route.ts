@@ -10,6 +10,12 @@ export async function GET(
 ) {
   try {
     const workspaceId = await getCurrentWorkspaceId(req);
+    if (!workspaceId) {
+      return NextResponse.json(
+        { ok: false, error: "Missing workspace" },
+        { status: 400 }
+      );
+    }
     const { id: roleCardId } = await params;
 
     const roleCard = await prisma.roleCard.findFirst({

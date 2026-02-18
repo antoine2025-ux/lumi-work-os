@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildOrgSummaryPreambleForCurrentWorkspace } from "@/lib/loopbrain/org-prompt-builder";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { logOrgQna } from "@/lib/org-qna-log";
+import { generateAIResponse } from "@/lib/ai/providers";
+import { LOOPBRAIN_ORG_CONFIG } from "@/lib/loopbrain/config";
+import { getRefusalTitleV0, getRefusalSubtitleV0 } from "@/lib/loopbrain/contract/refusalCopy.v0";
 
 type OrgQnaRequest = {
   question?: string;
@@ -43,20 +46,30 @@ export async function POST(request: NextRequest) {
       question,
     ].join("\n");
 
-    // 2) Stubbed answer – placeholder for now
-    const stubAnswer =
-      "This is a placeholder answer from the Org Q&A stub. " +
-      "In production, this endpoint will call Loopbrain/OpenAI using the combined Org prompt.";
+    // 2) Call the LLM
+    let answer: string;
+    try {
+      const llmResponse = await generateAIResponse(combinedPrompt, LOOPBRAIN_ORG_CONFIG.model, {
+        temperature: 0.2,
+        maxTokens: LOOPBRAIN_ORG_CONFIG.maxTokens,
+      });
+      answer = llmResponse.content;
+    } catch (llmError) {
+      console.error("Loopbrain Org Q&A LLM error", llmError);
+      answer = `${getRefusalTitleV0()} — ${getRefusalSubtitleV0()}`;
+    }
 
     // 3) Log the Q&A request (best effort, doesn't block response)
     try {
       const workspaceId = await getCurrentWorkspaceId(request);
-      await logOrgQna({
-        workspaceId,
-        question,
-        location: body?.metadata?.location ?? null,
-        metadata: body?.metadata ?? null,
-      });
+      if (workspaceId) {
+        await logOrgQna({
+          workspaceId,
+          question,
+          location: body?.metadata?.location ?? null,
+          metadata: body?.metadata ?? null,
+        });
+      }
     } catch (logError) {
       // Logging failures should not affect the Q&A response
       console.error("Failed to log Org Q&A request", logError);
@@ -65,17 +78,17 @@ export async function POST(request: NextRequest) {
     // 4) Return Q&A contract
     return NextResponse.json({
       ok: true,
-      answer: stubAnswer,
+      answer,
       question,
       orgPreamble,
       combinedPrompt,
       metadata: body?.metadata ?? null,
       debug: {
-        source: "org-qna-stub",
+        source: "org-qna-llm",
       },
     });
   } catch (error) {
-    console.error("Loopbrain Org Q&A stub error", error);
+    console.error("Loopbrain Org Q&A error", error);
     return NextResponse.json(
       {
         ok: false,

@@ -30,7 +30,10 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const openai = getOpenAIClient()
+          if (!openai) {
+            controller.error(new Error('OpenAI client not available'))
+            return
+          }
           const completion = await openai.chat.completions.create({
             model: "gpt-4-turbo-preview",
             messages: [

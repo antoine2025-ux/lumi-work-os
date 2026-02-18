@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireActiveOrgId } from "@/server/org/context"
+import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { handleApiError } from "@/lib/api-errors"
 import { parseCsv } from "@/server/org/import/csv"
 import { asFte, asPercent, asShrinkage, ImportError } from "@/server/org/import/validators"
 import { getPeopleEmailMap } from "@/server/org/import/lookup"
@@ -12,14 +15,20 @@ type Preview =
 
 export async function POST(req: NextRequest) {
   try {
-    const orgId = await requireActiveOrgId(req)
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" })
+    setWorkspaceContext(workspaceId)
+
     const body = (await req.json()) as { entity: string; csv: string }
 
     const entity = String(body?.entity ?? "")
     const csvText = String(body?.csv ?? "")
     const { rows } = parseCsv(csvText)
 
-    const emailMap = await getPeopleEmailMap(orgId)
+    const emailMap = await getPeopleEmailMap(workspaceId)
 
     const errors: ImportError[] = []
     const sample: any[] = []
@@ -88,8 +97,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ error: "Unknown entity" }, { status: 400 })
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  } catch (error) {
+    return handleApiError(error, req)
   }
 }
-

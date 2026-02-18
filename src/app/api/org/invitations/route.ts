@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
           <p style="margin:0 0 12px 0;">
             <a href="${link}">Accept invitation</a>
           </p>
-          <p style="margin:0; color:#666">This link expires on ${created.expiresAt.toISOString()}.</p>
+          <p style="margin:0; color:#666">This link expires on ${created.expiresAt?.toISOString() ?? 'N/A'}.</p>
         </div>
       `,
     }).catch(() => null);

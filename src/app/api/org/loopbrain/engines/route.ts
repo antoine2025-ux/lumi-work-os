@@ -1,46 +1,63 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { listEngines } from "@/server/loopbrain/registry";
-import { getOrgContext, requireAdmin } from "@/server/rbac";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
-  const ctx = await getOrgContext(req);
-  if (!ctx.orgId) return NextResponse.json({ ok: false }, { status: 401 });
+  try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ ok: false }, { status: 401 });
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
+    setWorkspaceContext(workspaceId);
 
-  const engines = listEngines().filter((e) => e.scope === "people_issues");
+    const engines = listEngines().filter((e) => e.scope === "people_issues");
 
-  const cfg = await prisma.orgLoopBrainConfig.findUnique({
-    where: { orgId_scope: { orgId: ctx.orgId, scope: "people_issues" } },
-  });
+    const cfg = await prisma.orgLoopBrainConfig.findUnique({
+      where: { orgId_scope: { orgId: workspaceId, scope: "people_issues" } },
+    });
 
-  return NextResponse.json({ ok: true, engines, config: cfg || null });
+    return NextResponse.json({ ok: true, engines, config: cfg || null });
+  } catch (error) {
+    return handleApiError(error, req);
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const ctx = await getOrgContext(req);
-  if (!ctx.orgId) return NextResponse.json({ ok: false }, { status: 401 });
-  requireAdmin((ctx as any).canAdmin);
+  try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ ok: false }, { status: 401 });
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    setWorkspaceContext(workspaceId);
 
-  const body = (await req.json()) as { engineId: string; enabled: boolean };
+    const body = (await req.json()) as { engineId: string; enabled: boolean };
 
-  const updated = await prisma.orgLoopBrainConfig.upsert({
-    where: { orgId_scope: { orgId: ctx.orgId, scope: "people_issues" } },
-    update: { engineId: body.engineId, enabled: !!body.enabled },
-    create: { orgId: ctx.orgId, scope: "people_issues", engineId: body.engineId, enabled: !!body.enabled },
-  });
+    const updated = await prisma.orgLoopBrainConfig.upsert({
+      where: { orgId_scope: { orgId: workspaceId, scope: "people_issues" } },
+      update: { engineId: body.engineId, enabled: !!body.enabled },
+      create: { orgId: workspaceId, scope: "people_issues", engineId: body.engineId, enabled: !!body.enabled },
+    });
 
-  await prisma.auditLogEntry.create({
-    data: {
-      orgId: ctx.orgId,
-      actorUserId: ctx.user?.id ?? null,
-      actorLabel: ctx.user?.name || ctx.user?.email || "Unknown user",
-      action: "update_loopbrain_engine",
-      targetCount: 1,
-      summary: `LoopBrain engine set to ${body.engineId} (enabled=${!!body.enabled})`,
-    },
-  });
+    await prisma.auditLogEntry.create({
+      data: {
+        orgId: workspaceId,
+        actorUserId: user.userId,
+        actorLabel: user.name || user.email || "Unknown user",
+        action: "update_loopbrain_engine",
+        targetCount: 1,
+        summary: `LoopBrain engine set to ${body.engineId} (enabled=${!!body.enabled})`,
+      },
+    });
 
-  return NextResponse.json({ ok: true, config: updated });
+    return NextResponse.json({ ok: true, config: updated });
+  } catch (error) {
+    return handleApiError(error, req);
+  }
 }
-

@@ -187,7 +187,7 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
   const handleDelete = async (allocationId: string) => {
     try {
       await deleteAllocation(allocationId);
-      toast({ title: "Allocation deleted" });
+      toast({ description: "Allocation deleted" });
       loadAllocations();
       onAllocationsChanged?.();
     } catch (err) {

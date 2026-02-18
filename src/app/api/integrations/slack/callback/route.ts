@@ -180,12 +180,13 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     const errorStack = error instanceof Error ? error.stack : undefined
+    const callbackUrl = new URL(request.url)
     logger.error('Error in Slack OAuth callback:', {
       error: errorMessage,
       stack: errorStack,
       url: request.url,
-      code: url.searchParams.get('code'),
-      state: url.searchParams.get('state')
+      code: callbackUrl.searchParams.get('code'),
+      state: callbackUrl.searchParams.get('state')
     })
     const redirectBase = process.env.NODE_ENV === 'development' 
       ? 'http://localhost:3000'

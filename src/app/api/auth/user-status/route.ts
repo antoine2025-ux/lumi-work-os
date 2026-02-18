@@ -224,55 +224,9 @@ export async function GET(request: NextRequest) {
     
     // If user has no workspace, return appropriate status
     if (error instanceof Error && error.message.includes('No workspace found')) {
-      let pendingInvite = null
+      const pendingInvite = null
       
-      // Check for pending invites if user is authenticated
-      if (session?.user?.email) {
-        const { prisma } = await import('@/lib/db')
-        const normalizedEmail = session.user.email.toLowerCase().trim()
-        
-        try {
-          const invite = await prisma.workspaceInvite.findFirst({
-            where: {
-              email: normalizedEmail,
-              revokedAt: null,
-              acceptedAt: null,
-              expiresAt: { gt: new Date() }
-            },
-            select: {
-              token: true,
-              workspace: {
-                select: {
-                  slug: true,
-                  name: true
-                }
-              }
-            },
-            orderBy: { createdAt: 'desc' }
-          })
-          
-          if (invite) {
-            pendingInvite = {
-              token: invite.token,
-              workspace: invite.workspace
-            }
-            
-            // Log pending invite found (dev/prod-safe: email domain only)
-            const emailDomain = normalizedEmail.split('@')[1] || 'unknown'
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`[user-status] Pending invite found for @${emailDomain}`)
-            }
-          } else {
-            const emailDomain = normalizedEmail.split('@')[1] || 'unknown'
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`[user-status] No pending invite found for @${emailDomain}`)
-            }
-          }
-        } catch (inviteError) {
-          console.error('[user-status] Error checking pending invites:', inviteError)
-          // Graceful degradation: continue without pendingInvite
-        }
-      }
+      // Note: Invite system not implemented - pendingInvite is always null
       
       return NextResponse.json({
         isAuthenticated: !!session?.user?.email, // Check session even for unauthorized errors

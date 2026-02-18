@@ -19,6 +19,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CreateDepartmentDialog } from "@/components/org/structure/CreateDepartmentDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
 import {
@@ -247,11 +248,7 @@ export function StructureClient({
               </p>
             </div>
             <div className="shrink-0">
-              <Button asChild variant="default">
-                <Link href="/org/departments/new">
-                  Add department
-                </Link>
-              </Button>
+              <CreateDepartmentDialog />
             </div>
           </div>
 

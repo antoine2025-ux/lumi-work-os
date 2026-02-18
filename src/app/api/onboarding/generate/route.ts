@@ -197,26 +197,23 @@ Generate a comprehensive onboarding plan for this role.`
 
     // Use authenticated user's workspace and user ID
     const workspaceId = auth.workspaceId
-    const userId = auth.user?.id
+    const userId = auth.user?.userId
     if (!userId) {
       return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
 
-    // Create template (private visibility)
+    // Create template
     const template = await prisma.onboardingTemplate.create({
       data: {
         workspaceId,
         name: planData.planName,
-        durationDays: validatedData.durationDays,
+        duration: validatedData.durationDays,
         description: `AI-generated onboarding plan for ${validatedData.role} in ${validatedData.department}`,
-        visibility: 'PRIVATE',
-        createdById: userId,
-        tasks: {
+        onboarding_tasks: {
           create: tasks.map((task: any, index: number) => ({
             title: task.title || `Task ${index + 1}`,
             description: task.description || '',
             order: index,
-            dueDay: task.dueDay || Math.min(index + 1, validatedData.durationDays),
             workspaceId,
           })),
         },
@@ -228,31 +225,17 @@ Generate a comprehensive onboarding plan for this role.`
     const plan = await prisma.onboardingPlan.create({
       data: {
         workspaceId,
-        employeeId: validatedData.employeeId,
+        userId: validatedData.employeeId,
         templateId: template.id,
-        name: planData.planName,
+        title: planData.planName,
         startDate,
-        createdById: userId,
-        tasks: {
-          create: tasks.map((task: any, index: number) => ({
-            title: task.title || `Task ${index + 1}`,
-            description: task.description || '',
-            order: index,
-            status: 'PENDING',
-            dueDate: task.dueDay ? new Date(startDate.getTime() + task.dueDay * 24 * 60 * 60 * 1000) : null,
-            workspaceId,
-          })),
-        },
       },
       include: {
-        employee: {
+        users: {
           select: { name: true, email: true },
         },
         template: {
-          select: { name: true, durationDays: true },
-        },
-        tasks: {
-          orderBy: { order: 'asc' },
+          select: { name: true, duration: true },
         },
       },
     })

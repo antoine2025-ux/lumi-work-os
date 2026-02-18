@@ -70,11 +70,8 @@ export async function GET(request: NextRequest) {
       prisma.onboardingTemplate.findMany({
         where,
         include: {
-          tasks: {
+          onboarding_tasks: {
             orderBy: { order: 'asc' },
-          },
-          createdBy: {
-            select: { name: true, email: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -124,26 +121,21 @@ export async function POST(request: NextRequest) {
       data: {
         workspaceId,
         name: validatedData.name,
-        durationDays: validatedData.durationDays,
+        duration: validatedData.durationDays,
         description: validatedData.description,
-        visibility: validatedData.visibility,
-        createdById: userId,
-        tasks: {
+        onboarding_tasks: {
           create: validatedData.tasks.map(task => ({
             title: task.title,
             description: task.description,
             order: task.order,
-            dueDay: task.dueDay,
             workspaceId,
+            updatedAt: new Date(),
           })),
         },
       },
       include: {
-        tasks: {
+        onboarding_tasks: {
           orderBy: { order: 'asc' },
-        },
-        createdBy: {
-          select: { name: true, email: true },
         },
       },
     })

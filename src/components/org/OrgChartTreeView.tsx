@@ -149,13 +149,6 @@ export function OrgChartTreeView({ tree, onNodeClick }: OrgChartTreeViewProps) {
           zoomable
           draggable
           enableLegacyTransitions
-          styles={{
-            links: {
-              stroke: "#475569",
-              strokeWidth: 1.5,
-              strokeOpacity: 0.4,
-            },
-          }}
         />
       </div>
     </div>

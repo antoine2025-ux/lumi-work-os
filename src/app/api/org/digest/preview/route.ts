@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { getOrgContext, requireAdmin } from "@/server/rbac";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { buildWeeklyDigest } from "@/server/orgDigest";
 
 export async function GET(req: NextRequest) {
-  const ctx = await getOrgContext(req);
-  if (!ctx.orgId) return NextResponse.json({ ok: false }, { status: 401 });
-  requireAdmin((ctx as any).canAdmin);
+  try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    setWorkspaceContext(workspaceId);
 
-  const digest = await buildWeeklyDigest(ctx.orgId);
-  return NextResponse.json({ ok: true, digest });
+    const digest = await buildWeeklyDigest(workspaceId);
+    return NextResponse.json({ ok: true, digest });
+  } catch (error) {
+    return handleApiError(error, req);
+  }
 }
-

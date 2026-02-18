@@ -113,8 +113,19 @@ export async function POST(request: NextRequest) {
           teamId: null,
           workspaceId: auth.workspaceId!,
         })
-        // createOrgPerson returns { id, userId }, not { position }
-        adminPosition = { id: created.id, userId: created.userId } as typeof adminPosition
+        // createOrgPerson returns { id, userId }, not the full OrgPosition
+        // Query to get the full position record
+        const position = await tx.orgPosition.findFirst({
+          where: {
+            userId: auth.user!.userId,
+            workspaceId: auth.workspaceId!,
+            isActive: true,
+          },
+        })
+        if (!position) {
+          throw new Error('Failed to create admin position')
+        }
+        adminPosition = position
       }
 
       // 2. Create department

@@ -1,38 +1,37 @@
 import { NextRequest } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { logOrgAuditEventStandalone } from "@/server/audit/orgAudit";
 import { createErrorResponse, createSuccessResponse } from "@/server/api/responses";
-import {
-  assertOrgCapability,
-  getOrgPermissionContext,
-  mapPermissionErrorToStatus,
-} from "@/lib/org/permissions.server";
 import { handleApiError } from "@/lib/api-errors";
 import { OrgMemberRemoveSchema } from "@/lib/validations/org";
 
 export async function POST(req: NextRequest) {
   try {
-    const context = await getOrgPermissionContext(req);
-
-    try {
-      assertOrgCapability(context, "org:member:remove");
-    } catch (permError) {
-      const status = mapPermissionErrorToStatus(permError);
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return createErrorResponse(
-        status === 401 ? "UNAUTHENTICATED" : "FORBIDDEN",
-        "You are not allowed to remove members from this org.",
-        { status }
+        "UNAUTHENTICATED",
+        "You must be signed in to remove members.",
+        { status: 401 }
       );
     }
+    await assertAccess({ 
+      userId: auth.user.userId, 
+      workspaceId: auth.workspaceId, 
+      scope: 'workspace', 
+      requireRole: ['ADMIN', 'OWNER'] 
+    });
+    setWorkspaceContext(auth.workspaceId);
 
-    const auth = await getUnifiedAuth(req);
     const { workspaceId, membershipId } = OrgMemberRemoveSchema.parse(
       await req.json().catch(() => ({}))
     );
 
-    // Verify workspaceId matches context
-    if (context!.orgId !== workspaceId) {
+    // Verify workspaceId matches authenticated workspace
+    if (auth.workspaceId !== workspaceId) {
       return createErrorResponse(
         "VALIDATION_ERROR",
         "Organization ID mismatch."

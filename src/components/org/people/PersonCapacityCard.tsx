@@ -147,7 +147,7 @@ export function PersonCapacityCard({ personId, canEdit = false, onCapacityChange
   const handleDelete = async (contractId: string) => {
     try {
       await deleteContract(contractId);
-      toast({ title: "Contract deleted" });
+      toast({ description: "Contract deleted" });
       loadContracts();
       onCapacityChanged?.();
     } catch (err) {

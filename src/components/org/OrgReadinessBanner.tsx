@@ -33,6 +33,14 @@ const BLOCKER_COPY: Record<OrgReadinessBlocker, string> = {
   CAPACITY_COVERAGE_BELOW_MIN: "Capacity coverage below minimum",
   RESPONSIBILITY_PROFILES_MISSING: "Responsibility profiles missing",
   WORK_CANNOT_EVALUATE_BASELINE: "Work baseline not established",
+  NO_PROJECT_DATA: "No project data",
+  NO_TASKS: "No tasks",
+  NO_ACTIVITY: "No activity data",
+  INSUFFICIENT_HISTORY: "Insufficient history",
+  NO_PERSON_DATA: "No person data",
+  NO_TASK_DATA: "No task data",
+  NO_CALENDAR_DATA: "No calendar data",
+  NO_AVAILABILITY_DATA: "No availability data",
 };
 
 export function OrgReadinessBanner({
@@ -56,6 +64,14 @@ export function OrgReadinessBanner({
     CAPACITY_COVERAGE_BELOW_MIN: deepLinkForCapacityIssues(workspaceSlug),
     RESPONSIBILITY_PROFILES_MISSING: deepLinkForResponsibilityIssues(workspaceSlug),
     WORK_CANNOT_EVALUATE_BASELINE: orgUrl.path("onboarding/work"),
+    NO_PROJECT_DATA: orgUrl.path("onboarding/projects"),
+    NO_TASKS: orgUrl.path("onboarding/projects"),
+    NO_ACTIVITY: orgUrl.path("onboarding/projects"),
+    INSUFFICIENT_HISTORY: orgUrl.path("onboarding/projects"),
+    NO_PERSON_DATA: orgUrl.directory,
+    NO_TASK_DATA: orgUrl.path("onboarding/projects"),
+    NO_CALENDAR_DATA: orgUrl.path("onboarding/calendar"),
+    NO_AVAILABILITY_DATA: orgUrl.path("onboarding/calendar"),
   };
 
   if (roleLoading || snapshotLoading || error || !data) {

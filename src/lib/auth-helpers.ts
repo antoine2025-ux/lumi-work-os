@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from './auth'
+import { authOptions } from '@/server/authOptions'
 import { prisma } from './db'
 
 export async function getAuthenticatedUser(request: NextRequest) {

@@ -22,7 +22,14 @@ export async function GET(req: NextRequest) {
     } else {
       // Fallback to current workspace if no param provided
       try {
-        workspaceId = await getCurrentWorkspaceId(req);
+        const currentWorkspaceId = await getCurrentWorkspaceId(req);
+        if (!currentWorkspaceId) {
+          return NextResponse.json(
+            { error: "workspaceId is required" },
+            { status: 400 }
+          );
+        }
+        workspaceId = currentWorkspaceId;
       } catch (error) {
         return NextResponse.json(
           { error: "workspaceId is required" },

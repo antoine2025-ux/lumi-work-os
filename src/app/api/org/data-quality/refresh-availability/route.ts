@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { requireActiveOrgId } from "@/server/org/context"
+import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { handleApiError } from "@/lib/api-errors"
 
 type Body = {
   personIds: string[]
@@ -10,7 +13,13 @@ type Body = {
 
 export async function POST(req: NextRequest) {
   try {
-    const orgId = await requireActiveOrgId(req)
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" })
+    setWorkspaceContext(workspaceId)
+
     const body = (await req.json()) as Body
     const ids = Array.isArray(body.personIds) ? body.personIds.map(String).slice(0, 200) : []
     if (!ids.length) return NextResponse.json({ error: "personIds required" }, { status: 400 })
@@ -22,9 +31,9 @@ export async function POST(req: NextRequest) {
     await prisma.$transaction(
       ids.map((personId) =>
         prisma.personAvailability.upsert({
-          where: { orgId_personId: { orgId, personId } } as any,
+          where: { orgId_personId: { orgId: workspaceId, personId } } as any,
           update: { status, reason } as any,
-          create: { orgId, personId, status, reason } as any,
+          create: { orgId: workspaceId, personId, status, reason } as any,
         })
       ) as any
     )
@@ -32,7 +41,7 @@ export async function POST(req: NextRequest) {
     // Resolve only stale availability signals
     await prisma.orgHealthSignal.updateMany({
       where: {
-        orgId,
+        orgId: workspaceId,
         type: "DATA_QUALITY" as any,
         resolvedAt: null,
         dismissedAt: null,
@@ -44,8 +53,7 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json({ ok: true, updated: ids.length })
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  } catch (error) {
+    return handleApiError(error, req)
   }
 }
-

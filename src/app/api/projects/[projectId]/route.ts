@@ -11,6 +11,7 @@ import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
 import {
   createProjectAllocation,
   canTakeOnWork,
+  closeIntegrationAllocations,
 } from '@/lib/org/capacity/project-capacity'
 import { logger } from '@/lib/logger'
 import { syncProjectToGoals } from '@/lib/goals/project-sync'
@@ -622,6 +623,17 @@ export async function PUT(
     if (status) {
       syncProjectToGoals(projectId, auth.user.userId).catch(err =>
         console.error('Failed to sync project status to goals:', err)
+      )
+    }
+
+    // Close open INTEGRATION allocations when project reaches a terminal status
+    if (
+      status &&
+      ['COMPLETED', 'CANCELLED'].includes(status) &&
+      existingProject.status !== status
+    ) {
+      closeIntegrationAllocations(auth.workspaceId, projectId).catch((err) =>
+        console.error('Failed to close integration allocations', { projectId, error: err })
       )
     }
 

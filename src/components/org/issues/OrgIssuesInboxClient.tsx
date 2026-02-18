@@ -298,7 +298,7 @@ export function OrgIssuesInboxClient() {
     setIsUpdatingResolution(true);
     try {
       const result = await OrgApi.updateIssueResolution({
-        entityType: selectedIssue.entityType,
+        entityType: selectedIssue.entityType.toLowerCase() as "person" | "team" | "department" | "position",
         entityId: selectedIssue.entityId,
         issueType: selectedIssue.type,
         resolution,

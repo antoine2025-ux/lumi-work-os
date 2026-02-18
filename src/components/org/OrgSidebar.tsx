@@ -10,9 +10,9 @@ import {
   Briefcase,
   Shield,
   Activity,
-  Gauge,
-  Scale,
-  UserCog,
+  // Gauge,   // Hidden until feature is complete — do not delete routes or page files.
+  // Scale,   // Hidden until feature is complete — do not delete routes or page files.
+  // UserCog, // Hidden until feature is complete — do not delete routes or page files.
   Settings,
   ClipboardCheck,
 } from "lucide-react";
@@ -60,9 +60,12 @@ export function OrgSidebar({
   const adminSection = isAdmin
     ? [
         { href: `${base}/admin`, label: "Health & Issues", icon: Activity },
-        { href: `${base}/admin/capacity`, label: "Capacity Planning", icon: Gauge },
-        { href: `${base}/admin/decisions`, label: "Decision Authority", icon: Scale },
-        { href: `${base}/admin/responsibility`, label: "Responsibility Profiles", icon: UserCog },
+        // Hidden until feature is complete — do not delete routes or page files.
+        // { href: `${base}/admin/capacity`, label: "Capacity Planning", icon: Gauge },
+        // Hidden until feature is complete — do not delete routes or page files.
+        // { href: `${base}/admin/decisions`, label: "Decision Authority", icon: Scale },
+        // Hidden until feature is complete — do not delete routes or page files.
+        // { href: `${base}/admin/responsibility`, label: "Responsibility Profiles", icon: UserCog },
         { href: `${base}/admin/settings`, label: "Settings", icon: Settings },
       ]
     : [];

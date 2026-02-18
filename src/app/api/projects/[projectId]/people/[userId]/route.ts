@@ -6,6 +6,7 @@ import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { ProjectPersonUpdateSchema } from '@/lib/validations/project-people'
 import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
+import { removeIntegrationAllocation } from '@/lib/org/capacity/project-capacity'
 
 // ---------------------------------------------------------------------------
 // PUT /api/projects/[projectId]/people/[userId] — Update person's link
@@ -103,6 +104,17 @@ export async function DELETE(
     })
 
     upsertProjectContext(projectId).catch(() => {})
+
+    // Remove the INTEGRATION WorkAllocation for the removed person (best-effort, never blocks response)
+    try {
+      await removeIntegrationAllocation(auth.workspaceId, userId, projectId)
+    } catch (err) {
+      console.error('Failed to remove integration allocation for project member', {
+        projectId,
+        userId,
+        error: err,
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

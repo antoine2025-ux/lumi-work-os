@@ -68,7 +68,9 @@ export async function GET(req: NextRequest) {
 
     const teamsCountMap = new Map<string, number>();
     for (const row of teamsByDept) {
-      teamsCountMap.set(row.departmentId, row._count._all);
+      if (row.departmentId) {
+        teamsCountMap.set(row.departmentId, row._count._all);
+      }
     }
 
     /**

@@ -23,7 +23,7 @@ export function CustomRoleSelector({
 }: Props) {
   const router = useRouter();
   const perms = useOrgPermissions();
-  const canChangeRoles = perms?.capabilities?.["org:member:role.change"] === true;
+  const canChangeRoles = perms?.role === "OWNER" || perms?.role === "ADMIN";
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

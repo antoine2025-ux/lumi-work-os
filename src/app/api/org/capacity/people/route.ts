@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         archivedAt: null,
         userId: { not: null },
         user: {
-          workspaceMembers: {
+          workspaceMemberships: {
             some: {
               workspaceId,
               employmentStatus: { not: "TERMINATED" },

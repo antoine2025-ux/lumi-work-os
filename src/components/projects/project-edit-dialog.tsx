@@ -85,7 +85,6 @@ const colorOptions = [
 
 export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceId }: ProjectEditDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const [users, setUsers] = useState<User[]>([])
   const [workspaceMembers, setWorkspaceMembers] = useState<Array<{ id: string; name: string; email: string }>>([])
   const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([])
   const [visibility, setVisibility] = useState<'PUBLIC' | 'TARGETED'>('PUBLIC')
@@ -107,10 +106,9 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
   // Channel input state for UI
   const [channelInput, setChannelInput] = useState('')
 
-  // Load users and teams when dialog opens
+  // Load workspace members and teams when dialog opens
   useEffect(() => {
     if (isOpen && workspaceId) {
-      loadUsers()
       loadWorkspaceMembers()
       fetch('/api/org/teams')
         .then((r) => r.json())
@@ -177,18 +175,6 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
       }
     } catch (error) {
       console.error('Error loading ProjectSpace members:', error)
-    }
-  }
-
-  const loadUsers = async () => {
-    try {
-      const response = await fetch(`/api/org/users?workspaceId=${workspaceId}`)
-      if (response.ok) {
-        const userData = await response.json()
-        setUsers(userData)
-      }
-    } catch (error) {
-      console.error('Error loading users:', error)
     }
   }
 
@@ -618,12 +604,12 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No owner</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
+                  {workspaceMembers.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
                       <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span>{user.name}</span>
-                        <span className="text-sm text-muted-foreground">({user.email})</span>
+                        <span>{member.name}</span>
+                        <span className="text-sm text-muted-foreground">({member.email})</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -665,17 +651,17 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
             <div className="space-y-2">
               <Label>Select Assignees</Label>
               <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3">
-                {users.map((user) => (
-                  <div key={user.id} className="flex items-center space-x-2">
+                {workspaceMembers.map((member) => (
+                  <div key={member.id} className="flex items-center space-x-2">
                     <Checkbox
-                      id={`assignee-${user.id}`}
-                      checked={formData.assigneeIds.includes(user.id)}
-                      onCheckedChange={() => handleMultiSelectChange('assigneeIds', user.id)}
+                      id={`assignee-${member.id}`}
+                      checked={formData.assigneeIds.includes(member.id)}
+                      onCheckedChange={() => handleMultiSelectChange('assigneeIds', member.id)}
                     />
-                    <label htmlFor={`assignee-${user.id}`} className="flex items-center space-x-2 cursor-pointer flex-1">
+                    <label htmlFor={`assignee-${member.id}`} className="flex items-center space-x-2 cursor-pointer flex-1">
                       <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span className="text-sm">{user.name}</span>
-                      <span className="text-xs text-muted-foreground">({user.email})</span>
+                      <span className="text-sm">{member.name}</span>
+                      <span className="text-xs text-muted-foreground">({member.email})</span>
                     </label>
                   </div>
                 ))}

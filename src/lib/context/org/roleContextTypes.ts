@@ -13,7 +13,7 @@ export interface RoleContextData {
   role: {
     id: string; // OrgPosition.id (primary identifier)
     workspaceId: string;
-    title: string;
+    title: string | null;
     level: number | null;
     description: string | null;
     jobFamily: string | null; // from RoleCard if present

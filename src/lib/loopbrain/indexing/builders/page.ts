@@ -35,7 +35,11 @@ export async function buildContextObjectForPage(
       },
       include: {
         createdBy: true,
-        projects: true,
+        projects: {
+          include: {
+            owner: true
+          }
+        },
       },
     })
 

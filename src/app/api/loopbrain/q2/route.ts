@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     const orgId = project.orgId || workspaceId;
     const users = await prisma.user.findMany({
       where: {
-        positions: {
+        orgPositions: {
           some: {
             workspaceId,
             isActive: true,

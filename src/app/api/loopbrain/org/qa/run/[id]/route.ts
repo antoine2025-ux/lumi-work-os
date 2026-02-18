@@ -22,6 +22,12 @@ export async function POST(
 
   try {
     const workspaceId = await getCurrentWorkspaceId(req);
+    if (!workspaceId) {
+      return NextResponse.json(
+        { ok: false, error: "Missing workspace" },
+        { status: 400 }
+      );
+    }
 
     // Evaluate all questions, then pick the one we just ran
     const questions = await evaluateOrgQaQuestionsForWorkspace(workspaceId);

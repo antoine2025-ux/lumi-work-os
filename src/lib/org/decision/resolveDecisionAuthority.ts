@@ -327,6 +327,8 @@ export async function resolveDecisionAuthority(
   }
 
   // Step 6: Build explainability
+  const hasAuthority = !!authority && (!!primary || escalation.length > 0);
+  
   const dependsOn: ExplainDependency[] = [
     { type: "DATA", label: "Decision domain configuration", reference: domainKey },
   ];
@@ -370,7 +372,6 @@ export async function resolveDecisionAuthority(
   };
 
   // Step 7: Build response
-  const hasAuthority = !!authority && (!!primary || escalation.length > 0);
 
   return {
     domainKey,

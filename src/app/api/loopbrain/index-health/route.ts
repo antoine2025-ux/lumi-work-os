@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       }),
       team: await prisma.orgTeam.count({ where: { workspaceId } }),
       role: await prisma.orgPosition.count({ where: { workspaceId } }),
-      time_off: await prisma.timeOff.count({ where: { workspaceId } }),
+      time_off: await prisma.leaveRequest.count({ where: { workspaceId } }),
     }
 
     // Get counts of ContextItems per type
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
               })
               break
             case 'time_off':
-              samples = await prisma.timeOff.findMany({
+              samples = await prisma.leaveRequest.findMany({
                 where: { workspaceId },
                 select: { id: true, updatedAt: true },
                 take: sampleCount,

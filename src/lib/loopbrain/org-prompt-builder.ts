@@ -5,6 +5,8 @@ import {
   OrgContextSlice,
   OrgContextObject,
 } from "./org-context-reader";
+import { prisma } from "@/lib/db";
+import { getUnifiedAuth } from "@/lib/unified-auth";
 
 /**
  * Build a compact, LLM-friendly summary of the org structure.
@@ -14,6 +16,7 @@ export function buildOrgSummaryPreambleFromSlice(
   slice: OrgContextSlice,
   options?: {
     maxPerType?: number;
+    wikiDataByPersonId?: Record<string, { count: number; titles: string[] }>;
   }
 ): string {
   const maxPerType = options?.maxPerType ?? 10;
@@ -65,6 +68,15 @@ export function buildOrgSummaryPreambleFromSlice(
         lines.push(`  Summary: ${obj.summary}`);
       }
 
+      if (obj.type === "person" && options?.wikiDataByPersonId) {
+        const wikiData = options.wikiDataByPersonId[obj.id];
+        if (wikiData && wikiData.count > 0) {
+          lines.push(
+            `  Wiki contributions: ${wikiData.count} page${wikiData.count === 1 ? "" : "s"} — ${wikiData.titles.join("; ")}`
+          );
+        }
+      }
+
       const tagSample = obj.tags.slice(0, 6);
       if (tagSample.length > 0) {
         lines.push(`  Tags: ${tagSample.join(", ")}`);
@@ -102,6 +114,7 @@ export function buildOrgSummaryPreambleFromSlice(
 
 /**
  * Convenience: build Org summary preamble for the current workspace.
+ * Includes per-person wiki contribution counts and recent page titles.
  */
 export async function buildOrgSummaryPreambleForCurrentWorkspace(
   options?: {
@@ -109,8 +122,30 @@ export async function buildOrgSummaryPreambleForCurrentWorkspace(
   },
   request?: NextRequest
 ): Promise<string> {
+  const { workspaceId } = await getUnifiedAuth(request);
   const slice = await fetchOrgContextSliceForCurrentWorkspace(request);
-  return buildOrgSummaryPreambleFromSlice(slice, options);
+
+  let wikiDataByPersonId: Record<string, { count: number; titles: string[] }> | undefined;
+
+  if (workspaceId) {
+    try {
+      const wikiRows = await prisma.wikiPage.findMany({
+        where: { workspaceId },
+        orderBy: { updatedAt: "desc" },
+        select: { createdById: true, title: true },
+      });
+      wikiDataByPersonId = {};
+      for (const row of wikiRows) {
+        const entry = (wikiDataByPersonId[row.createdById] ??= { count: 0, titles: [] });
+        entry.count++;
+        if (entry.titles.length < 3) entry.titles.push(row.title);
+      }
+    } catch (err) {
+      console.error("Failed to fetch wiki data for org preamble", err);
+    }
+  }
+
+  return buildOrgSummaryPreambleFromSlice(slice, { ...options, wikiDataByPersonId });
 }
 
 /**

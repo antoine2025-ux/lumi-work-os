@@ -40,12 +40,66 @@ export const CapacityRequestActionSchema = z.object({
 })
 
 /**
+ * Org: assign a person (OrgPosition) to a project
+ */
+export const OrgAssignToProjectActionSchema = z.object({
+  type: z.literal('org.assign_to_project'),
+  personId: z.string().min(1), // OrgPosition ID
+  projectId: z.string().min(1),
+  allocationPercent: z.number().min(0.1).max(1.0).default(0.25),
+})
+
+/**
+ * Org: approve or deny a pending leave request
+ */
+export const OrgApproveLeaveActionSchema = z.object({
+  type: z.literal('org.approve_leave'),
+  leaveRequestId: z.string().min(1),
+  action: z.enum(['approve', 'deny']),
+  denialReason: z.string().optional(), // required when action === 'deny'
+})
+
+/**
+ * Org: update a person's weekly capacity contract
+ */
+export const OrgUpdateCapacityActionSchema = z.object({
+  type: z.literal('org.update_capacity'),
+  personId: z.string().min(1), // User ID
+  weeklyCapacityHours: z.number().min(1).max(80),
+})
+
+/**
+ * Org: assign a manager to a person via PersonManagerLink
+ */
+export const OrgAssignManagerActionSchema = z.object({
+  type: z.literal('org.assign_manager'),
+  managerId: z.string().min(1),
+  reportId: z.string().min(1),
+})
+
+/**
+ * Org: create a new person in the organization
+ */
+export const OrgCreatePersonActionSchema = z.object({
+  type: z.literal('org.create_person'),
+  fullName: z.string().min(1),
+  email: z.string().email().optional(),
+  title: z.string().optional(),
+  teamId: z.string().optional(),
+})
+
+/**
  * Union of all action types
  */
 export const LoopbrainActionSchema = z.discriminatedUnion('type', [
   TaskAssignActionSchema,
   TimeOffCreateActionSchema,
   CapacityRequestActionSchema,
+  OrgAssignToProjectActionSchema,
+  OrgApproveLeaveActionSchema,
+  OrgUpdateCapacityActionSchema,
+  OrgAssignManagerActionSchema,
+  OrgCreatePersonActionSchema,
 ])
 
 /**

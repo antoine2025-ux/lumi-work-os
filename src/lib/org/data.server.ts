@@ -26,6 +26,8 @@ import { logQueryDuration } from "./query-performance";
 import { timeOrgLoader } from "./observability.server";
 import { perf } from "@/server/org/perf/log";
 
+export type { OrgInsightsSnapshot };
+
 export type OrgOverviewStats = {
   peopleCount: number;
   teamCount: number;

@@ -31,22 +31,14 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Step 2: Assert access (verifies workspace membership and role)
-    await assertAccess({
-      userId,
-      workspaceId,
-      scope: "workspace",
-      requireRole: ["ADMIN"],
-    });
-
-    // Step 3: Set workspace context (enables automatic Prisma scoping)
+    // Step 2: Set workspace context (enables automatic Prisma scoping)
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Parse and validate request body
+    // Step 3: Parse and validate request body
     const body = await request.json();
     const name = requireNonEmptyString(body.name, "name");
 
-    // Step 5: Verify person exists and get userId
+    // Step 4: Verify person exists and get userId
     const position = await prisma.orgPosition.findUnique({
       where: { id: personId },
       select: { id: true, userId: true, workspaceId: true },
@@ -58,6 +50,16 @@ export async function PUT(
 
     if (!position.userId) {
       return NextResponse.json({ error: "Person is not linked to a user" }, { status: 400 });
+    }
+
+    // Step 5: Assert access — position owner may update their own name; otherwise ADMIN required
+    if (position.userId !== userId) {
+      await assertAccess({
+        userId,
+        workspaceId,
+        scope: "workspace",
+        requireRole: ["ADMIN"],
+      });
     }
 
     // Step 6: Update User.name (not OrgPosition)

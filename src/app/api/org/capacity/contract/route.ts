@@ -203,6 +203,10 @@ export async function POST(request: NextRequest) {
       updatedAt: created.updatedAt.toISOString(),
     };
 
+    const utilizationPercent = effectiveCapacity.weeklyCapacityHours > 0
+      ? Math.round((effectiveCapacity.allocatedHours / effectiveCapacity.weeklyCapacityHours) * 100)
+      : 0;
+
     const response: MutationResult<typeof contractData, CapacityPatch> = {
       ok: true,
       data: contractData,
@@ -212,7 +216,7 @@ export async function POST(request: NextRequest) {
           personId: position.userId,
           weeklyCapacityHours: effectiveCapacity.weeklyCapacityHours,
           effectiveAvailableHours: effectiveCapacity.effectiveAvailableHours,
-          utilizationPercent: effectiveCapacity.utilizationPercent,
+          utilizationPercent,
         },
       },
       scope: {

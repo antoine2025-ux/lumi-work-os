@@ -28,8 +28,8 @@ import type { WorkCandidate, CandidatePoolResult, EffectiveCapacitySummary } fro
 import {
   resolveRoleAlignment,
   getAlignmentScore,
-  type AlignmentResult,
 } from "@/lib/org/responsibility/resolveRoleAlignment";
+import type { AlignmentResult } from "@/lib/org/responsibility/types";
 
 // ============================================================================
 // Candidate Pool Selection

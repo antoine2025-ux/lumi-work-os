@@ -60,7 +60,7 @@ export async function getAvailabilityEvents(
   personId: string,
   timeWindow?: { start: Date; end: Date }
 ): Promise<AvailabilityEvent[]> {
-  const where: Parameters<typeof prisma.personAvailability.findMany>[0]["where"] = {
+  const where: any = {
     workspaceId,
     personId,
   };
@@ -124,7 +124,7 @@ export async function getAvailabilityEventsBatch(
 ): Promise<Map<string, AvailabilityEvent[]>> {
   if (personIds.length === 0) return new Map();
 
-  const where: Parameters<typeof prisma.personAvailability.findMany>[0]["where"] = {
+  const where: any = {
     workspaceId,
     personId: { in: personIds },
   };

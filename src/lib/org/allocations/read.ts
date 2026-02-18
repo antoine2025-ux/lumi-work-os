@@ -50,7 +50,7 @@ export async function getWorkAllocations(
   personId: string,
   timeWindow?: { start: Date; end: Date }
 ): Promise<WorkAllocation[]> {
-  const where: Parameters<typeof prisma.workAllocation.findMany>[0]["where"] = {
+  const where: any = {
     workspaceId,
     personId,
   };
@@ -114,7 +114,7 @@ export async function getWorkAllocationsBatch(
 ): Promise<Map<string, WorkAllocation[]>> {
   if (personIds.length === 0) return new Map();
 
-  const where: Parameters<typeof prisma.workAllocation.findMany>[0]["where"] = {
+  const where: any = {
     workspaceId,
     personId: { in: personIds },
   };

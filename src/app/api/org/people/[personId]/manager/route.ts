@@ -161,7 +161,9 @@ export async function PUT(
       scope: {
         entityType: "PERSON",
         entityId: personId,
-        related: directReports.map((dr) => ({ entityType: "PERSON", entityId: dr.userId })),
+        related: directReports
+          .filter((dr) => dr.userId !== null)
+          .map((dr) => ({ entityType: "PERSON", entityId: dr.userId! })),
       },
       affectedIssues,
       responseMeta,

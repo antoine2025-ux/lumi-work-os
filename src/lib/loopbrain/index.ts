@@ -112,10 +112,13 @@ export {
   personId
 } from './orgIds'
 
-// Legacy Context Types (from contextTypes.ts)
+// Legacy Context Types (now from canonical context-types.ts)
 export type {
   ContextObject as LegacyContextObject,
   ContextRelation,
+} from '@/lib/context/context-types'
+
+export type {
   ContextStatus,
   ContextType as LegacyContextType,
   ContextRelationType

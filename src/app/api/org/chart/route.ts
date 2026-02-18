@@ -6,33 +6,25 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { buildOrgChartTree, buildOrgChartByDepartment } from "@/lib/org/projections/buildOrgChartTree";
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await getUnifiedAuth(request);
-    
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
+    setWorkspaceContext(workspaceId);
+
     const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get("workspaceId") || auth.workspaceId;
     const groupBy = searchParams.get("groupBy"); // "department" or null
     const maxDepth = parseInt(searchParams.get("maxDepth") || "10", 10);
     const includeVacant = searchParams.get("includeVacant") !== "false";
     const rootPositionId = searchParams.get("rootPositionId") || undefined;
-
-    if (!workspaceId) {
-      return NextResponse.json(
-        { error: "workspaceId is required" },
-        { status: 400 }
-      );
-    }
-
-    // Verify workspace access
-    if (workspaceId !== auth.workspaceId) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 }
-      );
-    }
 
     if (groupBy === "department") {
       const data = await buildOrgChartByDepartment(workspaceId);
@@ -47,15 +39,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(tree);
   } catch (error) {
-    console.error("Error fetching org chart:", error);
-    
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    
-    return NextResponse.json(
-      { error: "Failed to fetch org chart" },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }

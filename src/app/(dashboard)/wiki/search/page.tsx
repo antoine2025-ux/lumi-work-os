@@ -19,7 +19,7 @@ import {
   SortDesc
 } from "lucide-react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, usePathname } from "next/navigation"
 import { useUserStatusContext } from '@/providers/user-status-provider'
 
 interface SearchResult {
@@ -37,6 +37,7 @@ interface SearchResult {
 
 export default function WikiSearchPage() {
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   // Use centralized UserStatusContext - no separate API call needed
   const { workspaceId } = useUserStatusContext()
   const [query, setQuery] = useState(searchParams.get('q') || '')
@@ -90,7 +91,7 @@ export default function WikiSearchPage() {
       }))
 
       // Apply client-side sorting
-      transformedResults.sort((a, b) => {
+      transformedResults.sort((a: typeof transformedResults[0], b: typeof transformedResults[0]) => {
         switch (sortBy) {
           case 'title':
             return sortOrder === 'asc' 
@@ -145,7 +146,7 @@ export default function WikiSearchPage() {
   return (
     <div className="flex h-full">
       {/* Wiki Navigation Sidebar */}
-      <WikiNavigation />
+      <WikiNavigation currentPath={pathname} workspaceId={workspaceId ?? undefined} />
       
       {/* Main Content */}
       <div className="flex-1 p-6 space-y-6">

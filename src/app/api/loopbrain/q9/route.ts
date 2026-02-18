@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
     // Fetch people for name resolution
     const users = await prisma.user.findMany({
       where: {
-        positions: {
+        orgPositions: {
           some: {
             workspaceId,
             isActive: true,

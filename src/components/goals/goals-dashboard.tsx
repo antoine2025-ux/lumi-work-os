@@ -127,7 +127,6 @@ export function GoalsDashboard({ goals, metrics, currentUser, workspaceSlug, ini
         <CreateGoalDialog
           isOpen={showCreateDialog}
           onClose={() => setShowCreateDialog(false)}
-          workspaceSlug={workspaceSlug}
         />
       )}
     </div>

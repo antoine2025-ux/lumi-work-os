@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 type OrgEmptyStateProps = {
   title: string;
-  description: string;
+  description: string | React.ReactNode;
   variant?: "empty" | "good" | "incomplete";
   primaryActionLabel?: string;
   primaryActionHref?: string;
@@ -33,9 +33,6 @@ export function OrgEmptyState({
   icon,
   className,
 }: OrgEmptyStateProps) {
-  const PrimaryButton = primaryActionHref ? Link : "button";
-  const SecondaryButton = secondaryActionHref ? Link : "button";
-  
   // Determine styling based on variant
   const variantStyles = {
     empty: "border-white/5 bg-slate-900/80",
@@ -71,28 +68,53 @@ export function OrgEmptyState({
           {primaryAction ? (
             primaryAction
           ) : primaryActionLabel && showPrimaryAction ? (
-            <PrimaryButton
-              {...(primaryActionHref ? { href: primaryActionHref } : { onClick: primaryActionOnClick })}
-              className={cn(
-                "focus-ring inline-flex items-center rounded-lg px-4 py-2 text-[12px] font-medium transition-all duration-200 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2",
-                variant === "good" 
-                  ? "border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-slate-50"
-                  : "bg-primary text-white hover:bg-primary/90"
-              )}
-              aria-label={primaryActionLabel}
-            >
-              {primaryActionLabel}
-            </PrimaryButton>
+            primaryActionHref ? (
+              <Link
+                href={primaryActionHref}
+                className={cn(
+                  "focus-ring inline-flex items-center rounded-lg px-4 py-2 text-[12px] font-medium transition-all duration-200 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2",
+                  variant === "good" 
+                    ? "border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-slate-50"
+                    : "bg-primary text-white hover:bg-primary/90"
+                )}
+                aria-label={primaryActionLabel}
+              >
+                {primaryActionLabel}
+              </Link>
+            ) : (
+              <button
+                onClick={primaryActionOnClick}
+                className={cn(
+                  "focus-ring inline-flex items-center rounded-lg px-4 py-2 text-[12px] font-medium transition-all duration-200 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2",
+                  variant === "good" 
+                    ? "border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-slate-50"
+                    : "bg-primary text-white hover:bg-primary/90"
+                )}
+                aria-label={primaryActionLabel}
+              >
+                {primaryActionLabel}
+              </button>
+            )
           ) : null}
 
           {secondaryActionLabel && (
-            <SecondaryButton
-              {...(secondaryActionHref ? { href: secondaryActionHref } : { onClick: secondaryActionOnClick })}
-              className="focus-ring inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-[12px] font-medium text-slate-300 transition-all duration-200 hover:border-white/20 hover:bg-slate-800/50 hover:text-slate-50 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2"
-              aria-label={secondaryActionLabel}
-            >
-              {secondaryActionLabel}
-            </SecondaryButton>
+            secondaryActionHref ? (
+              <Link
+                href={secondaryActionHref}
+                className="focus-ring inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-[12px] font-medium text-slate-300 transition-all duration-200 hover:border-white/20 hover:bg-slate-800/50 hover:text-slate-50 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2"
+                aria-label={secondaryActionLabel}
+              >
+                {secondaryActionLabel}
+              </Link>
+            ) : (
+              <button
+                onClick={secondaryActionOnClick}
+                className="focus-ring inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-[12px] font-medium text-slate-300 transition-all duration-200 hover:border-white/20 hover:bg-slate-800/50 hover:text-slate-50 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2"
+                aria-label={secondaryActionLabel}
+              >
+                {secondaryActionLabel}
+              </button>
+            )
           )}
         </div>
       )}

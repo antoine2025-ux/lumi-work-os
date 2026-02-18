@@ -98,7 +98,9 @@ export async function GET(req: Request) {
 
     const deptHasFilledTeam = new Set<string>();
     for (const t of teams) {
-      if (filledTeamIds.has(t.id)) deptHasFilledTeam.add(t.departmentId);
+      if (filledTeamIds.has(t.id) && t.departmentId) {
+        deptHasFilledTeam.add(t.departmentId);
+      }
     }
 
     const unownedDepartments = departments.filter((d) => !deptHasFilledTeam.has(d.id)).length;
@@ -327,7 +329,7 @@ export async function GET(req: Request) {
             teamId: startPosition.teamId,
             workspaceId,
             isActive: true,
-            userId: { not: null, not: personId },
+            userId: { not: null, notIn: [personId] },
           },
           select: { userId: true },
           take: 20,
@@ -360,7 +362,7 @@ export async function GET(req: Request) {
               teamId: { in: deptTeamIds },
               workspaceId,
               isActive: true,
-              userId: { not: null, not: personId },
+              userId: { not: null, notIn: [personId] },
             },
             select: { userId: true },
             take: 20,

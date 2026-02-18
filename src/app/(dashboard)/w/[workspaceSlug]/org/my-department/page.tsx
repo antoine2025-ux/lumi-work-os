@@ -63,7 +63,15 @@ export default async function MyDepartmentPage({ params }: PageProps) {
           description="Your department overview"
         />
         <div className="p-10">
-          <p className="text-slate-500">You are not assigned to any department yet.</p>
+          <Card className="border-[#1e293b] bg-[#0B1220] max-w-md">
+            <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-3">
+              <Building2 className="h-10 w-10 text-slate-500" />
+              <p className="text-slate-300 font-medium">No department assigned</p>
+              <p className="text-sm text-slate-500">
+                {"You haven't been assigned to a department yet. Ask your admin to assign you."}
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </>
     );

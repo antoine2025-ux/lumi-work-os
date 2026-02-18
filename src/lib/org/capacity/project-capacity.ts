@@ -63,6 +63,88 @@ export async function createProjectAllocation(params: {
 }
 
 /**
+ * Idempotently create an INTEGRATION WorkAllocation when a person is added to a project.
+ * Skips creation if any allocation already exists for this person+project (avoids overwriting manual ones).
+ */
+export async function upsertIntegrationAllocation(
+  workspaceId: string,
+  userId: string,
+  projectId: string,
+  createdById: string
+): Promise<void> {
+  const existing = await prisma.workAllocation.findFirst({
+    where: {
+      workspaceId,
+      personId: userId,
+      contextType: AllocationContextType.PROJECT,
+      contextId: projectId,
+    },
+    select: { id: true },
+  })
+  if (existing) return
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { name: true, endDate: true },
+  })
+
+  await prisma.workAllocation.create({
+    data: {
+      workspaceId,
+      personId: userId,
+      allocationPercent: 0.25,
+      contextType: AllocationContextType.PROJECT,
+      contextId: projectId,
+      contextLabel: project?.name ?? 'Project',
+      startDate: new Date(),
+      endDate: project?.endDate ?? null,
+      source: AllocationSource.INTEGRATION,
+      createdById,
+    },
+  })
+}
+
+/**
+ * Remove the INTEGRATION WorkAllocation when a person is removed from a project.
+ * Never deletes manually created (source=MANUAL) allocations.
+ */
+export async function removeIntegrationAllocation(
+  workspaceId: string,
+  userId: string,
+  projectId: string
+): Promise<void> {
+  await prisma.workAllocation.deleteMany({
+    where: {
+      workspaceId,
+      personId: userId,
+      contextType: AllocationContextType.PROJECT,
+      contextId: projectId,
+      source: AllocationSource.INTEGRATION,
+    },
+  })
+}
+
+/**
+ * Set endDate=today on all open INTEGRATION allocations for a project.
+ * Called when a project transitions to COMPLETED or CANCELLED.
+ */
+export async function closeIntegrationAllocations(
+  workspaceId: string,
+  projectId: string
+): Promise<void> {
+  await prisma.workAllocation.updateMany({
+    where: {
+      workspaceId,
+      contextType: AllocationContextType.PROJECT,
+      contextId: projectId,
+      source: AllocationSource.INTEGRATION,
+      endDate: null,
+    },
+    data: { endDate: new Date() },
+  })
+}
+
+/**
  * Check if a person can take on additional work without exceeding capacity.
  */
 export async function canTakeOnWork(

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { requireActiveOrgId } from "@/server/org/context"
+import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { handleApiError } from "@/lib/api-errors"
 
 type Body = {
   personId: string
@@ -10,7 +13,13 @@ type Body = {
 
 export async function POST(req: NextRequest) {
   try {
-    const orgId = await requireActiveOrgId(req)
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" })
+    setWorkspaceContext(workspaceId)
+
     const body = (await req.json()) as Body
 
     if (!body?.personId || !body?.role) {
@@ -20,21 +29,20 @@ export async function POST(req: NextRequest) {
     const percent = typeof body.percent === "number" ? Math.max(1, Math.min(100, body.percent)) : 100
 
     const person = await prisma.orgPosition?.findFirst?.({
-      where: { workspaceId: orgId, userId: body.personId, isActive: true } as any,
+      where: { workspaceId, userId: body.personId, isActive: true } as any,
       select: { userId: true } as any,
     } as any)
 
     if (!person) return NextResponse.json({ error: "Person not found" }, { status: 404 })
 
     await prisma.personRoleAssignment.create({
-      data: { orgId, personId: body.personId, role: body.role, percent },
+      data: { orgId: workspaceId, personId: body.personId, role: body.role, percent },
     })
 
     // Note: Role-gap signals will be recomputed on next refresh for accuracy
 
     return NextResponse.json({ ok: true })
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  } catch (error) {
+    return handleApiError(error, req)
   }
 }
-

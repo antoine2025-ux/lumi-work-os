@@ -1,14 +1,22 @@
 // src/app/api/org/rankings/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { buildOrgLoopbrainContextBundleForWorkspace } from "@/lib/loopbrain/org/buildOrgLoopbrainContextBundle";
 import { computeOrgHealthSignals } from "@/lib/org/healthService";
 import type { OrgHealth } from "@/lib/org/healthTypes";
 
 export async function GET(req: NextRequest) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(req);
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
+    setWorkspaceContext(workspaceId);
 
     // Build Org bundle to get all ContextObjects
     const bundle = await buildOrgLoopbrainContextBundleForWorkspace(workspaceId);
@@ -88,15 +96,7 @@ export async function GET(req: NextRequest) {
       health,
       roleRisks,
     });
-  } catch (err: any) {
-    console.error("[Org] Failed to compute rankings", err);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: err?.message ?? "Failed to compute org rankings",
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req);
   }
 }
-

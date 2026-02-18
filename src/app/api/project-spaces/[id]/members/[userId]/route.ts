@@ -46,12 +46,10 @@ export async function DELETE(
     setWorkspaceContext(auth.workspaceId)
 
     // Check if member exists
-    const member = await prisma.projectSpaceMember.findUnique({
+    const member = await prisma.projectSpaceMember.findFirst({
       where: {
-        projectSpaceId_userId: {
-          projectSpaceId,
-          userId
-        }
+        projectSpaceId,
+        userId
       }
     })
 
@@ -62,10 +60,7 @@ export async function DELETE(
     // Remove member
     await prisma.projectSpaceMember.delete({
       where: {
-        projectSpaceId_userId: {
-          projectSpaceId,
-          userId
-        }
+        id: member.id
       }
     })
 

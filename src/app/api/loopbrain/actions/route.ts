@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       logger.warn('Invalid action schema', {
         requestId,
         workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
-        errors: validationResult.error.errors,
+        errors: validationResult.error.issues,
       })
 
       return NextResponse.json(

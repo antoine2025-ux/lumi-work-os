@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     const contextId = searchParams.get("contextId");
 
     // Build where clause
-    const where: Parameters<typeof prisma.workAllocation.findMany>[0]["where"] = {
+    const where: any = {
       workspaceId,
     };
 
@@ -236,6 +236,10 @@ export async function POST(request: NextRequest) {
       updatedAt: created.updatedAt.toISOString(),
     };
 
+    const utilizationPercent = effectiveCapacity.weeklyCapacityHours > 0
+      ? Math.round((effectiveCapacity.allocatedHours / effectiveCapacity.weeklyCapacityHours) * 100)
+      : 0;
+
     const response: MutationResult<typeof allocationData, CapacityPatch> = {
       ok: true,
       data: allocationData,
@@ -245,7 +249,7 @@ export async function POST(request: NextRequest) {
           personId: position.userId,
           weeklyCapacityHours: effectiveCapacity.weeklyCapacityHours,
           effectiveAvailableHours: effectiveCapacity.effectiveAvailableHours,
-          utilizationPercent: effectiveCapacity.utilizationPercent,
+          utilizationPercent,
         },
       },
       scope: {

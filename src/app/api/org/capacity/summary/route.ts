@@ -56,6 +56,12 @@ export async function GET(request: NextRequest) {
     await assertAccess({ userId, workspaceId, scope: "workspace", requireRole: ["MEMBER"] });
     setWorkspaceContext(workspaceId);
 
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { slug: true },
+    });
+    const workspaceSlug = workspace?.slug ?? workspaceId;
+
     const issueWindow = getDefaultIssueWindow();
     const settings = await getWorkspaceThresholdsAsync(workspaceId);
 
@@ -70,7 +76,7 @@ export async function GET(request: NextRequest) {
         archivedAt: null,
         userId: { not: null },
         user: {
-          workspaceMembers: {
+          workspaceMemberships: {
             some: { workspaceId, employmentStatus: { not: "TERMINATED" } },
           },
         },
@@ -179,6 +185,7 @@ export async function GET(request: NextRequest) {
     // Derive capacity v1 issues (missing data + team-level)
     const v1Issues = deriveCapacityV1Issues({
       timeWindow: { start: issueWindow.start, end: issueWindow.end },
+      workspaceSlug,
       teamRollups,
       personMetas,
       personMetadata,

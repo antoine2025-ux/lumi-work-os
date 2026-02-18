@@ -91,6 +91,7 @@ export function buildEpicContext(epic: EpicWithRelations): UnifiedContextObject 
   // Use epic:${epic.id} as the id to match the requested contextId format
   return {
     id: `epic:${epic.id}`,
+    workspaceId: epic.workspaceId,
     type: 'epic',
     title: epic.title,
     summary,

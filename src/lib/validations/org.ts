@@ -118,6 +118,15 @@ export const OrgTeamCreateSchema = z.object({
   description: z.string().nullable().optional(),
 })
 
+// --- Positions ---
+
+/** POST /api/org/positions */
+export const OrgPositionCreateSchema = z.object({
+  title: nonEmptyString.max(255),
+  teamId: nonEmptyString,
+  level: z.number().int().min(1).max(10).optional(),
+})
+
 // --- Departments ---
 
 /** POST /api/org/departments */

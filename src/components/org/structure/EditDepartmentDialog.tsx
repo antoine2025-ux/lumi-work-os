@@ -155,7 +155,7 @@ export function EditDepartmentDialog({
                 <SelectValue placeholder="Select owner…" />
               </SelectTrigger>
               <SelectContent>
-                {people.map((p) => (
+                {people.map((p: { id: string; fullName: string }) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.fullName}
                   </SelectItem>

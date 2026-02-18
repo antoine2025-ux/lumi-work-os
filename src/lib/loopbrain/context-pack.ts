@@ -36,6 +36,7 @@ export function compactContextObject(
   // Start with required fields
   const compacted: ContextObject = {
     id: obj.id,
+    workspaceId: obj.workspaceId,
     type: obj.type,
     title: obj.title,
     summary: obj.summary,

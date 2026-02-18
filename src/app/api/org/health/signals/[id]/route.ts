@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server"
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/db"
-import { requireActiveOrgId } from "@/server/org/context"
+import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { handleApiError } from "@/lib/api-errors"
 
 type Action = "resolve" | "dismiss"
 
@@ -10,7 +13,13 @@ export async function PATCH(
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const orgId = await requireActiveOrgId(req)
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" })
+    setWorkspaceContext(workspaceId)
+
     const { id } = await ctx.params
     const body = (await req.json().catch(() => ({}))) as { action?: Action }
 
@@ -21,7 +30,7 @@ export async function PATCH(
 
     // Ensure org scoping: only update signals belonging to active org
     const existing = await prisma.orgHealthSignal.findFirst({
-      where: { id, orgId },
+      where: { id, orgId: workspaceId },
       select: { id: true },
     })
 
@@ -40,8 +49,7 @@ export async function PATCH(
     })
 
     return NextResponse.json({ ok: true })
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  } catch (error) {
+    return handleApiError(error, req)
   }
 }
-

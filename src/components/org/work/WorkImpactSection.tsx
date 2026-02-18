@@ -240,7 +240,7 @@ export function WorkImpactSection({
                     </Badge>
                   </div>
                   <div className="space-y-2">
-                    {typeImpacts.map((impact) => (
+                    {typeImpacts.map((impact: ResolvedImpact) => (
                       <ImpactRow
                         key={impact.impactKey}
                         impact={impact}

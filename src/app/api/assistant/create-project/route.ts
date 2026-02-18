@@ -99,7 +99,8 @@ export async function POST(request: NextRequest) {
     if (templateId) {
       const template = await prisma.projectTemplate.findUnique({
         where: { id: templateId },
-        include: {
+        select: {
+          id: true,
           templateData: true
         }
       })
@@ -178,11 +179,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update the session with project information
+    // Update the session with project URL
     await prisma.chatSession.update({
       where: { id: sessionId },
       data: {
-        projectId: project.id,
+        projectUrl: `/projects/${project.id}`,
         updatedAt: new Date()
       }
     })

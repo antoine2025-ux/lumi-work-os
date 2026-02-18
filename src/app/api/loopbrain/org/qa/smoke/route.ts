@@ -14,6 +14,12 @@ export async function GET(request: NextRequest) {
   }
   try {
     const workspaceId = await getCurrentWorkspaceId(request);
+    if (!workspaceId) {
+      return NextResponse.json(
+        { ok: false, error: "Missing workspace" },
+        { status: 400 }
+      );
+    }
 
     const questions = await evaluateOrgQaQuestionsForWorkspace(workspaceId);
 

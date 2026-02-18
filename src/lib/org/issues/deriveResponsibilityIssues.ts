@@ -22,6 +22,13 @@ export async function deriveResponsibilityIssues(
 ): Promise<OrgIssueMetadata[]> {
   const issues: OrgIssueMetadata[] = [];
 
+  // Fetch workspace slug for deep links
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { slug: true },
+  });
+  const workspaceSlug = workspace?.slug || "";
+
   // ─── Query 1: Distinct active role types ──────────────────────────────
   // "Active" = OrgPosition.isActive === true, userId is set,
   // and linked user has a non-terminated WorkspaceMember.
@@ -91,7 +98,7 @@ export async function deriveResponsibilityIssues(
         entityId,
         entityName: `Role: ${roleType}`,
         explanation: getIssueExplanation("ROLE_PROFILE_MISSING"),
-        fixUrl: deepLinkForResponsibilityProfile(roleType),
+        fixUrl: deepLinkForResponsibilityProfile(workspaceSlug, roleType),
         fixAction: "Create profile",
       });
     }

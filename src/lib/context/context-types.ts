@@ -26,6 +26,8 @@ export type ContextObjectType =
   | 'meeting'
   | 'workspace'
   | 'team'
+  | 'time_off'
+  | 'epic'
 
 /**
  * A relation between two ContextObjects

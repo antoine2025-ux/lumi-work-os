@@ -108,7 +108,7 @@ export function OrgIssueDetailDrawer({
           <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">Entity</div>
           <div className="text-slate-100 font-medium">{issue.entityName}</div>
           <div className="text-xs text-slate-500 mt-1 capitalize">
-            {"entityType" in issue ? issue.entityType.toLowerCase() : issue.entityType}
+            {typeof issue.entityType === "string" ? issue.entityType.toLowerCase() : ""}
           </div>
         </div>
 
@@ -218,7 +218,7 @@ export function OrgIssueDetailDrawer({
               <div className="pt-2 border-t border-slate-800/50">
                 <div className="text-xs text-slate-500 mb-2">Resolution</div>
                 <OrgIssueResolutionActions
-                  currentResolution={issue.resolution}
+                  currentResolution={"resolution" in issue ? issue.resolution : "PENDING"}
                   onResolve={onResolutionChange}
                   isLoading={isUpdating}
                 />

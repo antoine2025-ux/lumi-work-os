@@ -10,6 +10,8 @@ export type OrgCapability =
   | "org:activity:view"
   | "org:insights:view"
   | "org:settings:view"
+  | "org:settings:manage"
+  | "org:structure:write"
   // People / membership
   | "org:member:list"
   | "org:member:invite"
@@ -117,6 +119,8 @@ export const ORG_CAPABILITY_DESCRIPTIONS: Record<OrgCapability, string> = {
   "org:activity:view": "View admin activity history and audit logs.",
   "org:insights:view": "View organization insights and analytics.",
   "org:settings:view": "View organization settings pages.",
+  "org:settings:manage": "Manage organization settings and configuration.",
+  "org:structure:write": "Create and modify organizational structure.",
   "org:member:list": "List and view organization members.",
   "org:member:invite": "Invite new members to the organization.",
   "org:member:remove": "Remove members from the organization.",
@@ -155,6 +159,8 @@ const allCapabilities: OrgCapability[] = [
   "org:activity:view",
   "org:insights:view",
   "org:settings:view",
+  "org:settings:manage",
+  "org:structure:write",
   "org:member:list",
   "org:member:invite",
   "org:member:remove",

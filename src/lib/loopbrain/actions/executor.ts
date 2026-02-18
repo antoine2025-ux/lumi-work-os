@@ -18,6 +18,13 @@ import { LoopbrainError, toLoopbrainError } from '../errors'
 import { logger } from '@/lib/logger'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { ProjectRole } from '@prisma/client'
+import type { User as NextAuthUser } from 'next-auth'
+import { upsertIntegrationAllocation } from '@/lib/org/capacity/project-capacity'
+import {
+  processLeaveRequest,
+  LeaveRequestError,
+} from '@/server/org/leave/process-leave-request'
+import { createOrgPerson } from '@/server/org/people/write'
 
 export interface ExecuteActionParams {
   action: LoopbrainAction
@@ -48,9 +55,24 @@ export async function executeAction(
       
       case 'capacity.request':
         return await executeCapacityRequest(action, workspaceId, userId, reqId)
-      
+
+      case 'org.assign_to_project':
+        return await executeOrgAssignToProject(action, workspaceId, userId, reqId)
+
+      case 'org.approve_leave':
+        return await executeOrgApproveLeave(action, workspaceId, userId, reqId)
+
+      case 'org.update_capacity':
+        return await executeOrgUpdateCapacity(action, workspaceId, userId, reqId)
+
+      case 'org.assign_manager':
+        return await executeOrgAssignManager(action, workspaceId, userId, reqId)
+
+      case 'org.create_person':
+        return await executeOrgCreatePerson(action, workspaceId, userId, reqId)
+
       default:
-        throw new LoopbrainError('BAD_REQUEST', 400, `Unknown action type: ${(action as any).type}`)
+        throw new LoopbrainError('BAD_REQUEST', 400, `Unknown action type: ${(action as { type: string }).type}`)
     }
   } catch (error) {
     // Preserve the actual error cause
@@ -151,11 +173,12 @@ async function executeTaskAssign(
 
   // Validate access to task's project
   // Convert userId to NextAuth format for assertProjectAccess
-  const nextAuthUser = {
+  const nextAuthUser: NextAuthUser = {
     id: userId,
     email: null,
     name: null,
-  } as any
+    image: null,
+  }
 
   await assertProjectAccess(
     nextAuthUser,
@@ -536,7 +559,8 @@ async function executeCapacityRequest(
     }).catch(err => {
       logger.error('Failed to index requests project', {
         requestId,
-        projectId: requestsProject.id,
+        // requestsProject is guaranteed non-null here: either found or just created above
+        projectId: requestsProject!.id,
         error: err,
       })
     })
@@ -615,6 +639,468 @@ Created via Loopbrain action.`
       actionType: 'capacity.request',
       entityId: requestTask.id,
       message: `Capacity request created for ${team.name} (${action.durationDays} days)`,
+    },
+    requestId,
+  }
+}
+
+/**
+ * Execute org.assign_to_project action
+ *
+ * Validates:
+ * - OrgPosition exists in workspace → resolves userId
+ * - Project exists in workspace
+ * - Requesting user has at least MEMBER role
+ */
+async function executeOrgAssignToProject(
+  action: Extract<LoopbrainAction, { type: 'org.assign_to_project' }>,
+  workspaceId: string,
+  userId: string,
+  requestId: string
+): Promise<LoopbrainActionResult> {
+  // Resolve OrgPosition → userId
+  const position = await prisma.orgPosition.findFirst({
+    where: { id: action.personId, workspaceId, isActive: true },
+    include: { user: { select: { id: true, name: true } } },
+  })
+
+  if (!position?.userId) {
+    throw new LoopbrainError('BAD_REQUEST', 404, 'Person not found in workspace')
+  }
+
+  const personUserId = position.userId
+  const personName = position.user?.name ?? 'Unknown'
+
+  // Verify project exists in workspace
+  const project = await prisma.project.findFirst({
+    where: { id: action.projectId, workspaceId },
+    select: { id: true, name: true },
+  })
+
+  if (!project) {
+    throw new LoopbrainError('BAD_REQUEST', 404, 'Project not found in workspace')
+  }
+
+  // Upsert ProjectMember
+  await prisma.projectMember.upsert({
+    where: { projectId_userId: { projectId: action.projectId, userId: personUserId } },
+    create: {
+      workspaceId,
+      projectId: action.projectId,
+      userId: personUserId,
+      orgPositionId: position.id,
+      role: ProjectRole.MEMBER,
+    },
+    update: {},
+  })
+
+  // Upsert integration allocation (idempotent)
+  await upsertIntegrationAllocation(workspaceId, personUserId, action.projectId, userId)
+
+  // Index person + project (non-blocking)
+  indexOne({
+    workspaceId,
+    userId,
+    entityType: 'person',
+    entityId: personUserId,
+    action: 'upsert',
+    reason: 'action:org.assign_to_project (person)',
+    requestId,
+  }).catch(err => {
+    logger.error('Failed to index person after org.assign_to_project', { requestId, error: err })
+  })
+
+  indexOne({
+    workspaceId,
+    userId,
+    entityType: 'project',
+    entityId: action.projectId,
+    action: 'upsert',
+    reason: 'action:org.assign_to_project (project)',
+    requestId,
+  }).catch(err => {
+    logger.error('Failed to index project after org.assign_to_project', { requestId, error: err })
+  })
+
+  logger.info('Person assigned to project via action', {
+    requestId,
+    workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
+    personId: action.personId,
+    projectId: action.projectId,
+  })
+
+  return {
+    ok: true,
+    result: {
+      actionType: 'org.assign_to_project',
+      entityId: action.projectId,
+      message: `${personName} assigned to ${project.name}`,
+    },
+    requestId,
+  }
+}
+
+/**
+ * Execute org.approve_leave action
+ *
+ * Delegates all permission checking and state transitions to processLeaveRequest.
+ */
+async function executeOrgApproveLeave(
+  action: Extract<LoopbrainAction, { type: 'org.approve_leave' }>,
+  workspaceId: string,
+  userId: string,
+  requestId: string
+): Promise<LoopbrainActionResult> {
+  if (action.action === 'deny' && !action.denialReason?.trim()) {
+    throw new LoopbrainError('BAD_REQUEST', 400, 'Denial reason is required when denying a request')
+  }
+
+  let result
+  try {
+    result = await processLeaveRequest({
+      leaveRequestId: action.leaveRequestId,
+      workspaceId,
+      actorUserId: userId,
+      action: action.action,
+      denialReason: action.denialReason,
+    })
+  } catch (err) {
+    if (err instanceof LeaveRequestError) {
+      const codeMap = {
+        NOT_FOUND: 'BAD_REQUEST',
+        NOT_PENDING: 'BAD_REQUEST',
+        ACCESS_DENIED: 'ACCESS_DENIED',
+        VALIDATION_ERROR: 'BAD_REQUEST',
+      } as const
+      const statusMap = { NOT_FOUND: 404, NOT_PENDING: 400, ACCESS_DENIED: 403, VALIDATION_ERROR: 400 } as const
+      throw new LoopbrainError(codeMap[err.code], statusMap[err.code], err.message)
+    }
+    throw err
+  }
+
+  // Resolve person name for the message
+  const person = await prisma.user.findUnique({
+    where: { id: result.personId },
+    select: { name: true },
+  })
+  const personName = person?.name ?? 'Unknown'
+  const startStr = result.startDate.toISOString().slice(0, 10)
+  const endStr = result.endDate.toISOString().slice(0, 10)
+  const actionLabel = result.status === 'APPROVED' ? 'approved' : 'denied'
+
+  // Index leave request + person (non-blocking)
+  indexOne({
+    workspaceId,
+    userId,
+    entityType: 'leave_request',
+    entityId: action.leaveRequestId,
+    action: 'upsert',
+    reason: 'action:org.approve_leave',
+    requestId,
+  }).catch(err => {
+    logger.error('Failed to index leave_request after org.approve_leave', { requestId, error: err })
+  })
+
+  indexOne({
+    workspaceId,
+    userId,
+    entityType: 'person',
+    entityId: result.personId,
+    action: 'upsert',
+    reason: 'action:org.approve_leave (person)',
+    requestId,
+  }).catch(err => {
+    logger.error('Failed to index person after org.approve_leave', { requestId, error: err })
+  })
+
+  logger.info('Leave request processed via action', {
+    requestId,
+    workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
+    leaveRequestId: action.leaveRequestId,
+    status: result.status,
+  })
+
+  return {
+    ok: true,
+    result: {
+      actionType: 'org.approve_leave',
+      entityId: action.leaveRequestId,
+      message: `Leave request ${actionLabel} for ${personName} (${startStr} – ${endStr})`,
+    },
+    requestId,
+  }
+}
+
+/**
+ * Execute org.update_capacity action
+ *
+ * Requires ADMIN or OWNER role.
+ * Closes any open CapacityContract (effectiveTo = yesterday), then creates a new one.
+ */
+async function executeOrgUpdateCapacity(
+  action: Extract<LoopbrainAction, { type: 'org.update_capacity' }>,
+  workspaceId: string,
+  userId: string,
+  requestId: string
+): Promise<LoopbrainActionResult> {
+  // RBAC: ADMIN+ required
+  const workspaceMember = await prisma.workspaceMember.findFirst({
+    where: { workspaceId, userId },
+    select: { role: true },
+  })
+
+  if (workspaceMember?.role !== 'ADMIN' && workspaceMember?.role !== 'OWNER') {
+    throw new LoopbrainError('ACCESS_DENIED', 403, 'ADMIN role required to update capacity')
+  }
+
+  // Verify person exists in workspace
+  const person = await prisma.user.findFirst({
+    where: {
+      id: action.personId,
+      workspaceMemberships: { some: { workspaceId } },
+    },
+    select: { id: true, name: true },
+  })
+
+  if (!person) {
+    throw new LoopbrainError('BAD_REQUEST', 404, 'Person not found in workspace')
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  // Close any open contracts for this person
+  await prisma.capacityContract.updateMany({
+    where: { workspaceId, personId: action.personId, effectiveTo: null },
+    data: { effectiveTo: yesterday },
+  })
+
+  // Create the new open-ended contract
+  const newContract = await prisma.capacityContract.create({
+    data: {
+      workspaceId,
+      personId: action.personId,
+      weeklyCapacityHours: action.weeklyCapacityHours,
+      effectiveFrom: today,
+      effectiveTo: null,
+      createdById: userId,
+    },
+    select: { id: true },
+  })
+
+  // Index person (non-blocking)
+  indexOne({
+    workspaceId,
+    userId,
+    entityType: 'person',
+    entityId: action.personId,
+    action: 'upsert',
+    reason: 'action:org.update_capacity',
+    requestId,
+  }).catch(err => {
+    logger.error('Failed to index person after org.update_capacity', { requestId, error: err })
+  })
+
+  logger.info('Capacity updated via action', {
+    requestId,
+    workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
+    personId: action.personId,
+    weeklyCapacityHours: action.weeklyCapacityHours,
+    contractId: newContract.id,
+  })
+
+  return {
+    ok: true,
+    result: {
+      actionType: 'org.update_capacity',
+      entityId: newContract.id,
+      message: `${person.name ?? 'Person'} capacity updated to ${action.weeklyCapacityHours}h/week`,
+    },
+    requestId,
+  }
+}
+
+/**
+ * Execute org.assign_manager action
+ *
+ * Requires ADMIN or OWNER role.
+ * Creates a PersonManagerLink. Returns a no-op message if the link already exists.
+ * Prevents self-assignment.
+ */
+async function executeOrgAssignManager(
+  action: Extract<LoopbrainAction, { type: 'org.assign_manager' }>,
+  workspaceId: string,
+  userId: string,
+  requestId: string
+): Promise<LoopbrainActionResult> {
+  // RBAC: ADMIN+ required
+  const workspaceMember = await prisma.workspaceMember.findFirst({
+    where: { workspaceId, userId },
+    select: { role: true },
+  })
+
+  if (workspaceMember?.role !== 'ADMIN' && workspaceMember?.role !== 'OWNER') {
+    throw new LoopbrainError('ACCESS_DENIED', 403, 'ADMIN role required to assign managers')
+  }
+
+  // Prevent self-assignment
+  if (action.managerId === action.reportId) {
+    throw new LoopbrainError('BAD_REQUEST', 400, 'A person cannot be their own manager')
+  }
+
+  // Verify both people exist in workspace
+  const [manager, report] = await Promise.all([
+    prisma.user.findFirst({
+      where: { id: action.managerId, workspaceMemberships: { some: { workspaceId } } },
+      select: { id: true, name: true },
+    }),
+    prisma.user.findFirst({
+      where: { id: action.reportId, workspaceMemberships: { some: { workspaceId } } },
+      select: { id: true, name: true },
+    }),
+  ])
+
+  if (!manager) {
+    throw new LoopbrainError('BAD_REQUEST', 404, 'Manager not found in workspace')
+  }
+  if (!report) {
+    throw new LoopbrainError('BAD_REQUEST', 404, 'Report not found in workspace')
+  }
+
+  // Check if the link already exists (no-op if so)
+  const existing = await prisma.personManagerLink.findFirst({
+    where: { workspaceId, managerId: action.managerId, personId: action.reportId },
+    select: { id: true },
+  })
+
+  if (existing) {
+    logger.info('org.assign_manager no-op: link already exists', { requestId, existing: existing.id })
+    return {
+      ok: true,
+      result: {
+        actionType: 'org.assign_manager',
+        entityId: existing.id,
+        message: `${manager.name ?? 'Manager'} is already the manager of ${report.name ?? 'Report'}`,
+      },
+      requestId,
+    }
+  }
+
+  const link = await prisma.personManagerLink.create({
+    data: {
+      workspaceId,
+      managerId: action.managerId,
+      personId: action.reportId,
+    },
+    select: { id: true },
+  })
+
+  // Index both people (non-blocking)
+  for (const personId of [action.managerId, action.reportId]) {
+    indexOne({
+      workspaceId,
+      userId,
+      entityType: 'person',
+      entityId: personId,
+      action: 'upsert',
+      reason: 'action:org.assign_manager',
+      requestId,
+    }).catch(err => {
+      logger.error('Failed to index person after org.assign_manager', { requestId, personId, error: err })
+    })
+  }
+
+  logger.info('Manager assigned via action', {
+    requestId,
+    workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
+    managerId: action.managerId,
+    reportId: action.reportId,
+    linkId: link.id,
+  })
+
+  return {
+    ok: true,
+    result: {
+      actionType: 'org.assign_manager',
+      entityId: link.id,
+      message: `${manager.name ?? 'Manager'} set as manager of ${report.name ?? 'Report'}`,
+    },
+    requestId,
+  }
+}
+
+/**
+ * Execute org.create_person action
+ *
+ * Requires ADMIN or OWNER role.
+ * Delegates creation to createOrgPerson from the people write service.
+ */
+async function executeOrgCreatePerson(
+  action: Extract<LoopbrainAction, { type: 'org.create_person' }>,
+  workspaceId: string,
+  userId: string,
+  requestId: string
+): Promise<LoopbrainActionResult> {
+  // RBAC: ADMIN+ required
+  const workspaceMember = await prisma.workspaceMember.findFirst({
+    where: { workspaceId, userId },
+    select: { role: true },
+  })
+
+  if (workspaceMember?.role !== 'ADMIN' && workspaceMember?.role !== 'OWNER') {
+    throw new LoopbrainError('ACCESS_DENIED', 403, 'ADMIN role required to create people')
+  }
+
+  // Resolve team name for confirmation message (optional)
+  let teamName: string | undefined
+  if (action.teamId) {
+    const team = await prisma.orgTeam.findFirst({
+      where: { id: action.teamId, workspaceId },
+      select: { name: true },
+    })
+    teamName = team?.name
+  }
+
+  const created = await createOrgPerson({
+    workspaceId,
+    fullName: action.fullName,
+    email: action.email ?? null,
+    title: action.title ?? null,
+    departmentId: null,
+    teamId: action.teamId ?? null,
+    managerId: null,
+  })
+
+  // Index person (non-blocking)
+  indexOne({
+    workspaceId,
+    userId,
+    entityType: 'person',
+    entityId: created.userId,
+    action: 'upsert',
+    reason: 'action:org.create_person',
+    requestId,
+  }).catch(err => {
+    logger.error('Failed to index person after org.create_person', { requestId, error: err })
+  })
+
+  logger.info('Person created via action', {
+    requestId,
+    workspaceId: workspaceId ? `${workspaceId.substring(0, 8)}...` : undefined,
+    positionId: created.id,
+    userId: created.userId,
+  })
+
+  const teamSuffix = teamName ? `, assigned to ${teamName}` : ''
+
+  return {
+    ok: true,
+    result: {
+      actionType: 'org.create_person',
+      entityId: created.id,
+      message: `${action.fullName} created${teamSuffix}`,
     },
     requestId,
   }

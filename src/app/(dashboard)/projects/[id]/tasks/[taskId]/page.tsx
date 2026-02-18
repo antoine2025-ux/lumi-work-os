@@ -79,6 +79,8 @@ interface Task {
     subtasks: number
     comments: number
   }
+  dependsOn: string[]
+  blocks: string[]
 }
 
 const statusOptions = [

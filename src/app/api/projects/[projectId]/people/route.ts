@@ -6,6 +6,7 @@ import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { ProjectPersonCreateSchema } from '@/lib/validations/project-people'
 import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
+import { upsertIntegrationAllocation } from '@/lib/org/capacity/project-capacity'
 
 // ---------------------------------------------------------------------------
 // GET /api/projects/[projectId]/people — List people linked to a project
@@ -136,6 +137,17 @@ export async function POST(
 
     // Fire-and-forget: refresh Loopbrain project context
     upsertProjectContext(projectId).catch(() => {})
+
+    // Auto-create WorkAllocation for the added person (best-effort, never blocks response)
+    try {
+      await upsertIntegrationAllocation(auth.workspaceId, userId, projectId, auth.user.userId)
+    } catch (err) {
+      console.error('Failed to create integration allocation for project member', {
+        projectId,
+        userId,
+        error: err,
+      })
+    }
 
     return NextResponse.json(link, { status: 201 })
   } catch (error) {

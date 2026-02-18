@@ -47,6 +47,12 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
     // Step 3: Set workspace context
     setWorkspaceContext(workspaceId);
 
+    const workspaceRecord = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { slug: true },
+    });
+    const workspaceSlug = workspaceRecord?.slug ?? workspaceId;
+
     // Step 4: Parse request
     const { departmentId } = await ctx.params;
     const body = await request.json();
@@ -114,7 +120,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
     }
 
     // Step 7: Compute issues BEFORE mutation
-    const issuesBefore = await deriveOwnershipIssuesForEntity(workspaceId, "DEPARTMENT", departmentId);
+    const issuesBefore = await deriveOwnershipIssuesForEntity(workspaceId, "DEPARTMENT", departmentId, workspaceSlug);
 
     // Step 8: Update or create OwnerAssignment for department
     // Use raw SQL to avoid enum type issues
@@ -177,7 +183,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
     }
 
     // Step 9: Compute issues AFTER mutation
-    const issuesAfter = await deriveOwnershipIssuesForEntity(workspaceId, "DEPARTMENT", departmentId);
+    const issuesAfter = await deriveOwnershipIssuesForEntity(workspaceId, "DEPARTMENT", departmentId, workspaceSlug);
 
     // Step 10: Build response metadata
     const responseMeta = buildResponseMeta("mutation:department-owner:v1");

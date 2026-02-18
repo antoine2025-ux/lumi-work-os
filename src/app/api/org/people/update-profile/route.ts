@@ -22,13 +22,36 @@ export async function POST(req: Request) {
     const personId = String(body.id ?? "")
     if (!personId) return NextResponse.json({ error: "id required" }, { status: 400 })
 
-    await prisma.person.update({
-      where: { id: personId } as any,
-      data: {
-        ...(body.name ? { name: String(body.name) } : {}),
-        ...(body.title !== undefined ? { title: body.title ? String(body.title) : null } : {}),
-      } as any,
-    } as any)
+    // Update OrgPosition (title) and User (name)
+    const updates = []
+    
+    if (body.title !== undefined) {
+      updates.push(
+        prisma.orgPosition.update({
+          where: { id: personId },
+          data: { title: body.title ? String(body.title) : null },
+        })
+      )
+    }
+    
+    if (body.name) {
+      const position = await prisma.orgPosition.findUnique({
+        where: { id: personId },
+        select: { userId: true },
+      })
+      if (position?.userId) {
+        updates.push(
+          prisma.user.update({
+            where: { id: position.userId },
+            data: { name: String(body.name) },
+          })
+        )
+      }
+    }
+    
+    if (updates.length > 0) {
+      await Promise.all(updates)
+    }
 
     if (body.availability) {
       const status = String(body.availability.status ?? "AVAILABLE").toUpperCase()

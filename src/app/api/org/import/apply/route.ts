@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { requireActiveOrgId } from "@/server/org/context"
+import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { handleApiError } from "@/lib/api-errors"
 import { parseCsv } from "@/server/org/import/csv"
 import { asFte, asPercent, asShrinkage, ImportError } from "@/server/org/import/validators"
 import { getPeopleEmailMap } from "@/server/org/import/lookup"
@@ -8,14 +11,20 @@ import { runInBatches } from "@/server/org/import/batch"
 
 export async function POST(req: NextRequest) {
   try {
-    const orgId = await requireActiveOrgId(req)
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["OWNER", "ADMIN"] })
+    setWorkspaceContext(workspaceId)
+
     const body = (await req.json()) as { entity: string; csv: string }
 
     const entity = String(body?.entity ?? "")
     const csvText = String(body?.csv ?? "")
     const { rows } = parseCsv(csvText)
 
-    const emailMap = await getPeopleEmailMap(orgId)
+    const emailMap = await getPeopleEmailMap(workspaceId)
 
     const errors: ImportError[] = []
 
@@ -35,7 +44,7 @@ export async function POST(req: NextRequest) {
 
         if (!personId) errors.push({ row, field: "personId/personEmail", message: "Required (or email must match an existing person)" })
         if (!managerId) errors.push({ row, field: "managerId/managerEmail", message: "Required (or email must match an existing person)" })
-        prepared.push({ orgId, personId, managerId })
+        prepared.push({ orgId: workspaceId, personId, managerId })
       })
       if (errors.length) return NextResponse.json({ ok: false, errors }, { status: 400 })
 
@@ -61,7 +70,7 @@ export async function POST(req: NextRequest) {
         const percent = asPercent(String(r.percent ?? ""), row, "percent", errors)
         if (!personId) errors.push({ row, field: "personId/personEmail", message: "Required (or email must match an existing person)" })
         if (!role) errors.push({ row, field: "role", message: "Required" })
-        prepared.push({ orgId, personId, role, percent })
+        prepared.push({ orgId: workspaceId, personId, role, percent })
       })
       if (errors.length) return NextResponse.json({ ok: false, errors }, { status: 400 })
 
@@ -72,7 +81,7 @@ export async function POST(req: NextRequest) {
       // Upsert using unique constraint (batched for scale)
       const ops = Array.from(uniq.values()).map((x) =>
         prisma.personRoleAssignment.upsert({
-          where: { orgId_personId_role: { orgId, personId: x.personId, role: x.role } } as any,
+          where: { orgId_personId_role: { orgId: workspaceId, personId: x.personId, role: x.role } } as any,
           update: { percent: x.percent } as any,
           create: x as any,
         })
@@ -96,7 +105,7 @@ export async function POST(req: NextRequest) {
         const valid = status === "AVAILABLE" || status === "LIMITED" || status === "UNAVAILABLE"
         if (!personId) errors.push({ row, field: "personId/personEmail", message: "Required (or email must match an existing person)" })
         if (!valid) errors.push({ row, field: "status", message: "Must be AVAILABLE/LIMITED/UNAVAILABLE" })
-        prepared.push({ orgId, personId, status, reason })
+        prepared.push({ orgId: workspaceId, personId, status, reason })
       })
       if (errors.length) return NextResponse.json({ ok: false, errors }, { status: 400 })
 
@@ -107,9 +116,9 @@ export async function POST(req: NextRequest) {
       // Upsert using unique constraint (batched for scale)
       const ops = Array.from(uniqPeople.values()).map((x) =>
         prisma.personAvailability.upsert({
-          where: { orgId_personId: { orgId, personId: x.personId } } as any,
+          where: { orgId_personId: { orgId: workspaceId, personId: x.personId } } as any,
           update: { status: x.status as any, reason: x.reason || null } as any,
-          create: { orgId, personId: x.personId, status: x.status as any, reason: x.reason || null } as any,
+          create: { orgId: workspaceId, personId: x.personId, status: x.status as any, reason: x.reason || null } as any,
         })
       )
 
@@ -129,7 +138,7 @@ export async function POST(req: NextRequest) {
         const fte = asFte(String(r.fte ?? ""), row, "fte", errors)
         const shrinkagePct = asShrinkage(String(r.shrinkagePct ?? r.shrinkage_pct ?? ""), row, "shrinkagePct", errors)
         if (!personId) errors.push({ row, field: "personId/personEmail", message: "Required (or email must match an existing person)" })
-        prepared.push({ orgId, personId, fte, shrinkagePct })
+        prepared.push({ orgId: workspaceId, personId, fte, shrinkagePct })
       })
       if (errors.length) return NextResponse.json({ ok: false, errors }, { status: 400 })
 
@@ -140,7 +149,7 @@ export async function POST(req: NextRequest) {
       // Upsert using unique constraint (batched for scale)
       const ops = Array.from(uniqPeople.values()).map((x) =>
         prisma.personCapacity.upsert({
-          where: { orgId_personId: { orgId, personId: x.personId } } as any,
+          where: { orgId_personId: { orgId: workspaceId, personId: x.personId } } as any,
           update: { fte: x.fte, shrinkagePct: x.shrinkagePct } as any,
           create: x as any,
         })
@@ -154,8 +163,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ error: "Unknown entity" }, { status: 400 })
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  } catch (error) {
+    return handleApiError(error, req)
   }
 }
-

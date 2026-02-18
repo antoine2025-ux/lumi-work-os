@@ -35,7 +35,7 @@ import {
   expandHealthAnalysisContext,
   expandOrgBundleByType,
 } from './org-bundle-expander'
-import type { ContextObject } from './context-types'
+import type { ContextObject } from './contextTypes'
 import {
   inferOrgQuestionTypeFromRequest,
   type OrgQuestionContext,
@@ -2422,6 +2422,26 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
   // User question
   sections.push(`\n## User Question:`)
   sections.push(req.query)
+
+  // Available org actions (ACTIONS_JSON)
+  sections.push(`\n## Available Org Actions
+
+When the user explicitly requests one of the following org operations, propose it in an ACTIONS_JSON block at the end of your response.
+Actions are suggestions only and require explicit user confirmation before execution.
+Only propose an action when the user is asking you to perform an operation — never for informational queries.
+Use IDs (personId, projectId, leaveRequestId, etc.) from the org context above when constructing action payloads.
+
+- **org.assign_to_project** — Assign a person to a project. Required: \`personId\` (OrgPosition ID), \`projectId\`. Optional: \`allocationPercent\` (default 0.25, range 0.1–1.0).
+- **org.approve_leave** — Approve or deny a pending leave request. Required: \`leaveRequestId\`, \`action\` ("approve"|"deny"). Required when action="deny": \`denialReason\`.
+- **org.update_capacity** — Update a person's weekly capacity hours (ADMIN only). Required: \`personId\` (User ID), \`weeklyCapacityHours\` (1–80).
+- **org.assign_manager** — Assign a manager to a person via manager link (ADMIN only). Required: \`managerId\` (User ID), \`reportId\` (User ID).
+- **org.create_person** — Create a new person in the org (ADMIN only). Required: \`fullName\`. Optional: \`email\`, \`title\`, \`teamId\`.
+
+Format (append at the end of your response, after the answer text):
+\`\`\`json
+ACTIONS_JSON
+[{ "type": "org.assign_to_project", "personId": "...", "projectId": "...", "allocationPercent": 0.25 }]
+\`\`\``)
 
   // Instructions
   sections.push(`\n## Instructions:`)

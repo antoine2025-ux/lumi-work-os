@@ -11,7 +11,7 @@ export interface RoleContextInput {
 
   // Core OrgPosition identity
   roleId: string; // OrgPosition.id
-  title: string;
+  title: string | null;
   level?: number | null;
   description?: string | null;
   isActive?: boolean;
@@ -192,7 +192,7 @@ export function buildRoleContext(
     contextId: roleId,
     workspaceId,
     type: "role",
-    title: `${title} – Role Context`,
+    title: `${title || "Untitled Role"} – Role Context`,
     summary:
       "Role-level definition of responsibilities, reporting, and ownership within the organization.",
     data,

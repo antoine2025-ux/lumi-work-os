@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { getOrgIntelligenceSnapshot, serializeSnapshot } from "@/lib/org/intelligence";
 import {
   computeOrgRecommendations,
@@ -58,7 +59,10 @@ export async function GET(request: NextRequest) {
       requireRole: ["MEMBER"],
     });
 
-    // Step 3: Parse query params
+    // Step 3: Set workspace context (enables automatic Prisma scoping)
+    setWorkspaceContext(workspaceId);
+
+    // Step 4: Parse query params
     const searchParams = request.nextUrl.searchParams;
     const version = searchParams.get("version") ?? REASONING_API_VERSION;
     const limitParam = searchParams.get("limit");

@@ -41,7 +41,7 @@ export function PersonIdentityCell({ person, className }: PersonIdentityCellProp
         </AvatarFallback>
       </Avatar>
 
-      {/* Name + Title (2 lines max) */}
+      {/* Name + Role/Team (2 lines max) */}
       <div className="flex min-w-0 flex-col gap-0.5">
         {/* Line 1: Full name (or email fallback) */}
         {primaryText && (
@@ -49,10 +49,10 @@ export function PersonIdentityCell({ person, className }: PersonIdentityCellProp
             {primaryText}
           </div>
         )}
-        {/* Line 2: Title (only if set) */}
-        {person.title && (
+        {/* Line 2: Role (only if set) */}
+        {person.role && (
           <div className="truncate text-[12px] font-medium text-slate-400">
-            {person.title}
+            {person.role}
           </div>
         )}
       </div>

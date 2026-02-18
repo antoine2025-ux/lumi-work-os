@@ -383,7 +383,7 @@ export class PrismaContextEngine implements ContextEngine {
           },
           personLinks: {
             include: {
-              user: { select: { id: true, name: true, email: true } },
+              user: true,
               orgPosition: {
                 select: {
                   id: true,
@@ -499,12 +499,7 @@ export class PrismaContextEngine implements ContextEngine {
               email: true
             }
           },
-          project: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
+          project: true,
           epic: {
             select: {
               id: true,
@@ -1061,13 +1056,7 @@ export async function upsertProjectContext(projectId: string): Promise<void> {
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
+owner: true,
         projectDocumentation: {
           include: {
             wikiPage: {
@@ -1561,13 +1550,7 @@ export async function getProjectContextObject(
         workspaceId // Enforce workspace scoping
       },
       include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
+owner: true,
         _count: {
           select: {
             tasks: true
@@ -1612,13 +1595,7 @@ export async function getWorkspaceContextObjects(params: {
         isArchived: false // Only active projects by default
       },
       include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
+        owner: true
       },
       take: limit,
       orderBy: {
@@ -1644,18 +1621,11 @@ export async function getWorkspaceContextObjects(params: {
         },
         include: {
           project: {
-            select: {
-              id: true,
-              name: true
+            include: {
+              owner: true
             }
           },
-          assignee: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
+          assignee: true
         },
         take: limit,
         orderBy: {
@@ -1729,13 +1699,7 @@ export async function getPersonalSpaceDocs(params: {
         ]
       },
       include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
+        createdBy: true,
         projects: {
           select: {
             id: true,
@@ -1797,25 +1761,8 @@ export async function getOrgPeopleContext(params: {
         userId: { not: null } // Only positions that are occupied by users
       },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        team: {
-          select: {
-            id: true,
-            name: true,
-            department: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          }
-        }
+        user: true,
+        team: true
       },
       take: limit,
       orderBy: {
@@ -1946,8 +1893,8 @@ export async function upsertOneOnOneContext(meetingId: string): Promise<void> {
     const meeting = await prisma.oneOnOneMeeting.findUnique({
       where: { id: meetingId },
       include: {
-        manager: { select: { id: true, name: true, email: true } },
-        employee: { select: { id: true, name: true, email: true } },
+        manager: true,
+        employee: true,
         series: { select: { frequency: true } },
         _count: {
           select: { talkingPoints: true, actionItems: true },

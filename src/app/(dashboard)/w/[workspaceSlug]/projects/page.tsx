@@ -108,6 +108,7 @@ interface Epic {
   taskCount: number
   completedTasks: number
   color?: string
+  createdAt?: string
   tasks?: Array<{
     id: string
     title: string
@@ -121,6 +122,9 @@ interface Epic {
   }>
   _count?: {
     tasks: number
+  }
+  project?: {
+    name: string
   }
 }
 

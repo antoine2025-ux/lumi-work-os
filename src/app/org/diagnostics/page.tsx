@@ -35,7 +35,10 @@ export default async function OrgDiagnosticsPage() {
     <div className="px-10 pt-8 pb-10">
       <OrgPageViewTracker route="/org/diagnostics" name="Org Diagnostics" />
       <OrgPageHeader
-        breadcrumb="ORG / DIAGNOSTICS"
+        breadcrumb={[
+          { label: "ORG", href: "/org" },
+          { label: "DIAGNOSTICS" }
+        ]}
         title="Org Center Diagnostics"
         description="Internal diagnostics and observability information for Org Center."
       />

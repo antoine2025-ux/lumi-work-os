@@ -22,7 +22,7 @@ export function ExportsSection({ orgId }: ExportsSectionProps) {
   // OrgExportsScreen is a client component, so we can use it directly
   return (
     <section className="space-y-3 rounded-2xl border border-[#111827] bg-[#020617] p-2 shadow-sm">
-      <OrgExportsScreen orgId={orgId} />
+      <OrgExportsScreen />
       <p className="px-2 pb-1 text-[11px] text-slate-500">
         When no exports have been requested yet, you&apos;ll see an empty list here until the first
         job is created.

@@ -21,14 +21,11 @@ export async function GET(
     const plan = await prisma.onboardingPlan.findUnique({
       where: { id: resolvedParams.id },
       include: {
-        employee: {
+        users: {
           select: { name: true, email: true },
         },
         template: {
-          select: { name: true, durationDays: true },
-        },
-        tasks: {
-          orderBy: { order: 'asc' },
+          select: { name: true, duration: true },
         },
       },
     })
@@ -84,14 +81,11 @@ export async function PATCH(
       where: { id: resolvedParams.id },
       data: updateData,
       include: {
-        employee: {
+        users: {
           select: { name: true, email: true },
         },
         template: {
-          select: { name: true, durationDays: true },
-        },
-        tasks: {
-          orderBy: { order: 'asc' },
+          select: { name: true, duration: true },
         },
       },
     })
@@ -105,7 +99,7 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input data', details: error.errors } },
+        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input data', details: error.issues } },
         { status: 400 }
       )
     }

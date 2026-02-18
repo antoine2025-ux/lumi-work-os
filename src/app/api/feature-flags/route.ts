@@ -22,11 +22,11 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching feature flags:", error)
     
     // Handle auth errors
-    if (error.message.includes('Unauthorized')) {
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message.includes('Forbidden')) {
+    if (error instanceof Error && error.message.includes('Forbidden')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     
@@ -59,11 +59,11 @@ export async function POST(request: NextRequest) {
     console.error("Error setting feature flag:", error)
     
     // Handle auth errors
-    if (error.message.includes('Unauthorized')) {
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    if (error.message.includes('Forbidden')) {
+    if (error instanceof Error && error.message.includes('Forbidden')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     

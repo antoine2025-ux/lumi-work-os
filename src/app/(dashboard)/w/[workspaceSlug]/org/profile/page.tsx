@@ -6,13 +6,15 @@ import { redirect } from "next/navigation";
 import { getOrgPermissionContext } from "@/lib/org/permissions.server";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Calendar, Users, Briefcase } from "lucide-react";
+import { Calendar, Users, Briefcase } from "lucide-react";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
+import { BasicInfoSection } from "@/components/org/profile/basic-info-section";
 import { EmploymentDetailsSection } from "@/components/org/profile/employment-details-section";
 import { CurrentWorkloadSection } from "@/components/org/profile/current-workload-section";
 import { TimeOffSectionWrapper } from "@/components/org/profile/time-off-section-wrapper";
+import { PendingActionsSection } from "@/components/org/my-team/pending-actions-section";
+import { WikiContributionsSection } from "@/components/org/profile/wiki-contributions-section";
 import { getUserWorkload } from "@/lib/org/profile/get-workload";
 import { getUserTimeOff } from "@/lib/org/profile/get-time-off";
 
@@ -30,7 +32,8 @@ export default async function MyProfilePage({ params }: PageProps) {
     redirect("/welcome");
   }
 
-  const [user, positions, capacityContract, onboardingState, workload, timeOff] =
+  const [user, positions, capacityContract, onboardingState, workload, timeOff,
+         workspaceMember, managerLinks, ledTeams] =
     await Promise.all([
     prisma.user.findUnique({
       where: { id: context.userId },
@@ -63,6 +66,22 @@ export default async function MyProfilePage({ params }: PageProps) {
     }),
       getUserWorkload(context.userId, context.orgId),
       getUserTimeOff(context.userId, context.orgId),
+    prisma.workspaceMember.findFirst({
+      where: { userId: context.userId, workspaceId: context.orgId },
+      select: { role: true },
+    }),
+    prisma.personManagerLink.findMany({
+      where: { managerId: context.userId, workspaceId: context.orgId },
+    }),
+    prisma.orgTeam.findMany({
+      where: { leaderId: context.userId, workspaceId: context.orgId },
+      include: {
+        positions: {
+          where: { isActive: true, archivedAt: null },
+          select: { userId: true },
+        },
+      },
+    }),
     ]);
 
   const teams = positions
@@ -73,7 +92,61 @@ export default async function MyProfilePage({ params }: PageProps) {
   const primaryPosition = positions[0];
 
   const displayName = user?.name || onboardingState?.adminName || "User";
-  const displayRole = onboardingState?.adminRole || "Team Member";
+  const displayRole = primaryPosition?.title || onboardingState?.adminRole || "Team Member";
+
+  // Pending approvals — visible to managers (direct reports or team lead) and admins
+  const isAdmin = ["ADMIN", "OWNER"].includes(workspaceMember?.role ?? "");
+  const isManager = managerLinks.length > 0 || ledTeams.length > 0;
+  const showPendingApprovals = isAdmin || isManager;
+
+  const approvablePersonIds = isAdmin
+    ? undefined // admin sees all workspace pending requests
+    : [
+        ...new Set([
+          ...managerLinks.map((l) => l.personId),
+          ...ledTeams.flatMap((t) =>
+            t.positions.map((p) => p.userId).filter((id): id is string => id !== null)
+          ),
+        ]),
+      ];
+
+  const pendingLeaveRequests = showPendingApprovals
+    ? await prisma.leaveRequest.findMany({
+        where: {
+          workspaceId: context.orgId,
+          ...(approvablePersonIds ? { personId: { in: approvablePersonIds } } : {}),
+          status: "PENDING",
+        },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+
+  const requestUserIds = [...new Set(pendingLeaveRequests.map((r) => r.personId))];
+  const requestUsers =
+    requestUserIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: requestUserIds } },
+          select: { id: true, name: true, email: true, image: true },
+        })
+      : [];
+
+  const usersById = Object.fromEntries(requestUsers.map((u) => [u.id, u]));
+  const requestsWithPerson = pendingLeaveRequests.map((r) => ({
+    ...r,
+    person: usersById[r.personId] ?? { id: r.personId, name: null, email: "—", image: null },
+  }));
+
+  const [wikiPages, wikiPageCount] = await Promise.all([
+    prisma.wikiPage.findMany({
+      where: { workspaceId: context.orgId, createdById: context.userId },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+      select: { id: true, title: true, slug: true, updatedAt: true, view_count: true },
+    }),
+    prisma.wikiPage.count({
+      where: { workspaceId: context.orgId, createdById: context.userId },
+    }),
+  ]);
 
   return (
     <>
@@ -84,31 +157,12 @@ export default async function MyProfilePage({ params }: PageProps) {
       />
       <div className="p-10 pb-10 max-w-4xl">
         <div className="grid gap-6">
-          <Card className="border-[#1e293b] bg-[#0B1220]">
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="h-16 w-16 rounded-full bg-[#243B7D] text-slate-100 flex items-center justify-center text-2xl font-bold">
-                  {displayName.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-xl font-semibold text-slate-50">{displayName}</h2>
-                  <p className="text-slate-400">{displayRole}</p>
-                  {user?.email && (
-                    <div className="flex items-center gap-2 mt-2 text-sm text-slate-400">
-                      <Mail className="h-4 w-4" />
-                      {user.email}
-                    </div>
-                  )}
-                </div>
-                <Button variant="outline" className="border-slate-600 text-slate-300">
-                  Edit Profile
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <BasicInfoSection
+            displayName={displayName}
+            displayRole={displayRole}
+            email={user?.email}
+            positionId={primaryPosition?.id}
+          />
 
           <EmploymentDetailsSection
             positionId={primaryPosition?.id}
@@ -136,6 +190,18 @@ export default async function MyProfilePage({ params }: PageProps) {
               userId={context.userId}
             />
           )}
+
+          {showPendingApprovals && (
+            <PendingActionsSection
+              requests={requestsWithPerson}
+              workspaceSlug={workspaceSlug}
+            />
+          )}
+
+          <WikiContributionsSection
+            pages={wikiPages}
+            totalCount={wikiPageCount}
+          />
 
           <Card className="border-[#1e293b] bg-[#0B1220]">
             <CardHeader>

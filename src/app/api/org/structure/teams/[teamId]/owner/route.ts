@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { prisma } from "@/lib/db";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { optionalString } from "@/server/org/validate";
 import { setTeamOwner } from "@/server/org/structure/write";
@@ -48,19 +49,25 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ teamId:
     // Step 3: Set workspace context (for backward compatibility, though middleware is disabled)
     setWorkspaceContext(workspaceId);
 
+    const workspaceRecord = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { slug: true },
+    });
+    const workspaceSlug = workspaceRecord?.slug ?? workspaceId;
+
     // Step 4: Parse request
     const { teamId } = await ctx.params;
     const body = await request.json();
     const ownerPersonId = optionalString(body.ownerPersonId);
 
     // Step 5: Compute issues BEFORE mutation
-    const issuesBefore = await deriveOwnershipIssuesForEntity(workspaceId, "TEAM", teamId);
+    const issuesBefore = await deriveOwnershipIssuesForEntity(workspaceId, "TEAM", teamId, workspaceSlug);
 
     // Step 6: Update team owner (with workspaceId validation)
     const updated = await setTeamOwner({ teamId, ownerPersonId, workspaceId });
 
     // Step 7: Compute issues AFTER mutation
-    const issuesAfter = await deriveOwnershipIssuesForEntity(workspaceId, "TEAM", teamId);
+    const issuesAfter = await deriveOwnershipIssuesForEntity(workspaceId, "TEAM", teamId, workspaceSlug);
 
     // Step 8: Build response metadata
     const responseMeta = buildResponseMeta("mutation:team-owner:v1");

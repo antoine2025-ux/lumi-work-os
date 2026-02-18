@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  assertOrgCapability,
-  getOrgPermissionContext,
-  mapPermissionErrorToStatus,
-} from "@/lib/org/permissions.server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { isOrgManagementLoadEnabled } from "@/lib/org/feature-flags";
 
 /**
@@ -38,31 +37,15 @@ type ManagementLoadResponse = {
 
 export async function GET(req: NextRequest) {
   try {
-    const context = await getOrgPermissionContext(req);
-
-    try {
-      assertOrgCapability(context, "org:overview:view");
-    } catch (permError) {
-      const status = mapPermissionErrorToStatus(permError);
-      return NextResponse.json(
-        {
-          error:
-            status === 401
-              ? "Unauthenticated."
-              : "Not allowed to view management load.",
-        },
-        { status }
-      );
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    if (!context) {
-      return NextResponse.json({ error: "No active org found." }, { status: 400 });
-    }
-
-    const orgId = context.orgId; // workspaceId
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
+    setWorkspaceContext(workspaceId);
 
     // Check if management load feature is enabled
-    const managementLoadEnabled = await isOrgManagementLoadEnabled(orgId);
+    const managementLoadEnabled = await isOrgManagementLoadEnabled(workspaceId);
     if (!managementLoadEnabled) {
       return NextResponse.json(
         { error: "Management load features are not enabled for this workspace." },
@@ -74,7 +57,7 @@ export async function GET(req: NextRequest) {
     // Fetch all active positions with users (these are our "people")
     const positions = await prisma.orgPosition.findMany({
       where: {
-        workspaceId: orgId,
+        workspaceId,
         isActive: true,
         userId: { not: null },
       },
@@ -158,12 +141,7 @@ export async function GET(req: NextRequest) {
     };
 
     return NextResponse.json(payload);
-  } catch (err: any) {
-    console.error("[GET /api/org/health/management-load] Error:", err);
-    return NextResponse.json(
-      { error: "Failed to load management load.", detail: String(err?.message ?? err) },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req);
   }
 }
-

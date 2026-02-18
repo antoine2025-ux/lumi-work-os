@@ -58,7 +58,10 @@ export function OrgSettingsClient({
   return (
     <>
       <OrgPageHeader
-        breadcrumb="ORG / ORG SETTINGS"
+        breadcrumb={[
+          { label: "ORG", href: "/org" },
+          { label: "ORG SETTINGS" }
+        ]}
         title="Org settings"
         description="Manage this organization's members, invites, and configuration."
         actions={
@@ -84,7 +87,12 @@ export function OrgSettingsClient({
           <InvitesSection orgId={orgId} initialInvitations={initialInvitations} />
         )}
 
-        {activeTab === "general" && <GeneralSettingsSection orgId={orgId} />}
+        {activeTab === "general" && (
+          <GeneralSettingsSection 
+            orgId={orgId} 
+            permissions={{ workspaceId: orgId, role, userId: currentUserId }} 
+          />
+        )}
 
         {activeTab === "danger" && canSeeDanger && (
           <DangerZoneSection orgId={orgId} />

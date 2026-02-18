@@ -25,6 +25,12 @@ export async function GET() {
 
   try {
     const workspaceId = await getCurrentWorkspaceId();
+    if (!workspaceId) {
+      return NextResponse.json(
+        { ok: false, error: "Missing workspace" },
+        { status: 400 }
+      );
+    }
 
     // Fetch Org-related context items only
     const items = await prisma.contextItem.findMany({

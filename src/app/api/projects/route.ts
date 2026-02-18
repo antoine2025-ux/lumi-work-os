@@ -408,7 +408,7 @@ export async function POST(request: NextRequest) {
         })
 
         // Auto-create ProjectPersonLink for Loopbrain
-        const linkRole = role === 'OWNER' ? 'OWNER' : role === 'VIEWER' ? 'STAKEHOLDER' : 'CONTRIBUTOR'
+        const linkRole = role === 'OWNER' ? 'OWNER' : 'CONTRIBUTOR'
         await (tx.projectPersonLink as any).create({
           data: {
             projectId: createdProject.id,

@@ -60,7 +60,7 @@ export function InvitesSection({
             title="No invitations yet"
             description="Use the form below to invite people to this organization."
             primaryActionLabel="Invite member"
-            primaryActionComponent={<InviteMemberForm workspaceId={orgId} />}
+            primaryAction={<InviteMemberForm workspaceId={orgId} />}
           />
         ) : (
           <div className="space-y-4">

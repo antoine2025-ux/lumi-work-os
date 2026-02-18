@@ -53,7 +53,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         archivedAt: null,
         userId: { not: null },
         user: {
-          workspaceMembers: {
+          workspaceMemberships: {
             some: { workspaceId, employmentStatus: { not: "TERMINATED" } },
           },
         },

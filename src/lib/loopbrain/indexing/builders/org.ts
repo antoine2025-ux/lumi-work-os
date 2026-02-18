@@ -115,12 +115,12 @@ export async function buildContextObjectForPerson(
       tasksDueNext7Days,
     }
 
-    // Fetch time off (active + upcoming 30 days)
-    const timeOff = await prisma.timeOff.findFirst({
+    // Fetch leave request (active + upcoming 30 days)
+    const leaveRequest = await prisma.leaveRequest.findFirst({
       where: {
         workspaceId,
-        userId: user.id,
-        status: 'approved',
+        personId: user.id,
+        status: 'APPROVED',
         OR: [
           {
             startDate: { lte: now },
@@ -137,18 +137,18 @@ export async function buildContextObjectForPerson(
     })
 
     // Build ContextObject using existing builder
-    const contextObject = personToContext(user, {
+    const contextObject = personToContext(user, workspaceId, {
       role: position,
       team: position.team || undefined,
       workloadStats,
-      timeOff: timeOff || undefined,
+      timeOff: leaveRequest ? {
+        startDate: leaveRequest.startDate,
+        endDate: leaveRequest.endDate,
+        type: leaveRequest.leaveType,
+      } : undefined,
     })
 
-    // Ensure workspaceId is set
-    return {
-      ...contextObject,
-      workspaceId,
-    }
+    return contextObject
   } catch (error) {
     console.error('Failed to build person context object', {
       workspaceId,
