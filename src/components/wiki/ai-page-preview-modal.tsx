@@ -66,7 +66,6 @@ export function AIPagePreviewModal({
       setSelectedWorkspaceId("")
       setIsEditing(false)
       setError(null)
-      console.log('📋 AIPagePreviewModal opened with workspaces:', workspaces.length, workspaces)
     }
   }, [open, initialTitle, initialContent, workspaces])
 

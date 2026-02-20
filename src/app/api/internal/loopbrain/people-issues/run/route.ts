@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
         suggestionCount: result.suggestionCount,
         engineId: result.engineId,
       });
-    } else if (result.skipped) {
+    } else if (!result.ok && 'skipped' in result) {
       results.push({
         workspaceId,
         orgId,
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         skipped: true,
         reason: result.reason,
       });
-    } else {
+    } else if (!result.ok) {
       results.push({
         workspaceId,
         orgId,

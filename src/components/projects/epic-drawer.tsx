@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle, Calendar, FileText, Link as LinkIcon, GanttChart, Sparkles } from 'lucide-react'
+import { AlertTriangle, Calendar, FileText, Link as LinkIcon } from 'lucide-react'
 import { TaskEditDialog } from '@/components/tasks/task-edit-dialog'
 import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
 
@@ -72,10 +72,10 @@ export function EpicDrawer({ epic, isOpen, onClose, projectId, workspaceId, colo
     if (!epic) return
     try {
       setIsLoading(true)
-      const response = await fetch(`/api/tasks?projectId=${projectId}&workspaceId=${workspaceId}`)
+      const response = await fetch(`/api/tasks?projectId=${projectId}&epicId=${epic.id}${workspaceId ? `&workspaceId=${workspaceId}` : ''}`)
       if (response.ok) {
         const data = await response.json()
-        setTasks(data.filter((task: Task) => task.epicId === epic.id))
+        setTasks(data)
       }
     } catch (error) {
       console.error('Error loading tasks:', error)
@@ -147,9 +147,8 @@ export function EpicDrawer({ epic, isOpen, onClose, projectId, workspaceId, colo
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="timeline">Timeline</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
             </TabsList>
@@ -231,25 +230,6 @@ export function EpicDrawer({ epic, isOpen, onClose, projectId, workspaceId, colo
                   </div>
                 )}
 
-                {/* AI Insights Placeholder */}
-                <div className="p-4 rounded border border-dashed" style={{ borderColor: colors.border }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="h-4 w-4" style={{ color: colors.textMuted }} />
-                    <h3 className="text-sm font-medium" style={{ color: colors.text }}>AI Insights</h3>
-                  </div>
-                  <p className="text-xs" style={{ color: colors.textMuted }}>Coming soon</p>
-                </div>
-              </TabsContent>
-
-              {/* Epic Timeline */}
-              <TabsContent value="timeline" className="mt-0">
-                <div className="p-8 text-center border border-dashed rounded" style={{ borderColor: colors.border }}>
-                  <GanttChart className="h-12 w-12 mx-auto mb-3" style={{ color: colors.textMuted }} />
-                  <h3 className="text-sm font-medium mb-1" style={{ color: colors.text }}>Timeline View</h3>
-                  <p className="text-xs" style={{ color: colors.textMuted }}>
-                    Gantt chart showing tasks for this epic (coming soon)
-                  </p>
-                </div>
               </TabsContent>
 
               {/* Epic Tasks */}

@@ -89,13 +89,17 @@ export async function GET(request: NextRequest) {
 
     const resp = await answerQ5({
       person,
-      availability: availability.map((a) => ({
-        type: a.type,
-        startDate: a.startDate,
-        endDate: a.endDate,
-        fraction: a.fraction,
-        note: a.note,
-      })),
+      availability: availability
+        .filter((a): a is typeof a & { type: "UNAVAILABLE" | "PARTIAL" } =>
+          a.type === "UNAVAILABLE" || a.type === "PARTIAL"
+        )
+        .map((a) => ({
+          type: a.type,
+          startDate: a.startDate,
+          endDate: a.endDate,
+          fraction: a.fraction,
+          note: a.note,
+        })),
       at,
     });
 

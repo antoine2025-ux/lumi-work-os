@@ -103,7 +103,12 @@ export function WorkspaceSettingsClient({
           <InvitesSection orgId={orgId} initialInvitations={initialInvitations} />
         )}
 
-        {activeTab === "general" && <GeneralSettingsSection orgId={orgId} />}
+        {activeTab === "general" && (
+          <GeneralSettingsSection
+            orgId={orgId}
+            permissions={{ workspaceId: orgId, role, userId: currentUserId }}
+          />
+        )}
 
         {activeTab === "danger" && canSeeDanger && (
           <DangerZoneSection orgId={orgId} />

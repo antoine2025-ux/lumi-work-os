@@ -694,9 +694,6 @@ async function fetchProjectWithAccountability(
 async function fetchPeopleWithCapacity(
   workspaceId: string
 ): Promise<PersonWithCapacity[]> {
-  // For v1, orgId = workspaceId
-  const orgId = workspaceId;
-
   const users = await prisma.user.findMany({
     where: {
       // Get users who have positions in this workspace
@@ -735,7 +732,7 @@ async function fetchPeopleWithCapacity(
       },
       allocations: {
         where: {
-          orgId,
+          workspaceId,
         },
         select: {
           projectId: true,

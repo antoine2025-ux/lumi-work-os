@@ -30,35 +30,51 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 })
     }
 
-    // Build search conditions
-    const whereConditions: any = {
+    // SECURITY: Get wiki workspace IDs the user can access (PUBLIC, creator, or PRIVATE member)
+    const accessibleWorkspaces = await prisma.wiki_workspaces.findMany({
+      where: {
+        workspace_id: auth.workspaceId,
+        OR: [
+          { visibility: 'PUBLIC' },
+          { created_by_id: auth.user.userId },
+          {
+            visibility: 'PRIVATE',
+            members: { some: { userId: auth.user.userId } },
+          },
+        ],
+      },
+      select: { id: true },
+    })
+    const accessibleIds = accessibleWorkspaces.map((w) => w.id)
+
+    // Build search conditions with visibility filter
+    // SECURITY: PRIVATE wiki-xxx pages only visible to members; personal only to creator
+    const visibilityOr = [
+      ...(accessibleIds.length > 0 ? [{ workspace_type: { in: accessibleIds } }] : []),
+      { workspace_type: 'team' },
+      { workspace_type: null },
+      { workspace_type: '' },
+      { workspace_type: 'personal', createdById: auth.user.userId },
+      {
+        workspace_type: { startsWith: 'personal-space-' },
+        createdById: auth.user.userId,
+      },
+    ]
+
+    const whereConditions: Record<string, unknown> = {
       workspaceId: auth.workspaceId,
       isPublished: true,
-      OR: [
+      AND: [
         {
-          title: {
-            contains: query,
-            mode: 'insensitive'
-          }
+          OR: [
+            { title: { contains: query, mode: 'insensitive' } },
+            { content: { contains: query, mode: 'insensitive' } },
+            { excerpt: { contains: query, mode: 'insensitive' } },
+            { tags: { hasSome: [query] } },
+          ],
         },
-        {
-          content: {
-            contains: query,
-            mode: 'insensitive'
-          }
-        },
-        {
-          excerpt: {
-            contains: query,
-            mode: 'insensitive'
-          }
-        },
-        {
-          tags: {
-            hasSome: [query]
-          }
-        }
-      ]
+        { OR: visibilityOr },
+      ],
     }
 
     // Apply filters
@@ -71,15 +87,13 @@ export async function GET(request: NextRequest) {
       whereConditions.createdBy = {
         name: {
           contains: author,
-          mode: 'insensitive'
-        }
+          mode: 'insensitive',
+        },
       }
     }
 
     if (tags.length > 0) {
-      whereConditions.tags = {
-        hasSome: tags
-      }
+      whereConditions.tags = { hasSome: tags }
     }
 
     const pages = await prisma.wikiPage.findMany({

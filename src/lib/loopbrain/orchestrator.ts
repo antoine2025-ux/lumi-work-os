@@ -1383,9 +1383,8 @@ async function loadOrgContextForRequest(
         })),
         owner: obj.owner as any,
         status: obj.status as any,
-        updatedAt: new Date(obj.updatedAt),
-        workspaceId: req.workspaceId,
-      } as ContextObject
+        updatedAt: typeof obj.updatedAt === 'string' ? obj.updatedAt : new Date(obj.updatedAt).toISOString(),
+      } as unknown as ContextObject
       byId[obj.id] = contextObj
       allOrgObjects.push(contextObj)
     }
@@ -3726,7 +3725,7 @@ Based on the goal data provided, answer the user's question with specific insigh
       userId: req.userId,
       query: req.query,
       context: {
-        retrievedItems: goalContexts.map((ctx: ContextObject) => ({
+        retrievedItems: goalContexts.map((ctx) => ({
           contextItemId: ctx.id,
           contextId: ctx.id,
           type: ContextType.GOAL,

@@ -31,10 +31,12 @@ export function WikiEditorShell({
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const isMountedRef = useRef(true)
   const latestContentRef = useRef<JSONContent | null>(initialContent)
-  const lastSavedJsonRef = useRef<string>(JSON.stringify(initialContent))
+  // Initialize with null to ensure first save always happens
+  const lastSavedJsonRef = useRef<string | null>(null)
   const editorRef = useRef<Editor | null>(null)
   const onSaveRef = useRef(onSave)
   const debouncedSaveRef = useRef<ReturnType<typeof debounce> | null>(null)
+  const isInitializedRef = useRef(false)
 
   // Single authoritative save function - always reads from editor live state
   const saveNow = useCallback(async () => {
@@ -47,9 +49,10 @@ export function WikiEditorShell({
     const contentToSave = editorRef.current.getJSON()
     const contentString = JSON.stringify(contentToSave)
     
-    // Check if content actually changed (dirty check)
-    if (contentString === lastSavedJsonRef.current) {
-      // No changes, skip save
+    // For new pages or first save, always save regardless of dirty check
+    // Check if content actually changed (dirty check) - but skip for first save
+    if (lastSavedJsonRef.current !== null && contentString === lastSavedJsonRef.current) {
+      // No changes, skip save (but only if we've saved before)
       return
     }
 
@@ -84,19 +87,40 @@ export function WikiEditorShell({
   // Expose saveNow function to parent via ref callback
   const handleEditorReady = useCallback((editor: Editor) => {
     editorRef.current = editor
+    
+    // Mark as initialized and set proper baseline for dirty checking
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true
+      // Set the baseline content from the editor's current state
+      const currentContent = editor.getJSON()
+      latestContentRef.current = currentContent
+      
+      // Only set lastSavedJsonRef if we have meaningful initial content
+      // This ensures the first save always happens for new pages
+      if (initialContent && initialContent.content && initialContent.content.length > 0) {
+        lastSavedJsonRef.current = JSON.stringify(currentContent)
+      }
+    }
+    
     // Attach saveNow to editor instance for parent access
     // This allows parent components to call saveNow() directly
     ;(editor as any).saveNow = saveNow
     if (onEditorReady) {
       onEditorReady(editor)
     }
-  }, [onEditorReady, saveNow])
+  }, [onEditorReady, saveNow, initialContent])
 
   // Update lastSavedJsonRef when initialContent changes (e.g., after page reload)
   useEffect(() => {
     if (initialContent) {
-      lastSavedJsonRef.current = JSON.stringify(initialContent)
       latestContentRef.current = initialContent
+      
+      // Only update lastSavedJsonRef if this is a page with existing content
+      // For new pages with empty content, keep lastSavedJsonRef as null to ensure first save
+      const hasContent = initialContent.content && initialContent.content.length > 0
+      if (hasContent) {
+        lastSavedJsonRef.current = JSON.stringify(initialContent)
+      }
     }
   }, [initialContent])
 
@@ -133,7 +157,8 @@ export function WikiEditorShell({
       const currentContent = editorRef.current.getJSON()
       const currentContentString = JSON.stringify(currentContent)
       
-      if (currentContentString === lastSavedJsonRef.current) {
+      // Skip autosave only if we've saved before and content hasn't changed
+      if (lastSavedJsonRef.current !== null && currentContentString === lastSavedJsonRef.current) {
         // No changes, skip autosave
         return
       }

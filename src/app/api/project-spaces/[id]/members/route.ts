@@ -5,6 +5,8 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 
+// @deprecated Use /api/spaces/[id]/members instead (unified Space model, Sprint 2).
+
 // GET /api/project-spaces/[id]/members - List members of a ProjectSpace
 export async function GET(
   request: NextRequest,

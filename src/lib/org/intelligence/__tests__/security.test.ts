@@ -86,7 +86,7 @@ describe("Security: unauthenticated requests", () => {
     const response = await simulateRouteHandler();
     expect(response.status).toBe(401);
     expect(response.body.ok).toBe(false);
-    expect(response.body.error.code).toBe("UNAUTHORIZED");
+    expect(response.body?.error?.code).toBe("UNAUTHORIZED");
   });
 
   it("should return 401 when session is null", async () => {
@@ -149,7 +149,7 @@ describe("Security: unauthorized workspace access", () => {
     const response = await simulateRouteHandler();
     expect(response.status).toBe(403);
     expect(response.body.ok).toBe(false);
-    expect(response.body.error.code).toBe("FORBIDDEN");
+    expect(response.body?.error?.code).toBe("FORBIDDEN");
   });
 
   it("should return 403 when accessing different workspace", async () => {

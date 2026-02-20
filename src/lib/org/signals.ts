@@ -14,7 +14,7 @@ export type OrgSignal = {
   issueKey: string; // Primary identifier: `${issueType}:${entityType}:${entityId}` (references issue.issueKey)
   type: 'missing_owner' | 'empty_department' | 'unassigned_team' | 'missing_manager' | 'ownership_conflict' | 'unowned_team' | 'unowned_department' | string;
   severity: 'error' | 'warning' | 'info';
-  entityType: 'TEAM' | 'DEPARTMENT' | 'PERSON' | 'POSITION';
+  entityType: 'TEAM' | 'DEPARTMENT' | 'PERSON' | 'POSITION' | 'DECISION_DOMAIN' | 'WORK_REQUEST' | 'ROLE_COVERAGE';
   entityId: string;
   entityName: string;
   explanation: string; // Human-readable

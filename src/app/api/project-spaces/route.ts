@@ -6,8 +6,12 @@ import { prisma } from '@/lib/db'
 import { ProjectSpaceVisibility } from '@prisma/client'
 import { handleApiError } from '@/lib/api-errors'
 
+// @deprecated Use /api/spaces instead (unified Space model, Sprint 2).
+// This route is kept for backward compatibility during the transition period.
+
 // GET /api/project-spaces - List all ProjectSpaces for the current workspace
 export async function GET(request: NextRequest) {
+  console.warn('[DEPRECATED] GET /api/project-spaces — use GET /api/spaces instead')
   try {
     const auth = await getUnifiedAuth(request)
     

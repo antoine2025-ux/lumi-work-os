@@ -24,24 +24,49 @@ export interface TaskFilter {
   isOverdue: boolean | null
 }
 
+const DEFAULT_FILTERS: TaskFilter = {
+  search: '',
+  status: [],
+  priority: [],
+  assignee: [],
+  hasDependencies: null,
+  isOverdue: null
+}
+
+function parseFiltersFromPartial(partial?: Partial<TaskFilter>): TaskFilter {
+  if (!partial) return { ...DEFAULT_FILTERS }
+  return {
+    search: partial.search ?? '',
+    status: Array.isArray(partial.status) ? partial.status : [],
+    priority: Array.isArray(partial.priority) ? partial.priority : [],
+    assignee: Array.isArray(partial.assignee) ? partial.assignee : [],
+    hasDependencies: partial.hasDependencies ?? null,
+    isOverdue: partial.isOverdue ?? null
+  }
+}
+
 export interface TaskSearchFilterProps {
   tasks: any[]
   onFilterChange: (filteredTasks: any[]) => void
   onFilterReset: () => void
+  /** Initial filter values (e.g. from URL). When provided, filters sync when this changes. */
+  initialFilters?: Partial<TaskFilter>
+  /** Called when filter values change so parent can update URL. */
+  onFilterValuesChange?: (filters: TaskFilter) => void
 }
 
-export function TaskSearchFilter({ tasks, onFilterChange, onFilterReset }: TaskSearchFilterProps) {
-  const [filters, setFilters] = useState<TaskFilter>({
-    search: '',
-    status: [],
-    priority: [],
-    assignee: [],
-    hasDependencies: null,
-    isOverdue: null
-  })
+export function TaskSearchFilter({ tasks, onFilterChange, onFilterReset, initialFilters, onFilterValuesChange }: TaskSearchFilterProps) {
+  const [filters, setFilters] = useState<TaskFilter>(() => parseFiltersFromPartial(initialFilters))
 
   const [isExpanded, setIsExpanded] = useState(false)
   const [activeFiltersCount, setActiveFiltersCount] = useState(0)
+
+  // Sync filters when initialFilters changes (e.g. browser back/forward)
+  useEffect(() => {
+    if (initialFilters !== undefined) {
+      setFilters(parseFiltersFromPartial(initialFilters))
+    }
+  }, [initialFilters])
 
   // Get unique values for filter options
   const uniqueStatuses = [...new Set(tasks.map(task => task.status))].filter(Boolean)
@@ -114,28 +139,31 @@ export function TaskSearchFilter({ tasks, onFilterChange, onFilterReset }: TaskS
     setActiveFiltersCount(count)
   }, [filters])
 
-  const handleFilterChange = (key: keyof TaskFilter, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
+  const handleFilterChange = (key: keyof TaskFilter, value: TaskFilter[keyof TaskFilter]) => {
+    setFilters(prev => {
+      const next = { ...prev, [key]: value }
+      onFilterValuesChange?.(next)
+      return next
+    })
   }
 
   const handleMultiSelectChange = (key: 'status' | 'priority' | 'assignee', value: string, checked: boolean) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: checked 
-        ? [...prev[key], value]
-        : prev[key].filter(item => item !== value)
-    }))
+    setFilters(prev => {
+      const next = {
+        ...prev,
+        [key]: checked
+          ? [...prev[key], value]
+          : prev[key].filter(item => item !== value)
+      }
+      onFilterValuesChange?.(next)
+      return next
+    })
   }
 
   const resetFilters = () => {
-    setFilters({
-      search: '',
-      status: [],
-      priority: [],
-      assignee: [],
-      hasDependencies: null,
-      isOverdue: null
-    })
+    const next = { ...DEFAULT_FILTERS }
+    setFilters(next)
+    onFilterValuesChange?.(next)
     onFilterReset()
   }
 

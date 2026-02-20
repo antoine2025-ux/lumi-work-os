@@ -56,6 +56,7 @@ import { handleApiError } from '@/lib/api-errors'
 const MAX_PROJECTS = 10
 const MAX_WIKI_PAGES = 4
 const MAX_TODOS = 50
+const MAX_DRAFTS = 6
 export async function GET(request: NextRequest) {
   const startTime = performance.now()
   const route = '/api/dashboard/bootstrap'
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
     
     // Parallel DB queries - all execute simultaneously
     const dbStart = performance.now()
-    const [projects, wikiPages, workspaces, todos, taskStatusCounts, overdueTaskCount, workspace] = await Promise.all([
+    const [projects, wikiPages, workspaces, todos, taskStatusCounts, overdueTaskCount, workspace, draftsRaw] = await Promise.all([
       // 1. Projects (minimal fields, strict limit) - only projects user owns or is member of
       prisma.project.findMany({
         where: {
@@ -146,6 +147,8 @@ export async function GET(request: NextRequest) {
           slug: true,
           excerpt: true, // Excerpt only, never full content
           category: true,
+          workspace_type: true,
+          permissionLevel: true,
           updatedAt: true,
           createdAt: true
           // ❌ NEVER add: content, body, html, or other large text fields
@@ -157,17 +160,27 @@ export async function GET(request: NextRequest) {
         }
       }),
       
-      // 3. Workspaces (for page counts)
-      prisma.wiki_workspaces.findMany({
-        where: {
-          workspace_id: auth.workspaceId
-        },
-        select: {
-          id: true,
-          type: true,
-          name: true
-        }
-      }),
+      // 3. Workspaces (for page counts) - same filter as /api/wiki/workspaces
+      (async () => {
+        const personalSpaceId = `personal-space-${auth.user.userId}`
+        return prisma.wiki_workspaces.findMany({
+          where: {
+            workspace_id: auth.workspaceId,
+            OR: [
+              { id: personalSpaceId, type: 'personal' },
+              { type: { not: 'personal' } },
+              { type: null },
+            ],
+          },
+          select: {
+            id: true,
+            type: true,
+            name: true,
+            color: true,
+          },
+          orderBy: [{ type: 'asc' }, { name: 'asc' }],
+        })
+      })(),
       
       // 4. Today's todos (minimal fields, strict limit)
       // Note: This needs user timezone, so we fetch it inline within this async function
@@ -226,11 +239,70 @@ export async function GET(request: NextRequest) {
         }
       }),
       
-      // 7. Workspace name (moved from sequential fetch for parallel execution)
+      // 7. Workspace name + companyType (moved from sequential fetch for parallel execution)
       prisma.workspace.findUnique({
         where: { id: auth.workspaceId },
-        select: { id: true, name: true }
-      })
+        select: { id: true, name: true, companyType: true }
+      }),
+
+      // 8. Drafts (unpublished pages + assistant sessions with drafts)
+      (async () => {
+        const [unpublishedPages, draftSessions] = await Promise.all([
+          prisma.wikiPage.findMany({
+            where: {
+              workspaceId: auth.workspaceId,
+              isPublished: false,
+              createdById: auth.user.userId,
+            },
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              excerpt: true,
+              updatedAt: true,
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: MAX_DRAFTS,
+          }),
+          prisma.chatSession.findMany({
+            where: {
+              workspaceId: auth.workspaceId,
+              userId: auth.user.userId,
+              draftTitle: { not: null },
+              draftBody: { not: null },
+              phase: { not: 'published' },
+            },
+            select: {
+              id: true,
+              draftTitle: true,
+              draftBody: true,
+              updatedAt: true,
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: MAX_DRAFTS,
+          }),
+        ])
+        const pageDrafts = unpublishedPages.map((p) => ({
+          id: p.id,
+          title: p.title,
+          type: 'page' as const,
+          updatedAt: p.updatedAt.toISOString(),
+          url: `/wiki/${p.slug}`,
+          excerpt: p.excerpt ?? undefined,
+        }))
+        const sessionDrafts = draftSessions
+          .filter((s) => s.draftTitle && s.draftBody)
+          .map((s) => ({
+            id: s.id,
+            title: s.draftTitle!,
+            type: 'session' as const,
+            updatedAt: s.updatedAt.toISOString(),
+            excerpt: s.draftBody?.substring(0, 100) + '...',
+          }))
+        return [...pageDrafts, ...sessionDrafts]
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .slice(0, MAX_DRAFTS)
+      })(),
     ])
     const dbDurationMs = performance.now() - dbStart
     
@@ -325,7 +397,8 @@ export async function GET(request: NextRequest) {
     const bootstrap: DashboardBootstrap = {
       workspace: {
         id: auth.workspaceId,
-        name: workspace?.name
+        name: workspace?.name,
+        companyType: workspace?.companyType ?? null,
       },
       projects: projects.map(p => {
         const membership = p.members?.[0]
@@ -357,6 +430,25 @@ export async function GET(request: NextRequest) {
         category: p.category
       })),
       pageCounts,
+      workspaces: workspaces.map((w) => {
+        const pageCount = pageCounts[w.id ?? ''] ?? 0
+        const lastPage = wikiPages.find((p) => {
+          const wt = p.workspace_type ?? ''
+          const pl = p.permissionLevel ?? ''
+          if (w.type === 'personal') return wt === 'personal' || pl === 'personal'
+          if (w.type === 'team') return wt !== 'personal' && (wt === 'team' || wt === '' || pl !== 'personal')
+          return wt === w.id
+        })
+        return {
+          id: w.id ?? '',
+          name: w.id?.startsWith('personal-space-') ? 'Personal Space' : w.name ?? '',
+          type: (w.type as 'personal' | 'team' | 'project') ?? null,
+          color: w.color ?? undefined,
+          pageCount: pageCount > 0 ? pageCount : undefined,
+          lastUpdated: lastPage?.updatedAt?.toISOString(),
+        }
+      }),
+      drafts: draftsRaw,
       todos: todos.map(t => ({
         id: t.id,
         title: t.title,
@@ -436,7 +528,7 @@ export async function GET(request: NextRequest) {
     response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120')
     return response
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     const totalDurationMs = performance.now() - startTime
     
     logger.error('Dashboard bootstrap error', {

@@ -55,7 +55,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
   // In this codebase, orgId may be workspaceId, so we query by workspaceId.
   // If your repo already has strong typed Org/People models, tighten these in later steps.
 
-  let dataQualityScore: number | null = null
+  const dataQualityScore: number | null = null
   const signals: ComputedHealth["signals"] = []
 
   const [peopleCount, teamsCount] = await Promise.all([
@@ -135,7 +135,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
         }
       }
 
-      let availabilityByPerson = new Map<string, string>()
+      const availabilityByPerson = new Map<string, string>()
       try {
         const av = await prisma.personAvailability?.findMany?.({
           where: { workspaceId: orgId },
@@ -288,7 +288,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
             description: `${label} has high active allocation demand (~${Math.round(pct)}%). Review staffing, scope, or allocations.`,
             // signal context for drill-down
             // NOTE: store layer will persist these fields
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             
             ...({
               contextType: "TEAM",
               contextId: teamId,

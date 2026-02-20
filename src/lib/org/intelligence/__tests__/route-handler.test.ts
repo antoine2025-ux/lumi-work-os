@@ -275,7 +275,7 @@ describe("Route Handler Contract: Auth", () => {
 
   it("Overview returns 401 when unauthenticated", async () => {
     const { getUnifiedAuth } = await import("@/lib/unified-auth");
-    vi.mocked(getUnifiedAuth).mockResolvedValueOnce(null);
+    vi.mocked(getUnifiedAuth).mockResolvedValueOnce(null as never);
 
     const res = await getOverview(createRequest("/api/org/overview"));
     expect(res.status).toBe(401);
@@ -283,7 +283,7 @@ describe("Route Handler Contract: Auth", () => {
 
   it("Ownership returns 401 when unauthenticated", async () => {
     const { getUnifiedAuth } = await import("@/lib/unified-auth");
-    vi.mocked(getUnifiedAuth).mockResolvedValueOnce(null);
+    vi.mocked(getUnifiedAuth).mockResolvedValueOnce(null as never);
 
     const res = await getOwnership(createRequest("/api/org/ownership"));
     expect(res.status).toBe(401);

@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useWorkspace } from "@/lib/workspace-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -101,6 +102,7 @@ const priorityOptions = [
 export default function TaskDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { currentWorkspace } = useWorkspace()
   const projectId = params?.id as string
   const taskId = params?.taskId as string
   
@@ -519,8 +521,9 @@ export default function TaskDetailPage() {
         <TaskEditDialog
           isOpen={isEditDialogOpen}
           onClose={() => setIsEditDialogOpen(false)}
-          task={task}
-          onSave={handleTaskUpdate}
+          task={task as unknown as React.ComponentProps<typeof TaskEditDialog>['task']}
+          onSave={handleTaskUpdate as React.ComponentProps<typeof TaskEditDialog>['onSave']}
+          workspaceId={currentWorkspace?.id ?? ''}
         />
       )}
 

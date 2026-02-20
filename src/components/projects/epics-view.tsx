@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Clock, User, Plus, GanttChart, Sparkles, Settings, Calendar } from 'lucide-react'
+import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Clock, User, Plus, GanttChart, Settings, Calendar } from 'lucide-react'
 import { TaskEditDialog } from '@/components/tasks/task-edit-dialog'
 import { EpicDrawer } from './epic-drawer'
 import { CreateTaskDialog } from '@/components/tasks/create-task-dialog'
@@ -328,7 +328,6 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
                     onClick={(e) => {
                       e.stopPropagation()
                       // TODO: Implement view timeline for epic
-                      console.log('View timeline for epic:', epic.id)
                     }}
                     onMouseEnter={() => setHoveredAction(`timeline-${epic.id}`)}
                     onMouseLeave={() => setHoveredAction(null)}
@@ -348,31 +347,7 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      // TODO: Implement AI insights (later)
-                      console.log('AI insights for epic:', epic.id)
-                    }}
-                    onMouseEnter={() => setHoveredAction(`ai-${epic.id}`)}
-                    onMouseLeave={() => setHoveredAction(null)}
-                    className="p-1.5 rounded hover:bg-opacity-50 transition-colors relative opacity-50 cursor-not-allowed"
-                    style={{ 
-                      backgroundColor: hoveredAction === `ai-${epic.id}` ? colors.border + '40' : 'transparent'
-                    }}
-                    disabled
-                    title="Coming soon"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" style={{ color: colors.textMuted }} />
-                    {hoveredAction === `ai-${epic.id}` && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs rounded shadow-lg whitespace-nowrap z-50" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}`, color: colors.text }}>
-                        AI Insights (Coming soon)
-                      </div>
-                    )}
-                  </button>
-                  
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
                       // TODO: Implement epic settings
-                      console.log('Epic settings for:', epic.id)
                     }}
                     onMouseEnter={() => setHoveredAction(`settings-${epic.id}`)}
                     onMouseLeave={() => setHoveredAction(null)}

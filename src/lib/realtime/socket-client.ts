@@ -85,7 +85,7 @@ export function createSocket(): SocketType {
     ['polling', 'websocket'] // Finally try both
   ]
 
-  let configIndex = 0
+  const configIndex = 0
   const createSocketWithConfig = (transports: string[]) => {
     console.log('Creating socket with transports:', transports)
     

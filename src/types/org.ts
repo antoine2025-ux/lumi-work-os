@@ -24,6 +24,7 @@ export type OrgPerson = {
   department: string | null;
   location: string | null;
   joinedAt?: string; // ISO date string, optional for backward compatibility
+  managerId?: string | null; // userId of direct manager (resolved from OrgPosition.parentId → parent.userId)
 };
 
 export type StructureTeam = {

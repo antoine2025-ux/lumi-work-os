@@ -508,9 +508,9 @@ describe("ownershipByEntity key format", () => {
     expect(signals.ownershipByEntity["team:team-1"]).toBeDefined();
     expect(signals.ownershipByEntity["department:dept-1"]).toBeDefined();
 
-    // Uppercase keys should not exist
-    expect(signals.ownershipByEntity["TEAM:team-1"]).toBeUndefined();
-    expect(signals.ownershipByEntity["DEPARTMENT:dept-1"]).toBeUndefined();
+    // Uppercase keys should not exist (use type assertion for test-only index access)
+    expect((signals.ownershipByEntity as Record<string, unknown>)["TEAM:team-1"]).toBeUndefined();
+    expect((signals.ownershipByEntity as Record<string, unknown>)["DEPARTMENT:dept-1"]).toBeUndefined();
   });
 
   it("key format matches createEntityKey output", () => {

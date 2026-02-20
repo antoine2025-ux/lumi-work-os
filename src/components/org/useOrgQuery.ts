@@ -27,7 +27,7 @@ export function useOrgQuery<T>(fn: () => Promise<T>, deps: unknown[] = []) {
     setLoading(true);
     setError(null);
 
-    let cancelled = false;
+    const cancelled = false;
 
     try {
       const result = await fnRef.current();

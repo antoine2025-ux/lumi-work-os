@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -541,8 +541,9 @@ export default function MyTasksPage() {
         <TaskEditDialog
           isOpen={isEditDialogOpen}
           onClose={handleCloseEditDialog}
-          task={editingTask}
-          onSave={handleTaskUpdate}
+          task={editingTask as React.ComponentProps<typeof TaskEditDialog>['task']}
+          onSave={handleTaskUpdate as React.ComponentProps<typeof TaskEditDialog>['onSave']}
+          workspaceId={currentWorkspace?.id ?? ''}
         />
       </div>
     </div>

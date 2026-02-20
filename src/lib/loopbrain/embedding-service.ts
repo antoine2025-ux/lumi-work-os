@@ -227,7 +227,7 @@ export async function embedContextItem(
   }
 
   // Deserialize ContextObject from JSON data
-  const context = contextItem.data as ContextObject
+  const context = contextItem.data as unknown as ContextObject
 
   // Build embedding text from context
   const embeddingText = buildEmbeddingTextFromContext(context)

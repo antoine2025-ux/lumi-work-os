@@ -257,7 +257,7 @@ async function seedGoldenPath() {
   // 7. Add Allocations
   await prisma.projectAllocation.create({
     data: {
-      orgId: orgId,
+      workspaceId: orgId,
       projectId: project.id,
       personId: alex.id,
       fraction: 0.6,
@@ -268,7 +268,7 @@ async function seedGoldenPath() {
 
   await prisma.projectAllocation.create({
     data: {
-      orgId: orgId,
+      workspaceId: orgId,
       projectId: project.id,
       personId: sam.id,
       fraction: 0.4,

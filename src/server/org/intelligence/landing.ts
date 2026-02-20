@@ -189,7 +189,6 @@ export async function getIntelligenceLanding(
     // Fetch OPEN work requests
     const openWorkRequests = await prisma.workRequest.findMany({
       where: { workspaceId, status: "OPEN" },
-      select: { id: true, title: true, priority: true },
     });
 
     if (openWorkRequests.length > 0) {

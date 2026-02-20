@@ -47,7 +47,7 @@ export async function getRolesForPerson(
     // Check if person owns this role via owned_by relation or owner field
     const ownedByPerson =
       data.owner === personContextId ||
-      relations.some(
+      (relations ?? []).some(
         (rel) =>
           rel.type === "owned_by" &&
           rel.targetId === personContextId
@@ -88,7 +88,7 @@ export async function getRolesForTeam(
 
     const relations = (data.relations ?? []) as RoleContextData["relations"];
 
-    const belongsToTeam = relations.some(
+    const belongsToTeam = (relations ?? []).some(
       (rel) =>
         rel.type === "member_of_team" &&
         rel.targetId === teamContextId

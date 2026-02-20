@@ -5,7 +5,7 @@
  * Used for task-level context integration with Loopbrain.
  */
 
-import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
+import { ContextObject as UnifiedContextObject, ContextRelation } from '@/lib/context/context-types'
 import { Prisma } from '@prisma/client'
 import { ProjectTaskStatus } from '@prisma/client'
 
@@ -64,17 +64,12 @@ export type TaskWithRelations = Prisma.TaskGetPayload<{
  */
 export function buildTaskContext(task: TaskWithRelations): UnifiedContextObject {
   // Build relations
-  const relations: Array<{
-    type: string
-    id: string
-    label: string
-    direction: 'in' | 'out'
-  }> = []
+  const relations: ContextRelation[] = []
 
   // Relation to project
   if (task.projectId) {
     relations.push({
-      type: 'project',
+      type: 'project' as const,
       id: task.projectId,
       label: 'project',
       direction: 'out'
@@ -84,17 +79,17 @@ export function buildTaskContext(task: TaskWithRelations): UnifiedContextObject 
   // Relation to epic
   if (task.epicId) {
     relations.push({
-      type: 'epic',
+      type: 'epic' as const,
       id: task.epicId,
       label: 'epic',
       direction: 'out'
     })
   }
 
-  // Relation to assignee (use 'user' type as requested)
+  // Relation to assignee (person type for ContextObjectType)
   if (task.assigneeId) {
     relations.push({
-      type: 'user',
+      type: 'person' as const,
       id: task.assigneeId,
       label: 'assignee',
       direction: 'out'
@@ -134,6 +129,7 @@ export function buildTaskContext(task: TaskWithRelations): UnifiedContextObject 
   // Use task:${task.id} as the id to match the requested contextId format
   return {
     id: `task:${task.id}`,
+    workspaceId: task.workspaceId,
     type: 'task',
     title: task.title,
     summary,

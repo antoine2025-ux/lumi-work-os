@@ -18,7 +18,7 @@ type OrgRoutingStats = {
 };
 
 let lastEvents: OrgRoutingEvent[] = [];
-let stats: OrgRoutingStats = {
+const stats: OrgRoutingStats = {
   total: 0,
   org: 0,
   generic: 0,

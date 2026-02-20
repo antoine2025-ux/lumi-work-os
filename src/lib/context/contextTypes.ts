@@ -16,7 +16,8 @@ export type ContextType =
   | "task"
   | "project"
   | "page"
-  | "note";
+  | "note"
+  | "goal";
 
 export type ContextRelation = {
   type: string;

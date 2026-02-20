@@ -1,5 +1,9 @@
 "use client"
 
+/**
+ * @deprecated Use the persistent layout at app/(dashboard)/w/[workspaceSlug]/projects/layout.tsx instead.
+ * This component is unused - the projects layout now renders ProjectSidebar at the route level.
+ */
 import { ReactNode, useState } from "react"
 import ProjectSidebar from "@/components/projects/project-sidebar"
 

@@ -23,7 +23,7 @@ export default function WorkspaceDashboardPage() {
     if (!isLoading && currentWorkspace?.slug === workspaceSlug) {
       // For now, redirect to /home which has the dashboard content
       // In the future, we can move the dashboard content here
-      router.replace('/home')
+      router.replace(`/home`)
     }
   }, [workspaceSlug, currentWorkspace, isLoading, router])
 

@@ -6,7 +6,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/workspace-context"
 import { WorkspaceAccountMenu } from "@/components/layout/workspace-account-menu"
-import { LayoutDashboard, FolderKanban, Brain, Network, Sliders, Users, Bell, Target } from "lucide-react"
+import { LayoutDashboard, FolderKanban, Network, Sliders, Users, Bell, Target } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Logo } from "@/components/logo"
 import { useSession, signOut } from "next-auth/react"
@@ -55,12 +55,6 @@ const navigationItems = [
     href: "/spaces/home",
     icon: FolderKanban,
     description: "Project management and tasks"
-  },
-  {
-    name: "LoopBrain",
-    href: "/ask", // Will be prefixed with /w/[slug] in component
-    icon: Brain,
-    description: "AI-powered assistance"
   },
   {
     name: "Org",

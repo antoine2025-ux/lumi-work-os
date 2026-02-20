@@ -72,7 +72,7 @@ export function useOrgTelemetry(
     fetchTelemetry();
     const id = setInterval(fetchTelemetry, refreshMs);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [refreshMs]);
 
   return {

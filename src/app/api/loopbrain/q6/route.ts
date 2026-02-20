@@ -89,8 +89,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const orgId = project.orgId || workspaceId;
-
     // Fetch people with their positions (team and role info)
     const positions = await prisma.orgPosition.findMany({
       where: {
@@ -138,7 +136,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch allocations
     const allocations = await prisma.projectAllocation.findMany({
-      where: { orgId },
+      where: { workspaceId },
       select: {
         personId: true,
         projectId: true,

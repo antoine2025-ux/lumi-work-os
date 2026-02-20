@@ -791,7 +791,7 @@ export class PrismaContextEngine implements ContextEngine {
         filters: options?.filters ? {
           entityTypes: options.filters.entityTypes as any,
           actions: options.filters.actions as any,
-          userIds: options.filters.userIds
+          userIds: (options.filters.userIds as string[] | undefined) ?? []
         } : undefined
       }
 

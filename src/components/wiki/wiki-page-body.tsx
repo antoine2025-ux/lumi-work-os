@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { ExternalLink } from "lucide-react"
 import { groupConsecutiveCodeBlocks } from "@/lib/wiki/content-processor"
@@ -33,8 +34,15 @@ interface WikiPageBodyProps {
  * No background, borders, or containers - just the content structure
  */
 export function WikiPageBody({ page, showOpenButton = false, className = "" }: WikiPageBodyProps) {
-  // Process content to group consecutive code blocks
-  const processedContent = groupConsecutiveCodeBlocks(page.content || '')
+  const processedContent = useMemo(
+    () => groupConsecutiveCodeBlocks(page.content || ''),
+    [page.content]
+  )
+
+  const convertedContent = useMemo(
+    () => markdownToHtml(processedContent),
+    [processedContent]
+  )
   
   // Format updated date
   const formatDate = (date: string | Date) => {
@@ -96,7 +104,7 @@ export function WikiPageBody({ page, showOpenButton = false, className = "" }: W
         ) : (
           // Render Markdown - basic rendering without external library (same as wiki route)
           <div 
-            dangerouslySetInnerHTML={{ __html: markdownToHtml(processedContent || 'No content available.') }}
+            dangerouslySetInnerHTML={{ __html: convertedContent || 'No content available.' }}
             className="text-foreground leading-relaxed"
           />
         )}

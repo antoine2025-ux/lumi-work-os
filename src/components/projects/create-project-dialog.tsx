@@ -10,13 +10,22 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, Loader2, Target, Calendar, Sparkles, X, Users } from "lucide-react"
+import { AlertCircle, Loader2, Target, Calendar, X, Users, LayoutGrid } from "lucide-react"
 import { setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
+
+interface Space {
+  id: string
+  name: string
+  icon?: string | null
+  color?: string | null
+  visibility: string
+}
 
 interface CreateProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialWorkspaceId?: string
+  initialSpaceId?: string
   onProjectCreated?: (project: { id: string; name: string }) => void
 }
 
@@ -47,6 +56,7 @@ export function CreateProjectDialog({
   open,
   onOpenChange,
   initialWorkspaceId,
+  initialSpaceId,
   onProjectCreated
 }: CreateProjectDialogProps) {
   const { currentWorkspace } = useWorkspace()
@@ -71,6 +81,11 @@ export function CreateProjectDialog({
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
   const [workspaceMembers, setWorkspaceMembers] = useState<Array<{ id: string; name: string; email: string; orgPositionTitle?: string }>>([])
   const [loadingMembers, setLoadingMembers] = useState(false)
+
+  // Space selection
+  const [selectedSpaceId, setSelectedSpaceId] = useState<string>('')
+  const [spaces, setSpaces] = useState<Space[]>([])
+  const [loadingSpaces, setLoadingSpaces] = useState(false)
 
   // Owner and team members (assignees)
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>('')
@@ -110,6 +125,21 @@ export function CreateProjectDialog({
     }
   }, [resolvedWorkspaceId])
 
+  const loadSpaces = useCallback(async () => {
+    try {
+      setLoadingSpaces(true)
+      const response = await fetch('/api/spaces')
+      if (response.ok) {
+        const data = await response.json()
+        setSpaces(data.spaces ?? [])
+      }
+    } catch (error) {
+      console.error('Error loading spaces:', error)
+    } finally {
+      setLoadingSpaces(false)
+    }
+  }, [])
+
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
@@ -128,8 +158,9 @@ export function CreateProjectDialog({
       setSelectedMemberIds([])
       setSelectedOwnerId('')
       setSelectedAssigneeIds([])
+      setSelectedSpaceId(initialSpaceId ?? '')
     }
-  }, [open])
+  }, [open, initialSpaceId])
 
   // Load workspace members whenever dialog opens (for owner and assignee pickers)
   useEffect(() => {
@@ -139,6 +170,13 @@ export function CreateProjectDialog({
       setWorkspaceMembers([])
     }
   }, [open, resolvedWorkspaceId, loadWorkspaceMembers])
+
+  // Load spaces when dialog opens
+  useEffect(() => {
+    if (open) {
+      loadSpaces()
+    }
+  }, [open, loadSpaces])
 
   // Default owner to current user when members load
   const currentUserId = session?.user?.id
@@ -170,6 +208,10 @@ export function CreateProjectDialog({
       newErrors.workspace = 'Workspace is required'
     }
 
+    if (!selectedSpaceId) {
+      newErrors.space = 'Space is required'
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -190,7 +232,8 @@ export function CreateProjectDialog({
         workspaceId: resolvedWorkspaceId,
         name: formData.name.trim(),
         status: formData.status,
-        priority: formData.priority
+        priority: formData.priority,
+        spaceId: selectedSpaceId,
       }
 
       // Only include optional fields if they have values
@@ -227,8 +270,6 @@ export function CreateProjectDialog({
 
       if (response.ok) {
         const project = await response.json()
-        
-        console.log('[CreateProjectDialog] created project', project.id)
         
         // Save channel hints to localStorage (client-side only)
         if (channelList.length > 0) {
@@ -297,6 +338,49 @@ export function CreateProjectDialog({
               <p className="text-sm text-red-500 flex items-center space-x-1">
                 <AlertCircle className="h-4 w-4" />
                 <span>{errors.name}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Space Selector */}
+          <div className="space-y-2">
+            <Label htmlFor="space" className="flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4" />
+              Space <span className="text-red-500">*</span>
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Which space should this project belong to?
+            </p>
+            {loadingSpaces ? (
+              <div className="text-sm text-muted-foreground">Loading spaces...</div>
+            ) : (
+              <Select
+                value={selectedSpaceId || '_none'}
+                onValueChange={(v) => {
+                  setSelectedSpaceId(v === '_none' ? '' : v)
+                  if (errors.space) {
+                    setErrors(prev => { const e = { ...prev }; delete e.space; return e })
+                  }
+                }}
+                disabled={isLoading}
+              >
+                <SelectTrigger id="space" className={errors.space ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select a space" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none" disabled>Select a space</SelectItem>
+                  {spaces.map((space) => (
+                    <SelectItem key={space.id} value={space.id}>
+                      {space.icon ? `${space.icon} ` : ''}{space.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {errors.space && (
+              <p className="text-sm text-red-500 flex items-center space-x-1">
+                <AlertCircle className="h-4 w-4" />
+                <span>{errors.space}</span>
               </p>
             )}
           </div>
@@ -647,16 +731,6 @@ export function CreateProjectDialog({
                   <span>{errors.endDate}</span>
                 </p>
               )}
-            </div>
-          </div>
-
-          {/* AI Project Suggestion Placeholder */}
-          {/* TODO: Add AI project suggestion feature here */}
-          {/* This section is reserved for future AI-powered project creation assistance */}
-          <div className="pt-4 border-t border-muted">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Sparkles className="h-4 w-4" />
-              <span>AI project suggestions coming soon</span>
             </div>
           </div>
 

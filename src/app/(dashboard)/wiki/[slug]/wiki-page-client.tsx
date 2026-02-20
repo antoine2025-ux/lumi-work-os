@@ -152,7 +152,6 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       return
     }
     
-    console.log('Deleting page:', { id: pageData.id, slug: resolvedSlug })
     
     if (!confirm('Are you sure you want to delete this page? This action cannot be undone.')) {
       return
@@ -164,13 +163,11 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       // Use pageData.id if available, otherwise try by slug
       const pageIdOrSlug = pageData.id || resolvedSlug
       
-      console.log('Sending DELETE request to:', `/api/wiki/pages/${pageIdOrSlug}`)
       
       const response = await fetch(`/api/wiki/pages/${pageIdOrSlug}`, {
         method: 'DELETE'
       })
 
-      console.log('Delete response status:', response.status)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
@@ -212,41 +209,29 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       try {
         setIsLoading(true)
         setLoadError(null)
-        console.log('Loading page with slug:', resolvedSlug)
-        const response = await fetch(`/api/wiki/pages/${encodeURIComponent(resolvedSlug)}`)
-        console.log('Response status:', response.status)
+        const response = await fetch(`/api/wiki/pages/${encodeURIComponent(resolvedSlug)}`, {
+          cache: 'no-store',
+        })
         if (response.ok) {
           const page = await response.json()
-          console.log('Page data loaded:', page)
           setPageData(page)
           setIsStarred(page.is_featured || false)
           loadRelatedPages(page)
           
           // Check if there's a pending page draft to stream
           const pendingDraft = sessionStorage.getItem('pendingPageDraft')
-          console.log('🔍 Checking for pending draft:', pendingDraft ? 'Found' : 'Not found')
           
           if (pendingDraft) {
             try {
               const draftInfo = JSON.parse(pendingDraft)
-              console.log('📝 Found pending draft:', draftInfo)
-              console.log('📄 Current page:', { id: page.id, title: page.title, slug: resolvedSlug })
               
               // More lenient matching: check title match OR recent timestamp (within 30 seconds)
               const titleMatches = page.title === draftInfo.title || page.title.toLowerCase() === draftInfo.title.toLowerCase()
               const timeDiff = Math.abs(Date.now() - draftInfo.timestamp)
               const isRecent = timeDiff < 30000 // 30 seconds
               
-              console.log('🔍 Matching check:', { 
-                titleMatches, 
-                isRecent, 
-                timeDiff, 
-                draftTitle: draftInfo.title,
-                pageTitle: page.title
-              })
               
               if (titleMatches || isRecent) {
-                console.log('✅ Draft matches page, starting streaming in 500ms...')
                 
                 // Clear session storage immediately
                 sessionStorage.removeItem('pendingPageDraft')
@@ -260,14 +245,11 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                 
                 // Small delay to ensure page is fully loaded before streaming
                 setTimeout(() => {
-                  console.log('🚀 Starting streamPageContent now...')
                   streamPageContent(page.id, draftInfo.prompt, draftInfo.workspaceId || userStatus?.workspaceId)
                 }, 500)
               } else {
-                console.log('❌ Draft does not match page:', { titleMatches, isRecent, timeDiff })
                 // Clear stale draft
                 if (timeDiff > 30000) {
-                  console.log('🗑️ Clearing stale draft (older than 30s)')
                   sessionStorage.removeItem('pendingPageDraft')
                 }
               }
@@ -276,7 +258,6 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
               sessionStorage.removeItem('pendingPageDraft')
             }
           } else {
-            console.log('ℹ️ No pending draft found in sessionStorage')
           }
           
           // Also check URL params for AI assistant state
@@ -349,7 +330,6 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
   // Stream content generation for a page
   const streamPageContent = async (pageId: string, prompt: string, workspaceId?: string) => {
     try {
-      console.log('🚀 Starting content streaming:', { pageId, prompt: prompt.substring(0, 50), workspaceId })
       setIsSaving(true)
       
       const response = await fetch('/api/ai/draft-page', {
@@ -379,12 +359,10 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
 
       let buffer = ''
       let accumulatedContent = ''
-      console.log('📡 Starting to read stream...')
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) {
-          console.log('✅ Stream complete, final content length:', accumulatedContent.length)
           break
         }
 
@@ -415,7 +393,6 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
               }
 
               if (data.done) {
-                console.log('✅ Streaming done, finalizing...')
                 setIsSaving(false)
                 // Reload page to get final state
                 const reloadResponse = await fetch(`/api/wiki/pages/${resolvedSlug}`)
@@ -532,8 +509,18 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
     }
     
     setIsEditing(false)
-    // Reload to get latest saved state
-    window.location.reload()
+    
+    // Refresh page data to get latest saved state without full page reload
+    try {
+      const response = await fetch(`/api/wiki/pages/${pageData?.id || resolvedSlug}`)
+      if (response.ok) {
+        const updatedPage = await response.json()
+        setPageData(updatedPage)
+      }
+    } catch (error) {
+      console.error('Failed to refresh page data after cancel:', error)
+      // If refresh fails, the page will still exit edit mode with current data
+    }
   }
 
   const handleUpgradePage = async () => {
@@ -596,7 +583,6 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
     ? authorOrgInfo.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
     : '?'
 
-  console.log('Render state:', { isLoading, pageData, resolvedSlug })
 
   if (isLoading) {
     return (
@@ -832,7 +818,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                       // Wait a tick for WikiEditorShell to attach saveNow
                       setTimeout(() => {
                         editorRef.current = editor as Editor & { saveNow?: () => Promise<void> }
-                      }, 0)
+                      }, 100) // Slightly longer delay to ensure proper initialization
                     }
                   }}
                 />

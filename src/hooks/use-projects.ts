@@ -11,9 +11,9 @@ export interface Project {
   createdAt?: string
 }
 
-export function useProjects() {
-  // Use centralized UserStatusContext - no separate API call needed
-  const { workspaceId } = useUserStatusContext()
+export function useProjects(workspaceIdOverride?: string) {
+  const { workspaceId: contextWorkspaceId } = useUserStatusContext()
+  const workspaceId = workspaceIdOverride ?? contextWorkspaceId
 
   return useQuery({
     queryKey: ['projects', workspaceId],
@@ -24,9 +24,41 @@ export function useProjects() {
       return (Array.isArray(data) ? data : (data.data || data.projects || [])) as Project[]
     },
     enabled: !!workspaceId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+  })
+}
+
+export function useProject(projectId: string | undefined) {
+  return useQuery({
+    queryKey: ['project', projectId],
+    queryFn: async () => {
+      if (!projectId) return null
+      const response = await fetch(`/api/projects/${projectId}`)
+      if (!response.ok) {
+        if (response.status === 404) throw new Error('Project not found')
+        if (response.status === 403) throw new Error('Access denied')
+        throw new Error('Failed to fetch project')
+      }
+      const data = await response.json()
+      return { ...data, tasks: data.tasks || [] }
+    },
+    enabled: !!projectId,
+  })
+}
+
+export function useProjectEpics(projectId: string | undefined) {
+  return useQuery({
+    queryKey: ['project-epics', projectId],
+    queryFn: async () => {
+      if (!projectId) return []
+      const response = await fetch(`/api/projects/${projectId}/epics`)
+      if (!response.ok) throw new Error('Failed to fetch epics')
+      const data = await response.json()
+      return Array.isArray(data) ? data : []
+    },
+    enabled: !!projectId,
   })
 }
 

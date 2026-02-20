@@ -300,8 +300,6 @@ async function computeCapacityWindows(
   startDate: Date,
   endDate: Date
 ): Promise<Map<string, CapacityWindow>> {
-  const orgId = workspaceId;
-
   // Fetch people with availability and allocations
   const users = await prisma.user.findMany({
     where: {
@@ -330,7 +328,7 @@ async function computeCapacityWindows(
       },
       allocations: {
         where: {
-          orgId,
+          workspaceId,
           OR: [
             {
               startDate: { lte: endDate },

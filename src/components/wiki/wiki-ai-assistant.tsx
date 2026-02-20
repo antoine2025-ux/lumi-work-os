@@ -147,8 +147,7 @@ export function WikiAIAssistant({
   
   // Debug: Log when workspaces change
   useEffect(() => {
-    console.log('📦 WikiAIAssistant - Workspaces updated:', workspaces.length, workspaces.map(w => w.name))
-    console.log('📦 WikiAIAssistant - Recent pages updated:', recentPages.length, recentPages.map(p => p.title))
+    // Workspaces and recent pages updated
   }, [workspaces, recentPages])
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
@@ -448,13 +447,9 @@ export function WikiAIAssistant({
   ): { type: 'workspace' | 'parent', id: string, name: string } | null => {
     const lowerInput = input.toLowerCase().trim()
     
-    console.log('🔍 Parsing location - Input:', input)
-    console.log('🔍 Available workspaces:', workspaceList.map(w => ({ name: w.name, id: w.id })))
-    console.log('🔍 Available pages:', pageList.map(p => ({ title: p.title, id: p.id })))
     
     // Extract the entity name from input (removes "under", "in", "the", etc.)
     const extractedName = extractEntityName(input)
-    console.log('🔍 Extracted entity name:', extractedName)
     
     // FIRST: Check for workspace matches - match against extracted name AND variations
     // Sort workspaces by relevance (exact matches first, then partial)
@@ -478,19 +473,16 @@ export function WikiAIAssistant({
       if (workspaceNameLower === extractedLower || workspaceNameLower === inputLower) {
         score = 100
         matchType = 'exact'
-        console.log('🎯 EXACT match found:', workspace.name, 'with', extractedName)
       }
       // Workspace name contains extracted name (e.g., "Loopwell Space" contains "loopwell")
       else if (workspaceNameLower.includes(extractedLower) && extractedLower.length >= 4) {
         score = 80
         matchType = 'workspace-contains-extracted'
-        console.log('✅ Workspace contains extracted:', workspace.name, 'contains', extractedName)
       }
       // Extracted name contains workspace name (e.g., "loopwell space" contains "loopwell")
       else if (extractedLower.includes(workspaceNameLower) && workspaceNameLower.length >= 4) {
         score = 75
         matchType = 'extracted-contains-workspace'
-        console.log('✅ Extracted contains workspace:', extractedName, 'contains', workspace.name)
       }
       // Check if workspace contains significant words from extracted name
       else if (extractedWords.length > 0) {
@@ -502,25 +494,21 @@ export function WikiAIAssistant({
           const wordMatchScore = matchingWords.reduce((sum, word) => sum + word.length, 0)
           score = 70 + Math.min(wordMatchScore / 10, 5) // 70-75 range
           matchType = 'word-match'
-          console.log('✅ Word match:', workspace.name, 'matches words:', matchingWords.join(', '))
         }
       }
       // Input contains workspace name
       else if (inputLower.includes(workspaceNameLower) && workspaceNameLower.length >= 4) {
         score = 70
         matchType = 'input-contains-workspace'
-        console.log('✅ Input contains workspace:', input, 'contains', workspace.name)
       }
       // Use nameMatches function for fuzzy matching (lower priority)
       else if (nameMatches(workspaceName, extractedName)) {
         score = 60
         matchType = 'fuzzy-extracted'
-        console.log('🔍 Fuzzy match (extracted):', workspace.name, 'with', extractedName)
       }
       else if (nameMatches(workspaceName, input)) {
         score = 55
         matchType = 'fuzzy-input'
-        console.log('🔍 Fuzzy match (input):', workspace.name, 'with', input)
       }
       
       if (score > 0) {
@@ -532,9 +520,7 @@ export function WikiAIAssistant({
         
         if (!isPageMatch) {
           workspaceMatches.push({ workspace, score, matchType })
-          console.log('   Added match candidate:', workspace.name, 'score:', score, 'type:', matchType)
         } else {
-          console.log('   Skipped (conflicts with page):', workspace.name)
         }
       }
     }
@@ -555,8 +541,6 @@ export function WikiAIAssistant({
         return bMatches - aMatches
       })
       const bestMatch = workspaceMatches[0]
-      console.log('🏆 Best workspace match:', bestMatch.workspace.name, 'score:', bestMatch.score, 'type:', bestMatch.matchType)
-      console.log('   All candidates:', workspaceMatches.map(m => `${m.workspace.name} (${m.score})`).join(', '))
       return { type: 'workspace', id: bestMatch.workspace.id, name: bestMatch.workspace.name }
     }
     
@@ -565,7 +549,6 @@ export function WikiAIAssistant({
       const pageTitle = page.title
       // Check if page name matches the extracted name or the full input
       if (nameMatches(pageTitle, extractedName) || nameMatches(pageTitle, input)) {
-        console.log('✅ Matched parent page:', page.title, 'from input:', input, '(extracted:', extractedName, ')')
         return { type: 'parent', id: page.id, name: page.title }
       }
     }
@@ -576,13 +559,11 @@ export function WikiAIAssistant({
       const underMatch = lowerInput.match(/(?:under|subpage)\s+['"]?([^'"]+)['"]?/i)
       if (underMatch) {
         const afterKeyword = extractEntityName(underMatch[1])
-        console.log('🔍 Found text after "under/subpage":', afterKeyword)
         
         if (afterKeyword) {
           // Check if it matches a page
           for (const page of pageList) {
             if (nameMatches(page.title, afterKeyword)) {
-              console.log('✅ Matched parent page after keyword:', page.title)
               return { type: 'parent', id: page.id, name: page.title }
             }
           }
@@ -590,7 +571,6 @@ export function WikiAIAssistant({
           // Check if it matches a workspace (user might say "under Loopwell Space" meaning workspace)
           for (const workspace of workspaceList) {
             if (nameMatches(workspace.name, afterKeyword)) {
-              console.log('✅ Matched workspace after keyword:', workspace.name)
               return { type: 'workspace', id: workspace.id, name: workspace.name }
             }
           }
@@ -599,18 +579,15 @@ export function WikiAIAssistant({
       
       // If just "under" without specific name, default to first recent page
       if (pageList.length > 0 && extractedName.length < 3) {
-        console.log('✅ Defaulting to first recent page (no specific name found)')
         return { type: 'parent', id: pageList[0].id, name: pageList[0].title }
       }
     }
     
     // FOURTH: Default fallbacks
     if (workspaceList.length > 0 && (lowerInput.includes('main') || lowerInput.includes('top'))) {
-      console.log('✅ Matched default workspace (main/top)')
       return { type: 'workspace', id: workspaceList[0].id, name: workspaceList[0].name }
     }
     
-    console.log('❌ No location matched')
     return null
   }
 
@@ -641,9 +618,6 @@ export function WikiAIAssistant({
     setInput("")
     setIsLoading(true) // Set loading immediately
 
-    console.log('📤 handleSend - Current state:', pageCreationState, 'Input:', currentInput)
-    console.log('📤 handleSend - Pending title:', pendingPageTitle)
-    console.log('📤 handleSend - Messages count:', messages.length)
 
     // FALLBACK: Check conversation context if state doesn't match
     // If last assistant message asked for location, treat this as location input
@@ -654,9 +628,6 @@ export function WikiAIAssistant({
                                lastAssistantMessage?.content?.includes('Where should') ||
                                lastAssistantMessage?.content?.toLowerCase().includes('location')
     
-    console.log('🔍 Context check - Last assistant message:', lastAssistantMessage?.content?.substring(0, 50))
-    console.log('🔍 Context check - Is location question:', isLocationQuestion)
-    console.log('🔍 Context check - Has pending title:', !!pendingPageTitle)
     
     // PRIORITY CHECK: If we have pending title and last message asked for location,
     // we MUST be in location handling mode, regardless of state
@@ -676,7 +647,6 @@ export function WikiAIAssistant({
     if (pageCreationState === 'waiting_for_title' && !isDefinitelyLocationInput) {
       // User provided title, extract it properly
       const title = extractTitle(currentInput)
-      console.log('📝 Extracted title from input:', currentInput, '->', title)
       
       if (!title || title.length < 1) {
         // If we couldn't extract a title, ask again
@@ -702,8 +672,6 @@ export function WikiAIAssistant({
         ? recentPages.slice(0, 5).map(p => `"${p.title}"`).join(', ')
         : ''
       
-      console.log('📍 Available workspaces:', workspaces.map(w => w.name))
-      console.log('📍 Available pages:', recentPages.slice(0, 5).map(p => p.title))
       
       let locationQuestion = `Great! I'll call it "${title}".\n\nWhere should it live?`
       
@@ -734,11 +702,6 @@ export function WikiAIAssistant({
     
     if (shouldHandleLocation) {
       // User provided location, create the page - don't call API
-      console.log('📍 IN LOCATION HANDLING - State:', pageCreationState, 'Context fallback:', !pageCreationState && isLocationQuestion)
-      console.log('📍 Parsing location from input:', currentInput)
-      console.log('📍 Pending page title:', pendingPageTitle)
-      console.log('🔍 Available workspaces:', workspaces.length, workspaces.map(w => ({ name: w.name, id: w.id })))
-      console.log('🔍 Available pages:', recentPages.length, recentPages.map(p => ({ title: p.title, id: p.id })))
       
       // Ensure state is correct
       if (pageCreationState !== 'waiting_for_location') {
@@ -771,7 +734,6 @@ export function WikiAIAssistant({
             if (workspacesResponse.ok) {
               const workspacesData = await workspacesResponse.json()
               if (Array.isArray(workspacesData) && workspacesData.length > 0) {
-                console.log('✅ Fetched workspaces:', workspacesData.map((w: any) => w.name))
                 workspacesToUse = workspacesData.map((w: any) => ({
                   id: w.id,
                   name: w.name,
@@ -801,10 +763,8 @@ export function WikiAIAssistant({
         
         // Parse location with available workspaces
         const location = parseLocationWithWorkspaces(currentInput.trim(), workspacesToUse, recentPages)
-        console.log('🔍 Parsed location result:', location)
         
         if (!location) {
-          console.log('❌ Could not parse location from:', currentInput)
           // Couldn't parse location, ask for clarification
           const workspaceList = workspacesToUse.length > 0 
             ? workspacesToUse.map(w => `"${w.name}"`).join(', ')
@@ -830,7 +790,6 @@ export function WikiAIAssistant({
         let workspaceId = ''
         if (location.type === 'workspace') {
           workspaceId = location.id
-          console.log('✅ Using workspace ID from location:', workspaceId, location.name)
         } else {
           // For parent pages, find the workspace of the parent page
           const parentPage = recentPages.find(p => p.id === location.id)
@@ -838,10 +797,8 @@ export function WikiAIAssistant({
             // Try to find workspace by type
             const workspace = workspacesToUse.find(w => w.type === parentPage.workspace_type || w.id === parentPage.workspace_type)
             workspaceId = workspace?.id || workspacesToUse[0]?.id || ''
-            console.log('✅ Using workspace ID from parent page:', workspaceId)
           } else {
             workspaceId = workspacesToUse[0]?.id || ''
-            console.log('✅ Using first available workspace ID:', workspaceId)
           }
         }
         
@@ -861,31 +818,21 @@ export function WikiAIAssistant({
           return
         }
         
-        console.log('🚀 About to create page:', {
-          title: pendingPageTitle,
-          workspaceId: workspaceId,
-          location: location.name,
-          hasOnCreatePage: !!onCreatePage
-        })
         
         // Create the page
         setIsCreatingPage(true)
         try {
           if (onCreatePage) {
-            console.log('📝 Calling onCreatePage callback...')
             await onCreatePage(pendingPageTitle, '', workspaceId)
-            console.log('✅ onCreatePage completed successfully')
             const successMessage: Message = {
               id: (Date.now() + 1).toString(),
               role: 'assistant',
               content: `Done! I created "${pendingPageTitle}" ${location.type === 'workspace' ? `as a main page under ${location.name}` : `as a subpage under ${location.name}`}. Would you like me to add any content or structure to it?`,
               timestamp: new Date()
             }
-            console.log('💬 Adding success message to chat')
             setMessages(prev => [...prev, successMessage])
           } else {
             // Fallback: Create page directly via API if onCreatePage is not provided
-            console.log('📝 onCreatePage not provided, creating page directly via API...')
             try {
               // Find workspace type
               // For custom workspaces, workspace_type should be the workspace ID itself
@@ -921,7 +868,6 @@ export function WikiAIAssistant({
                 }
               }
               
-              console.log('🔍 Creating page with workspace_type:', workspaceType, 'workspaceId:', workspaceId)
               
               // Use centralized helper to create page
               const { createWikiPage } = await import('@/lib/wiki/create-page')
@@ -934,7 +880,6 @@ export function WikiAIAssistant({
                 workspace_type: workspaceType
               })
               
-              console.log('✅ Page created successfully via API:', newPage)
               
               // Navigate to the new page in edit mode
               if (newPage.slug) {
@@ -947,7 +892,6 @@ export function WikiAIAssistant({
                 content: `Done! I created "${pendingPageTitle}" ${location.type === 'workspace' ? `as a main page under ${location.name}` : `as a subpage under ${location.name}`}. Would you like me to add any content or structure to it?`,
                 timestamp: new Date()
               }
-              console.log('💬 Adding success message to chat')
               setMessages(prev => [...prev, successMessage])
             } catch (apiError) {
               console.error('❌ Error creating page via API:', apiError)
@@ -964,7 +908,6 @@ export function WikiAIAssistant({
           }
           setMessages(prev => [...prev, errorMessage])
         } finally {
-          console.log('🧹 Cleaning up state...')
           setIsCreatingPage(false)
           setPageCreationState('idle')
           setPendingPageTitle("")
@@ -1114,6 +1057,94 @@ export function WikiAIAssistant({
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  /**
+   * Handle a Loopbrain suggestion button click.
+   * Treats the suggestion label as a follow-up user query so the conversation
+   * continues naturally (the same path as typing and pressing Send).
+   */
+  const handleSuggestionClick = async (suggestion: LoopbrainSuggestion) => {
+    if (isLoading) return
+
+    const label = suggestion.label
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: label,
+      timestamp: new Date()
+    }
+    setMessages(prev => [...prev, userMessage])
+    setIsLoading(true)
+
+    try {
+      const result = await callSpacesLoopbrainAssistant({
+        query: label,
+        pageId: currentPageId,
+        useSemanticSearch: true,
+        maxContextItems: 10
+      })
+      setLastLoopbrainResponse(result)
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: result.answer || 'Sorry, I could not generate a response.',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, assistantMessage])
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: error instanceof Error ? error.message : 'Loopbrain couldn\'t answer right now. Please try again.',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  /**
+   * Execute extract_tasks: create each proposed task as a personal Todo,
+   * anchored to the current wiki page when available.
+   */
+  const executeExtractTasks = async (
+    tasks: NonNullable<LoopwellAIResponse['preview']['tasks']>
+  ) => {
+    const results = await Promise.allSettled(
+      tasks.map(task =>
+        fetch('/api/todos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: task.title,
+            note: task.description || null,
+            anchorType: currentPageId ? 'PAGE' : 'NONE',
+            anchorId: currentPageId || null,
+          }),
+        })
+      )
+    )
+    const created = results.filter(r => r.status === 'fulfilled').length
+    const failed = results.length - created
+    return { created, failed }
+  }
+
+  /**
+   * Execute tag_pages: apply the proposed tags to the current wiki page via PUT.
+   */
+  const executeTagPages = async (tags: string[]) => {
+    if (!currentPageId) throw new Error('No page ID available to tag')
+    const response = await fetch(`/api/wiki/pages/${currentPageId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags }),
+    })
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}))
+      throw new Error((body as { error?: string }).error || `HTTP ${response.status}`)
     }
   }
 
@@ -1391,11 +1422,9 @@ export function WikiAIAssistant({
                                       {lastLoopbrainResponse.suggestions.map((suggestion, idx) => (
                                         <button
                                           key={idx}
-                                          onClick={() => {
-                                            console.log('Loopbrain suggestion clicked', suggestion)
-                                            // TODO: wire to action executor in a later step
-                                          }}
-                                          className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                          onClick={() => handleSuggestionClick(suggestion)}
+                                          disabled={isLoading}
+                                          className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                           {suggestion.label}
                                         </button>
@@ -1492,8 +1521,51 @@ export function WikiAIAssistant({
                           }
                           setMessages(prev => [...prev, successMessage])
                           setPendingPreview(null)
+                        } else if (pendingPreview.intent === 'extract_tasks') {
+                          const tasks = pendingPreview.preview?.tasks
+                          if (tasks && tasks.length > 0) {
+                            executeExtractTasks(tasks).then(({ created, failed }) => {
+                              const msg = failed === 0
+                                ? `Created ${created} todo${created !== 1 ? 's' : ''} from this page.`
+                                : `Created ${created} todo${created !== 1 ? 's' : ''}; ${failed} failed.`
+                              setMessages(prev => [...prev, {
+                                id: (Date.now() + 1).toString(),
+                                role: 'assistant',
+                                content: msg,
+                                timestamp: new Date()
+                              }])
+                            }).catch(() => {
+                              setMessages(prev => [...prev, {
+                                id: (Date.now() + 1).toString(),
+                                role: 'assistant',
+                                content: 'Failed to create todos. Please try again.',
+                                timestamp: new Date()
+                              }])
+                            })
+                          }
+                          setPendingPreview(null)
+                        } else if (pendingPreview.intent === 'tag_pages') {
+                          const tags = pendingPreview.preview?.tags
+                          if (tags && tags.length > 0) {
+                            executeTagPages(tags).then(() => {
+                              setMessages(prev => [...prev, {
+                                id: (Date.now() + 1).toString(),
+                                role: 'assistant',
+                                content: `Applied ${tags.length} tag${tags.length !== 1 ? 's' : ''} to this page.`,
+                                timestamp: new Date()
+                              }])
+                            }).catch((err: unknown) => {
+                              const msg = err instanceof Error ? err.message : 'Failed to apply tags.'
+                              setMessages(prev => [...prev, {
+                                id: (Date.now() + 1).toString(),
+                                role: 'assistant',
+                                content: `Could not apply tags: ${msg}`,
+                                timestamp: new Date()
+                              }])
+                            })
+                          }
+                          setPendingPreview(null)
                         } else {
-                          // TODO: Handle extract_tasks and tag_pages
                           setPendingPreview(null)
                         }
                       }}
@@ -1657,12 +1729,6 @@ export function WikiAIAssistant({
               ? userMessages[userMessages.length - 1].content 
               : pendingPageTitle
             
-            console.log('📝 Preparing to create page:', { 
-              title: pendingPageTitle, 
-              prompt: originalPrompt.substring(0, 50), 
-              workspaceId,
-              userMessagesCount: userMessages.length
-            })
             
             // Store page creation info for streaming BEFORE creating page
             const pageCreationInfo = {
@@ -1672,17 +1738,13 @@ export function WikiAIAssistant({
               timestamp: Date.now()
             }
             
-            console.log('💾 Storing draft info in sessionStorage:', pageCreationInfo)
             sessionStorage.setItem('pendingPageDraft', JSON.stringify(pageCreationInfo))
             
             // Verify it was stored
             const stored = sessionStorage.getItem('pendingPageDraft')
-            console.log('✅ Draft info stored, verification:', stored ? 'Success' : 'Failed')
             
             // Create blank draft page (this will navigate)
-            console.log('📄 Creating page now...')
             await onCreatePage(pendingPageTitle, ' ', workspaceId)
-            console.log('✅ Page creation completed')
             
             // Add status message
             const statusMessage: Message = {

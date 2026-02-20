@@ -4,6 +4,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
+import { canAccessWikiWorkspace } from '@/lib/wiki/permissions'
 import { emitEvent } from '@/lib/events/emit'
 import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
 import { logger } from '@/lib/logger'
@@ -110,13 +111,22 @@ export async function GET(
       }, { status: 404 })
     }
 
-    // SECURITY: Personal pages are only visible to their creator.
-    // Return 404 (not 403) to avoid revealing the page exists.
-    const pageWorkspaceType = (page as any).workspace_type
-    if (pageWorkspaceType === 'personal' && page.createdById !== auth.user.userId) {
-      return NextResponse.json({
-        error: 'Page not found'
-      }, { status: 404 })
+    // SECURITY: Enforce visibility. Return 404 (not 403) to avoid revealing the page exists.
+    const pageWorkspaceType = (page as { workspace_type?: string }).workspace_type
+
+    // Personal pages - only creator
+    if (pageWorkspaceType === 'personal' || pageWorkspaceType?.startsWith('personal-space-')) {
+      if (page.createdById !== auth.user.userId) {
+        return NextResponse.json({ error: 'Page not found' }, { status: 404 })
+      }
+    }
+
+    // Custom wiki workspace (wiki-xxx) - check canAccessWikiWorkspace
+    if (pageWorkspaceType?.startsWith('wiki-')) {
+      const hasAccess = await canAccessWikiWorkspace(auth.user.userId, pageWorkspaceType)
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Page not found' }, { status: 404 })
+      }
     }
 
     // Ensure contentFormat has a default value

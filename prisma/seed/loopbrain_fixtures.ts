@@ -535,7 +535,7 @@ export async function seedLoopbrainFixtures() {
   // Project A: Sam 0.3, Chris 0.2
   await prisma.projectAllocation.create({
     data: {
-      orgId: orgId,
+      workspaceId: orgId,
       projectId: projectA.id,
       personId: sam.id,
       fraction: 0.3,
@@ -545,7 +545,7 @@ export async function seedLoopbrainFixtures() {
 
   await prisma.projectAllocation.create({
     data: {
-      orgId: orgId,
+      workspaceId: orgId,
       projectId: projectA.id,
       personId: chris.id,
       fraction: 0.2,
@@ -556,7 +556,7 @@ export async function seedLoopbrainFixtures() {
   // Project B: Sam 0.8, Dana 0.6
   await prisma.projectAllocation.create({
     data: {
-      orgId: orgId,
+      workspaceId: orgId,
       projectId: projectB.id,
       personId: sam.id,
       fraction: 0.8,
@@ -566,7 +566,7 @@ export async function seedLoopbrainFixtures() {
 
   await prisma.projectAllocation.create({
     data: {
-      orgId: orgId,
+      workspaceId: orgId,
       projectId: projectB.id,
       personId: dana.id,
       fraction: 0.6,

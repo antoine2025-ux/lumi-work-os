@@ -4,11 +4,14 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 
+// @deprecated Use /api/spaces/[id] instead (unified Space model, Sprint 2).
+
 // GET /api/project-spaces/[id] - Get a single ProjectSpace
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  console.warn('[DEPRECATED] GET /api/project-spaces/[id] — use GET /api/spaces/[id] instead')
   try {
     const auth = await getUnifiedAuth(request)
     const resolvedParams = await params

@@ -202,7 +202,7 @@ export function RequestTimeOffDialog({
             </Button>
             <Button
               type="submit"
-              disabled={loading || hasInvalidDates}
+              disabled={loading || !!hasInvalidDates}
             >
               {loading ? "Submitting..." : "Submit Request"}
             </Button>

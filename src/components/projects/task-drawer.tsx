@@ -167,7 +167,6 @@ export default function TaskDrawer({ isOpen, onClose, task, colors, onTaskUpdate
     if (!newComment.trim()) return
     
     // In a real app, this would create a comment
-    console.log('New comment:', newComment)
     setNewComment('')
   }
 

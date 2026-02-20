@@ -36,10 +36,19 @@ import {
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
+interface WikiWorkspaceData {
+  id: string
+  name: string
+  type?: string
+  color?: string
+  icon?: string
+  [key: string]: unknown
+}
+
 export default function WikiPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
-  const [workspaceData, setWorkspaceData] = useState<any>(null)
+  const [workspaceData, setWorkspaceData] = useState<WikiWorkspaceData[] | null>(null)
 
   useEffect(() => {
     const loadWorkspaceData = async () => {
@@ -123,7 +132,13 @@ export default function WikiPage() {
                 <CardDescription className="mb-4">
                   Start a new collaborative document that your team can view and edit together.
                 </CardDescription>
-                <Button className="w-full" onClick={() => router.push('/wiki/new')}>
+                <Button className="w-full" onClick={() => {
+                  if (typeof window !== 'undefined' && (window as any).triggerCreatePage) {
+                    (window as any).triggerCreatePage()
+                  } else {
+                    router.push('/wiki/new')
+                  }
+                }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Team Page
                 </Button>

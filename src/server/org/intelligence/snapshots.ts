@@ -17,6 +17,7 @@ import type { OrgIntelligenceRollups } from "./rollups";
  */
 export async function createIntelligenceSnapshot(input: {
   source: string;
+  workspaceId: string;
 }): Promise<{
   id: string;
   createdAt: Date;
@@ -33,6 +34,7 @@ export async function createIntelligenceSnapshot(input: {
       findingCount: findings.length,
       findingsJson: findings as any,
       rollupsJson: rollups as any,
+      workspace: { connect: { id: input.workspaceId } },
     },
     select: { id: true, createdAt: true, findingCount: true },
   });

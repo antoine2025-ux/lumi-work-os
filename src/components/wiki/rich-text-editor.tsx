@@ -258,7 +258,6 @@ export function RichTextEditor({
             
             // Check if user typed "/" - simplified detection
             if (beforeCursor.endsWith('/')) {
-              console.log('Slash command detected:', beforeCursor)
               const rect = range.getBoundingClientRect()
               setEmbedPalettePosition({
                 top: rect.bottom + window.scrollY,
@@ -297,7 +296,6 @@ export function RichTextEditor({
   }
 
   const handleEmbed = (embedData: Partial<EmbedData>) => {
-    console.log('Creating embed with data:', embedData)
     
     const newEmbed: EmbedData = {
       id: `embed-${Date.now()}`,
@@ -310,7 +308,6 @@ export function RichTextEditor({
       ...embedData
     }
     
-    console.log('New embed created:', newEmbed)
     setEmbeds(prev => [...prev, newEmbed])
     
     // Create embed HTML string
@@ -336,8 +333,6 @@ export function RichTextEditor({
     const currentContent = editorRef.current?.innerHTML || ''
     const newContent = currentContent + embedHtml
     
-    console.log('Current content length:', currentContent.length)
-    console.log('New content length:', newContent.length)
     
     // Update the content directly
     onChange(newContent)
@@ -346,7 +341,6 @@ export function RichTextEditor({
   }
 
   const testEmbed = () => {
-    console.log('Test embed button clicked')
     handleEmbed({
       provider: 'github',
       url: 'https://github.com/antoine2025-ux/lumi-work-os',

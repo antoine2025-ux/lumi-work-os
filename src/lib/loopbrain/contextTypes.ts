@@ -1,16 +1,14 @@
-export type ContextStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED";
-
-export type ContextType =
-  | "org"
-  | "department"
-  | "team"
-  | "role"
-  | "person"
-  | "project"
-  | "task"
-  | "page"
-  | "note"
-  | "goal";
+/**
+ * Re-export ContextObject types from canonical source.
+ * Loopbrain uses the same ContextObject shape as the generic context module.
+ * This file exists for backward compatibility with existing imports.
+ */
+export type {
+  ContextObject,
+  ContextType,
+  ContextRelation,
+  ContextStatus,
+} from '@/lib/context/contextTypes'
 
 export type ContextRelationType =
   | "reports_to"
@@ -22,24 +20,4 @@ export type ContextRelationType =
   | "has_department"
   | "has_role"
   | "responsible_for"
-  | "owns";
-
-export type ContextRelation = {
-  type: ContextRelationType | string;
-  sourceId: string;
-  targetId: string;
-  label: string;
-};
-
-export type ContextObject = {
-  id: string;
-  type: ContextType;
-  title: string;
-  summary: string;
-  tags: string[];
-  relations: ContextRelation[];
-  owner: string | null;
-  status: ContextStatus;
-  updatedAt: string; // ISO8601
-};
-
+  | "owns"

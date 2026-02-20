@@ -9,6 +9,7 @@ export interface DashboardBootstrap {
   workspace: {
     id: string
     name?: string
+    companyType?: string | null
   }
   projects: Array<{
     id: string
@@ -33,6 +34,22 @@ export interface DashboardBootstrap {
     category?: string | null
   }>
   pageCounts: Record<string, number>
+  workspaces: Array<{
+    id: string
+    name: string
+    type: 'personal' | 'team' | 'project' | null
+    color?: string
+    pageCount?: number
+    lastUpdated?: string
+  }>
+  drafts: Array<{
+    id: string
+    title: string
+    type: 'page' | 'session'
+    updatedAt: string
+    url?: string
+    excerpt?: string
+  }>
   todos: Array<{
     id: string
     title: string

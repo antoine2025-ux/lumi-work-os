@@ -42,7 +42,7 @@ async function fixWikiWorkspaceTypes() {
     console.log(`📊 Found ${allPages.length} total wiki pages\n`)
 
     const fixes: PageFix[] = []
-    let pagesToUpdate: Array<{ id: string; workspace_type: string }> = []
+    const pagesToUpdate: Array<{ id: string; workspace_type: string }> = []
 
     // Analyze each page and determine what needs to be fixed
     for (const page of allPages) {

@@ -440,19 +440,6 @@ export default function ProjectDetailPage() {
     window.URL.revokeObjectURL(url)
   }
 
-  const handleDuplicateProject = () => {
-    if (!project) return
-    // TODO: Implement project duplication
-    console.log('Duplicate project:', project.name)
-    alert('Project duplication feature coming soon!')
-  }
-
-  const handleShareProject = () => {
-    if (!project) return
-    // TODO: Implement project sharing
-    console.log('Share project:', project.name)
-    alert('Project sharing feature coming soon!')
-  }
 
   const handleFilterChange = (filteredTasks: any[]) => {
     setFilteredTasks(filteredTasks)
@@ -592,7 +579,7 @@ export default function ProjectDetailPage() {
     if (!content) return ''
     
     // Remove HTML tags but preserve line breaks
-    let cleaned = content
+    const cleaned = content
       .replace(/<div><br><\/div>/g, '\n\n') // Convert div breaks to double line breaks
       .replace(/<br\s*\/?>/g, '\n') // Convert br tags to line breaks
       .replace(/<div>/g, '\n') // Convert div opening to line break
@@ -718,9 +705,15 @@ export default function ProjectDetailPage() {
                 style={{ backgroundColor: project?.color || colors.primary }}
               />
               <h1 className="text-3xl font-semibold" style={{ color: colors.text }}>{project?.name}</h1>
-              {project?.projectSpace && (
-                <ProjectSpaceBadge visibility={project?.projectSpace?.visibility} />
-              )}
+              {(() => {
+                const vis = project?.projectSpace?.visibility;
+                if (vis == null) return null;
+                return (
+                  <ProjectSpaceBadge
+                    visibility={vis as "PUBLIC" | "TARGETED"}
+                  />
+                );
+              })()}
             </div>
             <p className="text-base leading-relaxed mb-3" style={{ color: colors.textSecondary }}>
               {project?.description || 'No description available'}
@@ -748,7 +741,7 @@ export default function ProjectDetailPage() {
                   <div className="text-center">
                     <h3 className="text-sm font-medium mb-3" style={{ color: colors.text }}>Team</h3>
                     <div className="space-y-2">
-                      {project?.members.slice(0, 3).map((member) => (
+                      {(project?.members ?? []).slice(0, 3).map((member) => (
                         <div key={member.id} className="flex items-center space-x-2">
                           <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.borderLight }}>
                             <User className="h-3 w-3" style={{ color: colors.textSecondary }} />
@@ -759,9 +752,9 @@ export default function ProjectDetailPage() {
                           </div>
                         </div>
                       ))}
-                      {project?.members && project.members.length > 3 && (
+                      {((project?.members?.length ?? 0) > 3) && (
                         <p className="text-xs" style={{ color: colors.textSecondary }}>
-                          +{project.members.length - 3} more
+                          +{(project?.members?.length ?? 0) - 3} more
                         </p>
                       )}
                     </div>

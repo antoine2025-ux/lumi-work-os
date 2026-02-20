@@ -8,7 +8,6 @@
 
 import { prisma } from "@/lib/db";
 import { resolveOwner } from "@/lib/org/ownership-resolver";
-import { OwnedEntityType } from "@prisma/client";
 
 /**
  * Assign ownership to a team or department.
@@ -27,7 +26,7 @@ export async function assignOwnership(input: {
   // Get current owner before assignment (for audit logging)
   const currentResolution = await resolveOwner(
     input.workspaceId,
-    input.entityType as OwnedEntityType,
+    input.entityType as "TEAM" | "DEPARTMENT",
     input.entityId
   );
   const previousOwnerId = currentResolution.ownerPersonId || null;

@@ -147,7 +147,7 @@ export function packContextSection<T>(
     if (itemChars > maxCharsPerItem) {
       // Try compacting if it's a ContextObject
       if (typeof processedItem === 'object' && processedItem !== null && 'type' in processedItem) {
-        const compacted = compactContextObject(processedItem as ContextObject, maxCharsPerItem)
+        const compacted = compactContextObject(processedItem as unknown as ContextObject, maxCharsPerItem)
         const compactedChars = estimateChars(compacted)
         if (totalChars + compactedChars <= maxTotalChars) {
           packed.push(compacted as T)

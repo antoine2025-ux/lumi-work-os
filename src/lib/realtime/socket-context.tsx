@@ -50,10 +50,10 @@ export function SocketProvider({ children, userId, userName, workspaceId }: Sock
     try {
       // Check if Socket.IO is enabled via environment variable
       const socketIOEnabled = process.env.NEXT_PUBLIC_ENABLE_SOCKET_IO === 'true'
+      let newSocket: SocketType | MockSocket
       
       if (socketIOEnabled) {
         // Try real socket first, fallback to mock
-        let newSocket: SocketType | MockSocket
         try {
           console.log(`Socket connection attempt ${attempt + 1} for user ${userId}`)
           newSocket = await connectSocket(userId, userName, workspaceId)
@@ -72,7 +72,7 @@ export function SocketProvider({ children, userId, userName, workspaceId }: Sock
       } else {
         // Skip real socket connection - use mock socket directly
         console.log('Using mock socket (Socket.IO disabled via NEXT_PUBLIC_ENABLE_SOCKET_IO)')
-        const newSocket = await connectMockSocket(userId, userName, workspaceId)
+        newSocket = await connectMockSocket(userId, userName, workspaceId)
         setSocket(newSocket)
         setIsConnected(true)
         setError(null)

@@ -3,40 +3,39 @@
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Rocket,
+  Building2,
   ArrowLeft,
   ArrowRight,
   Loader2,
-  Globe,
-  Lock,
   Code2,
-  Megaphone,
-  Settings2,
-  FileText,
-  LayoutGrid,
+  Users,
+  ShoppingCart,
+  Heart,
+  TrendingUp,
+  Cog,
+  MoreHorizontal,
 } from 'lucide-react'
 import type { OnboardingStep4Data } from '@/lib/validations/onboarding'
+import type { CompanyType } from '@/lib/validations/onboarding'
 import { cn } from '@/lib/utils'
 
-type Visibility = 'PUBLIC' | 'PRIVATE'
-type Template = 'blank' | 'engineering' | 'marketing' | 'operations' | 'hr'
-
-interface TemplateOption {
-  value: Template
+interface CompanyTypeOption {
+  value: CompanyType
   label: string
   description: string
   icon: React.ElementType
 }
 
-const TEMPLATES: TemplateOption[] = [
-  { value: 'blank', label: 'Blank', description: 'Start from scratch', icon: LayoutGrid },
-  { value: 'engineering', label: 'Engineering', description: 'Sprints, bugs, roadmap', icon: Code2 },
-  { value: 'marketing', label: 'Marketing', description: 'Campaigns, content', icon: Megaphone },
-  { value: 'operations', label: 'Operations', description: 'Processes, SOPs', icon: Settings2 },
-  { value: 'hr', label: 'HR', description: 'People, policies', icon: FileText },
+const COMPANY_TYPES: CompanyTypeOption[] = [
+  { value: 'saas', label: 'Software / SaaS', description: 'Product companies, tech startups', icon: Code2 },
+  { value: 'agency', label: 'Agency / Services', description: 'Consulting, design, marketing', icon: Users },
+  { value: 'ecommerce', label: 'E-commerce / Retail', description: 'Online stores, retail', icon: ShoppingCart },
+  { value: 'healthcare', label: 'Healthcare', description: 'Medical, biotech, pharma', icon: Heart },
+  { value: 'financial', label: 'Financial Services', description: 'Banking, insurance, fintech', icon: TrendingUp },
+  { value: 'manufacturing', label: 'Manufacturing', description: 'Physical products, hardware', icon: Cog },
+  { value: 'other', label: 'Other', description: 'Non-profit, education, government', icon: MoreHorizontal },
 ]
 
 interface Step4FirstSpaceProps {
@@ -46,105 +45,47 @@ interface Step4FirstSpaceProps {
 }
 
 export function Step4FirstSpace({ submitting, onSubmit, onBack }: Step4FirstSpaceProps) {
-  const [spaceName, setSpaceName] = useState('')
-  const [visibility, setVisibility] = useState<Visibility>('PUBLIC')
-  const [template, setTemplate] = useState<Template>('blank')
-
-  const canSubmit = spaceName.trim().length >= 2
+  const [companyType, setCompanyType] = useState<CompanyType>('saas')
 
   const handleSubmit = () => {
-    if (!canSubmit || submitting) return
-    onSubmit({
-      spaceName: spaceName.trim(),
-      visibility,
-      template,
-    })
+    if (submitting) return
+    onSubmit({ companyType })
   }
 
   return (
     <Card className="border-border/50">
       <CardHeader className="text-center pb-2">
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-          <Rocket className="h-6 w-6 text-primary" />
+          <Building2 className="h-6 w-6 text-primary" />
         </div>
-        <CardTitle className="text-2xl">Create your first space</CardTitle>
+        <CardTitle className="text-2xl">About your company</CardTitle>
         <CardDescription className="text-base">
-          Spaces organize projects, tasks, and documents.
+          Tell us what kind of company you run so Loopbrain can personalize your experience.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-5 pt-4">
-        {/* Space name */}
-        <div className="space-y-1.5">
-          <Label htmlFor="spaceName">Space name</Label>
-          <Input
-            id="spaceName"
-            placeholder="e.g. Product Launch, Q1 Planning..."
-            value={spaceName}
-            onChange={e => setSpaceName(e.target.value)}
-            autoFocus
-          />
-        </div>
-
-        {/* Visibility */}
+        {/* Company type */}
         <div className="space-y-2">
-          <Label>Visibility</Label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setVisibility('PUBLIC')}
-              className={cn(
-                'flex items-center gap-2 rounded-lg border p-3 text-left transition-colors',
-                visibility === 'PUBLIC'
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-primary/40'
-              )}
-            >
-              <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Public</p>
-                <p className="text-xs text-muted-foreground">All workspace members</p>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setVisibility('PRIVATE')}
-              className={cn(
-                'flex items-center gap-2 rounded-lg border p-3 text-left transition-colors',
-                visibility === 'PRIVATE'
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-primary/40'
-              )}
-            >
-              <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Private</p>
-                <p className="text-xs text-muted-foreground">Invite only</p>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Template */}
-        <div className="space-y-2">
-          <Label>Template</Label>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-            {TEMPLATES.map(t => {
-              const Icon = t.icon
+          <Label>What kind of company are you?</Label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {COMPANY_TYPES.map(ct => {
+              const Icon = ct.icon
               return (
                 <button
-                  key={t.value}
+                  key={ct.value}
                   type="button"
-                  onClick={() => setTemplate(t.value)}
+                  onClick={() => setCompanyType(ct.value)}
                   className={cn(
-                    'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors',
-                    template === t.value
+                    'flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors',
+                    companyType === ct.value
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/40'
                   )}
                 >
-                  <Icon className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-xs font-medium">{t.label}</span>
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium leading-tight">{ct.label}</span>
+                  <span className="text-xs text-muted-foreground leading-tight">{ct.description}</span>
                 </button>
               )
             })}
@@ -158,15 +99,15 @@ export function Step4FirstSpace({ submitting, onSubmit, onBack }: Step4FirstSpac
             Back
           </Button>
           <div className="flex-1" />
-          <Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
+          <Button onClick={handleSubmit} disabled={submitting}>
             {submitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                Saving...
               </>
             ) : (
               <>
-                Create space
+                Continue
                 <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}

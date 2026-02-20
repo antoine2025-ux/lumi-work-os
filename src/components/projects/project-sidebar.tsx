@@ -1,11 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { 
   Home,
-  FolderOpen,
   Layers,
   Target,
   BarChart3,
@@ -14,18 +13,9 @@ import {
   Users,
   Calendar,
   Activity,
-  Zap,
-  Database,
-  Shield,
-  Cloud,
-  Globe,
-  Lightbulb,
-  List,
-  BookOpen,
-  Puzzle
 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 
 interface ProjectNavItem {
@@ -39,14 +29,30 @@ interface ProjectNavItem {
 
 interface ProjectSidebarProps {
   projectId: string
-  projectName: string
+  projectName?: string
+  workspaceSlug?: string
+  isHovered?: boolean
+  onHoverChange?: (hovered: boolean) => void
   className?: string
-  onHoverChange?: (isExpanded: boolean) => void
 }
 
-export default function ProjectSidebar({ projectId, projectName, className = '', onHoverChange }: ProjectSidebarProps) {
-  const [isHovered, setIsHovered] = useState(false)
+function buildHref(base: string, workspaceSlug?: string): string {
+  return workspaceSlug ? `/w/${workspaceSlug}${base}` : base
+}
+
+export default function ProjectSidebar({ 
+  projectId, 
+  projectName = '', 
+  workspaceSlug, 
+  isHovered: externalIsHovered, 
+  onHoverChange, 
+  className = '' 
+}: ProjectSidebarProps) {
+  const [internalIsHovered, setInternalIsHovered] = useState(false)
+  const isHovered = externalIsHovered ?? internalIsHovered
+  const setIsHovered = onHoverChange ?? setInternalIsHovered
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   // Use CSS variables for consistent theming
   const colors = {
@@ -70,112 +76,51 @@ export default function ProjectSidebar({ projectId, projectName, className = '',
   // Determine navigation items based on context
   const isMainProjectsPage = projectId === 'dashboard'
   
-  const navItems: ProjectNavItem[] = isMainProjectsPage ? [
-    // Main Projects Page Navigation
-    {
-      id: 'dashboard',
-      label: 'Project Dashboard',
-      icon: Home,
-      href: '/projects',
-    },
-    {
-      id: 'my-epics',
-      label: 'My Epics',
-      icon: Layers,
-      href: '/projects?view=my-epics',
-    },
-    {
-      id: 'my-tasks',
-      label: 'My Tasks',
-      icon: Target,
-      href: '/projects?view=my-tasks',
-    },
-    {
-      id: 'team-board',
-      label: 'Team Board',
-      icon: Users,
-      href: '/projects?view=team-board',
-    },
-    {
-      id: 'reports',
-      label: 'Reports',
-      icon: BarChart3,
-      href: '/projects?view=reports',
-    }
+  const baseNavItems: Omit<ProjectNavItem, 'href'>[] = isMainProjectsPage ? [
+    { id: 'dashboard', label: 'Project Dashboard', icon: Home },
+    { id: 'my-epics', label: 'My Epics', icon: Layers },
+    { id: 'my-tasks', label: 'My Tasks', icon: Target },
+    { id: 'team-board', label: 'Team Board', icon: Users },
+    { id: 'reports', label: 'Reports', icon: BarChart3 },
   ] : [
-    // Individual Project Page Navigation
-    {
-      id: 'dashboard',
-      label: 'Project Dashboard',
-      icon: Home,
-      href: '/projects',
-    },
-    {
-      id: 'epics',
-      label: 'Epics',
-      icon: Layers,
-      href: `/projects/${projectId}/epics`,
-    },
-    {
-      id: 'tasks',
-      label: 'Tasks',
-      icon: Target,
-      href: `/projects/${projectId}/tasks`,
-    },
-    {
-      id: 'documentation',
-      label: 'Documentation',
-      icon: FileText,
-      href: `/projects/${projectId}/documentation`,
-    },
-    {
-      id: 'reports',
-      label: 'Reports',
-      icon: BarChart3,
-      href: `/projects/${projectId}/reports`,
-    },
-    {
-      id: 'calendar',
-      label: 'Calendar',
-      icon: Calendar,
-      href: `/projects/${projectId}/calendar`,
-    },
-    {
-      id: 'activity',
-      label: 'Activity',
-      icon: Activity,
-      href: `/projects/${projectId}/activity`,
-    },
-    {
-      id: 'settings',
-      label: 'Project Settings',
-      icon: Settings,
-      href: `/projects/${projectId}/settings`,
-    }
+    { id: 'dashboard', label: 'Project Dashboard', icon: Home },
+    { id: 'epics', label: 'Epics', icon: Layers },
+    { id: 'tasks', label: 'Tasks', icon: Target },
+    { id: 'documentation', label: 'Documentation', icon: FileText },
+    { id: 'reports', label: 'Reports', icon: BarChart3 },
+    { id: 'calendar', label: 'Calendar', icon: Calendar },
+    { id: 'activity', label: 'Activity', icon: Activity },
+    { id: 'settings', label: 'Project Settings', icon: Settings },
   ]
+
+  const navItems: ProjectNavItem[] = baseNavItems.map((item) => {
+    const baseHref = item.id === 'dashboard' ? '/projects'
+      : item.id === 'my-epics' ? '/projects?view=my-epics'
+      : item.id === 'my-tasks' ? '/projects?view=my-tasks'
+      : item.id === 'team-board' ? '/projects?view=team-board'
+      : item.id === 'reports' && isMainProjectsPage ? '/projects?view=reports'
+      : item.id === 'reports' ? `/projects/${projectId}/reports`
+      : `/projects/${projectId}/${item.id}`
+    return { ...item, href: buildHref(baseHref, workspaceSlug) }
+  })
 
   // Check if current path matches nav item
   const isActive = (href: string) => {
+    const baseHref = workspaceSlug ? href.replace(`/w/${workspaceSlug}`, '') : href
     if (isMainProjectsPage) {
-      // For main projects page, check URL parameters
-      if (href === '/projects') {
-        return pathname === '/projects' && !window.location.search
+      if (baseHref === '/projects' || baseHref.startsWith('/projects?')) {
+        if (baseHref === '/projects') {
+          return pathname.endsWith('/projects') && searchParams.toString() === ''
+        }
+        const viewParam = baseHref.includes('?') ? baseHref.split('?')[1]?.split('=')[1] : null
+        return viewParam != null && searchParams.get('view') === viewParam
       }
-      return window.location.search.includes(href.split('?')[1])
-    } else {
-      // For individual project pages, check path
-      if (href === '/projects') {
-        return pathname === href
-      }
-      return pathname.startsWith(href)
     }
+    if (baseHref === '/projects') {
+      return pathname === href || (workspaceSlug && pathname === `/w/${workspaceSlug}/projects`)
+    }
+    return pathname === href || pathname.startsWith(href + '/')
   }
-
-  // Load collapsed state from localStorage
-  useEffect(() => {
-    // Always start collapsed (hover-based expansion)
-    setIsHovered(false)
-  }, [])
 
   // Handle hover events
   const handleMouseEnter = () => {
@@ -190,10 +135,10 @@ export default function ProjectSidebar({ projectId, projectName, className = '',
 
   return (
     <div 
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] z-40 transition-all duration-300 ease-in-out ${
+      className={`h-full flex-shrink-0 transition-all duration-300 ease-in-out flex flex-col ${
         isHovered ? 'w-64' : 'w-16'
       } ${className}`}
-      style={{ backgroundColor: colors.surface }}
+      style={{ backgroundColor: colors.surface, borderRight: `1px solid ${colors.border}` }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >

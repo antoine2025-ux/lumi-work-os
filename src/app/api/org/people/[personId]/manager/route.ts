@@ -67,7 +67,7 @@ export async function PUT(
     }
 
     // Step 6: Get current position (personId may be OrgPosition ID or User ID)
-    let position = await prisma.orgPosition.findFirst({
+    const position = await prisma.orgPosition.findFirst({
       where: {
         OR: [
           { id: personId },

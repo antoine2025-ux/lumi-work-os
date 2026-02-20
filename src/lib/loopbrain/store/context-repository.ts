@@ -13,6 +13,7 @@
  * - Workspace scoping enforced via workspaceId parameter
  */
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { ContextObject, ContextType } from '../context-types'
 
@@ -53,8 +54,8 @@ export async function saveContextItem(
   // Extract title from context based on type
   const title = extractTitle(context)
   
-  // Serialize entire ContextObject to JSON
-  const data = context as unknown as Record<string, unknown>
+  // Serialize entire ContextObject to JSON for Prisma JSON field
+  const data = context as unknown as Prisma.InputJsonValue
 
   // Find existing context item by contextId + type + workspaceId (composite lookup)
   const existing = await prisma.contextItem.findFirst({

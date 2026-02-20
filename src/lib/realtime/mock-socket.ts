@@ -32,7 +32,7 @@ class MockSocketImpl implements MockSocket {
     if (event === 'authenticate' && data) {
       this.data = data
       setTimeout(() => {
-        this.emit('userJoined', {
+        this.triggerListeners('userJoined', {
           userId: data.userId,
           userName: data.userName
         })
@@ -41,7 +41,7 @@ class MockSocketImpl implements MockSocket {
     
     if (event === 'updateTask') {
       setTimeout(() => {
-        this.emit('taskUpdated', {
+        this.triggerListeners('taskUpdated', {
           taskId: data.taskId,
           updates: data.updates,
           userId: this.data?.userId || 'mock-user'
@@ -51,7 +51,7 @@ class MockSocketImpl implements MockSocket {
     
     if (event === 'createTask') {
       setTimeout(() => {
-        this.emit('taskCreated', {
+        this.triggerListeners('taskCreated', {
           task: data.task,
           projectId: data.projectId
         })
@@ -60,9 +60,12 @@ class MockSocketImpl implements MockSocket {
     
     if (event === 'sendNotification') {
       setTimeout(() => {
-        this.emit('notification', data)
+        this.triggerListeners('notification', data)
       }, 100)
     }
+    
+    // Notify listeners for the emitted event
+    this.triggerListeners(event, data)
   }
 
   on(event: string, callback: (data?: any) => void) {
@@ -86,7 +89,7 @@ class MockSocketImpl implements MockSocket {
     }
   }
 
-  private emit(event: string, data?: any) {
+  private triggerListeners(event: string, data?: any) {
     const listeners = this.listeners.get(event)
     if (listeners) {
       listeners.forEach(callback => callback(data))

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
-import { requireActiveOrgId } from "@/server/org/context"
+import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertWriteAllowed } from "@/server/org/writes/guard"
 
 type Body = {
@@ -12,7 +12,11 @@ type Body = {
 
 export async function POST(req: NextRequest) {
   try {
-    const orgId = await requireActiveOrgId(req)
+    const auth = await getUnifiedAuth(req)
+    const workspaceId = auth.workspaceId
+    if (!workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     assertWriteAllowed("ownership.bulkAssign")
     const body = (await req.json()) as Body
 
@@ -29,14 +33,14 @@ export async function POST(req: NextRequest) {
 
     // Demote existing primaries
     await prisma.ownerAssignment.updateMany({
-      where: { orgId, entityType: entityType as any, entityId: { in: entityIds }, isPrimary: true } as any,
+      where: { workspaceId, entityType: entityType as any, entityId: { in: entityIds }, isPrimary: true } as any,
       data: { isPrimary: false },
     })
 
     // Create new primaries
     await prisma.ownerAssignment.createMany({
       data: entityIds.map((id) => ({
-        orgId,
+        workspaceId,
         entityType: entityType as any,
         entityId: id,
         ownerPersonId,
@@ -48,7 +52,7 @@ export async function POST(req: NextRequest) {
     // Resolve matching OWNERSHIP signals for those entities only
     await prisma.orgHealthSignal.updateMany({
       where: {
-        orgId,
+        orgId: workspaceId,
         type: "OWNERSHIP" as any,
         resolvedAt: null,
         dismissedAt: null,

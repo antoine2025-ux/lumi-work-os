@@ -46,18 +46,38 @@ export async function GET(request: NextRequest) {
       return response
     }
 
-    // Get all workspaces for this workspaceId
+    // Get workspaces the user can access (PUBLIC, creator, or PRIVATE member)
     const dbStart = performance.now()
-    const workspaces = await prisma.wiki_workspaces.findMany({
-      where: {
-        workspace_id: auth.workspaceId
-      },
-      select: {
-        id: true,
-        type: true,
-        name: true
-      }
-    })
+    let workspaces: Array<{ id: string; type: string | null; name: string }>
+    try {
+      workspaces = await prisma.wiki_workspaces.findMany({
+        where: {
+          workspace_id: auth.workspaceId,
+          OR: [
+            { visibility: 'PUBLIC' },
+            { created_by_id: auth.user.userId },
+            {
+              visibility: 'PRIVATE',
+              members: { some: { userId: auth.user.userId } },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          type: true,
+          name: true,
+        },
+      })
+    } catch (visibilityError) {
+      // Fallback: visibility/members schema may not be deployed yet (e.g. pre-migration)
+      logger.warn('Page counts: visibility filter failed, falling back to unfiltered query', {
+        error: visibilityError instanceof Error ? visibilityError.message : String(visibilityError),
+      })
+      workspaces = await prisma.wiki_workspaces.findMany({
+        where: { workspace_id: auth.workspaceId },
+        select: { id: true, type: true, name: true },
+      })
+    }
 
     console.log(`📊 Found ${workspaces.length} workspaces for workspaceId: ${auth.workspaceId}`)
 
@@ -175,6 +195,11 @@ export async function GET(request: NextRequest) {
     response.headers.set('X-Cache', 'MISS')
     return response
   } catch (error) {
+    logger.error('Page counts error', {
+      route,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     return handleApiError(error, request)
   }
 }

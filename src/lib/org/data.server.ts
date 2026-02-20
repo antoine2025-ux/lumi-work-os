@@ -254,6 +254,12 @@ const _getOrgPeople = async (
           userId: true,
           title: true,
           teamId: true,
+          parentId: true,
+          parent: {
+            select: {
+              userId: true,
+            },
+          },
           team: {
             select: {
               id: true,
@@ -280,7 +286,7 @@ const _getOrgPeople = async (
     } catch (queryError: any) {
       // If the full query fails, try a simpler query and filter in memory
       console.warn("[getOrgPeople] Full query failed, falling back to simple query:", queryError?.message);
-      
+
       // Fallback: simple query without complex filters
       positionsWithUsers = await prisma.orgPosition.findMany({
         where: baseQuery,
@@ -289,6 +295,12 @@ const _getOrgPeople = async (
           userId: true,
           title: true,
           teamId: true,
+          parentId: true,
+          parent: {
+            select: {
+              userId: true,
+            },
+          },
           team: {
             select: {
               id: true,
@@ -355,6 +367,7 @@ const _getOrgPeople = async (
       team: string | null;
       departmentId: string | null;
       department: string | null;
+      managerUserId: string | null;
     }
   >();
 
@@ -368,6 +381,7 @@ const _getOrgPeople = async (
       team: pos.team?.name ?? null,
       departmentId: pos.team?.department?.id ?? null,
       department: pos.team?.department?.name ?? null,
+      managerUserId: pos.parent?.userId ?? null,
     });
   }
 
@@ -386,6 +400,7 @@ const _getOrgPeople = async (
       department: positionInfo?.department ?? null,
       location: null,
       joinedAt: m.joinedAt?.toISOString(),
+      managerId: positionInfo?.managerUserId ?? null,
     };
   });
 

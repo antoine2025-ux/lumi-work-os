@@ -58,7 +58,7 @@ export async function OrgHealthSummary(props: { orgId: string }) {
               {signals.slice(0, 3).map((signal: any) => {
                 // Map signal keys to deep links
                 let href = "/org/people"
-                let label = signal.title || signal.key
+                const label = signal.title || signal.key
                 
                 if (signal.key?.includes("ownership") || signal.key?.includes("unowned")) {
                   href = "/org/ownership"

@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 
 export type AuditAction = 
@@ -52,9 +53,9 @@ export async function logAuditEvent(entry: AuditLogEntry) {
         action: entry.action,
         entityType: entry.entityType,
         entityId: entry.entityId,
-        oldValues: entry.oldValues || null,
-        newValues: entry.newValues || null,
-        metadata: entry.metadata || null,
+        oldValues: (entry.oldValues ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+        newValues: (entry.newValues ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+        metadata: (entry.metadata ?? Prisma.JsonNull) as Prisma.InputJsonValue,
       },
     })
     

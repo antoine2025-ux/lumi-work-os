@@ -335,29 +335,12 @@ export async function POST(request: NextRequest) {
     }
 
     // -----------------------------------------------------------------------
-    // Step 4: First Space
+    // Step 4: Company Type
     // -----------------------------------------------------------------------
     if (step === 4) {
-      // Map onboarding visibility (PUBLIC | PRIVATE) to DB enum (PUBLIC | TARGETED)
-      const visibility = data.visibility === 'PRIVATE' ? 'TARGETED' : 'PUBLIC'
-
-      // Apply template description so the space has useful context
-      const templateDescriptions: Record<string, string> = {
-        blank: '',
-        engineering: 'Engineering space — sprints, bugs, and roadmap tracking.',
-        marketing: 'Marketing space — campaigns, content planning, and analytics.',
-        operations: 'Operations space — processes, SOPs, and workflow management.',
-        hr: 'HR space — people management, policies, and onboarding.',
-      }
-      const description = templateDescriptions[data.template] || null
-
-      const space = await prisma.projectSpace.create({
-        data: {
-          workspaceId,
-          name: data.spaceName,
-          description,
-          visibility,
-        },
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: { companyType: data.companyType },
       })
 
       await prisma.onboardingProgress.update({
@@ -371,8 +354,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         nextStep: 5,
-        spaceId: space.id,
-        spaceName: space.name,
       })
     }
 

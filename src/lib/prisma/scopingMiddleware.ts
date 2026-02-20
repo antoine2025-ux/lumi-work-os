@@ -85,6 +85,11 @@ export const WORKSPACE_SCOPED_MODELS = [
   // Decision domain children
   'DecisionAuthority',
   'DecisionEscalationStep',
+  // Capacity planning
+  'ProjectAllocation',
+  // Unified spaces
+  'Space',
+  'SpaceMember',
 ] as const
 
 // Context for workspace scoping
@@ -96,7 +101,7 @@ const _global = globalThis as unknown as { __workspaceContextId: string | null }
 if (_global.__workspaceContextId === undefined) {
   _global.__workspaceContextId = null
 }
-let isProduction = process.env.NODE_ENV === 'production'
+const isProduction = process.env.NODE_ENV === 'production'
 
 /**
  * Set the current workspace context for scoping

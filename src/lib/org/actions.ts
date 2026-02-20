@@ -72,7 +72,7 @@ export async function createTeam(input: CreateTeamInput) {
 
     // departmentId is optional - teams can be unassigned (departmentId: null)
     // This is a valid first-class state, not a configuration error
-    let departmentId = input.departmentId ?? null;
+    const departmentId = input.departmentId ?? null;
     
     if (departmentId) {
       // Verify department exists in workspace if provided

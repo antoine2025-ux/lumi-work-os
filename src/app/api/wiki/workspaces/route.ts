@@ -80,17 +80,23 @@ export async function GET(request: NextRequest) {
           icon: 'file-text',
           description: 'Your personal knowledge space',
           is_private: true,
-          created_by_id: auth.user.userId
+          visibility: 'PERSONAL' as const,
+          created_by_id: auth.user.userId,
         }
         await prisma.wiki_workspaces.create({
           data: personalSpaceData
         })
-      } catch (error: any) {
+      } catch (error: unknown) {
         // P2002 = unique constraint violation — another request may have created it concurrently
-        if (error.code !== 'P2002') {
-          console.error('Error creating Personal Space:', error.message)
+        const prismaError = error as { code?: string; message?: string }
+        if (prismaError.code !== 'P2002') {
+          console.error('Error creating Personal Space:', prismaError.message)
           if (process.env.NODE_ENV === 'development') {
-            console.error('Personal Space data:', { id: personalSpaceId, workspace_id: workspaceId, created_by_id: auth.user.userId })
+            console.error('Personal Space data:', {
+              id: personalSpaceId,
+              workspace_id: workspaceId,
+              created_by_id: auth.user.userId,
+            })
           }
         }
       }
@@ -160,15 +166,23 @@ export async function POST(request: NextRequest) {
 
     // Validate body (Zod) — WikiWorkspaceCreateSchema rejects type='personal'
     const body = WikiWorkspaceCreateSchema.parse(await request.json())
-    const { name, description, type, color = '#3b82f6', icon = 'layers', isPrivate = false } = body
+    const {
+      name,
+      description,
+      type,
+      color = '#3b82f6',
+      icon = 'layers',
+      isPrivate = false,
+      visibility = 'PUBLIC',
+      memberIds = [],
+    } = body
 
     // Generate a unique ID for the new workspace
     const newWikiWorkspaceId = `wiki-${Date.now()}-${Math.random().toString(36).substring(7)}`
 
     // Create the wiki workspace
     // If no type specified, create as a custom workspace (not 'team' or 'personal')
-    // This ensures new workspaces are independent
-    const workspaceType = type || null // null type means it's a custom workspace
+    const workspaceType = type ?? null
 
     const newWorkspace = await prisma.wiki_workspaces.create({
       data: {
@@ -176,13 +190,38 @@ export async function POST(request: NextRequest) {
         workspace_id: auth.workspaceId,
         name: name.trim(),
         description: description?.trim() || null,
-        type: workspaceType, // Can be null for custom workspaces, or 'team' if explicitly specified
+        type: workspaceType,
         color: color || '#3b82f6',
         icon: icon || 'layers',
         is_private: isPrivate || false,
-        created_by_id: auth.user.userId
-      }
+        visibility: visibility as 'PERSONAL' | 'PRIVATE' | 'PUBLIC',
+        created_by_id: auth.user.userId,
+      },
     })
+
+    // When PRIVATE, create WikiWorkspaceMember records (creator as OWNER, invited as EDITOR)
+    if (visibility === 'PRIVATE') {
+      const membersToCreate = [
+        {
+          wikiWorkspaceId: newWikiWorkspaceId,
+          userId: auth.user.userId,
+          role: 'OWNER' as const,
+          grantedById: null,
+        },
+        ...(memberIds ?? [])
+          .filter((id) => id !== auth.user.userId)
+          .map((userId) => ({
+            wikiWorkspaceId: newWikiWorkspaceId,
+            userId,
+            role: 'EDITOR' as const,
+            grantedById: auth.user.userId,
+          })),
+      ]
+      await prisma.wikiWorkspaceMember.createMany({
+        data: membersToCreate,
+        skipDuplicates: true,
+      })
+    }
 
     return NextResponse.json(newWorkspace, { status: 201 })
   } catch (error) {

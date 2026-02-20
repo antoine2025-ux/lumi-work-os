@@ -59,7 +59,7 @@ type ResolvedImpact = {
   explicitImpactId?: string;
 };
 
-import type { WorkImpactResolution } from "@/lib/org/impact/types";
+import type { WorkImpactResolution, ImpactSubjectType } from "@/lib/org/impact/types";
 
 // ============================================================================
 // Config
@@ -225,7 +225,7 @@ export function WorkImpactSection({
           <>
             {/* Grouped by subject type */}
             {subjectTypes.map((type) => {
-              const typeImpacts = impactData.bySubjectType[type];
+              const typeImpacts = impactData.bySubjectType[type as ImpactSubjectType];
               if (!typeImpacts || typeImpacts.length === 0) return null;
 
               return (

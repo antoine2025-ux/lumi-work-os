@@ -21,27 +21,28 @@ function getInitials(name: string | null): string {
 }
 
 /**
- * Derives reporting chain from people list
- * Currently infers from role keywords since managerId doesn't exist yet
+ * Derives reporting chain by walking up managerId links.
+ * Returns the chain from top-most ancestor down to (but not including) the person.
+ * Returns empty array if the person has no manager — the component shows an empty state.
  */
 function deriveReportingChain(
   person: OrgPerson,
   people: OrgPerson[]
 ): OrgPerson[] {
-  // TODO: When managerId is available, build chain using:
-  // const peopleMap = new Map(people.map(p => [p.id, p]));
-  // let current = person;
-  // const chain = [person];
-  // while (current.managerId && chain.length < 6) {
-  //   const manager = peopleMap.get(current.managerId);
-  //   if (!manager || chain.includes(manager)) break; // Prevent cycles
-  //   chain.unshift(manager);
-  //   current = manager;
-  // }
-  // return chain;
+  const peopleMap = new Map(people.map((p) => [p.id, p]));
+  const chain: OrgPerson[] = [];
+  const visited = new Set<string>([person.id]);
+  let current = person;
 
-  // For now, return empty chain since we don't have managerId
-  return [];
+  while (current.managerId && chain.length < 6) {
+    const manager = peopleMap.get(current.managerId);
+    if (!manager || visited.has(manager.id)) break; // missing or cycle — stop
+    visited.add(manager.id);
+    chain.unshift(manager); // prepend so chain reads top → bottom
+    current = manager;
+  }
+
+  return chain;
 }
 
 /**

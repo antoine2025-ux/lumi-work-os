@@ -70,17 +70,24 @@ export function InlineWikiViewer({
   const [isOpen, setIsOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
-  // Load wiki pages
+  // Load wiki pages list and current page content in parallel when dialog opens
   useEffect(() => {
-    const loadWikiPages = async () => {
+    const loadData = async () => {
+      if (!isOpen) {
+        setCurrentWikiPage(null)
+        return
+      }
       try {
         setIsLoadingPages(true)
-        const response = await fetch(`/api/wiki/pages?workspaceId=${currentWorkspace?.id || workspaceId}`)
-        if (response.ok) {
-          const result = await response.json()
-          // Handle paginated response - data is in result.data
+        const wsId = currentWorkspace?.id || workspaceId
+        const [pagesResponse, pageResponse] = await Promise.all([
+          fetch(`/api/wiki/pages?workspaceId=${wsId}`),
+          currentWikiPageId ? fetch(`/api/wiki/pages/${currentWikiPageId}`) : Promise.resolve(null)
+        ])
+
+        if (pagesResponse.ok) {
+          const result = await pagesResponse.json()
           const data = result.data || result
-          // Ensure data is an array before setting
           if (Array.isArray(data)) {
             setWikiPages(data)
           } else {
@@ -88,38 +95,22 @@ export function InlineWikiViewer({
             setWikiPages([])
           }
         }
+
+        if (pageResponse?.ok) {
+          const data = await pageResponse.json()
+          setCurrentWikiPage(data)
+        } else {
+          setCurrentWikiPage(null)
+        }
       } catch (error) {
-        console.error('Error loading wiki pages:', error)
+        console.error('Error loading wiki data:', error)
       } finally {
         setIsLoadingPages(false)
       }
     }
 
-    if (isOpen) {
-      loadWikiPages()
-    }
-  }, [isOpen])
-
-  // Load current wiki page content
-  useEffect(() => {
-    const loadCurrentWikiPage = async () => {
-      if (currentWikiPageId) {
-        try {
-          const response = await fetch(`/api/wiki/pages/${currentWikiPageId}`)
-          if (response.ok) {
-            const data = await response.json()
-            setCurrentWikiPage(data)
-          }
-        } catch (error) {
-          console.error('Error loading current wiki page:', error)
-        }
-      } else {
-        setCurrentWikiPage(null)
-      }
-    }
-
-    loadCurrentWikiPage()
-  }, [currentWikiPageId])
+    loadData()
+  }, [isOpen, currentWikiPageId, currentWorkspace?.id, workspaceId])
 
   // Filter pages based on search and category
   const filteredPages = Array.isArray(wikiPages) ? wikiPages.filter(page => {
@@ -149,7 +140,7 @@ export function InlineWikiViewer({
   const cleanContent = (content: string) => {
     if (!content) return ''
     
-    let cleaned = content
+    const cleaned = content
       // Convert HTML headings to Markdown
       .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
       .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')

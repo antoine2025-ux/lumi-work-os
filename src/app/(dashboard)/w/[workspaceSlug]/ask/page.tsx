@@ -8,34 +8,35 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { 
   Send, 
-  Bot, 
   Plus, 
-  X, 
   History, 
   Clock, 
   Trash2, 
-  ExternalLink, 
   Loader2, 
   ChevronDown,
-  Settings,
   Sparkles,
   Zap,
   Brain,
-  MessageSquare,
   Search,
-  RefreshCw
+  RefreshCw,
+  FileText,
+  Lightbulb,
+  ListChecks,
+  HelpCircle
 } from "lucide-react"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { SourceCitations } from '@/components/ai/source-citations'
 import { AILogo } from '@/components/ai-logo'
+import { cn } from "@/lib/utils"
 
 interface Message {
   id: string
@@ -128,14 +129,15 @@ export default function AskPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [currentSession, setCurrentSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [showHistory, setShowHistory] = useState(true)
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [showScrollToBottom, setShowScrollToBottom] = useState(false)
   // Default to Gemini 2.5 Flash
   const [selectedModel, setSelectedModel] = useState(MODELS.find(m => m.id === 'gemini-2.5-flash') || MODELS[0])
+  const [showQuickStart, setShowQuickStart] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // Auto-resize textarea
   const adjustTextareaHeight = () => {
@@ -200,6 +202,7 @@ export default function AskPage() {
   const startNewChat = () => {
     setCurrentSession(null)
     setMessages([])
+    setShowQuickStart(true)
     // Use the currently selected model (defaults to Gemini 2.5 Flash)
     createNewSession(selectedModel.id)
   }
@@ -426,27 +429,40 @@ export default function AskPage() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (input.trim()) {
-      if (currentSession) {
-        sendMessage(input)
-      } else {
-        startNewChat()
-      }
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!input.trim() || isLoading) return
+    
+    setShowQuickStart(false)
+    
+    if (currentSession) {
+      await sendMessage(input)
+    } else {
+      // Create session first, then send message
+      await createNewSession(selectedModel.id)
+      // Wait a bit for session to be created
+      setTimeout(() => {
+        if (input.trim()) {
+          sendMessage(input)
+        }
+      }, 100)
     }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSubmit(e as any)
+      handleSubmit()
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value)
-    adjustTextareaHeight()
+  }
+
+  const handleQuickStartClick = (prompt: string) => {
+    setInput(prompt)
+    inputRef.current?.focus()
   }
 
   const getModelInfo = (modelId: string) => {
@@ -454,187 +470,235 @@ export default function AskPage() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-950">
-      {/* Sidebar */}
-      {showHistory && (
-        <div className="w-80 bg-muted border-r border-border flex flex-col">
-          <div className="p-4 border-b border-border">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">Chat History</h2>
+    <div className="flex flex-col h-screen bg-background">
+      {/* Minimal Header - Only show when there are messages */}
+      {messages.length > 0 && (
+        <div className="border-b border-border px-6 py-4 flex-shrink-0">
+          <div className="flex items-center justify-end max-w-4xl mx-auto">
+            <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowHistory(false)}
+                onClick={startNewChat}
               >
-                <X className="h-4 w-4" />
+                <Plus className="h-4 w-4 mr-2" />
+                New chat
               </Button>
-            </div>
-            <Button 
-              className="w-full bg-blue-600 hover:bg-blue-700"
-              onClick={startNewChat}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Chat
-            </Button>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto">
-            {chatHistory.length === 0 ? (
-              <div className="p-4 text-center">
-                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">No chat sessions yet</p>
-              </div>
-            ) : (
-              <div className="p-4 space-y-2">
-                {chatHistory.map((item) => {
-                  const modelInfo = getModelInfo(item.model)
-                  return (
-                    <div
-                      key={item.id}
-                      className="p-3 rounded-lg border border-border hover:bg-card cursor-pointer transition-colors"
-                      onClick={() => loadSession(item.id)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
+              {chatHistory.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <History className="h-4 w-4 mr-2" />
+                    History
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+                  <DropdownMenuLabel>Recent chats</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {chatHistory.map((item) => {
+                    const modelInfo = getModelInfo(item.model)
+                    return (
+                      <DropdownMenuItem
+                        key={item.id}
+                        onClick={() => loadSession(item.id)}
+                        className="flex flex-col items-start gap-1 py-3"
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-sm font-medium truncate flex-1">
                             {item.title}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-xs">
-                              {modelInfo.name}
-                            </Badge>
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              {new Date(item.updatedAt).toLocaleDateString()}
-                            </div>
+                          </span>
+                          <div className="flex items-center gap-1 ml-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                regenerateTitle(item.id)
+                              }}
+                              title="Regenerate title"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                deleteSession(item.id)
+                              }}
+                              title="Delete chat"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              regenerateTitle(item.id)
-                            }}
-                            title="Regenerate title"
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              deleteSession(item.id)
-                            }}
-                            title="Delete chat"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Badge variant="outline" className="text-xs">
+                            {modelInfo.name}
+                          </Badge>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {new Date(item.updatedAt).toLocaleDateString()}
+                          </span>
                         </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                      </DropdownMenuItem>
+                    )
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-screen max-h-screen">
-        {/* Header */}
-        <div className="bg-card border-b border-border px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2">
-                <AILogo 
-                  width={32} 
-                  height={32} 
-                  className="w-8 h-8"
-                />
-                <h1 className="text-2xl font-semibold text-foreground">LoopBrain</h1>
+      {/* Main Content Area */}
+      {messages.length === 0 ? (
+        /* Empty State - Centered with Quick Start */
+        <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto">
+          <div className={cn(
+            "w-full max-w-2xl space-y-8 transition-opacity duration-300",
+            showQuickStart ? "animate-in fade-in-0 duration-200" : ""
+          )}>
+            {/* Logo above heading */}
+            <div className="flex justify-center mb-6">
+              <AILogo 
+                width={64} 
+                height={64} 
+                className="w-16 h-16 opacity-80"
+              />
+            </div>
+            
+            {/* Engaging Heading */}
+            <h1 className="text-4xl font-bold text-center text-foreground">
+              What can I help you with?
+            </h1>
+            
+            {/* Large Prominent Input with Model Selector Inside */}
+            <div className="relative">
+              <Input
+                ref={inputRef}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask anything, draft content, brainstorm ideas..."
+                className="h-14 text-base pr-28 text-foreground"
+                disabled={isLoading}
+              />
+              {/* Model Selector Inside Input */}
+              <div className="absolute right-14 top-1/2 -translate-y-1/2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
+                      {selectedModel.icon && <selectedModel.icon className="h-3 w-3" />}
+                      <span>{selectedModel.name}</span>
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="w-64">
+                    <DropdownMenuLabel>Select AI Model</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {MODELS.map((model) => (
+                      <DropdownMenuItem
+                        key={model.id}
+                        onClick={() => setSelectedModel(model)}
+                        className="flex items-start gap-3 py-3"
+                      >
+                        <model.icon className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm">{model.name}</div>
+                          <div className="text-xs text-muted-foreground">{model.description}</div>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-              {currentSession && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">Using</span>
-                  <Badge variant="outline" className="text-xs">
-                    {getModelInfo(currentSession.model).name}
-                  </Badge>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
+              {/* Send Button */}
               <Button
-                variant="ghost"
+                onClick={handleSubmit}
+                disabled={!input.trim() || isLoading}
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-8 px-3"
                 size="sm"
-                onClick={() => setShowHistory(!showHistory)}
               >
-                <History className="h-4 w-4 mr-2" />
-                {showHistory ? 'Hide' : 'Show'} History
+                {isLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Send className="h-3 w-3" />
+                )}
               </Button>
-              <Select
-                value={currentSession?.model || selectedModel.id}
-                onValueChange={(value) => {
-                  const model = MODELS.find(m => m.id === value)
-                  if (model) {
-                    setSelectedModel(model)
-                    // If there's an active session, update it
-                    if (currentSession) {
-                      // Create a new session with the selected model
-                      createNewSession(value)
-                    }
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODELS.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
+            
+            {/* Quick-Start Suggestion Cards */}
+            {showQuickStart && (
+              <div className={cn(
+                "grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in-0 duration-300 delay-200"
+              )}>
+                <Card
+                  className="cursor-pointer hover:bg-accent/50 transition-all duration-200 border-border/50 bg-card/50"
+                  onClick={() => handleQuickStartClick("Help me draft a professional document about ")}
+                >
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground">Draft a document</span>
+                  </CardContent>
+                </Card>
+                
+                <Card
+                  className="cursor-pointer hover:bg-accent/50 transition-all duration-200 border-border/50 bg-card/50"
+                  onClick={() => handleQuickStartClick("Let's brainstorm ideas for ")}
+                >
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                      <Lightbulb className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground">Brainstorm ideas</span>
+                  </CardContent>
+                </Card>
+                
+                <Card
+                  className="cursor-pointer hover:bg-accent/50 transition-all duration-200 border-border/50 bg-card/50"
+                  onClick={() => handleQuickStartClick("Summarize this for me: ")}
+                >
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                      <ListChecks className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground">Summarize content</span>
+                  </CardContent>
+                </Card>
+                
+                <Card
+                  className="cursor-pointer hover:bg-accent/50 transition-all duration-200 border-border/50 bg-card/50"
+                  onClick={() => handleQuickStartClick("I have a question about ")}
+                >
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                      <HelpCircle className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground">Answer a question</span>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Messages */}
-        <div id="messages-container" className="flex-1 overflow-y-auto p-6 space-y-6 min-h-0 max-h-[calc(100vh-10rem)]">
-          {messages.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <div className="w-full max-w-2xl text-center">
-                <div className="mx-auto mb-6">
-                  <AILogo 
-                    width={64} 
-                    height={64} 
-                    className="w-16 h-16"
-                  />
-                </div>
-                <h2 className="text-2xl font-semibold text-foreground mb-4">
-                  Welcome to LoopBrain
-                </h2>
-                <p className="text-muted-foreground mb-8">
-                  Start a conversation with AI. Select your preferred model from the dropdown above.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
+      ) : (
+        /* Active Chat View - Centered Messages */
+        <>
+          <div id="messages-container" className="flex-1 overflow-y-auto p-6 min-h-0">
+            <div className="max-w-3xl mx-auto space-y-6">
               {messages.map((message) => (
                 <div
                   key={message.id}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-3xl px-4 py-3 rounded-lg ${
+                    className={`max-w-[85%] px-4 py-3 rounded-lg ${
                       message.role === 'user'
                         ? 'bg-blue-600 text-white'
                         : 'bg-muted text-foreground'
@@ -642,7 +706,7 @@ export default function AskPage() {
                   >
                     {message.role === 'assistant' ? (
                       <div>
-                        <div className="prose prose-sm max-w-none">
+                        <div className="prose prose-sm max-w-none dark:prose-invert">
                           <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
                             components={{
@@ -672,47 +736,81 @@ export default function AskPage() {
                   </div>
                 </div>
               ))}
-              
-            </>
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+          
+          {/* Scroll to Bottom Button */}
+          {showScrollToBottom && (
+            <Button
+              onClick={scrollToBottom}
+              className="absolute bottom-24 right-6 rounded-full shadow-lg"
+              size="sm"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
           )}
-          <div ref={messagesEndRef} />
-        </div>
-        
-        {/* Scroll to Bottom Button */}
-        {showScrollToBottom && (
-          <Button
-            onClick={scrollToBottom}
-            className="absolute bottom-20 right-6 rounded-full shadow-lg"
-            size="sm"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </Button>
-        )}
+        </>
+      )}
 
-        {/* Input */}
-        <div className="bg-card border-t border-border p-4 flex-shrink-0 pb-6">
-          <form onSubmit={handleSubmit} className="flex space-x-3 items-end">
-            <Textarea
-              ref={textareaRef}
+      {/* Input Bar - Always at Bottom */}
+      {messages.length > 0 && (
+        <div className="border-t border-border p-4 flex-shrink-0">
+          <div className="max-w-3xl mx-auto relative">
+            <Input
+              ref={inputRef}
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Type your message... (Shift+Enter for new line)"
-              className="flex-1 min-h-[44px] max-h-32 resize-none"
+              placeholder="Ask anything, draft content, brainstorm ideas..."
+              className="h-12 text-base pr-28"
               disabled={isLoading}
-              rows={1}
             />
-            <Button 
-              type="submit" 
-              disabled={!input.trim() || isLoading} 
-              className="px-6 h-11"
+            {/* Model Selector Inside Input */}
+            <div className="absolute right-14 top-1/2 -translate-y-1/2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
+                    {selectedModel.icon && <selectedModel.icon className="h-3 w-3" />}
+                    <span>{selectedModel.name}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="w-64">
+                  <DropdownMenuLabel>Select AI Model</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {MODELS.map((model) => (
+                    <DropdownMenuItem
+                      key={model.id}
+                      onClick={() => setSelectedModel(model)}
+                      className="flex items-start gap-3 py-3"
+                    >
+                      <model.icon className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm">{model.name}</div>
+                        <div className="text-xs text-muted-foreground">{model.description}</div>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            {/* Send Button */}
+            <Button
+              onClick={handleSubmit}
+              disabled={!input.trim() || isLoading}
+              className="absolute right-3 top-1/2 -translate-y-1/2 h-8 px-3"
+              size="sm"
             >
-              <Send className="h-4 w-4" />
+              {isLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Send className="h-3 w-3" />
+              )}
             </Button>
-          </form>
+          </div>
         </div>
-      </div>
-
+      )}
     </div>
   )
 }

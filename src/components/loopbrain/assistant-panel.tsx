@@ -81,14 +81,24 @@ export function LoopbrainAssistantPanel({
   onDisplayModeChange
 }: LoopbrainAssistantPanelProps) {
   // Use context for persistent state
-  const { state, setIsOpen, setIsMinimized, setMessages, addMessage, clearMessages } = useLoopbrainAssistant()
-  
+  const { state, setIsOpen, setIsMinimized, setMessages, addMessage, clearMessages, pendingQuery, setPendingQuery } = useLoopbrainAssistant()
+
   // Use controlled open if provided, otherwise use internal state
   const [internalOpen, setInternalOpen] = useState(defaultOpen)
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen
   const messages = state.messages
   const isMinimized = state.isMinimized
   const [input, setInput] = useState("")
+
+  // Consume pendingQuery — pre-fill input when a starter prompt is queued
+  useEffect(() => {
+    if (pendingQuery && isOpen) {
+      setInput(pendingQuery)
+      setPendingQuery(null)
+      // Focus the input after a short delay so it's ready to edit or submit
+      setTimeout(() => inputRef.current?.focus(), 50)
+    }
+  }, [pendingQuery, isOpen, setPendingQuery])
   const [isLoading, setIsLoading] = useState(false)
   const [displayMode, setDisplayMode] = useState<'sidebar' | 'floating'>(propDisplayMode || 'floating')
   const [lastLoopbrainResponse, setLastLoopbrainResponse] = useState<LoopbrainResponse | null>(null)

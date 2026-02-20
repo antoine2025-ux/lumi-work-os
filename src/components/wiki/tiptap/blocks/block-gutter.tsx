@@ -118,7 +118,6 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
     // Validate blockPos: must be > 0 and within document bounds
     if (blockPos < 0 || blockPos >= editor.state.doc.content.size) {
       if (CANARY_MODE) {
-        console.log('[GUTTER] updatePosition: invalid blockPos', blockPos)
       }
       return
     }
@@ -143,18 +142,11 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
         }
 
         if (CANARY_MODE) {
-          console.log('[GUTTER] updatePosition: block element found', {
-            blockPos,
-            top,
-            left,
-            blockRect: { top: blockRect.top, left: blockRect.left, height: blockRect.height }
-          })
         }
 
         setPosition({ top, left })
         return
       } else if (CANARY_MODE) {
-        console.log('[GUTTER] updatePosition: block element not found, falling back to coordsAtPos')
       }
     } catch (error) {
       if (CANARY_MODE) {
@@ -177,12 +169,6 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
         }
 
         if (CANARY_MODE) {
-          console.log('[GUTTER] updatePosition: using coordsAtPos fallback', {
-            blockPos,
-            top,
-            left,
-            coords
-          })
         }
 
         setPosition({ top, left })
@@ -237,14 +223,12 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
       if (blockPos !== null) {
         // Temporary debug: log when block is activated
         if (CANARY_MODE) {
-          console.log('[GUTTER] Selection update: block activated at pos', blockPos)
         }
         setActiveBlockPos(blockPos)
         updatePosition(blockPos)
       } else if (!isGutterHoveredRef.current) {
         // PHASE 5: Only clear if gutter is not hovered (hover lock)
         if (CANARY_MODE) {
-          console.log('[GUTTER] Selection update: no block, clearing')
         }
         setActiveBlockPos(null)
         setPosition(null)
@@ -435,17 +419,11 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
   // Validate activeBlockPos: must be > 0
   if (!editor || activeBlockPos === null || activeBlockPos < 0 || !position) {
     if (CANARY_MODE && editor) {
-      console.log('[GUTTER] Not rendering:', {
-        hasEditor: !!editor,
-        activeBlockPos,
-        hasPosition: !!position
-      })
     }
     return null
   }
 
   if (CANARY_MODE) {
-    console.log('[GUTTER] Rendering gutter at:', position)
   }
 
   // PHASE 2: Portal to document.body with forced visibility for debugging

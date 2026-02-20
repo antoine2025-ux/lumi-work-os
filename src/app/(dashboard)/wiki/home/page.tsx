@@ -445,7 +445,6 @@ export default function SpacesHomePage() {
                               className="mt-2 font-light text-xs h-7"
                               onClick={() => {
                                 // Handle suggestion action
-                                console.log('Suggestion action:', suggestion.action)
                               }}
                             >
                               {suggestion.action}

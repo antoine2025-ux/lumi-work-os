@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
       token: {
         sub: user.id,
         id: user.id,
+        uid: user.id,
         email: user.email,
         name: user.name,
         workspaceId,

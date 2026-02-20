@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useState } from "react"
+import { useSearchParams, useRouter, useParams, usePathname } from "next/navigation"
+import { useQueryClient } from '@tanstack/react-query'
+import { useProjects } from "@/hooks/use-projects"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,7 +38,6 @@ import {
   Zap,
   Star,
   ArrowRight,
-  BarChart3
 } from "lucide-react"
 import Link from "next/link"
 import { useWorkspace } from "@/lib/workspace-context"
@@ -146,29 +147,37 @@ interface Task {
   }
 }
 
-type ViewMode = 'projects' | 'epics' | 'tasks' | 'team-initiatives' | 'my-epics' | 'my-tasks' | 'team-board' | 'reports'
+type ViewMode = 'projects' | 'epics' | 'tasks' | 'my-epics' | 'my-tasks'
 
 export default function ProjectsDashboard() {
   const router = useRouter()
+  const params = useParams()
+  const pathname = usePathname()
+  const workspaceSlug = params?.workspaceSlug as string | undefined
   const { currentWorkspace } = useWorkspace()
   const searchParams = useSearchParams()
-  const [viewMode, setViewMode] = useState<ViewMode>('projects')
+  const viewParam = searchParams.get('view')
+  const validViewModes = ['projects', 'epics', 'tasks', 'my-epics', 'my-tasks'] as const
+  const viewMode: ViewMode = validViewModes.includes(viewParam as ViewMode) ? (viewParam as ViewMode) : 'projects'
   const [searchQuery, setSearchQuery] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
-  const [projects, setProjects] = useState<Project[]>([])
   const [epics, setEpics] = useState<Epic[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
-  // Handle URL parameters for view mode
-  useEffect(() => {
-    const viewParam = searchParams.get('view')
-    if (viewParam && ['my-epics', 'my-tasks', 'team-board', 'reports'].includes(viewParam)) {
-      setViewMode(viewParam as ViewMode)
+  const queryClient = useQueryClient()
+  const { data: projectsData, isLoading } = useProjects(currentWorkspace?.id)
+  const projects = (projectsData as Project[] | undefined) ?? []
+
+  const setViewMode = (mode: ViewMode) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (mode === 'projects') {
+      params.delete('view')
     } else {
-      setViewMode('projects')
+      params.set('view', mode)
     }
-  }, [searchParams])
+    const query = params.toString()
+    router.push(query ? `${pathname}?${query}` : pathname ?? '/', { scroll: false })
+  }
 
   // Use CSS variables for consistent theming
   const colors = {
@@ -188,49 +197,6 @@ export default function ProjectsDashboard() {
     border: 'var(--border)',
     borderLight: 'var(--muted)'
   }
-
-  // Load data from bootstrap endpoint (single API call)
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true)
-        
-        if (!currentWorkspace?.id) {
-          setIsLoading(false)
-          return
-        }
-        
-        // Use bootstrap endpoint for initial load
-        const response = await fetch('/api/dashboard/bootstrap')
-        if (!response.ok) {
-          console.error('Failed to load bootstrap data:', response.status)
-          setIsLoading(false)
-          return
-        }
-        
-        const bootstrap = await response.json()
-        
-        // Set projects from bootstrap (epics/tasks loaded on-demand when viewing project detail)
-        if (bootstrap?.projects && Array.isArray(bootstrap.projects)) {
-          setProjects(bootstrap.projects)
-        } else {
-          setProjects([])
-        }
-        
-        // Epics and tasks are NOT loaded on initial dashboard load
-        // They should be lazy-loaded when user navigates to a specific project detail page
-        setEpics([])
-        setTasks([])
-        
-      } catch (error: any) {
-        console.error('Error loading data:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadData()
-  }, [currentWorkspace?.id])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -308,7 +274,6 @@ export default function ProjectsDashboard() {
     { id: 'projects', label: 'My Projects', icon: FolderOpen },
     { id: 'epics', label: 'My Epics', icon: Layers },
     { id: 'tasks', label: 'My Tasks', icon: Target },
-    { id: 'team-initiatives', label: 'Team Initiatives', icon: Users }
   ] as const
 
   if (isLoading) {
@@ -397,7 +362,7 @@ export default function ProjectsDashboard() {
                       key={project.id}
                       className="hover:shadow-lg transition-all duration-200 cursor-pointer border-0 rounded-xl overflow-hidden group" 
                       style={{ backgroundColor: colors.surface }}
-                      onClick={() => window.location.href = `/projects/${project.id}`}
+                      onClick={() => router.push(workspaceSlug ? `/w/${workspaceSlug}/projects/${project.id}` : `/projects/${project.id}`)}
                       data-testid={`project-card-${project.id}`}
                     >
                       <CardContent className="p-6">
@@ -476,38 +441,6 @@ export default function ProjectsDashboard() {
                   })}
                 </div>
 
-                {/* Future Placeholder Cards */}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  <Card className="border-0 rounded-xl opacity-50" style={{ backgroundColor: colors.surface }}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
-                        <h3 className="text-lg font-bold text-muted-foreground">My Initiatives</h3>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Coming soon...</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-0 rounded-xl opacity-50" style={{ backgroundColor: colors.surface }}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
-                        <h3 className="text-lg font-bold text-muted-foreground">Team Initiatives</h3>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Coming soon...</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-0 rounded-xl opacity-50" style={{ backgroundColor: colors.surface }}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
-                        <h3 className="text-lg font-bold text-muted-foreground">Role Initiatives</h3>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Coming soon...</p>
-                    </CardContent>
-                  </Card>
-                </div>
               </div>
             )}
 
@@ -646,20 +579,6 @@ export default function ProjectsDashboard() {
               </div>
             )}
 
-            {/* Team Initiatives View */}
-            {viewMode === 'team-initiatives' && (
-              <div className="space-y-6">
-                <div className="text-center py-16">
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: colors.borderLight }}>
-                    <Users className="h-8 w-8" style={{ color: colors.textSecondary }} />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2" style={{ color: colors.text }}>Team Initiatives</h3>
-                  <p className="mb-6" style={{ color: colors.textSecondary }}>
-                    This feature is coming soon. You'll be able to view and manage team-wide initiatives here.
-                  </p>
-                </div>
-              </div>
-            )}
 
             {/* My Epics View (URL parameter) */}
             {viewMode === 'my-epics' && (
@@ -772,7 +691,7 @@ export default function ProjectsDashboard() {
                           <div className="flex items-center space-x-1">
                             <Folder className="h-3 w-3" style={{ color: colors.textSecondary }} />
                             <span className="text-xs" style={{ color: colors.textSecondary }}>
-                              {task?.project?.name || 'No project'}
+                              {task?.projectName || 'No project'}
                             </span>
                           </div>
                           <div className="flex items-center space-x-1">
@@ -789,35 +708,6 @@ export default function ProjectsDashboard() {
               </div>
             )}
 
-            {/* Team Board View (URL parameter) */}
-            {viewMode === 'team-board' && (
-              <div className="space-y-6">
-                <div className="text-center py-16">
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: colors.borderLight }}>
-                    <Users className="h-8 w-8" style={{ color: colors.textSecondary }} />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2" style={{ color: colors.text }}>Team Board</h3>
-                  <p className="mb-6" style={{ color: colors.textSecondary }}>
-                    This feature is coming soon. You'll be able to view and manage team-wide initiatives here.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Reports View (URL parameter) */}
-            {viewMode === 'reports' && (
-              <div className="space-y-6">
-                <div className="text-center py-16">
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: colors.borderLight }}>
-                    <BarChart3 className="h-8 w-8" style={{ color: colors.textSecondary }} />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2" style={{ color: colors.text }}>Reports</h3>
-                  <p className="mb-6" style={{ color: colors.textSecondary }}>
-                    This feature is coming soon. You'll be able to view and generate reports based on projects and epics here.
-                  </p>
-                </div>
-              </div>
-            )}
           </motion.div>
         </AnimatePresence>
 
@@ -853,9 +743,8 @@ export default function ProjectsDashboard() {
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         onProjectCreated={(project) => {
-          console.log('[ProjectsPage] onProjectCreated', project.id)
-          // Navigate to the newly created project detail page
-          router.push(`/projects/${project.id}`)
+          queryClient.invalidateQueries({ queryKey: ['projects'] })
+          router.push(workspaceSlug ? `/w/${workspaceSlug}/projects/${project.id}` : `/projects/${project.id}`)
         }}
       />
     </WikiLayout>

@@ -1,10 +1,11 @@
+import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 
 /**
  * Slack Webhook Handler
- * 
+ *
  * Receives incoming events from Slack:
  * - URL verification challenges
  * - Interactive button clicks
@@ -12,7 +13,54 @@ import { logger } from '@/lib/logger'
  * - App mentions
  */
 
+/**
+ * Verify the Slack request signature using HMAC-SHA256.
+ * Reads the raw body text from the provided request object.
+ * Uses constant-time comparison to prevent timing attacks.
+ * Rejects requests with timestamps older than 5 minutes (replay attack prevention).
+ */
+async function verifySlackSignature(request: Request): Promise<boolean> {
+  const body = await request.text()
+  const timestamp = request.headers.get('x-slack-request-timestamp')
+  const signature = request.headers.get('x-slack-signature')
+  const signingSecret = process.env.SLACK_SIGNING_SECRET
+
+  if (!timestamp || !signature || !signingSecret) {
+    return false
+  }
+
+  // Prevent replay attacks — reject if timestamp is older than 5 minutes
+  const currentTime = Math.floor(Date.now() / 1000)
+  if (Math.abs(currentTime - parseInt(timestamp, 10)) > 300) {
+    return false
+  }
+
+  const sigBaseString = `v0:${timestamp}:${body}`
+  const expectedSignature =
+    'v0=' +
+    crypto.createHmac('sha256', signingSecret).update(sigBaseString).digest('hex')
+
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    )
+  } catch {
+    // Buffer lengths differ when signature format is invalid
+    return false
+  }
+}
+
 export async function POST(request: NextRequest) {
+  // Clone before reading body — verifySlackSignature consumes the clone's stream
+  // while the original stream remains available for request.json() below.
+  const clonedRequest = request.clone()
+  const isValid = await verifySlackSignature(clonedRequest)
+  if (!isValid) {
+    logger.warn('[Slack Webhook] Signature verification failed')
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
     

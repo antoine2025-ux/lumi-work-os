@@ -104,7 +104,6 @@ export default function PersonalWorkspacePage() {
     try {
       setIsLoading(true)
       if (!userStatus?.workspaceId) {
-        console.log('No workspace ID available')
         return
       }
       
@@ -211,7 +210,6 @@ export default function PersonalWorkspacePage() {
   // Listen for page creation/update events to refresh the list
   useEffect(() => {
     const handlePageRefresh = () => {
-      console.log('🔄 workspacePagesRefreshed event received, refreshing Personal Space')
       setTimeout(() => {
         loadWorkspaceData()
       }, 500)

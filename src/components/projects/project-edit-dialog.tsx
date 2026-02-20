@@ -284,7 +284,6 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
         // Save slackChannelHints to localStorage before calling onSave
         // This ensures they persist even if the API response doesn't include them
         if (formData.slackChannelHints && formData.slackChannelHints.length > 0) {
-          const { setProjectSlackHints } = await import('@/lib/client-state/project-slack-hints')
           setProjectSlackHints(project.id, formData.slackChannelHints)
         }
         onSave(updatedProject)

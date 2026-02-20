@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+ 
 const { PrismaClient } = require("@prisma/client")
 const { config } = require("dotenv")
 const { resolve } = require("path")

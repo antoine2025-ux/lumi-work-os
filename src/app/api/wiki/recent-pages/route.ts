@@ -5,6 +5,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import { handleApiError } from '@/lib/api-errors'
+import { canAccessWikiWorkspace } from '@/lib/wiki/permissions'
 
 export async function GET(request: NextRequest) {
   try {
@@ -78,10 +79,16 @@ export async function GET(request: NextRequest) {
           createdById: auth.user.userId,
         }
       } else {
-        // Custom workspaces: filter strictly by workspace_type
+        // Custom workspaces (wiki-xxx, personal-space-xxx): verify user has access
+        const hasAccess = await canAccessWikiWorkspace(auth.user.userId, workspaceType)
+        if (!hasAccess) {
+          const response = NextResponse.json([])
+          response.headers.set('Cache-Control', 'private, s-maxage=120, stale-while-revalidate=240')
+          return response
+        }
         whereClause = {
           ...baseWhere,
-          workspace_type: workspaceType
+          workspace_type: workspaceType,
         }
       }
     } else {

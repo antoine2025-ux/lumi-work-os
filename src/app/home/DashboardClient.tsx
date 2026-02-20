@@ -24,6 +24,7 @@ import {
 import { useTheme } from "@/components/theme-provider"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 import { OrgSetupBanner } from "@/components/onboarding/org-setup-banner"
+import { LoopbrainWelcomeCard } from "@/components/dashboard/loopbrain-welcome-card"
 
 // Lazy load heavy components
 const MeetingsCard = dynamic(() => import("@/components/dashboard/meetings-card").then(mod => ({ default: mod.MeetingsCard })), {
@@ -89,6 +90,7 @@ interface DashboardClientProps {
     email: string
   }
   workspaceSlug: string
+  companyType?: string | null
   capacity: {
     totalCapacity: number
     allocatedHours: number
@@ -117,6 +119,7 @@ interface DashboardClientProps {
 export default function DashboardClient({
   user,
   workspaceSlug,
+  companyType,
   capacity,
   tasks,
   projects,
@@ -170,7 +173,15 @@ export default function DashboardClient({
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Onboarding Banner */}
         <OrgSetupBanner workspaceSlug={workspaceSlug} />
-        
+
+        {/* Loopbrain first-visit welcome */}
+        <LoopbrainWelcomeCard
+          companyType={companyType}
+          userName={user.name}
+          userId={user.userId}
+          className="mb-6"
+        />
+
         {/* Welcome Section */}
         <div className="mb-8 flex items-start justify-between">
           <div>

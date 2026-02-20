@@ -253,21 +253,21 @@ export async function PATCH(
     if (updateData.anchorType && updateData.anchorType !== 'NONE' && updateData.anchorId) {
       if (updateData.anchorType === 'PROJECT') {
         const project = await prisma.project.findUnique({
-          where: { id: updateData.anchorId, workspaceId: auth.workspaceId }
+          where: { id: updateData.anchorId as string, workspaceId: auth.workspaceId }
         })
         if (!project) {
           return NextResponse.json({ error: 'Project not found' }, { status: 404 })
         }
       } else if (updateData.anchorType === 'TASK') {
         const task = await prisma.task.findUnique({
-          where: { id: updateData.anchorId, workspaceId: auth.workspaceId }
+          where: { id: updateData.anchorId as string, workspaceId: auth.workspaceId }
         })
         if (!task) {
           return NextResponse.json({ error: 'Task not found' }, { status: 404 })
         }
       } else if (updateData.anchorType === 'PAGE') {
         const page = await prisma.wikiPage.findUnique({
-          where: { id: updateData.anchorId, workspaceId: auth.workspaceId }
+          where: { id: updateData.anchorId as string, workspaceId: auth.workspaceId }
         })
         if (!page) {
           return NextResponse.json({ error: 'Page not found' }, { status: 404 })

@@ -79,12 +79,6 @@ export default function GanttChart({ project, onTaskUpdate }: GanttChartProps) {
   const [viewMode, setViewMode] = useState<'week' | 'month' | 'quarter'>('month')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
 
-  // Debug logging
-  useEffect(() => {
-    console.log('GanttChart - Project data:', project)
-    console.log('GanttChart - Tasks count:', project.tasks?.length || 0)
-  }, [project])
-
   // Calculate project timeline
   const projectTimeline = useMemo(() => {
     if (!project.startDate && !project.endDate) {

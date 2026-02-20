@@ -70,8 +70,19 @@ export async function createWikiPage(
     finalContentJson = EMPTY_TIPTAP_DOC
   }
 
-  // Build request body
-  const body: any = {
+  interface CreatePageBody {
+    title: string
+    contentJson: JSONContent
+    contentFormat: 'JSON'
+    tags: string[]
+    category: string
+    workspaceId?: string
+    parentId?: string | null
+    permissionLevel?: string
+    workspace_type?: string
+  }
+
+  const body: CreatePageBody = {
     title: title.trim(),
     contentJson: finalContentJson,
     contentFormat: 'JSON', // Always JSON for new pages
@@ -79,7 +90,6 @@ export async function createWikiPage(
     category
   }
 
-  // Add optional fields
   if (workspaceId) {
     body.workspaceId = workspaceId
   }

@@ -326,8 +326,6 @@ export async function POST(request: NextRequest) {
       wikiPageId: wikiPageId || undefined
     }
 
-    // NOTE: spaceId logic removed - Space model and spaceId field do not exist on Project model
-
     const effectiveOwnerId = cleanData.ownerId || auth.user.userId
 
     // Collect all member IDs (owner + assignees, deduplicated)
@@ -362,6 +360,7 @@ export async function POST(request: NextRequest) {
           teamId: cleanData.teamId ?? null,
           ownerId: effectiveOwnerId,
           wikiPageId: cleanData.wikiPageId,
+          spaceId: validatedData.spaceId ?? null,
           dailySummaryEnabled,
           createdById: auth.user.userId,
         },

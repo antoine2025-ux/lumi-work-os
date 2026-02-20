@@ -141,7 +141,7 @@ export async function GET(req: NextRequest) {
     const allocationRecords = await prisma.projectAllocation.findMany({
       where: {
         personId: { in: userIds },
-        orgId: workspaceId,
+        workspaceId,
         startDate: { lte: lookahead },
         OR: [
           { endDate: null },

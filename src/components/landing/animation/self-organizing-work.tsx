@@ -101,7 +101,7 @@ export function SelfOrganizingWork() {
   const [driftTime, setDriftTime] = useState(0);
   
   const containerRef = useRef<HTMLDivElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const phaseStartTimeRef = useRef<number>(0);
 
   // Initialize node states

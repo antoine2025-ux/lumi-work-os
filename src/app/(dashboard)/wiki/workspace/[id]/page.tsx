@@ -138,14 +138,11 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
   // Listen for page creation/update events to refresh the list
   useEffect(() => {
     const handlePageRefresh = () => {
-      console.log('🔄 workspacePagesRefreshed event received, refreshing workspace pages')
       // Multiple refresh attempts to ensure we catch the update
       setTimeout(() => {
-        console.log('🔄 Attempting refresh 1 (500ms delay)')
         loadWorkspacePages()
       }, 500)
       setTimeout(() => {
-        console.log('🔄 Attempting refresh 2 (1500ms delay)')
         loadWorkspacePages()
       }, 1500)
     }

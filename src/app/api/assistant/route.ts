@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
@@ -31,11 +32,11 @@ export async function POST(request: NextRequest) {
         intent: intent || 'assist',
         target: intent === 'project_creation' ? 'project' : 'wiki_page',
         phase: 'idle',
-        requirementNotes: null,
+        requirementNotes: Prisma.JsonNull,
         draftTitle: null,
         draftBody: null,
         draftFormat: 'markdown',
-        pageSettings: null,
+        pageSettings: Prisma.JsonNull,
         wikiUrl: null,
         projectUrl: null,
       }

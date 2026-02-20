@@ -409,23 +409,60 @@ END $$;
 -- STEP 5: Add foreign key constraints
 -- ============================================================================
 
-ALTER TABLE "subtasks" ADD CONSTRAINT "subtasks_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "task_comments" ADD CONSTRAINT "task_comments_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "task_history" ADD CONSTRAINT "task_history_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "custom_field_vals" ADD CONSTRAINT "custom_field_vals_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "project_members" ADD CONSTRAINT "project_members_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "project_watchers" ADD CONSTRAINT "project_watchers_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "project_assignees" ADD CONSTRAINT "project_assignees_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "project_documentation" ADD CONSTRAINT "project_documentation_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "project_accountability" ADD CONSTRAINT "project_accountability_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "project_daily_summaries" ADD CONSTRAINT "project_daily_summaries_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "custom_field_defs" ADD CONSTRAINT "custom_field_defs_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "wiki_favorites" ADD CONSTRAINT "wiki_favorites_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "wiki_attachments" ADD CONSTRAINT "wiki_attachments_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "wiki_comments" ADD CONSTRAINT "wiki_comments_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "wiki_versions" ADD CONSTRAINT "wiki_versions_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "wiki_page_permissions" ADD CONSTRAINT "wiki_page_permissions_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "wiki_embeds" ADD CONSTRAINT "wiki_embeds_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'subtasks_workspaceId_fkey' AND table_name = 'subtasks') THEN
+    ALTER TABLE "subtasks" ADD CONSTRAINT "subtasks_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'task_comments_workspaceId_fkey' AND table_name = 'task_comments') THEN
+    ALTER TABLE "task_comments" ADD CONSTRAINT "task_comments_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'task_history_workspaceId_fkey' AND table_name = 'task_history') THEN
+    ALTER TABLE "task_history" ADD CONSTRAINT "task_history_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'custom_field_vals_workspaceId_fkey' AND table_name = 'custom_field_vals') THEN
+    ALTER TABLE "custom_field_vals" ADD CONSTRAINT "custom_field_vals_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'project_members_workspaceId_fkey' AND table_name = 'project_members') THEN
+    ALTER TABLE "project_members" ADD CONSTRAINT "project_members_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'project_watchers_workspaceId_fkey' AND table_name = 'project_watchers') THEN
+    ALTER TABLE "project_watchers" ADD CONSTRAINT "project_watchers_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'project_assignees_workspaceId_fkey' AND table_name = 'project_assignees') THEN
+    ALTER TABLE "project_assignees" ADD CONSTRAINT "project_assignees_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'project_documentation_workspaceId_fkey' AND table_name = 'project_documentation') THEN
+    ALTER TABLE "project_documentation" ADD CONSTRAINT "project_documentation_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'project_accountability_workspaceId_fkey' AND table_name = 'project_accountability') THEN
+    ALTER TABLE "project_accountability" ADD CONSTRAINT "project_accountability_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'project_daily_summaries_workspaceId_fkey' AND table_name = 'project_daily_summaries') THEN
+    ALTER TABLE "project_daily_summaries" ADD CONSTRAINT "project_daily_summaries_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'custom_field_defs_workspaceId_fkey' AND table_name = 'custom_field_defs') THEN
+    ALTER TABLE "custom_field_defs" ADD CONSTRAINT "custom_field_defs_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'wiki_favorites_workspaceId_fkey' AND table_name = 'wiki_favorites') THEN
+    ALTER TABLE "wiki_favorites" ADD CONSTRAINT "wiki_favorites_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'wiki_attachments_workspaceId_fkey' AND table_name = 'wiki_attachments') THEN
+    ALTER TABLE "wiki_attachments" ADD CONSTRAINT "wiki_attachments_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'wiki_comments_workspaceId_fkey' AND table_name = 'wiki_comments') THEN
+    ALTER TABLE "wiki_comments" ADD CONSTRAINT "wiki_comments_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'wiki_versions_workspaceId_fkey' AND table_name = 'wiki_versions') THEN
+    ALTER TABLE "wiki_versions" ADD CONSTRAINT "wiki_versions_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'wiki_page_permissions_workspaceId_fkey' AND table_name = 'wiki_page_permissions') THEN
+    ALTER TABLE "wiki_page_permissions" ADD CONSTRAINT "wiki_page_permissions_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'wiki_embeds_workspaceId_fkey' AND table_name = 'wiki_embeds') THEN
+    ALTER TABLE "wiki_embeds" ADD CONSTRAINT "wiki_embeds_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 -- Only add FK if it doesn't exist
 DO $$
 BEGIN
@@ -511,12 +548,27 @@ BEGIN
     END IF;
   END IF;
 END $$;
-ALTER TABLE "chat_messages" ADD CONSTRAINT "chat_messages_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "onboarding_tasks" ADD CONSTRAINT "onboarding_tasks_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "onboarding_task_assignments" ADD CONSTRAINT "onboarding_task_assignments_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "task_template_items" ADD CONSTRAINT "task_template_items_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "workflow_assignments" ADD CONSTRAINT "workflow_assignments_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "role_card_skills" ADD CONSTRAINT "role_card_skills_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'chat_messages_workspaceId_fkey' AND table_name = 'chat_messages') THEN
+    ALTER TABLE "chat_messages" ADD CONSTRAINT "chat_messages_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'onboarding_tasks_workspaceId_fkey' AND table_name = 'onboarding_tasks') THEN
+    ALTER TABLE "onboarding_tasks" ADD CONSTRAINT "onboarding_tasks_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'onboarding_task_assignments_workspaceId_fkey' AND table_name = 'onboarding_task_assignments') THEN
+    ALTER TABLE "onboarding_task_assignments" ADD CONSTRAINT "onboarding_task_assignments_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'task_template_items_workspaceId_fkey' AND table_name = 'task_template_items') THEN
+    ALTER TABLE "task_template_items" ADD CONSTRAINT "task_template_items_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'workflow_assignments_workspaceId_fkey' AND table_name = 'workflow_assignments') THEN
+    ALTER TABLE "workflow_assignments" ADD CONSTRAINT "workflow_assignments_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'role_card_skills_workspaceId_fkey' AND table_name = 'role_card_skills') THEN
+    ALTER TABLE "role_card_skills" ADD CONSTRAINT "role_card_skills_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'decision_authorities')

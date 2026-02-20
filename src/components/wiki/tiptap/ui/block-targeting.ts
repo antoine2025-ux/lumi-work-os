@@ -47,7 +47,6 @@ export interface ActiveBlockInfo {
  */
 export function getBlockAtPos(editor: Editor, pos: number): ActiveBlockInfo | null {
   if (!editor) {
-    console.log('[BLOCK TARGETING] getBlockAtPos: No editor')
     return null
   }
 

@@ -17,7 +17,7 @@ export function stripHtmlServerSide(html: string): string {
   
   // For server-side rendering, we need a different approach
   // This is a simple regex-based approach that handles common cases
-  let text = html
+  const text = html
     // Decode common HTML entities
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')

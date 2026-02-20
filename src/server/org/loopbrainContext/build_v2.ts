@@ -27,6 +27,7 @@ export async function buildLoopbrainOrgContextV2(): Promise<LoopbrainOrgContextV
     orgCounts: v1.orgCounts,
     intelligence: v1.intelligence,
     recommendations: v1.recommendations,
+    freshness: v1.freshness,
   };
 
   validateLoopbrainOrgContextV2(v2);

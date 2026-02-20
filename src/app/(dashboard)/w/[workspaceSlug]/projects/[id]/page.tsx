@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useState, useEffect, useMemo } from "react"
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -41,8 +41,6 @@ import { useProjectSlackHints, setProjectSlackHints } from "@/lib/client-state/p
 // Keep essential imports at top for faster initial render
 import ReactMarkdown from "react-markdown"
 import TaskList from "@/components/tasks/task-list"
-import type { ViewMode } from "@/components/tasks/view-switcher"
-import { ViewSwitcher } from "@/components/tasks/view-switcher"
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
 
 // Dynamic imports for heavy components to reduce initial bundle size
@@ -68,6 +66,10 @@ const ProjectDocumentationSection = dynamic(() => import("@/components/projects/
 const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
 
 import { ProjectOrgStatus } from '@/components/projects/project-org-status'
+import type { TaskFilter } from '@/components/search/task-search-filter'
+import { useQueryClient } from '@tanstack/react-query'
+import { useProject, useProjectEpics } from '@/hooks/use-projects'
+import { useInvalidateProject } from '@/hooks/useProjectMutations'
 
 interface Project {
   id: string
@@ -151,54 +153,91 @@ interface Project {
   }
 }
 
+type HeaderView = 'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'
+const VALID_HEADER_VIEWS: HeaderView[] = ['board', 'epics', 'tasks', 'calendar', 'timeline', 'files']
+
 export default function ProjectDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const projectId = params?.id as string
+  const workspaceSlug = params?.workspaceSlug as string | undefined
   const { themeConfig } = useTheme()
   const { currentWorkspace } = useWorkspace()
+
+  const tabParam = searchParams.get('tab')
+  const headerView: HeaderView = VALID_HEADER_VIEWS.includes(tabParam as HeaderView) ? (tabParam as HeaderView) : 'board'
+
+  const setHeaderView = (view: HeaderView) => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+    if (view === 'board') {
+      nextParams.delete('tab')
+    } else {
+      nextParams.set('tab', view)
+    }
+    const query = nextParams.toString()
+    router.push(query ? `${pathname}?${query}` : pathname ?? '/', { scroll: false })
+  }
+
+  const initialFilters = useMemo((): Partial<TaskFilter> => {
+    const q = searchParams.get('q') ?? searchParams.get('search') ?? ''
+    const status = searchParams.get('status')?.split(',').filter(Boolean) ?? []
+    const priority = searchParams.get('priority')?.split(',').filter(Boolean) ?? []
+    const assignee = searchParams.get('assignee')?.split(',').filter(Boolean) ?? []
+    const hasDeps = searchParams.get('hasDependencies')
+    const isOverdue = searchParams.get('isOverdue')
+    return {
+      search: q,
+      status,
+      priority,
+      assignee,
+      hasDependencies: hasDeps === 'true' ? true : hasDeps === 'false' ? false : null,
+      isOverdue: isOverdue === 'true' ? true : isOverdue === 'false' ? false : null
+    }
+  }, [searchParams])
+
+  const setFiltersInUrl = (filters: TaskFilter) => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+    if (filters.search) nextParams.set('q', filters.search)
+    else nextParams.delete('q')
+    if (filters.status.length > 0) nextParams.set('status', filters.status.join(','))
+    else nextParams.delete('status')
+    if (filters.priority.length > 0) nextParams.set('priority', filters.priority.join(','))
+    else nextParams.delete('priority')
+    if (filters.assignee.length > 0) nextParams.set('assignee', filters.assignee.join(','))
+    else nextParams.delete('assignee')
+    if (filters.hasDependencies === true) nextParams.set('hasDependencies', 'true')
+    else if (filters.hasDependencies === false) nextParams.set('hasDependencies', 'false')
+    else nextParams.delete('hasDependencies')
+    if (filters.isOverdue === true) nextParams.set('isOverdue', 'true')
+    else if (filters.isOverdue === false) nextParams.set('isOverdue', 'false')
+    else nextParams.delete('isOverdue')
+    const query = nextParams.toString()
+    router.push(query ? `${pathname}?${query}` : pathname ?? '/', { scroll: false })
+  }
   
-  const [project, setProject] = useState<Project | null>(null)
-  
+  const queryClient = useQueryClient()
+  const { data: projectData, isLoading: isLoadingProject, error: projectError, refetch: refetchProject } = useProject(projectId)
+  const { data: epicsData, refetch: refetchEpics } = useProjectEpics(projectId)
+  const { invalidateProject, invalidateEpics } = useInvalidateProject()
+
+  const project = projectData as Project | null | undefined
+  const epics = (epicsData as Array<{ id: string; title: string; color?: string }>) ?? []
+  const isLoading = isLoadingProject
+  const error = projectError ? (projectError as Error).message : null
+
+  const loadProject = async () => {
+    await refetchProject()
+  }
+
+  const loadEpics = async () => {
+    await refetchEpics()
+  }
+
   // Get channel hints from project (API response) or fallback to client-side store
   const { hints: localStorageHints, setHints: setLocalStorageHints } = useProjectSlackHints(projectId)
   const channelHints = project?.slackChannelHints || localStorageHints || []
-  
-  // Debug logging - always log to help troubleshoot
-  useEffect(() => {
-    if (projectId && project) {
-      console.log('[ProjectPage] channelHints debug:', {
-        projectId,
-        'project?.slackChannelHints': project?.slackChannelHints,
-        localStorageHints,
-        'localStorageHints.length': localStorageHints?.length || 0,
-        channelHints,
-        'channelHints.length': channelHints.length,
-        'Will render channels?': channelHints.length > 0
-      })
-      
-      // Also check localStorage directly
-      if (typeof window !== 'undefined') {
-        try {
-          const stored = localStorage.getItem('project-slack-hints')
-          const parsed = stored ? JSON.parse(stored) : {}
-          const allProjectIds = Object.keys(parsed)
-          console.log('[ProjectPage] localStorage check:', {
-            'project-slack-hints': parsed,
-            'for this projectId': parsed[projectId] || 'not found',
-            'current projectId': projectId,
-            'all stored projectIds': allProjectIds,
-            'projectId type': typeof projectId,
-            'matches?': allProjectIds.includes(projectId)
-          })
-        } catch (e) {
-          console.error('[ProjectPage] Error reading localStorage:', e)
-        }
-      }
-    }
-  }, [projectId, project, project?.slackChannelHints, localStorageHints, channelHints])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [isUpdatingWiki, setIsUpdatingWiki] = useState(false)
   const [isWikiDialogOpen, setIsWikiDialogOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -206,15 +245,12 @@ export default function ProjectDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isTaskListFullscreen, setIsTaskListFullscreen] = useState(false)
   const [taskViewMode, setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
-  const [currentView, setCurrentView] = useState<ViewMode>('board')
-  const [headerView, setHeaderView] = useState<'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'>('board')
   const [showCelebration, setShowCelebration] = useState(false)
   const [wasCompleted, setWasCompleted] = useState(false)
   const [filteredTasks, setFilteredTasks] = useState<any[]>([])
   const [isFiltered, setIsFiltered] = useState(false)
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [selectedEpicId, setSelectedEpicId] = useState<string | undefined>(undefined)
-  const [epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false)
   const [newEpicTitle, setNewEpicTitle] = useState('')
@@ -242,60 +278,6 @@ export default function ProjectDetailPage() {
     borderLight: themeConfig.muted
   }
 
-  const loadProject = async () => {
-    try {
-      setIsLoading(true)
-      console.log('[ProjectPage] loading project', projectId, 'workspaceId:', currentWorkspace?.id, 'projectId type:', typeof projectId)
-      const response = await fetch(`/api/projects/${projectId}`)
-      
-      console.log('[ProjectPage] API response status:', response.status)
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('[ProjectPage] project loaded successfully', {
-          'data.id': data.id,
-          'data.id type': typeof data.id,
-          'projectId from URL': projectId,
-          'projectId type': typeof projectId,
-          'ids match?': data.id === projectId
-        })
-        // Ensure tasks is always an array (even if empty)
-        const projectWithTasks = {
-          ...data,
-          tasks: data.tasks || []
-        }
-        setProject(projectWithTasks)
-      } else if (response.status === 404) {
-        console.log('[ProjectPage] project not found (404), setting error')
-        setError('Project not found')
-      } else if (response.status === 403) {
-        console.log('[ProjectPage] forbidden (403) - insufficient permissions')
-        setError('You do not have access to this project')
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        console.log('[ProjectPage] failed to load project', response.status, errorData)
-        setError('Failed to load project')
-      }
-    } catch (error) {
-      console.error('[ProjectPage] error loading project:', error)
-      setError('Failed to load project')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const loadEpics = async () => {
-    try {
-      const response = await fetch(`/api/projects/${projectId}/epics`)
-      if (response.ok) {
-        const data = await response.json()
-        setEpics(data)
-      }
-    } catch (error) {
-      console.error('Error loading epics:', error)
-    }
-  }
-
   const handleWikiPageUpdate = async (wikiPageId: string | null) => {
     try {
       setIsUpdatingWiki(true)
@@ -309,7 +291,7 @@ export default function ProjectDetailPage() {
 
       if (response.ok) {
         const updatedProject = await response.json()
-        setProject(updatedProject)
+        queryClient.setQueryData(['project', projectId], updatedProject)
       } else {
         console.error('Failed to update wiki page link')
       }
@@ -328,8 +310,7 @@ export default function ProjectDetailPage() {
       })
 
       if (response.ok) {
-        // Reload project to get updated tasks
-        await loadProject()
+        invalidateProject(projectId)
       } else {
         console.error('Failed to create sample tasks')
       }
@@ -340,23 +321,11 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const handleProjectUpdate = async (updatedProject: any) => {
-    console.log('[ProjectPage] handleProjectUpdate called with:', {
-      'updatedProject.slackChannelHints': updatedProject.slackChannelHints,
-      'isArray': Array.isArray(updatedProject.slackChannelHints),
-      'length': updatedProject.slackChannelHints?.length
-    })
-    
-    // Save slackChannelHints to localStorage FIRST (before reloading project)
+  const handleProjectUpdate = (updatedProject: Project) => {
     if (updatedProject.slackChannelHints && Array.isArray(updatedProject.slackChannelHints) && updatedProject.slackChannelHints.length > 0) {
-      console.log('[ProjectPage] Saving slackChannelHints to localStorage:', updatedProject.slackChannelHints)
-      // Use the hook's setter to update both localStorage and component state
       setLocalStorageHints(updatedProject.slackChannelHints)
     }
-    
-    setProject(updatedProject)
-    // Reload project to get fresh data (this will clear project.slackChannelHints, but localStorage should have it)
-    await loadProject()
+    queryClient.setQueryData(['project', projectId], updatedProject)
   }
 
   const handleDeleteProject = async () => {
@@ -378,7 +347,7 @@ export default function ProjectDetailPage() {
         setProjectSlackHints(project.id, [])
         
         // Redirect to projects list
-        router.push('/projects')
+        router.push(workspaceSlug ? `/w/${workspaceSlug}/projects` : '/projects')
       } else {
         const errorData = await response.json().catch(() => ({}))
         alert(errorData.error || 'Failed to delete project')
@@ -417,19 +386,6 @@ export default function ProjectDetailPage() {
     window.URL.revokeObjectURL(url)
   }
 
-  const handleDuplicateProject = () => {
-    if (!project) return
-    // TODO: Implement project duplication
-    console.log('Duplicate project:', project.name)
-    alert('Project duplication feature coming soon!')
-  }
-
-  const handleShareProject = () => {
-    if (!project) return
-    // TODO: Implement project sharing
-    console.log('Share project:', project.name)
-    alert('Project sharing feature coming soon!')
-  }
 
   const handleFilterChange = (filteredTasks: any[]) => {
     setFilteredTasks(filteredTasks)
@@ -461,14 +417,12 @@ export default function ProjectDetailPage() {
       })
 
       if (response.ok) {
-        const newEpic = await response.json()
-        setEpics(prev => [...prev, newEpic])
         setNewEpicTitle('')
         setNewEpicDescription('')
         setNewEpicColor('#3B82F6')
         setIsCreateEpicOpen(false)
-        await loadProject()
-        await loadEpics()
+        invalidateProject(projectId)
+        invalidateEpics(projectId)
       } else {
         console.error('Failed to create epic')
       }
@@ -483,13 +437,6 @@ export default function ProjectDetailPage() {
   }
 
   useEffect(() => {
-    if (projectId) {
-      loadProject()
-      loadEpics()
-    }
-  }, [projectId])
-
-  useEffect(() => {
     checkProjectCompletion()
   }, [project])
 
@@ -501,18 +448,10 @@ export default function ProjectDetailPage() {
       const currentHints = localStorageHints || []
       const projectHints = project.slackChannelHints
       if (JSON.stringify(currentHints.sort()) !== JSON.stringify(projectHints.sort())) {
-        console.log('[ProjectPage] Syncing slackChannelHints from project response to localStorage:', projectHints)
         setLocalStorageHints(projectHints)
       }
     }
   }, [project?.slackChannelHints, setLocalStorageHints, localStorageHints])
-
-  // Sync headerView with currentView
-  useEffect(() => {
-    if (currentView === 'board') setHeaderView('board')
-    else if (currentView === 'calendar') setHeaderView('calendar')
-    else if (currentView === 'list') setHeaderView('tasks')
-  }, [currentView])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -569,7 +508,7 @@ export default function ProjectDetailPage() {
     if (!content) return ''
     
     // Remove HTML tags but preserve line breaks
-    let cleaned = content
+    const cleaned = content
       .replace(/<div><br><\/div>/g, '\n\n') // Convert div breaks to double line breaks
       .replace(/<br\s*\/?>/g, '\n') // Convert br tags to line breaks
       .replace(/<div>/g, '\n') // Convert div opening to line break
@@ -593,7 +532,6 @@ export default function ProjectDetailPage() {
   }
 
   if (error || !project) {
-    console.log('[ProjectPage] rendering error state - error:', error, 'project:', project)
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background }}>
         <div className="text-center">
@@ -603,7 +541,7 @@ export default function ProjectDetailPage() {
             {error || 'The project you are looking for does not exist.'}
           </p>
           <Button asChild style={{ backgroundColor: colors.primary }}>
-            <Link href="/projects">
+            <Link href={workspaceSlug ? `/w/${workspaceSlug}/projects` : '/projects'}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Projects
             </Link>
@@ -630,14 +568,7 @@ export default function ProjectDetailPage() {
             colors={colors}
             currentView={headerView}
             channelHints={channelHints}
-            onViewChange={(view) => {
-              setHeaderView(view)
-              // Map header views to ViewMode for compatibility
-              if (view === 'board') setCurrentView('board')
-              else if (view === 'calendar') setCurrentView('calendar')
-              else if (view === 'tasks') setCurrentView('list')
-              // TODO: Handle epics, timeline, files views
-            }}
+            onViewChange={setHeaderView}
             onEdit={() => {
               setIsEditDialogOpen(true)
             }}
@@ -858,6 +789,8 @@ export default function ProjectDetailPage() {
                         tasks={project?.tasks || []}
                         onFilterChange={handleFilterChange}
                         onFilterReset={handleFilterReset}
+                        initialFilters={initialFilters}
+                        onFilterValuesChange={setFiltersInUrl}
                       />
                     </div>
                   )}
@@ -874,7 +807,6 @@ export default function ProjectDetailPage() {
                           size="sm"
                           onClick={() => {
                             // TODO: Implement load all tasks functionality
-                            console.log('Load all tasks - to be implemented')
                           }}
                         >
                           Load All Tasks
@@ -1005,8 +937,8 @@ export default function ProjectDetailPage() {
       <ProjectEditDialog
         isOpen={isEditDialogOpen}
         onClose={() => setIsEditDialogOpen(false)}
-        project={project}
-        onSave={handleProjectUpdate}
+        project={project ?? null}
+        onSave={(p) => handleProjectUpdate(p as Project)}
         workspaceId={currentWorkspace?.id || 'workspace-1'}
       />
 
@@ -1092,7 +1024,7 @@ export default function ProjectDetailPage() {
         onOpenChange={setIsCreateTaskOpen}
         projectId={projectId}
         onTaskCreated={() => {
-          loadProject()
+          invalidateProject(projectId)
         }}
       />
     </WikiLayout>

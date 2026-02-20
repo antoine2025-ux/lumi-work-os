@@ -122,7 +122,7 @@ export function useApiAction<TData = any, TBody = any>(
           }
 
           if (process.env.NODE_ENV === "development") {
-            // eslint-disable-next-line no-console
+             
             console.debug(
               `[useApiAction] ${method} ${url} failed` +
                 (traceLabel ? ` [${traceLabel}]` : "") +
@@ -164,7 +164,7 @@ export function useApiAction<TData = any, TBody = any>(
           });
 
           if (requestId || traceLabel) {
-            // eslint-disable-next-line no-console
+             
             console.debug(
               `[useApiAction] ${method} ${url} succeeded` +
                 (traceLabel ? ` [${traceLabel}]` : "") +
@@ -198,7 +198,7 @@ export function useApiAction<TData = any, TBody = any>(
             source: "useApiAction",
           });
 
-          // eslint-disable-next-line no-console
+           
           console.debug(
             `[useApiAction] ${method} ${url} threw` +
               (traceLabel ? ` [${traceLabel}]` : ""),

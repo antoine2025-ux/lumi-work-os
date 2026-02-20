@@ -40,13 +40,14 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const pagination = parsePaginationParams(searchParams)
-    // NOTE: spaceId filter removed - spaceId field does not exist on WikiPage model
+    // TODO Sprint 4+: add ?spaceId= filter once pages are migrated to space-based nav
     
     // OPTIMIZED: Check cache first (non-blocking with timeout)
     // SECURITY: Cache key includes userId because personal page visibility is per-user
     const cacheKey = `wiki_pages_${auth.workspaceId}_${auth.user.userId}_${pagination.page || 1}_${pagination.limit || 10}_${pagination.sortBy || 'order'}_${pagination.sortOrder || 'asc'}`
     const cachePromise = cache.get(cacheKey)
-    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 50)) // 50ms timeout
+    const raceTimeout = 200 // Increased from 50ms to allow slower Redis responses
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), raceTimeout))
     
     const cached = await Promise.race([cachePromise, timeoutPromise]) as any
     
@@ -64,20 +65,41 @@ export async function GET(request: NextRequest) {
     // Check if we need full content or just metadata
     const includeContent = searchParams.get('includeContent') === 'true'
     
+    // SECURITY: Get wiki workspace IDs the user can access (PUBLIC, creator, or PRIVATE member)
+    const accessibleWorkspaces = await prisma.wiki_workspaces.findMany({
+      where: {
+        workspace_id: auth.workspaceId,
+        OR: [
+          { visibility: 'PUBLIC' },
+          { created_by_id: auth.user.userId },
+          {
+            visibility: 'PRIVATE',
+            members: { some: { userId: auth.user.userId } },
+          },
+        ],
+      },
+      select: { id: true },
+    })
+    const accessibleIds = accessibleWorkspaces.map((w) => w.id)
+    
     // Build where clause
-    // SECURITY: Personal pages are only visible to their creator.
-    // We use an OR clause so that:
-    //   - Non-personal pages are returned for all workspace members
-    //   - Personal pages are returned ONLY if createdById matches the requesting user
-    const baseWhere: any = {
+    // SECURITY: Filter by accessible wiki workspaces. PRIVATE wiki-xxx pages only visible to members.
+    const baseWhere: Record<string, unknown> = {
       workspaceId: auth.workspaceId,
       isPublished: true,
       OR: [
-        // Non-personal pages: visible to all workspace members
-        { workspace_type: { not: 'personal' } },
+        // Custom wiki workspaces - only if user has access
+        ...(accessibleIds.length > 0 ? [{ workspace_type: { in: accessibleIds } }] : []),
+        // Team pages
+        { workspace_type: 'team' },
         { workspace_type: null },
-        // Personal pages: only visible to the creator
+        { workspace_type: '' },
+        // Personal pages - only creator
         { workspace_type: 'personal', createdById: auth.user.userId },
+        {
+          workspace_type: { startsWith: 'personal-space-' },
+          createdById: auth.user.userId,
+        },
       ],
     }
     
@@ -206,7 +228,7 @@ export async function POST(request: NextRequest) {
     logger.info('Creating new wiki page')
     const body = WikiPageCreateSchema.parse(await request.json())
     
-    const { title, content, contentJson, parentId, tags = [], category = 'general', permissionLevel, workspace_type } = body
+    const { title, content, contentJson, parentId, tags = [], category = 'general', permissionLevel, workspace_type, spaceId } = body
     
     // Enforce JSON format for all new pages created via POST /api/wiki/pages
     // This ensures all new pages use the TipTap editor (Stage 1 requirement)
@@ -270,8 +292,6 @@ export async function POST(request: NextRequest) {
       finalPermissionLevel = permissionLevel || 'team'
     }
     
-    // NOTE: spaceId logic removed - spaceId field does not exist on WikiPage model
-    
     // Import text extraction utility
     const { extractTextFromProseMirror } = await import('@/lib/wiki/text-extract')
     
@@ -298,6 +318,7 @@ export async function POST(request: NextRequest) {
           category,
           permissionLevel: finalPermissionLevel,
           workspace_type: finalWorkspaceType,
+          spaceId: spaceId ?? null,
           createdById: auth.user.userId
         },
         include: {

@@ -166,14 +166,34 @@ For changes touching stable seams or core flows, run the full suite:
 npm run typecheck && npm run lint && npm run test && npm run test:e2e
 ```
 
-### Phase 1 Baseline Metrics (Feb 2026)
+### Phase 2 Metrics (Feb 20, 2026) — Full Audit
 
-| Metric | Coverage |
-|--------|----------|
-| Zod validation | 85/427 routes (20%) |
-| Auth (`getUnifiedAuth`) | 260/427 routes (61%) |
-| RBAC (`assertAccess`) | 222/427 routes (52%) |
-| Error handling (`handleApiError`) | 179/427 routes (42%) |
-| Workspace scoping (`setWorkspaceContext`) | 228/427 routes (53%) |
-| Test files | 56 (unit + E2E) |
-| Prisma models | 150 (111 with `workspaceId`) |
+See `CODEBASE_AUDIT_2026-02-20.md` for full findings. See `LEVEL4_ARCHITECTURE.md` for roadmap.
+
+| Metric | Feb 17 Baseline | Feb 20 Current |
+|--------|----------------|----------------|
+| Zod validation | 85/427 (20%) | 335/430 (78%) |
+| Auth (`getUnifiedAuth`) | 260/427 (61%) | 335/430 (78%) |
+| RBAC (`assertAccess`) | 222/427 (52%) | 282/430 (66%) |
+| Error handling (`handleApiError`) | 179/427 (42%) | 335/430 (78%) |
+| Workspace scoping (`setWorkspaceContext`) | 228/427 (53%) | 228/430 (53%) |
+| Test files | 56 | 66 |
+| Prisma models | 150 | **160** (88 in WORKSPACE_SCOPED_MODELS) |
+| TS/TSX files | — | 1,950 |
+| API routes | 427 | 430 |
+
+#### P0 Issues (fix immediately)
+1. **8 models missing from WORKSPACE_SCOPED_MODELS**: `CustomFieldDef`, `ProjectDocumentation`, `ProjectAccountability`, `FeatureFlag`, `Activity`, `ContextItem`, `ContextEmbedding`, `ContextSummary` — add to `scopingMiddleware.ts`
+2. **Slack webhook signature** not verified at `/api/integrations/slack/webhook`
+
+#### P1 Issues (next sprint)
+- Manager relationships stored as text (not linked to Person records) — org chart incomplete
+- Invite system not end-to-end wired
+- Wiki AI actions (`extract_tasks`, `tag_pages`) not wired to executor
+- `ProjectAllocation` uses `orgId` instead of `workspaceId` (hybrid scoping bug)
+
+#### Known Stable Seam Updates
+- `prisma/schema.prisma` now has **160 models** (not 150)
+- `src/lib/auth/assertAccess.ts` now covers 282 routes (not 222)
+- `src/lib/api-errors.ts` now covers 335 routes (not 179)
+- Loopbrain: all Q1-Q9 pipelines fully implemented (~41,400 lines in `src/lib/loopbrain/`)

@@ -95,7 +95,11 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
   }
 
   const handleNewPage = () => {
-    router.push('/wiki/new')
+    if (typeof window !== 'undefined' && (window as any).triggerCreatePage) {
+      (window as any).triggerCreatePage()
+    } else {
+      router.push('/wiki/new')
+    }
   }
 
   const formatDate = (dateString: string) => {

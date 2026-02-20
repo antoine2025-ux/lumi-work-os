@@ -26,11 +26,16 @@ CREATE TABLE IF NOT EXISTS "onboarding_progress" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "onboarding_progress_workspaceId_key" ON "onboarding_progress"("workspaceId");
+CREATE UNIQUE INDEX IF NOT EXISTS "onboarding_progress_workspaceId_key" ON "onboarding_progress"("workspaceId");
 
 -- CreateIndex
-CREATE INDEX "onboarding_progress_workspaceId_isComplete_idx" ON "onboarding_progress"("workspaceId", "isComplete");
+CREATE INDEX IF NOT EXISTS "onboarding_progress_workspaceId_isComplete_idx" ON "onboarding_progress"("workspaceId", "isComplete");
 
--- AddForeignKey
-ALTER TABLE "onboarding_progress" ADD CONSTRAINT "onboarding_progress_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- AddForeignKey (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'onboarding_progress_workspaceId_fkey' AND table_name = 'onboarding_progress') THEN
+    ALTER TABLE "onboarding_progress" ADD CONSTRAINT "onboarding_progress_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 

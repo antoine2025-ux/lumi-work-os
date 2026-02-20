@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+ 
 /**
  * DEV SEED SCRIPT - Loopwell Mock Org
  * 

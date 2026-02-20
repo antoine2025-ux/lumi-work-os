@@ -12,11 +12,17 @@ export type CompanySize = z.infer<typeof CompanySizeEnum>
 /** Invite role options. */
 export const InviteRoleEnum = z.enum(['ADMIN', 'MEMBER', 'VIEWER'])
 
-/** Space visibility options. */
-export const SpaceVisibilityEnum = z.enum(['PUBLIC', 'PRIVATE'])
-
-/** Space template options. */
-export const SpaceTemplateEnum = z.enum(['blank', 'engineering', 'marketing', 'operations', 'hr'])
+/** Company type options for Step 4. */
+export const CompanyTypeEnum = z.enum([
+  'saas',
+  'agency',
+  'ecommerce',
+  'healthcare',
+  'financial',
+  'manufacturing',
+  'other',
+])
+export type CompanyType = z.infer<typeof CompanyTypeEnum>
 
 // ---------------------------------------------------------------------------
 // Step 1: Welcome & Workspace Setup
@@ -70,13 +76,11 @@ export const OnboardingStep3Schema = z.object({
 export type OnboardingStep3Data = z.infer<typeof OnboardingStep3Schema>
 
 // ---------------------------------------------------------------------------
-// Step 4: First Project/Space
+// Step 4: Company Type
 // ---------------------------------------------------------------------------
 
 export const OnboardingStep4Schema = z.object({
-  spaceName: nonEmptyString.min(2, 'Space name must be at least 2 characters').max(100),
-  visibility: SpaceVisibilityEnum,
-  template: SpaceTemplateEnum,
+  companyType: CompanyTypeEnum,
 })
 
 export type OnboardingStep4Data = z.infer<typeof OnboardingStep4Schema>

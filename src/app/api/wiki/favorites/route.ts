@@ -5,6 +5,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import { handleApiError } from '@/lib/api-errors'
+import { canAccessWikiWorkspace } from '@/lib/wiki/permissions'
 
 // GET /api/wiki/favorites - Get all favorite pages for the authenticated user
 export async function GET(request: NextRequest) {
@@ -78,28 +79,42 @@ export async function GET(request: NextRequest) {
     })
 
     // Transform to match RecentPage interface
-    // SECURITY: Exclude personal pages not created by the requesting user
-    const formattedPages = favorites
-      .filter(fav => fav.wiki_pages) // Filter out any null pages
-      .filter(fav => {
-        const page = fav.wiki_pages!
-        // If the page is personal, only include if the current user created it
-        if (page.workspace_type === 'personal' && page.createdBy?.id !== auth.user.userId) {
-          return false
-        }
-        return true
+    // SECURITY: Exclude pages the user cannot access (personal, PRIVATE wiki workspaces)
+    const formattedPages: Array<{
+      id: string
+      title: string
+      slug: string
+      author: string
+      updatedAt: string
+      viewCount: number
+      tags: string[]
+      permissionLevel: string
+      workspace_type: string | null
+    }> = []
+    for (const fav of favorites) {
+      if (!fav.wiki_pages) continue
+      const page = fav.wiki_pages
+      // Personal pages - only include if creator
+      if (page.workspace_type === 'personal' || page.workspace_type?.startsWith('personal-space-')) {
+        if (page.createdBy?.id !== auth.user.userId) continue
+      }
+      // PRIVATE wiki workspace pages - only include if user has access
+      if (page.workspace_type?.startsWith('wiki-')) {
+        const hasAccess = await canAccessWikiWorkspace(auth.user.userId, page.workspace_type)
+        if (!hasAccess) continue
+      }
+      formattedPages.push({
+        id: page.id,
+        title: page.title,
+        slug: page.slug,
+        author: page.createdBy?.name || 'Unknown',
+        updatedAt: page.updatedAt.toISOString(),
+        viewCount: page.view_count || 0,
+        tags: page.tags || [],
+        permissionLevel: page.permissionLevel,
+        workspace_type: page.workspace_type ?? null,
       })
-      .map(fav => ({
-        id: fav.wiki_pages!.id,
-        title: fav.wiki_pages!.title,
-        slug: fav.wiki_pages!.slug,
-        author: fav.wiki_pages!.createdBy?.name || 'Unknown',
-        updatedAt: fav.wiki_pages!.updatedAt.toISOString(),
-        viewCount: fav.wiki_pages!.view_count || 0,
-        tags: fav.wiki_pages!.tags || [],
-        permissionLevel: fav.wiki_pages!.permissionLevel,
-        workspace_type: fav.wiki_pages!.workspace_type || null
-      }))
+    }
 
     // Cache the result for 2 minutes
     await cache.set(cacheKey, formattedPages, CACHE_TTL.SHORT)

@@ -7,14 +7,12 @@ import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
-// @ts-ignore - TipTap extension types
 import TaskList from '@tiptap/extension-task-list'
-// @ts-ignore - TipTap extension types
 import TaskItem from '@tiptap/extension-task-item'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import { lowlight } from 'lowlight'
 import { JSONContent, Editor } from '@tiptap/core'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Embed } from './tiptap/extensions/embed'
 import { SlashCommand } from './tiptap/extensions/slash-command'
 import { useSlashCommand } from './tiptap/use-slash-command'
@@ -24,6 +22,7 @@ import { BubbleMenu } from './tiptap/bubble-menu'
 import { BlockGutter } from './tiptap/blocks/block-gutter'
 import { useKeyboardShortcuts } from './tiptap/hooks/use-keyboard-shortcuts'
 import { getActiveBlock } from './tiptap/ui/block-targeting'
+import { extractTextFromProseMirror } from '@/lib/wiki/text-extract'
 
 interface TipTapEditorProps {
   content: JSONContent | null
@@ -46,9 +45,8 @@ export function TipTapEditor({
   className = "",
   onEditorReady
 }: TipTapEditorProps) {
-  const editor = useEditor({
-    immediatelyRender: false, // Prevent SSR hydration mismatches
-    extensions: [
+  const extensions = useMemo(
+    () => [
       StarterKit.configure({
         // Exclude codeBlock, link, and underline since we're using custom versions
         codeBlock: false,
@@ -70,11 +68,10 @@ export function TipTapEditor({
       }),
       TaskList,
       TaskItem.configure({
-        nested: false, // MVP: Keep simple, no indentation for now
-        // Note: Can enable nested: true later when Tab/Shift+Tab indentation is implemented
+        nested: false, // TODO: Enable nested task lists in future
       }),
       Table.configure({
-        resizable: false, // MVP: Keep simple, no resizing
+        resizable: false, // TODO: Enable table resizing in future
       }),
       TableRow,
       TableHeader,
@@ -82,6 +79,12 @@ export function TipTapEditor({
       Embed,
       SlashCommand,
     ],
+    [placeholder]
+  )
+
+  const editor = useEditor({
+    immediatelyRender: false, // Prevent SSR hydration mismatches
+    extensions,
     content: content || {
       type: 'doc',
       content: [{ type: 'paragraph' }],
@@ -125,6 +128,13 @@ export function TipTapEditor({
     const currentJSON = editor.getJSON()
     // Only update if content actually changed (avoid infinite loops)
     if (JSON.stringify(currentJSON) !== JSON.stringify(content)) {
+      // Guard: don't overwrite editor content with empty doc when editor has text
+      // Prevents race where stale/empty content prop would erase user content
+      const incomingText = extractTextFromProseMirror(content)
+      const currentText = extractTextFromProseMirror(currentJSON)
+      if (!incomingText.trim() && currentText.trim()) {
+        return // Keep editor content; incoming is empty, editor has text
+      }
       editor.commands.setContent(content)
     }
   }, [content, editor])

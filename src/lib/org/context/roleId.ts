@@ -46,9 +46,10 @@ export function buildRoleId(source: RoleIdSource): string {
       return buildRoleIdFromRoleCard(source.workspaceId, source.roleCardId);
     case "fallback":
       return buildFallbackRoleId(source.workspaceId, source.seed);
-    default:
-      // TS safety; should never happen
-      return buildFallbackRoleId(source.workspaceId);
+    default: {
+      const _: never = source;
+      throw new Error('Unhandled RoleIdSource kind');
+    }
   }
 }
 

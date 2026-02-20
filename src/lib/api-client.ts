@@ -82,7 +82,7 @@ export async function apiFetch(
     // Keep this concise but informative; shows up in browser devtools or server logs.
     // Example: [apiFetch] POST /api/org/create (id=req_...) -> 201 in 42.3ms
     // Note: we do not log bodies or secrets here.
-    // eslint-disable-next-line no-console
+     
     console.debug(
       `[apiFetch] ${method} ${url} (id=${requestId}) -> ${res.status} in ${durationMs.toFixed(
         1
@@ -128,7 +128,7 @@ export class ApiClient {
     const durationMs = end - start;
 
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
+       
       console.debug(
         `[ApiClient] ${method} ${url} (id=${requestId}) -> ${res.status} in ${durationMs.toFixed(
           1

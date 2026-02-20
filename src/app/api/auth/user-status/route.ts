@@ -224,10 +224,29 @@ export async function GET(request: NextRequest) {
     
     // If user has no workspace, return appropriate status
     if (error instanceof Error && error.message.includes('No workspace found')) {
-      const pendingInvite = null
-      
-      // Note: Invite system not implemented - pendingInvite is always null
-      
+      // Look up pending invitation for this user's email
+      let pendingInvite: { token: string; workspace: { slug: string; name: string } } | null = null
+      if (session?.user?.email) {
+        try {
+          const invite = await prisma.orgInvitation.findFirst({
+            where: { email: session.user.email, status: 'PENDING' },
+            select: {
+              token: true,
+              workspace: { select: { slug: true, name: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+          if (invite?.workspace) {
+            pendingInvite = {
+              token: invite.token,
+              workspace: { slug: invite.workspace.slug, name: invite.workspace.name },
+            }
+          }
+        } catch {
+          // Non-fatal: proceed without invite info
+        }
+      }
+
       return NextResponse.json({
         isAuthenticated: !!session?.user?.email, // Check session even for unauthorized errors
         isFirstTime: true,

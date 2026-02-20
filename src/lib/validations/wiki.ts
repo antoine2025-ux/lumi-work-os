@@ -16,6 +16,7 @@ export const WikiPageCreateSchema = z.object({
   category: z.string().optional(),
   permissionLevel: z.string().optional(),
   workspace_type: z.string().optional(),
+  spaceId: z.string().optional(),
 })
 
 /** PUT /api/wiki/pages/[id] */
@@ -44,4 +45,6 @@ export const WikiWorkspaceCreateSchema = z.object({
   color: z.string().optional(),
   icon: z.string().optional(),
   isPrivate: z.boolean().optional(),
+  visibility: z.enum(['PERSONAL', 'PRIVATE', 'PUBLIC']).optional(),
+  memberIds: z.array(z.string()).optional(),
 })

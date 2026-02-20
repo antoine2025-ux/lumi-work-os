@@ -9,7 +9,7 @@ export async function getOrCreateGeneralProjectSpace(workspaceId: string): Promi
   // Check if ProjectSpace table exists (migration may not have run)
   try {
     // Try to find existing General space
-    let generalSpace = await prisma.projectSpace.findFirst({
+    const generalSpace = await prisma.projectSpace.findFirst({
       where: {
         workspaceId,
         name: 'General',

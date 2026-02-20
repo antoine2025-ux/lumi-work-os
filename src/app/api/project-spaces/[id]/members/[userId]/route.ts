@@ -5,6 +5,8 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 
+// @deprecated Use DELETE /api/spaces/[id]/members/[userId] instead (unified Space model, Sprint 2).
+
 // DELETE /api/project-spaces/[id]/members/[userId] - Remove a member from ProjectSpace
 export async function DELETE(
   request: NextRequest,

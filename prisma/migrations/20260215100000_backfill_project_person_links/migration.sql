@@ -15,15 +15,18 @@ CREATE TABLE IF NOT EXISTS "project_person_links" (
     CONSTRAINT "project_person_links_pkey" PRIMARY KEY ("id")
 );
 
--- Add unique constraint if it doesn't exist
+-- Add unique constraint if it doesn't exist (check both constraint and underlying index)
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
+        SELECT 1 FROM pg_constraint
         WHERE conname = 'project_person_links_projectId_userId_key'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM pg_class
+        WHERE relname = 'project_person_links_projectId_userId_key'
     ) THEN
-        ALTER TABLE "project_person_links" 
-        ADD CONSTRAINT "project_person_links_projectId_userId_key" 
+        ALTER TABLE "project_person_links"
+        ADD CONSTRAINT "project_person_links_projectId_userId_key"
         UNIQUE ("projectId", "userId");
     END IF;
 END $$;

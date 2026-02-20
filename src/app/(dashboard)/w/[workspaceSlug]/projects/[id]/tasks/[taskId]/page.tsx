@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useWorkspace } from "@/lib/workspace-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -101,6 +102,8 @@ const priorityOptions = [
 export default function TaskDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const workspaceSlug = params?.workspaceSlug as string | undefined
+  const { currentWorkspace } = useWorkspace()
   const projectId = params?.id as string
   const taskId = params?.taskId as string
   
@@ -111,7 +114,7 @@ export default function TaskDetailPage() {
           <h1 className="text-2xl font-bold text-red-600">Error</h1>
           <p className="text-muted-foreground mb-4">Invalid project or task ID</p>
           <Button asChild>
-            <Link href="/projects">
+            <Link href={workspaceSlug ? `/w/${workspaceSlug}/projects` : '/projects'}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Projects
             </Link>
@@ -247,7 +250,7 @@ export default function TaskDetailPage() {
               {error || 'The task you are looking for does not exist.'}
             </p>
             <Button asChild>
-              <Link href={`/projects/${projectId}`}>
+              <Link href={workspaceSlug ? `/w/${workspaceSlug}/projects/${projectId}` : `/projects/${projectId}`}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Project
               </Link>
@@ -264,7 +267,7 @@ export default function TaskDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href={`/projects/${projectId}`}>
+            <Link href={workspaceSlug ? `/w/${workspaceSlug}/projects/${projectId}` : `/projects/${projectId}`}>
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -519,8 +522,9 @@ export default function TaskDetailPage() {
         <TaskEditDialog
           isOpen={isEditDialogOpen}
           onClose={() => setIsEditDialogOpen(false)}
-          task={task}
-          onSave={handleTaskUpdate}
+          task={task as unknown as React.ComponentProps<typeof TaskEditDialog>['task']}
+          onSave={handleTaskUpdate as React.ComponentProps<typeof TaskEditDialog>['onSave']}
+          workspaceId={currentWorkspace?.id ?? ''}
         />
       )}
 

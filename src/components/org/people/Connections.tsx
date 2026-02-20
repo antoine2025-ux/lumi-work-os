@@ -22,7 +22,7 @@ function getInitials(name: string | null): string {
 }
 
 /**
- * Derives connections from people list
+ * Derives connections from people list using managerId relationships.
  */
 function deriveConnections(
   person: OrgPerson,
@@ -32,18 +32,19 @@ function deriveConnections(
   peers: OrgPerson[];
   teammates: OrgPerson[];
 } {
-  // Direct reports - TODO: When managerId is available
-  // const directReports = people.filter(p => p.managerId === person.id);
-  const directReports: OrgPerson[] = [];
+  // Direct reports: people whose manager is this person
+  const directReports = people
+    .filter((p) => p.managerId === person.id && p.id !== person.id)
+    .slice(0, 10);
 
-  // Peers - people with same managerId (excluding person)
-  // TODO: When managerId is available
-  // const peers = people.filter(
-  //   p => p.managerId === person.managerId && p.id !== person.id
-  // );
-  const peers: OrgPerson[] = [];
+  // Peers: people who share the same manager (excluding this person)
+  const peers = person.managerId
+    ? people
+        .filter((p) => p.managerId === person.managerId && p.id !== person.id)
+        .slice(0, 8)
+    : [];
 
-  // Teammates - people from same team (excluding person)
+  // Teammates: people from same team (excluding person)
   const teammates = person.teamId
     ? people
         .filter((p) => p.teamId === person.teamId && p.id !== person.id)

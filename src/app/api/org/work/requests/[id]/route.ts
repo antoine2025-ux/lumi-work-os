@@ -295,8 +295,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Step 9: Resolve feasibility and impact
     const [feasibility, impact] = await Promise.all([
-      resolveWorkFeasibility(workspaceId, id, timeWindow),
-      resolveWorkImpact(workspaceId, id),
+      resolveWorkFeasibility(workspaceId, workRequest),
+      resolveWorkImpact(workspaceId, workRequest),
     ]);
 
     // Step 10: Compute issues AFTER mutation (same scoped set)
@@ -351,7 +351,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         },
         updatedImpact: {
           totalCount: impact.impacts.length,
-          highestSeverity: impact.highestSeverity,
+          highestSeverity: impact.summary.highestSeverity,
         },
         timeWindow: {
           start: timeWindow.start.toISOString(),

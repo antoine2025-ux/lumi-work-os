@@ -213,10 +213,10 @@ export default async function HomePage() {
         : (p.members[0]?.role as 'ADMIN' | 'MEMBER' | 'VIEWER' | undefined),
   }))
 
-  // Get workspace for slug
+  // Get workspace for slug and companyType
   const workspace = await prisma.workspace.findUnique({
     where: { id: auth.workspaceId },
-    select: { slug: true },
+    select: { slug: true, companyType: true },
   })
 
   const workspaceSlug = workspace?.slug || 'default'
@@ -229,6 +229,7 @@ export default async function HomePage() {
         email: user?.email || auth.user.email,
       }}
       workspaceSlug={workspaceSlug}
+      companyType={workspace?.companyType ?? null}
       capacity={capacity}
       tasks={{
         overdue: overdueTasks,

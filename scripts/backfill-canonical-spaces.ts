@@ -300,7 +300,7 @@ async function backfillWikiPageSpaces() {
   })
 
   let updated = 0
-  let skipped = 0
+  const skipped = 0
 
   for (const page of pages) {
     let spaceId: string | null = null

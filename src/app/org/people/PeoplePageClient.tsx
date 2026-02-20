@@ -42,6 +42,8 @@ import { BulkAssignModal } from "@/components/org/people/BulkAssignModal";
 import { BarChart3, X } from "lucide-react";
 import { useCapacityPeople } from "@/hooks/useCapacityPeople";
 import { CapacitySummaryCard } from "@/components/org/capacity/CapacitySummaryCard";
+import { InviteUserDialog } from "@/components/org/invite-user-dialog";
+import { useUserStatusContext } from "@/providers/user-status-provider";
 import type { OrgPerson } from "@/types/org";
 import type { ViewMode } from "@/components/org/people/PeopleViewToggle";
 
@@ -56,6 +58,7 @@ type PeoplePageClientProps = {
 
 export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps) {
   const { role } = useCurrentOrgRole();
+  const { workspaceId } = useUserStatusContext();
   const canManagePeople = canRole(role, "managePeople");
   const isOwner = role === "OWNER";
   const perms = useOrgPermissions();
@@ -123,6 +126,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
   // Shortlists
   const { shortlists, createShortlist, deleteShortlist, getShortlist } = useShortlists();
   const [activeShortlistId, setActiveShortlistId] = useState<string | undefined>(undefined);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isShortlistModalOpen, setIsShortlistModalOpen] = useState(false);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [bulkAssignModal, setBulkAssignModal] = useState<{ type: "team" | "department" | "manager"; isOpen: boolean }>({
@@ -619,16 +623,12 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
             <PeopleHelpPopover />
             <PeopleActionsMenu
               canManagePeople={canManagePeople}
-              onInvite={() => {
-                // TODO: Implement invite flow
-                window.location.href = "/org/workspace-settings?tab=members";
-              }}
+              onInvite={() => setIsInviteDialogOpen(true)}
               onAssignTeam={() => setBulkAssignModal({ type: "team", isOpen: true })}
               onAssignDepartment={() => setBulkAssignModal({ type: "department", isOpen: true })}
               onAssignManager={() => setBulkAssignModal({ type: "manager", isOpen: true })}
               onExport={() => {
-                // TODO: Implement CSV export
-                console.log("Export CSV - coming soon");
+                // Export not yet implemented
               }}
             />
           </div>
@@ -927,6 +927,16 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
           onAssignManager={() => setBulkAssignModal({ type: "manager", isOpen: true })}
           canManagePeople={canManagePeople}
         />
+
+        {/* Invite Dialog */}
+        {workspaceId && (
+          <InviteUserDialog
+            isOpen={isInviteDialogOpen}
+            onClose={() => setIsInviteDialogOpen(false)}
+            onSuccess={() => setRefreshKey((prev) => prev + 1)}
+            workspaceId={workspaceId}
+          />
+        )}
 
         {/* Shortlist Modal */}
         <ShortlistModal

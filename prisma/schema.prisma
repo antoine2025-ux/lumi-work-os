@@ -87,6 +87,8 @@ model User {
   wikiPages             WikiPage[]
   wikiVersions          WikiVersion[]
   wiki_workspaces       wiki_workspaces[]
+  wikiWorkspaceMembers  WikiWorkspaceMember[]
+  wikiWorkspaceMembersGrantedBy WikiWorkspaceMember[] @relation("WikiWorkspaceMemberGrantedBy")
   workflowAssignments   WorkflowAssignment[]
   workflowInstances     WorkflowInstance[]
   workspaceMemberships  WorkspaceMember[]
@@ -127,6 +129,8 @@ model User {
   createdPerformanceCycles PerformanceCycle[]   @relation("CycleCreator")
   projectSpaceMemberships ProjectSpaceMember[]
   projectPersonLinks      ProjectPersonLink[]
+  ownedSpaces             Space[]             @relation("SpaceOwner")
+  spaceMemberships        SpaceMember[]
 
   @@map("users")
 }
@@ -155,6 +159,7 @@ model Workspace {
   mission              String?   // Company mission/description
   industry             String?   // Industry vertical
   companySize          String?   // "1-10", "11-50", "51-200", "201-500", "501+"
+  companyType          String?   @map("company_type")  // saas | agency | ecommerce | healthcare | financial | manufacturing | other
   timezone             String?   // IANA timezone (e.g., "America/New_York")
   onboardingCompletedAt DateTime? // Timestamp when onboarding finished
   
@@ -232,6 +237,7 @@ model Workspace {
   loopbrainOpenLoops     LoopbrainOpenLoop[]
   loopbrainPendingActions LoopbrainPendingAction[]
   projectSpaces           ProjectSpace[]
+  spaces                  Space[]
 
   // Loopbrain proactive insights
   proactiveInsights ProactiveInsight[]
@@ -312,6 +318,8 @@ model Workspace {
   // Decision domain children
   decisionAuthorities         DecisionAuthority[]
   decisionEscalationSteps     DecisionEscalationStep[]
+  // Capacity planning
+  projectAllocations          ProjectAllocation[]
 
   @@map("workspaces")
 }
@@ -352,6 +360,18 @@ enum ProjectSpaceVisibility {
   TARGETED
 }
 
+enum SpaceVisibility {
+  PERSONAL // owner-only
+  PRIVATE  // owner + explicit members
+  PUBLIC   // all workspace members
+}
+
+enum SpaceRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
 model ProjectSpace {
   id          String                 @id @default(cuid())
   workspaceId String
@@ -379,6 +399,62 @@ model ProjectSpaceMember {
   @@index([userId], map: "idx_project_space_members_user")
   @@index([projectSpaceId], map: "idx_project_space_members_space")
   @@map("project_space_members")
+}
+
+// Unified Space model — replaces ProjectSpace (ghost) and wiki_workspaces string-matching
+model Space {
+  id          String          @id @default(cuid())
+  workspaceId String
+
+  name        String
+  slug        String?
+  description String?
+  color       String?         @default("#3b82f6")
+  icon        String?         @default("folder")
+
+  visibility  SpaceVisibility @default(PUBLIC)
+  isPersonal  Boolean         @default(false)
+  ownerId     String
+
+  // Hierarchy support (for sub-spaces)
+  parentId    String?
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner       User            @relation("SpaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  parent      Space?          @relation("SpaceHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Space[]         @relation("SpaceHierarchy")
+
+  members     SpaceMember[]
+  projects    Project[]
+  wikiPages   WikiPage[]
+
+  // No full unique on (workspaceId, ownerId) — users can own multiple spaces.
+  // Personal-space uniqueness is enforced by a DB-level partial index
+  // WHERE "isPersonal" = true (migration 20260220200000_unified_spaces).
+  @@index([workspaceId])
+  @@index([parentId])
+  @@index([ownerId])
+  @@map("spaces")
+}
+
+model SpaceMember {
+  id        String    @id @default(cuid())
+  spaceId   String
+  userId    String
+  role      SpaceRole @default(VIEWER)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  space     Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, userId])
+  @@index([userId])
+  @@map("space_members")
 }
 
 // Phase 1: Workspace onboarding state tracking
@@ -465,6 +541,7 @@ model WikiPage {
   last_viewed_at       DateTime?              @db.Timestamp(6)
   ai_analysis          Json?
   quality_score        Decimal?               @db.Decimal(3, 2)
+  spaceId              String?
   projects                Project[]
   projectDocumentation    ProjectDocumentation[]
   wiki_ai_interactions wiki_ai_interactions[]
@@ -479,6 +556,7 @@ model WikiPage {
   parent               WikiPage?              @relation("WikiPageHierarchy", fields: [parentId], references: [id])
   children             WikiPage[]             @relation("WikiPageHierarchy")
   workspace            Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  space                Space?                 @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   versions             WikiVersion[]
 
   @@unique([workspaceId, slug])
@@ -490,6 +568,7 @@ model WikiPage {
   @@index([workspaceId, isPublished], map: "idx_wiki_pages_workspace_published")
   @@index([workspaceId, workspace_type], map: "idx_wiki_pages_workspace_type_alt")
   @@index([updatedAt(sort: Desc)], map: "idx_wiki_pages_updated_at")
+  @@index([spaceId], map: "idx_wiki_pages_space_id")
   @@map("wiki_pages")
 }
 
@@ -1084,12 +1163,14 @@ model Project {
   watchers            ProjectWatcher[]
   accountability      ProjectAccountability?
   allocations         ProjectAllocation[]
+  spaceId               String?
   createdBy             User                   @relation(fields: [createdById], references: [id], onDelete: Cascade)
   owner                  User?                  @relation("ProjectOwner", fields: [ownerId], references: [id])
   wikiPage               WikiPage?              @relation(fields: [wikiPageId], references: [id])
   projectDocumentation   ProjectDocumentation[]
   workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   orgTeam                OrgTeam?               @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  space                  Space?                 @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   tasks                  Task[]
   goalLinks              ProjectGoalLink[]
   personLinks            ProjectPersonLink[]
@@ -1100,6 +1181,7 @@ model Project {
   @@index([updatedAt(sort: Desc)], map: "idx_projects_updated_at")
   @@index([orgId])
   @@index([teamId])
+  @@index([spaceId])
   @@map("projects")
 }
 
@@ -1513,26 +1595,58 @@ model wiki_page_views {
   @@index([workspace_id])
 }
 
+enum WikiWorkspaceVisibility {
+  PERSONAL
+  PRIVATE
+  PUBLIC
+}
+
+enum WikiWorkspaceRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model wiki_workspaces {
-  id            String    @id @db.VarChar(50)
-  workspace_id  String    @db.VarChar(50)
-  name          String    @db.VarChar(255)
-  type          String?   @default("team") @db.VarChar(50)
-  color         String?   @default("#3b82f6") @db.VarChar(7)
+  id            String                    @id @db.VarChar(50)
+  workspace_id  String                    @db.VarChar(50)
+  name          String                    @db.VarChar(255)
+  type          String?                   @default("team") @db.VarChar(50)
+  color         String?                   @default("#3b82f6") @db.VarChar(7)
   icon          String?   @default("layers") @db.VarChar(50)
   description   String?
-  is_private    Boolean?  @default(false)
-  created_by_id String    @db.VarChar(50)
-  created_at    DateTime? @default(now()) @db.Timestamp(6)
-  updated_at    DateTime? @default(now()) @db.Timestamp(6)
-  users         User      @relation(fields: [created_by_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  workspaces    Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  is_private    Boolean?                  @default(false)
+  visibility    WikiWorkspaceVisibility   @default(PUBLIC)
+  created_by_id String                    @db.VarChar(50)
+  created_at    DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?                 @default(now()) @db.Timestamp(6)
+  creator       User                      @relation(fields: [created_by_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workspace     Workspace                 @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  members       WikiWorkspaceMember[]
 
   @@index([created_by_id], map: "idx_wiki_workspaces_created_by")
   @@index([type], map: "idx_wiki_workspaces_type")
   @@index([workspace_id], map: "idx_wiki_workspaces_workspace_id")
+}
+
+model WikiWorkspaceMember {
+  id              String             @id @default(uuid())
+  wikiWorkspaceId String             @map("wiki_workspace_id")
+  userId          String             @map("user_id")
+  role            WikiWorkspaceRole  @default(VIEWER)
+  grantedById     String?            @map("granted_by_id")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  wikiWorkspace wiki_workspaces @relation(fields: [wikiWorkspaceId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy     User?          @relation("WikiWorkspaceMemberGrantedBy", fields: [grantedById], references: [id])
+
+  @@unique([wikiWorkspaceId, userId])
+  @@index([userId])
+  @@map("wiki_workspace_members")
 }
 
 model Epic {
@@ -2561,10 +2675,10 @@ enum AvailabilitySource {
 }
 
 model ProjectAllocation {
-  id        String @id @default(cuid())
-  orgId     String
-  projectId String
-  personId  String
+  id          String @id @default(cuid())
+  workspaceId String
+  projectId   String
+  personId    String
 
   // fraction of a person's working capacity, e.g. 0.2 = 20%
   fraction Float
@@ -2577,11 +2691,13 @@ model ProjectAllocation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  person  User    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  person    User      @relation(fields: [personId], references: [id], onDelete: Cascade)
 
-  @@index([orgId, projectId])
+  @@index([workspaceId, projectId])
   @@index([personId, startDate])
+  @@index([workspaceId])
   @@map("project_allocations")
 }
 

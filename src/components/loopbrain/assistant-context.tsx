@@ -34,6 +34,9 @@ interface AssistantContextValue {
   clearMessages: () => void
   setMode: (mode: LoopbrainMode | null) => void
   setAnchors: (anchors: AssistantState['anchors']) => void
+  /** Pre-fill the input with a query and open the panel. Cleared once consumed. */
+  pendingQuery: string | null
+  setPendingQuery: (query: string | null) => void
 }
 
 const AssistantContext = createContext<AssistantContextValue | undefined>(undefined)
@@ -106,6 +109,7 @@ export function LoopbrainAssistantProvider({ children }: { children: ReactNode }
       isMinimized: stored.isMinimized ?? false
     }
   })
+  const [pendingQuery, setPendingQuery] = useState<string | null>(null)
 
   // Save state to storage whenever it changes (but only if there are messages)
   useEffect(() => {
@@ -159,7 +163,9 @@ export function LoopbrainAssistantProvider({ children }: { children: ReactNode }
         addMessage,
         clearMessages,
         setMode,
-        setAnchors
+        setAnchors,
+        pendingQuery,
+        setPendingQuery,
       }}
     >
       {children}

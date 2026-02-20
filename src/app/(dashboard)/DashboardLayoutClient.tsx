@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context";
 import { TaskSidebar } from "@/components/tasks/task-sidebar";
+import { Sidebar } from "@/components/layout/sidebar";
 // PHASE C2: Removed redirect-handler import - middleware handles redirects
 
 // Lazy load Header to reduce initial bundle size and improve LCP
@@ -23,6 +24,10 @@ export function DashboardLayoutClient({
   const router = useRouter();
   const pathname = usePathname();
   const [isFirstTime, setIsFirstTime] = useState(false);
+  
+  // Determine if we should show the Spaces sidebar
+  // Only show on Spaces routes, not on Org or Goals/OKRs pages
+  const showSpacesSidebar = pathname?.includes('/spaces') || pathname?.includes('/wiki');
   
   // Use React Query for user status - automatic caching and no sequential delays
   const { data: userStatus, isLoading: isLoadingWorkspace } = useQuery({
@@ -126,11 +131,14 @@ export function DashboardLayoutClient({
 
   return (
     <LoopbrainAssistantProvider>
-      <div className="flex min-h-screen flex-col bg-[#020617]">
+      <div className="flex h-screen flex-col bg-[#020617]">
         <Header />
-        <main className="flex-1 min-h-screen">
-          {children}
-        </main>
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {showSpacesSidebar && <Sidebar />}
+          <main className="flex flex-1 flex-col min-h-0 overflow-y-auto">
+            {children}
+          </main>
+        </div>
       </div>
       <TaskSidebar />
     </LoopbrainAssistantProvider>

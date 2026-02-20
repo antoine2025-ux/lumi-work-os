@@ -560,3 +560,13 @@ img[src*="transparent"] {
   outline-offset: 2px;
   border-radius: 0.375rem;
 }
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

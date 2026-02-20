@@ -5,7 +5,7 @@
  * Used for epic-level context integration with Loopbrain.
  */
 
-import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
+import { ContextObject as UnifiedContextObject, ContextRelation } from '@/lib/context/context-types'
 import { Prisma } from '@prisma/client'
 import { ProjectTaskStatus } from '@prisma/client'
 
@@ -47,17 +47,12 @@ export type EpicWithRelations = Prisma.EpicGetPayload<{
  */
 export function buildEpicContext(epic: EpicWithRelations): UnifiedContextObject {
   // Build relations
-  const relations: Array<{
-    type: string
-    id: string
-    label: string
-    direction: 'in' | 'out'
-  }> = []
+  const relations: ContextRelation[] = []
 
   // Relation to project
   if (epic.projectId) {
     relations.push({
-      type: 'project',
+      type: 'project' as const,
       id: epic.projectId,
       label: 'project',
       direction: 'out'
