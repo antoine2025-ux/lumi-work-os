@@ -2,6 +2,8 @@ import { redirect } from "next/navigation"
 import { getUnifiedAuth } from "@/lib/unified-auth"
 import { prisma } from "@/lib/db"
 
+export const dynamic = 'force-dynamic'
+
 /**
  * /spaces/home redirects to the workspace-scoped Spaces home.
  * The actual Spaces dashboard lives at /w/[workspaceSlug]/spaces/home.
