@@ -171,7 +171,18 @@ If requirements are unclear:
 
 ---
 
-## 12. FINAL RULE
+## 12. DATABASE MIGRATIONS (CRITICAL)
+
+- **Never use `prisma db push`** for schema changes in development. It modifies the database directly without creating migration files, causing staging/production drift.
+- **Always use `prisma migrate dev --name <description>`** to create schema changes. This generates a migration file that the deployment pipeline (`prisma migrate deploy`) can apply to all environments.
+- `prisma db push` is only acceptable for:
+  - One-time emergency fixes against a specific database (with explicit justification)
+  - CI test environments that are ephemeral
+- After any schema change, verify the migration file exists in `prisma/migrations/` before committing.
+
+---
+
+## 13. FINAL RULE
 
 Never "just do the thing."
 
