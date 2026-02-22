@@ -158,7 +158,7 @@ export async function acceptOrgInvitationByToken(
       },
     });
 
-    await logOrgAuditEvent(tx as any, {
+    await logOrgAuditEvent(tx as unknown as Parameters<typeof logOrgAuditEvent>[0], {
       workspaceId: invitation.workspaceId!,
       actorUserId: userId,
       targetUserId: userId,

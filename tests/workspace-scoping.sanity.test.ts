@@ -55,9 +55,9 @@ describe('Workspace Scoping Sanity Tests', () => {
             `❌ FAIL: ${name} query succeeded without workspace context! ` +
             `Scoping should have thrown an error.`
           )
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Expected: Error about missing workspace context
-          const errorMessage = error.message || ''
+          const errorMessage = error instanceof Error ? error.message : ''
           
           if (errorMessage.includes('workspace context') || 
               errorMessage.includes('setWorkspaceContext')) {
@@ -92,8 +92,8 @@ describe('Workspace Scoping Sanity Tests', () => {
           
           // If we get here, query worked (or failed for other reasons, which is OK)
           console.log(`✅ ${name}: Query with context succeeded (or failed for valid reasons)`)
-        } catch (error: any) {
-          const errorMessage = error.message || ''
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : ''
           
           // If error is about workspace context, that's a failure
           if (errorMessage.includes('workspace context') && 

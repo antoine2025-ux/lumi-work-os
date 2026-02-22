@@ -31,7 +31,7 @@ export function createScopedPrisma(baseClient: PrismaClient) {
     query: {
       $allOperations({ operation, model, args, query }) {
         // Skip non-workspace-scoped models
-        if (!model || !WORKSPACE_SCOPED_MODELS.includes(model as any)) {
+        if (!model || !(WORKSPACE_SCOPED_MODELS as readonly string[]).includes(model)) {
           return query(args)
         }
 

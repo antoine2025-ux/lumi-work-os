@@ -120,6 +120,7 @@ export function connectSocket(userId: string, userName: string, workspaceId: str
       return
     }
 
+    // eslint-disable-next-line prefer-const
     let connectionTimeout: NodeJS.Timeout
     let hasResolved = false
 

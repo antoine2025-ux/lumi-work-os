@@ -1,6 +1,9 @@
-import { ProjectRole } from '@prisma/client'
+import { ProjectRole, Project, ProjectMember } from '@prisma/client'
 import { User } from 'next-auth'
 import { prisma } from '@/lib/db'
+
+type ProjectWithMembers = Project & { members: ProjectMember[] }
+type MemberResult = Pick<ProjectMember, 'userId' | 'role' | 'projectId'>
 
 /**
  * Assert that the authenticated user has access to the project
@@ -14,6 +17,7 @@ export async function assertProjectAccess(
   projectId: string,
   requiredRole: ProjectRole = ProjectRole.VIEWER,
   workspaceId?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ user: User; project: any; member: any }> {
   if (!user || !user.id) {
     throw new Error('Unauthorized: User not authenticated.')
@@ -60,8 +64,10 @@ export async function assertProjectAccess(
       if (!workspaceMember) {
         throw new Error('Forbidden: User not member of workspace.')
       }
-    } catch (error: any) {
-      if (error?.message?.includes('prepared statement') || error?.code === '26000') {
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : ''
+      const errCode = (error as { code?: string })?.code
+      if (errMsg.includes('prepared statement') || errCode === '26000') {
         console.warn('WorkspaceMember check skipped due to connection issue, workspace isolation verified via project.workspaceId', {
           workspaceId,
           userId: user.id,
@@ -129,6 +135,7 @@ export async function assertProjectWriteAccess(
   user: User,
   projectId: string,
   workspaceId?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ user: User; project: any; member: any }> {
   return assertProjectAccess(user, projectId, ProjectRole.MEMBER, workspaceId)
 }
@@ -140,6 +147,7 @@ export async function assertProjectAdminAccess(
   user: User,
   projectId: string,
   workspaceId?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ user: User; project: any; member: any }> {
   return assertProjectAccess(user, projectId, ProjectRole.ADMIN, workspaceId)
 }

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { Prisma } from '@prisma/client'
+import { Prisma, IntegrationType } from '@prisma/client'
 import { MigrationSource, MigrationItem, MigrationProgress, MigrationResult } from './types'
 
 export class MigrationService {
@@ -16,7 +16,7 @@ export class MigrationService {
     const _migration = await prisma.integration.create({
       data: {
         workspaceId: this.workspaceId,
-        type: source.platform.toUpperCase() as any,
+        type: source.platform.toUpperCase() as unknown as IntegrationType,
         name: `${source.platform} Migration`,
         config: {
           source,

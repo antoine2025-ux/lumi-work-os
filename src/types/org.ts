@@ -9,7 +9,7 @@ export type OrgSummary = {
   // Optional current member role if the backend chooses to embed it
   currentMemberRole?: OrgPermissionLevel | null;
   // Allow additional fields without tightening too much
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 export type OrgPerson = {

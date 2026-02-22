@@ -624,9 +624,9 @@ export async function buildOrgLoopbrainContextBundleForWorkspace(
   );
 
   // Attach roleContexts and roleContextObjects to bundle for inspection (temporary, until L6 Step 5)
-  // @ts-ignore - Adding temporary fields for inspection
+  // @ts-expect-error - Adding temporary fields for inspection
   loopbrainBundle._roleContexts = roleContexts;
-  // @ts-ignore
+  // @ts-expect-error - Adding temporary fields for inspection
   loopbrainBundle._roleContextObjects = roleContextObjects;
 
   // Log sample nodes with role relations (dev-only)

@@ -34,9 +34,9 @@ export async function getOrCreateGeneralProjectSpace(workspaceId: string): Promi
         select: { id: true }
       })
       return created.id
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle race condition: if another request created it, fetch it
-      if (error.code === 'P2002') {
+      if ((error as { code?: string })?.code === 'P2002') {
         const existing = await prisma.projectSpace.findFirst({
           where: {
             workspaceId,
@@ -51,10 +51,10 @@ export async function getOrCreateGeneralProjectSpace(workspaceId: string): Promi
       }
       throw error
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If table doesn't exist (migration not run), return null
     // This allows the code to work without ProjectSpace (legacy mode)
-    if (error.code === 'P2021' || error.message?.includes('does not exist')) {
+    if ((error as { code?: string })?.code === 'P2021' || (error instanceof Error && error.message?.includes('does not exist'))) {
       console.warn('ProjectSpace table does not exist. Migration may not have been run. Returning null (legacy mode).')
       return null
     }
@@ -98,9 +98,9 @@ export async function createPrivateProjectSpace(
     }
 
     return projectSpace.id
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If table doesn't exist (migration not run), return null
-    if (error.code === 'P2021' || error.message?.includes('does not exist')) {
+    if ((error as { code?: string })?.code === 'P2021' || (error instanceof Error && error.message?.includes('does not exist'))) {
       console.warn('ProjectSpace table does not exist. Migration may not have been run. Returning null (legacy mode).')
       return null
     }

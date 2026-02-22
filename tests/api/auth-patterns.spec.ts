@@ -13,7 +13,18 @@ vi.mock('@/lib/unified-auth')
 vi.mock('@/lib/auth/assertAccess')
 vi.mock('@/lib/prisma/scopingMiddleware')
 vi.mock('@/lib/db', () => {
-  const prismaObj: Record<string, any> = {
+  type PrismaMock = {
+    project: { findMany: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>; findUnique: ReturnType<typeof vi.fn> }
+    projectMember: { create: ReturnType<typeof vi.fn>; createMany: ReturnType<typeof vi.fn> }
+    projectWatcher: { createMany: ReturnType<typeof vi.fn> }
+    goal: { findMany: ReturnType<typeof vi.fn>; findUnique: ReturnType<typeof vi.fn>; findFirst: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> }
+    goalUpdate: { create: ReturnType<typeof vi.fn> }
+    activity: { create: ReturnType<typeof vi.fn> }
+    orgPosition: { findFirst: ReturnType<typeof vi.fn> }
+    workspaceMember: { findUnique: ReturnType<typeof vi.fn> }
+    $transaction: ReturnType<typeof vi.fn>
+  }
+  const prismaObj: PrismaMock = {
     project: { findMany: vi.fn(), create: vi.fn(), findUnique: vi.fn() },
     projectMember: { create: vi.fn(), createMany: vi.fn() },
     projectWatcher: { createMany: vi.fn() },
@@ -22,9 +33,10 @@ vi.mock('@/lib/db', () => {
     activity: { create: vi.fn() },
     orgPosition: { findFirst: vi.fn() },
     workspaceMember: { findUnique: vi.fn() },
+    $transaction: vi.fn(),
   }
   // $transaction passes the same mock prisma to the callback so mocked methods are shared
-  prismaObj.$transaction = vi.fn(async (fn: any) => fn(prismaObj))
+  prismaObj.$transaction = vi.fn(async (fn: (client: PrismaMock) => unknown) => fn(prismaObj))
   return { prisma: prismaObj }
 })
 
@@ -246,11 +258,11 @@ describe('Auth Patterns', () => {
         createdBy: { id: 'user-1', name: 'Test User', email: 'test@example.com' },
         _count: { tasks: 0 },
       }
-      vi.mocked(prisma.project.create).mockResolvedValue(mockProject as any)
-      vi.mocked(prisma.project.findUnique).mockResolvedValue(mockProject as any)
+      vi.mocked(prisma.project.create).mockResolvedValue(mockProject as unknown as Awaited<ReturnType<typeof prisma.project.create>>)
+      vi.mocked(prisma.project.findUnique).mockResolvedValue(mockProject as unknown as Awaited<ReturnType<typeof prisma.project.findUnique>>)
       vi.mocked(prisma.orgPosition.findFirst).mockResolvedValue(null)
       // @ts-expect-error - mock projectMember.create
-      vi.mocked(prisma.projectMember.create).mockResolvedValue({} as any)
+      vi.mocked(prisma.projectMember.create).mockResolvedValue({} as unknown as Awaited<ReturnType<typeof prisma.projectMember.create>>)
 
       const { POST } = await import('@/app/api/projects/route')
       const request = mockRequest('http://localhost:3000/api/projects', {
@@ -322,7 +334,7 @@ describe('Auth Patterns', () => {
         updatedAt: new Date(),
         createdById: 'user-1',
       })
-      vi.mocked(prisma.activity.create).mockResolvedValue({} as any)
+      vi.mocked(prisma.activity.create).mockResolvedValue({} as unknown as Awaited<ReturnType<typeof prisma.activity.create>>)
 
       const { DELETE } = await import('@/app/api/goals/[goalId]/route')
       const request = mockRequest('http://localhost:3000/api/goals/goal-1', {

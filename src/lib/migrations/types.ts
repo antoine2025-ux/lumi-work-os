@@ -4,7 +4,7 @@ export interface MigrationSource {
   platform: string
   apiKey: string
   workspaceId?: string
-  additionalConfig?: Record<string, any>
+  additionalConfig?: Record<string, unknown>
 }
 
 export interface MigrationItem {
@@ -103,7 +103,7 @@ export interface ClickUpTask {
   custom_fields: Array<{
     id: string
     name: string
-    value: any
+    value: unknown
   }>
   attachments: Array<{
     id: string
@@ -117,7 +117,7 @@ export interface ClickUpTask {
 export interface NotionPage {
   id: string
   title: string
-  properties: Record<string, any>
+  properties: Record<string, unknown>
   created_time: string
   last_edited_time: string
   created_by: {

@@ -17,7 +17,7 @@ vi.mock('@/lib/db', () => ({
     goal: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn() },
     wikiPage: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
     activity: { create: vi.fn().mockResolvedValue({}) },
-    $transaction: vi.fn(async (fn: any) => {
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => {
       const tx = {
         goal: { create: vi.fn(), findUnique: vi.fn() },
         objective: { create: vi.fn() },
@@ -273,7 +273,7 @@ describe('Zod Validation', () => {
         objectives: [],
       }
 
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn: any) => {
+      vi.mocked(prisma.$transaction).mockImplementation(async (fn: (tx: unknown) => unknown) => {
         const tx = {
           goal: {
             create: vi.fn().mockResolvedValue(goalData),

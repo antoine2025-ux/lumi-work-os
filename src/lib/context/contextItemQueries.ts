@@ -24,13 +24,13 @@ export async function getRoleContextItemsForWorkspace(
 
   for (const item of items) {
     // item.data is stored as Json; we assume it's a serialized OrgLoopbrainContextObject.
-    const data = item.data as any;
+    const data = item.data as Record<string, unknown>;
     if (!data || typeof data !== "object") continue;
     if (data.type !== "role") continue;
     if (!data.id) continue;
 
     // Ensure the data matches OrgLoopbrainContextObject shape
-    result.push(data as OrgLoopbrainContextObject);
+    result.push(data as unknown as OrgLoopbrainContextObject);
   }
 
   return result;

@@ -195,7 +195,7 @@ describe('Loopbrain Org Intelligence', () => {
 
       // Response with common words that should NOT be flagged
       const response = 'John Doe reports to the Engineering team manager'
-      const result = validateOrgResponse(response, mockContext as any)
+      const result = validateOrgResponse(response, mockContext as unknown as Parameters<typeof validateOrgResponse>[1])
 
       // Should NOT sanitize because "reports", "team", "manager" are common words
       expect(result).toContain('John Doe')
@@ -221,7 +221,7 @@ describe('Loopbrain Org Intelligence', () => {
         Mary manages Nick, Olivia manages Paul
       `
 
-      const result = validateOrgResponse(response, mockContext as any)
+      const result = validateOrgResponse(response, mockContext as unknown as Parameters<typeof validateOrgResponse>[1])
 
       // Should sanitize because >10 unknown entities in name-like context
       expect(result).toContain('not able to answer')
@@ -239,7 +239,7 @@ describe('Loopbrain Org Intelligence', () => {
       // Response with few potentially unknown names (edge case)
       const response = 'Alice and Bob work with John Doe'
 
-      const result = validateOrgResponse(response, mockContext as any)
+      const result = validateOrgResponse(response, mockContext as unknown as Parameters<typeof validateOrgResponse>[1])
 
       // Should NOT sanitize (just warning) because <10 unknown entities
       expect(result).toContain('Alice')

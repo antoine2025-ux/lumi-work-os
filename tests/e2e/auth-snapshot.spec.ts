@@ -17,7 +17,7 @@ import { test, expect } from '@playwright/test'
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
 const E2E_PASSWORD = process.env.E2E_TEST_PASSWORD || 'e2e-test-password-123'
 
-async function e2eLogin(page: any): Promise<boolean> {
+async function e2eLogin(page: import('@playwright/test').Page): Promise<boolean> {
   try {
     // Only if you have the /api/e2e-auth endpoint in your dev env
     const res = await page.request.post(`${BASE_URL}/api/e2e-auth`, {

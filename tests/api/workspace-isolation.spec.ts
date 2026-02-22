@@ -367,7 +367,7 @@ describe('Workspace Isolation', () => {
         people: [
           createMockOrgPerson({ id: 'person-1', workspaceId: 'workspace-1' }),
         ],
-      } as any)
+      } as unknown as Awaited<ReturnType<typeof listOrgPeople>>)
 
       // Mock intelligence snapshot
       vi.mocked(getOrgIntelligenceSnapshot).mockResolvedValue({
@@ -376,7 +376,7 @@ describe('Workspace Isolation', () => {
           overloadedManagers: [],
           issues: [],
         },
-      } as any)
+      } as unknown as Awaited<ReturnType<typeof getOrgIntelligenceSnapshot>>)
 
       const { GET } = await import('@/app/api/org/people/route')
       const request = mockRequest('http://localhost:3000/api/org/people')

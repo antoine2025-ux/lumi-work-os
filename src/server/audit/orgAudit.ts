@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 
 export type OrgAuditEventType =
   | "ORG_CREATED"
@@ -13,12 +14,12 @@ type LogOrgAuditEventParams = {
   actorUserId?: string | null;
   targetUserId?: string | null;
   event: OrgAuditEventType;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 };
 
 type PrismaLikeClient = {
   orgAuditLog: {
-    create: (args: any) => Promise<any>;
+    create: (args: Prisma.OrgAuditLogCreateArgs) => Promise<unknown>;
   };
 };
 
@@ -41,7 +42,7 @@ export async function logOrgAuditEvent(
         actorUserId: actorUserId ?? null,
         targetUserId: targetUserId ?? null,
         event,
-        metadata: metadata ?? {},
+        metadata: (metadata ?? {}) as unknown as Prisma.InputJsonValue,
         // Set action and entityType for backward compatibility
         action: event,
         entityType: "WORKSPACE",

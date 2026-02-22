@@ -9,7 +9,7 @@
 
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import { IntegrationType } from '@prisma/client'
+import { IntegrationType, Prisma } from '@prisma/client'
 
 interface SlackConfig {
   accessToken: string
@@ -24,7 +24,7 @@ interface SlackConfig {
 interface SlackMessage {
   channel: string // Channel ID or name (e.g., "#general" or "C1234567890")
   text?: string
-  blocks?: any[] // Slack Block Kit blocks
+  blocks?: Record<string, unknown>[] // Slack Block Kit blocks
   threadTs?: string // Thread timestamp for replies
 }
 
@@ -73,7 +73,7 @@ export async function storeSlackIntegration(
       await prisma.integration.update({
         where: { id: existing.id },
         data: {
-          config: config as any,
+          config: config as unknown as Prisma.InputJsonValue,
           isActive: true,
           updatedAt: new Date()
         }
@@ -85,7 +85,7 @@ export async function storeSlackIntegration(
           workspaceId,
           type: IntegrationType.SLACK,
           name: config.teamName || 'Slack Workspace',
-          config: config as any,
+          config: config as unknown as Prisma.InputJsonValue,
           isActive: true
         }
       })
@@ -273,7 +273,7 @@ export async function getSlackChannels(workspaceId: string): Promise<Array<{ id:
       throw new Error(data.error || 'Failed to fetch channels')
     }
 
-    return (data.channels || []).map((channel: any) => ({
+    return (data.channels || []).map((channel: { id: string; name: string }) => ({
       id: channel.id,
       name: channel.name
     }))
@@ -397,7 +397,7 @@ export async function getSlackChannelMessages(
 
     // Collect unique user IDs
     const userIds = new Set<string>()
-    const messages = (data.messages || []).map((msg: any) => {
+    const messages = (data.messages || []).map((msg: { user?: string; bot_id?: string; text?: string; ts: string; thread_ts?: string; reply_count?: number }) => {
       const userId = msg.user || msg.bot_id
       if (userId) {
         userIds.add(userId)

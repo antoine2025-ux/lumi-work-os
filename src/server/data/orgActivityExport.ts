@@ -101,14 +101,12 @@ export async function prepareOrgActivityExport(params: {
   });
 
   if (!membership) {
-    const err: any = new Error("Not authorized to export for this workspace.");
-    err.statusCode = 403;
+    const err = Object.assign(new Error("Not authorized to export for this workspace."), { statusCode: 403 });
     throw err;
   }
 
   if (membership.role !== "ADMIN" && membership.role !== "OWNER") {
-    const err: any = new Error("Only admins can export workspace activity.");
-    err.statusCode = 403;
+    const err = Object.assign(new Error("Only admins can export workspace activity."), { statusCode: 403 });
     throw err;
   }
 
@@ -129,10 +127,10 @@ export async function prepareOrgActivityExport(params: {
   });
 
   if (exportCount >= EXPORT_MAX_PER_WINDOW) {
-    const err: any = new Error(
-      `Export limit reached. Please wait a few minutes before exporting again.`
+    const err = Object.assign(
+      new Error(`Export limit reached. Please wait a few minutes before exporting again.`),
+      { statusCode: 429 }
     );
-    err.statusCode = 429;
     throw err;
   }
 

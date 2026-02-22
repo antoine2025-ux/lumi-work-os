@@ -5,8 +5,8 @@ export interface TaskHistoryEntry {
   taskId: string
   actorId: string
   field: string
-  from?: any
-  to?: any
+  from?: unknown
+  to?: unknown
   workspaceId?: string
 }
 

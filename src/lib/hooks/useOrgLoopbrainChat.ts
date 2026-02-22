@@ -75,11 +75,11 @@ export function useOrgLoopbrainChat() {
         answer: response.answer || null,
         response,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[useOrgLoopbrainChat] error:", error);
       setState({
         loading: false,
-        error: error?.message || "Unexpected error while calling Org Loopbrain",
+        error: error instanceof Error ? error.message : "Unexpected error while calling Org Loopbrain",
         answer: null,
         response: null,
       });

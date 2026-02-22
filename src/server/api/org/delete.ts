@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     await prisma.$transaction(async (tx) => {
-      await logOrgAuditEvent(tx as Parameters<typeof logOrgAuditEvent>[0], {
+      await logOrgAuditEvent(tx as unknown as Parameters<typeof logOrgAuditEvent>[0], {
         workspaceId,
         actorUserId: auth.user.userId,
         event: "ORG_DELETED",

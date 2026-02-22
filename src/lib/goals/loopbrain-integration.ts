@@ -7,6 +7,7 @@
 import { prisma } from '@/lib/db'
 import { saveContextItem } from '@/lib/loopbrain/store/context-repository'
 import { ContextType, GoalContext } from '@/lib/loopbrain/context-types'
+import type { GoalLevel, GoalStatus, Prisma } from '@prisma/client'
 
 // ============================================================================
 // Types
@@ -64,7 +65,7 @@ interface ActivityParams {
   action: string
   userId: string
   workspaceId: string
-  details?: any
+  details?: Record<string, unknown>
 }
 
 // ============================================================================
@@ -200,8 +201,8 @@ export async function syncMultipleGoals(
     where: {
       workspaceId,
       ...(filters?.quarter && { quarter: filters.quarter }),
-      ...(filters?.level && { level: filters.level as any }),
-      ...(filters?.status && { status: filters.status as any }),
+      ...(filters?.level && { level: filters.level as unknown as GoalLevel }),
+      ...(filters?.status && { status: filters.status as unknown as GoalStatus }),
     },
     include: {
       owner: {
@@ -272,7 +273,7 @@ export async function logGoalActivity(params: ActivityParams): Promise<void> {
       entity: 'goal',
       entityId: params.goalId,
       action: params.action,
-      meta: params.details || {},
+      meta: (params.details || {}) as unknown as Prisma.InputJsonValue,
     },
   })
 }

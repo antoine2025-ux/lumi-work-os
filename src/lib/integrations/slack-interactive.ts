@@ -7,6 +7,7 @@
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { getSlackIntegration, getValidAccessToken } from './slack-service'
+import type { Prisma } from '@prisma/client'
 
 export interface SlackButton {
   text: string
@@ -16,14 +17,14 @@ export interface SlackButton {
 
 export interface SlackBlock {
   type: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface PendingActionParams {
   type: string // e.g., "time_off_approval", "task_assignment"
   contextType: string // e.g., "LeaveRequest", "Task"
   contextId: string // ID of the related entity
-  contextData?: any // Additional context as JSON
+  contextData?: Record<string, unknown> // Additional context as JSON
   createdBy: string // userId who triggered this
   assignedTo: string // userId who should respond
   expiresAt: Date // When this action expires
@@ -127,7 +128,7 @@ export async function sendInteractiveSlackMessage({
       status: 'AWAITING_RESPONSE',
       contextType: pendingAction.contextType,
       contextId: pendingAction.contextId,
-      contextData: pendingAction.contextData,
+      contextData: pendingAction.contextData as Prisma.InputJsonValue | undefined,
       slackChannelId,
       slackMessageTs: result.ts,
       slackUserId,

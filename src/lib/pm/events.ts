@@ -3,22 +3,22 @@ import { Server as SocketIOServer } from 'socket.io'
 // Socket.IO event types for project management
 export interface ProjectManagementEvents {
   // Epic events
-  epicCreated: (data: { epic: any; projectId: string; userId: string }) => void
-  epicUpdated: (data: { epic: any; projectId: string; userId: string }) => void
+  epicCreated: (data: { epic: Record<string, unknown>; projectId: string; userId: string }) => void
+  epicUpdated: (data: { epic: Record<string, unknown>; projectId: string; userId: string }) => void
   epicDeleted: (data: { epicId: string; projectId: string; userId: string }) => void
-  
+
   // Milestone events
-  milestoneCreated: (data: { milestone: any; projectId: string; userId: string }) => void
-  milestoneUpdated: (data: { milestone: any; projectId: string; userId: string }) => void
+  milestoneCreated: (data: { milestone: Record<string, unknown>; projectId: string; userId: string }) => void
+  milestoneUpdated: (data: { milestone: Record<string, unknown>; projectId: string; userId: string }) => void
   milestoneDeleted: (data: { milestoneId: string; projectId: string; userId: string }) => void
-  
+
   // Task assignment events
   taskEpicAssigned: (data: { taskId: string; epicId: string | null; projectId: string; userId: string }) => void
   taskMilestoneAssigned: (data: { taskId: string; milestoneId: string | null; projectId: string; userId: string }) => void
   taskPointsUpdated: (data: { taskId: string; points: number | null; projectId: string; userId: string }) => void
 
   // Task comment events
-  taskCommentAdded: (data: { taskId: string; comment: any; userId: string }) => void
+  taskCommentAdded: (data: { taskId: string; comment: Record<string, unknown>; userId: string }) => void
 }
 
 // Global Socket.IO server instance
@@ -39,7 +39,7 @@ export function setSocketServer(io: SocketIOServer): void {
 export function emitProjectEvent(
   projectId: string,
   event: keyof ProjectManagementEvents,
-  data: any
+  data: Record<string, unknown>
 ): void {
   try {
     if (globalSocketServer) {

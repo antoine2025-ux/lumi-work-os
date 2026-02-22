@@ -1,6 +1,7 @@
 // src/lib/context/contextItemStore.ts
 
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import type { OrgLoopbrainContextObject } from "@/lib/loopbrain/org/types";
 import { ContextObject } from "@/lib/context/contextTypes";
 import { validateContextObject } from "@/lib/context/contextValidation";
@@ -103,7 +104,7 @@ export async function archiveRoleContextItem(
   if (!existing) return;
 
   // Update the stored ContextObject's status to ARCHIVED
-  const data = existing.data as any;
+  const data = existing.data as Record<string, unknown>;
   if (data && typeof data === "object") {
     data.status = "ARCHIVED";
   }
@@ -112,7 +113,7 @@ export async function archiveRoleContextItem(
     where: { id: existing.id },
     data: {
       summary: existing.summary ?? "",
-      data,
+      data: data as unknown as Prisma.InputJsonValue,
     },
   });
 }

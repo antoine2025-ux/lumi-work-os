@@ -1,4 +1,4 @@
-import { MigrationItem, SliteDocument } from '../types'
+import { MigrationItem, MigrationAttachment, SliteDocument } from '../types'
 
 export class SliteAdapter {
   private apiKey: string
@@ -83,7 +83,7 @@ export class SliteAdapter {
     return data.content || data.body || ''
   }
 
-  async fetchAttachments(documentId: string): Promise<any[]> {
+  async fetchAttachments(documentId: string): Promise<Array<{ id?: string; name?: string; url?: string; type?: string; size?: number }>> {
     const response = await fetch(`${this.baseUrl}/notes/${documentId}/attachments`, {
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
@@ -130,7 +130,7 @@ export class SliteAdapter {
               url: att.url,
               type: att.type,
               size: att.size
-            }))
+            })) as unknown as MigrationAttachment[]
           }
         }
 

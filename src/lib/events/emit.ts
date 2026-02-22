@@ -5,7 +5,7 @@
  * Events are synchronous and support multiple subscribers.
  */
 
-type EventHandler<T = any> = (event: T) => void | Promise<void>;
+type EventHandler<T = unknown> = (event: T) => void | Promise<void>;
 
 const eventHandlers = new Map<string, Set<EventHandler>>();
 
@@ -13,7 +13,7 @@ const eventHandlers = new Map<string, Set<EventHandler>>();
  * Subscribe to an event type.
  * Returns an unsubscribe function.
  */
-export function on<T = any>(
+export function on<T = unknown>(
   eventType: string,
   handler: EventHandler<T>
 ): () => void {
@@ -22,11 +22,11 @@ export function on<T = any>(
   }
 
   const handlers = eventHandlers.get(eventType)!;
-  handlers.add(handler);
+  handlers.add(handler as unknown as EventHandler<unknown>);
 
   // Return unsubscribe function
   return () => {
-    handlers.delete(handler);
+    handlers.delete(handler as unknown as EventHandler<unknown>);
     if (handlers.size === 0) {
       eventHandlers.delete(eventType);
     }
@@ -38,7 +38,7 @@ export function on<T = any>(
  * Handlers are called synchronously in the order they were registered.
  * If a handler throws, it doesn't stop other handlers from executing.
  */
-export async function emitEvent<T = any>(
+export async function emitEvent<T = unknown>(
   eventType: string,
   event: T
 ): Promise<void> {

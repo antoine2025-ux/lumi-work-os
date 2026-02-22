@@ -80,7 +80,7 @@ export function isPrismaError(error: unknown): boolean {
   
   // Check error code pattern (Prisma errors have codes like P2002, P1001, etc.)
   if (error && typeof error === "object" && "code" in error) {
-    const code = (error as any).code;
+    const code = (error as { code: unknown }).code;
     if (typeof code === "string" && code.startsWith("P")) return true;
   }
   
@@ -111,7 +111,7 @@ export function classifyAuthError(error: unknown): "unauthorized" | "forbidden" 
   
   // Check for specific error codes
   if (error && typeof error === "object" && "code" in error) {
-    const code = (error as any).code;
+    const code = (error as { code: unknown }).code;
     if (code === "UNAUTHORIZED" || code === 401) return "unauthorized";
     if (code === "FORBIDDEN" || code === 403) return "forbidden";
   }
@@ -133,7 +133,7 @@ export function logApiError(route: string, error: unknown) {
   if (isPrismaError(error)) {
     console.error(`[${route}] Prisma error detected`);
     if (error && typeof error === "object" && "code" in error) {
-      console.error(`[${route}] Prisma error code:`, (error as any).code);
+      console.error(`[${route}] Prisma error code:`, (error as { code: unknown }).code);
     }
   }
 }

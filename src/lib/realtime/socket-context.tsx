@@ -154,6 +154,7 @@ export function SocketProvider({ children, userId, userName, workspaceId }: Sock
 // Hook for real-time task updates
 export function useTaskUpdates(projectId: string) {
   const { socket } = useSocket()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [tasks, setTasks] = useState<any[]>([])
   const [activeUsers, setActiveUsers] = useState<Array<{ userId: string; userName: string; status: string }>>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -187,15 +188,15 @@ export function useTaskUpdates(projectId: string) {
     socket.emit('joinProject', projectId)
 
     // Listen for task updates
-    const handleTaskUpdated = (data: { taskId: string; updates: any; userId: string }) => {
-      setTasks(prev => prev.map(task => 
-        task.id === data.taskId 
+    const handleTaskUpdated = (data: { taskId: string; updates: Record<string, unknown>; userId: string }) => {
+      setTasks(prev => prev.map(task =>
+        task.id === data.taskId
           ? { ...task, ...data.updates }
           : task
       ))
     }
 
-    const handleTaskCreated = (data: { task: any; projectId: string }) => {
+    const handleTaskCreated = (data: { task: Record<string, unknown>; projectId: string }) => {
       if (data.projectId === projectId) {
         setTasks(prev => [...prev, data.task])
       }
@@ -320,12 +321,12 @@ export function useWikiEditing(pageId: string) {
 // Hook for notifications
 export function useNotifications() {
   const { socket } = useSocket()
-  const [notifications, setNotifications] = useState<Array<{ id: string; type: string; message: string; data?: any; timestamp: Date }>>([])
+  const [notifications, setNotifications] = useState<Array<{ id: string; type: string; message: string; data?: Record<string, unknown>; timestamp: Date }>>([])
 
   useEffect(() => {
     if (!socket) return
 
-    const handleNotification = (data: { type: string; message: string; data?: any }) => {
+    const handleNotification = (data: { type: string; message: string; data?: Record<string, unknown> }) => {
       const notification = {
         id: Date.now().toString(),
         type: data.type,

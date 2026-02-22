@@ -1,4 +1,3 @@
-
 // Models that require workspace scoping
 // All models listed here have a direct workspaceId column in the database.
 // The scoping middleware injects workspaceId into where/create clauses.
@@ -129,12 +128,13 @@ export function clearWorkspaceContext(): void {
 /**
  * Prisma middleware to enforce workspace scoping
  */
-export const scopingMiddleware = async (params: any, next: any) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const scopingMiddleware = async (params: any, next: (params: any) => Promise<unknown>) => {
   const { model, action, args } = params
   const currentWorkspaceId = getWorkspaceContext()
 
   // Skip middleware for non-workspace-scoped models
-  if (!model || !WORKSPACE_SCOPED_MODELS.includes(model as any)) {
+  if (!model || !(WORKSPACE_SCOPED_MODELS as readonly string[]).includes(model)) {
     return next(params)
   }
 
@@ -170,7 +170,7 @@ export const scopingMiddleware = async (params: any, next: any) => {
 
       if (Array.isArray(args.data)) {
         // Handle createMany
-        args.data.forEach((item: any) => {
+        args.data.forEach((item: Record<string, unknown>) => {
           if (!item.workspaceId) {
             item.workspaceId = currentWorkspaceId
           }
@@ -213,7 +213,7 @@ export const scopingMiddleware = async (params: any, next: any) => {
       if (action === 'create' || action === 'createMany') {
         if (args.data) {
           if (Array.isArray(args.data)) {
-            args.data.forEach((item: any) => {
+            args.data.forEach((item: Record<string, unknown>) => {
               if (!item.workspaceId) {
                 item.workspaceId = currentWorkspaceId
               }
