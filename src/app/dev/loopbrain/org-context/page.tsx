@@ -79,7 +79,7 @@ export default function OrgContextDevPage() {
               </>
             ) : (
               <div className="text-muted-foreground">
-                Not synced yet. Click "Sync Org Context".
+                Not synced yet. Click &quot;Sync Org Context&quot;.
               </div>
             )}
           </CardContent>
@@ -117,7 +117,7 @@ export default function OrgContextDevPage() {
               </>
             ) : (
               <div className="text-muted-foreground">
-                Not synced yet. Click "Sync Org Context".
+                Not synced yet. Click &quot;Sync Org Context&quot;.
               </div>
             )}
           </CardContent>

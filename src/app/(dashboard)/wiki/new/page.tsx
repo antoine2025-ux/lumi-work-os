@@ -12,7 +12,7 @@ export default function NewWikiPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const trigger = (window as any).triggerCreatePage
+    const trigger = (window as unknown as { triggerCreatePage?: () => void }).triggerCreatePage
     if (trigger) {
       trigger()
       router.replace('/wiki')

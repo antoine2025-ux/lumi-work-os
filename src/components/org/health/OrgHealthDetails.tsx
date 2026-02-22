@@ -95,7 +95,7 @@ export function OrgHealthDetails(props: {
         >
           <div className="text-sm font-semibold">Weekly freshness check</div>
           <div className="mt-1 text-sm text-muted-foreground">
-            Keep Org Health accurate by refreshing availability for people who haven't updated recently.
+            Keep Org Health accurate by refreshing availability for people who haven&apos;t updated recently.
           </div>
         </a>
       )}
@@ -129,7 +129,7 @@ export function OrgHealthDetails(props: {
             <div className="mt-4 h-px w-full bg-border" />
 
             <div className="mt-4">
-              <div className="text-xs font-medium text-muted-foreground">What's next</div>
+              <div className="text-xs font-medium text-muted-foreground">What&apos;s next</div>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                 <li>Resolve/dismiss signals and keep an audit trail</li>
                 <li>Deep dives: capacity, ownership coverage, management load</li>

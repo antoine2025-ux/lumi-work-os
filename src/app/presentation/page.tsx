@@ -44,7 +44,7 @@ export default function PresentationPage() {
       content: (
         <div className="space-y-8 max-w-5xl mx-auto">
           <p className="text-3xl font-bold text-white mb-8 text-center">
-            Teams are not unproductive. They're drowning in tools.
+            Teams are not unproductive. They&apos;re drowning in tools.
           </p>
           
           <div className="p-6 bg-red-500/10 rounded-lg border border-red-500/20">
@@ -132,7 +132,7 @@ export default function PresentationPage() {
                 <li className="flex items-start gap-2">
                   <span className="text-red-400 mt-1">•</span>
                   <div>
-                    <span>Employees lose 26% of their workday to "work about work" → tool switching, searching, realigning</span>
+                    <span>Employees lose 26% of their workday to &quot;work about work&quot; → tool switching, searching, realigning</span>
                     <p className="text-xs text-slate-400 mt-1">Source: Asana, Anatomy of Work 2021–2023</p>
                   </div>
                 </li>
@@ -146,7 +146,7 @@ export default function PresentationPage() {
                 <li className="flex items-start gap-2">
                   <span className="text-red-400 mt-1">•</span>
                   <div>
-                    <span>Fragmented tools create "friction cost" equal to $9,000+ per employee per year</span>
+                    <span>Fragmented tools create &quot;friction cost&quot; equal to $9,000+ per employee per year</span>
                     <p className="text-xs text-slate-400 mt-1">Source: McKinsey, The Productivity Drain</p>
                   </div>
                 </li>
@@ -178,7 +178,7 @@ export default function PresentationPage() {
               <li className="flex items-start gap-2">
                 <span className="text-blue-400 mt-1">•</span>
                 <div>
-                  <span>Instant status visibility ("What's the status of Project X?" should be answered instantly)</span>
+                  <span>Instant status visibility (&quot;What&apos;s the status of Project X?&quot; should be answered instantly)</span>
                   <p className="text-xs text-slate-400 mt-1">Source: McKinsey, Future of Work Productivity Report 2023</p>
                 </div>
               </li>
@@ -206,7 +206,7 @@ export default function PresentationPage() {
           </div>
 
           <div className="p-6 bg-purple-500/10 rounded-lg border border-purple-500/20">
-            <h3 className="text-xl font-semibold text-white mb-4">Why current AI doesn't fix this:</h3>
+            <h3 className="text-xl font-semibold text-white mb-4">Why current AI doesn&apos;t fix this:</h3>
             <ul className="space-y-3 text-slate-300 text-sm">
               <li className="flex items-start gap-2">
                 <span className="text-purple-400 mt-1">•</span>
@@ -227,7 +227,7 @@ export default function PresentationPage() {
 
           <div className="p-6 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg border border-blue-500/30">
             <p className="text-xl font-semibold text-white text-center">
-              Companies don't just lose time — they lose the ability to operate intelligently.
+              Companies don&apos;t just lose time — they lose the ability to operate intelligently.
             </p>
           </div>
         </div>
@@ -320,8 +320,8 @@ export default function PresentationPage() {
                 <div className="text-3xl font-bold text-blue-400 mb-2">1</div>
                 <h3 className="text-lg font-semibold text-white mb-2">Page Context Mode</h3>
                 <p className="text-slate-300 text-sm">
-                  When you're inside a page, AI drafts content directly into the editor. 
-                  It understands the current context and enhances what you're working on.
+                  When you&apos;re inside a page, AI drafts content directly into the editor.
+                  It understands the current context and enhances what you&apos;re working on.
                 </p>
               </div>
               <div className="p-6 bg-purple-500/10 rounded-lg border border-purple-500/20">
@@ -390,7 +390,7 @@ export default function PresentationPage() {
               <h3 className="text-2xl font-bold text-white mb-3">Fewer Meetings & Handovers</h3>
               <p className="text-slate-300">
                 Information is accessible and connected. Decisions are documented. 
-                Context doesn't get lost in Slack threads or email chains.
+                Context doesn&apos;t get lost in Slack threads or email chains.
               </p>
             </div>
             <div className="p-8 bg-gradient-to-br from-orange-500/20 to-orange-600/20 rounded-lg border border-orange-500/30">
@@ -431,7 +431,7 @@ export default function PresentationPage() {
             <div className="p-6 bg-blue-500/10 rounded-lg border border-blue-500/30">
               <h3 className="text-lg font-semibold text-white mb-3">It understands</h3>
               <p className="text-slate-300 text-sm">
-                Your people, your projects, and your company's priorities.
+                Your people, your projects, and your company&apos;s priorities.
               </p>
             </div>
             <div className="p-6 bg-purple-500/10 rounded-lg border border-purple-500/30">
@@ -454,9 +454,9 @@ export default function PresentationPage() {
               and operates with intelligence instead of juggling tools.
             </p>
             <p className="text-xl md:text-2xl font-bold text-white text-center">
-              The future of work isn't more software.
+              The future of work isn&apos;t more software.
               <br />
-              <span className="text-blue-400">It's a smarter system that finally understands your company.</span>
+              <span className="text-blue-400">It&apos;s a smarter system that finally understands your company.</span>
             </p>
           </div>
         </div>
@@ -490,7 +490,7 @@ export default function PresentationPage() {
               <h3 className="text-xl font-semibold text-white mb-4">The Cost</h3>
               <ul className="space-y-2 text-slate-300 text-sm mb-4">
                 <li>• $1,000–1,400/mo per team</li>
-                <li>• 26% lost to "work about work"</li>
+                <li>• 26% lost to &quot;work about work&quot;</li>
                 <li>• 7 hours/week searching</li>
                 <li>• $9,000+ friction cost/employee</li>
               </ul>
@@ -508,7 +508,7 @@ export default function PresentationPage() {
                 <li>• No persistent memory</li>
               </ul>
               <p className="text-xs text-blue-400 font-semibold mt-4">
-                Companies don't just lose time — they lose the ability to operate intelligently.
+                Companies don&apos;t just lose time — they lose the ability to operate intelligently.
               </p>
             </div>
           </div>
@@ -518,7 +518,7 @@ export default function PresentationPage() {
               This is not a productivity issue.
             </p>
             <p className="text-xl font-semibold text-slate-200 text-center">
-              It's a structural intelligence issue.
+              It&apos;s a structural intelligence issue.
             </p>
           </div>
         </div>

@@ -180,7 +180,7 @@ export function ProjectSpaceMembersModal({
             ProjectSpace Members
           </DialogTitle>
           <DialogDescription>
-            Manage members for "{projectName}" ProjectSpace
+            Manage members for &quot;{projectName}&quot; ProjectSpace
           </DialogDescription>
         </DialogHeader>
 

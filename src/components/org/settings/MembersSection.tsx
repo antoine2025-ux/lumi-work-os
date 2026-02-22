@@ -5,7 +5,7 @@ import { useOrgPermissions } from "@/components/org/OrgPermissionsContext";
 import { MembersListClient } from "@/components/org/members/MembersListClient";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 
-type Member = {
+export type Member = {
   id: string;
   userId: string;
   role: string;
@@ -13,7 +13,7 @@ type Member = {
   customRole?: {
     id: string;
     name: string;
-    capabilities: string[];
+    capabilities?: string[];
   } | null;
   user?: {
     id: string;

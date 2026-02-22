@@ -123,7 +123,7 @@ export function InviteUserDialog({
                 />
               </div>
               <p className="text-xs text-gray-500">
-                They'll receive an email invitation to join your workspace
+                They&apos;ll receive an email invitation to join your workspace
               </p>
             </div>
 

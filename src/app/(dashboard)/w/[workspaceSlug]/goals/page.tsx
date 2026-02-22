@@ -1,3 +1,4 @@
+import type { GoalLevel, GoalStatus } from '@prisma/client'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { getGoalsData, getGoalMetrics } from '@/lib/goals/data.server'
 import { getCurrentQuarter } from '@/lib/goals/utils'
@@ -25,8 +26,8 @@ export default async function GoalsPage({ params, searchParams }: Props) {
   const [goals, metrics] = await Promise.all([
     getGoalsData(auth.workspaceId, {
       quarter,
-      level: filters.level as any,
-      status: filters.status as any,
+      level: filters.level as GoalLevel | undefined,
+      status: filters.status as GoalStatus | undefined,
     }),
     getGoalMetrics(auth.workspaceId, quarter),
   ])

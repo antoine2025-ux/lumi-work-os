@@ -33,7 +33,7 @@ export function OrgNoAccessState({
       <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
         <span>Next steps:</span>
         <ul className="flex flex-wrap gap-2">
-          <li>• Confirm you're in the correct org.</li>
+          <li>• Confirm you&apos;re in the correct org.</li>
           <li>• Ask an Org Owner/Admin to grant you access.</li>
         </ul>
       </div>

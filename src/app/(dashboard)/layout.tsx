@@ -22,7 +22,7 @@ export default function DashboardLayout({
   const { data: session, status } = useSession()
   
   // Get org context from session (client-side)
-  const orgId = (session as any)?.activeOrgId || null;
+  const orgId = (session as unknown as { activeOrgId?: string | null })?.activeOrgId ?? null;
   const orgName = null; // orgName not available in session, will be loaded client-side if needed
   const router = useRouter()
   const pathname = usePathname()

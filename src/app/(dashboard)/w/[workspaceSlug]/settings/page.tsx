@@ -373,7 +373,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleMigration = async (platform: string, apiKey: string, workspaceId: string, additionalConfig?: any) => {
+  const handleMigration = async (platform: string, apiKey: string, workspaceId: string, additionalConfig?: Record<string, unknown>) => {
     const response = await fetch('/api/migrations', {
       method: 'POST',
       headers: {
@@ -947,7 +947,7 @@ export default function SettingsPage() {
               <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">Admin Only</h3>
               <p className="text-sm text-muted-foreground">
-                You don't have permission to access integrations settings.
+                You don&apos;t have permission to access integrations settings.
               </p>
             </div>
           </CardContent>
@@ -1045,7 +1045,7 @@ export default function SettingsPage() {
               <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">Admin Only</h3>
               <p className="text-sm text-muted-foreground">
-                You don't have permission to access permissions settings.
+                You don&apos;t have permission to access permissions settings.
               </p>
             </div>
           </CardContent>
@@ -1229,7 +1229,7 @@ export default function SettingsPage() {
               <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">Admin Only</h3>
               <p className="text-sm text-muted-foreground">
-                You don't have permission to access migrations settings.
+                You don&apos;t have permission to access migrations settings.
               </p>
             </div>
           </CardContent>

@@ -8,10 +8,16 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, XCircle, Loader2 } from "lucide-react"
 
+interface SliteTestResult {
+  meData?: { name?: string; email?: string }
+  notesCount?: number
+  searchData?: { notes?: { title?: string; created_at?: string; createdAt?: string }[] }
+}
+
 export default function TestSlitePage() {
   const [apiKey, setApiKey] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<SliteTestResult | null>(null)
   const [error, setError] = useState("")
 
   const testSliteConnection = async () => {
@@ -136,15 +142,15 @@ export default function TestSlitePage() {
                 </Badge>
               </div>
 
-              {result.notesCount > 0 && (
+              {(result.notesCount ?? 0) > 0 && (
                 <div>
                   <h4 className="font-medium text-green-800">Sample Notes:</h4>
                   <div className="space-y-2 mt-2">
-                    {result.searchData?.notes?.slice(0, 3).map((note: any, index: number) => (
+                    {result.searchData?.notes?.slice(0, 3).map((note, index: number) => (
                       <div key={index} className="bg-white p-2 rounded border">
                         <p className="font-medium">{note.title || 'Untitled'}</p>
                         <p className="text-sm text-gray-600">
-                          Created: {new Date(note.created_at || note.createdAt).toLocaleDateString()}
+                          Created: {new Date(note.created_at ?? note.createdAt ?? '').toLocaleDateString()}
                         </p>
                       </div>
                     ))}

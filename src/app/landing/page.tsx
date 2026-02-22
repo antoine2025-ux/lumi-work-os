@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -93,12 +94,12 @@ export default function LandingPage() {
               >
                 Become a Tester
               </a>
-              <a 
-                href="/blog" 
+              <Link
+                href="/blog"
                 className="text-slate-300 hover:text-white transition-colors"
               >
                 Blog
-              </a>
+              </Link>
               <a 
                 href="/login" 
                 onClick={(e) => {
@@ -154,13 +155,13 @@ export default function LandingPage() {
                 >
                   Become a Tester
                 </a>
-                <a 
-                  href="/blog" 
+                <Link
+                  href="/blog"
                   onClick={() => setMobileMenuOpen(false)}
                   className="text-slate-300 hover:text-white transition-colors"
                 >
                   Blog
-                </a>
+                </Link>
                 <a 
                   href="/login" 
                   onClick={(e) => {
@@ -243,7 +244,7 @@ export default function LandingPage() {
                   <CardTitle className="text-white">Organizational Intelligence</CardTitle>
                 </div>
                 <CardDescription className="text-slate-400">
-                  Forget "AI assistants." Loopwell doesn't guess, it understands. It reads the room, connects the dots across your projects, and gives you answers that feel like they came from inside your team's collective brain.
+                  Forget &quot;AI assistants.&quot; Loopwell doesn&apos;t guess, it understands. It reads the room, connects the dots across your projects, and gives you answers that feel like they came from inside your team&apos;s collective brain.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -271,7 +272,7 @@ export default function LandingPage() {
                   <CardTitle className="text-white">Living Knowledge Base</CardTitle>
                 </div>
                 <CardDescription className="text-slate-400">
-                  Your company's memory, finally alive. Every idea, document, and decision stays connected to where it came from. No hunting through folders. No "who wrote this?" moments. Just instant context.
+                  Your company&apos;s memory, finally alive. Every idea, document, and decision stays connected to where it came from. No hunting through folders. No &quot;who wrote this?&quot; moments. Just instant context.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -487,7 +488,7 @@ export default function LandingPage() {
             Test Loopwell Before the World Sees It
           </h2>
           <p className="text-xl text-slate-300 mb-4 max-w-3xl mx-auto">
-            We're inviting a small group of early adopters to test the platform, share feedback, and shape its evolution.
+            We&apos;re inviting a small group of early adopters to test the platform, share feedback, and shape its evolution.
           </p>
           <p className="text-xl text-slate-400 mb-12 max-w-3xl mx-auto">
             Early testers receive lifetime access perks and a permanent spot in our founding community.
@@ -620,7 +621,7 @@ export default function LandingPage() {
                 <span className="text-slate-600">•</span>
                 <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
                 <span className="text-slate-600">•</span>
-                <a href="/blog/dev-login" className="hover:text-white transition-colors text-xs opacity-50">Dev access</a>
+                <Link href="/blog/dev-login" className="hover:text-white transition-colors text-xs opacity-50">Dev access</Link>
               </div>
             </div>
           </div>

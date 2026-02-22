@@ -31,11 +31,11 @@ export default function AboutPage() {
           </CardHeader>
           <CardContent className="prose prose-slate max-w-none">
             <div className="space-y-8 text-slate-300">
-              {/* The Problem We're Solving */}
+              {/* The Problem We&apos;re Solving */}
               <section>
-                <h2 className="text-2xl font-semibold text-white mb-4">The Problem We're Solving</h2>
+                <h2 className="text-2xl font-semibold text-white mb-4">The Problem We&apos;re Solving</h2>
                 <p className="text-lg text-slate-200">
-                  Your team isn't unproductive. You're drowning in tools.
+                  Your team isn&apos;t unproductive. You&apos;re drowning in tools.
                 </p>
                 <p className="text-slate-300">
                   Slack for communication. Notion for docs. Linear for projects. ChatGPT for AI. Every tool does one 
@@ -54,11 +54,11 @@ export default function AboutPage() {
                   powered by <strong className="text-white">Organizational Intelligence (OI)</strong>.
                 </p>
                 <p className="mt-4 text-slate-300">
-                  Instead of jumping between apps to find information, Loopwell's AI continuously connects the dots 
+                  Instead of jumping between apps to find information, Loopwell&apos;s AI continuously connects the dots 
                   across your work: linking projects, notes, decisions, and people so nothing gets buried.
                 </p>
                 <p className="mt-4 text-slate-300">
-                  When you ask Loopwell something, it doesn't generate generic text. It understands your company 
+                  When you ask Loopwell something, it doesn&apos;t generate generic text. It understands your company
                   (your structure, ongoing projects, history) and helps you act on it.
                 </p>
                 <div className="mt-6 grid md:grid-cols-2 gap-4">
@@ -97,7 +97,7 @@ export default function AboutPage() {
                 </p>
                 <p className="text-slate-300">
                   We built an intelligent system that thinks in context. It connects your knowledge, projects, and 
-                  teams into one seamless layer that understands what's happening across your organization and helps 
+                  teams into one seamless layer that understands what&apos;s happening across your organization and helps 
                   you move from idea to action without the noise.
                 </p>
                 <div className="mt-6 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
@@ -147,24 +147,24 @@ export default function AboutPage() {
               <section>
                 <h2 className="text-2xl font-semibold text-white mb-4">Our Story</h2>
                 <p className="text-slate-300">
-                  The idea for Loopwell first took shape in early 2023, but it wasn't until early 2025 that the real 
+                  The idea for Loopwell first took shape in early 2023, but it wasn&apos;t until early 2025 that the real 
                   work began, turning the concept into a living platform. We saw companies struggling with low 
                   satisfaction, high turnover during probation, new hires taking months to ramp up.
                 </p>
                 <p className="mt-4 text-slate-300">
-                  But while researching the market, we discovered something bigger: onboarding isn't the problem. 
-                  It's a symptom.
+                  But while researching the market, we discovered something bigger: onboarding isn&apos;t the problem. 
+                  It&apos;s a symptom.
                 </p>
                 <p className="mt-4 text-slate-300">
                   The real issue? Organizations lack contextual intelligence. Information is fragmented. Knowledge 
-                  lives in people's heads. No system truly understands how a company works.
+                  lives in people&apos;s heads. No system truly understands how a company works.
                 </p>
                 <p className="mt-4 text-slate-300">
                   So we pivoted. Instead of building another point solution, we built the contextual layer organizations 
                   have been missing: one that unites tools, context, and intelligence into a single ecosystem.
                 </p>
                 <p className="mt-4 font-semibold text-primary">
-                  That's how Loopwell evolved into Organizational Intelligence.
+                  That&apos;s how Loopwell evolved into Organizational Intelligence.
                 </p>
               </section>
 
@@ -177,7 +177,7 @@ export default function AboutPage() {
                     instead of chaos, move faster without losing alignment, and grow intelligently instead of reactively.
                   </p>
                   <p className="mt-4 text-slate-300">
-                    We're not chasing AI hype. We're building the system that finally makes sense of it.
+                    We&apos;re not chasing AI hype. We&apos;re building the system that finally makes sense of it.
                   </p>
                 </div>
               </section>
@@ -189,14 +189,14 @@ export default function AboutPage() {
                   Right now, Loopwell is just me and a clear vision.
                 </p>
                 <p className="mt-4 text-slate-300">
-                  I'm building in public, working with early users, and assembling a team that shares this obsession 
+                  I&apos;m building in public, working with early users, and assembling a team that shares this obsession 
                   with making work calmer, smarter, and more scalable.
                 </p>
                 <p className="mt-4 font-semibold text-white">
-                  Great tools shouldn't compete for your attention. They should quietly amplify it.
+                  Great tools shouldn&apos;t compete for your attention. They should quietly amplify it.
                 </p>
                 <p className="mt-4 text-slate-300">
-                  That's what I'm building with Loopwell, one thoughtful feature at a time.
+                  That&apos;s what I&apos;m building with Loopwell, one thoughtful feature at a time.
                 </p>
               </section>
             </div>

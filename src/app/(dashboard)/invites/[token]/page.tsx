@@ -128,7 +128,7 @@ export default function InviteAcceptPage() {
       // This is critical after accepting an invite to avoid stale cache
       if (typeof window !== 'undefined') {
         // Clear React Query cache for user-status
-        const queryClient = (window as any).__REACT_QUERY_CLIENT__
+        const queryClient = (window as unknown as { __REACT_QUERY_CLIENT__?: { invalidateQueries: (opts: unknown) => void } }).__REACT_QUERY_CLIENT__
         if (queryClient) {
           queryClient.invalidateQueries({ queryKey: ['user-status'] })
         }
@@ -151,9 +151,9 @@ export default function InviteAcceptPage() {
           window.location.href = `/home?workspaceId=${data.workspaceId}`
         }, 1500)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error accepting invite:", error)
-      setError(error.message || 'Failed to accept invite')
+      setError(error instanceof Error ? error.message : 'Failed to accept invite')
     } finally {
       setAccepting(false)
     }

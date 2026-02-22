@@ -132,7 +132,7 @@ export function WikiSearch({ placeholder = "Search wiki...", onResultClick, clas
           {query && results.length > 0 ? (
             <div className="p-2">
               <div className="text-xs text-muted-foreground mb-2 px-2">
-                {results.length} result{results.length !== 1 ? 's' : ''} for "{query}"
+                {results.length} result{results.length !== 1 ? 's' : ''} for &quot;{query}&quot;
               </div>
               {results.slice(0, 5).map((result) => (
                 <div
@@ -181,7 +181,7 @@ export function WikiSearch({ placeholder = "Search wiki...", onResultClick, clas
             </div>
           ) : query && results.length === 0 && !isSearching ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
-              No results found for "{query}"
+              No results found for &quot;{query}&quot;
             </div>
           ) : null}
         </div>

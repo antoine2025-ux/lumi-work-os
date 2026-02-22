@@ -53,8 +53,9 @@ export default async function WorkspaceOrgOwnershipPage({ params }: PageProps) {
         </div>
       </>
     );
-  } catch (error: any) {
-    if (error?.digest === "NEXT_REDIRECT" || error?.message === "NEXT_REDIRECT") {
+  } catch (error: unknown) {
+    const err = error as { digest?: string; message?: string }
+    if (err?.digest === "NEXT_REDIRECT" || err?.message === "NEXT_REDIRECT") {
       throw error;
     }
 
@@ -70,7 +71,7 @@ export default async function WorkspaceOrgOwnershipPage({ params }: PageProps) {
           <div className="rounded-2xl border border-red-900/60 bg-red-950/60 px-6 py-6 text-[13px] text-red-100">
             <div className="font-semibold">Error loading ownership data</div>
             <div className="mt-2 text-red-200">
-              {error?.message || "An unexpected error occurred."}
+              {err?.message || "An unexpected error occurred."}
             </div>
           </div>
         </div>

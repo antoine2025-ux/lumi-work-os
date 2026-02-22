@@ -7,13 +7,23 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+interface Q4AssessmentResult {
+  assessment?: string;
+  confidence?: string;
+  capacitySummary?: string;
+  assumptions?: string[];
+  risks?: string[];
+  constraints?: string[];
+  timeframe?: { start: string; end: string };
+}
+
 export default function LoopbrainQ4TestPage() {
   const [projectId, setProjectId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [durationDays, setDurationDays] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<Q4AssessmentResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Guard: Hide in production
@@ -67,7 +77,7 @@ export default function LoopbrainQ4TestPage() {
 
       if (!response.ok) {
         if (data.errors) {
-          setError(data.errors.map((e: any) => e.message).join(", "));
+          setError(data.errors.map((e: { message: string }) => e.message).join(", "));
         } else {
           setError(data.error || "Request failed");
         }
@@ -76,8 +86,8 @@ export default function LoopbrainQ4TestPage() {
       }
 
       setResult(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch assessment");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to fetch assessment");
     } finally {
       setLoading(false);
     }

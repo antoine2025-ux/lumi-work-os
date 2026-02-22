@@ -43,6 +43,7 @@ export function ExplainabilityPanel({
   compact = false,
 }: ExplainabilityPanelProps) {
   const [isOpen, setIsOpen] = useState(!compact);
+  const [dependsOnExpanded, setDependsOnExpanded] = useState(!compact);
 
   // Legacy fallback: if no explainability, try to render from legacy fields
   if (!explainability) {
@@ -99,7 +100,6 @@ export function ExplainabilityPanel({
 
   // Render structured explainability
   const dependsOnCount = explainability.dependsOn.length;
-  const [dependsOnExpanded, setDependsOnExpanded] = useState(!compact);
 
   return (
     <Card className="border-dashed">

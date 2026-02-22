@@ -594,7 +594,7 @@ export function UserProfileForm({
                 )}
                 {formData.positionId && formData.positionId !== 'none' && !selectedPosition?.roleCard && (
                   <p className="text-xs text-gray-500 mt-2">
-                    This position doesn't have a role card yet. Create one to provide better context for LoopBrain.
+                    This position doesn&apos;t have a role card yet. Create one to provide better context for LoopBrain.
                   </p>
                 )}
               </div>

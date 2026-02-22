@@ -72,7 +72,7 @@ export function WorkspaceCreationLoader() {
             Creating Your Workspace
           </h1>
           <p className="text-gray-600">
-            We're setting up everything you need to get started
+            We&apos;re setting up everything you need to get started
           </p>
         </div>
 

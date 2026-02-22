@@ -428,7 +428,7 @@ export default function TestSearchOptionsPage() {
                 <li>• Search icon in tasks header</li>
                 <li>• Expands to full search bar when clicked</li>
                 <li>• Collapses back to icon when not needed</li>
-                <li>• Easy to find, doesn't clutter interface</li>
+                <li>• Easy to find, doesn&apos;t clutter interface</li>
                 <li>• Familiar pattern for most users</li>
               </ul>
             </CardContent>
@@ -497,8 +497,8 @@ export default function TestSearchOptionsPage() {
           <CardContent>
             <div className="space-y-2 text-sm text-gray-600">
               <p>• Click on each option button above to see different search placements</p>
-              <p>• For Option 1: Click the "Search" button to expand/collapse the search bar</p>
-              <p>• For Option 2: Click the "Search" dropdown to see the search panel</p>
+              <p>• For Option 1: Click the &quot;Search&quot; button to expand/collapse the search bar</p>
+              <p>• For Option 2: Click the &quot;Search&quot; dropdown to see the search panel</p>
               <p>• For Option 3: Click the floating search button to see the overlay</p>
               <p>• For Option 4: Click anywhere to simulate the keyboard shortcut</p>
               <p>• Consider which feels most natural for your workflow and design aesthetic</p>

@@ -1,8 +1,10 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { OrgDepartmentRow } from "@/components/org/OrgDepartmentRow";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 import { OrgNoAccessState } from "@/components/org/OrgNoAccessState";
@@ -29,7 +31,7 @@ type OrgChartClientProps = {
     }>;
   } | null;
   chartTree?: OrgChartTree | null;
-  validation?: any;
+  validation?: { totals?: { cycleMembers?: number; invalidManagerEdges?: number } } | null;
 };
 
 type ViewMode = "flat" | "tree";
@@ -252,7 +254,7 @@ export function OrgChartClient({ _orgId, chartData, chartTree, validation }: Org
             {/* Error banner */}
             {error && (
               <div className="mt-4 flex items-center justify-between rounded-3xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-200">
-                <span>We couldn't load your org chart. Please try again.</span>
+                <span>We couldn&apos;t load your org chart. Please try again.</span>
                 <button
                   type="button"
                   onClick={handleRefetch}
@@ -342,7 +344,7 @@ export function OrgChartClient({ _orgId, chartData, chartTree, validation }: Org
 
 // Remove unused imports if OrgPageHeader is no longer needed
 
-function IntegrityBanner(props: { validation: any }) {
+function IntegrityBanner(props: { validation: { totals?: { cycleMembers?: number; invalidManagerEdges?: number } } | null }) {
   const v = props.validation;
   const cycles = v?.totals?.cycleMembers || 0;
   const invalid = v?.totals?.invalidManagerEdges || 0;
@@ -364,12 +366,12 @@ function IntegrityBanner(props: { validation: any }) {
           </div>
         </div>
 
-        <a
+        <Link
           href="/org/people?mode=fix&focus=validation"
           className="inline-flex items-center justify-center rounded-xl bg-black px-3 py-2 text-sm text-white hover:opacity-90 dark:bg-white dark:text-black"
         >
           Repair in People →
-        </a>
+        </Link>
       </div>
 
       <div className="mt-2 text-xs text-black/50 dark:text-white/50">

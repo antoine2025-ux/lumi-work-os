@@ -45,7 +45,7 @@ export default async function WorkspaceOrgDepartmentPage({ params }: PageProps) 
               department={{
                 id: department.id,
                 name: department.name,
-                ownerId: (department as any).ownerPersonId ?? null,
+                ownerId: (department as unknown as { ownerPersonId?: string | null }).ownerPersonId ?? null,
                 teamCount: department.teams.length,
               }}
               people={people}
@@ -58,7 +58,7 @@ export default async function WorkspaceOrgDepartmentPage({ params }: PageProps) 
                 <div>
                   <div className="text-sm text-muted-foreground">Department owner</div>
                   <div className="mt-1 font-medium text-slate-100">
-                    {personDisplayName((department as any).ownerPerson) ?? "Unassigned"}
+                    {personDisplayName((department as unknown as { ownerPerson?: Parameters<typeof personDisplayName>[0] }).ownerPerson) ?? "Unassigned"}
                   </div>
                 </div>
 

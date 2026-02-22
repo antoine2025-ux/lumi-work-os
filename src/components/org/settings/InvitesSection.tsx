@@ -7,15 +7,15 @@ import { CancelInvitationButton } from "@/components/org/cancel-invitation-butto
 import { CopyInviteLinkButton } from "@/components/org/copy-invite-link-button";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 
-type Invitation = {
+export type Invitation = {
   id: string;
   email: string;
   status: string;
-  token?: string;
-  inviteUrl?: string;
-  expiresAt?: string | null;
-  acceptedAt?: string | null;
-  invitedBy?: { name?: string | null; email?: string | null } | null;
+  token?: string | null;
+  inviteUrl?: string | null;
+  expiresAt?: Date | string | null;
+  acceptedAt?: Date | string | null;
+  invitedBy?: { id?: string | null; name?: string | null; email?: string | null } | null;
 };
 
 type InvitesSectionProps = {

@@ -194,7 +194,7 @@ export function StructureClient() {
         )}
         {!canWrite && (
           <div className="text-sm text-muted-foreground text-center">
-            You don't have permission to edit structure.
+            You don&apos;t have permission to edit structure.
           </div>
         )}
       </div>
@@ -235,7 +235,7 @@ export function StructureClient() {
       )}
       {!canWrite && (
         <div className="text-sm text-muted-foreground">
-          You don't have permission to edit structure.
+          You don&apos;t have permission to edit structure.
         </div>
       )}
 

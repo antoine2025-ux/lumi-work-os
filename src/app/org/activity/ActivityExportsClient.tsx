@@ -33,7 +33,7 @@ type ActivityExportsClientProps = {
       actorEmail: string | null;
       targetName: string | null;
       targetEmail: string | null;
-      metadata: Record<string, any> | null;
+      metadata: Record<string, unknown> | null;
       createdAt: string;
     }[];
     nextCursor: string | null;

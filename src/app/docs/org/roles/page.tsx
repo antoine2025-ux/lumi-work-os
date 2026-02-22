@@ -31,10 +31,10 @@ export default function RolesPage() {
             Custom roles
           </h2>
           <p className="mb-3 text-[13px] text-slate-300">
-            Owners can create custom roles that extend the base system roles. Custom roles add specific capabilities on top of a member's base role.
+            Owners can create custom roles that extend the base system roles. Custom roles add specific capabilities on top of a member&apos;s base role.
           </p>
           <p className="text-[13px] text-slate-300">
-            For example, you might create a "People Ops" custom role that gives members the ability to invite people and view insights, even if their base role is Member.
+            For example, you might create a &quot;People Ops&quot; custom role that gives members the ability to invite people and view insights, even if their base role is Member.
           </p>
         </section>
 
@@ -43,7 +43,7 @@ export default function RolesPage() {
             Permissions
           </h2>
           <p className="text-[13px] text-slate-300">
-            Permissions are granular capabilities that determine what actions someone can take. When you view a member's permissions, you'll see all the capabilities they have based on their base role plus any custom role.
+            Permissions are granular capabilities that determine what actions someone can take. When you view a member&apos;s permissions, you&apos;ll see all the capabilities they have based on their base role plus any custom role.
           </p>
         </section>
       </div>

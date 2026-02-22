@@ -103,7 +103,19 @@ export default function TaskDetailPage() {
   const { currentWorkspace } = useWorkspace()
   const projectId = params?.id as string
   const taskId = params?.taskId as string
-  
+
+  const [task, setTask] = useState<Task | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [newComment, setNewComment] = useState('')
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDependencyManagerOpen, setIsDependencyManagerOpen] = useState(false)
+
+  useEffect(() => {
+    if (taskId) loadTask()
+  }, [taskId])
+
   if (!projectId || !taskId) {
     return (
       <div className="p-6">
@@ -120,18 +132,6 @@ export default function TaskDetailPage() {
       </div>
     )
   }
-  
-  const [task, setTask] = useState<Task | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isUpdating, setIsUpdating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [newComment, setNewComment] = useState('')
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isDependencyManagerOpen, setIsDependencyManagerOpen] = useState(false)
-
-  useEffect(() => {
-    loadTask()
-  }, [taskId])
 
   const loadTask = async () => {
     try {
@@ -154,7 +154,7 @@ export default function TaskDetailPage() {
     }
   }
 
-  const handleTaskUpdate = (updatedTask: any) => {
+  const handleTaskUpdate = (updatedTask: Partial<Task>) => {
     // Convert the updated task back to our full Task interface
     if (task) {
       const fullUpdatedTask: Task = {
@@ -175,7 +175,7 @@ export default function TaskDetailPage() {
     loadTask() // Reload task to get updated dependency info
   }
 
-  const updateTask = async (field: string, value: any) => {
+  const updateTask = async (field: string, value: unknown) => {
     try {
       setIsUpdating(true)
       const response = await fetch(`/api/tasks/${taskId}`, {

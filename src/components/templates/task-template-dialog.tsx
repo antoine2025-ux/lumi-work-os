@@ -108,7 +108,7 @@ export function TaskTemplateDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <CheckCircle className="h-5 w-5 text-green-500" />
-            <span>Project "{projectName}" Created Successfully!</span>
+            <span>Project &quot;{projectName}&quot; Created Successfully!</span>
           </DialogTitle>
           <DialogDescription>
             {currentView === 'selector' 

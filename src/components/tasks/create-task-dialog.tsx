@@ -572,7 +572,7 @@ export function CreateTaskDialog({
                   <p className="whitespace-pre-line">{errors.submit}</p>
                   {errors.submit.includes('ProjectSpace') && (
                     <p className="mt-2 text-xs text-red-500">
-                      💡 Tip: The "Manage ProjectSpace Members" button is located on the project detail page, below the project header.
+                      💡 Tip: The &quot;Manage ProjectSpace Members&quot; button is located on the project detail page, below the project header.
                     </p>
                   )}
                 </div>

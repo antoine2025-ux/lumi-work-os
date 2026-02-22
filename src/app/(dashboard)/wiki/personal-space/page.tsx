@@ -25,6 +25,21 @@ interface WorkspaceItem {
   color?: string
 }
 
+interface WikiPage {
+  id: string;
+  title: string;
+  updatedAt: string;
+  slug: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  updatedAt?: string;
+  createdAt?: string;
+  color?: string;
+}
+
 export default function PersonalWorkspacePage() {
   const router = useRouter()
   const pathname = usePathname()
@@ -32,8 +47,8 @@ export default function PersonalWorkspacePage() {
   const userStatus = useUserStatusContext()
   const userStatusLoading = userStatus.isLoading
   const [isLoading, setIsLoading] = useState(true)
-  const [personalPages, setPersonalPages] = useState<any[]>([])
-  const [projects, setProjects] = useState<any[]>([])
+  const [personalPages, setPersonalPages] = useState<WikiPage[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [workspaceItems, setWorkspaceItems] = useState<WorkspaceItem[]>([])
 
   // Use CSS variables for consistent theming
@@ -119,7 +134,7 @@ export default function PersonalWorkspacePage() {
         
         if (Array.isArray(pages)) {
           // Filter for personal space pages - match the EXACT same logic as sidebar
-          const personal = pages.filter((page: any) => {
+          const personal = pages.filter((page: Record<string, unknown>) => {
             const pageWorkspaceType = page.workspace_type
             const pagePermissionLevel = page.permissionLevel
             
@@ -239,8 +254,9 @@ export default function PersonalWorkspacePage() {
 
   const handleCreatePage = () => {
     // Trigger create page from parent layout with personal workspace
-    if (typeof window !== 'undefined' && (window as any).triggerCreatePageWithWorkspace) {
-      (window as any).triggerCreatePageWithWorkspace('personal-space')
+    const win = window as unknown as { triggerCreatePageWithWorkspace?: (ws: string) => void }
+    if (typeof window !== 'undefined' && win.triggerCreatePageWithWorkspace) {
+      win.triggerCreatePageWithWorkspace('personal-space')
     }
   }
 
@@ -257,7 +273,7 @@ export default function PersonalWorkspacePage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-foreground mb-2">No workspace found</h2>
-          <p className="text-muted-foreground">Please ensure you're properly authenticated.</p>
+          <p className="text-muted-foreground">Please ensure you&apos;re properly authenticated.</p>
         </div>
       </div>
     )

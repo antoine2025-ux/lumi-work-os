@@ -126,7 +126,7 @@ export default async function OrgDiagnosticsPage() {
                   <strong>Staging/Production:</strong> Check your log aggregation service (e.g., Vercel logs, CloudWatch, Datadog)
                 </li>
                 <li>
-                  Filter logs by <code className="text-[11px] bg-slate-900 px-1 rounded">scope: "org_center"</code>
+                  Filter logs by <code className="text-[11px] bg-slate-900 px-1 rounded">scope: &quot;org_center&quot;</code>
                 </li>
               </ul>
             </div>

@@ -25,6 +25,21 @@ interface WorkspaceItem {
   color?: string
 }
 
+interface WikiPage {
+  id: string;
+  title: string;
+  updatedAt: string;
+  slug: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  updatedAt?: string;
+  createdAt?: string;
+  color?: string;
+}
+
 export default function TeamWorkspacePage() {
   const router = useRouter()
   const pathname = usePathname()
@@ -32,8 +47,8 @@ export default function TeamWorkspacePage() {
   const userStatus = useUserStatusContext()
   const userStatusLoading = userStatus.isLoading
   const [isLoading, setIsLoading] = useState(true)
-  const [teamPages, setTeamPages] = useState<any[]>([])
-  const [projects, setProjects] = useState<any[]>([])
+  const [teamPages, setTeamPages] = useState<WikiPage[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [workspaceItems, setWorkspaceItems] = useState<WorkspaceItem[]>([])
 
   // Use CSS variables for consistent theming
@@ -119,7 +134,7 @@ export default function TeamWorkspacePage() {
         
         if (Array.isArray(pages)) {
           // Filter for team workspace pages - match the EXACT same logic as sidebar
-          const team = pages.filter((page: any) => {
+          const team = pages.filter((page: Record<string, unknown>) => {
             const pageWorkspaceType = page.workspace_type
             const pagePermissionLevel = page.permissionLevel
             
@@ -246,8 +261,9 @@ export default function TeamWorkspacePage() {
   }, [pathname, loadWorkspaceData])
 
   const handleCreatePage = () => {
-    if (typeof window !== 'undefined' && (window as any).triggerCreatePageWithWorkspace) {
-      (window as any).triggerCreatePageWithWorkspace('team-workspace')
+    const win = window as unknown as { triggerCreatePageWithWorkspace?: (ws: string) => void }
+    if (typeof window !== 'undefined' && win.triggerCreatePageWithWorkspace) {
+      win.triggerCreatePageWithWorkspace('team-workspace')
     }
   }
 
@@ -308,7 +324,7 @@ export default function TeamWorkspacePage() {
                 <div className="space-y-2">
                   <h2 className="text-xl font-light" style={{ color: colors.text }}>Your team workspace is empty</h2>
                   <p className="text-sm max-w-md mx-auto" style={{ color: colors.textSecondary }}>
-                    Create collaborative pages for your team's documentation, notes, and shared knowledge. 
+                    Create collaborative pages for your team&apos;s documentation, notes, and shared knowledge. 
                     All team members can view and contribute to these pages.
                   </p>
                 </div>

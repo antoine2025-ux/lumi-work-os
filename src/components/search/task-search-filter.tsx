@@ -40,14 +40,14 @@ function parseFiltersFromPartial(partial?: Partial<TaskFilter>): TaskFilter {
   }
 }
 
-interface FilterableTask {
+export interface FilterableTask {
   title: string
   description?: string | null
   status: string
   priority: string
   assignee?: { name: string } | null
   dueDate?: string | null
-  dependsOn: string[]
+  dependsOn?: string[]
   [key: string]: unknown
 }
 
@@ -117,7 +117,7 @@ export function TaskSearchFilter({ tasks, onFilterChange, onFilterReset, initial
     // Dependencies filter
     if (filters.hasDependencies !== null) {
       filteredTasks = filteredTasks.filter(task => 
-        filters.hasDependencies ? task.dependsOn.length > 0 : task.dependsOn.length === 0
+        filters.hasDependencies ? (task.dependsOn?.length ?? 0) > 0 : (task.dependsOn?.length ?? 0) === 0
       )
     }
 
@@ -222,7 +222,7 @@ export function TaskSearchFilter({ tasks, onFilterChange, onFilterReset, initial
           <div className="flex flex-wrap gap-2 mb-4">
             {filters.search && (
               <Badge variant="secondary" className="flex items-center space-x-1">
-                <span>Search: "{filters.search}"</span>
+                <span>Search: &quot;{filters.search}&quot;</span>
                 <X 
                   className="h-3 w-3 cursor-pointer" 
                   onClick={() => removeFilter('search')}

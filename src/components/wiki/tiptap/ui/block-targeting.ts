@@ -6,6 +6,7 @@
  */
 
 import { Editor } from '@tiptap/core'
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 
 /**
  * Block types that we support gutter/actions for
@@ -34,7 +35,7 @@ export interface ActiveBlockInfo {
   /** End position of the block */
   to: number
   /** The block node itself */
-  node: any
+  node: ProseMirrorNode
   /** Whether this is a supported block type */
   isSupported: boolean
 }

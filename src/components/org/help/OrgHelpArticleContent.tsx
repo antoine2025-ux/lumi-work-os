@@ -34,7 +34,7 @@ function GettingStartedContent() {
           What is Org Center?
         </h2>
         <p className="text-[13px] text-slate-300">
-          Org Center is your organization's command center. It helps you manage people, structure teams and departments, assign roles, and understand how your organization is growing.
+          Org Center is your organization&apos;s command center. It helps you manage people, structure teams and departments, assign roles, and understand how your organization is growing.
         </p>
       </section>
 
@@ -73,7 +73,7 @@ function GettingStartedContent() {
             <strong className="text-slate-100">Structure:</strong> Create and manage teams, departments, and roles.
           </li>
           <li>
-            <strong className="text-slate-100">Org Chart:</strong> Visualize your organization's hierarchy.
+            <strong className="text-slate-100">Org Chart:</strong> Visualize your organization&apos;s hierarchy.
           </li>
           <li>
             <strong className="text-slate-100">Insights:</strong> View analytics and trends about your organization.
@@ -118,10 +118,10 @@ function RolesContent() {
           Custom roles
         </h2>
         <p className="mb-3 text-[13px] text-slate-300">
-          Owners can create custom roles that extend the base system roles. Custom roles add specific capabilities on top of a member's base role.
+          Owners can create custom roles that extend the base system roles. Custom roles add specific capabilities on top of a member&apos;s base role.
         </p>
         <p className="text-[13px] text-slate-300">
-          For example, you might create a "People Ops" custom role that gives members the ability to invite people and view insights, even if their base role is Member.
+          For example, you might create a &quot;People Ops&quot; custom role that gives members the ability to invite people and view insights, even if their base role is Member.
         </p>
       </section>
 
@@ -130,7 +130,7 @@ function RolesContent() {
           Permissions
         </h2>
         <p className="text-[13px] text-slate-300">
-          Permissions are granular capabilities that determine what actions someone can take. When you view a member's permissions, you'll see all the capabilities they have based on their base role plus any custom role.
+          Permissions are granular capabilities that determine what actions someone can take. When you view a member&apos;s permissions, you&apos;ll see all the capabilities they have based on their base role plus any custom role.
         </p>
       </section>
     </div>
@@ -145,7 +145,7 @@ function StructureContent() {
           Teams
         </h2>
         <p className="mb-3 text-[13px] text-slate-300">
-          Teams are groups of people who collaborate daily. Teams typically represent functional groups like "Engineering", "Design", or "Sales".
+          Teams are groups of people who collaborate daily. Teams typically represent functional groups like &quot;Engineering&quot;, &quot;Design&quot;, or &quot;Sales&quot;.
         </p>
         <p className="text-[13px] text-slate-300">
           Teams can belong to departments, and people can be assigned to teams.
@@ -157,7 +157,7 @@ function StructureContent() {
           Departments
         </h2>
         <p className="mb-3 text-[13px] text-slate-300">
-          Departments are larger organizational units that contain multiple teams. For example, "Engineering" might be a department containing teams like "Frontend", "Backend", and "DevOps".
+          Departments are larger organizational units that contain multiple teams. For example, &quot;Engineering&quot; might be a department containing teams like &quot;Frontend&quot;, &quot;Backend&quot;, and &quot;DevOps&quot;.
         </p>
         <p className="text-[13px] text-slate-300">
           Departments help organize teams into logical groups and provide a higher-level view of your organization.
@@ -172,7 +172,7 @@ function StructureContent() {
           Roles define the responsibilities and expectations for positions in your organization. Roles can be assigned to people and are often associated with specific teams.
         </p>
         <p className="text-[13px] text-slate-300">
-          Examples of roles include "Senior Engineer", "Product Manager", "Design Lead", etc.
+          Examples of roles include &quot;Senior Engineer&quot;, &quot;Product Manager&quot;, &quot;Design Lead&quot;, etc.
         </p>
       </section>
 
@@ -199,7 +199,7 @@ function InsightsContent() {
           What are Insights?
         </h2>
         <p className="text-[13px] text-slate-300">
-          Org Insights provide analytics and trends about your organization. They help you understand how your organization is structured, how it's growing, and where people are distributed across teams and departments.
+          Org Insights provide analytics and trends about your organization. They help you understand how your organization is structured, how it&apos;s growing, and where people are distributed across teams and departments.
         </p>
       </section>
 

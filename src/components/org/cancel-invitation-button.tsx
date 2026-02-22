@@ -22,7 +22,7 @@ export function CancelInvitationButton({
   const [loading, setLoading] = useState(false);
 
   const cancelInviteAction = useApiAction<
-    {},
+    Record<string, never>,
     { workspaceId: string; invitationId: string }
   >(orgApi.inviteCancel());
 

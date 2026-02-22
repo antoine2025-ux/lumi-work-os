@@ -11,7 +11,7 @@ export default function GettingStartedPage() {
             What is Org Center?
           </h2>
           <p className="text-[13px] text-slate-300">
-            Org Center is your organization's command center. It helps you manage people, structure teams and departments, assign roles, and understand how your organization is growing.
+            Org Center is your organization&apos;s command center. It helps you manage people, structure teams and departments, assign roles, and understand how your organization is growing.
           </p>
         </section>
 
@@ -50,7 +50,7 @@ export default function GettingStartedPage() {
               <strong className="text-slate-100">Structure:</strong> Create and manage teams, departments, and roles.
             </li>
             <li>
-              <strong className="text-slate-100">Org Chart:</strong> Visualize your organization's hierarchy.
+              <strong className="text-slate-100">Org Chart:</strong> Visualize your organization&apos;s hierarchy.
             </li>
             <li>
               <strong className="text-slate-100">Insights:</strong> View analytics and trends about your organization.

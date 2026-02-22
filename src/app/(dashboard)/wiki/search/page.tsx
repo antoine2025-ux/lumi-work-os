@@ -76,7 +76,12 @@ export default function WikiSearchPage() {
       const data = await response.json()
       
       // Transform API response to match expected format
-      const transformedResults = data.results.map((page: any) => ({
+      const transformedResults = data.results.map((page: {
+        id: string; title: string; slug: string; excerpt?: string; content?: string;
+        tags?: string[]; updatedAt: string;
+        createdBy: { name: string };
+        parent?: { title: string };
+      }) => ({
         id: page.id,
         title: page.title,
         slug: page.slug,
@@ -103,8 +108,8 @@ export default function WikiSearchPage() {
           case 'relevance':
           default:
             // Use server-side relevance score
-            const aScore = data.results.find((r: any) => r.id === a.id)?.relevanceScore || 0
-            const bScore = data.results.find((r: any) => r.id === b.id)?.relevanceScore || 0
+            const aScore = (data.results.find((r: Record<string, unknown>) => r.id === a.id) as Record<string, number> | undefined)?.relevanceScore || 0
+            const bScore = (data.results.find((r: Record<string, unknown>) => r.id === b.id) as Record<string, number> | undefined)?.relevanceScore || 0
             return sortOrder === 'asc' ? aScore - bScore : bScore - aScore
         }
       })
@@ -186,7 +191,7 @@ export default function WikiSearchPage() {
             
             <select
               value={filters.type}
-              onChange={(e) => setFilters({...filters, type: e.target.value as any})}
+              onChange={(e) => setFilters({...filters, type: e.target.value as 'all' | 'page' | 'folder'})}
               className="text-sm border border-border rounded px-2 py-1"
             >
               <option value="all">All Types</option>
@@ -210,7 +215,7 @@ export default function WikiSearchPage() {
             <span className="text-sm font-medium">Sort by:</span>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as 'relevance' | 'date' | 'title')}
               className="text-sm border border-border rounded px-2 py-1"
             >
               <option value="relevance">Relevance</option>
@@ -237,7 +242,7 @@ export default function WikiSearchPage() {
           ) : query && results.length > 0 ? (
             <>
               <div className="text-sm text-muted-foreground">
-                {results.length} result{results.length !== 1 ? 's' : ''} for "{query}"
+                {results.length} result{results.length !== 1 ? 's' : ''} for &quot;{query}&quot;
               </div>
               {results.map((result) => (
                 <Link key={result.id} href={`/wiki/${result.slug}`}>
@@ -289,7 +294,7 @@ export default function WikiSearchPage() {
                 <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No results found</h3>
                 <p className="text-muted-foreground mb-4">
-                  No pages match your search for "{query}"
+                  No pages match your search for &quot;{query}&quot;
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Try different keywords or check your spelling

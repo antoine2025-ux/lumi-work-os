@@ -65,7 +65,7 @@ export function OrgFeedbackDialog() {
               Share feedback about Org Center
             </div>
             <p className="mt-1 text-[11px] text-slate-500">
-              Tell us what works well and what's confusing. This goes directly to the team.
+              Tell us what works well and what&apos;s confusing. This goes directly to the team.
             </p>
           </div>
           <button

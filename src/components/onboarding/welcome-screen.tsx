@@ -134,7 +134,7 @@ export function WelcomeScreen({ user, onCreateWorkspace, isLoading = false }: We
             Welcome to Loopwell, {user.name}! 🎉
           </h1>
           <p className="text-xl text-muted-foreground">
-            Let's set up your workspace to get started
+            Let&apos;s set up your workspace to get started
           </p>
         </div>
 

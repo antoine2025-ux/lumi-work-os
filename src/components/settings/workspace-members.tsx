@@ -390,7 +390,7 @@ export function WorkspaceMembers() {
           <CardHeader>
             <CardTitle>Pending Invites</CardTitle>
             <CardDescription>
-              Invitations that haven't been accepted yet
+              Invitations that haven&apos;t been accepted yet
             </CardDescription>
           </CardHeader>
           <CardContent>

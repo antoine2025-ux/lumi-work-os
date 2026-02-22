@@ -64,7 +64,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
   const { capacityMap, coverage, overloadedCount, underutilizedCount, refresh: refreshCapacity } = useCapacityPeople();
   
   // Load persistent preferences
-  const [_prefs, setPrefs] = useState<Record<string, any>>({});
+  const [_prefs, setPrefs] = useState<Record<string, unknown>>({});
   const [_prefsLoaded, setPrefsLoaded] = useState(false);
   
   useEffect(() => {

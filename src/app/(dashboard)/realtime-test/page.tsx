@@ -40,7 +40,7 @@ export default function RealtimeTestPage() {
       setActiveUsers(prev => prev.filter(user => user.userId !== data.userId))
     }
 
-    const handleTaskUpdated = (data: { taskId: string; updates: any; userId: string }) => {
+    const handleTaskUpdated = (data: { taskId: string; updates: Record<string, unknown>; userId: string }) => {
       setMessages(prev => [...prev, `Task ${data.taskId} was updated by ${data.userId}`])
     }
 

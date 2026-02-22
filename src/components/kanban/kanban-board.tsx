@@ -86,7 +86,7 @@ interface Milestone {
   updatedAt: string
 }
 
-interface KanbanBoardProps {
+export interface KanbanBoardProps {
   projectId: string
   workspaceId?: string
   onTasksUpdated?: () => void

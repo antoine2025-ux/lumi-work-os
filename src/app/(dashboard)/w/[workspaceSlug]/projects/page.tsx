@@ -276,7 +276,7 @@ export default function ProjectsDashboard() {
           <h1 className="text-4xl font-light" style={{ color: colors.text }}>Projects</h1>
         </div>
         <p className="text-lg max-w-2xl" style={{ color: colors.textSecondary }}>
-          Manage your team's projects and tasks with calm productivity
+          Manage your team&apos;s projects and tasks with calm productivity
         </p>
       </div>
 

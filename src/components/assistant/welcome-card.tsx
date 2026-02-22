@@ -19,7 +19,7 @@ export function WelcomeCard({ onCreateSession }: WelcomeCardProps) {
           </div>
           <div className="flex-1">
             <p className="text-sm mb-4">
-              Hello! I'm Loopwell AI, your intelligent assistant. What would you like to work on today?
+              Hello! I&apos;m Loopwell AI, your intelligent assistant. What would you like to work on today?
             </p>
             
             <div className="space-y-3">
@@ -33,7 +33,7 @@ export function WelcomeCard({ onCreateSession }: WelcomeCardProps) {
                   <div>
                     <div className="font-semibold">📝 Generate Document</div>
                     <div className="text-sm text-muted-foreground">
-                      I'll help you create comprehensive documents, policies, procedures, or guides. I'll ask targeted questions to gather requirements and generate a complete draft for you.
+                      I&apos;ll help you create comprehensive documents, policies, procedures, or guides. I&apos;ll ask targeted questions to gather requirements and generate a complete draft for you.
                     </div>
                   </div>
                 </div>
@@ -49,7 +49,7 @@ export function WelcomeCard({ onCreateSession }: WelcomeCardProps) {
                   <div>
                     <div className="font-semibold">💡 General Assistance</div>
                     <div className="text-sm text-muted-foreground">
-                      I'll help you find information, answer questions, and provide guidance on various topics using your existing knowledge base.
+                      I&apos;ll help you find information, answer questions, and provide guidance on various topics using your existing knowledge base.
                     </div>
                   </div>
                 </div>

@@ -31,6 +31,26 @@ interface WorkspaceItem {
   color?: string
 }
 
+interface WikiPage {
+  id: string;
+  title: string;
+  updatedAt: string;
+  slug: string;
+}
+
+interface WikiProject {
+  id: string;
+  name: string;
+  updatedAt?: string;
+  createdAt?: string;
+  color?: string;
+}
+
+interface WikiWorkspace {
+  name: string;
+  description?: string;
+}
+
 export default function WorkspacePage({ params }: WorkspacePageProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -38,9 +58,9 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
   const userStatus = useUserStatusContext()
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [workspace, setWorkspace] = useState<any>(null)
-  const [workspacePages, setWorkspacePages] = useState<any[]>([])
-  const [projects, setProjects] = useState<any[]>([])
+  const [workspace, setWorkspace] = useState<WikiWorkspace | null>(null)
+  const [workspacePages, setWorkspacePages] = useState<WikiPage[]>([])
+  const [projects, setProjects] = useState<WikiProject[]>([])
   const [workspaceItems, setWorkspaceItems] = useState<WorkspaceItem[]>([])
 
   // Use CSS variables for consistent theming
@@ -87,8 +107,8 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
       // Process workspace response
       if (workspacesResponse.ok) {
         const workspacesData = await workspacesResponse.json()
-        const foundWorkspace = workspacesData.find((w: any) => w.id === resolvedParams.id)
-        setWorkspace(foundWorkspace)
+        const foundWorkspace = workspacesData.find((w: { id?: string }) => w.id === resolvedParams.id)
+        setWorkspace(foundWorkspace as WikiWorkspace ?? null)
       }
 
       // Process pages response
@@ -98,11 +118,10 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
         
         if (Array.isArray(pages)) {
           // Double-check filtering (defensive programming)
-          const filtered = pages.filter((page: any) => {
-            const pageWorkspaceType = page.workspace_type
-            return pageWorkspaceType === resolvedParams.id
+          const filtered = (pages as Array<WikiPage & { workspace_type?: string }>).filter((page) => {
+            return page.workspace_type === resolvedParams.id
           })
-          
+
           setWorkspacePages(filtered)
         }
       }
@@ -111,7 +130,7 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
       if (projectsResponse.ok) {
         const projectsData = await projectsResponse.json()
         const projectsList = Array.isArray(projectsData) ? projectsData : (projectsData.data || projectsData.projects || [])
-        setProjects(projectsList)
+        setProjects(projectsList as WikiProject[])
       }
     } catch (error) {
       console.error('Error loading workspace data:', error)
@@ -250,8 +269,9 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
   }, [workspacePages, projects])
 
   const handleCreatePage = () => {
-    if (typeof window !== 'undefined' && (window as any).triggerCreatePageWithWorkspace && resolvedParams?.id) {
-      (window as any).triggerCreatePageWithWorkspace(resolvedParams.id)
+    const win = window as unknown as { triggerCreatePageWithWorkspace?: (ws: string) => void }
+    if (typeof window !== 'undefined' && win.triggerCreatePageWithWorkspace && resolvedParams?.id) {
+      win.triggerCreatePageWithWorkspace(resolvedParams.id)
     }
   }
 

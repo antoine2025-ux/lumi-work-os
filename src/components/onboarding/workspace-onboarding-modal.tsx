@@ -185,7 +185,7 @@ export function WorkspaceOnboardingModal({
         <CardHeader>
           <CardTitle className="text-2xl">Welcome to Loopwell Work OS</CardTitle>
           <CardDescription>
-            Let's set up your workspace. Choose a template that best fits your needs.
+            Let&apos;s set up your workspace. Choose a template that best fits your needs.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

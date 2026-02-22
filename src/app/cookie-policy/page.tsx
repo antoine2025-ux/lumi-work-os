@@ -37,7 +37,7 @@ export default function CookiePolicyPage() {
               <section>
                 <h2 className="text-2xl font-semibold text-slate-900 mb-4">1. Introduction</h2>
                 <p>
-                  This Cookie Policy explains how Loopwell Work OS ("we", "us", or "our") uses cookies and similar 
+                  This Cookie Policy explains how Loopwell Work OS (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) uses cookies and similar
                   tracking technologies when you visit our website and use our services. This policy should be read 
                   alongside our Privacy Policy and Terms of Service.
                 </p>
@@ -112,7 +112,7 @@ export default function CookiePolicyPage() {
                     <h3 className="text-xl font-semibold text-slate-900 mb-2">4.2 Third-Party Cookies</h3>
                     <p>
                       We use Google OAuth for authentication, which may set cookies on your device. These cookies are 
-                      managed by Google and are subject to Google's Privacy Policy.
+                      managed by Google and are subject to Google&apos;s Privacy Policy.
                     </p>
                     <div className="mt-3 p-4 bg-muted rounded-lg">
                       <p className="font-semibold mb-2">Google OAuth cookies:</p>
@@ -123,14 +123,14 @@ export default function CookiePolicyPage() {
                           authentication process.
                         </li>
                         <li>
-                          For more information about Google's use of cookies, please visit{" "}
+                          For more information about Google&apos;s use of cookies, please visit{" "}
                           <a 
                             href="https://policies.google.com/privacy" 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="text-primary hover:underline"
                           >
-                            Google's Privacy Policy
+                            Google&apos;s Privacy Policy
                           </a>.
                         </li>
                       </ul>
@@ -181,7 +181,7 @@ export default function CookiePolicyPage() {
                   </ul>
                 </div>
                 <p className="mt-4">
-                  For instructions on how to manage cookies in your specific browser, please refer to your browser's 
+                  For instructions on how to manage cookies in your specific browser, please refer to your browser&apos;s
                   help documentation:
                 </p>
                 <ul className="list-disc pl-6 space-y-1 mt-2 text-sm">
@@ -232,7 +232,7 @@ export default function CookiePolicyPage() {
                 <h2 className="text-2xl font-semibold text-slate-900 mb-4">7. Third-Party Services</h2>
                 <p>
                   Our service uses Google OAuth for authentication. When you sign in with Google, Google may set 
-                  cookies on your device. These cookies are governed by Google's Privacy Policy and Cookie Policy. 
+                  cookies on your device. These cookies are governed by Google&apos;s Privacy Policy and Cookie Policy. 
                   We do not have control over these third-party cookies.
                 </p>
                 <p className="mt-4">
@@ -267,7 +267,7 @@ export default function CookiePolicyPage() {
                 <p>
                   We may update this Cookie Policy from time to time to reflect changes in our practices or for other 
                   operational, legal, or regulatory reasons. We will notify you of any material changes by posting the 
-                  new Cookie Policy on this page and updating the "Last updated" date.
+                  new Cookie Policy on this page and updating the &quot;Last updated&quot; date.
                 </p>
                 <p className="mt-4">
                   We encourage you to review this Cookie Policy periodically to stay informed about how we use cookies.

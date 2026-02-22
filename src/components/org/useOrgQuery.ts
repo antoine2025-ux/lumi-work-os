@@ -35,9 +35,9 @@ export function useOrgQuery<T>(fn: () => Promise<T>, deps: unknown[] = []) {
         setData(result);
         setError(null);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (!cancelled && mountedRef.current) {
-        setError(e?.message || "Unknown error");
+        setError(e instanceof Error ? e.message : "Unknown error");
         setData(null);
       }
     } finally {
