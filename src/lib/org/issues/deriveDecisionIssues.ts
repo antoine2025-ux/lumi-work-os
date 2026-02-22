@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * deriveDecisionIssues – Phase I Decision Authority Deriver
  *
@@ -125,7 +124,7 @@ export async function deriveDecisionIssues(
         severity: "warning",
         ...entityBase,
         explanation: getIssueExplanation("DECISION_AUTHORITY_MISSING"),
-        fixUrl: deepLinkForDecisionDomain(domain.key),
+        fixUrl: deepLinkForDecisionDomain(workspaceId, domain.key),
         fixAction: "Configure authority",
       });
       continue; // No further checks if no authority at all
@@ -154,7 +153,7 @@ export async function deriveDecisionIssues(
           severity: "warning",
           ...entityBase,
           explanation: getIssueExplanation("DECISION_AUTHORITY_ROLE_UNRESOLVABLE"),
-          fixUrl: deepLinkForDecisionDomain(domain.key),
+          fixUrl: deepLinkForDecisionDomain(workspaceId, domain.key),
           fixAction: "Fix role mapping",
         });
       }
@@ -174,7 +173,7 @@ export async function deriveDecisionIssues(
           severity: "warning",
           ...entityBase,
           explanation: getIssueExplanation("DECISION_AUTHORITY_PRIMARY_UNAVAILABLE"),
-          fixUrl: deepLinkForDecisionDomain(domain.key),
+          fixUrl: deepLinkForDecisionDomain(workspaceId, domain.key),
           fixAction: "Configure escalation",
         });
       }
@@ -190,7 +189,7 @@ export async function deriveDecisionIssues(
         severity: "info",
         ...entityBase,
         explanation: getIssueExplanation("DECISION_DOMAIN_NO_COVERAGE"),
-        fixUrl: deepLinkForDecisionDomain(domain.key),
+        fixUrl: deepLinkForDecisionDomain(workspaceId, domain.key),
         fixAction: "Add escalation",
       });
     }

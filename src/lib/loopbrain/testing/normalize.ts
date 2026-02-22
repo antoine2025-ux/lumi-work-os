@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Normalization utilities for Loopbrain response snapshots
  * 
@@ -13,7 +12,7 @@ export type NormalizedArray = NormalizedValue[];
 /**
  * Normalizes a Loopbrain response for snapshot testing
  */
-export function normalizeLoopbrainResponse(data: any): NormalizedValue {
+export function normalizeLoopbrainResponse(data: unknown): NormalizedValue {
   if (data === null || data === undefined) {
     return null;
   }
@@ -61,8 +60,10 @@ export function normalizeLoopbrainResponse(data: any): NormalizedValue {
         normalized.sort((a, b) => {
           const aVal = typeof a === 'object' && a !== null && !Array.isArray(a) ? (a as NormalizedObject)[sortKey] : '';
           const bVal = typeof b === 'object' && b !== null && !Array.isArray(b) ? (b as NormalizedObject)[sortKey] : '';
-          if (aVal < bVal) return -1;
-          if (aVal > bVal) return 1;
+          const aStr = aVal == null ? '' : String(aVal);
+          const bStr = bVal == null ? '' : String(bVal);
+          if (aStr < bStr) return -1;
+          if (aStr > bStr) return 1;
           return 0;
         });
       }
@@ -73,23 +74,25 @@ export function normalizeLoopbrainResponse(data: any): NormalizedValue {
 
   if (typeof data === 'object') {
     const normalized: NormalizedObject = {};
-    
+    const dataRecord = data as Record<string, unknown>;
+
     // Sort keys for deterministic output
-    const keys = Object.keys(data).sort();
-    
+    const keys = Object.keys(dataRecord).sort();
+
     for (const key of keys) {
       // Skip certain fields that are too dynamic
       if (key === 'timestamp' || key === 'requestId' || key === 'traceId') {
         continue;
       }
-      
-      normalized[key] = normalizeLoopbrainResponse(data[key]);
+
+      normalized[key] = normalizeLoopbrainResponse(dataRecord[key]);
     }
-    
+
     return normalized;
   }
 
-  return data;
+  // Fallback for exotic types (bigint, symbol, function) — not expected in JSON data
+  return null;
 }
 
 /**

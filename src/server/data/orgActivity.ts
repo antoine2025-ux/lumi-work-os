@@ -1,6 +1,6 @@
-// @ts-nocheck
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { prisma } from "@/lib/db";
+import { Prisma, OrgAuditEventType } from "@prisma/client";
 
 export type OrgActivityItem = {
   id: string;
@@ -12,7 +12,7 @@ export type OrgActivityItem = {
   actorEmail: string | null;
   targetName: string | null;
   targetEmail: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   createdAt: Date;
 };
 
@@ -41,7 +41,7 @@ export type OrgActivityResult = {
   nextCursor: string | null;
 };
 
-function buildEventFilter(eventFilter: OrgActivityEventFilter | undefined) {
+function buildEventFilter(eventFilter: OrgActivityEventFilter | undefined): Prisma.OrgAuditLogWhereInput | undefined {
   const ef = eventFilter ?? "all";
 
   if (ef === "all") {
@@ -51,7 +51,7 @@ function buildEventFilter(eventFilter: OrgActivityEventFilter | undefined) {
   if (ef === "org") {
     return {
       event: {
-        in: ["ORG_CREATED", "ORG_DELETED"] as string[],
+        in: [OrgAuditEventType.ORG_CREATED, OrgAuditEventType.ORG_DELETED],
       },
     };
   }
@@ -60,10 +60,10 @@ function buildEventFilter(eventFilter: OrgActivityEventFilter | undefined) {
     return {
       event: {
         in: [
-          "MEMBER_ADDED",
-          "MEMBER_REMOVED",
-          "MEMBER_ROLE_CHANGED",
-        ] as string[],
+          OrgAuditEventType.MEMBER_ADDED,
+          OrgAuditEventType.MEMBER_REMOVED,
+          OrgAuditEventType.MEMBER_ROLE_CHANGED,
+        ],
       },
     };
   }
@@ -71,7 +71,7 @@ function buildEventFilter(eventFilter: OrgActivityEventFilter | undefined) {
   if (ef === "ownership") {
     return {
       event: {
-        in: ["ORG_OWNERSHIP_TRANSFERRED"] as string[],
+        in: [OrgAuditEventType.ORG_OWNERSHIP_TRANSFERRED],
       },
     };
   }
@@ -79,7 +79,7 @@ function buildEventFilter(eventFilter: OrgActivityEventFilter | undefined) {
   return undefined;
 }
 
-function buildTimeframeFilter(timeframe: OrgActivityTimeframeFilter | undefined) {
+function buildTimeframeFilter(timeframe: OrgActivityTimeframeFilter | undefined): Prisma.OrgAuditLogWhereInput | undefined {
   const tf = timeframe ?? "all";
 
   if (tf === "all") {
@@ -103,7 +103,7 @@ function buildTimeframeFilter(timeframe: OrgActivityTimeframeFilter | undefined)
     createdAt: {
       gte: from,
     },
-  } as const;
+  };
 }
 
 export async function getOrgActivityForWorkspace(
@@ -197,7 +197,7 @@ export async function getOrgActivityForWorkspace(
         actorEmail: log.actor?.email ?? null,
         targetName: log.target?.name ?? null,
         targetEmail: log.target?.email ?? null,
-        metadata: (log.metadata as any) ?? null,
+        metadata: log.metadata as Record<string, unknown> | null,
         createdAt: log.createdAt,
       })),
     nextCursor,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Compute Intelligence Summaries (Client-Safe)
  *
@@ -15,19 +14,19 @@ import { getIssueSection } from "./constants";
  */
 export function computeSummaries(issues: OrgIssueMetadata[]): IntelligenceSummaries {
   const summaries: IntelligenceSummaries = {
-    ownership: { total: 0, critical: 0, warning: 0, unownedTeams: 0, unownedDepartments: 0, conflicts: 0 },
-    capacity: { total: 0, critical: 0, warning: 0, overallocated: 0, conflicts: 0, unavailable: 0 },
+    ownership: { total: 0, critical: 0, warning: 0, conflicts: 0, unowned: 0 },
+    capacity: { total: 0, critical: 0, warning: 0, overallocated: 0, lowCapacity: 0, noCover: 0 },
     work: { total: 0, critical: 0, warning: 0, notStaffable: 0, capacityGap: 0 },
     responsibility: { total: 0, critical: 0, warning: 0, unknown: 0, misaligned: 0 },
-    decisions: { total: 0, critical: 0, warning: 0, missing: 0, unresolvable: 0, unavailable: 0 },
-    impact: { total: 0, critical: 0, warning: 0, undefined: 0, highImpact: 0, domainImpacted: 0 },
+    decisions: { total: 0, critical: 0, warning: 0, missing: 0, unavailable: 0 },
+    impact: { total: 0, critical: 0, warning: 0, undefined: 0, highImpact: 0 },
   };
 
   for (const issue of issues) {
     const section = getIssueSection(issue.type);
     if (!section) continue;
 
-    const isCritical = issue.severity === "error" || issue.severity === "critical";
+    const isCritical = issue.severity === "error";
     const isWarning = issue.severity === "warning";
 
     switch (section) {
@@ -35,8 +34,8 @@ export function computeSummaries(issues: OrgIssueMetadata[]): IntelligenceSummar
         summaries.ownership.total++;
         if (isCritical) summaries.ownership.critical++;
         if (isWarning) summaries.ownership.warning++;
-        if (issue.type === "UNOWNED_TEAM") summaries.ownership.unownedTeams++;
-        if (issue.type === "UNOWNED_DEPARTMENT") summaries.ownership.unownedDepartments++;
+        if (issue.type === "UNOWNED_TEAM") summaries.ownership.unowned++;
+        if (issue.type === "UNOWNED_DEPARTMENT") summaries.ownership.unowned++;
         if (issue.type === "OWNERSHIP_CONFLICT") summaries.ownership.conflicts++;
         break;
 
@@ -45,8 +44,7 @@ export function computeSummaries(issues: OrgIssueMetadata[]): IntelligenceSummar
         if (isCritical) summaries.capacity.critical++;
         if (isWarning) summaries.capacity.warning++;
         if (issue.type === "OVERALLOCATED_PERSON") summaries.capacity.overallocated++;
-        if (issue.type === "CAPACITY_CONTRACT_CONFLICT") summaries.capacity.conflicts++;
-        if (issue.type === "UNAVAILABLE_OWNER") summaries.capacity.unavailable++;
+        if (issue.type === "UNAVAILABLE_OWNER") summaries.capacity.noCover++;
         break;
 
       case "work":
@@ -70,7 +68,6 @@ export function computeSummaries(issues: OrgIssueMetadata[]): IntelligenceSummar
         if (isCritical) summaries.decisions.critical++;
         if (isWarning) summaries.decisions.warning++;
         if (issue.type === "DECISION_AUTHORITY_MISSING") summaries.decisions.missing++;
-        if (issue.type === "DECISION_AUTHORITY_ROLE_UNRESOLVABLE") summaries.decisions.unresolvable++;
         if (issue.type === "DECISION_AUTHORITY_PRIMARY_UNAVAILABLE") summaries.decisions.unavailable++;
         break;
 
@@ -80,7 +77,6 @@ export function computeSummaries(issues: OrgIssueMetadata[]): IntelligenceSummar
         if (isWarning) summaries.impact.warning++;
         if (issue.type === "WORK_IMPACT_UNDEFINED") summaries.impact.undefined++;
         if (issue.type === "HIGH_IMPACT_SINGLE_OWNER") summaries.impact.highImpact++;
-        if (issue.type === "DECISION_DOMAIN_IMPACTED") summaries.impact.domainImpacted++;
         break;
     }
   }

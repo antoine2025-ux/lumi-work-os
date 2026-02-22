@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Server-only data loaders for Org Center pages.
  * These functions can only be called from Server Components or Route Handlers.
@@ -9,6 +8,7 @@
  */
 
 import { cache } from "react";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { OrgPermissionContext } from "@/lib/org/permissions.server";
 import type {
@@ -91,6 +91,23 @@ export const getOrgOverviewStats = cache(
 );
 // Note: userId is passed for observability but not used in cache key (org-level stats)
 
+/** Shape returned by the org position select query used in _getOrgPeople */
+interface PositionWithTeamAndUser {
+  id: string;
+  userId: string | null;
+  title: string | null;
+  teamId: string | null;
+  parentId: string | null;
+  parent: { userId: string | null } | null;
+  team: {
+    id: string;
+    name: string;
+    departmentId: string | null;
+    department: { id: string; name: string } | null;
+  } | null;
+  user: { id: string; name: string | null; email: string } | null;
+}
+
 /**
  * Load people directory for an org with pagination.
  * 
@@ -157,7 +174,7 @@ const _getOrgPeople = async (
   // Build filter conditions for positions
   // Use a simpler, more reliable filter structure
   // Start with minimal base filters
-  const baseFilters: any = {
+  const baseFilters: Prisma.OrgPositionWhereInput = {
     workspaceId: orgId,
     isActive: true,
     userId: {
@@ -208,7 +225,7 @@ const _getOrgPeople = async (
   }
   
   // Build final filter - avoid complex combinations that Prisma might reject
-  const positionFilters: any = { ...baseFilters };
+  const positionFilters: Prisma.OrgPositionWhereInput = { ...baseFilters };
   
   // Apply search: if we have user IDs, use them (they're already non-null)
   // Otherwise, search by title
@@ -223,7 +240,7 @@ const _getOrgPeople = async (
 
   // Get positions with users assigned (optimized select, no deep includes)
   // Use a more defensive approach with fallback queries
-  let positionsWithUsers: any[] = [];
+  let positionsWithUsers: PositionWithTeamAndUser[] = [];
   
   try {
     // Ensure Prisma engine is connected before querying
@@ -282,9 +299,10 @@ const _getOrgPeople = async (
         },
         take: 1000, // Add explicit limit to prevent issues
       });
-    } catch (queryError: any) {
+    } catch (queryError: unknown) {
       // If the full query fails, try a simpler query and filter in memory
-      console.warn("[getOrgPeople] Full query failed, falling back to simple query:", queryError?.message);
+      const queryErrorMsg = queryError instanceof Error ? queryError.message : String(queryError);
+      console.warn("[getOrgPeople] Full query failed, falling back to simple query:", queryErrorMsg);
 
       // Fallback: simple query without complex filters
       positionsWithUsers = await prisma.orgPosition.findMany({
@@ -343,9 +361,10 @@ const _getOrgPeople = async (
         });
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If even the fallback fails, log and return empty array
-    console.error("[getOrgPeople] All query attempts failed:", error?.message);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("[getOrgPeople] All query attempts failed:", errorMsg);
     console.error("[getOrgPeople] Filter structure:", JSON.stringify(positionFilters, null, 2));
     positionsWithUsers = [];
   }
@@ -361,7 +380,7 @@ const _getOrgPeople = async (
   const userIdToPosition = new Map<
     string,
     {
-      role: string;
+      role: string | null;
       teamId: string | null;
       team: string | null;
       departmentId: string | null;
@@ -497,9 +516,10 @@ const _getOrgStructureLists = async (
           ownerPersonId: true,
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
       // If enum doesn't exist or table doesn't exist, use raw SQL as fallback
-      if (error?.message?.includes("OwnedEntityType") || error?.message?.includes("does not exist")) {
+      if (errorMsg.includes("OwnedEntityType") || errorMsg.includes("does not exist")) {
         try {
           const departmentIds = departments.map((d) => d.id);
           if (departmentIds.length > 0) {
@@ -521,9 +541,10 @@ const _getOrgStructureLists = async (
               ownerPersonId: r.owner_person_id,
             }));
           }
-        } catch (rawError: any) {
+        } catch (rawError: unknown) {
           // If raw SQL also fails (table doesn't exist), just continue without owners
-          console.warn("[getOrgStructureLists] Could not load department owners:", rawError?.message);
+          const rawErrorMsg = rawError instanceof Error ? rawError.message : String(rawError);
+          console.warn("[getOrgStructureLists] Could not load department owners:", rawErrorMsg);
           departmentOwners = [];
         }
       } else {
@@ -618,6 +639,7 @@ const _getOrgStructureLists = async (
       departmentId: t.department?.id ?? null,
       departmentName: t.department?.name ?? null,
       leadName,
+      ownerPersonId: null,
       memberCount: t._count.positions,
     };
   });
@@ -635,9 +657,10 @@ const _getOrgStructureLists = async (
   >();
 
   for (const pos of positions) {
+    if (!pos.title) continue; // skip positions with no title
     const existing = roleMap.get(pos.title);
     if (existing) {
-      if (pos.user) {
+      if (pos.userId !== null) {
         existing.activePeopleCount += 1;
       }
       if (!existing.defaultTeamName && pos.team) {
@@ -649,7 +672,7 @@ const _getOrgStructureLists = async (
         name: pos.title,
         level: pos.level != null ? pos.level.toString() : null,
         defaultTeamName: pos.team?.name ?? null,
-        activePeopleCount: pos.user ? 1 : 0,
+        activePeopleCount: pos.userId !== null ? 1 : 0,
       });
     }
   }
@@ -877,21 +900,14 @@ export const getOrgAdminActivity = cache(async (
         return [];
       }
 
-      return logs.map((log: any) => ({
+      return logs.map((log) => ({
         id: log.id,
         action: log.action,
         targetType: log.entityType,
         targetId: log.entityId,
-        meta: log.metadata as any,
+        meta: log.metadata as Record<string, unknown>,
         createdAt: log.createdAt.toISOString(),
-        // Use actor if available, otherwise fall back to user
-        actor: log.actor
-          ? {
-              id: log.actor.id,
-              name: log.actor.name ?? null,
-              email: log.actor.email ?? null,
-            }
-          : log.user
+        actor: log.user
           ? {
               id: log.user.id,
               name: log.user.name ?? null,

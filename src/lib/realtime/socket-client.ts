@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { io, Socket } from 'socket.io-client'
+import io from 'socket.io-client'
 
 export interface ServerToClientEvents {
   // Task events
@@ -61,7 +60,7 @@ export interface ClientToServerEvents {
   updatePresence: (data: { status: 'online' | 'away' | 'offline'; projectId?: string }) => void
 }
 
-export type SocketType = Socket<ServerToClientEvents, ClientToServerEvents>
+export type SocketType = ReturnType<typeof io>
 
 let socket: SocketType | null = null
 
@@ -90,15 +89,12 @@ export function createSocket(): SocketType {
     
     socket = io(serverUrl, {
       autoConnect: false,
-      transports: transports as any,
+      transports: transports,
       timeout: 30000, // Increased to 30 seconds
-      pingTimeout: 120000, // Increased to 2 minutes
-      pingInterval: 30000, // Increased to 30 seconds
       reconnection: true,
       reconnectionAttempts: 10, // Increased retry attempts
       reconnectionDelay: 2000, // Start with 2 seconds
       reconnectionDelayMax: 10000, // Max 10 seconds between retries
-      maxReconnectionAttempts: 10,
       forceNew: true, // Force new connection
       upgrade: true, // Allow transport upgrades
       rememberUpgrade: false // Don't remember failed upgrades
@@ -141,12 +137,12 @@ export function connectSocket(userId: string, userName: string, workspaceId: str
       hasResolved = true
       cleanup()
       console.log('Socket connected successfully:', socket?.id)
-      console.log('Socket transport:', socket?.io.engine.transport.name)
+      console.log('Socket transport:', (socket?.io as { engine?: { transport?: { name?: string } } })?.engine?.transport?.name)
       socket?.emit('authenticate', { userId, userName, workspaceId })
       resolve(socket!)
     }
 
-    const onConnectError = (error: Error) => {
+    const onConnectError = (error: Error & { description?: unknown; context?: unknown; type?: unknown }) => {
       if (hasResolved) return
       hasResolved = true
       cleanup()
@@ -192,12 +188,9 @@ export function connectSocket(userId: string, userName: string, workspaceId: str
     }, 10000) // Reduced to 10 seconds for faster fallback
 
     // Attempt connection
-    console.log('Attempting socket connection to:', serverUrl)
+    console.log('Attempting socket connection...')
     console.log('Socket configuration:', {
-      timeout: socket.io.timeout,
-      pingTimeout: socket.io.pingTimeout,
-      pingInterval: socket.io.pingInterval,
-      transports: socket.io.opts.transports
+      transports: socket.io.opts.transports,
     })
     socket.connect()
   })

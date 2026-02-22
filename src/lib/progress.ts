@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -7,78 +6,81 @@ export async function calculatePlanProgress(planId: string): Promise<number> {
   const plan = await prisma.onboardingPlan.findUnique({
     where: { id: planId },
     include: {
-      tasks: true,
+      onboarding_task_assignments: true,
     },
   })
 
-  if (!plan || plan.tasks.length === 0) {
+  if (!plan || plan.onboarding_task_assignments.length === 0) {
     return 0
   }
 
-  const completedTasks = plan.tasks.filter(task => task.status === 'DONE').length
-  const totalTasks = plan.tasks.length
-  
+  const completedTasks = plan.onboarding_task_assignments.filter(task => task.status === 'COMPLETED').length
+  const totalTasks = plan.onboarding_task_assignments.length
+
   return Math.floor((completedTasks / totalTasks) * 100)
 }
 
 export async function updatePlanProgress(planId: string): Promise<void> {
   const progressPct = await calculatePlanProgress(planId)
-  
-  const updateData: any = {
-    progressPct,
-  }
 
-  // If progress is 100%, mark plan as completed and set end date
+  // Only update status when plan reaches 100% — progressPct is not stored in the schema
   if (progressPct === 100) {
-    updateData.status = 'COMPLETED'
-    updateData.endDate = new Date()
+    await prisma.onboardingPlan.update({
+      where: { id: planId },
+      data: {
+        status: 'COMPLETED',
+        endDate: new Date(),
+      },
+    })
   }
-
-  await prisma.onboardingPlan.update({
-    where: { id: planId },
-    data: updateData,
-  })
 }
 
 export async function getPlanAnalytics(workspaceId: string) {
   const plans = await prisma.onboardingPlan.findMany({
     where: { workspaceId },
     include: {
-      tasks: true,
-      employee: true,
+      onboarding_task_assignments: true,
+      users: true,
       template: true,
     },
   })
 
+  const computeProgress = (assignments: { status: string }[]) =>
+    assignments.length === 0
+      ? 0
+      : Math.floor(
+          (assignments.filter(t => t.status === 'COMPLETED').length / assignments.length) * 100
+        )
+
   const activePlans = plans.filter(plan => plan.status === 'ACTIVE')
   const completedPlans = plans.filter(plan => plan.status === 'COMPLETED')
-  
-  const avgCompletionRate = completedPlans.length > 0 
-    ? completedPlans.reduce((sum, plan) => sum + plan.progressPct, 0) / completedPlans.length 
+
+  const avgCompletionRate = completedPlans.length > 0
+    ? completedPlans.reduce((sum, plan) => sum + computeProgress(plan.onboarding_task_assignments), 0) / completedPlans.length
     : 0
 
-  const overdueTasks = plans.flatMap(plan => 
-    plan.tasks.filter(task => 
-      task.status !== 'DONE' && 
-      task.dueDate && 
-      task.dueDate < new Date()
+  const overdueTasks = plans.flatMap(plan =>
+    plan.onboarding_task_assignments.filter(task =>
+      task.status !== 'COMPLETED' &&
+      task.completedAt === null &&
+      new Date() > (plan.endDate ?? new Date(8640000000000000)) // use plan end date as proxy
     )
   )
 
   const avgDaysToCompleteFirst10 = completedPlans.length > 0
     ? completedPlans.map(plan => {
-        const first10Tasks = plan.tasks
-          .filter(task => task.status === 'DONE')
-          .sort((a, b) => a.order - b.order)
+        const completedTasks = plan.onboarding_task_assignments
+          .filter(task => task.status === 'COMPLETED' && task.completedAt !== null)
+          .sort((a, b) => (a.completedAt!.getTime() - b.completedAt!.getTime()))
           .slice(0, 10)
-        
-        if (first10Tasks.length === 0) return 0
-        
-        const lastCompletedTask = first10Tasks[first10Tasks.length - 1]
-        const daysDiff = lastCompletedTask.completedAt 
+
+        if (completedTasks.length === 0) return 0
+
+        const lastCompletedTask = completedTasks[completedTasks.length - 1]
+        const daysDiff = lastCompletedTask.completedAt
           ? Math.ceil((lastCompletedTask.completedAt.getTime() - plan.startDate.getTime()) / (1000 * 60 * 60 * 24))
           : 0
-        
+
         return daysDiff
       }).reduce((sum, days) => sum + days, 0) / completedPlans.length
     : 0
@@ -92,29 +94,13 @@ export async function getPlanAnalytics(workspaceId: string) {
     avgDaysToCompleteFirst10: Math.round(avgDaysToCompleteFirst10),
     plans: plans.map(plan => ({
       id: plan.id,
-      name: plan.name,
-      employeeName: plan.employee.name,
+      name: plan.title,
+      employeeName: plan.users.name ?? 'Unknown',
       status: plan.status,
-      progressPct: plan.progressPct,
-      tasksDone: plan.tasks.filter(task => task.status === 'DONE').length,
-      totalTasks: plan.tasks.length,
+      progressPct: computeProgress(plan.onboarding_task_assignments),
+      tasksDone: plan.onboarding_task_assignments.filter(task => task.status === 'COMPLETED').length,
+      totalTasks: plan.onboarding_task_assignments.length,
       daysSinceStart: Math.ceil((new Date().getTime() - plan.startDate.getTime()) / (1000 * 60 * 60 * 24)),
     })),
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

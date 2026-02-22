@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Team Capacity Rollup
  *
@@ -163,7 +162,7 @@ export async function computeAllTeamRollups(
       userId: { not: null },
       teamId: { not: null },
       user: {
-        workspaceMembers: {
+        workspaceMemberships: {
           some: {
             workspaceId,
             employmentStatus: { not: "TERMINATED" },
