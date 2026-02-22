@@ -5,11 +5,14 @@
  */
 
 import type { Q6Response } from "./types";
-import { deriveProjectAccountability } from "@/lib/org";
+import { deriveProjectAccountability, type AccountabilityValue } from "@/lib/org";
+
+type ProjectWithAccountability = { accountability?: Parameters<typeof deriveProjectAccountability>[0] | null };
+type ResolvedValue = AccountabilityValue & { name?: string };
 
 export async function answerQ6(args: {
   projectId: string;
-  project: any;
+  project: ProjectWithAccountability;
   peopleById: Record<
     string,
     {
@@ -27,11 +30,11 @@ export async function answerQ6(args: {
     endDate?: Date | null;
   }>;
 }): Promise<Q6Response> {
-  const acct = deriveProjectAccountability(args.project.accountability);
+  const acct = deriveProjectAccountability(args.project.accountability ?? undefined);
 
   const candidates: Q6Response["candidates"] = [];
 
-  function resolveValue(v: any) {
+  function resolveValue(v: AccountabilityValue): ResolvedValue {
     if (v.type === "person") {
       const p = args.peopleById[v.personId];
       return { ...v, name: p?.name };
@@ -42,15 +45,15 @@ export async function answerQ6(args: {
   const primaryOwner = resolveValue(acct.owner);
 
   // 1) Prefer explicit backups if available in your derive model (v1.1)
-  const backupOwner = resolveValue((acct as any).backupOwner ?? { type: "unset" });
-  const backupDecision = resolveValue((acct as any).backupDecision ?? { type: "unset" });
+  const backupOwner = resolveValue(acct.backupOwner ?? { type: "unset" });
+  const backupDecision = resolveValue(acct.backupDecision ?? { type: "unset" });
 
   if (backupOwner.type !== "unset") {
     if (backupOwner.type === "person") {
       candidates.push({
         type: "person",
         personId: backupOwner.personId,
-        name: (backupOwner as any).name,
+        name: backupOwner.name,
         source: "explicit_backup",
         notes: ["Explicit backup owner recorded in Org"],
       });
@@ -86,7 +89,7 @@ export async function answerQ6(args: {
   if (acct.owner.type === "person") {
     const ownerPersonId = acct.owner.personId;
     const ownerPerson = args.peopleById[ownerPersonId];
-    const teamKey = (ownerPerson?.teamId || ownerPerson?.teamName || null) as any;
+    const teamKey = ownerPerson?.teamId || ownerPerson?.teamName || null;
 
     if (teamKey) {
       const teamMates = Object.entries(args.peopleById)

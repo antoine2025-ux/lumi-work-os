@@ -9,6 +9,8 @@ import type { LoopBrainEvent } from "./signals";
 
 export type PersonData = {
   id: string;
+  name?: string | null;
+  fullName?: string | null;
   managerId?: string | null;
   teamId?: string | null;
   teamName?: string | null;
@@ -35,7 +37,7 @@ export function derivePersonSignals(person: PersonData): LoopBrainEvent[] {
       entityId: person.id,
       severity: "high",
       context: {
-        personName: (person as any).name || (person as any).fullName || "Unnamed",
+        personName: person.name || person.fullName || "Unnamed",
       },
       occurredAt: now,
     });
@@ -49,7 +51,7 @@ export function derivePersonSignals(person: PersonData): LoopBrainEvent[] {
       entityId: person.id,
       severity: "medium",
       context: {
-        personName: (person as any).name || (person as any).fullName || "Unnamed",
+        personName: person.name || person.fullName || "Unnamed",
       },
       occurredAt: now,
     });
@@ -63,7 +65,7 @@ export function derivePersonSignals(person: PersonData): LoopBrainEvent[] {
       entityId: person.id,
       severity: "low",
       context: {
-        personName: (person as any).name || (person as any).fullName || "Unnamed",
+        personName: person.name || person.fullName || "Unnamed",
       },
       occurredAt: now,
     });
@@ -86,7 +88,7 @@ export function derivePersonSignals(person: PersonData): LoopBrainEvent[] {
         entityId: person.id,
         severity: "low",
         context: {
-          personName: (person as any).name || (person as any).fullName || "Unnamed",
+          personName: person.name || person.fullName || "Unnamed",
           daysSinceCreation: Math.round(daysSinceCreation * 24), // hours
         },
         occurredAt: now,
@@ -113,7 +115,7 @@ export function derivePersonSignals(person: PersonData): LoopBrainEvent[] {
           entityId: person.id,
           severity: "medium",
           context: {
-            personName: (person as any).name || (person as any).fullName || "Unnamed",
+            personName: person.name || person.fullName || "Unnamed",
             daysSinceUpdate: Math.round(daysSinceUpdate),
           },
           occurredAt: now,

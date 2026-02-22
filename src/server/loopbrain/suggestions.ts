@@ -11,10 +11,21 @@ type Suggestion = {
   };
 };
 
+interface PersonLike {
+  id: string;
+  managerId?: string | null;
+  managerName?: string | null;
+  teamId?: string | null;
+  teamName?: string | null;
+  team?: string | null;
+  title?: string | null;
+  role?: string | null;
+}
+
 export function computeSuggestionForPerson(args: {
-  person: any;
-  people: any[];
-  managers?: any[];
+  person: PersonLike;
+  people: PersonLike[];
+  managers?: PersonLike[];
 }): Suggestion {
   const { person, people } = args;
 
@@ -28,13 +39,13 @@ export function computeSuggestionForPerson(args: {
   let peers = 0;
 
   if (team) {
-    const sameTeam = people.filter((p: any) => (p.teamName || p.team) === team && p.managerId);
+    const sameTeam = people.filter((p) => (p.teamName || p.team) === team && p.managerId);
     peers = sameTeam.length;
 
     const counts = new Map<string, { n: number; name?: string }>();
     for (const p of sameTeam) {
-      const key = p.managerId;
-      const cur = counts.get(key) || { n: 0, name: p.managerName };
+      const key = p.managerId ?? '';
+      const cur = counts.get(key) || { n: 0, name: p.managerName ?? undefined };
       cur.n += 1;
       counts.set(key, cur);
     }
@@ -84,7 +95,7 @@ export function computeSuggestionForPerson(args: {
   };
 }
 
-export function computeSuggestionsBatch(args: { people: any[] }) {
+export function computeSuggestionsBatch(args: { people: PersonLike[] }) {
   return args.people.map((p) => computeSuggestionForPerson({ person: p, people: args.people }));
 }
 

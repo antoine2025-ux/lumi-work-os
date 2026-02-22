@@ -15,6 +15,8 @@ import type {
   ContextItemRecord,
 } from "@/lib/context/org/loadOrgContextBundle";
 
+import type { RoleContext } from "@/lib/org/context/roleContextTypes";
+
 /**
  * Minimal shapes of context.data we expect for person/team/department/role.
  * These mirror the Org ContextObject v2.1-style structures we're storing.
@@ -505,7 +507,7 @@ export async function buildOrgLoopbrainContextBundleForWorkspace(
 
   // Build RoleContexts from Prisma data and map to ContextObjects
   // Then persist them as ContextItems in the DB
-  let roleContexts: any[] = [];
+  let roleContexts: RoleContext[] = [];
   let roleContextObjects: OrgLoopbrainContextObject[] = [];
   try {
     const {
@@ -679,13 +681,13 @@ export async function buildOrgLoopbrainContextBundleForWorkspace(
  * This adds reverse edges (has_role, owns, owned_by) to connect roles into the wider Org graph.
  */
 function attachRoleRelationsToNodes(
-  roleContexts: any[],
+  roleContexts: RoleContext[],
   nodesById: Map<string, OrgLoopbrainContextObject>
 ) {
   // Build lookup maps for efficient role assignment
-  const rolesByTeamId = new Map<string, any[]>();
-  const rolesByDepartmentId = new Map<string, any[]>();
-  const rolesByUserId = new Map<string, any[]>();
+  const rolesByTeamId = new Map<string, RoleContext[]>();
+  const rolesByDepartmentId = new Map<string, RoleContext[]>();
+  const rolesByUserId = new Map<string, RoleContext[]>();
 
   for (const role of roleContexts) {
     if (!role.id) continue;
@@ -801,7 +803,7 @@ function attachRoleRelationsToNodes(
  */
 export function buildOrgLoopbrainContextBundleFromStore(
   bundle: OrgContextBundle,
-  roleContexts?: any[],
+  roleContexts?: RoleContext[],
   mergedRoleContextObjects?: OrgLoopbrainContextObject[]
 ): OrgLoopbrainContextBundle {
   const nodesById = new Map<string, OrgLoopbrainContextObject>();

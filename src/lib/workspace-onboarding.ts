@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { WorkspaceRole } from '@prisma/client'
+import { WorkspaceRole, Workspace, WikiPage, Project, wiki_workspaces } from '@prisma/client'
 import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
 
 export interface WorkspaceTemplate {
@@ -289,10 +289,10 @@ export async function createWorkspaceWithOnboarding(
   userId: string,
   options: OnboardingOptions = {}
 ): Promise<{
-  workspace: any
-  wikiWorkspaces: any[]
-  defaultPages: any[]
-  defaultProjects: any[]
+  workspace: Workspace
+  wikiWorkspaces: wiki_workspaces[]
+  defaultPages: WikiPage[]
+  defaultProjects: Project[]
 }> {
   const {
     templateId = 'personal',

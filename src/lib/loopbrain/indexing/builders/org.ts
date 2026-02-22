@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Org Index Builder
  * 
@@ -138,7 +137,7 @@ export async function buildContextObjectForPerson(
 
     // Build ContextObject using existing builder
     const contextObject = personToContext(user, workspaceId, {
-      role: position,
+      role: { ...position, user: null } as unknown as NonNullable<NonNullable<Parameters<typeof personToContext>[2]>['role']>,
       team: position.team || undefined,
       workloadStats,
       timeOff: leaveRequest ? {
@@ -205,16 +204,8 @@ export async function buildContextObjectForTeam(
       return null
     }
 
-    // Compute aggregate stats
-    const activeMemberCount = team.positions.filter(p => p.user && p.isActive).length
-
     // Build ContextObject using existing builder
-    const contextObject = teamToContext(team, {
-      aggregateStats: {
-        activeMemberCount,
-        totalMemberCount: team.positions.length,
-      },
-    })
+    const contextObject = teamToContext(team)
 
     // Ensure workspaceId is set
     return {
@@ -272,7 +263,7 @@ export async function buildContextObjectForRole(
 
     // Build ContextObject using existing builder
     const contextObject = roleToContext(role, {
-      user: role.user || undefined,
+      person: role.user || undefined,
       team: role.team || undefined,
     })
 

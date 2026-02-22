@@ -14,7 +14,7 @@ export interface SendSlackMessageParams {
   workspaceId: string
   channel: string
   text?: string
-  blocks?: any[]
+  blocks?: Record<string, unknown>[]
   threadTs?: string
 }
 

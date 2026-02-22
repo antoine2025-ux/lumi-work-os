@@ -70,7 +70,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
     : 'auth:server'
   
   // Check request-level cache first (within same request)
-  const cached = getCachedAuth(cacheKey)
+  const cached = getCachedAuth<AuthContext>(cacheKey)
   if (cached) {
     const durationMs = performance.now() - startTime
     logger.info('getUnifiedAuth (cached)', {

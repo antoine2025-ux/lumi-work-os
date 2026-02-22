@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 
 export async function measureOrgOutcomes(args: {
   orgId: string;
   scope: string;
-  before: any;
-  after: any;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
   suggestionRunId: string;
 }) {
   const improved = JSON.stringify(args.after) !== JSON.stringify(args.before);
@@ -14,8 +15,8 @@ export async function measureOrgOutcomes(args: {
       orgId: args.orgId,
       scope: args.scope,
       suggestionRunId: args.suggestionRunId,
-      beforeMetrics: args.before,
-      afterMetrics: args.after,
+      beforeMetrics: args.before as Prisma.InputJsonValue,
+      afterMetrics: args.after as Prisma.InputJsonValue,
       improved,
     },
   });

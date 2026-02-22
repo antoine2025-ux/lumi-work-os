@@ -52,7 +52,7 @@ export async function fetchOrgContextSliceForWorkspace(
   for (const item of items) {
     // data is stored as the full OrgContextObject (see org-context-store.ts)
     // We trust its shape but still cast defensively.
-    const data = item.data as any;
+    const data = item.data as Record<string, unknown>;
 
     if (!data || typeof data !== "object") {
       continue;
@@ -65,7 +65,7 @@ export async function fetchOrgContextSliceForWorkspace(
       summary: String(data.summary ?? item.summary ?? ""),
       tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
       relations: Array.isArray(data.relations)
-        ? data.relations.map((rel: any) => ({
+        ? (data.relations as Record<string, unknown>[]).map((rel) => ({
             type: String(rel.type ?? ""),
             sourceId: String(rel.sourceId ?? ""),
             targetId: String(rel.targetId ?? ""),

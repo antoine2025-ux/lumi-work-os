@@ -146,7 +146,7 @@ export async function searchEmbeddings(
   const { workspaceId, vector, type, limit = 10 } = params
 
   // Multi-tenant safety: Always filter by workspaceId first
-  const whereClause: any = {
+  const whereClause: Record<string, unknown> = {
     workspaceId // CRITICAL: Always scope by workspaceId
   }
 

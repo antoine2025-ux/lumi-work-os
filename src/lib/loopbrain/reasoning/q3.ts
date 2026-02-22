@@ -121,7 +121,7 @@ export async function answerQ3(
   }
 
   // Step 1: Establish accountability boundary
-  const accountability = deriveProjectAccountability(project.accountability as any);
+  const accountability = deriveProjectAccountability(project.accountability ?? undefined);
   const accountabilityBoundary = establishAccountabilityBoundary(
     accountability,
     people,
@@ -259,10 +259,11 @@ function establishAccountabilityBoundary(
   if (accountability.owner.type === "person") {
     ownerPersonIds.push(accountability.owner.personId);
   } else if (accountability.owner.type === "role") {
-    ownerRoleNames.push(accountability.owner.role);
+    const ownerRole = accountability.owner.role;
+    ownerRoleNames.push(ownerRole);
     // Resolve people holding this role
     const roleHolders = people.filter(
-      (p) => (p as any).role?.toLowerCase() === accountability.owner.role.toLowerCase()
+      (p) => p.role?.toLowerCase() === ownerRole.toLowerCase()
     );
     ownerPersonIds.push(...roleHolders.map((p) => p.personId));
   }
@@ -747,9 +748,9 @@ async function fetchPeopleWithCapacity(
 
   const at = new Date();
 
-  return users.map((user: any) => {
+  return users.map((user) => {
     const position = user.orgPositions[0];
-    const availabilityWindows = (user.personAvailability || []).map((a: any) => ({
+    const availabilityWindows = (user.availability || []).map((a) => ({
       type: a.type === "UNAVAILABLE" ? ("unavailable" as const) : ("partial" as const),
       startDate: a.startDate,
       endDate: a.endDate ?? undefined,
@@ -766,7 +767,7 @@ async function fetchPeopleWithCapacity(
         status: availability.status,
         fraction: availability.fraction,
       },
-      allocations: (user.projectAllocations || []).map((a: any) => ({
+      allocations: (user.allocations || []).map((a) => ({
         projectId: a.projectId,
         fraction: a.fraction,
         startDate: a.startDate.toISOString(),

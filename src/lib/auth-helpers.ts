@@ -29,7 +29,7 @@ export async function getAuthenticatedUser(_request: NextRequest) {
   }
 }
 
-export async function getCurrentWorkspace(user: any) {
+export async function getCurrentWorkspace(user: { workspaceMemberships?: Array<{ workspace: unknown }> } | null) {
   if (!user?.workspaceMemberships?.length) {
     return null
   }

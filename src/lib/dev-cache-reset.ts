@@ -3,11 +3,13 @@
  * This should only be used in development mode
  */
 
+import type { QueryClient } from '@tanstack/react-query'
+
 /**
  * Clear all React Query cache (client-side)
  * Call this from browser console or a dev component
  */
-export function clearReactQueryCache(queryClient: any) {
+export function clearReactQueryCache(queryClient: QueryClient) {
   if (process.env.NODE_ENV !== 'development') {
     console.warn('Cache clearing is only available in development mode')
     return
@@ -55,7 +57,7 @@ export async function clearServerCache() {
  * Clear all caches (both client and server)
  * Requires queryClient from useQueryClient() hook
  */
-export async function clearAllCaches(queryClient: any) {
+export async function clearAllCaches(queryClient: QueryClient) {
   if (process.env.NODE_ENV !== 'development') {
     console.warn('Cache clearing is only available in development mode')
     return
@@ -86,7 +88,7 @@ export async function clearAllCaches(queryClient: any) {
  * Make clearAllCaches available globally in dev mode for console access
  */
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  (window as any).__clearAllCaches = clearAllCaches
+  (window as unknown as Window & { __clearAllCaches: typeof clearAllCaches }).__clearAllCaches = clearAllCaches
   console.log('💡 Dev utility: Use window.__clearAllCaches(queryClient) to clear all caches')
 }
 

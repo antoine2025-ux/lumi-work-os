@@ -88,7 +88,7 @@ if (process.env.NODE_ENV === 'development') {
   globalForPrisma.prisma = undefined
   // Also clear from globalThis to be thorough
   if (typeof globalThis !== 'undefined') {
-    (globalThis as any).prisma = undefined
+    (globalThis as Record<string, unknown>).prisma = undefined
   }
   // Also clear from module cache if possible
   if (typeof require !== 'undefined' && require.cache) {
@@ -181,7 +181,7 @@ if (WORKSPACE_SCOPING_ENABLED) {
   // Scoped Prisma client - workspace scoping enabled
   // All workspace-scoped queries automatically require workspace context via setWorkspaceContext()
   // Missing workspace context will throw errors (both dev and prod) to prevent data leaks
-  prisma = createScopedPrisma(prismaUnscoped) as any
+  prisma = createScopedPrisma(prismaUnscoped) as unknown as PrismaClient
   console.log('✅ Workspace scoping ENABLED - Prisma client is scoped, workspace context required')
   console.log('   Use setWorkspaceContext(workspaceId) before querying workspace-scoped models')
   console.log('   For scripts/background jobs, use prismaUnscoped instead')
@@ -194,7 +194,7 @@ if (WORKSPACE_SCOPING_ENABLED) {
 }
 
 // Verify ProjectDocumentation model is available (for documentation attachments feature)
-if (typeof (prisma as any).projectDocumentation === 'undefined') {
+if (typeof (prisma as unknown as Record<string, unknown>).projectDocumentation === 'undefined') {
   console.error('[PRISMA] ❌ CRITICAL: ProjectDocumentation model not found in Prisma Client!')
   console.error('[PRISMA] Please run: npx prisma generate')
   console.error('[PRISMA] Then restart your Next.js dev server')
@@ -203,7 +203,7 @@ if (typeof (prisma as any).projectDocumentation === 'undefined') {
 }
 
 // Verify OrgInvitation model is available
-if (typeof (prismaUnscoped as any).orgInvitation === 'undefined') {
+if (typeof (prismaUnscoped as unknown as Record<string, unknown>).orgInvitation === 'undefined') {
   console.error('[PRISMA] ❌ CRITICAL: OrgInvitation model not found in Prisma Client!')
   console.error('[PRISMA] Please run: npx prisma generate')
   console.error('[PRISMA] Then restart your Next.js dev server')
@@ -213,15 +213,15 @@ if (typeof (prismaUnscoped as any).orgInvitation === 'undefined') {
   // Verify table exists in database (async check, don't block startup)
   if (process.env.NODE_ENV === 'development') {
     prismaUnscoped.$queryRaw`SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'org_invitations' LIMIT 1`
-      .then((result: any) => {
-        if (result && result.length > 0) {
+      .then((result: unknown) => {
+        if (result && Array.isArray(result) && result.length > 0) {
           console.log('[PRISMA] ✅ org_invitations table exists in database')
         } else {
           console.error('[PRISMA] ❌ CRITICAL: org_invitations table does NOT exist in database!')
           console.error('[PRISMA] Run: npx prisma migrate deploy')
         }
       })
-      .catch((error: any) => {
+      .catch((error: Error) => {
         console.error('[PRISMA] ⚠️  Could not verify org_invitations table:', error.message)
       })
   }

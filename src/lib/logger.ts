@@ -15,7 +15,7 @@ export interface LogContext {
   projectId?: string
   taskId?: string
   wikiPageId?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 class Logger {

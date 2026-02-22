@@ -2,60 +2,60 @@ import io from 'socket.io-client'
 
 export interface ServerToClientEvents {
   // Task events
-  taskUpdated: (data: { taskId: string; updates: any; userId: string }) => void
-  taskCreated: (data: { task: any; projectId: string }) => void
+  taskUpdated: (data: { taskId: string; updates: Record<string, unknown>; userId: string }) => void
+  taskCreated: (data: { task: Record<string, unknown>; projectId: string }) => void
   taskDeleted: (data: { taskId: string; projectId: string }) => void
-  
+
   // Project events
-  projectUpdated: (data: { projectId: string; updates: any; userId: string }) => void
-  
+  projectUpdated: (data: { projectId: string; updates: Record<string, unknown>; userId: string }) => void
+
   // Presence events
   userJoined: (data: { userId: string; userName: string; projectId?: string }) => void
   userLeft: (data: { userId: string; projectId?: string }) => void
   userPresence: (data: { userId: string; status: 'online' | 'away' | 'offline'; projectId?: string }) => void
-  
+
   // Wiki events
-  wikiPageUpdated: (data: { pageId: string; updates: any; userId: string }) => void
+  wikiPageUpdated: (data: { pageId: string; updates: Record<string, unknown>; userId: string }) => void
   wikiPageEditing: (data: { pageId: string; userId: string; userName: string; cursorPosition?: number }) => void
   wikiPageStoppedEditing: (data: { pageId: string; userId: string }) => void
-  
+
   // Notification events
-  notification: (data: { type: string; message: string; data?: any }) => void
-  
+  notification: (data: { type: string; message: string; data?: Record<string, unknown> }) => void
+
   // Comment events
-  commentAdded: (data: { comment: any; taskId?: string; projectId?: string }) => void
-  commentUpdated: (data: { commentId: string; updates: any }) => void
+  commentAdded: (data: { comment: Record<string, unknown>; taskId?: string; projectId?: string }) => void
+  commentUpdated: (data: { commentId: string; updates: Record<string, unknown> }) => void
   commentDeleted: (data: { commentId: string; taskId?: string; projectId?: string }) => void
 }
 
 export interface ClientToServerEvents {
   // Authentication
   authenticate: (data: { userId: string; userName: string; workspaceId: string }) => void
-  
+
   // Join/leave rooms
   joinProject: (projectId: string) => void
   leaveProject: (projectId: string) => void
   joinWikiPage: (pageId: string) => void
   leaveWikiPage: (pageId: string) => void
-  
+
   // Task events
-  updateTask: (data: { taskId: string; updates: any }) => void
-  createTask: (data: { projectId: string; task: any }) => void
+  updateTask: (data: { taskId: string; updates: Record<string, unknown> }) => void
+  createTask: (data: { projectId: string; task: Record<string, unknown> }) => void
   deleteTask: (data: { taskId: string; projectId: string }) => void
-  
+
   // Project events
-  updateProject: (data: { projectId: string; updates: any }) => void
-  
+  updateProject: (data: { projectId: string; updates: Record<string, unknown> }) => void
+
   // Wiki events
-  updateWikiPage: (data: { pageId: string; updates: any }) => void
+  updateWikiPage: (data: { pageId: string; updates: Record<string, unknown> }) => void
   startEditingWiki: (data: { pageId: string; cursorPosition?: number }) => void
   stopEditingWiki: (data: { pageId: string }) => void
-  
+
   // Comment events
   addComment: (data: { taskId?: string; projectId?: string; content: string }) => void
-  updateComment: (data: { commentId: string; updates: any }) => void
+  updateComment: (data: { commentId: string; updates: Record<string, unknown> }) => void
   deleteComment: (data: { commentId: string; taskId?: string; projectId?: string }) => void
-  
+
   // Presence
   updatePresence: (data: { status: 'online' | 'away' | 'offline'; projectId?: string }) => void
 }
@@ -224,11 +224,11 @@ export const socketActions = {
   },
   
   // Task actions
-  updateTask: (taskId: string, updates: any) => {
+  updateTask: (taskId: string, updates: Record<string, unknown>) => {
     socket?.emit('updateTask', { taskId, updates })
   },
-  
-  createTask: (projectId: string, task: any) => {
+
+  createTask: (projectId: string, task: Record<string, unknown>) => {
     socket?.emit('createTask', { projectId, task })
   },
   
@@ -245,7 +245,7 @@ export const socketActions = {
     socket?.emit('stopEditingWiki', { pageId })
   },
   
-  updateWikiPage: (pageId: string, updates: any) => {
+  updateWikiPage: (pageId: string, updates: Record<string, unknown>) => {
     socket?.emit('updateWikiPage', { pageId, updates })
   },
   

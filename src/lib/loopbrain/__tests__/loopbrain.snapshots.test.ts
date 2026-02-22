@@ -48,7 +48,7 @@ beforeAll(() => {
   fixtures = JSON.parse(fixtureData);
 });
 
-async function callEndpoint(url: string): Promise<any> {
+async function callEndpoint(url: string): Promise<unknown> {
   const response = await fetch(url);
   
   if (response.status >= 500) {

@@ -9,7 +9,7 @@ export type OrgHealthMetrics = {
 };
 
 export function computeCompleteness(metrics: OrgHealthMetrics) {
-  if (metrics.totalPeople <= 0) return { score: 0, breakdown: {} as any };
+  if (metrics.totalPeople <= 0) return { score: 0, breakdown: {} as Record<string, number> };
 
   const pct = (missing: number) => Math.max(0, Math.min(1, 1 - missing / metrics.totalPeople));
 

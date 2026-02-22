@@ -1,7 +1,10 @@
 // Dynamic import to avoid breaking if resend is not installed
-let Resend: any;
+type ResendClient = { emails: { send: (args: Record<string, unknown>) => Promise<{ id?: string }> } }
+type ResendConstructor = new (apiKey: string) => ResendClient
+let Resend: ResendConstructor | undefined
 try {
-  Resend = require("resend").Resend;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Resend = require("resend").Resend as ResendConstructor
 } catch {
   // Resend not installed, will use fallback
 }
@@ -22,7 +25,7 @@ export async function sendEmail(args: SendEmailArgs) {
     return { ok: true, provider: "dev-fallback" };
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const resend = new Resend(process.env.RESEND_API_KEY!);
 
   const from = process.env.MAIL_FROM || "Loopwell <no-reply@loopwell.ai>";
   const result = await resend.emails.send({
@@ -32,5 +35,5 @@ export async function sendEmail(args: SendEmailArgs) {
     html: args.html,
   });
 
-  return { ok: true, provider: "resend", id: (result as any)?.id };
+  return { ok: true, provider: "resend", id: result?.id };
 }

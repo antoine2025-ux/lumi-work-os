@@ -106,8 +106,8 @@ export function buildReferencedContextSummary(
   switch (ctx.type) {
     case "org.headcount":
       addPeople(orgContext.people, 10);
-      addTeams((orgContext as any).teams, 10);
-      addDepartments((orgContext as any).departments, 10);
+      addTeams((orgContext as OrgHeadcountContext).teams, 10);
+      addDepartments((orgContext as OrgHeadcountContext).departments, 10);
       break;
 
     case "org.reporting":
@@ -116,14 +116,14 @@ export function buildReferencedContextSummary(
 
     case "org.risk":
       addPeople(orgContext.people, 10);
-      addTeams((orgContext as any).teams, 10);
+      addTeams((orgContext as OrgRiskContext).teams, 10);
       break;
 
     case "org.generic":
       addPeople(orgContext.people, 10);
-      addTeams((orgContext as any).teams, 10);
-      addDepartments((orgContext as any).departments, 10);
-      addRoles((orgContext as any).roles, 10);
+      addTeams((orgContext as OrgPromptContext).teams, 10);
+      addDepartments((orgContext as OrgPromptContext).departments, 10);
+      addRoles((orgContext as OrgPromptContext).roles, 10);
       break;
   }
 

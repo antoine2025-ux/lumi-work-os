@@ -5,19 +5,30 @@ export type LoopBrainContext = {
 
 export type LoopBrainSuggestion = {
   personId: string;
-  patch: Record<string, any>;
+  patch: Record<string, unknown>;
   confidence: number;
   rationale: string;
   evidence?: Array<{ label: string; value: string }>;
 };
+
+export interface PersonRecord {
+  id: string;
+  managerId?: string | null;
+  teamId?: string | null;
+  teamName?: string | null;
+  team?: string | null;
+  role?: string | null;
+  title?: string | null;
+  [key: string]: unknown;
+}
 
 export interface LoopBrainEngine {
   id: string;
   scope: string;
   run(args: {
     context: LoopBrainContext;
-    people: any[];
-    allPeople: any[];
+    people: PersonRecord[];
+    allPeople: PersonRecord[];
   }): Promise<LoopBrainSuggestion[]>;
 }
 

@@ -13,8 +13,8 @@ export interface DailySummaryData {
     assignee?: string
     changes: Array<{
       field: string
-      from: any
-      to: any
+      from: unknown
+      to: unknown
       timestamp: string
     }>
   }>
@@ -137,8 +137,8 @@ export async function generateDailySummary(projectId: string, date: string): Pro
     // Group task history by task
     const taskChangesMap = new Map<string, Array<{
       field: string
-      from: any
-      to: any
+      from: unknown
+      to: unknown
       timestamp: string
       actor: string
     }>>()

@@ -1,3 +1,4 @@
+import { NextRequest } from 'next/server'
 import { getUnifiedAuth, getUserWorkspaceRole } from '@/lib/unified-auth'
 
 export type UserRole = 'OWNER' | 'ADMIN' | 'MEMBER'
@@ -11,7 +12,7 @@ export interface PermissionContext {
   isMember: boolean
 }
 
-export async function getPermissionContext(request?: any): Promise<PermissionContext> {
+export async function getPermissionContext(request?: NextRequest): Promise<PermissionContext> {
   try {
     console.log('🔍 Getting permission context')
     const auth = await getUnifiedAuth(request)

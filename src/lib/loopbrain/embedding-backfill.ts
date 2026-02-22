@@ -56,7 +56,7 @@ export async function backfillWorkspaceEmbeddings(
   })
 
   // Build where clause
-  const where: any = {
+  const where: Record<string, unknown> = {
     workspaceId // Multi-tenant safety: always filter by workspaceId
   }
 

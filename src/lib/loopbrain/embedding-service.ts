@@ -305,7 +305,7 @@ export async function searchSimilarContextItems(
     contextId: item.contextId,
     type: item.type as ContextType,
     title: item.title,
-    score: (item as any).similarityScore || 0 // Similarity score from repository
+    score: (item as { similarityScore?: number }).similarityScore || 0 // Similarity score from repository
   }))
 }
 

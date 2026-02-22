@@ -10,81 +10,81 @@ const prisma = new PrismaClient()
 
 export interface ServerToClientEvents {
   // Task events
-  taskUpdated: (data: { taskId: string; updates: any; userId: string }) => void
-  taskCreated: (data: { task: any; projectId: string }) => void
+  taskUpdated: (data: { taskId: string; updates: Record<string, unknown>; userId: string }) => void
+  taskCreated: (data: { task: Record<string, unknown>; projectId: string }) => void
   taskDeleted: (data: { taskId: string; projectId: string }) => void
-  
+
   // Project events
-  projectUpdated: (data: { projectId: string; updates: any; userId: string }) => void
-  
+  projectUpdated: (data: { projectId: string; updates: Record<string, unknown>; userId: string }) => void
+
   // Epic events
-  epicCreated: (data: { epic: any; projectId: string; userId: string }) => void
-  epicUpdated: (data: { epic: any; projectId: string; userId: string }) => void
+  epicCreated: (data: { epic: Record<string, unknown>; projectId: string; userId: string }) => void
+  epicUpdated: (data: { epic: Record<string, unknown>; projectId: string; userId: string }) => void
   epicDeleted: (data: { epicId: string; projectId: string; userId: string }) => void
-  
+
   // Milestone events
-  milestoneCreated: (data: { milestone: any; projectId: string; userId: string }) => void
-  milestoneUpdated: (data: { milestone: any; projectId: string; userId: string }) => void
+  milestoneCreated: (data: { milestone: Record<string, unknown>; projectId: string; userId: string }) => void
+  milestoneUpdated: (data: { milestone: Record<string, unknown>; projectId: string; userId: string }) => void
   milestoneDeleted: (data: { milestoneId: string; projectId: string; userId: string }) => void
-  
+
   // Task assignment events
   taskEpicAssigned: (data: { taskId: string; epicId: string | null; projectId: string; userId: string }) => void
   taskMilestoneAssigned: (data: { taskId: string; milestoneId: string | null; projectId: string; userId: string }) => void
   taskPointsUpdated: (data: { taskId: string; points: number | null; projectId: string; userId: string }) => void
-  
+
   // Task comment events
-  taskCommentAdded: (data: { taskId: string; comment: any; userId: string }) => void
-  
+  taskCommentAdded: (data: { taskId: string; comment: Record<string, unknown>; userId: string }) => void
+
   // Project summary events
   projectSummaryCreated: (data: { projectId: string; date: string; summary: string; timestamp: string }) => void
-  
+
   // Presence events
   userJoined: (data: { userId: string; userName: string; projectId?: string }) => void
   userLeft: (data: { userId: string; projectId?: string }) => void
   userPresence: (data: { userId: string; status: 'online' | 'away' | 'offline'; projectId?: string }) => void
-  
+
   // Wiki events
-  wikiPageUpdated: (data: { pageId: string; updates: any; userId: string }) => void
+  wikiPageUpdated: (data: { pageId: string; updates: Record<string, unknown>; userId: string }) => void
   wikiPageEditing: (data: { pageId: string; userId: string; userName: string; cursorPosition?: number }) => void
   wikiPageStoppedEditing: (data: { pageId: string; userId: string }) => void
-  
+
   // Notification events
-  notification: (data: { type: string; message: string; data?: any }) => void
-  
+  notification: (data: { type: string; message: string; data?: Record<string, unknown> }) => void
+
   // Comment events
-  commentAdded: (data: { comment: any; taskId?: string; projectId?: string }) => void
-  commentUpdated: (data: { commentId: string; updates: any }) => void
+  commentAdded: (data: { comment: Record<string, unknown>; taskId?: string; projectId?: string }) => void
+  commentUpdated: (data: { commentId: string; updates: Record<string, unknown> }) => void
   commentDeleted: (data: { commentId: string; taskId?: string; projectId?: string }) => void
 }
 
 export interface ClientToServerEvents {
   // Authentication
   authenticate: (data: { userId: string; userName: string; workspaceId: string }) => void
-  
+
   // Join/leave rooms
   joinProject: (projectId: string) => void
   leaveProject: (projectId: string) => void
   joinWikiPage: (pageId: string) => void
   leaveWikiPage: (pageId: string) => void
-  
+
   // Task events
-  updateTask: (data: { taskId: string; updates: any }) => void
-  createTask: (data: { projectId: string; task: any }) => void
+  updateTask: (data: { taskId: string; updates: Record<string, unknown> }) => void
+  createTask: (data: { projectId: string; task: Record<string, unknown> }) => void
   deleteTask: (data: { taskId: string; projectId: string }) => void
-  
+
   // Project events
-  updateProject: (data: { projectId: string; updates: any }) => void
-  
+  updateProject: (data: { projectId: string; updates: Record<string, unknown> }) => void
+
   // Wiki events
-  updateWikiPage: (data: { pageId: string; updates: any }) => void
+  updateWikiPage: (data: { pageId: string; updates: Record<string, unknown> }) => void
   startEditingWiki: (data: { pageId: string; cursorPosition?: number }) => void
   stopEditingWiki: (data: { pageId: string }) => void
-  
+
   // Comment events
   addComment: (data: { taskId?: string; projectId?: string; content: string }) => void
-  updateComment: (data: { commentId: string; updates: any }) => void
+  updateComment: (data: { commentId: string; updates: Record<string, unknown> }) => void
   deleteComment: (data: { commentId: string; taskId?: string; projectId?: string }) => void
-  
+
   // Presence
   updatePresence: (data: { status: 'online' | 'away' | 'offline'; projectId?: string }) => void
 }
@@ -308,7 +308,7 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
             projectId: data.projectId,
             workspaceId: socket.data.workspaceId,
             createdById: socket.data.userId
-          },
+          } as unknown as Parameters<typeof prisma.task.create>[0]['data'],
           include: {
             assignee: true,
             project: true

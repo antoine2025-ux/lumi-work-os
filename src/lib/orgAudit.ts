@@ -104,10 +104,11 @@ export async function listOrgAuditForOrg(orgId: string, limit = 20) {
       },
     });
     return logs;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle case where actorUserId column or relation doesn't exist yet (before migrations)
-    const errorMessage = error?.message || '';
-    const errorCode = error?.code || '';
+    const err = error as { message?: string; code?: string } | null;
+    const errorMessage = err?.message || '';
+    const errorCode = err?.code || '';
     
     const isColumnMissingError =
       errorCode === 'P2011' || // Invalid value provided
@@ -157,7 +158,7 @@ export async function listOrgAuditForOrg(orgId: string, limit = 20) {
           })
         );
         return logsWithUsers;
-      } catch (fallbackError: any) {
+      } catch (fallbackError: unknown) {
         console.error("[listOrgAuditForOrg] Fallback query also failed:", fallbackError);
         return [];
       }

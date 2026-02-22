@@ -32,13 +32,14 @@ export type AnyApiEnvelope<T = unknown> =
 
 export function isApiErrorEnvelope(value: unknown): value is ApiErrorEnvelope {
   if (!value || typeof value !== "object") return false;
-  const v = value as any;
+  const v = value as Record<string, unknown>;
+  const err = v.error as Record<string, unknown> | undefined;
   return (
     v.ok === false &&
-    v.error &&
-    typeof v.error === "object" &&
-    typeof v.error.code === "string" &&
-    typeof v.error.message === "string"
+    err !== null &&
+    typeof err === "object" &&
+    typeof err.code === "string" &&
+    typeof err.message === "string"
   );
 }
 
@@ -48,7 +49,7 @@ export type ParsedApiError = {
   details?: Record<string, unknown>;
 };
 
-export function parseApiError(body: any): ParsedApiError | null {
+export function parseApiError(body: unknown): ParsedApiError | null {
   if (!body || typeof body !== "object") return null;
 
   // New standardized envelope: { ok: false, error: { code, message, details? } }
@@ -60,17 +61,19 @@ export function parseApiError(body: any): ParsedApiError | null {
     };
   }
 
+  const b = body as Record<string, unknown>;
+
   // Legacy pattern: { error: "string" }
-  if (typeof (body as any).error === "string") {
+  if (typeof b.error === "string") {
     return {
-      message: (body as any).error,
+      message: b.error,
     };
   }
 
   // Legacy pattern: { message: "string" }
-  if (typeof (body as any).message === "string") {
+  if (typeof b.message === "string") {
     return {
-      message: (body as any).message,
+      message: b.message,
     };
   }
 

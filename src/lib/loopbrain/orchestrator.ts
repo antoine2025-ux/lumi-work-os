@@ -49,7 +49,7 @@ import {
   LoopbrainContextSummary,
   LoopbrainSuggestion,
 } from './orchestrator-types'
-import { ContextType } from './context-types'
+import { ContextType, ContextObject as LoopbrainContextObject } from './context-types'
 import { isSlackAvailable, loopbrainSendSlackMessage, loopbrainReadSlackChannel } from './slack-helper'
 import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
 import { buildOrgLoopbrainContextBundleForWorkspace } from './org/buildOrgLoopbrainContextBundle'
@@ -143,7 +143,7 @@ export async function runLoopbrainQuery(
   const startTime = Date.now()
   
   logger.info('Loopbrain orchestrator started', {
-    requestId: (req as any).requestId, // Passed from API route if available
+    requestId: req.requestId, // Passed from API route if available
     workspaceId: req.workspaceId,
     userId: req.userId,
     mode: req.mode,
@@ -314,7 +314,7 @@ export async function runLoopbrainQuery(
     // Log completion
     const executionTimeMs = Date.now() - startTime
     logger.info('Loopbrain orchestrator completed', {
-      requestId: (req as any).requestId,
+      requestId: req.requestId,
       workspaceId: req.workspaceId,
       userId: req.userId,
       mode: req.mode,
@@ -326,7 +326,7 @@ export async function runLoopbrainQuery(
   } catch (error) {
     const executionTimeMs = Date.now() - startTime
     logger.error('Loopbrain orchestrator error', {
-      requestId: (req as any).requestId,
+      requestId: req.requestId,
       workspaceId: req.workspaceId,
       userId: req.userId,
       mode: req.mode,
@@ -951,7 +951,7 @@ async function handleOrgMode(
       workspaceId: req.workspaceId,
       userId: req.userId,
       question: req.query,
-      orgContext: orgContextForPrompt as any,
+      orgContext: orgContextForPrompt as unknown as Parameters<typeof logOrgLoopbrainQuery>[0]['orgContext'],
       orgContextSummary,
       referencedContextFooter: footer,
     });
@@ -996,7 +996,7 @@ async function handleOrgMode(
         confidence: hasOrgContext ? 0.9 : (wantsOrg ? 0.3 : 0.1), // High if has context, low if wanted but missing, very low if not wanted
         itemCount: contextSummary.retrievedItems?.length || 0,
         usedFallback: wantsOrg && !hasOrgContext
-      } as any // Type assertion since metadata type doesn't include routing yet
+      }
     }
   }
 }
@@ -1327,25 +1327,9 @@ async function loadOrgContextForRequest(
   // Set primary context to org root if available
   if (loopbrainOrgBundle.org) {
     // Convert ContextObject to the format expected by summary.primaryContext
-    // Convert ContextObject to primary context format — uses `as` cast because
-    // the org bundle shape doesn't directly match the ContextObject union.
-    summary.primaryContext = {
-      id: loopbrainOrgBundle.org.id,
-      type: loopbrainOrgBundle.org.type as any,
-      title: loopbrainOrgBundle.org.title,
-      summary: loopbrainOrgBundle.org.summary,
-      tags: loopbrainOrgBundle.org.tags,
-      relations: loopbrainOrgBundle.org.relations.map(rel => ({
-        type: rel.type as any,
-        sourceId: rel.sourceId,
-        targetId: rel.targetId,
-        label: rel.label,
-      })),
-      owner: loopbrainOrgBundle.org.owner,
-      status: loopbrainOrgBundle.org.status as any,
-      updatedAt: new Date(loopbrainOrgBundle.org.updatedAt),
-      workspaceId: req.workspaceId,
-    } as any
+    // The org bundle shape uses the same ContextObject type but from a different
+    // module path — use a double-cast to bridge the structural mismatch.
+    summary.primaryContext = loopbrainOrgBundle.org as unknown as typeof summary.primaryContext
   }
 
   // Also load legacy org slice for backward compatibility
@@ -1354,11 +1338,11 @@ async function loadOrgContextForRequest(
   
   // Use the Loopbrain org bundle's byId map (preferred)
   // This includes all org-related ContextObjects from ContextStore
-  const byId: Record<string, ContextObject> = loopbrainOrgBundle.byId as any
+  const byId: Record<string, ContextObject> = loopbrainOrgBundle.byId as unknown as Record<string, ContextObject>
   const allOrgObjects: ContextObject[] = [
     ...(loopbrainOrgBundle.org ? [loopbrainOrgBundle.org] : []),
     ...loopbrainOrgBundle.related,
-  ] as any
+  ] as unknown as ContextObject[]
   
   // Also merge in any items from legacy orgSlice that might not be in ContextStore yet
   // (for backward compatibility during migration)
@@ -1366,18 +1350,18 @@ async function loadOrgContextForRequest(
     if (!byId[obj.id]) {
       const contextObj = {
         id: obj.id,
-        type: obj.type as any,
+        type: obj.type as ContextObject['type'],
         title: obj.title,
         summary: obj.summary,
         tags: obj.tags,
         relations: obj.relations.map(rel => ({
-          type: rel.type as any,
+          type: rel.type as ContextObject['relations'][number]['type'],
           sourceId: rel.sourceId,
           targetId: rel.targetId,
           label: rel.label,
         })),
-        owner: obj.owner as any,
-        status: obj.status as any,
+        owner: obj.owner as ContextObject['owner'],
+        status: obj.status as ContextObject['status'],
         updatedAt: typeof obj.updatedAt === 'string' ? obj.updatedAt : new Date(obj.updatedAt).toISOString(),
       } as unknown as ContextObject
       byId[obj.id] = contextObj
@@ -1424,7 +1408,7 @@ async function loadOrgContextForRequest(
   // Use type-specific expansion strategy
   const { related } = expandOrgBundleByType({
     orgQuestion,
-    primary: primary as any,
+    primary: primary,
     byId,
     allObjects: allOrgObjects,
   })
@@ -1437,10 +1421,10 @@ async function loadOrgContextForRequest(
   expandedObjects.push(...related)
 
   // Store expanded org context
-  summary.structuredContext = expandedObjects as any
+  summary.structuredContext = expandedObjects as unknown as UnifiedContextObject[]
   
   // Store org question context for prompt building
-  ;(summary as any).orgQuestion = orgQuestion
+  summary.orgQuestion = orgQuestion ?? undefined
 
   // Fetch org people (for backward compatibility and prompt building)
   try {
@@ -1459,10 +1443,10 @@ async function loadOrgContextForRequest(
   // Compute and include org health signals (including role risks)
   try {
     const { computeOrgHealthSignals } = await import('@/lib/org/healthService')
-    const people = allOrgObjects.filter((obj: any) => obj.type === 'person')
-    const teams = allOrgObjects.filter((obj: any) => obj.type === 'team')
-    const departments = allOrgObjects.filter((obj: any) => obj.type === 'department')
-    const roles = allOrgObjects.filter((obj: any) => obj.type === 'role')
+    const people = allOrgObjects.filter((obj) => obj.type === 'person')
+    const teams = allOrgObjects.filter((obj) => obj.type === 'team')
+    const departments = allOrgObjects.filter((obj) => obj.type === 'department')
+    const roles = allOrgObjects.filter((obj) => obj.type === 'role')
     
     // Estimate tree depth (simplified)
     const treeDepth = Math.max(
@@ -1479,7 +1463,7 @@ async function loadOrgContextForRequest(
     })
     
     // Store health in context summary for prompt building
-    ;(summary as any).orgHealth = health
+    summary.orgHealth = health as Record<string, unknown>
   } catch (error) {
     logger.error('Error computing org health signals', {
       workspaceId: req.workspaceId,
@@ -1803,7 +1787,7 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
       sections.push(`\nPROJECT DOCUMENTATION (JSON):`)
       sections.push(`\`\`\`json`)
       // Include full content for each documentation page (already processed with grouped code blocks)
-      const docsWithContent = projectContext.metadata.documentation.map((doc: any) => ({
+      const docsWithContent = (projectContext.metadata.documentation as Record<string, unknown>[]).map((doc) => ({
         id: doc.id,
         wikiPageId: doc.wikiPageId,
         title: doc.title,
@@ -2092,7 +2076,7 @@ function buildOrgPrompt(
   orgContextForPrompt?: ReturnType<typeof buildOrgContextForPrompt> extends Promise<infer T> ? T : never,
   snapshotSection?: string | null,
 ): string {
-  const orgQuestion = (ctx as any).orgQuestion as OrgQuestionContext | undefined
+  const orgQuestion = ctx.orgQuestion
   const sections: string[] = []
 
   // Note: System prompt is now handled separately via ORG_SYSTEM_PROMPT in callLoopbrainLLM
@@ -2191,7 +2175,14 @@ function buildOrgPrompt(
   }
 
   // Add Org Health signals (including role risks) if available
-  const orgHealth = (ctx as any).orgHealth
+  type OrgHealthShape = {
+    score: number; label: string;
+    orgShape: { depth: number; centralized: boolean };
+    spanOfControl: { overloadedManagers: number; underloadedManagers: number };
+    teamBalance: { singlePointTeams: number; largestTeamSize: number };
+    roles?: { summary: Record<string, number> };
+  };
+  const orgHealth = ctx.orgHealth as OrgHealthShape | undefined
   if (orgHealth) {
     sections.push(`\n## Org Health Signals`)
     sections.push(`Overall Health Score: ${orgHealth.score}/100 (${orgHealth.label})`)
@@ -2272,10 +2263,10 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
   // Org ContextObjects (expanded via relations) - Category B bundling improvements
   if (ctx.structuredContext && ctx.structuredContext.length > 0) {
     // Group by type for better organization
-    const people = ctx.structuredContext.filter((obj: any) => obj.type === 'person')
-    const teams = ctx.structuredContext.filter((obj: any) => obj.type === 'team')
-    const departments = ctx.structuredContext.filter((obj: any) => obj.type === 'department')
-    const positions = ctx.structuredContext.filter((obj: any) => obj.type === 'role')
+    const people = ctx.structuredContext.filter((obj) => obj.type === 'person')
+    const teams = ctx.structuredContext.filter((obj) => obj.type === 'team')
+    const departments = ctx.structuredContext.filter((obj) => (obj.type as string) === 'department')
+    const positions = ctx.structuredContext.filter((obj) => obj.type === 'role')
     
     sections.push(`\n## Org ContextObjects (JSON, ${ctx.structuredContext.length} total):`)
     sections.push(`The following structured context objects represent the organizational structure. Use relations to traverse the graph (e.g., follow "reports_to" to find direct reports, follow "has_person" to find team members).`)
@@ -2774,7 +2765,7 @@ function _inferBlockedOrAtRiskProjects(
 /**
  * Format a ContextObject into a readable string for prompts
  */
-function formatContextObject(ctx: any): string {
+function formatContextObject(ctx: LoopbrainContextObject): string {
   const parts: string[] = []
 
   switch (ctx.type) {
@@ -2823,7 +2814,7 @@ function formatContextObject(ctx: any): string {
 
     case ContextType.ORG:
       if (ctx.teams && ctx.teams.length > 0) {
-        parts.push(`Teams: ${ctx.teams.map((t: any) => t.name).join(', ')}`)
+        parts.push(`Teams: ${ctx.teams.map((t) => t.name).join(', ')}`)
       }
       if (ctx.roles && ctx.roles.length > 0) {
         parts.push(`Roles: ${ctx.roles.length} roles`)
@@ -2833,7 +2824,7 @@ function formatContextObject(ctx: any): string {
     case ContextType.ACTIVITY:
       if (ctx.activities && ctx.activities.length > 0) {
         parts.push(`Recent Activities: ${ctx.activities.length} activities`)
-        ctx.activities.slice(0, 5).forEach((act: any) => {
+        ctx.activities.slice(0, 5).forEach((act) => {
           parts.push(`- ${act.action} on ${act.entity} (${act.userName})`)
         })
       }
@@ -3721,12 +3712,12 @@ Based on the goal data provided, answer the user's question with specific insigh
           contextItemId: ctx.id,
           contextId: ctx.id,
           type: ContextType.GOAL,
-          title: (ctx as any).title,
+          title: (ctx as { title?: string }).title ?? '',
           score: 0.9,
         })),
       },
       answer: llmResponse.content,
-      suggestions: generateGoalSuggestions(goalData),
+      suggestions: generateGoalSuggestions(goalData as Record<string, unknown>),
       metadata: {
         model: llmResponse.model,
         retrievedCount: goalContexts.length,
@@ -3752,7 +3743,7 @@ Based on the goal data provided, answer the user's question with specific insigh
   }
 }
 
-function generateGoalSuggestions(goalData: any): LoopbrainSuggestion[] {
+function generateGoalSuggestions(goalData: Record<string, unknown>): LoopbrainSuggestion[] {
   const suggestions: LoopbrainSuggestion[] = []
 
   if (goalData.recommendations && Array.isArray(goalData.recommendations)) {
@@ -3764,7 +3755,7 @@ function generateGoalSuggestions(goalData: any): LoopbrainSuggestion[] {
     })
   }
 
-  if (goalData.type === 'goal_analysis' && goalData.goals?.length > 0) {
+  if (goalData.type === 'goal_analysis' && Array.isArray(goalData.goals) && goalData.goals.length > 0) {
     suggestions.push({
       label: 'View goal details',
       action: 'view_goal_details',

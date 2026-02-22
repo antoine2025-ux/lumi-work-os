@@ -14,7 +14,7 @@ export async function getTasksOptimized(workspaceId: string, options: {
 } = {}) {
   const { projectId, assigneeId, status, limit = 50, offset = 0 } = options
 
-  const where: any = { workspaceId }
+  const where: Record<string, unknown> = { workspaceId }
   if (projectId) where.projectId = projectId
   if (assigneeId) where.assigneeId = assigneeId
   if (status) where.status = status

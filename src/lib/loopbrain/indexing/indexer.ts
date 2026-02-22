@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Loopbrain Indexer
  * 
@@ -89,7 +88,7 @@ export async function indexOne(req: IndexRequest): Promise<IndexResult> {
       // Delete ContextItem (cascade will delete embedding/summary)
       const existing = await getContextItem(
         req.entityId,
-        req.entityType as any,
+        req.entityType as unknown as import('../context-types').ContextType,
         req.workspaceId
       )
 
@@ -145,14 +144,11 @@ export async function indexOne(req: IndexRequest): Promise<IndexResult> {
       }
 
       // Save ContextItem (Phase 3 invalidation-on-write is already there)
-      const result = await saveContextItem(contextObject, {
-        requestId: req.requestId,
-      })
+      const result = await saveContextItem(contextObject as unknown as import('../context-types').ContextObject)
 
       logger.debug('Indexed entity', {
         ...logContext,
-        contextItemId: result.contextItem.id,
-        didChange: result.didChange,
+        contextItemId: result.id,
       })
 
       return {
@@ -160,7 +156,6 @@ export async function indexOne(req: IndexRequest): Promise<IndexResult> {
         entityType: req.entityType,
         entityId: req.entityId,
         action: req.action,
-        didChange: result.didChange,
       }
     }
   } catch (error) {

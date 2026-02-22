@@ -8,6 +8,7 @@
 import { ContextObject, ContextType } from './context-types'
 import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from './agent/types'
+import type { OrgQuestionContext } from './org-question-types'
 
 /**
  * Loopbrain operating modes
@@ -68,6 +69,8 @@ export interface LoopbrainRequest {
   pendingClarification?: ClarificationContext
   /** Pending advisory context from previous turn (advisory→execution transition) */
   pendingAdvisory?: AdvisoryContext
+  /** Optional request ID (passed from API route for tracing) */
+  requestId?: string
 }
 
 /**
@@ -97,6 +100,10 @@ export interface LoopbrainContextSummary {
   personalDocs?: UnifiedContextObject[]
   /** Organization people (users with their roles/positions) */
   orgPeople?: UnifiedContextObject[]
+  /** Org question context (set during org mode query processing) */
+  orgQuestion?: OrgQuestionContext
+  /** Org health signals (set during org mode query processing) */
+  orgHealth?: Record<string, unknown>
   /** Epics for the current project (if projectId is present) */
   projectEpics?: UnifiedContextObject[]
   /** Tasks for the current project (if projectId is present) */
@@ -199,6 +206,10 @@ export interface LoopbrainResponse {
       confidence: number
       itemCount: number
       usedFallback: boolean
+      wantsOrg?: boolean
+      hasOrgContext?: boolean
+      inOrgMode?: boolean
+      requestedMode?: string
     }
   }
 }

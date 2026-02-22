@@ -11,8 +11,8 @@ export async function getActiveOrgContext(request?: NextRequest) {
     const session = request 
       ? await getServerSession(authOptions)
       : await getServerSession(authOptions);
-    const userId = (session?.user as any)?.id as string | undefined;
-    const activeOrgId = (session as any)?.activeOrgId as string | undefined;
+    const userId = (session?.user as { id?: string } | null | undefined)?.id;
+    const activeOrgId = (session as { activeOrgId?: string } | null | undefined)?.activeOrgId;
 
     if (!userId) return { userId: null, orgId: null, orgName: null, role: "VIEWER" as const };
 
@@ -42,7 +42,7 @@ export async function getActiveOrgContext(request?: NextRequest) {
             userId,
             orgId: membership.org.id,
             orgName: membership.org.name,
-            role: membership.role as any,
+            role: membership.role as string,
           };
         }
       }

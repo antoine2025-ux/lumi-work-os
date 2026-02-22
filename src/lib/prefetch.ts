@@ -5,6 +5,32 @@ import { QueryClient } from '@tanstack/react-query'
  * This ensures data is ready before users navigate
  */
 
+interface PageDraftResponse {
+  id: string
+  title: string
+  isPublished: boolean
+  updatedAt: string
+  slug: string
+  excerpt?: string
+}
+
+interface SessionDraftResponse {
+  id: string
+  draftTitle?: string | null
+  draftBody?: string | null
+  phase?: string | null
+  updatedAt: string
+}
+
+interface DraftItem {
+  id: string
+  title: string
+  type: 'page' | 'session'
+  updatedAt: string
+  url?: string
+  excerpt?: string
+}
+
 export interface PrefetchOptions {
   workspaceId: string
   queryClient: QueryClient
@@ -95,13 +121,14 @@ export async function prefetchAllData(options: PrefetchOptions) {
           workspaceId ? fetch(`/api/assistant/sessions?workspaceId=${workspaceId}&hasDraft=true`).catch(() => null) : Promise.resolve(null)
         ])
 
-        const drafts: any[] = []
+        const drafts: DraftItem[] = []
 
         if (unpublishedRes?.ok) {
-          const unpublishedData = await unpublishedRes.json()
-          const unpublishedPages = (Array.isArray(unpublishedData) ? unpublishedData : unpublishedData.data || [])
-            .filter((p: any) => !p.isPublished)
-            .map((p: any) => ({
+          const unpublishedData = await unpublishedRes.json() as { data?: PageDraftResponse[] } | PageDraftResponse[]
+          const pages = (Array.isArray(unpublishedData) ? unpublishedData : (unpublishedData as { data?: PageDraftResponse[] }).data || []) as PageDraftResponse[]
+          const unpublishedPages = pages
+            .filter((p) => !p.isPublished)
+            .map((p) => ({
               id: p.id,
               title: p.title,
               type: 'page' as const,
@@ -113,12 +140,12 @@ export async function prefetchAllData(options: PrefetchOptions) {
         }
 
         if (sessionsRes?.ok) {
-          const sessionsData = await sessionsRes.json()
-          const draftSessions = (Array.isArray(sessionsData) ? sessionsData : [])
-            .filter((s: any) => s.draftTitle && s.draftBody && s.phase !== 'published')
-            .map((s: any) => ({
+          const sessionsData = await sessionsRes.json() as SessionDraftResponse[] | unknown
+          const draftSessions = (Array.isArray(sessionsData) ? sessionsData as SessionDraftResponse[] : [])
+            .filter((s) => s.draftTitle && s.draftBody && s.phase !== 'published')
+            .map((s) => ({
               id: s.id,
-              title: s.draftTitle,
+              title: s.draftTitle ?? '',
               type: 'session' as const,
               updatedAt: s.updatedAt,
               excerpt: s.draftBody?.substring(0, 100) + '...' // Only excerpt

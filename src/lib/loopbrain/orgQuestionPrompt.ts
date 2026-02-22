@@ -24,6 +24,7 @@ export type OrgQuestionPrompt = {
     type: string;
     title: string;
     summary: string | null;
+    data?: unknown;
   }>;
 };
 
@@ -81,7 +82,7 @@ export function buildOrgQuestionPrompt(
   return {
     system,
     user,
-    contextObjects: contextObjects as any,
+    contextObjects,
   };
 }
 

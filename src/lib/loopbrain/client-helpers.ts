@@ -1,4 +1,3 @@
-// @ts-nocheck
 // src/lib/loopbrain/client-helpers.ts
 
 "use client";
@@ -25,14 +24,15 @@ export function useOpenLoopbrainForRole() {
 
     // Build canonical role ID if needed
     let canonicalRoleId = roleId;
-    if (!roleId.startsWith("role:") && workspace?.id) {
+    if (!roleId.startsWith("role:") && workspace?.currentWorkspace?.id) {
+      const wsId = workspace.currentWorkspace.id;
       if (positionId) {
-        canonicalRoleId = buildRoleIdFromPosition(workspace.id, positionId);
+        canonicalRoleId = buildRoleIdFromPosition(wsId, positionId);
       } else if (roleCardId) {
-        canonicalRoleId = buildRoleIdFromRoleCard(workspace.id, roleCardId);
+        canonicalRoleId = buildRoleIdFromRoleCard(wsId, roleCardId);
       } else {
         // Fallback: assume it's a position ID
-        canonicalRoleId = buildRoleIdFromPosition(workspace.id, roleId);
+        canonicalRoleId = buildRoleIdFromPosition(wsId, roleId);
       }
     }
 

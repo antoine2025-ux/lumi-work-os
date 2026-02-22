@@ -356,7 +356,7 @@ export function toLoopbrainError(err: unknown): LoopbrainError {
       name: err.name,
       message: err.message,
       stack: err.stack,
-      ...(err as any)
+      ...(err as unknown as Record<string, unknown>)
     } : String(err)
   })
   

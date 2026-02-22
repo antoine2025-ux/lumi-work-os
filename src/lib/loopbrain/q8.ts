@@ -7,11 +7,13 @@
 import type { Q8Response } from "./types";
 import { deriveProjectAccountability } from "@/lib/org";
 
+type ProjectWithAccountability = { accountability?: Parameters<typeof deriveProjectAccountability>[0] | null };
+
 export async function answerQ8(args: {
   projectId: string;
-  project: any;
+  project: ProjectWithAccountability;
 }): Promise<Q8Response> {
-  const acct = deriveProjectAccountability(args.project.accountability);
+  const acct = deriveProjectAccountability(args.project.accountability ?? undefined);
 
   const missing = acct.missing; // ["owner","decision"] depending on derive function
 

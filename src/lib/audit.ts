@@ -25,14 +25,14 @@ export interface AuditLogEntry {
   action: AuditAction
   entityType: AuditEntityType
   entityId: string
-  oldValues?: any
-  newValues?: any
+  oldValues?: Record<string, unknown>
+  newValues?: Record<string, unknown>
   metadata?: {
     reason?: string
     effectiveDate?: Date
     department?: string
     manager?: string
-    [key: string]: any
+    [key: string]: unknown
   }
 }
 
@@ -86,7 +86,7 @@ export async function getAuditHistory(
     offset = 0
   } = options
 
-  const where: any = {
+  const where: Prisma.OrgAuditLogWhereInput = {
     workspaceId,
   }
 

@@ -10,19 +10,19 @@ import { detectOrgQuestionType } from "./orgQuestionType";
 
 // Import the OrgPromptContext type from orgQaService
 type OrgPromptContextForQa =
-  | { type: "org.headcount"; context: any }
-  | { type: "org.reporting"; context: any }
-  | { type: "org.risk"; context: any }
-  | { type: "org.generic"; context: any };
+  | { type: "org.headcount"; context: Record<string, unknown> }
+  | { type: "org.reporting"; context: Record<string, unknown> }
+  | { type: "org.risk"; context: Record<string, unknown> }
+  | { type: "org.generic"; context: Record<string, unknown> };
 
 // Also support the orchestrator's orgContextForPrompt type
 type OrgPromptContext = OrgPromptContextForQa | {
   type: string;
-  org?: any;
-  people?: any[];
-  teams?: any[];
-  departments?: any[];
-  roles?: any[];
+  org?: Record<string, unknown>;
+  people?: Record<string, unknown>[];
+  teams?: Record<string, unknown>[];
+  departments?: Record<string, unknown>[];
+  roles?: Record<string, unknown>[];
 };
 
 type OrgContextSummary = {

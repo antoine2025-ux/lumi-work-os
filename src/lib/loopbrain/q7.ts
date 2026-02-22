@@ -5,12 +5,14 @@
  */
 
 import type { Q7Response } from "./types";
-import { deriveProjectAccountability } from "@/lib/org";
+import { deriveProjectAccountability, type RoleAlignmentResult } from "@/lib/org";
 import { deriveRoleProfile, deriveRoleAlignment } from "@/lib/org";
+
+type ProjectWithAccountability = { accountability?: Parameters<typeof deriveProjectAccountability>[0] | null; name?: string };
 
 export async function answerQ7(args: {
   projectId: string;
-  project: any;
+  project: ProjectWithAccountability;
   rolesByName: Record<
     string,
     {
@@ -19,7 +21,7 @@ export async function answerQ7(args: {
     }
   >;
 }): Promise<Q7Response> {
-  const acct = deriveProjectAccountability(args.project.accountability);
+  const acct = deriveProjectAccountability(args.project.accountability ?? undefined);
 
   const notes: string[] = [];
   const constraints: string[] = [];
@@ -35,7 +37,7 @@ export async function answerQ7(args: {
       return { status: "unknown" as const, reason: "Role not found in catalog" };
     }
 
-    const profile = deriveRoleProfile(role as any);
+    const profile = deriveRoleProfile(role);
     const res = deriveRoleAlignment({
       roleProfile: {
         ownershipScopes: profile.ownershipScopes,
@@ -48,8 +50,8 @@ export async function answerQ7(args: {
     return res;
   }
 
-  let ownerAlignment: any = undefined;
-  let decisionAlignment: any = undefined;
+  let ownerAlignment: RoleAlignmentResult | undefined = undefined;
+  let decisionAlignment: RoleAlignmentResult | undefined = undefined;
 
   if (acct.owner.type === "role") {
     ownerAlignment = align(acct.owner.role, "owner");

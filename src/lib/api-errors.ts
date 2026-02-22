@@ -123,13 +123,14 @@ export function toApiError(err: unknown, requestId?: string): ApiError {
 
   // Check for Zod validation errors
   if (errorName === 'ZodError' || errorMessage.includes('ZodError')) {
+    const zodErr = err as Record<string, unknown>
     return new ApiError(
       'VALIDATION_ERROR',
       400,
       userMessageFor('VALIDATION_ERROR'),
       {
         isUserSafe: true,
-        details: err instanceof Error && (err as any).issues ? { issues: (err as any).issues } : undefined,
+        details: zodErr.issues ? { issues: zodErr.issues } : undefined,
         cause: err,
         requestId,
       }
@@ -138,17 +139,17 @@ export function toApiError(err: unknown, requestId?: string): ApiError {
 
   // Check for Prisma errors
   if (errorMessage.includes('Prisma') || errorName.includes('Prisma')) {
-    const prismaError = err as any
-    
+    const prismaError = err as Record<string, unknown>
+
     // Unique constraint violation
-    if (prismaError.code === 'P2002') {
+    if (prismaError['code'] === 'P2002') {
       return new ApiError(
         'CONFLICT',
         409,
         'A record with this information already exists.',
         {
           isUserSafe: true,
-          details: prismaError.meta,
+          details: prismaError.meta as Record<string, unknown> | undefined,
           cause: err,
           requestId,
         }
@@ -156,14 +157,14 @@ export function toApiError(err: unknown, requestId?: string): ApiError {
     }
 
     // Foreign key constraint violation
-    if (prismaError.code === 'P2003') {
+    if (prismaError['code'] === 'P2003') {
       return new ApiError(
         'VALIDATION_ERROR',
         400,
         'Invalid reference. Please check that all referenced resources exist.',
         {
           isUserSafe: true,
-          details: prismaError.meta,
+          details: prismaError.meta as Record<string, unknown> | undefined,
           cause: err,
           requestId,
         }
@@ -171,7 +172,7 @@ export function toApiError(err: unknown, requestId?: string): ApiError {
     }
 
     // Record not found
-    if (prismaError.code === 'P2025') {
+    if (prismaError['code'] === 'P2025') {
       return new ApiError(
         'NOT_FOUND',
         404,

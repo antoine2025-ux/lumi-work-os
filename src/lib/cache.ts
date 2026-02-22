@@ -1,14 +1,14 @@
 import { createClient } from 'redis'
 
 // Redis client configuration with graceful fallback to in-memory cache
-let redisClient: any = null;
+let redisClient: ReturnType<typeof createClient> | null = null;
 let isRedisAvailable = false;
 
 // In-memory fallback cache when Redis is not available
-const memoryCache = new Map<string, { data: any; expires: number }>();
+const memoryCache = new Map<string, { data: unknown; expires: number }>();
 const MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes default
 
-function getMemoryCache(key: string): any | null {
+function getMemoryCache(key: string): unknown {
   const cached = memoryCache.get(key);
   if (!cached) return null;
   
@@ -20,7 +20,7 @@ function getMemoryCache(key: string): any | null {
   return cached.data;
 }
 
-function setMemoryCache(key: string, data: any, ttl: number = MEMORY_CACHE_TTL): void {
+function setMemoryCache(key: string, data: unknown, ttl: number = MEMORY_CACHE_TTL): void {
   memoryCache.set(key, {
     data,
     expires: Date.now() + ttl * 1000

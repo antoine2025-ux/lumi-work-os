@@ -28,11 +28,22 @@ export interface AIResponse {
   sources?: AISource[]
 }
 
+export interface AIGenerateOptions {
+  systemPrompt?: string
+  conversationHistory?: Array<{ role: string; content: string }>
+  temperature?: number
+  maxTokens?: number
+  topP?: number
+  topK?: number
+  frequencyPenalty?: number
+  presencePenalty?: number
+}
+
 export interface AIProvider {
   name: string
   models: AIModel[]
-  generateResponse: (prompt: string, model: string, options?: any) => Promise<AIResponse>
-  generateStream?: (prompt: string, model: string, options?: any) => AsyncGenerator<string, void, unknown>
+  generateResponse: (prompt: string, model: string, options?: AIGenerateOptions) => Promise<AIResponse>
+  generateStream?: (prompt: string, model: string, options?: AIGenerateOptions) => AsyncGenerator<string, void, unknown>
 }
 
 // OpenAI Provider
@@ -69,7 +80,7 @@ class OpenAIProvider implements AIProvider {
     })
   }
 
-  async generateResponse(prompt: string, model: string, options: any = {}): Promise<AIResponse> {
+  async generateResponse(prompt: string, model: string, options: AIGenerateOptions = {}): Promise<AIResponse> {
     // Check if API key is available
     if (!process.env.OPENAI_API_KEY) {
       return {
@@ -89,8 +100,8 @@ class OpenAIProvider implements AIProvider {
       
       // Add conversation history if provided
       if (options.conversationHistory && Array.isArray(options.conversationHistory)) {
-        messages.push(...options.conversationHistory.map((msg: any) => ({
-          role: msg.role === 'user' ? 'user' : msg.role === 'assistant' ? 'assistant' : 'user',
+        messages.push(...options.conversationHistory.map((msg) => ({
+          role: (msg.role === 'user' ? 'user' : msg.role === 'assistant' ? 'assistant' : 'user') as 'system' | 'user' | 'assistant',
           content: msg.content || ''
         })))
       }
@@ -128,7 +139,7 @@ class OpenAIProvider implements AIProvider {
     }
   }
 
-  async *generateStream(prompt: string, model: string, options: any = {}): AsyncGenerator<string, void, unknown> {
+  async *generateStream(prompt: string, model: string, options: AIGenerateOptions = {}): AsyncGenerator<string, void, unknown> {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error('OpenAI API key not configured')
     }
@@ -138,7 +149,7 @@ class OpenAIProvider implements AIProvider {
         model: model,
         messages: [
           { role: "system", content: options.systemPrompt || "You are a helpful AI assistant." },
-          ...(options.conversationHistory || []),
+          ...(options.conversationHistory || []).map(msg => ({ role: msg.role as 'user' | 'assistant' | 'system', content: msg.content })),
           { role: "user", content: prompt }
         ],
         temperature: options.temperature || 0.7,
@@ -190,7 +201,7 @@ class GeminiProvider implements AIProvider {
     }
   }
 
-  async generateResponse(prompt: string, model: string, options: any = {}): Promise<AIResponse> {
+  async generateResponse(prompt: string, model: string, options: AIGenerateOptions = {}): Promise<AIResponse> {
     if (!this.apiKey) {
       throw new Error('Google API key not configured')
     }
@@ -242,7 +253,7 @@ class GeminiProvider implements AIProvider {
     }
   }
 
-  async *generateStream(prompt: string, model: string, options: any = {}): AsyncGenerator<string, void, unknown> {
+  async *generateStream(prompt: string, model: string, options: AIGenerateOptions = {}): AsyncGenerator<string, void, unknown> {
     if (!this.apiKey) {
       throw new Error('Google API key not configured')
     }
@@ -366,7 +377,7 @@ class AnthropicProvider implements AIProvider {
     }
   }
 
-  async generateResponse(prompt: string, model: string, options: any = {}): Promise<AIResponse> {
+  async generateResponse(prompt: string, model: string, options: AIGenerateOptions = {}): Promise<AIResponse> {
     if (!this.apiKey) {
       throw new Error('Anthropic API key not configured')
     }
@@ -418,7 +429,7 @@ class AnthropicProvider implements AIProvider {
     }
   }
 
-  async *generateStream(prompt: string, model: string, options: any = {}): AsyncGenerator<string, void, unknown> {
+  async *generateStream(prompt: string, model: string, options: AIGenerateOptions = {}): AsyncGenerator<string, void, unknown> {
     if (!this.apiKey) {
       throw new Error('Anthropic API key not configured')
     }
@@ -459,7 +470,7 @@ class AnthropicProvider implements AIProvider {
       }
 
       let buffer = ''
-      let currentEvent: { type?: string; data?: any } = {}
+      let currentEvent: { type?: string; data?: Record<string, unknown> } = {}
       
       while (true) {
         const { done, value } = await reader.read()
@@ -533,9 +544,9 @@ export function getModel(modelId: string): AIModel | undefined {
 }
 
 export async function generateAIResponse(
-  prompt: string, 
-  modelId: string, 
-  options: any = {}
+  prompt: string,
+  modelId: string,
+  options: AIGenerateOptions = {}
 ): Promise<AIResponse> {
   const provider = getProvider(modelId)
   const model = getModel(modelId)
@@ -550,7 +561,7 @@ export async function generateAIResponse(
 export async function* generateAIStream(
   prompt: string,
   modelId: string,
-  options: any = {}
+  options: AIGenerateOptions = {}
 ): AsyncGenerator<string, void, unknown> {
   const provider = getProvider(modelId)
   const model = getModel(modelId)

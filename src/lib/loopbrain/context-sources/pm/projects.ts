@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Project Context Source
  * 
@@ -23,7 +22,7 @@ export type ProjectWithRelations = Prisma.ProjectGetPayload<{
         email: true
       }
     }
-    documentationLinks: {
+    projectDocumentation: {
       include: {
         wikiPage: {
           select: {
@@ -61,8 +60,8 @@ export type ProjectWithRelations = Prisma.ProjectGetPayload<{
  */
 export function buildProjectContext(project: ProjectWithRelations): UnifiedContextObject {
   // Use the existing projectToContext builder
-  const contextObject = projectToContext(project, {
-    owner: project.owner || null,
+  const contextObject = projectToContext(project as unknown as Parameters<typeof projectToContext>[0], {
+    owner: project.owner as unknown as NonNullable<NonNullable<Parameters<typeof projectToContext>[1]>['owner']>,
     team: null // Team is stored as string, not a relation
   })
 
@@ -78,7 +77,7 @@ export function buildProjectContext(project: ProjectWithRelations): UnifiedConte
 
     // Build documentation array from attached docs
     // Process content to group consecutive code blocks for complete context
-    const documentation = project.documentationLinks?.map(link => {
+    const documentation = project.projectDocumentation?.map(link => {
       // Process content to merge consecutive code blocks
       let processedContent = link.wikiPage.content || ''
       if (processedContent) {
@@ -98,7 +97,7 @@ export function buildProjectContext(project: ProjectWithRelations): UnifiedConte
 
     // Add relations for each attached documentation page
     const docRelations = documentation.map(doc => ({
-      type: 'doc' as const,
+      type: 'page' as const,
       id: doc.wikiPageId,
       label: doc.title,
       direction: 'out' as const

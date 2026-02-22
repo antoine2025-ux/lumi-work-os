@@ -28,7 +28,7 @@ export async function answerQ5(args: {
     note: w.note ?? undefined,
   }));
 
-  const current = deriveCurrentAvailability(windows as any, at);
+  const current = deriveCurrentAvailability(windows, at);
 
   let returnDate: string | undefined = undefined;
   if (current.status === "unavailable") {

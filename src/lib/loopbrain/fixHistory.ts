@@ -6,12 +6,22 @@
  */
 
 
+export type PersonStateFields = {
+  managerId?: string | null;
+  managerName?: string | null;
+  teamId?: string | null;
+  teamName?: string | null;
+  team?: string | null;
+  role?: string | null;
+  title?: string | null;
+};
+
 export type FixEventInput = {
   orgId: string;
   personId?: string;
   fixType: string; // e.g. "ASSIGN_MANAGER", "ASSIGN_TEAM", "ASSIGN_ROLE"
-  beforeState: Record<string, any>;
-  afterState: Record<string, any>;
+  beforeState: PersonStateFields;
+  afterState: PersonStateFields;
   impactScore: number;
 };
 
@@ -30,7 +40,7 @@ export function buildFixEvent(input: FixEventInput): FixEvent {
 /**
  * Determines fix type from state changes
  */
-export function determineFixType(before: Record<string, any>, after: Record<string, any>): string {
+export function determineFixType(before: PersonStateFields, after: PersonStateFields): string {
   if (before.managerId !== after.managerId) return "ASSIGN_MANAGER";
   if (before.teamId !== after.teamId || before.teamName !== after.teamName) return "ASSIGN_TEAM";
   if (before.role !== after.role || before.title !== after.title) return "ASSIGN_ROLE";
@@ -40,7 +50,7 @@ export function determineFixType(before: Record<string, any>, after: Record<stri
 /**
  * Captures minimal before state (only relevant fields)
  */
-export function captureBeforeState(person: any): Record<string, any> {
+export function captureBeforeState(person: PersonStateFields): PersonStateFields {
   return {
     managerId: person.managerId || null,
     managerName: person.managerName || null,
@@ -55,7 +65,7 @@ export function captureBeforeState(person: any): Record<string, any> {
 /**
  * Captures minimal after state (only relevant fields)
  */
-export function captureAfterState(person: any): Record<string, any> {
+export function captureAfterState(person: PersonStateFields): PersonStateFields {
   return {
     managerId: person.managerId || null,
     managerName: person.managerName || null,

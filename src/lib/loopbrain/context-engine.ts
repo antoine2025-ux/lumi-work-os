@@ -39,7 +39,7 @@ import {
 import { logger } from '@/lib/logger'
 import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
 import { projectToContext, taskToContext, pageToContext, roleToContext } from '@/lib/context/context-builders'
-import { buildProjectContext } from './context-sources/pm/projects'
+import { buildProjectContext, type ProjectWithRelations } from './context-sources/pm/projects'
 import { buildEpicContext, type EpicWithRelations } from './context-sources/pm/epics'
 import { buildTaskContext, type TaskWithRelations } from './context-sources/pm/tasks'
 
@@ -706,7 +706,16 @@ export class PrismaContextEngine implements ContextEngine {
       }
 
       // Build hierarchy (simple tree structure)
-      const hierarchy = this.buildOrgHierarchy(positions as any)
+      const hierarchy = this.buildOrgHierarchy(
+        positions.map(p => ({
+          id: p.id,
+          title: p.title ?? '',
+          level: p.level,
+          parentId: p.parentId,
+          userId: p.userId,
+          teamId: p.teamId,
+        }))
+      )
 
       // Map to OrgContext
       const context: OrgContext = {
@@ -788,8 +797,8 @@ export class PrismaContextEngine implements ContextEngine {
         activities: activitySummaries,
         timeRange: options?.filters?.dateRange || undefined,
         filters: options?.filters ? {
-          entityTypes: options.filters.entityTypes as any,
-          actions: options.filters.actions as any,
+          entityTypes: options.filters.entityTypes as string[] | undefined,
+          actions: options.filters.actions as string[] | undefined,
           userIds: (options.filters.userIds as string[] | undefined) ?? []
         } : undefined
       }
@@ -889,7 +898,7 @@ export class PrismaContextEngine implements ContextEngine {
     let level = 0
 
     // Traverse up the parent chain
-    let page: any
+    let page: { id: string; title: string; slug: string; parentId: string | null } | null = null
     while (currentPageId && level < 10) { // Limit depth to prevent infinite loops
       page = await prisma.wikiPage.findUnique({
         where: { id: currentPageId },
@@ -1094,7 +1103,7 @@ owner: true,
     }
 
     // Build UnifiedContextObject
-    const unifiedContext = buildProjectContext(project as any)
+    const unifiedContext = buildProjectContext(project as unknown as ProjectWithRelations)
 
     // Convert UnifiedContextObject to ProjectContext format for storage
     // ProjectContext extends BaseContext which is what saveContextItem expects
@@ -1562,7 +1571,7 @@ owner: true,
       return null
     }
 
-    return buildProjectContext(project as any)
+    return buildProjectContext(project as unknown as ProjectWithRelations)
   } catch (error) {
     logger.error('Error getting project context object', { projectId, workspaceId, error })
     return null
@@ -1604,7 +1613,7 @@ export async function getWorkspaceContextObjects(params: {
 
     // Convert projects to ContextObjects
     const projectContextObjects = projects.map(project => {
-      return projectToContext(project as any, {
+      return projectToContext(project as unknown as Parameters<typeof projectToContext>[0], {
         owner: project.owner || null,
         team: null // Team is stored as string, not a relation
       })
@@ -1634,7 +1643,7 @@ export async function getWorkspaceContextObjects(params: {
 
       // Convert tasks to ContextObjects
       const taskContextObjects = tasks.map(task => {
-        return taskToContext(task as any, {
+        return taskToContext(task as unknown as Parameters<typeof taskToContext>[0], {
           project: task.project || null,
           assignee: task.assignee || null
         })
@@ -1717,7 +1726,7 @@ export async function getPersonalSpaceDocs(params: {
     // Note: We don't include project relation for personal space pages
     // since they're typically not linked to projects
     const pageContextObjects = pages.map(page => {
-      return pageToContext(page as any, {
+      return pageToContext(page as unknown as Parameters<typeof pageToContext>[0], {
         owner: page.createdBy || null,
         project: null // Personal space pages typically aren't linked to projects
       })
@@ -1798,7 +1807,7 @@ export async function getOrgPeopleContext(params: {
 
     // Convert positions to ContextObjects using roleToContext
     const peopleContextObjects = positions.map(position => {
-      const ctx = roleToContext(position as any, {
+      const ctx = roleToContext(position as unknown as Parameters<typeof roleToContext>[0], {
         person: position.user || null,
         team: position.team || null
       })

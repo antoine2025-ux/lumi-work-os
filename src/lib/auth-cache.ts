@@ -3,22 +3,22 @@
  * Caches auth results within a single request to avoid duplicate queries
  */
 
-const requestCache = new Map<string, { data: any; timestamp: number }>()
+const requestCache = new Map<string, { data: unknown; timestamp: number }>()
 const CACHE_TTL = 1000 // 1 second - only for request duration
 
-export function getCachedAuth(key: string): any | null {
+export function getCachedAuth<T = unknown>(key: string): T | null {
   const cached = requestCache.get(key)
   if (!cached) return null
-  
+
   if (Date.now() - cached.timestamp > CACHE_TTL) {
     requestCache.delete(key)
     return null
   }
-  
-  return cached.data
+
+  return cached.data as T
 }
 
-export function setCachedAuth(key: string, data: any): void {
+export function setCachedAuth(key: string, data: unknown): void {
   requestCache.set(key, { data, timestamp: Date.now() })
   
   // Clean up old entries

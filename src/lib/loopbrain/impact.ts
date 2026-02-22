@@ -13,7 +13,7 @@ export type ImpactScore = {
 };
 
 export function computeImpactForPerson(args: {
-  person: any;
+  person: { id: string };
   signals: LoopBrainEvent[];
   directReportCount?: number;
   depth?: number; // optional future extension

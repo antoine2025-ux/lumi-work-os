@@ -12,13 +12,16 @@ import { answerQ3 } from "./reasoning/q3";
 import { answerQ4 } from "./reasoning/q4";
 import { answerQ7 } from "./q7";
 import { answerQ8 } from "./q8";
+import { deriveProjectAccountability } from "@/lib/org";
+
+type ProjectWithAccountability = { accountability?: Parameters<typeof deriveProjectAccountability>[0] | null; name?: string };
 
 export async function answerQ9(args: {
   projectId: string;
   workspaceId: string;
-  project: any;
+  project: ProjectWithAccountability;
   peopleById: Record<string, { name: string }>;
-  rolesByName: Record<string, any>;
+  rolesByName: Record<string, { name: string; responsibilities: { scope: string; target: string }[] }>;
   timeframe?: { start?: Date; end?: Date };
 }): Promise<Q9Response> {
   // Gather evidence from Q1-Q8

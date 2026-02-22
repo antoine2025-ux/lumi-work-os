@@ -37,7 +37,7 @@ export function isGoalQuestion(query: string): boolean {
 export async function handleGoalQuery(
   query: string,
   workspaceId: string
-): Promise<any> {
+): Promise<unknown> {
   const lowerQuery = query.toLowerCase()
 
   // Route to specific handlers
@@ -379,7 +379,7 @@ function extractQuarter(query: string): string | null {
  * Generate recommendations for at-risk goals
  */
 function generateAtRiskRecommendations(
-  goals: Array<any>
+  goals: Array<{ health: { variance: number }; progress?: number; title?: string }>
 ): string[] {
   const recommendations: string[] = []
 
@@ -395,7 +395,7 @@ function generateAtRiskRecommendations(
     )
   }
 
-  const lowProgressGoals = goals.filter(g => g.progress < 25)
+  const lowProgressGoals = goals.filter(g => (g.progress ?? 0) < 25)
   if (lowProgressGoals.length > 0) {
     recommendations.push(
       `${lowProgressGoals.length} goal(s) have very low progress. Review key results and remove blockers.`
@@ -413,7 +413,7 @@ function generateAtRiskRecommendations(
  * Generate recommendations based on progress summary
  */
 function generateProgressRecommendations(
-  summary: any
+  summary: { averageProgress: number; atRisk: number; onTrack: number; completed: number; total: number }
 ): string[] {
   const recommendations: string[] = []
 

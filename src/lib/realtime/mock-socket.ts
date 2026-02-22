@@ -4,18 +4,18 @@
 export interface MockSocket {
   connected: boolean
   id: string
-  data?: any
-  emit: (event: string, data?: any) => void
-  on: (event: string, callback: (data?: any) => void) => void
-  off: (event: string, callback?: (data?: any) => void) => void
+  data?: Record<string, unknown>
+  emit: (event: string, data?: unknown) => void
+  on<T = unknown>(event: string, callback: (data: T) => void): void
+  off<T = unknown>(event: string, callback?: (data: T) => void): void
   disconnect: () => void
 }
 
 class MockSocketImpl implements MockSocket {
   connected = false
   id = `mock-${Math.random().toString(36).substr(2, 9)}`
-  data?: any
-  private listeners: Map<string, Array<(data?: any) => void>> = new Map()
+  data?: Record<string, unknown>
+  private listeners: Map<string, Array<(data?: unknown) => void>> = new Map()
 
   constructor() {
     // Simulate connection after a short delay
@@ -25,35 +25,37 @@ class MockSocketImpl implements MockSocket {
     }, 100)
   }
 
-  emit(event: string, data?: any) {
+  emit(event: string, data?: unknown) {
     console.log(`[Mock Socket] Emitting ${event}:`, data)
     
     // Simulate server responses for certain events
     if (event === 'authenticate' && data) {
-      this.data = data
+      this.data = data as Record<string, unknown>
       setTimeout(() => {
         this.triggerListeners('userJoined', {
-          userId: data.userId,
-          userName: data.userName
+          userId: (data as Record<string, unknown>).userId as string,
+          userName: (data as Record<string, unknown>).userName as string
         })
       }, 200)
     }
     
     if (event === 'updateTask') {
+      const d = data as Record<string, unknown>
       setTimeout(() => {
         this.triggerListeners('taskUpdated', {
-          taskId: data.taskId,
-          updates: data.updates,
+          taskId: d.taskId,
+          updates: d.updates,
           userId: this.data?.userId || 'mock-user'
         })
       }, 100)
     }
-    
+
     if (event === 'createTask') {
+      const d = data as Record<string, unknown>
       setTimeout(() => {
         this.triggerListeners('taskCreated', {
-          task: data.task,
-          projectId: data.projectId
+          task: d.task,
+          projectId: d.projectId
         })
       }, 100)
     }
@@ -68,19 +70,19 @@ class MockSocketImpl implements MockSocket {
     this.triggerListeners(event, data)
   }
 
-  on(event: string, callback: (data?: any) => void) {
+  on<T = unknown>(event: string, callback: (data: T) => void) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, [])
     }
-    this.listeners.get(event)!.push(callback)
+    this.listeners.get(event)!.push(callback as unknown as (data?: unknown) => void)
   }
 
-  off(event: string, callback?: (data?: any) => void) {
+  off<T = unknown>(event: string, callback?: (data: T) => void) {
     if (!this.listeners.has(event)) return
-    
+
     if (callback) {
       const listeners = this.listeners.get(event)!
-      const index = listeners.indexOf(callback)
+      const index = listeners.indexOf(callback as unknown as (data?: unknown) => void)
       if (index > -1) {
         listeners.splice(index, 1)
       }
@@ -89,7 +91,7 @@ class MockSocketImpl implements MockSocket {
     }
   }
 
-  private triggerListeners(event: string, data?: any) {
+  private triggerListeners(event: string, data?: unknown) {
     const listeners = this.listeners.get(event)
     if (listeners) {
       listeners.forEach(callback => callback(data))

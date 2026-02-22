@@ -5,15 +5,17 @@
  */
 
 import type { Q2Response } from "./types";
-import { deriveProjectAccountability } from "@/lib/org";
+import { deriveProjectAccountability, type AccountabilityValue } from "@/lib/org";
+
+type ProjectWithAccountability = { accountability?: Parameters<typeof deriveProjectAccountability>[0] | null };
 
 export async function answerQ2(args: {
-  project: any;
+  project: ProjectWithAccountability;
   peopleById?: Record<string, { name: string }>;
 }): Promise<Q2Response> {
-  const acct = deriveProjectAccountability(args.project.accountability);
+  const acct = deriveProjectAccountability(args.project.accountability ?? undefined);
 
-  function resolve(v: any) {
+  function resolve(v: AccountabilityValue): AccountabilityValue & { name?: string } {
     if (v.type === "person") {
       const name = args.peopleById?.[v.personId]?.name;
       return { ...v, name };

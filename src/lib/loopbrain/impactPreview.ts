@@ -17,7 +17,7 @@ export type ImpactPreview = {
 };
 
 export function previewFixImpact(args: {
-  person: any;
+  person: { id: string };
   signals: LoopBrainEvent[];
   totalPeople?: number; // Optional: for more accurate percentage calculations
 }): ImpactPreview {
@@ -27,7 +27,7 @@ export function previewFixImpact(args: {
     explanation: "",
   };
 
-  const deltas: any = {};
+  const deltas: Record<string, number> = {};
   const explanations: string[] = [];
 
   if (personSignals.some((s) => s.type === "MISSING_MANAGER")) {

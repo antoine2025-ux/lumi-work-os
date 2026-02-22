@@ -5,15 +5,17 @@
  */
 
 import type { Q1Response } from "./types";
-import { deriveProjectAccountability } from "@/lib/org";
+import { deriveProjectAccountability, type AccountabilityValue } from "@/lib/org";
+
+type ProjectWithAccountability = { accountability?: Parameters<typeof deriveProjectAccountability>[0] | null };
 
 export async function answerQ1(args: {
-  project: any;
+  project: ProjectWithAccountability;
   peopleById?: Record<string, { name: string }>;
 }): Promise<Q1Response> {
-  const acct = deriveProjectAccountability(args.project.accountability);
+  const acct = deriveProjectAccountability(args.project.accountability ?? undefined);
 
-  let owner: any = acct.owner;
+  let owner: AccountabilityValue & { name?: string } = acct.owner;
   if (owner.type === "person") {
     const name = args.peopleById?.[owner.personId]?.name;
     owner = { ...owner, name };

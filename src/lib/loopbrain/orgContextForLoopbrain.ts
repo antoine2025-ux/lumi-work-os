@@ -28,7 +28,7 @@ export async function getOrgContextForLoopbrain(
   const items = await prisma.contextItem.findMany({
     where: {
       workspaceId,
-      type: { in: ORG_CONTEXT_TYPES as any },
+      type: { in: ORG_CONTEXT_TYPES as unknown as string[] },
     },
     orderBy: {
       updatedAt: "desc",
@@ -43,7 +43,8 @@ export async function getOrgContextForLoopbrain(
     // Build ContextObject from ContextItem row fields, NOT from item.data
     // The data field contains domain-specific payloads (PersonContextData, etc.),
     // not ContextObject structure
-    const tags = (item.data as any)?.tags ?? [];
+    const data = item.data as Record<string, unknown> | null | undefined;
+    const tags = (Array.isArray(data?.tags) ? data.tags : []) as string[];
     
     // Extract owner from tags (e.g., "holder:Antoine Morlet")
     const holderTag = tags.find((t: string) => t.startsWith("holder:") && t !== "holder:none");
@@ -55,7 +56,7 @@ export async function getOrgContextForLoopbrain(
       title: item.title,                               // ✅ Use row field
       summary: item.summary ?? "",                     // ✅ Use row field
       tags,                                             // Extract from payload if present
-      relations: (item.data as any)?.relations ?? [],  // Extract from payload if present
+      relations: (Array.isArray(data?.relations) ? data.relations : []) as ContextObject['relations'],  // Extract from payload if present
       owner,                                           // ✅ Extract from tags
       status: "ACTIVE",                                // Default for active items
       updatedAt: new Date(item.updatedAt).toISOString(), // ✅ Use row field

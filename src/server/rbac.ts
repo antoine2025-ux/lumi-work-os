@@ -11,7 +11,7 @@ export async function getOrgContext(request?: NextRequest) {
   const ctx = await getActiveOrgContext(request);
   const orgId = ctx.orgId;
   const orgName = ctx.orgName;
-  const role = (ctx.role ?? "VIEWER") as any;
+  const role = (ctx.role ?? "VIEWER") as string;
 
   const canEdit = role === "EDITOR" || role === "ADMIN";
   const canAdmin = role === "ADMIN";
@@ -27,16 +27,16 @@ export async function getOrgContext(request?: NextRequest) {
 
 export function requireEdit(canEdit: boolean) {
   if (!canEdit) {
-    const err = new Error("FORBIDDEN");
-    (err as any).status = 403;
+    const err = new Error("FORBIDDEN") as Error & { status: number };
+    err.status = 403;
     throw err;
   }
 }
 
 export function requireAdmin(canAdmin: boolean) {
   if (!canAdmin) {
-    const err = new Error("FORBIDDEN");
-    (err as any).status = 403;
+    const err = new Error("FORBIDDEN") as Error & { status: number };
+    err.status = 403;
     throw err;
   }
 }
