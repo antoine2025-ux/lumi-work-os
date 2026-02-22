@@ -11,7 +11,7 @@ export default function InsightsPage() {
             What are Insights?
           </h2>
           <p className="text-[13px] text-slate-300">
-            Org Insights provide analytics and trends about your organization. They help you understand how your organization is structured, how it's growing, and where people are distributed across teams and departments.
+            Org Insights provide analytics and trends about your organization. They help you understand how your organization is structured, how it&apos;s growing, and where people are distributed across teams and departments.
           </p>
         </section>
 

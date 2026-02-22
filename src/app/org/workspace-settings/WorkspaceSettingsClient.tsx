@@ -13,7 +13,9 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { OrgTabNav, type OrgTab } from "@/components/org/OrgTabNav";
 import { MembersSection } from "@/components/org/settings/MembersSection";
+import type { Member } from "@/components/org/settings/MembersSection";
 import { InvitesSection } from "@/components/org/settings/InvitesSection";
+import type { Invitation } from "@/components/org/settings/InvitesSection";
 import { GeneralSettingsSection } from "@/components/org/settings/GeneralSettingsSection";
 import { DangerZoneSection } from "@/components/org/settings/DangerZoneSection";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
@@ -33,9 +35,9 @@ type WorkspaceSettingsClientProps = {
   canManageInvites: boolean;
   canSeeDanger: boolean;
   currentUserId?: string;
-  initialMembers?: any[];
-  initialInvitations?: any[];
-  initialCustomRoles?: any[];
+  initialMembers?: Member[];
+  initialInvitations?: Invitation[];
+  initialCustomRoles?: Array<{ id: string; name: string }>;
 };
 
 export function WorkspaceSettingsClient({

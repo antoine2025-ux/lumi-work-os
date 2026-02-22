@@ -16,7 +16,7 @@ export function LeaveOrgButton({ workspaceId, workspaceName }: LeaveOrgButtonPro
   const { toast } = useToast();
   const [leaving, setLeaving] = useState(false);
 
-  const leaveAction = useApiAction<{}, { workspaceId: string }>(
+  const leaveAction = useApiAction<Record<string, never>, { workspaceId: string }>(
     orgApi.memberLeave()
   );
 

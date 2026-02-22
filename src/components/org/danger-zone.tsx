@@ -35,11 +35,11 @@ export function DangerZone({
   const [deleting, setDeleting] = useState(false);
 
   const transferAction = useApiAction<
-    {},
+    Record<string, never>,
     { workspaceId: string; targetMembershipId: string }
   >(orgApi.ownershipTransfer());
 
-  const deleteAction = useApiAction<{}, { workspaceId: string }>(
+  const deleteAction = useApiAction<Record<string, never>, { workspaceId: string }>(
     orgApi.deleteOrg()
   );
 

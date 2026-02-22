@@ -6,7 +6,7 @@ export function OrgCenterDisabled() {
           Org Center temporarily unavailable
         </div>
         <p className="mt-2 text-[12px] text-slate-500">
-          We're currently performing maintenance on Org Center.
+          We&apos;re currently performing maintenance on Org Center.
           <br />
           Please check back later.
         </p>

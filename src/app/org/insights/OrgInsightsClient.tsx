@@ -70,16 +70,17 @@ export default function OrgInsightsClient() {
         if (cancelled) return;
 
         setState({ status: "ready", data: json.insights });
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (cancelled) return;
 
         const message =
-          err?.message || "Unable to load insights right now. Please try again later.";
+          err instanceof Error ? err.message : "Unable to load insights right now. Please try again later.";
         
         // Log client-side error for observability
+        const errObj = err as { message?: string; status?: string } | null
         logOrgClientError("org_insights_render_error", {
-          message: err?.message,
-          status: err?.status,
+          message: errObj?.message,
+          status: errObj?.status,
         });
         
         setState({ status: "error", message });

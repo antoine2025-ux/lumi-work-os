@@ -93,7 +93,7 @@ export function WhyThisAnswerPanel({ issueWindow, thresholds, responseMeta }: Pr
                   <div className="font-medium text-foreground mb-1">What removes it</div>
                   <p className="text-muted-foreground text-xs leading-relaxed">
                     Fix actions (mutations) that address the root cause remove issues immediately.
-                    For example, assigning an owner removes an "unowned" issue; resolving a capacity conflict removes the conflict issue.
+                    For example, assigning an owner removes an &quot;unowned&quot; issue; resolving a capacity conflict removes the conflict issue.
                   </p>
                 </div>
                 <div>

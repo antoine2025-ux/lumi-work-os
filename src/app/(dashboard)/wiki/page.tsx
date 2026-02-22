@@ -72,7 +72,7 @@ export default function WikiPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">Team Workspace</h1>
-              <p className="text-muted-foreground">Collaborative workspace for your team's knowledge and documentation</p>
+              <p className="text-muted-foreground">Collaborative workspace for your team&apos;s knowledge and documentation</p>
             </div>
           </div>
         </div>
@@ -91,7 +91,7 @@ export default function WikiPage() {
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-muted-foreground mb-4">
-                  This is your team's shared space for collaboration on documents, knowledge sharing, and project work. 
+                  This is your team&apos;s shared space for collaboration on documents, knowledge sharing, and project work. 
                   Perfect for documentation, meeting notes, and knowledge management.
                 </CardDescription>
                 <Button variant="link" className="p-0 h-auto text-blue-600 hover:text-blue-700">
@@ -114,8 +114,9 @@ export default function WikiPage() {
                   Start a new collaborative document that your team can view and edit together.
                 </CardDescription>
                 <Button className="w-full" onClick={() => {
-                  if (typeof window !== 'undefined' && (window as any).triggerCreatePage) {
-                    (window as any).triggerCreatePage()
+                  const win = window as unknown as { triggerCreatePage?: () => void }
+                  if (typeof window !== 'undefined' && win.triggerCreatePage) {
+                    win.triggerCreatePage()
                   } else {
                     router.push('/wiki/new')
                   }

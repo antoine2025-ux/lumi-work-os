@@ -215,8 +215,9 @@ export default function SpacesHomePage() {
   }
 
   const handleCreatePage = () => {
-    if (typeof window !== 'undefined' && (window as any).triggerCreatePage) {
-      (window as any).triggerCreatePage()
+    const win = window as unknown as { triggerCreatePage?: () => void }
+    if (typeof window !== 'undefined' && win.triggerCreatePage) {
+      win.triggerCreatePage()
     }
   }
 

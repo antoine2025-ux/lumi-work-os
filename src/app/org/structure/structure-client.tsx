@@ -225,12 +225,12 @@ export function StructureClient({
       // Redirect to Structure page (not Department page)
       router.push("/org/structure");
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to assign department:", error);
       setIsAssigning(false);
-      
+
       // Show alert for errors caught here (duplicate errors are handled above and don't reach catch)
-      const errorMessage = error.message || "Failed to assign department. Please try again.";
+      const errorMessage = error instanceof Error ? error.message : "Failed to assign department. Please try again.";
       alert(errorMessage);
     }
   };
@@ -462,7 +462,7 @@ export function StructureClient({
                 {assignmentError.details.allTeamsWithSameName.length > 0 && (
                   <div className="space-y-2">
                     <div className="text-xs font-medium text-amber-300/80">
-                      All teams named "{selectedTeam?.name}" in your organization:
+                      All teams named &quot;{selectedTeam?.name}&quot; in your organization:
                     </div>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                       {assignmentError.details.allTeamsWithSameName.map((duplicateTeam) => (

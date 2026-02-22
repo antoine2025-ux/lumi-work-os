@@ -185,7 +185,7 @@ export function VersionHistory({ pageId, onClose, onRestore }: VersionHistoryPro
               <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No version history</h3>
               <p className="text-muted-foreground">
-                This page doesn't have any version history yet.
+                This page doesn&apos;t have any version history yet.
               </p>
             </div>
           )}

@@ -8,6 +8,7 @@
 "use client";
 
 import { OrgApi } from "@/components/org/api";
+import type { OrgPeopleListDTO } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
 import { computeOrgReadiness } from "@/components/org/readiness";
 
@@ -20,9 +21,10 @@ export function useOrgReadiness() {
   const error = peopleQ.error || structureQ.error || ownershipQ.error;
 
   // Unwrap { ok, data: { people } } envelope from /api/org/people if present
-  const unwrappedPeople = (peopleQ.data as any)?.data?.people
-    ? (peopleQ.data as any).data
-    : peopleQ.data;
+  const rawPeopleData = peopleQ.data as unknown as { data?: OrgPeopleListDTO } | null;
+  const unwrappedPeople = rawPeopleData?.data?.people
+    ? rawPeopleData.data
+    : (peopleQ.data as OrgPeopleListDTO | null);
 
   const readiness =
     !loading && !error && unwrappedPeople && structureQ.data && ownershipQ.data

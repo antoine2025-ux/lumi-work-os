@@ -10,9 +10,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
-// @ts-ignore - TipTap extension types
 import TaskList from '@tiptap/extension-task-list'
-// @ts-ignore - TipTap extension types
 import TaskItem from '@tiptap/extension-task-item'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import { lowlight } from 'lowlight'

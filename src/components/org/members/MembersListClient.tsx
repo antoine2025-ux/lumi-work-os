@@ -14,7 +14,7 @@ type Member = {
   customRole?: {
     id: string;
     name: string;
-    capabilities: string[];
+    capabilities?: string[];
   } | null;
   user?: {
     id: string;

@@ -39,7 +39,7 @@ export default function NewTaskPage() {
     }
   }
 
-  const handleTaskCreated = (_task: any) => {
+  const handleTaskCreated = (_task: unknown) => {
     // Redirect to the task's parent project
     router.push(`/projects/${projectId}`)
   }

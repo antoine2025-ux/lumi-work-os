@@ -72,7 +72,7 @@ export function DeleteDepartmentInline({
           <DialogHeader>
             <DialogTitle>Delete department?</DialogTitle>
             <DialogDescription>
-              This action can't be undone. Delete{" "}
+              This action can&apos;t be undone. Delete{" "}
               <span className="font-medium">{departmentName}</span>?
             </DialogDescription>
           </DialogHeader>

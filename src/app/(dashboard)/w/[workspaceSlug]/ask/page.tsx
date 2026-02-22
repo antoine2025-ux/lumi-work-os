@@ -259,7 +259,7 @@ export default function AskPage() {
         const messagesData = await messagesResponse.json()
         
         if (messagesData.success && messagesData.messages) {
-          const formattedMessages = messagesData.messages.map((msg: any) => ({
+          const formattedMessages = messagesData.messages.map((msg: { id: string; type: string; content: string; createdAt: string; metadata?: Record<string, unknown> }) => ({
             id: msg.id,
             role: msg.type === 'USER' ? 'user' : 'assistant',
             content: msg.content,

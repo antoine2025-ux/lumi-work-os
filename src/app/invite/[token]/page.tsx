@@ -50,9 +50,9 @@ export default async function InvitePage({ params }: InvitePageProps) {
     workspaceName = result.workspace.name ?? "this organization";
     workspaceId = result.workspace.id;
     membershipCreated = result.membershipCreated;
-  } catch (err: any) {
+  } catch (err: unknown) {
     error =
-      typeof err?.message === "string"
+      err instanceof Error
         ? err.message
         : "We couldn&apos;t process this invitation.";
   }

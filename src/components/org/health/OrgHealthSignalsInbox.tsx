@@ -46,7 +46,7 @@ export function OrgHealthSignalsInbox(props: {
         <div>
           <div className="text-sm font-semibold">Signal inbox</div>
           <div className="mt-1 text-sm text-muted-foreground">
-            Triage what's open. Resolution/dismissal comes next.
+            Triage what&apos;s open. Resolution/dismissal comes next.
           </div>
         </div>
 

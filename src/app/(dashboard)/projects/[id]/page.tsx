@@ -25,6 +25,9 @@ import ReactMarkdown from "react-markdown"
 import TaskList from "@/components/tasks/task-list"
 import type { ViewMode } from "@/components/tasks/view-switcher"
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
+import type { FilterableTask } from "@/components/search/task-search-filter"
+import type { KanbanBoardProps } from "@/components/kanban/kanban-board"
+type KanbanTask = NonNullable<KanbanBoardProps['filteredTasks']>[number]
 
 // Dynamic imports for heavy components to reduce initial bundle size
 const KanbanBoard = dynamic(() => import("@/components/kanban/kanban-board").then(mod => ({ default: mod.KanbanBoard })), { ssr: false })
@@ -184,7 +187,7 @@ export default function ProjectDetailPage() {
   const [headerView, setHeaderView] = useState<'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'>('board')
   const [showCelebration, setShowCelebration] = useState(false)
   const [wasCompleted, setWasCompleted] = useState(false)
-  const [filteredTasks, setFilteredTasks] = useState<any[]>([])
+  const [filteredTasks, setFilteredTasks] = useState<KanbanTask[]>([])
   const [isFiltered, setIsFiltered] = useState(false)
   const [isSearchExpanded, _setIsSearchExpanded] = useState(false)
   const [selectedEpicId, _setSelectedEpicId] = useState<string | undefined>(undefined)
@@ -344,21 +347,22 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const handleProjectUpdate = async (updatedProject: any) => {
+  const handleProjectUpdate = async (updatedProject: unknown) => {
+    const proj = updatedProject as Project;
     console.log('[ProjectPage] handleProjectUpdate called with:', {
-      'updatedProject.slackChannelHints': updatedProject.slackChannelHints,
-      'isArray': Array.isArray(updatedProject.slackChannelHints),
-      'length': updatedProject.slackChannelHints?.length
+      'updatedProject.slackChannelHints': proj.slackChannelHints,
+      'isArray': Array.isArray(proj.slackChannelHints),
+      'length': proj.slackChannelHints?.length
     })
-    
+
     // Save slackChannelHints to localStorage FIRST (before reloading project)
-    if (updatedProject.slackChannelHints && Array.isArray(updatedProject.slackChannelHints) && updatedProject.slackChannelHints.length > 0) {
-      console.log('[ProjectPage] Saving slackChannelHints to localStorage:', updatedProject.slackChannelHints)
+    if (proj.slackChannelHints && Array.isArray(proj.slackChannelHints) && proj.slackChannelHints.length > 0) {
+      console.log('[ProjectPage] Saving slackChannelHints to localStorage:', proj.slackChannelHints)
       // Use the hook's setter to update both localStorage and component state
-      setLocalStorageHints(updatedProject.slackChannelHints)
+      setLocalStorageHints(proj.slackChannelHints)
     }
-    
-    setProject(updatedProject)
+
+    setProject(proj)
     // Reload project to get fresh data (this will clear project.slackChannelHints, but localStorage should have it)
     await loadProject()
   }
@@ -422,8 +426,8 @@ export default function ProjectDetailPage() {
   }
 
 
-  const handleFilterChange = (filteredTasks: any[]) => {
-    setFilteredTasks(filteredTasks)
+  const handleFilterChange = (filteredTasks: FilterableTask[]) => {
+    setFilteredTasks(filteredTasks as unknown as KanbanTask[])
     setIsFiltered(true)
   }
 

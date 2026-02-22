@@ -17,7 +17,7 @@ interface CustomFieldDef {
   key: string
   label: string
   type: 'text' | 'number' | 'select' | 'date' | 'boolean'
-  options?: any
+  options?: string[] | null
   uniqueKey: string
   createdAt: string
 }
@@ -253,7 +253,7 @@ export default function CustomFieldsSettingsPage() {
               
               <div>
                 <Label htmlFor="type">Type</Label>
-                <Select value={formData.type} onValueChange={(value: any) => setFormData(prev => ({ ...prev, type: value }))}>
+                <Select value={formData.type} onValueChange={(value: string) => setFormData(prev => ({ ...prev, type: value as CustomFieldDef['type'] }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

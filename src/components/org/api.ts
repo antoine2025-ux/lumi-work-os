@@ -107,7 +107,7 @@ export type OrgIntelligenceFinding = {
   entityId: string | null;
   title: string;
   explanation: string;
-  evidence: Record<string, any>;
+  evidence: Record<string, unknown>;
 };
 
 export type OrgIntelligenceRollups = {

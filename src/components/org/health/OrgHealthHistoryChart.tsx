@@ -117,7 +117,7 @@ export function OrgHealthHistoryChart(props: {
           ))}
           {history.length === 0 && (
             <div className="rounded-xl border px-3 py-3 text-sm text-muted-foreground">
-              No snapshots yet. Click "Refresh now" to create the first snapshot.
+              No snapshots yet. Click &quot;Refresh now&quot; to create the first snapshot.
             </div>
           )}
         </div>

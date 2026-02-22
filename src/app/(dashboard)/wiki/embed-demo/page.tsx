@@ -92,7 +92,7 @@ export default function EmbedDemoPage() {
           <div>
             <h3 className="font-semibold mb-2">Method 2: Toolbar Button</h3>
             <p className="text-sm text-muted-foreground">
-              Click the "Embed" button in the toolbar to open the embed dialog directly.
+              Click the &quot;Embed&quot; button in the toolbar to open the embed dialog directly.
             </p>
           </div>
           

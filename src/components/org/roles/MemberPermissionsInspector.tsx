@@ -27,17 +27,19 @@ export function MemberPermissionsInspector({
   onClose,
   member,
 }: MemberPermissionsInspectorProps) {
-  if (!open || !member) return null;
-
   const combinedCapabilities = useMemo(
     () =>
-      listCombinedCapabilities(member.role, {
-        capabilities: member.customRoleCapabilities ?? [],
-      }),
-    [member.role, member.customRoleCapabilities]
+      member
+        ? listCombinedCapabilities(member.role, {
+            capabilities: member.customRoleCapabilities ?? [],
+          })
+        : [],
+    [member]
   );
 
   const combinedSet = new Set<OrgCapability>(combinedCapabilities);
+
+  if (!open || !member) return null;
 
   return (
     <div

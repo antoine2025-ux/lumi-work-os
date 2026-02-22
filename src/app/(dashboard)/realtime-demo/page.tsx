@@ -138,7 +138,7 @@ export default function RealtimeDemoPage() {
             </div>
             
             <div className="space-y-2">
-              <h4 className="font-medium">What's Working:</h4>
+              <h4 className="font-medium">What&apos;s Working:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>✅ WebSocket connection</li>
                 <li>✅ Live task updates</li>

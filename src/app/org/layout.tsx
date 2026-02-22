@@ -10,6 +10,7 @@ export const revalidate = 0
  */
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { OrgPermissionsProvider } from "@/components/org/OrgPermissionsContext";
 import { getOrgPermissionContext } from "@/lib/org/permissions.server";
 import { OrgLayoutClient } from "@/components/org/OrgLayoutClient";
@@ -87,8 +88,8 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
       // Try to determine if it's an auth issue vs no org issue
       // Check session directly first to see if user is actually signed in
       try {
-        const session = await getServerSession(authOptions);
-        
+        const session = await getServerSession(authOptions) as { user?: { email?: string | null } } | null;
+
         if (!session?.user?.email) {
           // User is truly not signed in
           return (
@@ -96,17 +97,17 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
               <div className="px-10 pt-10">
                 <div className="max-w-lg rounded-2xl border border-slate-800 bg-[#020617] px-6 py-6 text-[13px] text-slate-200">
                   <div className="mb-1 text-[14px] font-semibold text-slate-50">
-                    You're not signed in
+                    You&apos;re not signed in
                   </div>
                   <p className="text-[11px] text-slate-500 mb-4">
-                    Sign in to access your organization's Org Center.
+                    Sign in to access your organization&apos;s Org Center.
                   </p>
-                  <a
+                  <Link
                     href="/api/auth/signin"
                     className="inline-block rounded-lg bg-blue-600 px-4 py-1.5 text-[12px] text-white hover:bg-blue-500 transition-colors"
                   >
                     Sign in with Google
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -259,7 +260,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
   } catch (error) {
     // Re-throw Next.js redirect errors - they should propagate
     if (error && typeof error === 'object' && ('digest' in error || 'message' in error)) {
-      const err = error as any;
+      const err = error as { digest?: string; message?: string };
       if (err.digest === 'NEXT_REDIRECT' || err.message === 'NEXT_REDIRECT') {
         throw error;
       }

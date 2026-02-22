@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 /**
  * Structure Page Client Component
@@ -397,9 +398,9 @@ const TeamsTab = memo(function TeamsTab({
         ownerPersonId: ownerPersonId === "__none__" ? null : ownerPersonId,
       });
       onRefresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only show error if API actually failed
-      const errorMessage = error?.message || "Failed to set team owner";
+      const errorMessage = error instanceof Error ? error.message : "Failed to set team owner";
       setOwnerErrors((prev) => ({ ...prev, [teamId]: errorMessage }));
       // Reset selection on error
       const team = teams.find((t) => t.id === teamId);
@@ -668,7 +669,7 @@ const DepartmentsTab = memo(function DepartmentsTab({
         ownerPersonId: ownerPersonId === "__none__" ? null : ownerPersonId,
       });
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to set team owner:", error);
       const team = teams.find((t) => t.id === teamId);
       setSelectedOwnerIds((prev) => ({ ...prev, [teamId]: team?.ownerPersonId ?? "__none__" }));
@@ -686,7 +687,7 @@ const DepartmentsTab = memo(function DepartmentsTab({
         ownerPersonId: ownerPersonId === "__none__" ? null : ownerPersonId,
       });
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to set department owner:", error);
       const dept = departments.find((d) => d.id === departmentId);
       setSelectedOwnerIds((prev) => ({ ...prev, [`dept-${departmentId}`]: dept?.ownerPersonId ?? "__none__" }));
@@ -1010,7 +1011,7 @@ const DepartmentsTab = memo(function DepartmentsTab({
           <div className="p-5 border-b border-slate-700/30">
             <h3 className="text-base font-semibold text-slate-200">Unassigned teams</h3>
             <div className="text-sm text-slate-500 mt-1">
-              Teams that aren't yet placed in a department.
+              Teams that aren&apos;t yet placed in a department.
             </div>
           </div>
           <div className="p-5 pt-4 space-y-2">

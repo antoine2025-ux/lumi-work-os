@@ -1,5 +1,5 @@
 // Temporary debug component to identify errors
-export function DebugError({ error, location }: { error: any; location: string }) {
+export function DebugError({ error, location }: { error: unknown; location: string }) {
   if (process.env.NODE_ENV === "production") return null;
   
   return (

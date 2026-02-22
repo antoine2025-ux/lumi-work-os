@@ -62,11 +62,11 @@ export function TeamPageClient({ team, departments }: TeamPageClientProps) {
 
       // Refresh the page to update the data
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to update department:", error);
       // Revert the selection on error
       setSelectedDepartmentId(team.department?.id || "__none__");
-      alert(error.message || "Failed to update department. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to update department. Please try again.");
     } finally {
       setIsUpdating(false);
     }

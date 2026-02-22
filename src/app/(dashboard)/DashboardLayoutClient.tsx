@@ -43,9 +43,9 @@ export function DashboardLayoutClient({
     enabled: status === 'authenticated',
     staleTime: 30 * 1000, // 30 seconds
     refetchOnWindowFocus: false,
-    retry: (failureCount, error: any) => {
+    retry: (failureCount: number, error: unknown) => {
       // Don't retry if no workspace (redirect instead)
-      if (error?.message?.includes('No workspace')) return false;
+      if (error instanceof Error && error.message.includes('No workspace')) return false;
       return failureCount < 2;
     },
   });

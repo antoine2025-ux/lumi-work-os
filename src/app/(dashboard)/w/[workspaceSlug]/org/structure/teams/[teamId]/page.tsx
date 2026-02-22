@@ -24,7 +24,7 @@ export default async function WorkspaceOrgTeamPage({ params }: PageProps) {
   const team = await getTeamById(teamId);
   if (!team) return notFound();
 
-  const department = (team as any).department;
+  const department = team.department;
   const allDepartments = await getDepartmentsWithTeams();
 
   setWorkspaceContext(team.workspaceId);
@@ -42,8 +42,8 @@ export default async function WorkspaceOrgTeamPage({ params }: PageProps) {
   });
 
   const departments = allDepartments
-    .filter((d: any) => d.name?.trim().toLowerCase() !== "unassigned")
-    .map((d: any) => ({
+    .filter((d) => d.name?.trim().toLowerCase() !== "unassigned")
+    .map((d) => ({
       id: d.id,
       name: d.name,
     }));
@@ -77,7 +77,7 @@ export default async function WorkspaceOrgTeamPage({ params }: PageProps) {
         }
       />
 
-      <TeamPageClient team={team as any} departments={departments} />
+      <TeamPageClient team={team as unknown as Parameters<typeof TeamPageClient>[0]['team']} departments={departments} />
 
       <Card>
         <CardHeader>

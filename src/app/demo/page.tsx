@@ -69,7 +69,7 @@ export default function DemoPage() {
                 <li>• Light neutral background with soft shadows</li>
                 <li>• 5-column grid layout with smooth transitions</li>
                 <li>• Hover effects reveal additional task details</li>
-                <li>• Floating "+" icons for adding tasks</li>
+                <li>• Floating &quot;+&quot; icons for adding tasks</li>
                 <li>• Gentle entry animations with Framer Motion</li>
                 <li>• Circular status icons and clean typography</li>
               </ul>

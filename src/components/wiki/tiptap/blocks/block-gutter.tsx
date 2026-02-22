@@ -49,29 +49,6 @@ interface BlockGutterProps {
 }
 
 export function BlockGutter({ editor, onInsertBlock: _onInsertBlock }: BlockGutterProps) {
-  // PHASE 1: Canary to prove component mounts
-  if (CANARY_MODE) {
-    return createPortal(
-      <div
-        style={{
-          position: 'fixed',
-          top: '20px',
-          left: '20px',
-          backgroundColor: 'red',
-          color: 'white',
-          padding: '12px 16px',
-          borderRadius: '4px',
-          zIndex: 99999,
-          fontSize: '16px',
-          fontWeight: 'bold',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-        }}
-      >
-        GUTTER CANARY
-      </div>,
-      document.body
-    )
-  }
   // State-driven: Track active block by position (not hover)
   const [activeBlockPos, setActiveBlockPos] = useState<number | null>(null)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
@@ -414,6 +391,30 @@ export function BlockGutter({ editor, onInsertBlock: _onInsertBlock }: BlockGutt
     deleteBlock(editor)
   }
 
+
+  // PHASE 1: Canary to prove component mounts (placed after hooks to comply with rules-of-hooks)
+  if (CANARY_MODE) {
+    return createPortal(
+      <div
+        style={{
+          position: 'fixed',
+          top: '20px',
+          left: '20px',
+          backgroundColor: 'red',
+          color: 'white',
+          padding: '12px 16px',
+          borderRadius: '4px',
+          zIndex: 99999,
+          fontSize: '16px',
+          fontWeight: 'bold',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        }}
+      >
+        GUTTER CANARY
+      </div>,
+      document.body
+    )
+  }
 
   // PHASE 2: Only render if we have an active block and position
   // Validate activeBlockPos: must be > 0

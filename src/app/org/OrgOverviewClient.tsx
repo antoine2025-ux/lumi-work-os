@@ -184,9 +184,10 @@ function NeedsAttentionStrip() {
       ) : data ? (
         (() => {
           // Handle both old shape (summary) and new shape (totals) for backward compatibility
-          const s = (data as any).summary || {
-            missingDepartmentLeads: (data as any).totals?.unownedDepartments || 0,
-            missingTeamLeads: (data as any).totals?.unownedTeams || 0,
+          const dataAny = data as unknown as { summary?: Record<string, number>; totals?: { unownedDepartments?: number; unownedTeams?: number } };
+          const s = dataAny.summary || {
+            missingDepartmentLeads: dataAny.totals?.unownedDepartments || 0,
+            missingTeamLeads: dataAny.totals?.unownedTeams || 0,
             missingReportingLines: 0, // Not in new shape
             missingRole: 0, // Not in new shape
             missingTeam: 0, // Not in new shape
@@ -764,7 +765,7 @@ export function OrgOverviewClient({
                       See how departments connect across your organization.
                     </p>
                     <p className="mt-2 text-xs text-slate-500">
-                      Visualize your organization's structure and understand reporting relationships
+                      Visualize your organization&apos;s structure and understand reporting relationships
                       at a glance.
                     </p>
                   </div>

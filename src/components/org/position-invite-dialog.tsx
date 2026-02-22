@@ -198,7 +198,7 @@ export function PositionInviteDialog({
                 />
               </div>
               <p className="text-xs text-gray-500">
-                They'll receive an email invitation to join this position
+                They&apos;ll receive an email invitation to join this position
               </p>
             </div>
 

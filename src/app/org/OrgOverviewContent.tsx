@@ -64,7 +64,7 @@ async function OverviewDataLoader({ context }: OrgOverviewContentProps) {
   const summaryData = summary.status === "fulfilled" ? summary.value : null;
 
   // MVP: Single primary CTA - "Complete setup" if incomplete, otherwise show health summary
-  const hasIncompleteSetup = summaryData?.completeness && summaryData.completeness.some((c: any) => !c.ok)
+  const hasIncompleteSetup = summaryData?.completeness && summaryData.completeness.some((c: { ok: boolean }) => !c.ok)
   const showLegacySetupBanner = setup?.setupIncomplete && !summaryData?.completeness
 
   return (
@@ -83,7 +83,7 @@ async function OverviewDataLoader({ context }: OrgOverviewContentProps) {
               subtitle="Finish these items to enable full Loopbrain functionality."
             >
               <ul className="space-y-2 mb-4">
-                {summaryData.completeness.filter((c: any) => !c.ok).map((c: any) => (
+                {summaryData.completeness.filter((c: { ok: boolean; key: string; label: string }) => !c.ok).map((c: { ok: boolean; key: string; label: string }) => (
                   <li key={c.key} className={orgTokens.subtleText}>
                     • {c.label}
                   </li>

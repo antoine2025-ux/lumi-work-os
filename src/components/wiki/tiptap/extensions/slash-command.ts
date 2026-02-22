@@ -11,7 +11,7 @@ import { Extension } from '@tiptap/core'
 import type { Editor } from '@tiptap/core'
 
 export interface SlashCommandOptions {
-  HTMLAttributes: Record<string, any>
+  HTMLAttributes: Record<string, unknown>
 }
 
 export const SlashCommand = Extension.create<SlashCommandOptions>({
@@ -189,16 +189,11 @@ export function getSlashCommandItems(): SlashCommandItem[] {
       keywords: ['table', 'grid', 'rows', 'columns'],
       run: ({ editor, range }) => {
         if (range) {
-          (editor
-            .chain()
-            .focus()
-            .deleteRange(range) as any)
+          (editor.chain().focus().deleteRange(range) as unknown as { insertTable: (o: { rows: number; cols: number; withHeaderRow: boolean }) => { run: () => boolean } })
             .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
             .run()
         } else {
-          (editor
-            .chain()
-            .focus() as any)
+          (editor.chain().focus() as unknown as { insertTable: (o: { rows: number; cols: number; withHeaderRow: boolean }) => { run: () => boolean } })
             .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
             .run()
         }

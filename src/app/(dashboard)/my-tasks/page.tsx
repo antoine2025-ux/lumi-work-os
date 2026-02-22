@@ -61,7 +61,7 @@ interface Task {
   points?: number
   customFields?: Array<{
     id: string
-    value: any
+    value: unknown
     field: {
       id: string
       label: string
@@ -147,7 +147,7 @@ export default function MyTasksPage() {
       if (response.ok) {
         setTasks(prevTasks => 
           prevTasks.map(task => 
-            task.id === taskId ? { ...task, status: newStatus as any } : task
+            task.id === taskId ? { ...task, status: newStatus as Task['status'] } : task
           )
         )
       } else {

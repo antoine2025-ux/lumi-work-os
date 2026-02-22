@@ -11,7 +11,7 @@ export default function StructurePage() {
             Teams
           </h2>
           <p className="mb-3 text-[13px] text-slate-300">
-            Teams are groups of people who collaborate daily. Teams typically represent functional groups like "Engineering", "Design", or "Sales".
+            Teams are groups of people who collaborate daily. Teams typically represent functional groups like &quot;Engineering&quot;, &quot;Design&quot;, or &quot;Sales&quot;.
           </p>
           <p className="text-[13px] text-slate-300">
             Teams can belong to departments, and people can be assigned to teams.
@@ -23,7 +23,7 @@ export default function StructurePage() {
             Departments
           </h2>
           <p className="mb-3 text-[13px] text-slate-300">
-            Departments are larger organizational units that contain multiple teams. For example, "Engineering" might be a department containing teams like "Frontend", "Backend", and "DevOps".
+            Departments are larger organizational units that contain multiple teams. For example, &quot;Engineering&quot; might be a department containing teams like &quot;Frontend&quot;, &quot;Backend&quot;, and &quot;DevOps&quot;.
           </p>
           <p className="text-[13px] text-slate-300">
             Departments help organize teams into logical groups and provide a higher-level view of your organization.
@@ -38,7 +38,7 @@ export default function StructurePage() {
             Roles define the responsibilities and expectations for positions in your organization. Roles can be assigned to people and are often associated with specific teams.
           </p>
           <p className="text-[13px] text-slate-300">
-            Examples of roles include "Senior Engineer", "Product Manager", "Design Lead", etc.
+            Examples of roles include &quot;Senior Engineer&quot;, &quot;Product Manager&quot;, &quot;Design Lead&quot;, etc.
           </p>
         </section>
 

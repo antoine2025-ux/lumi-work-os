@@ -217,7 +217,7 @@ export function AIAssistantPreview() {
       {/* Quick Suggestions */}
       <div className="flex flex-wrap gap-2 mt-2">
         <button className="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-300 rounded-md text-xs transition-colors border border-slate-700">
-          What's blocking my projects?
+          What&apos;s blocking my projects?
         </button>
         <button className="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-300 rounded-md text-xs transition-colors border border-slate-700">
           Summarize last meeting

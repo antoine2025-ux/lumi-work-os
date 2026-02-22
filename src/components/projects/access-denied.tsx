@@ -41,14 +41,14 @@ export function AccessDenied({
             <CardTitle>Access Restricted</CardTitle>
           </div>
           <CardDescription>
-            You don't have access to this ProjectSpace
+            You don&apos;t have access to this ProjectSpace
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {projectSpaceName ? (
               <>
-                This project is in the <strong>"{projectSpaceName}"</strong> ProjectSpace, which is set to <strong>TARGETED</strong> visibility.
+                This project is in the <strong>&quot;{projectSpaceName}&quot;</strong> ProjectSpace, which is set to <strong>TARGETED</strong> visibility.
                 Only members explicitly added to this ProjectSpace can access projects within it.
               </>
             ) : (

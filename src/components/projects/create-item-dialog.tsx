@@ -27,7 +27,7 @@ export function CreateItemDialog({
         <DialogHeader>
           <DialogTitle>Create New Item</DialogTitle>
           <DialogDescription>
-            Choose what you'd like to create for this project
+            Choose what you&apos;d like to create for this project
           </DialogDescription>
         </DialogHeader>
         

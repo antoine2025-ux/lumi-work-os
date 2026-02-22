@@ -5,9 +5,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+interface EmbedData {
+  title?: string;
+  description?: string;
+}
+
 export default function TestEmbedPage() {
   const [url, setUrl] = useState("https://github.com/antoine2025-ux/lumi-work-os")
-  const [embedData, setEmbedData] = useState<any>(null)
+  const [embedData, setEmbedData] = useState<EmbedData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 

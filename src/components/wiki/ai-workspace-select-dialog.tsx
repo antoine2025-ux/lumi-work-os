@@ -82,7 +82,7 @@ export function AIWorkspaceSelectDialog({
         <DialogHeader>
           <DialogTitle className="font-light text-2xl">Create New Page</DialogTitle>
           <DialogDescription className="text-base font-light">
-            Select where to create "{title}"
+            Select where to create &quot;{title}&quot;
           </DialogDescription>
         </DialogHeader>
 

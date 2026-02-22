@@ -24,6 +24,9 @@ import { useProjectSlackHints, setProjectSlackHints } from "@/lib/client-state/p
 import ReactMarkdown from "react-markdown"
 import TaskList from "@/components/tasks/task-list"
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
+import type { FilterableTask } from "@/components/search/task-search-filter"
+import type { KanbanBoardProps } from "@/components/kanban/kanban-board"
+type KanbanTask = NonNullable<KanbanBoardProps['filteredTasks']>[number]
 
 // Dynamic imports for heavy components to reduce initial bundle size
 const KanbanBoard = dynamic(() => import("@/components/kanban/kanban-board").then(mod => ({ default: mod.KanbanBoard })), { ssr: false })
@@ -229,7 +232,7 @@ export default function ProjectDetailPage() {
   const [_taskViewMode, _setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
   const [showCelebration, setShowCelebration] = useState(false)
   const [wasCompleted, setWasCompleted] = useState(false)
-  const [filteredTasks, setFilteredTasks] = useState<any[]>([])
+  const [filteredTasks, setFilteredTasks] = useState<KanbanTask[]>([])
   const [isFiltered, setIsFiltered] = useState(false)
   const [isSearchExpanded, _setIsSearchExpanded] = useState(false)
   const [selectedEpicId, _setSelectedEpicId] = useState<string | undefined>(undefined)
@@ -369,8 +372,8 @@ export default function ProjectDetailPage() {
   }
 
 
-  const handleFilterChange = (filteredTasks: any[]) => {
-    setFilteredTasks(filteredTasks)
+  const handleFilterChange = (filteredTasks: FilterableTask[]) => {
+    setFilteredTasks(filteredTasks as unknown as KanbanTask[])
     setIsFiltered(true)
   }
 

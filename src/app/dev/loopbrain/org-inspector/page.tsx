@@ -3,7 +3,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useOrgLoopbrainGraph } from "@/hooks/useOrgLoopbrainGraph";
+import { useOrgLoopbrainGraph, type OrgLoopbrainContextObject } from "@/hooks/useOrgLoopbrainGraph";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,14 +45,14 @@ export default function OrgInspectorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const allNodes = useMemo(() => {
-    if (!bundle) return [] as any[];
+    if (!bundle) return [];
 
     const nodes = [
       ...(bundle.primary ? [bundle.primary] : []),
       ...bundle.related,
     ];
 
-    const uniqueById = new Map<string, any>();
+    const uniqueById = new Map<string, OrgLoopbrainContextObject>();
     for (const n of nodes) {
       uniqueById.set(n.id, n);
     }

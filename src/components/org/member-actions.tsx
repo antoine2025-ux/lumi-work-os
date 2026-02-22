@@ -34,12 +34,12 @@ export function MemberActions({
   const [removing, setRemoving] = useState(false);
 
   const updateRoleAction = useApiAction<
-    {},
+    Record<string, never>,
     { workspaceId: string; membershipId: string; role: "ADMIN" | "MEMBER" }
   >(orgApi.memberUpdateRole());
 
   const removeMemberAction = useApiAction<
-    {},
+    Record<string, never>,
     { workspaceId: string; membershipId: string }
   >(orgApi.memberRemove());
 

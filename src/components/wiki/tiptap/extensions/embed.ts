@@ -8,7 +8,7 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 
 export interface EmbedOptions {
-  HTMLAttributes: Record<string, any>
+  HTMLAttributes: Record<string, unknown>
 }
 
 declare module '@tiptap/core' {
