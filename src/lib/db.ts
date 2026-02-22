@@ -34,7 +34,6 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 const isUsingPooler = databaseUrl.includes('pooler.supabase.com') || databaseUrl.includes('pgbouncer=true')
-const shouldDisablePreparedStatements = isUsingPooler || process.env.PRISMA_DISABLE_PREPARED_STATEMENTS === 'true'
 
 // Ensure DATABASE_URL has required pooler params if using pooler
 // PgBouncer requires: pgbouncer=true, connection_limit=1, sslmode=require
@@ -81,7 +80,7 @@ if (process.env.NODE_ENV === 'development') {
   if (globalForPrisma.prisma) {
     try {
       globalForPrisma.prisma.$disconnect().catch(() => {})
-    } catch (e) {
+    } catch (_e) {
       // Ignore
     }
   }
@@ -157,7 +156,7 @@ if (process.env.NODE_ENV === 'development') {
             console.warn(`[DB INIT]   DIRECT_URL DB: ${directUrlParsed.pathname}`)
             console.warn('[DB INIT]   They should point to the same database (only pooling settings differ)')
           }
-        } catch (e) {
+        } catch (_e) {
           // Ignore parse errors, already logged above
         }
       }

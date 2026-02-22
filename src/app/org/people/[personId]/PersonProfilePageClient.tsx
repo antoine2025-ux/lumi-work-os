@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PersonProfileClient } from "@/components/org/PersonProfileClient";
 import { OrgPageHeader, resolveBackAction } from "@/components/org/OrgPageHeader";

@@ -10,9 +10,6 @@
 
 import { prisma } from "@/lib/db";
 import {
-  deriveEffectiveCapacity,
-  deriveCurrentAvailability,
-  activeAllocationsAt,
 } from "@/lib/org";
 import { answerQ3, type Q3Output } from "./q3";
 
@@ -477,7 +474,6 @@ function aggregateCapacitySignal(
   endDate: Date
 ): Q4CapacitySummary {
   const durationMs = endDate.getTime() - startDate.getTime();
-  const durationWeeks = durationMs / (7 * 24 * 60 * 60 * 1000);
 
   let totalEffectiveCapacity = 0;
   const contributorCapacities: number[] = [];
@@ -550,8 +546,8 @@ function identifyRiskFactors(
   q3Result: Q3Output,
   capacityWindows: Map<string, CapacityWindow>,
   capacitySummary: Q4CapacitySummary,
-  startDate: Date,
-  endDate: Date
+  _startDate: Date,
+  _endDate: Date
 ): Q4Risk[] {
   const risks: Q4Risk[] = [];
 
@@ -702,7 +698,7 @@ function determineFeasibility(
 function collectAssumptions(
   timeframe: Q4Timeframe,
   q3Result: Q3Output,
-  capacityWindows: Map<string, CapacityWindow>
+  _capacityWindows: Map<string, CapacityWindow>
 ): Q4Assumption[] {
   const assumptions: Q4Assumption[] = [];
 
@@ -735,7 +731,7 @@ function generateQualitativeCapacityDescription(
   totalEffectiveCapacity: number,
   contributorCount: number,
   fragmentationLevel: Q4CapacitySummary["fragmentationLevel"],
-  concentrationRisk: Q4CapacitySummary["concentrationRisk"]
+  _concentrationRisk: Q4CapacitySummary["concentrationRisk"]
 ): string {
   // Convert numeric capacity to qualitative terms
   let capacityLevel: string;

@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { User, Mail, Building, Shield, UserPlus } from "lucide-react"
+import { User, Building, UserPlus } from "lucide-react"
 
 interface User {
   id: string
@@ -47,7 +47,6 @@ export function UserProfileForm({
   onSave, 
   user, 
   existingPositions,
-  workspaceId 
 }: UserProfileFormProps) {
   const [formData, setFormData] = useState({
     name: '',

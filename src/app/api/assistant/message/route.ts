@@ -4,7 +4,6 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import OpenAI from 'openai'
-import { searchWikiKnowledge, formatWikiKnowledgeForAI } from '@/lib/wiki-knowledge'
 import { handleApiError } from '@/lib/api-errors'
 
 // Lazy initialization - only create client when needed
@@ -79,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
     setWorkspaceContext(auth.workspaceId)
 
-    const { sessionId, message, phase } = await request.json()
+    const { sessionId, message, phase: _phase } = await request.json()
 
     if (!sessionId || !message) {
       return NextResponse.json({ error: 'Session ID and message required' }, { status: 400 })
@@ -374,7 +373,7 @@ Be conversational, helpful, and guide them through the project creation process 
     }
 
     // Save AI message
-    const aiMessage = await prisma.chatMessage.create({
+    const _aiMessage = await prisma.chatMessage.create({
       data: {
         sessionId: sessionId,
         type: 'AI',

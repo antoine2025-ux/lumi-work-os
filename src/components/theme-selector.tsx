@@ -1,7 +1,7 @@
 "use client"
 
 import { useTheme } from "@/components/theme-provider"
-import { ThemeColor, themeConfigs } from "@/types/theme"
+import { themeConfigs } from "@/types/theme"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"

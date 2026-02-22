@@ -4,11 +4,6 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getOrgPermissionContext } from "@/lib/org/permissions.server";
 
-type UpdateDepartmentInput = {
-  departmentId: string;
-  name: string;
-  ownerPersonId?: string | null;
-};
 
 export async function updateDepartment(input: {
   departmentId: string;

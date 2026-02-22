@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { CreateMilestoneSchema, UpdateMilestoneSchema } from '@/lib/pm/schemas'
+import { CreateMilestoneSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
 import { handleApiError } from '@/lib/api-errors'
 import { ProjectRole } from '@prisma/client'

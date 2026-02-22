@@ -62,7 +62,7 @@ export function PlanConfirmation({
 
       {/* Steps */}
       <div className="px-4 py-3 space-y-2.5">
-        {plan.steps.map((step, idx) => {
+        {plan.steps.map((step, _idx) => {
           const label = TOOL_LABELS[step.toolName] ?? step.toolName
           const hasDeps = step.dependsOn && step.dependsOn.length > 0
 

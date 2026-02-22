@@ -6,7 +6,7 @@ import { clearAuthCache } from '@/lib/auth-cache'
  * Dev-only endpoint to clear all caches
  * Only works in development mode
  */
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   // Only allow in development
   if (process.env.NODE_ENV !== 'development') {
     return NextResponse.json(

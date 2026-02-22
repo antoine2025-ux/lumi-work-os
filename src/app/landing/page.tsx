@@ -1,9 +1,8 @@
 "use client"
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Logo } from "@/components/logo";
-import { ScreenshotPreview } from "@/components/landing/screenshot-preview";
 import { DashboardPreview } from "@/components/landing/dashboard-preview";
 import { KanbanPreview } from "@/components/landing/kanban-preview";
 import { WikiPreview } from "@/components/landing/wiki-preview";
@@ -24,7 +23,6 @@ import {
   Menu,
   X,
   Monitor,
-  Smartphone,
   Sparkles
 } from "lucide-react";
 import { useState, useEffect } from "react";

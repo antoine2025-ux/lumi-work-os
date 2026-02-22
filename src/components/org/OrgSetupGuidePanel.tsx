@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
-import { CheckCircle2, Users, Building2, UserPlus, ShieldCheck, ArrowRight } from "lucide-react";
+import { useEffect, useRef, useMemo } from "react";
+import { CheckCircle2, Users, Building2, UserPlus, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { OrgApi } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
@@ -191,7 +191,6 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
           ) : (
             <div className="space-y-3">
               {STEPS.map((step, index) => {
-                const Icon = step.icon;
                 const isComplete = stepStatus[step.id as keyof typeof stepStatus];
 
                 return (

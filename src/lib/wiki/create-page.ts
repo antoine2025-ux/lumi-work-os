@@ -46,7 +46,6 @@ export async function createWikiPage(
 ): Promise<CreateWikiPageResult> {
   const {
     workspaceId,
-    projectId,
     parentId,
     title,
     contentJson,
@@ -119,7 +118,7 @@ export async function createWikiPage(
       const err = errorData.error
       // API may return { error: string } or { error: { code, message } }
       errorMessage = typeof err === 'string' ? err : (err?.message ?? errorData.message ?? errorMessage)
-    } catch (parseError) {
+    } catch (_parseError) {
       // Ignore parse errors, use default message
     }
     throw new Error(errorMessage)

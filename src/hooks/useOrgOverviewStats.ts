@@ -18,7 +18,7 @@ type UseOrgOverviewStatsResult =
 export function useOrgOverviewStats(): UseOrgOverviewStatsResult {
   const { org, isLoading: isOrgLoading } = useCurrentOrg();
   const [stats, setStats] = useState<OrgOverviewStats | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [_isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

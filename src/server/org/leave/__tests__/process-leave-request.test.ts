@@ -43,7 +43,6 @@ vi.mock('@/lib/org/permissions/profile-permissions', () => ({
 
 import {
   processLeaveRequest,
-  LeaveRequestError,
 } from '../process-leave-request'
 
 // ---------------------------------------------------------------------------

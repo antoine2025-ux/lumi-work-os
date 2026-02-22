@@ -5,7 +5,6 @@
  * IMPORTANT: Every Org mutation MUST call emitOrgContextObject.
  */
 
-import { prisma } from "@/lib/db";
 import { saveContextItem } from "@/lib/loopbrain/store/context-repository";
 import { embedContextItem } from "@/lib/loopbrain/embedding-service";
 import { ContextType } from "@/lib/loopbrain/context-types";

@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client'
 
 // Models that require workspace scoping
 // All models listed here have a direct workspaceId column in the database.
@@ -82,6 +81,9 @@ export const WORKSPACE_SCOPED_MODELS = [
   'TaskTemplateItem',
   'WorkflowAssignment',
   'RoleCardSkill',
+  'RoleCard',
+  'Skill',
+  'PersonSkill',
   // Decision domain children
   'DecisionAuthority',
   'DecisionEscalationStep',

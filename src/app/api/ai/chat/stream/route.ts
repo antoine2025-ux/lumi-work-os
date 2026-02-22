@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { generateAIStream, getProvider } from '@/lib/ai/providers'
+import { generateAIStream } from '@/lib/ai/providers'
 import { cache, CACHE_KEYS } from '@/lib/cache'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'

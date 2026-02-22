@@ -34,7 +34,7 @@ export function InviteMemberForm({ workspaceId }: InviteMemberFormProps) {
     setError(null);
 
     try {
-      const { data, error: actionError } = await inviteAction.run({
+      const { error: actionError } = await inviteAction.run({
         workspaceId,
         email: email.trim(),
       });

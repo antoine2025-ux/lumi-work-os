@@ -14,7 +14,7 @@ import { LoopbrainMode } from './orchestrator-types'
  * Templates are injected into system prompts to guide LLM output structure.
  * They complement grounding rules but do not override them.
  */
-export function getAnswerTemplate(intent: LoopbrainIntent, mode: LoopbrainMode): string {
+export function getAnswerTemplate(intent: LoopbrainIntent, _mode: LoopbrainMode): string {
   switch (intent) {
     case 'capacity_planning':
       return getCapacityPlanningTemplate()

@@ -88,7 +88,7 @@ export async function PUT(request: NextRequest) {
 
     // Validate all values are positive numbers if provided
     const updates: Record<string, number> = {};
-    const fields = ["xsHours", "sHours", "mHours", "lHours", "xlHours"] as const;
+    const _fields = ["xsHours", "sHours", "mHours", "lHours", "xlHours"] as const;
     const fieldMap: Record<string, string> = {
       XS: "xsHours",
       S: "sHours",

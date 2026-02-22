@@ -268,7 +268,6 @@ export function assertIssueIsFixable(issue: { type: string; fixUrl?: string }): 
     return; // Only run in dev mode
   }
 
-  const normalizedType = issue.type.toLowerCase();
   const hasFixUrl = Boolean(issue.fixUrl);
   const hasResolutionExplanation = Boolean(getResolutionExplanation(issue.type));
 

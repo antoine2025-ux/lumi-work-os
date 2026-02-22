@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
-import { MigrationService } from '@/lib/migrations/migration-service'
 import { SliteAdapter } from '@/lib/migrations/adapters/slite-adapter'
 import { ClickUpAdapter } from '@/lib/migrations/adapters/clickup-adapter'
 

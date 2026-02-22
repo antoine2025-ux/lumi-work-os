@@ -7,11 +7,10 @@
 
 "use client";
 
-import { useState, Suspense, startTransition, useCallback, memo, useMemo, useEffect, useRef } from "react";
+import { useState, startTransition, useCallback, memo, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { OrgTabNav, type OrgTab } from "@/components/org/OrgTabNav";
-import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { OrgNoAccessState } from "@/components/org/OrgNoAccessState";
 import { canRole } from "@/lib/orgPermissions";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
@@ -27,7 +26,6 @@ import type {
   StructureDepartment,
   StructureRole,
 } from "@/types/org";
-import { TeamsDragList } from "@/components/org/structure/TeamsDragList";
 import { cn } from "@/lib/utils";
 import type { OrgRole } from "@/lib/org/capabilities";
 import { OrgApi } from "@/components/org/api";
@@ -72,7 +70,7 @@ type StructurePageClientProps = {
 };
 
 export function StructurePageClient({
-  orgId,
+  _orgId,
   role,
   initialTeams,
   initialDepartments,
@@ -94,7 +92,7 @@ export function StructurePageClient({
 
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const canManageStructure = canRole(role, "manageStructure");
-  const unassignedSectionRef = useRef<HTMLDivElement | null>(null);
+  const _unassignedSectionRef = useRef<HTMLDivElement | null>(null);
   const { teamCapacityMap } = useCapacityTeams();
 
   // Assign-department deep-link dialog state
@@ -629,10 +627,10 @@ const DepartmentsTab = memo(function DepartmentsTab({
   justCreated,
   canManageStructure,
   teams,
-  onReorderTeams,
-  topDepartmentsInsights,
+  _onReorderTeams,
+  _topDepartmentsInsights,
   people,
-  activeTab,
+  _activeTab,
   onTabChange,
 }: {
   departments: StructureDepartment[];

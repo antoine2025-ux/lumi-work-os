@@ -12,7 +12,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { OrgApi } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 type StatCardProps = {

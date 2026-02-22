@@ -210,7 +210,7 @@ export default function SettingsPage() {
       } else {
         setSlackIntegration({ connected: false })
       }
-    } catch (err) {
+    } catch (_err) {
       // Silent handling - don't log permission errors
       setSlackIntegration({ connected: false })
     } finally {
@@ -250,7 +250,7 @@ export default function SettingsPage() {
         const data = await response.json()
         setSlackMessage({ type: 'error', text: data.error || 'Failed to disconnect Slack' })
       }
-    } catch (err) {
+    } catch (_err) {
       setSlackMessage({ type: 'error', text: 'Failed to disconnect Slack' })
     } finally {
       setSlackLoading(false)

@@ -6,7 +6,6 @@
  * Used for project-level context integration with Loopbrain.
  */
 
-import { prisma } from '@/lib/db'
 import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
 import { projectToContext } from '@/lib/context/context-builders'
 import { Prisma } from '@prisma/client'

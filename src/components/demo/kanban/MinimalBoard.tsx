@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Calendar, User } from 'lucide-react'
+import { Plus, Calendar } from 'lucide-react'
 
 // Mock data for demonstration
 const mockTasks: Record<string, Task[]> = {

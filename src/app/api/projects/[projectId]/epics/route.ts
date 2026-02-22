@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { CreateEpicSchema, UpdateEpicSchema } from '@/lib/pm/schemas'
+import { CreateEpicSchema } from '@/lib/pm/schemas'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'

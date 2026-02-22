@@ -448,7 +448,7 @@ function OwnershipManagementStrip() {
           setOwnershipData(ownershipJson);
           setManagementData(managementJson);
         }
-      } catch (err) {
+      } catch (_err) {
         if (!cancelled) setError("Couldn't load ownership & management data.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -647,7 +647,7 @@ type OrgOverviewClientProps = {
 };
 
 export function OrgOverviewClient({
-  org,
+  org: _org,
   stats,
   statsError,
   insightsSnapshot,

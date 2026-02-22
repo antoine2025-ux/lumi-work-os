@@ -299,7 +299,6 @@ export async function createWorkspaceWithOnboarding(
     customName,
     customDescription,
     inviteMembers = [],
-    enableFeatures = {}
   } = options
 
   const template = WORKSPACE_TEMPLATES[templateId] || WORKSPACE_TEMPLATES['personal']

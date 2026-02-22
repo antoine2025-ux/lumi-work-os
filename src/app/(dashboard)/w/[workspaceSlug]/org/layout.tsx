@@ -21,6 +21,7 @@ import {
 import { OrgCenterDisabled } from "@/components/org/OrgCenterDisabled";
 import { prisma } from "@/lib/db";
 import { ensureOrgContextSynced } from "@/lib/loopbrain/ensureOrgContextSynced";
+import type { NavItemRole } from "@/lib/org/nav-config";
 
 type WorkspaceOrgLayoutProps = {
   children: ReactNode;
@@ -110,22 +111,6 @@ export default async function WorkspaceOrgLayout({
     notFound();
   }
 
-  const isAdmin = context.role === "OWNER" || context.role === "ADMIN";
-  const [isTeamLead, isManager] = await Promise.all([
-    prisma.orgTeam.findFirst({
-      where: {
-        leaderId: context.userId,
-        workspaceId: context.orgId,
-      },
-    }),
-    prisma.personManagerLink.findFirst({
-      where: {
-        managerId: context.userId,
-        workspaceId: context.orgId,
-      },
-    }),
-  ]);
-
   const clientPermissions = { role: context.role };
 
   // Ensure org context is synced for Loopbrain (non-blocking)
@@ -140,8 +125,7 @@ export default async function WorkspaceOrgLayout({
         beta={isOrgCenterBeta()}
         showHeader={false}
         workspaceSlug={workspaceSlug}
-        isAdmin={isAdmin}
-        isTeamLead={!!isTeamLead || !!isManager}
+        userRole={context.role as NavItemRole}
       >
         {children}
       </OrgLayoutClient>

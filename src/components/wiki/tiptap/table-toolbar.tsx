@@ -15,10 +15,8 @@ import {
   Trash2, 
   Rows, 
   Columns,
-  Plus,
   Minus
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 interface TableToolbarProps {
   editor: Editor
@@ -52,7 +50,7 @@ export function TableToolbar({ editor }: TableToolbarProps) {
           left: coords.left + window.scrollX,
         })
         setIsVisible(true)
-      } catch (error) {
+      } catch (_error) {
         setIsVisible(false)
       }
     }

@@ -8,7 +8,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { OrgApi } from "@/components/org/api";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -63,7 +62,6 @@ export function StructureWriteControls({
     setSaving(true);
     try {
       // Call API - this will throw if there's an error
-      const result = await OrgApi.createDepartment({ name: deptName.trim() });
       
       // Success - clear form and close dialog
       setDeptName("");
@@ -91,7 +89,6 @@ export function StructureWriteControls({
     setSaving(true);
     try {
       // Call API - this will throw if there's an error
-      const result = await OrgApi.createTeam({ name: teamName.trim(), departmentId: teamDeptId });
       
       // Success - clear form and close dialog
       setTeamName("");

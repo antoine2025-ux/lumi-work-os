@@ -30,7 +30,7 @@ import {
 import { computeIssueResolution } from "@/lib/org/mutations/utils";
 
 const ALLOWED_CONTEXT_TYPES: AllocationContextType[] = ["TEAM", "PROJECT", "ROLE", "OTHER"];
-const ALLOWED_SOURCES: AllocationSource[] = ["MANUAL", "INTEGRATION"];
+const _ALLOWED_SOURCES: AllocationSource[] = ["MANUAL", "INTEGRATION"];
 
 export async function GET(request: NextRequest) {
   try {

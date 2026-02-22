@@ -38,24 +38,6 @@ export type OrgContextBundle = {
 };
 
 /**
- * Helper to extract manager ID from a position's parent.
- * Returns the parent position's userId if available.
- */
-function extractManagerIdFromPosition(
-  position: { parentId?: string | null; parent?: { userId?: string | null } | null } | null
-): string | null {
-  if (!position) return null;
-  if (!position.parentId) return null;
-  
-  // If parent position exists and has a userId, return it
-  if (position.parent?.userId) {
-    return position.parent.userId;
-  }
-  
-  return null;
-}
-
-/**
  * Build a complete Org context bundle for a workspace.
  * 
  * Fetches all Org entities from Prisma and builds validated ContextObjects
@@ -208,9 +190,6 @@ export async function buildOrgContextBundle(
     const primaryPosition = user.orgPositions[0] ?? null;
     const primaryTeam = primaryPosition?.team ?? null;
     const primaryDepartment = primaryTeam?.department ?? null;
-
-    // Extract manager ID from primary position's parent
-    const managerId = extractManagerIdFromPosition(primaryPosition);
 
     const personInput: OrgPersonInput = {
       userId: user.id,

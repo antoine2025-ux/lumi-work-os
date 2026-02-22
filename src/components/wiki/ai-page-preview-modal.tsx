@@ -101,7 +101,7 @@ export function AIPagePreviewModal({
             e.preventDefault()
           }
         }}
-        onEscapeKeyDown={(e) => {
+        onEscapeKeyDown={(_e) => {
           // Allow escape to close, but not when Select is open
           // This is handled by Select itself
         }}

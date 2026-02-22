@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract project information from conversation history
-    const conversationText = session.messages
+    const _conversationText = session.messages
       .map(msg => `${msg.type}: ${msg.content}`)
       .join('\n')
 

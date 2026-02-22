@@ -125,7 +125,6 @@ export function duplicateBlock(editor: Editor): boolean {
 
   try {
     // Get the block content as JSON
-    const blockJSON = editor.getJSON()
     
     // Find the block in the JSON structure (simplified - we'll use slice approach)
     const { state } = editor

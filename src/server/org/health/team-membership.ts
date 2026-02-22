@@ -14,11 +14,13 @@ export async function getTeamMemberships(orgId: string): Promise<Array<{ teamId:
   // Get team memberships from OrgPosition (teamId + userId)
   try {
     const positions = await prisma.orgPosition.findMany({
-      where: { workspaceId: orgId, teamId: { not: null }, userId: { not: null }, isActive: true } as any,
-      select: { teamId: true, userId: true } as any,
+      where: { workspaceId: orgId, teamId: { not: null }, userId: { not: null }, isActive: true },
+      select: { teamId: true, userId: true },
       take: 50000,
-    } as any)
-    return (positions || []).map((p: any) => ({ teamId: String(p.teamId), personId: String(p.userId) }))
+    })
+    return (positions || [])
+      .filter((p): p is { teamId: string; userId: string } => p.teamId != null && p.userId != null)
+      .map((p) => ({ teamId: p.teamId, personId: p.userId }))
   } catch {
     return []
   }

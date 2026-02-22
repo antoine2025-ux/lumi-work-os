@@ -39,14 +39,13 @@ export function InviteUserDialog({
         throw new Error('Email is required')
       }
 
-      const response = await fetch('/api/admin/invite', {
+      const response = await fetch('/api/org/invitations/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           email: email.trim(),
-          role,
           workspaceId
         }),
         credentials: 'include'
@@ -55,7 +54,7 @@ export function InviteUserDialog({
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send invitation')
+        throw new Error(data.error?.message ?? data.error ?? 'Failed to send invitation')
       }
 
       setSuccess(true)

@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { X, CheckCircle, AlertCircle, Info, MessageCircle, User, Calendar } from 'lucide-react'
+import { X, CheckCircle, Info, MessageCircle, User, Calendar } from 'lucide-react'
 
 interface NotificationToastProps {
   className?: string
@@ -30,7 +30,7 @@ export function NotificationToast({
     notifications = notificationHook.notifications
     clearNotification = notificationHook.clearNotification
     clearAllNotifications = notificationHook.clearAllNotifications
-  } catch (error) {
+  } catch (_error) {
     // If socket context is not available, use empty state
     notifications = []
     clearNotification = () => {}
@@ -198,7 +198,7 @@ export function NotificationBell({ className }: { className?: string }) {
   try {
     const notificationHook = useNotifications()
     notifications = notificationHook.notifications
-  } catch (error) {
+  } catch (_error) {
     // If socket context is not available, use empty state
     notifications = []
   }

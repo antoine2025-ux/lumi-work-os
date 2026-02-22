@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { OrgApi, type OrgPersonDTO } from "@/components/org/api";
+import { OrgApi } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
 import { useOrgUrl } from "@/hooks/useOrgUrl";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,11 +23,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { Check, Loader2, X, Pencil, ChevronDown, Check as CheckIcon } from "lucide-react";
+import { Loader2, X, Pencil, ChevronDown } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { getPersonDisplayBadges } from "@/lib/org/personDisplay";
 import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
@@ -43,7 +41,6 @@ type PersonProfileClientProps = {
 
 export function PersonProfileClient({ personId, onEditButtonRender, initialFocusField }: PersonProfileClientProps) {
   const orgUrl = useOrgUrl();
-  const { toast } = useToast();
   const [personKey, setPersonKey] = useState(0);
   const [editPanelOpen, setEditPanelOpen] = useState(false);
   
@@ -376,7 +373,7 @@ function EditProfilePanel({
   const [nameValue, setNameValue] = useState(person.fullName ?? "");
   const [titleValue, setTitleValue] = useState(person.title ?? "");
   const [selectedTeamId, setSelectedTeamId] = useState<string | "__none__">(person.team?.id ?? "__none__");
-  const [selectedManagerId, setSelectedManagerId] = useState<string | "__none__">(person.manager?.id ?? "__none__");
+  const [_selectedManagerId, setSelectedManagerId] = useState<string | "__none__">(person.manager?.id ?? "__none__");
   const [managerPopoverOpen, setManagerPopoverOpen] = useState(false);
   const [managerSearchQuery, setManagerSearchQuery] = useState("");
   

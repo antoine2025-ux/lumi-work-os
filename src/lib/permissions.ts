@@ -1,5 +1,4 @@
 import { getUnifiedAuth, getUserWorkspaceRole } from '@/lib/unified-auth'
-import { prisma } from '@/lib/db'
 
 export type UserRole = 'OWNER' | 'ADMIN' | 'MEMBER'
 
@@ -57,7 +56,7 @@ export interface OrgPermissions {
 }
 
 export function calculateOrgPermissions(context: PermissionContext): OrgPermissions {
-  const { isOwner, isAdmin, isMember } = context
+  const { isOwner, isAdmin } = context
 
   return {
     // Full admin permissions
@@ -99,7 +98,7 @@ export function canEditRole(
 
 export function canAssignUser(
   context: PermissionContext,
-  targetUserId?: string
+  _targetUserId?: string
 ): boolean {
   const permissions = calculateOrgPermissions(context)
   

@@ -4,12 +4,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { RichTextEditor } from "@/components/wiki/rich-text-editor"
 import { WikiEditorShell } from "@/components/wiki/wiki-editor-shell"
 import { WikiAIAssistant } from "@/components/wiki/wiki-ai-assistant"
 import { JSONContent, Editor } from '@tiptap/core'
@@ -21,23 +17,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { 
-  Search, 
   Plus, 
-  Home,
   FileText,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
   Upload,
   Users,
-  Bell,
-  Circle,
-  Layers,
   Brain,
   Star,
-  Clock,
   Eye,
   Save,
   X,
@@ -45,20 +31,12 @@ import {
   MessageSquare,
   MoreHorizontal,
   Folder,
-  Trash2,
   Globe,
-  Target,
-  CheckSquare,
-  FolderKanban,
-  Settings,
   Grid3X3,
   Share2
 } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { AILogo } from "@/components/ai-logo"
 import { useUserStatusContext } from '@/providers/user-status-provider'
 import { useWorkspace } from '@/lib/workspace-context'
 import { CreateSpaceDialog } from '@/components/spaces/create-space-dialog'
@@ -122,29 +100,29 @@ interface Project {
   color?: string
 }
 
-export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId }: WikiLayoutProps) {
+export function WikiLayout({ children, currentPage: _currentPage, workspaceId: propWorkspaceId }: WikiLayoutProps) {
   const router = useRouter()
   // Use centralized UserStatusContext as fallback if no prop provided
   const { workspaceId: contextWorkspaceId } = useUserStatusContext()
-  const { currentWorkspace } = useWorkspace()
-  const [searchQuery, setSearchQuery] = useState("")
+  const { currentWorkspace: _currentWorkspace } = useWorkspace()
+  const [_searchQuery, _setSearchQuery] = useState("")
   const [workspaceId, setWorkspaceId] = useState<string>(propWorkspaceId || contextWorkspaceId || '')
   const [isAISidebarOpen, setIsAISidebarOpen] = useState(false)
   const [aiDisplayMode, setAiDisplayMode] = useState<'sidebar' | 'floating'>('sidebar')
   const [workspaces, setWorkspaces] = useState<WikiWorkspace[]>([])
-  const [projects, setProjects] = useState<Project[]>([])
+  const [_projects, setProjects] = useState<Project[]>([])
   const [recentPages, setRecentPages] = useState<RecentPage[]>([])
   const [favoritePages, setFavoritePages] = useState<RecentPage[]>([])
-  const [pageCounts, setPageCounts] = useState<Record<string, number>>({})
-  const [isLoading, setIsLoading] = useState(true)
+  const [_pageCounts, setPageCounts] = useState<Record<string, number>>({})
+  const [_isLoading, setIsLoading] = useState(true)
   const [isCreatingPage, setIsCreatingPage] = useState(false)
   const [newPageTitle, setNewPageTitle] = useState("")
   const [newPageCategory, setNewPageCategory] = useState("general")
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPersonalPage, setIsPersonalPage] = useState(false)
-  const [expandedWorkspaces, setExpandedWorkspaces] = useState<Record<string, boolean>>({})
-  const [recentOpen, setRecentOpen] = useState(true)
+  const [_expandedWorkspaces, setExpandedWorkspaces] = useState<Record<string, boolean>>({})
+  const [_recentOpen, _setRecentOpen] = useState(true)
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false)
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false)
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
@@ -154,7 +132,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
   const [selectedWorkspaceForPage, setSelectedWorkspaceForPage] = useState<string | null>(null)
   const [activeEditorPage, setActiveEditorPage] = useState<ActiveEditorPage | null>(null)
   const pathname = usePathname() || ''
-  const { data: sidebarRecentPages, isLoading: isLoadingSidebarRecent } = useRecentPages(5)
+  const { data: _sidebarRecentPages, isLoading: _isLoadingSidebarRecent } = useRecentPages(5)
   const editorRef = useRef<Editor | null>(null)
   const latestContentRef = useRef<JSONContent | null>(null)
   const justSavedInPlaceRef = useRef(false)
@@ -166,7 +144,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     content: [{ type: 'paragraph' }],
   }
 
-  const toggleWorkspace = (workspaceId: string) => {
+  const _toggleWorkspace = (workspaceId: string) => {
     setExpandedWorkspaces(prev => ({
       ...prev,
       [workspaceId]: !prev[workspaceId]
@@ -231,7 +209,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     }
   }
 
-  const handleDeleteWorkspace = async (workspaceIdToDelete: string, workspaceName: string, e: React.MouseEvent) => {
+  const _handleDeleteWorkspace = async (workspaceIdToDelete: string, workspaceName: string, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     
@@ -272,7 +250,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     }
   }
 
-  const handleDeletePage = async (pageId: string, e: React.MouseEvent, workspaceType?: string) => {
+  const _handleDeletePage = async (pageId: string, e: React.MouseEvent, workspaceType?: string) => {
     e.preventDefault()
     e.stopPropagation()
     
@@ -335,7 +313,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
   }, [])
 
   // Memoize handleCreatePage to prevent unnecessary re-creations
-  const memoizedHandleCreatePage = useCallback(() => {
+  const _memoizedHandleCreatePage = useCallback(() => {
     setShowWorkspaceSelectDialog(true)
   }, [])
 
@@ -360,7 +338,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     }
   }, [createPageWithWorkspace])
 
-  const handleCreatePage = useCallback(() => {
+  const _handleCreatePage = useCallback(() => {
     // Show workspace selection dialog for sidebar button
     setShowWorkspaceSelectDialog(true)
   }, [])
@@ -421,7 +399,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     }
   }, [activeEditorPage, newPageTitle])
 
-  const toggleFavorite = async (page: RecentPage) => {
+  const _toggleFavorite = async (page: RecentPage) => {
     try {
       const isCurrentlyFavorite = favoritePages.some(fav => fav.id === page.id)
       
@@ -789,7 +767,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     }
   }, [])
 
-  const formatDate = (dateString: string) => {
+  const _formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
     const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
@@ -800,12 +778,12 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
-  const recentPagesNonPersonal = useMemo(
+  const _recentPagesNonPersonal = useMemo(
     () => recentPages.filter(p => p.permissionLevel !== 'personal'),
     [recentPages]
   )
 
-  const personalWorkspacePages = useMemo(
+  const _personalWorkspacePages = useMemo(
     () =>
       recentPages.filter(p => {
         const pageWorkspaceType = (p as any).workspace_type
@@ -819,7 +797,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     [recentPages]
   )
 
-  const teamWorkspacePages = useMemo(
+  const _teamWorkspacePages = useMemo(
     () =>
       recentPages.filter(p => {
         const pageWorkspaceType = (p as any).workspace_type
@@ -845,7 +823,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
     [recentPages]
   )
 
-  const customWorkspacePagesMap = useMemo(() => {
+  const _customWorkspacePagesMap = useMemo(() => {
     const map = new Map<string, RecentPage[]>()
     workspaces
       .filter(w => w.type !== 'personal' && w.type !== 'team')
@@ -1158,7 +1136,7 @@ export function WikiLayout({ children, currentPage, workspaceId: propWorkspaceId
             placeholder="Search workspaces..."
             className="mb-4"
             onChange={(e) => {
-              const searchValue = e.target.value.toLowerCase()
+              const _searchValue = e.target.value.toLowerCase()
               // We could add search filtering here if needed
             }}
           />

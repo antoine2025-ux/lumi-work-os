@@ -201,6 +201,24 @@ export const OrgSkillCreateSchema = z.object({
   description: z.string().trim().optional(),
 })
 
+// --- Role Cards (templates linking to OrgPosition) ---
+
+/** POST /api/org/role-templates */
+export const RoleCardCreateSchema = z.object({
+  roleName: z.string().trim().min(1).max(100),
+  jobFamily: z.string().trim().min(1).max(100),
+  level: z.string().trim().min(1).max(50),
+  roleDescription: z.string().trim().min(1),
+  responsibilities: z.array(z.string().trim()).default([]),
+  requiredSkills: z.array(z.string().trim()).default([]),
+  preferredSkills: z.array(z.string().trim()).default([]),
+  keyMetrics: z.array(z.string().trim()).default([]),
+  positionId: z.string().optional(),
+})
+
+/** PUT /api/org/role-templates/[id] */
+export const RoleCardUpdateSchema = RoleCardCreateSchema.partial()
+
 // --- Roles ---
 
 /** POST /api/org/roles */

@@ -8,7 +8,6 @@ const globalForBlogPrisma = globalThis as unknown as {
 // PgBouncer doesn't support prepared statements, so we must disable them
 const databaseUrl = process.env.DATABASE_URL || process.env.DIRECT_URL || ''
 const isUsingPooler = databaseUrl.includes('pooler.supabase.com') || databaseUrl.includes('pgbouncer=true')
-const shouldDisablePreparedStatements = isUsingPooler || process.env.PRISMA_DISABLE_PREPARED_STATEMENTS === 'true'
 
 // Ensure DATABASE_URL has required pooler params if using pooler
 // PgBouncer requires: pgbouncer=true, sslmode=require

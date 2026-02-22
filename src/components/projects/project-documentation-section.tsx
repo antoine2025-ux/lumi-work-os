@@ -11,7 +11,6 @@ import {
   ExternalLink,
   Loader2
 } from "lucide-react"
-import Link from "next/link"
 import { WikiPageSelector } from "./wiki-page-selector"
 import { WikiPageBody } from "@/components/wiki/wiki-page-body"
 

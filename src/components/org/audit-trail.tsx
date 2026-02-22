@@ -43,7 +43,7 @@ export function AuditTrail({ workspaceId, entityType, entityId, userId }: AuditT
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filters, setFilters] = useState({
+  const [filters, _setFilters] = useState({
     entityType: entityType || '',
     userId: userId || '',
     action: '',

@@ -101,16 +101,10 @@ async function fetchPerson(id: string): Promise<Detail> {
   return normalized
 }
 
-function pill(text: string) {
+function pill(_text: string) {
   return "inline-flex items-center rounded-full border px-3 py-1 text-xs text-muted-foreground"
 }
 
-function initials(name: string | null) {
-  const n = (name || "").trim()
-  if (!n) return "?"
-  const parts = n.split(/\s+/).slice(0, 2)
-  return parts.map((p) => p[0]?.toUpperCase()).join("") || "?"
-}
 
 export function PersonPanel(props: { personId: string | null }) {
   const [data, setData] = React.useState<Detail | null>(null)

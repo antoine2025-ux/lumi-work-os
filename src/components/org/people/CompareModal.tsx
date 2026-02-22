@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { CompareHighlights } from "./CompareHighlights";
 import type { OrgPerson } from "@/types/org";
 
@@ -50,7 +49,6 @@ export function CompareModal({
   isOpen,
   onClose,
   people,
-  allPeople,
   onRemovePerson,
   onOpenPerson,
 }: CompareModalProps) {

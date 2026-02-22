@@ -72,7 +72,7 @@ export function WaitlistSignupModal({ open, onOpenChange }: WaitlistSignupModalP
         setStatus("error")
         setMessage(data.error || "Something went wrong. Please try again.")
       }
-    } catch (error) {
+    } catch (_error) {
       setStatus("error")
       setMessage("Network error. Please try again.")
     }

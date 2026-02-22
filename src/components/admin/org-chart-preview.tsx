@@ -39,7 +39,7 @@ interface OrgChartPreviewProps {
   onRefresh: () => void
 }
 
-export function OrgChartPreview({ positions, users, onRefresh }: OrgChartPreviewProps) {
+export function OrgChartPreview({ positions, users: _users, onRefresh }: OrgChartPreviewProps) {
   const getLevelColor = (level: number) => {
     switch (level) {
       case 1: return "bg-yellow-500"

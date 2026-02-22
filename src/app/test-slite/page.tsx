@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, XCircle, Loader2, AlertCircle } from "lucide-react"
+import { CheckCircle, XCircle, Loader2 } from "lucide-react"
 
 export default function TestSlitePage() {
   const [apiKey, setApiKey] = useState("")

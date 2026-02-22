@@ -18,7 +18,6 @@ import {
   type ResolvedPerson,
   type ResolvedEscalationStep,
   type FirstAvailable,
-  type AvailabilityStatus,
   type UnresolvableRole,
   getDecisionResponseMeta,
   buildDecisionEvidence,

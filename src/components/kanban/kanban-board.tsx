@@ -3,29 +3,18 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { DragDropProvider } from './drag-drop-provider'
 import { DroppableColumn } from './droppable-column'
-import { TaskEditDialog } from '../tasks/task-edit-dialog'
 import { DependencyManager } from '../tasks/dependency-manager'
 import { CreateTaskDialog } from '../tasks/create-task-dialog'
 import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { 
   LayoutGrid, 
   List, 
   Columns3, 
-  Monitor,
-  Tablet,
-  Smartphone,
-  Plus,
-  Layers,
   Filter,
-  X,
   ChevronDown,
   ChevronRight
 } from 'lucide-react'
@@ -121,16 +110,16 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
   const { open, setOnTaskUpdate } = useTaskSidebarStore()
   const [tasks, setTasks] = useState<Task[]>([])
   const [epics, setEpics] = useState<Epic[]>([])
-  const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [_milestones, setMilestones] = useState<Milestone[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dependencyTaskId, setDependencyTaskId] = useState<string | null>(null)
   const [isDependencyManagerOpen, setIsDependencyManagerOpen] = useState(false)
   const [viewDensity, setViewDensity] = useState<ViewDensity>('comfortable')
   const [screenSize, setScreenSize] = useState<ScreenSize>('desktop')
-  const [groupByMode, setGroupByMode] = useState<GroupByMode>('status')
+  const [groupByMode, _setGroupByMode] = useState<GroupByMode>('status')
   const [selectedMilestones, setSelectedMilestones] = useState<string[]>([])
   const [selectedEpicFilter, setSelectedEpicFilter] = useState<string | null>(null)
-  const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false)
+  const [_isCreateEpicOpen, setIsCreateEpicOpen] = useState(false)
   const [newEpicTitle, setNewEpicTitle] = useState('')
   const [newEpicDescription, setNewEpicDescription] = useState('')
   const [newEpicColor, setNewEpicColor] = useState('#3B82F6')
@@ -330,7 +319,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
     }
   }
 
-  const createEpic = async () => {
+  const _createEpic = async () => {
     try {
       const response = await fetch(`/api/projects/${projectId}/epics`, {
         method: 'POST',
@@ -360,7 +349,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
     }
   }
 
-  const handleTaskMove = async (taskId: string, newStatus: string, newOrder?: number) => {
+  const handleTaskMove = async (taskId: string, newStatus: string, _newOrder?: number) => {
     const task = tasks.find(t => t.id === taskId)
     const fromStatus = task?.status
     console.log('[Kanban] handleTaskMove start', { taskId, fromStatus, toStatus: newStatus })
@@ -519,7 +508,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
     return totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
   }
 
-  const toggleMilestoneFilter = (milestoneId: string) => {
+  const _toggleMilestoneFilter = (milestoneId: string) => {
     setSelectedMilestones(prev => 
       prev.includes(milestoneId) 
         ? prev.filter(id => id !== milestoneId)
@@ -527,7 +516,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
     )
   }
 
-  const clearMilestoneFilters = () => {
+  const _clearMilestoneFilters = () => {
     setSelectedMilestones([])
   }
 

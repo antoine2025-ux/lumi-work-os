@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useOrgUrl } from "@/hooks/useOrgUrl";
 import { OrgApi } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
@@ -29,7 +29,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StructureWriteControls } from "@/components/org/StructureWriteControls";
 import { OrgSectionEmpty } from "@/components/org/OrgSectionState";

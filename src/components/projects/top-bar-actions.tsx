@@ -6,19 +6,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Command as CommandIcon,
+import {
   Filter,
   LayoutGrid,
   Bell,
   MoreHorizontal,
   Plus,
-  Calendar,
-  User,
-  Tag,
   CheckCircle,
   Clock,
-  AlertCircle,
   X
 } from "lucide-react"
 
@@ -103,7 +98,6 @@ const mockUsers = [
   { id: '3', name: 'Mike Johnson', email: 'mike@example.com', avatar: 'MJ' }
 ]
 
-const mockTags = ['urgent', 'high', 'medium', 'low', 'design', 'development', 'testing', 'review']
 
 export default function TopBarActions({ colors, onNewTask, onFilterChange }: TopBarActionsProps) {
   const [commandOpen, setCommandOpen] = useState(false)

@@ -6,8 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle, Calendar, FileText, Link as LinkIcon } from 'lucide-react'
-import { TaskEditDialog } from '@/components/tasks/task-edit-dialog'
+import { AlertTriangle, FileText, Link as LinkIcon } from 'lucide-react'
 import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
 
 interface Epic {
@@ -59,7 +58,7 @@ interface EpicDrawerProps {
 export function EpicDrawer({ epic, isOpen, onClose, projectId, workspaceId, colors }: EpicDrawerProps) {
   const { open } = useTaskSidebarStore()
   const [tasks, setTasks] = useState<Task[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [_isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {

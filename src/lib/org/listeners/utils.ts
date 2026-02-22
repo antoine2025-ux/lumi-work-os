@@ -94,8 +94,8 @@ export type RelationshipType = "COLLABORATOR" | "REPORTS_TO" | "PEER" | "CROSS_T
  * - Otherwise → COLLABORATOR or CROSS_TEAM
  */
 export function inferRelationshipType(
-  personAId: string,
-  personBId: string
+  _personAId: string,
+  _personBId: string
 ): RelationshipType {
   // TODO: Implement org structure lookup
   // For now, default to COLLABORATOR

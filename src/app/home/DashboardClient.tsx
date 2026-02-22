@@ -11,15 +11,12 @@ import {
   Plus,
   BookOpen,
   Bot,
-  ChevronRight,
   Sparkles,
   CheckCircle,
   AlertCircle,
   BarChart3,
   CheckSquare,
   TrendingUp,
-  Briefcase,
-  Clock,
 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"

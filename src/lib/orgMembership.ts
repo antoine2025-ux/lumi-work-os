@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import type { OrgPermissionLevel } from "./orgPermissions";
-import { getCurrentUserId } from "@/lib/auth/getCurrentUserId";
 
 /**
  * Helper: map a WorkspaceMember record to OrgPermissionLevel.

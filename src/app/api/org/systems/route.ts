@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const orgId = await requireActiveOrgId(req)
+    const _orgId = await requireActiveOrgId(req)
     const body = (await req.json()) as { id?: string; name?: string; description?: string }
     const id = String(body?.id ?? "")
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })

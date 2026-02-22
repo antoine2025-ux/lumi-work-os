@@ -9,8 +9,6 @@ import { prisma } from "@/lib/db";
 import { deriveAllIssues } from "@/lib/org/issues/deriveAllIssues";
 import type { OrgIssueMetadata, OrgIssue } from "@/lib/org/deriveIssues";
 import {
-  getDefaultIssueWindow,
-  type CapacityThresholdsWithWindow,
 } from "@/lib/org/capacity/thresholds";
 import {
   getIntelligenceResponseMeta,
@@ -21,12 +19,6 @@ import {
 import { resolveWorkImpactSummary } from "@/lib/org/impact/resolveWorkImpact";
 import {
   getIssueSection,
-  OWNERSHIP_ISSUE_TYPES,
-  CAPACITY_ISSUE_TYPES,
-  WORK_ISSUE_TYPES,
-  RESPONSIBILITY_ISSUE_TYPES,
-  DECISION_ISSUE_TYPES,
-  IMPACT_ISSUE_TYPES,
 } from "@/lib/org/intelligence/constants";
 
 // ============================================================================

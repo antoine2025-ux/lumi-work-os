@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Update session with wiki URL and phase
-    const updatedSession = await prisma.chatSession.update({
+    const _updatedSession = await prisma.chatSession.update({
       where: { id: sessionId },
       data: {
         wikiUrl: `/wiki/${wikiPage.slug}`,

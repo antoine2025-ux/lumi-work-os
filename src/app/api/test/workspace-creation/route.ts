@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db'
 import { createDefaultWorkspaceForUser } from '@/lib/workspace-onboarding'
 
 // GET /api/test/workspace-creation - Test workspace creation for current user
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/test/workspace-creation - Force create workspace for testing
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {

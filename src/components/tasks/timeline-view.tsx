@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
 import { cn } from '@/lib/utils'
 import { getEpicColor } from '@/lib/utils/epic-colors'
@@ -45,7 +45,7 @@ const statusColors = {
   'TODO': 'bg-slate-500/80',
 }
 
-const statusColorsSolid = {
+const _statusColorsSolid = {
   'DONE': 'bg-emerald-500',
   'IN_PROGRESS': 'bg-sky-500',
   'BLOCKED': 'bg-rose-500',
@@ -329,7 +329,7 @@ export default function TimelineView({ projectId, workspaceId }: TimelineViewPro
                   No tasks with dates
                 </div>
               ) : (
-                tasksWithDates.map((task, index) => (
+                tasksWithDates.map((task, _index) => (
                   <div
                     key={task.id}
                     className="px-4 py-3 border-b border-slate-800/50 h-[48px] flex flex-col justify-center"

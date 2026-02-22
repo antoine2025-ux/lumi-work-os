@@ -3,7 +3,6 @@
 "use client";
 
 import { useOrgHealth } from "@/hooks/useOrgHealth";
-import Link from "next/link";
 import { computeRoleStructureRisk } from "@/lib/org/healthService";
 import { useOpenLoopbrainForOrgHealth } from "@/lib/loopbrain/client-helpers";
 

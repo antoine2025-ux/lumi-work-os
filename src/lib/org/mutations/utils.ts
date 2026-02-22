@@ -22,7 +22,6 @@ export function computeIssueResolution(
   issuesAfter: OrgIssueMetadata[],
   mutationId: string
 ): { active: OrgIssueMetadata[]; resolved: ResolvedIssueDelta[] } {
-  const beforeKeys = new Set(issuesBefore.map((i) => i.issueKey));
   const afterKeys = new Set(issuesAfter.map((i) => i.issueKey));
 
   // Use stable timestamp for all resolved issues in this mutation

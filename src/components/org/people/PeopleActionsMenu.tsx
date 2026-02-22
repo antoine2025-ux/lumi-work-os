@@ -23,7 +23,6 @@ export function PeopleActionsMenu({
   canManagePeople = false,
   onInvite,
   onAssignTeam,
-  onAssignDepartment,
   onAssignManager,
   onExport,
 }: PeopleActionsMenuProps) {

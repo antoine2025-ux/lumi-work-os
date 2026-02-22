@@ -18,7 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, Info, HelpCircle } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { ExplainabilityBlock, ExplainabilityMeta } from "@/lib/org/explainability/types";
-import { cn } from "@/lib/utils";
 
 type ExplainabilityPanelProps = {
   explainability?: ExplainabilityBlock; // Optional during migration

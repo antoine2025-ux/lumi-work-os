@@ -157,7 +157,7 @@ export async function callLoopbrainAssistant(
           // Use backend error message if available
           errorMessage = errorData.error
         }
-      } catch (parseError) {
+      } catch (_parseError) {
         // If response isn't JSON, use status text
         errorMessage = `Request failed: ${response.status} ${response.statusText}`
       }

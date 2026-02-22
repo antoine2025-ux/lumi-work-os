@@ -44,7 +44,6 @@ function flattenSpaces(
 export function CreatePageDialog({
   open,
   onOpenChange,
-  workspaceSlug,
 }: CreatePageDialogProps) {
   const router = useRouter()
   const [spaces, setSpaces] = useState<Space[]>([])

@@ -23,7 +23,6 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { listOrgPeople } from "@/server/org/people/read";
 import { getOrgIntelligenceSnapshot } from "@/lib/org/intelligence";
-import { handleApiError } from "@/lib/api-errors";
 import {
   isPrismaError,
   classifyAuthError,

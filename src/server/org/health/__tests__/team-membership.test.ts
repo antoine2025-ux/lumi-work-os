@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { describe, test, expect, vi, beforeEach } from "vitest"
 
 // Mock prisma before importing the module under test
@@ -12,6 +12,9 @@ vi.mock("@/lib/db", () => ({
 
 import { getTeamMemberships } from "../team-membership"
 import { prisma } from "@/lib/db"
+import type { OrgPosition } from "@prisma/client"
+
+type FindManyResult = OrgPosition[]
 
 const mockFindMany = vi.mocked(prisma.orgPosition.findMany)
 
@@ -25,7 +28,7 @@ describe("getTeamMemberships", () => {
       { teamId: "team-1", userId: "user-1" },
       { teamId: "team-1", userId: "user-2" },
       { teamId: "team-2", userId: "user-3" },
-    ])
+    ] as unknown as FindManyResult)
 
     const result = await getTeamMemberships("workspace-123")
 
@@ -51,7 +54,7 @@ describe("getTeamMemberships", () => {
   })
 
   test("returns empty array when no positions exist", async () => {
-    mockFindMany.mockResolvedValueOnce([])
+    mockFindMany.mockResolvedValueOnce([] as FindManyResult)
 
     const result = await getTeamMemberships("workspace-empty")
 
@@ -64,7 +67,7 @@ describe("getTeamMemberships", () => {
       { teamId: "team-1", userId: "user-1" },
       { teamId: null, userId: "user-2" }, // Should be filtered
       { teamId: "team-2", userId: null }, // Should be filtered
-    ])
+    ] as unknown as FindManyResult)
 
     const result = await getTeamMemberships("workspace-123")
 
@@ -78,7 +81,7 @@ describe("getTeamMemberships", () => {
       userId: `user-${i}`,
     }))
 
-    mockFindMany.mockResolvedValueOnce(manyPositions)
+    mockFindMany.mockResolvedValueOnce(manyPositions as unknown as FindManyResult)
 
     const result = await getTeamMemberships("workspace-large")
 

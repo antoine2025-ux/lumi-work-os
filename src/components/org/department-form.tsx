@@ -31,7 +31,6 @@ export function DepartmentForm({
   onClose, 
   onSuccess,
   department,
-  colors
 }: DepartmentFormProps) {
   const [name, setName] = useState(department?.name || "")
   const [description, setDescription] = useState(department?.description || "")

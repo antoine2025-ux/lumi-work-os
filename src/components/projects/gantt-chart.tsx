@@ -10,8 +10,6 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  ZoomIn,
-  ZoomOut,
   RotateCcw,
   X
 } from "lucide-react"
@@ -67,14 +65,14 @@ const statusColors = {
   'BLOCKED': '#ef4444'
 }
 
-const priorityColors = {
+const _priorityColors = {
   'LOW': '#10b981',
   'MEDIUM': '#f59e0b',
   'HIGH': '#f97316',
   'URGENT': '#ef4444'
 }
 
-export default function GanttChart({ project, onTaskUpdate }: GanttChartProps) {
+export default function GanttChart({ project, onTaskUpdate: _onTaskUpdate }: GanttChartProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'week' | 'month' | 'quarter'>('month')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
@@ -226,7 +224,7 @@ export default function GanttChart({ project, onTaskUpdate }: GanttChartProps) {
       // Find the earliest and latest task dates
       const taskDates = ganttTasks.flatMap(task => [task.startDate, task.endDate])
       const minTaskDate = new Date(Math.min(...taskDates.map(d => d.getTime())))
-      const maxTaskDate = new Date(Math.max(...taskDates.map(d => d.getTime())))
+      const _maxTaskDate = new Date(Math.max(...taskDates.map(d => d.getTime())))
       
       // Calculate scroll position to center the tasks
       const timelineStart = timelineGrid[0]
@@ -470,7 +468,7 @@ export default function GanttChart({ project, onTaskUpdate }: GanttChartProps) {
                         </div>
                         
                         {/* Dependency lines */}
-                        {task.dependencies.map((depId, index) => {
+                        {task.dependencies.map((depId, _index) => {
                           const depTask = ganttTasks.find(t => t.id === depId)
                           if (!depTask) return null
                           

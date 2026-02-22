@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   ArrowLeft, 
-  CheckSquare, 
   Calendar,
   User,
   MessageSquare,
@@ -19,9 +18,7 @@ import {
   Loader2,
   Edit,
   MoreHorizontal,
-  Plus,
   Tag,
-  Clock,
   LinkIcon
 } from "lucide-react"
 import Link from "next/link"
@@ -101,7 +98,7 @@ const priorityOptions = [
 
 export default function TaskDetailPage() {
   const params = useParams()
-  const router = useRouter()
+  const _router = useRouter()
   const workspaceSlug = params?.workspaceSlug as string | undefined
   const { currentWorkspace } = useWorkspace()
   const projectId = params?.id as string
@@ -204,7 +201,7 @@ export default function TaskDetailPage() {
     return statusOptions.find(option => option.value === status) || statusOptions[0]
   }
 
-  const getPriorityOption = (priority: string) => {
+  const _getPriorityOption = (priority: string) => {
     return priorityOptions.find(option => option.value === priority) || priorityOptions[1]
   }
 

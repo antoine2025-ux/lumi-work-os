@@ -26,7 +26,6 @@ import {
   Building2,
   Maximize2,
   Minimize2,
-  Download,
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

@@ -12,7 +12,7 @@ const _getPersonProfile = async (orgId: string, personId: string) => {
         { id: personId },
       ],
       isActive: true,
-    } as any,
+    },
     include: {
       user: {
         select: { id: true, name: true, email: true },
@@ -31,45 +31,48 @@ const _getPersonProfile = async (orgId: string, personId: string) => {
 
   const userId = person.id
 
-  // Best-effort relations (keep resilient if some models are absent)
+  // Best-effort relations (keep resilient if some models are absent).
+  // Note field naming conventions:
+  //   - PersonAvailabilityHealth, PersonSkill, PersonManagerLink: use workspaceId
+  //   - PersonRoleAssignment: uses orgId (legacy, not yet migrated)
   const [availability, roles, skills, managers, teams] = await Promise.all([
     prisma.personAvailabilityHealth
       .findFirst({
-        where: { orgId, personId: userId } as any,
-        select: { status: true, reason: true, updatedAt: true, createdAt: true } as any,
+        where: { workspaceId: orgId, personId: userId },
+        select: { status: true, reason: true, updatedAt: true, createdAt: true },
       })
       .catch(() => null),
     prisma.personRoleAssignment
       .findMany({
-        where: { orgId, personId: userId } as any,
-        select: { role: true, percent: true } as any,
-        orderBy: { percent: "desc" } as any,
+        where: { orgId, personId: userId },
+        select: { role: true, percent: true },
+        orderBy: { percent: "desc" },
         take: 20,
       })
-      .catch(() => [] as any[]),
+      .catch(() => [] as Array<{ role: string; percent: number }>),
     prisma.personSkill
       .findMany({
-        where: { orgId, personId: userId } as any,
-        select: { skill: true } as any,
+        where: { workspaceId: orgId, personId: userId },
+        select: { skill: { select: { name: true } } },
         take: 100,
       })
-      .catch(() => [] as any[]),
+      .catch(() => [] as Array<{ skill: { name: string } }>),
     prisma.personManagerLink
       .findMany({
-        where: { orgId, personId: userId } as any,
-        select: { managerId: true } as any,
+        where: { workspaceId: orgId, personId: userId },
+        select: { managerId: true },
         take: 5,
       })
-      .catch(() => [] as any[]),
+      .catch(() => [] as Array<{ managerId: string }>),
     // Get teams from position's teamId
     (async () => {
       try {
         if (position.teamId) {
           const team = await prisma.orgTeam.findFirst({
-            where: { workspaceId: orgId, id: position.teamId } as any,
-            select: { id: true, name: true } as any,
+            where: { workspaceId: orgId, id: position.teamId },
+            select: { id: true, name: true },
           })
-          return team ? [{ id: String(team.id), name: String(team.name ?? "Team") }] : []
+          return team ? [{ id: team.id, name: team.name ?? "Team" }] : []
         }
         return []
       } catch {
@@ -78,25 +81,25 @@ const _getPersonProfile = async (orgId: string, personId: string) => {
     })(),
   ])
 
-  const skillTags = (skills || []).map((s: any) => String(s.skill ?? "")).filter(Boolean)
-  const roleRows = (roles || []).map((r: any) => ({ role: String(r.role ?? ""), percent: Number(r.percent ?? 100) }))
+  const skillTags = (skills ?? []).map((s) => s.skill.name).filter(Boolean)
+  const roleRows = (roles ?? []).map((r) => ({ role: r.role, percent: r.percent }))
 
   return {
     person: {
-      id: String(person.id),
-      name: String(person.name ?? ""),
-      email: person.email ? String(person.email) : null,
-      title: person.title ? String(person.title) : null,
+      id: person.id,
+      name: person.name,
+      email: person.email,
+      title: person.title,
     },
     org: {
       teams,
-      managerIds: (managers || []).map((m: any) => String(m.managerId)),
+      managerIds: (managers ?? []).map((m) => m.managerId),
     },
     availability: availability
       ? {
-          status: String((availability as any).status ?? "AVAILABLE"),
-          reason: (availability as any).reason ? String((availability as any).reason) : null,
-          updatedAt: (availability as any).updatedAt ?? (availability as any).createdAt ?? null,
+          status: String(availability.status),
+          reason: availability.reason ?? null,
+          updatedAt: availability.updatedAt ?? availability.createdAt ?? null,
         }
       : {
           status: "AVAILABLE",
@@ -113,4 +116,3 @@ export const getPersonProfile = cacheOrg(
   _getPersonProfile,
   { revalidate: 30, tags: ["org:people"] }
 )
-

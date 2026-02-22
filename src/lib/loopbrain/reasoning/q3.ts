@@ -15,9 +15,7 @@ import {
   deriveCurrentAvailability,
   deriveRoleProfile,
   type ProjectAccountabilityReadModel,
-  type AccountabilityValue,
 } from "@/lib/org";
-import { activeAllocationsAt } from "@/lib/org";
 
 // ============================================================================
 // Types
@@ -253,7 +251,7 @@ type AccountabilityBoundary = {
 function establishAccountabilityBoundary(
   accountability: ProjectAccountabilityReadModel,
   people: PersonWithCapacity[],
-  roles: RoleWithResponsibilities[]
+  _roles: RoleWithResponsibilities[]
 ): AccountabilityBoundary {
   const ownerPersonIds: string[] = [];
   const ownerRoleNames: string[] = [];

@@ -14,8 +14,7 @@
 
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import type { CapacityImpactV0 } from "../contract/calendarAvailability.v0";
-import type { CapacityComparisonV0, UtilizationStatusV0 } from "../contract/workloadAnalysis.v0";
+import type { UtilizationStatusV0 } from "../contract/workloadAnalysis.v0";
 
 // =============================================================================
 // Types

@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context";
@@ -21,7 +21,7 @@ export function DashboardLayoutClient({
   children: React.ReactNode;
 }) {
   const { data: session, status } = useSession();
-  const router = useRouter();
+  const _router = useRouter();
   const pathname = usePathname();
   const [isFirstTime, setIsFirstTime] = useState(false);
   

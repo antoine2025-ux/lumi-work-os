@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";

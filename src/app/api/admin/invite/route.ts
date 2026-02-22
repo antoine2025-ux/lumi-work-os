@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Invite user via Supabase Auth
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    const { data: _inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       redirectTo: inviteRedirectUrl,
       data: {
         workspaceId: auth.workspaceId,

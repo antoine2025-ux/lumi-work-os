@@ -1,12 +1,8 @@
 import type { ContextObject, ContextRelation } from "./contextTypes";
-import { orgId, departmentId, teamId, roleId, personId } from "./orgIds";
+import { departmentId, teamId, roleId, personId } from "./orgIds";
 import {
   buildPersonOrgRelations,
-  buildTeamOrgRelations,
-  buildDepartmentOrgRelations,
   type OrgPersonRelationsInput,
-  type OrgTeamRelationsInput,
-  type OrgDepartmentRelationsInput,
 } from "./orgRelationsMapper";
 
 /**

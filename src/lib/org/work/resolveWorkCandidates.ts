@@ -49,7 +49,7 @@ type CandidatePoolInput = {
 export async function getCandidatePool(
   input: CandidatePoolInput
 ): Promise<CandidatePoolResult> {
-  const { workspaceId, domainType, domainId, requiredRoleType, requiredSeniority } = input;
+  const { workspaceId, domainType, domainId, requiredRoleType } = input;
   const explanation: string[] = [];
   let candidateUserIds: string[] = [];
   let teamIdForProximity: string | null = null;
@@ -333,7 +333,7 @@ export async function rankCandidates(input: RankingInput): Promise<WorkCandidate
         alignment: alignmentResult.alignment,
         explanation: alignmentResult.explanation,
       });
-    } catch (error) {
+    } catch (_error) {
       // Non-blocking: if alignment fails, treat as UNKNOWN
       alignmentMap.set(candidate.personId, {
         alignment: "UNKNOWN",

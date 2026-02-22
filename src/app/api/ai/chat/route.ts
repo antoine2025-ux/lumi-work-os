@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { generateAIResponse, AISource } from '@/lib/ai/providers'
-import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
+import { generateAIResponse } from '@/lib/ai/providers'
+import { cache, CACHE_KEYS } from '@/lib/cache'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
@@ -305,7 +305,7 @@ export async function POST(request: NextRequest) {
     // If user is editing a draft page (has content/title), treat as Page Context Mode
     const hasPageContext = !!context?.pageId || !!(context?.content || (context?.title && context.title !== 'New page'))
     const isPageContextMode = hasPageContext && (!!activePage || !!(context?.content || context?.title))
-    const isGlobalMode = !isPageContextMode
+    const _isGlobalMode = !isPageContextMode
 
     // Get workspace info
     const workspace = await prisma.workspace.findUnique({

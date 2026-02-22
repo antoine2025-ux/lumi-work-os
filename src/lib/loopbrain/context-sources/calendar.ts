@@ -58,7 +58,6 @@ const DEFAULT_FORECAST_DAYS = 14;
 const DEFAULT_WORKING_HOURS_START = 9;
 const DEFAULT_WORKING_HOURS_END = 17;
 const DEFAULT_WEEKLY_HOURS = 40;
-const MEETING_OVERLOAD_THRESHOLD = 0.6;
 const EXTENDED_LEAVE_THRESHOLD_DAYS = 5;
 
 // =============================================================================
@@ -253,7 +252,7 @@ async function loadCalendarEvents(
 function buildWeeklyPattern(
   events: CalendarEvent[],
   weekStart: Date,
-  weekEnd: Date
+  _weekEnd: Date
 ): { weeklyPattern: WeeklyPatternV0; weeklyPatternSummary: WeeklyPatternSummaryV0 } {
   const weeklyPattern: WeeklyPatternV0 = {};
   let totalBusyHours = 0;
@@ -539,8 +538,8 @@ function buildCapacityImpact(
 
 function detectConflicts(
   events: CalendarEvent[],
-  startDate: Date,
-  endDate: Date
+  _startDate: Date,
+  _endDate: Date
 ): CalendarConflictV0[] {
   const conflicts: CalendarConflictV0[] = [];
 

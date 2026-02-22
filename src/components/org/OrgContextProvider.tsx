@@ -20,7 +20,7 @@ type OrgContextProviderProps = {
  * Server component that provides org context to all child pages.
  * This avoids duplicate permission checks in each page component.
  */
-export function OrgContextProvider({ context, children }: OrgContextProviderProps) {
+export function OrgContextProvider({ children }: OrgContextProviderProps) {
   // In Next.js App Router, we can't use React Context for server components.
   // Instead, we'll pass context via a client component wrapper that provides it.
   // For now, we'll use a simpler approach: pass context via layout props.

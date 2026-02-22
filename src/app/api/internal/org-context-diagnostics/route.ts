@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
           );
         }
         workspaceId = currentWorkspaceId;
-      } catch (error) {
+      } catch (_error) {
         return NextResponse.json(
           { error: "workspaceId is required" },
           { status: 400 }

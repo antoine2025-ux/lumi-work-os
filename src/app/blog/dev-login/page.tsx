@@ -37,7 +37,7 @@ export default function BlogDevLoginPage() {
 
       // Redirect to admin dashboard on success
       router.push("/blog/admin")
-    } catch (err) {
+    } catch (_err) {
       setError("An error occurred. Please try again.")
       setLoading(false)
     }

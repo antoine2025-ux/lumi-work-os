@@ -59,12 +59,6 @@ interface TeamContextData {
   };
 }
 
-interface DepartmentContextData {
-  department?: {
-    id?: string;
-    name?: string;
-  };
-}
 
 interface RoleContextData {
   role?: {

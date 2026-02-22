@@ -14,7 +14,7 @@ export default function NewProjectPage() {
   const searchParams = useSearchParams()
   const initialSpaceId = searchParams.get('spaceId') ?? undefined
   const [isOpen, setIsOpen] = useState(true)
-  const [hasCreatedProject, setHasCreatedProject] = useState(false)
+  const [_hasCreatedProject, setHasCreatedProject] = useState(false)
   // Use ref to track creation status to avoid closure issues
   const hasCreatedProjectRef = useRef(false)
 

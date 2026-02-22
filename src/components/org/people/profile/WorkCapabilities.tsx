@@ -16,7 +16,7 @@ type WorkCapabilitiesProps = {
   systems?: Array<{ id: string; name: string }> | null
 }
 
-function pill(text: string) {
+function pill(_text: string) {
   return "inline-flex items-center rounded-full border px-3 py-1 text-xs text-muted-foreground"
 }
 

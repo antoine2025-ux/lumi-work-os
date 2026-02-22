@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { AILogo } from "@/components/ai-logo"
@@ -11,12 +10,10 @@ import {
   X, 
   Minus,
   Maximize2,
-  Mic,
   Loader2,
   FileText,
   Sidebar,
   Move,
-  FileEdit,
   Paperclip,
   Globe,
   AtSign,
@@ -130,13 +127,13 @@ export function WikiAIAssistant({
   onContentUpdate, 
   onTitleUpdate,
   onCreatePage,
-  onStartCreatingPage,
+  onStartCreatingPage: _onStartCreatingPage,
   workspaces = [],
   recentPages = [],
   currentContent = '', 
   currentTitle = 'New page',
   currentPageId,
-  selectedText,
+  selectedText: _selectedText,
   onOpenChange,
   onDisplayModeChange,
   mode = 'bottom-bar' // Default to bottom-bar for wiki pages
@@ -161,11 +158,11 @@ export function WikiAIAssistant({
   const [lastLoopbrainResponse, setLastLoopbrainResponse] = useState<LoopbrainResponse | null>(null)
   const [showWorkspaceSelectDialog, setShowWorkspaceSelectDialog] = useState(false)
   const [pendingPageTitle, setPendingPageTitle] = useState("")
-  const [pendingPageContent, setPendingPageContent] = useState("")
+  const [_pendingPageContent, setPendingPageContent] = useState("")
   const [isCreatingPage, setIsCreatingPage] = useState(false)
   // Page creation flow state
   const [pageCreationState, setPageCreationState] = useState<'idle' | 'waiting_for_title' | 'waiting_for_location'>('idle')
-  const [pendingPageLocation, setPendingPageLocation] = useState<{ type: 'workspace' | 'parent', id: string, name: string } | null>(null)
+  const [_pendingPageLocation, setPendingPageLocation] = useState<{ type: 'workspace' | 'parent', id: string, name: string } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -193,7 +190,7 @@ export function WikiAIAssistant({
   }
 
   // Stream content generation for a page
-  const streamContentToPage = async (pageId: string, prompt: string, initialContent?: string) => {
+  const _streamContentToPage = async (pageId: string, prompt: string, initialContent?: string) => {
     try {
       // Get workspace ID from context or fall back to first workspace
       let workspaceId = contextWorkspaceId || ''
@@ -457,7 +454,7 @@ export function WikiAIAssistant({
     
     // Extract significant words from input (words longer than 3 chars)
     const extractedWords = extractedName.toLowerCase().split(/\s+/).filter(w => w.length > 3)
-    const inputWords = input.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+    const _inputWords = input.toLowerCase().split(/\s+/).filter(w => w.length > 3)
     
     for (const workspace of workspaceList) {
       const workspaceName = workspace.name
@@ -592,7 +589,7 @@ export function WikiAIAssistant({
   }
 
   // Wrapper function that uses component's workspaces and recentPages
-  const parseLocation = (input: string): { type: 'workspace' | 'parent', id: string, name: string } | null => {
+  const _parseLocation = (input: string): { type: 'workspace' | 'parent', id: string, name: string } | null => {
     return parseLocationWithWorkspaces(input, workspaces, recentPages)
   }
 
@@ -1741,7 +1738,7 @@ export function WikiAIAssistant({
             sessionStorage.setItem('pendingPageDraft', JSON.stringify(pageCreationInfo))
             
             // Verify it was stored
-            const stored = sessionStorage.getItem('pendingPageDraft')
+            const _stored = sessionStorage.getItem('pendingPageDraft')
             
             // Create blank draft page (this will navigate)
             await onCreatePage(pendingPageTitle, ' ', workspaceId)

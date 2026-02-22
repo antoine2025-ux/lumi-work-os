@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { OrgApi } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { PeopleListSkeleton } from "@/components/org/people/PeopleListSkeleton";
 import { PeopleEmptyState } from "@/components/org/people/PeopleEmptyState";
 import { PersonIdentityCell } from "@/components/org/people/PersonIdentityCell";
 import { DeletePersonModal } from "@/components/org/people/DeletePersonModal";
-import { getDisplayName, displayTeamDept, getPersonDisplayBadges } from "@/lib/org/personDisplay";
+import { getDisplayName, getPersonDisplayBadges } from "@/lib/org/personDisplay";
 import { cn } from "@/lib/utils";
 import { MoreVertical, Trash2, Eye, Edit } from "lucide-react";
 import {
@@ -33,13 +33,23 @@ import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
 import { useOrgUrl } from "@/hooks/useOrgUrl";
 import type { OrgPerson } from "@/types/org";
 
-export function PeopleListClient() {
-  const pathname = usePathname();
+type PeopleListClientProps = {
+  searchQuery?: string;
+  hideSearch?: boolean;
+  hideAddButton?: boolean;
+};
+
+export function PeopleListClient({ 
+  searchQuery: externalQuery,
+  hideSearch = false,
+  hideAddButton = false
+}: PeopleListClientProps = {}) {
   const router = useRouter();
   const orgUrl = useOrgUrl();
   const flagsQ = useOrgQuery(() => OrgApi.getFlags(), []);
   const peopleQ = useOrgQuery(() => OrgApi.listPeople(), []);
-  const [q, setQ] = useState("");
+  const [internalQ, setInternalQ] = useState("");
+  const q = externalQuery !== undefined ? externalQuery : internalQ;
   const { role } = useCurrentOrgRole();
   const isOwner = role === "OWNER";
   
@@ -221,24 +231,22 @@ export function PeopleListClient() {
   if (isLoading && !hasData) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search people…"
-            className="flex-1"
-            disabled
-          />
-          {canAdd ? (
-            <Button asChild>
-              <Link href={orgUrl.newPerson}>Add person</Link>
-            </Button>
-          ) : (
-            <Button variant="secondary" disabled title="Enabled via feature flag">
-              Add person
-            </Button>
-          )}
-        </div>
+        {!hideSearch && (
+          <div className="flex items-center justify-between gap-3">
+            <Input
+              value={q}
+              onChange={(e) => setInternalQ(e.target.value)}
+              placeholder="Search people…"
+              className="flex-1"
+              disabled
+            />
+            {!hideAddButton && canAdd && (
+              <Button asChild>
+                <Link href={orgUrl.newPerson}>Add person</Link>
+              </Button>
+            )}
+          </div>
+        )}
 
         <Card className="border-white/5 bg-slate-900/40">
           <PeopleListSkeleton />
@@ -251,23 +259,21 @@ export function PeopleListClient() {
   if (error) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search people…"
-            className="flex-1"
-          />
-          {canAdd ? (
-            <Button asChild>
-              <Link href={orgUrl.newPerson}>Add person</Link>
-            </Button>
-          ) : (
-            <Button variant="secondary" disabled title="Enabled via feature flag">
-              Add person
-            </Button>
-          )}
-        </div>
+        {!hideSearch && (
+          <div className="flex items-center justify-between gap-3">
+            <Input
+              value={q}
+              onChange={(e) => setInternalQ(e.target.value)}
+              placeholder="Search people…"
+              className="flex-1"
+            />
+            {!hideAddButton && canAdd && (
+              <Button asChild>
+                <Link href={orgUrl.newPerson}>Add person</Link>
+              </Button>
+            )}
+          </div>
+        )}
         <Card className="border-white/5 bg-slate-900/40 p-6">
           <div className="text-sm text-destructive">Failed to load people: {String(error)}</div>
         </Card>
@@ -280,23 +286,21 @@ export function PeopleListClient() {
   if (!isLoading && !hasData && !error) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search people…"
-            className="flex-1"
-          />
-          {canAdd ? (
-            <Button asChild>
-              <Link href={orgUrl.newPerson}>Add person</Link>
-            </Button>
-          ) : (
-            <Button variant="secondary" disabled title="Enabled via feature flag">
-              Add person
-            </Button>
-          )}
-        </div>
+        {!hideSearch && (
+          <div className="flex items-center justify-between gap-3">
+            <Input
+              value={q}
+              onChange={(e) => setInternalQ(e.target.value)}
+              placeholder="Search people…"
+              className="flex-1"
+            />
+            {!hideAddButton && canAdd && (
+              <Button asChild>
+                <Link href={orgUrl.newPerson}>Add person</Link>
+              </Button>
+            )}
+          </div>
+        )}
         <Card className="border-white/5 bg-slate-900/40 p-6">
           <div className="text-sm text-slate-400">Loading people…</div>
         </Card>
@@ -311,24 +315,22 @@ export function PeopleListClient() {
     console.log("[PeopleListClient] Showing empty state - hasData:", hasData, "people.length:", people.length, "q:", q);
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search people…"
-            className="flex-1"
-            disabled
-          />
-          {canAdd ? (
-            <Button asChild>
-              <Link href={orgUrl.newPerson}>Add person</Link>
-            </Button>
-          ) : (
-            <Button variant="secondary" disabled title="Enabled via feature flag">
-              Add person
-            </Button>
-          )}
-        </div>
+        {!hideSearch && (
+          <div className="flex items-center justify-between gap-3">
+            <Input
+              value={q}
+              onChange={(e) => setInternalQ(e.target.value)}
+              placeholder="Search people…"
+              className="flex-1"
+              disabled
+            />
+            {!hideAddButton && canAdd && (
+              <Button asChild>
+                <Link href={orgUrl.newPerson}>Add person</Link>
+              </Button>
+            )}
+          </div>
+        )}
 
         <PeopleEmptyState
           hasFilters={false}
@@ -343,30 +345,28 @@ export function PeopleListClient() {
   // Show filtered empty state or list
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search people…"
-          className="flex-1"
-        />
-        {canAdd ? (
-          <Button asChild>
-            <Link href="/org/people/new">Add person</Link>
-          </Button>
-        ) : (
-          <Button variant="secondary" disabled title="Enabled via feature flag">
-            Add person
-          </Button>
-        )}
-      </div>
+      {!hideSearch && (
+        <div className="flex items-center justify-between gap-3">
+          <Input
+            value={q}
+            onChange={(e) => setInternalQ(e.target.value)}
+            placeholder="Search people…"
+            className="flex-1"
+          />
+          {!hideAddButton && canAdd && (
+            <Button asChild>
+              <Link href={orgUrl.newPerson}>Add person</Link>
+            </Button>
+          )}
+        </div>
+      )}
 
       <Card className="border-white/5 bg-slate-900/40 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="p-8">
             <PeopleEmptyState
               hasFilters={true}
-              onResetSearch={() => setQ("")}
+              onResetSearch={() => setInternalQ("")}
             />
           </div>
         ) : (

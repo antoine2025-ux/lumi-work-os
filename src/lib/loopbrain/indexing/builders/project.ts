@@ -25,7 +25,7 @@ export interface BuildContextObjectParams {
 export async function buildContextObjectForProject(
   params: BuildContextObjectParams
 ): Promise<ContextObject | null> {
-  const { workspaceId, entityId, userId, prisma } = params
+  const { workspaceId, entityId, prisma } = params
 
   try {
     // Fetch project with relations

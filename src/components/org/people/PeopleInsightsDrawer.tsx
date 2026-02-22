@@ -31,7 +31,7 @@ export function PeopleInsightsDrawer({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         className="max-w-md bg-slate-900 border-white/10 text-slate-100 max-h-[90vh] overflow-hidden flex flex-col"
-        onInteractOutside={(e) => {
+        onInteractOutside={(_e) => {
           // Allow closing on outside click
         }}
       >

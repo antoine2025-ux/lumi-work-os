@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Read services for Org People.
  * 
@@ -6,7 +6,25 @@
  * explicitly passed and used in queries to ensure proper workspace isolation.
  */
 
+import type { AvailabilityType, AvailabilityReason } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+
+/** Detects Prisma enum mismatch errors that occur when the client is out of sync. */
+function isEnumMismatchError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message.includes("not found in enum") || error.message.includes("AvailabilityType"))
+  );
+}
+
+/** Detects Prisma table-not-found errors (P2021) or schema mismatch messages. */
+function isPrismaTableNotFoundError(error: unknown): boolean {
+  return (
+    (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") ||
+    (error instanceof Error && error.message.includes("does not exist"))
+  );
+}
 import type { OrgPeopleListDTO, OrgPersonDTO } from "@/server/org/dto";
 import { isAvailabilityStale } from "@/server/org/availability/stale";
 import { getOrCreateIntelligenceSettings } from "@/server/org/intelligence/settings";
@@ -23,7 +41,7 @@ import {
  * 
  * @param workspaceId - Optional workspaceId. If not provided, will try to get from context.
  */
-export async function listOrgPeople(workspaceId?: string, includeArchived: boolean = false): Promise<OrgPeopleListDTO> {
+export async function listOrgPeople(workspaceId?: string, _includeArchived: boolean = false): Promise<OrgPeopleListDTO> {
   // Get workspaceId from context if not provided (for backward compatibility)
   const effectiveWorkspaceId = workspaceId || getWorkspaceContext();
   
@@ -33,8 +51,8 @@ export async function listOrgPeople(workspaceId?: string, includeArchived: boole
   }
 
   // Build where clause - REMOVED archivedAt filter to restore people list
-  const whereClause: any = {
-    workspaceId: effectiveWorkspaceId, // Explicitly filter by workspaceId
+  const whereClause: Prisma.OrgPositionWhereInput = {
+    workspaceId: effectiveWorkspaceId,
     userId: { not: null },
     isActive: true,
   };
@@ -55,7 +73,7 @@ export async function listOrgPeople(workspaceId?: string, includeArchived: boole
         select: { id: true, name: true, department: { select: { id: true, name: true } } },
       },
       parent: {
-        select: { id: true, user: { select: { id: true, name: true } } },
+        select: { id: true, user: { select: { id: true, name: true, email: true } } },
       },
     },
     orderBy: { createdAt: "asc" },
@@ -81,7 +99,16 @@ export async function listOrgPeople(workspaceId?: string, includeArchived: boole
 
     // Fetch availability windows
     // Handle Prisma enum mismatch gracefully - if enum values don't match schema, filter them out
-    let availabilityWindows;
+    let availabilityWindows: Array<{
+      personId: string;
+      type: AvailabilityType;
+      startDate: Date;
+      endDate: Date | null;
+      fraction: number | null;
+      reason: AvailabilityReason | null;
+      expectedReturnDate: Date | null;
+      updatedAt: Date;
+    }> = [];
     try {
       availabilityWindows = await prisma.personAvailability.findMany({
         where: {
@@ -99,10 +126,10 @@ export async function listOrgPeople(workspaceId?: string, includeArchived: boole
           updatedAt: true,
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle Prisma enum mismatch - if the error is about enum values, log and continue with empty array
-      if (error?.message?.includes('not found in enum') || error?.message?.includes('AvailabilityType')) {
-        console.error('[listOrgPeople] Prisma enum mismatch detected. Regenerate Prisma client with: npx prisma generate', error.message);
+      if (isEnumMismatchError(error)) {
+        console.error('[listOrgPeople] Prisma enum mismatch detected. Regenerate Prisma client with: npx prisma generate', error instanceof Error ? error.message : error);
         // Return empty array to allow the route to continue - availability data will be missing but people list will load
         availabilityWindows = [];
       } else {
@@ -208,10 +235,10 @@ export async function listOrgPeople(workspaceId?: string, includeArchived: boole
   let settings: { availabilityStaleDays: number };
   try {
     settings = await getOrCreateIntelligenceSettings();
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If table doesn't exist, use default settings
-    if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
-      console.warn("[listOrgPeople] Intelligence settings table not found, using defaults:", error.message);
+    if (isPrismaTableNotFoundError(error)) {
+      console.warn("[listOrgPeople] Intelligence settings table not found, using defaults:", error instanceof Error ? error.message : error);
       settings = { availabilityStaleDays: 30 }; // Default: 30 days
     } else {
       // Re-throw other errors
@@ -297,7 +324,7 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
         select: { id: true, name: true, department: { select: { id: true, name: true } } },
       },
       parent: {
-        select: { id: true, user: { select: { id: true, name: true } } },
+        select: { id: true, user: { select: { id: true, name: true, email: true } } },
       },
       children: {
         where: { isActive: true },
@@ -334,7 +361,7 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
             select: { id: true, name: true, department: { select: { id: true, name: true } } },
           },
           parent: {
-            select: { id: true, user: { select: { id: true, name: true } } },
+            select: { id: true, user: { select: { id: true, name: true, email: true } } },
           },
           children: {
             where: { isActive: true },
@@ -364,9 +391,9 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
         let settings: { availabilityStaleDays: number };
         try {
           settings = await getOrCreateIntelligenceSettings();
-        } catch (error: any) {
-          if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
-            console.warn("[getOrgPerson] Intelligence settings table not found, using defaults:", error.message);
+        } catch (error: unknown) {
+          if (isPrismaTableNotFoundError(error)) {
+            console.warn("[getOrgPerson] Intelligence settings table not found, using defaults:", error instanceof Error ? error.message : error);
             settings = { availabilityStaleDays: 30 };
           } else {
             throw error;
@@ -374,7 +401,8 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
         }
 
         // Get derived availability
-        const userId = effectivePosition.userId;
+        // userId is non-null: we checked positionByUserId.userId above
+        const userId = effectivePosition.userId!;
         const wsId = effectivePosition.workspaceId;
 
         const workspaceMember = await prisma.workspaceMember.findUnique({
@@ -385,7 +413,15 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
         }).catch(() => null);
         const employmentStatus = (workspaceMember?.employmentStatus as EmploymentStatus) ?? "ACTIVE";
 
-        let availabilityWindows;
+        let availabilityWindows: Array<{
+          type: AvailabilityType;
+          startDate: Date;
+          endDate: Date | null;
+          fraction: number | null;
+          reason: AvailabilityReason | null;
+          expectedReturnDate: Date | null;
+          updatedAt: Date;
+        }> = [];
         try {
           availabilityWindows = await prisma.personAvailability.findMany({
             where: { personId: userId, workspaceId: wsId },
@@ -399,9 +435,9 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
               updatedAt: true,
             },
           });
-        } catch (error: any) {
-          if (error?.message?.includes('not found in enum') || error?.message?.includes('AvailabilityType')) {
-            console.error('[getPersonProfile] Prisma enum mismatch. Regenerate Prisma client: npx prisma generate', error.message);
+        } catch (error: unknown) {
+          if (isEnumMismatchError(error)) {
+            console.error('[getPersonProfile] Prisma enum mismatch. Regenerate Prisma client: npx prisma generate', error instanceof Error ? error.message : error);
             availabilityWindows = [];
           } else {
             throw error;
@@ -451,8 +487,8 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
         const availabilityUpdatedAt = availability?.updatedAt ? availability.updatedAt : null;
         return {
           id: effectivePosition.id,
-          fullName: effectivePosition.user.name || effectivePosition.user.email || "Unknown",
-          email: effectivePosition.user.email,
+          fullName: effectivePosition.user!.name || effectivePosition.user!.email || "Unknown",
+          email: effectivePosition.user!.email,
           title: effectivePosition.title,
           department: effectivePosition.team?.department ? {
             id: effectivePosition.team.department.id,
@@ -488,10 +524,10 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
   let settings: { availabilityStaleDays: number };
   try {
     settings = await getOrCreateIntelligenceSettings();
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If table doesn't exist, use default settings
-    if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
-      console.warn("[getOrgPerson] Intelligence settings table not found, using defaults:", error.message);
+    if (isPrismaTableNotFoundError(error)) {
+      console.warn("[getOrgPerson] Intelligence settings table not found, using defaults:", error instanceof Error ? error.message : error);
       settings = { availabilityStaleDays: 30 }; // Default: 30 days
     } else {
       // Re-throw other errors
@@ -513,7 +549,15 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
   const employmentStatus = (workspaceMember?.employmentStatus as EmploymentStatus) ?? "ACTIVE";
 
   // Fetch availability windows
-  let availabilityWindows;
+  let availabilityWindows: Array<{
+    type: AvailabilityType;
+    startDate: Date;
+    endDate: Date | null;
+    fraction: number | null;
+    reason: AvailabilityReason | null;
+    expectedReturnDate: Date | null;
+    updatedAt: Date;
+  }> = [];
   try {
     availabilityWindows = await prisma.personAvailability.findMany({
       where: { personId: userId, workspaceId: wsId },
@@ -527,9 +571,9 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
         updatedAt: true,
       },
     });
-  } catch (error: any) {
-    if (error?.message?.includes('not found in enum') || error?.message?.includes('AvailabilityType')) {
-      console.error('[getPersonAvailability] Prisma enum mismatch. Regenerate Prisma client: npx prisma generate', error.message);
+  } catch (error: unknown) {
+    if (isEnumMismatchError(error)) {
+      console.error('[getPersonAvailability] Prisma enum mismatch. Regenerate Prisma client: npx prisma generate', error instanceof Error ? error.message : error);
       availabilityWindows = [];
     } else {
       throw error;

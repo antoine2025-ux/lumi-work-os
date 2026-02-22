@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   CheckCircle2,
   Clock,
-  AlertTriangle,
   UserPlus,
   ArrowRight,
 } from "lucide-react";

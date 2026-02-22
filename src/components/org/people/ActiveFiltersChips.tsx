@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { chipBaseClass, chipInactiveClass, focusRingClass } from "./people-styles";
+import { chipInactiveClass, focusRingClass } from "./people-styles";
 import type { PeopleFilters } from "./people-filters";
 
 type ActiveFiltersChipsProps = {

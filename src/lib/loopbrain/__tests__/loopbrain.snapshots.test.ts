@@ -63,7 +63,7 @@ async function callEndpoint(url: string): Promise<any> {
   
   try {
     return JSON.parse(text);
-  } catch (e) {
+  } catch (_e) {
     throw new Error(`Invalid JSON from ${url} (status: ${response.status}): ${text.substring(0, 200)}`);
   }
 }

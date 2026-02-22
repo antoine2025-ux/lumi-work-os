@@ -290,7 +290,7 @@ class GeminiProvider implements AIProvider {
         try {
           const errorData = await response.json()
           errorMessage = errorData.error?.message || errorMessage
-        } catch (e) {
+        } catch (_e) {
           // If we can't parse error, use status text
         }
         throw new Error(`Google API error: ${errorMessage}`)
@@ -330,7 +330,7 @@ class GeminiProvider implements AIProvider {
                   yield text
                 }
               }
-            } catch (e) {
+            } catch (_e) {
               // Skip invalid JSON - might be partial data
             }
           }
@@ -487,7 +487,7 @@ class AnthropicProvider implements AIProvider {
               }
               
               currentEvent = {}
-            } catch (e) {
+            } catch (_e) {
               // Skip invalid JSON
             }
           } else if (line.trim() === '') {

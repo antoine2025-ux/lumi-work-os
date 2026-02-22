@@ -10,7 +10,6 @@ import {
   Download, 
   CheckCircle, 
   RefreshCw,
-  ExternalLink
 } from "lucide-react"
 import { DraftEditor } from "./draft-editor"
 

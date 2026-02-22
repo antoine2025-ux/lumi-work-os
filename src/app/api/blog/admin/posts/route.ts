@@ -3,7 +3,7 @@ import { checkBlogAdmin } from "@/lib/blog-admin-auth"
 import { blogPrisma } from "@/lib/blog-db"
 
 // GET /api/blog/admin/posts - List all posts
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const isAdmin = await checkBlogAdmin()
     if (!isAdmin) {

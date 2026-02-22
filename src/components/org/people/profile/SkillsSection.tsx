@@ -9,7 +9,7 @@ type Skill = {
   level?: "BASIC" | "WORKING" | "STRONG" | "EXPERT" | null
 }
 
-function pill(text: string) {
+function pill(_text: string) {
   return "inline-flex items-center rounded-full border px-3 py-1 text-xs text-muted-foreground"
 }
 

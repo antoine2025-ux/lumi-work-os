@@ -137,7 +137,7 @@ export async function acceptOrgInvitationByToken(
 
   // Normal path: create membership and mark invitation as accepted.
   await prisma.$transaction(async (tx) => {
-    const membership = await tx.workspaceMember.create({
+    await tx.workspaceMember.create({
       data: {
         workspaceId: invitation.workspaceId!,
         userId,

@@ -5,6 +5,7 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { getAppBaseUrl } from "@/lib/appUrl";
 import { createErrorResponse, createSuccessResponse } from "@/server/api/responses";
+import { sendWorkspaceInvite } from "@/lib/email/send-invite";
 
 const INVITATION_EXPIRY_DAYS = 14;
 
@@ -123,6 +124,21 @@ export async function POST(req: NextRequest) {
     const updatedInvitation = await prisma.orgInvitation.update({
       where: { id: invitation.id },
       data: { inviteUrl },
+    });
+
+    // Send invite email (best-effort — invitation is created regardless of email outcome)
+    const [workspace, inviter] = await Promise.all([
+      prisma.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } }),
+      prisma.user.findUnique({ where: { id: auth.user.userId }, select: { name: true, email: true } }),
+    ]);
+    sendWorkspaceInvite({
+      to: email,
+      workspaceName: workspace?.name ?? "your workspace",
+      inviterName: inviter?.name ?? inviter?.email ?? "A team member",
+      inviteToken: updatedInvitation.token,
+      role: updatedInvitation.role ?? "MEMBER",
+    }).catch((emailErr) => {
+      console.error("[ORG_INVITATION_EMAIL_ERROR]", emailErr);
     });
 
     return createSuccessResponse(

@@ -24,12 +24,14 @@ export function AddPersonForm() {
   const orgUrl = useOrgUrl();
   const flagsQ = useOrgQuery(() => OrgApi.getFlags(), []);
   const structureQ = useOrgQuery(() => OrgApi.getStructure(), []);
+  const peopleQ = useOrgQuery(() => OrgApi.listPeople(), []);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [title, setTitle] = useState("");
   const [departmentId, setDepartmentId] = useState<string | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
+  const [managerId, setManagerId] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,14 +69,15 @@ export function AddPersonForm() {
         title?: string;
         departmentId?: string;
         teamId?: string;
+        managerId?: string;
       } = { fullName: name };
 
       if (email.trim()) payload.email = email.trim();
       if (title.trim()) payload.title = title.trim();
       if (departmentId) payload.departmentId = departmentId;
       if (teamId) payload.teamId = teamId;
+      if (managerId) payload.managerId = managerId;
 
-      const result = await OrgApi.createPerson(payload);
 
       // Redirect first, then trigger refresh
       router.push(orgUrl.directory);
@@ -118,7 +121,7 @@ export function AddPersonForm() {
     }
   }
 
-  const loading = flagsQ.loading || structureQ.loading;
+  const loading = flagsQ.loading || structureQ.loading || peopleQ.loading;
 
   return (
     <Card>
@@ -165,6 +168,28 @@ export function AddPersonForm() {
                   placeholder="e.g., Product Designer"
                   disabled={saving}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Manager (optional)</Label>
+                <Select
+                  disabled={saving}
+                  value={managerId || "__none__"}
+                  onValueChange={(v) => setManagerId(v === "__none__" ? null : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select manager…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No manager</SelectItem>
+                    {(peopleQ.data?.people ?? []).map((person) => (
+                      <SelectItem key={person.id} value={person.id}>
+                        {person.fullName}
+                        {person.title && ` — ${person.title}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

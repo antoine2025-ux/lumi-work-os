@@ -18,7 +18,7 @@ type PageProps = {
 };
 
 export default async function WorkspaceOrgChartPage({ params }: PageProps) {
-  const { workspaceSlug } = await params;
+  const { workspaceSlug: _workspaceSlug } = await params;
   const context = await getOrgPermissionContext().catch(() => null);
 
   if (!context) {

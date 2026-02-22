@@ -3,7 +3,6 @@
 import React from "react"
 import Link from "next/link"
 import { OrgCard } from "@/components/org/ui/OrgCard"
-import { orgTokens } from "@/components/org/ui/tokens"
 import type { StructureTeam } from "@/types/org"
 
 type DepartmentDetailViewProps = {
@@ -19,7 +18,7 @@ type DepartmentDetailViewProps = {
 export function DepartmentDetailView({
   department,
   teams,
-  canManageStructure = false,
+  canManageStructure: _canManageStructure = false,
 }: DepartmentDetailViewProps) {
   return (
     <OrgCard 

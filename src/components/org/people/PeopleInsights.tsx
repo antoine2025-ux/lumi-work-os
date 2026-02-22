@@ -13,7 +13,7 @@ type PeopleInsightsProps = {
 /**
  * Helper: Count people who are managers (have direct reports)
  */
-function countManagers(people: OrgPerson[]): number {
+function countManagers(_people: OrgPerson[]): number {
   // If people have managerId field, managers are those whose IDs are referenced by others
   // For now, we'll need to check if there's a managerId or directReports field
   // Since the current OrgPerson type doesn't have these, we'll return 0 for now
@@ -50,7 +50,7 @@ function countNewJoiners(people: OrgPerson[], days: number = 30, now: Date = new
 /**
  * Helper: Count people with role/team changes within the last N days
  */
-function countRecentChanges(people: OrgPerson[], days: number = 30, now: Date = new Date()): number | null {
+function countRecentChanges(people: OrgPerson[], _days: number = 30, _now: Date = new Date()): number | null {
   // Since change history is not available in current data structure, return null
   // TODO: Update when change history data is available
   return null;

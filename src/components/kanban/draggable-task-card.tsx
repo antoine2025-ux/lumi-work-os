@@ -78,9 +78,8 @@ interface DraggableTaskCardProps {
 
 export function DraggableTaskCard({ 
   task,
-  onEdit,
   onManageDependencies,
-  compact = false,
+  compact: _compact = false,
   isOverlay = false
 }: DraggableTaskCardProps) {
   const { open } = useTaskSidebarStore()
@@ -263,7 +262,7 @@ export function DraggableTaskCard({
             borderLeftColor: epicColor,
           }}
           className="w-full border-border bg-card cursor-pointer"
-          onClick={(e) => {
+          onClick={(_e) => {
             // Allow clicking to open sidebar, but prevent navigation if dragging
             if (!isDragging) {
               open(task.id)

@@ -15,7 +15,7 @@ const createPlanSchema = z.object({
   startDate: z.string().datetime(),
 })
 
-const updatePlanSchema = z.object({
+const _updatePlanSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED', 'ON_HOLD']).optional(),
   startDate: z.string().datetime().optional(),

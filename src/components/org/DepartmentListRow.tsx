@@ -24,7 +24,6 @@ export interface DepartmentListRowProps {
  * Premium SaaS-quality navigation view matching Organization Structure → List view
  */
 export function DepartmentListRow({
-  id,
   name,
   leadName,
   leadInitials,

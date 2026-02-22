@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { CheckCircle, Loader2, Mail, Sparkles } from "lucide-react"
+import { CheckCircle, Loader2, Sparkles } from "lucide-react"
 
 export function EarlyTesterSignup() {
   const [name, setName] = useState("")
@@ -42,7 +42,7 @@ export function EarlyTesterSignup() {
         setStatus("error")
         setMessage(data.error || "Something went wrong. Please try again.")
       }
-    } catch (error) {
+    } catch (_error) {
       setStatus("error")
       setMessage("Network error. Please try again.")
     }

@@ -19,7 +19,7 @@ const createTemplateSchema = z.object({
   })).min(1).max(30),
 })
 
-const updateTemplateSchema = z.object({
+const _updateTemplateSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   durationDays: z.number().int().min(1).max(365).optional(),
   description: z.string().max(500).optional(),
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createTemplateSchema.parse(body)
 
-    const userId = auth.user.userId
+    const _userId = auth.user.userId
     const workspaceId = auth.workspaceId
 
     const template = await prisma.onboardingTemplate.create({

@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Clock, User, Plus, GanttChart, Settings, Calendar } from 'lucide-react'
-import { TaskEditDialog } from '@/components/tasks/task-edit-dialog'
+import { ChevronDown, ChevronRight, AlertTriangle, Plus, GanttChart, Settings, Calendar } from 'lucide-react'
 import { EpicDrawer } from './epic-drawer'
 import { CreateTaskDialog } from '@/components/tasks/create-task-dialog'
 import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
@@ -155,7 +154,7 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
     })
   }
 
-  const handleTaskUpdate = () => {
+  const _handleTaskUpdate = () => {
     loadTasks()
   }
 
@@ -202,7 +201,7 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
         {epics.map((epic) => {
           const epicTasks = getTasksForEpic(epic.id)
           const progress = getEpicProgress(epic.id)
-          const status = getEpicStatus(epic.id)
+          const _status = getEpicStatus(epic.id)
           const stats = getEpicStats(epic.id)
           const isCollapsed = collapsedEpics.has(epic.id)
 
@@ -669,7 +668,7 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
         }}
         projectId={projectId}
         defaultEpicId={createTaskEpicId || null}
-        onTaskCreated={(task) => {
+        onTaskCreated={(_task) => {
           loadTasks()
           setIsCreateTaskDialogOpen(false)
           setCreateTaskEpicId(undefined)

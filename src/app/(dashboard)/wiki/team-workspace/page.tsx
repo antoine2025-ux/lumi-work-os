@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { 
   Plus, 
-  FileText,
   Loader2,
   Users as TeamIcon,
   Shield,

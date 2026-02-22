@@ -1,12 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useTaskUpdates, useSocket } from '@/lib/realtime/socket-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { PresenceIndicator } from './presence-indicator'
 import { cn } from '@/lib/utils'
 import { Clock, User, MessageCircle, MoreHorizontal, Plus, Maximize2 } from 'lucide-react'
@@ -19,13 +18,13 @@ interface LiveTaskListProps {
 
 export function LiveTaskList({ projectId, className, onToggleFullscreen }: LiveTaskListProps) {
   // Check if we're in a socket context before using the hooks
-  let socket, actions, tasks, activeUsers, isLoading
+  let socket, actions, tasks, isLoading
   
   try {
     const socketHook = useSocket()
     socket = socketHook.socket
     actions = socketHook.actions
-  } catch (error) {
+  } catch (_error) {
     socket = null
     actions = { updateTask: () => {} }
   }
@@ -33,11 +32,9 @@ export function LiveTaskList({ projectId, className, onToggleFullscreen }: LiveT
   try {
     const taskUpdatesHook = useTaskUpdates(projectId)
     tasks = taskUpdatesHook.tasks
-    activeUsers = taskUpdatesHook.activeUsers
     isLoading = taskUpdatesHook.isLoading
-  } catch (error) {
+  } catch (_error) {
     tasks = []
-    activeUsers = []
     isLoading = false
   }
   

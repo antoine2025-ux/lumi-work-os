@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/db";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { getSessionUser } from "./auth";
 import { getActiveOrgContext } from "./orgContext";

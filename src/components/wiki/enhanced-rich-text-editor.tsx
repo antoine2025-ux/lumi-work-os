@@ -15,16 +15,10 @@ import {
   Heading1,
   Heading2,
   Heading3,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
   Plus,
-  Type,
-  Palette,
   Table,
   CheckSquare,
   Minus,
-  MoreHorizontal
 } from "lucide-react"
 import { EmbedCommandPalette } from "@/components/embeds/embed-command-palette"
 import { EmbedData } from "@/types/embeds"
@@ -49,7 +43,6 @@ export function EnhancedRichTextEditor({
   const [isEditing, setIsEditing] = useState(false)
   const [showEmbedPalette, setShowEmbedPalette] = useState(false)
   const editorRef = useRef<HTMLDivElement>(null)
-  const [currentFormat, setCurrentFormat] = useState<string[]>([])
 
   // Initialize editor content
   useEffect(() => {

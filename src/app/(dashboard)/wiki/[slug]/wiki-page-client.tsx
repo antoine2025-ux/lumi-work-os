@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { WikiNavigation } from "@/components/wiki/wiki-navigation"
 import { RichTextEditor } from "@/components/wiki/rich-text-editor"
 import { WikiEditorShell } from "@/components/wiki/wiki-editor-shell"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
@@ -14,11 +13,7 @@ import {
   Edit3,
   Save,
   X,
-  Clock,
-  User,
-  Tag,
   Share2,
-  History,
   MessageSquare,
   Settings,
   Lock,
@@ -27,14 +22,10 @@ import {
   Trash2,
   MoreHorizontal,
   Star,
-  Bookmark,
-  Copy,
   Download,
   Eye,
-  EyeOff,
   Brain
 } from "lucide-react"
-import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
@@ -92,9 +83,9 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
   const [loadError, setLoadError] = useState<{ status: number; message: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [pageData, setPageData] = useState<WikiPageData | null>(null)
-  const [relatedPages, setRelatedPages] = useState<WikiPageData[]>([])
+  const [_relatedPages, setRelatedPages] = useState<WikiPageData[]>([])
   const [isStarred, setIsStarred] = useState(false)
-  const [isBookmarked, setIsBookmarked] = useState(false)
+  const [_isBookmarked, _setIsBookmarked] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)

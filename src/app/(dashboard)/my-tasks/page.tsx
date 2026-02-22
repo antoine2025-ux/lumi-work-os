@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -13,9 +13,7 @@ import {
   User,
   MessageSquare,
   Clock,
-  Filter,
   Search,
-  ChevronDown,
   Edit,
   Link as LinkIcon,
   Target,
@@ -99,7 +97,7 @@ export default function MyTasksPage() {
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [dueFilter, setDueFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [updatingTasks, setUpdatingTasks] = useState<Set<string>>(new Set())
+  const [_updatingTasks, setUpdatingTasks] = useState<Set<string>>(new Set())
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
@@ -134,7 +132,7 @@ export default function MyTasksPage() {
     }
   }
 
-  const updateTaskStatus = async (taskId: string, newStatus: string) => {
+  const _updateTaskStatus = async (taskId: string, newStatus: string) => {
     try {
       setUpdatingTasks(prev => new Set(prev).add(taskId))
       

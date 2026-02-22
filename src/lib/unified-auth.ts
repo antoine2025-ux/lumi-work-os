@@ -1,9 +1,7 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { cookies } from 'next/headers'
 import { authOptions } from '@/server/authOptions'
 import { prisma } from '@/lib/db'
-import { createDefaultWorkspaceForUser } from '@/lib/workspace-onboarding'
 import { getCachedAuth, setCachedAuth } from '@/lib/auth-cache'
 import { logger } from '@/lib/logger'
 
@@ -85,7 +83,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
       const cookieHeader = request.headers.get('cookie') || ''
       
       // Create a request object that getServerSession can use
-      const req = {
+      const _req = {
         headers: {
           cookie: cookieHeader,
           get: (name: string) => request.headers.get(name),
@@ -522,8 +520,8 @@ async function resolveActiveWorkspaceIdWithMember(
  * 4. user's default workspace
  * 5. Create default workspace if none exists
  */
-async function resolveActiveWorkspaceId(
-  userId: string, 
+async function _resolveActiveWorkspaceId(
+  userId: string,
   request?: NextRequest
 ): Promise<string> {
   // Priority 1: URL path slug (/w/[workspaceSlug]/...)

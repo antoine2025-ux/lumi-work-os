@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getDepartmentAccent } from "@/components/org/structure/accent-colors";
 
 export type OrgChartDepartment = {
   id: string;
@@ -45,11 +44,9 @@ export interface OrgChartDepartmentRowProps {
  */
 export function OrgChartDepartmentRow({
   department,
-  onOpenStructure,
   onOpenPeople,
   hrefStructure,
-  hrefPeople,
-  isFirst = false,
+  isFirst: _isFirst = false,
 }: OrgChartDepartmentRowProps) {
   const {
     name,
@@ -59,9 +56,7 @@ export function OrgChartDepartmentRow({
     accentIndex = 0,
   } = department;
 
-  const accent = getDepartmentAccent(accentIndex);
   const structureHref = hrefStructure ?? `/org/structure?department=${department.id}`;
-  const peopleHref = hrefPeople ?? `/org/people?departmentId=${department.id}`;
 
   // Extract gradient colors from accent for CSS variables
   // Increased saturation by 15% for richer colors

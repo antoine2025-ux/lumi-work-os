@@ -40,7 +40,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
 
-  const getRoleIcon = (role: string) => {
+  const _getRoleIcon = (role: string) => {
     switch (role) {
       case 'OWNER':
         return Crown

@@ -11,7 +11,6 @@ import {
   Filter, 
   Clock, 
   User, 
-  Tag, 
   FileText, 
   FolderOpen,
   ArrowLeft,
@@ -120,7 +119,7 @@ export default function WikiSearchPage() {
   }
 
   // Handle search
-  const handleSearch = (searchQuery: string) => {
+  const _handleSearch = (searchQuery: string) => {
     setQuery(searchQuery)
     performSearch(searchQuery)
   }
@@ -133,7 +132,7 @@ export default function WikiSearchPage() {
   }
 
   // Get all unique tags and authors from results
-  const allTags = Array.from(new Set(results.flatMap(page => page.tags)))
+  const _allTags = Array.from(new Set(results.flatMap(page => page.tags)))
   const allAuthors = Array.from(new Set(results.map(page => page.author)))
 
   // Initial search on mount

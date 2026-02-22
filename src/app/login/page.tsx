@@ -1,6 +1,6 @@
 "use client"
 
-import { signIn, getSession } from "next-auth/react"
+import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookOpen, ArrowRight } from "lucide-react"
@@ -17,7 +17,7 @@ function LoginPageContent() {
   // Read callbackUrl from search params, default to '/home'
   // This preserves invite URLs (/invites/[token]) through the authentication flow
   // All sign-in methods (Google, email, credentials, etc.) should use this callbackUrl
-  const callbackUrl = searchParams.get('callbackUrl') ?? '/home'
+  const _callbackUrl = searchParams.get('callbackUrl') ?? '/home'
 
   useEffect(() => {
     // Check for auth error in URL params
@@ -238,27 +238,6 @@ export default function LoginPage() {
   )
 }
 
-function LoginPageFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="w-full max-w-md">
-        <Card className="shadow-xl">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center animate-pulse">
-                <BookOpen className="w-8 h-8 text-primary-foreground" />
-              </div>
-            </div>
-            <CardTitle className="text-2xl font-bold">Welcome to Loopwell Work OS</CardTitle>
-            <CardDescription className="text-base">
-              Loading...
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    </div>
-  )
-}
 
 // export default function LoginPage() {
 //   return (

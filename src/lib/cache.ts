@@ -53,7 +53,7 @@ async function initializeRedis() {
       }
     });
     
-    redisClient.on('error', (err: Error) => {
+    redisClient.on('error', (_err: Error) => {
       // Silent fallback - use memory cache instead
       isRedisAvailable = false;
     });
@@ -65,7 +65,7 @@ async function initializeRedis() {
     
     await redisClient.connect();
     return redisClient;
-  } catch (error) {
+  } catch (_error) {
     // Silent fallback - use memory cache instead
     isRedisAvailable = false;
     return null;
@@ -130,7 +130,7 @@ export const cache = {
       
       // Fallback to in-memory cache
       return getMemoryCache(key) as T | null;
-    } catch (error) {
+    } catch (_error) {
       // Fallback to in-memory cache on error
       return getMemoryCache(key) as T | null;
     }
@@ -145,7 +145,7 @@ export const cache = {
       
       // Always set in-memory cache as fallback
       setMemoryCache(key, data, ttl);
-    } catch (error) {
+    } catch (_error) {
       // Fallback to in-memory cache on error
       setMemoryCache(key, data, ttl);
     }

@@ -5,7 +5,7 @@
  * Expands bundles by following relations to include related entities.
  */
 
-import type { ContextObject, ContextRelation } from "./contextTypes";
+import type { ContextObject } from "./contextTypes";
 import type { OrgQuestionContext, OrgQuestionType } from "./org-question-types";
 
 /**
@@ -138,7 +138,7 @@ export function expandPersonContext(
 export function expandTeamContext(
   byId: Record<string, ContextObject>,
   teamId: string,
-  allObjects: ContextObject[]
+  _allObjects: ContextObject[]
 ): Set<string> {
   const expanded = new Set<string>([teamId]);
 
@@ -180,7 +180,7 @@ export function expandTeamContext(
 export function expandDepartmentContext(
   byId: Record<string, ContextObject>,
   departmentId: string,
-  allObjects: ContextObject[]
+  _allObjects: ContextObject[]
 ): Set<string> {
   const expanded = new Set<string>([departmentId]);
 

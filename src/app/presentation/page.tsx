@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight, ArrowLeft, Zap, Users, Target, Rocket, Brain, Layers, Sparkles, Globe, FileText, CheckCircle2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, ArrowLeft, Zap, Users, Target, Rocket, Brain, Sparkles, Globe, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { LoopbrainDiagram } from "@/components/presentation/loopbrain-diagram"

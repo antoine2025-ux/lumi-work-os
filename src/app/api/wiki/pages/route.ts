@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
     logger.info('Creating new wiki page')
     const body = WikiPageCreateSchema.parse(await request.json())
     
-    const { title, content, contentJson, parentId, tags = [], category = 'general', permissionLevel, workspace_type, spaceId } = body
+    const { title, content: _content, contentJson, parentId, tags = [], category = 'general', permissionLevel, workspace_type, spaceId } = body
     
     // Enforce JSON format for all new pages created via POST /api/wiki/pages
     // This ensures all new pages use the TipTap editor (Stage 1 requirement)

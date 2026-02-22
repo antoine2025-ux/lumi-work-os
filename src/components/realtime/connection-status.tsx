@@ -18,7 +18,7 @@ export function ConnectionStatus() {
     error = socketHook.error
     connect = socketHook.connect
     checkConnectionHealth = socketHook.checkConnectionHealth
-  } catch (error) {
+  } catch (_error) {
     // If socket context is not available, use default state
     isConnected = false
     isConnecting = false
@@ -29,7 +29,7 @@ export function ConnectionStatus() {
   }
   
   const [isManualRetry, setIsManualRetry] = useState(false)
-  const [isHealthy, setIsHealthy] = useState(true)
+  const [_isHealthy, setIsHealthy] = useState(true)
 
   const handleRetry = async () => {
     setIsManualRetry(true)
@@ -47,7 +47,7 @@ export function ConnectionStatus() {
     }
   }
 
-  const handleHealthCheck = async () => {
+  const _handleHealthCheck = async () => {
     const healthy = await checkConnectionHealth()
     setIsHealthy(healthy)
     if (!healthy && isConnected) {

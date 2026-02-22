@@ -143,7 +143,6 @@ function AssignOwnerModal(props: {
                   }),
                 })
                 if (res.ok) {
-                  const data = await res.json()
                   // Optimistic update: use scoped response data
                   // Toast notification (if toast available)
                   if (typeof window !== 'undefined' && (window as any).toast) {

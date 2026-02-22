@@ -5,7 +5,6 @@
  * This enables tracking what changed, what improved, and when.
  */
 
-import type { LoopBrainEvent } from "./signals";
 
 export type FixEventInput = {
   orgId: string;

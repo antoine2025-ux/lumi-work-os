@@ -28,7 +28,7 @@ export function EmbedRenderer({ embed, ...props }: EmbedComponentProps) {
 }
 
 // Placeholder components for providers not yet implemented
-function AirtableEmbed({ embed, ...props }: EmbedComponentProps) {
+function AirtableEmbed({ embed }: EmbedComponentProps) {
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
       <div className="flex items-center gap-2 mb-2">
@@ -48,7 +48,7 @@ function AirtableEmbed({ embed, ...props }: EmbedComponentProps) {
   )
 }
 
-function AsanaEmbed({ embed, ...props }: EmbedComponentProps) {
+function AsanaEmbed({ embed }: EmbedComponentProps) {
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
       <div className="flex items-center gap-2 mb-2">
@@ -68,7 +68,7 @@ function AsanaEmbed({ embed, ...props }: EmbedComponentProps) {
   )
 }
 
-function MiroEmbed({ embed, ...props }: EmbedComponentProps) {
+function MiroEmbed({ embed }: EmbedComponentProps) {
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
       <div className="flex items-center gap-2 mb-2">
@@ -88,7 +88,7 @@ function MiroEmbed({ embed, ...props }: EmbedComponentProps) {
   )
 }
 
-function DrawIOEmbed({ embed, ...props }: EmbedComponentProps) {
+function DrawIOEmbed({ embed }: EmbedComponentProps) {
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
       <div className="flex items-center gap-2 mb-2">
@@ -108,7 +108,7 @@ function DrawIOEmbed({ embed, ...props }: EmbedComponentProps) {
   )
 }
 
-function GenericEmbed({ embed, ...props }: EmbedComponentProps) {
+function GenericEmbed({ embed }: EmbedComponentProps) {
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
       <div className="flex items-center gap-2 mb-2">

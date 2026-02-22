@@ -87,7 +87,6 @@ export async function loadPersonContexts(
     }
   }
 
-  const positionIds = positions.map((p) => p.id);
 
   // 3) Fetch teams referenced by positions
   const teamIds = positions

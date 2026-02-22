@@ -22,10 +22,6 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import {
-  ORG_SNAPSHOT_SCHEMA_VERSION,
-  ORG_SNAPSHOT_SEMANTICS_VERSION,
-  SNAPSHOT_ASSUMPTIONS_ID,
-  SNAPSHOT_DATA_ASSUMPTIONS,
   createSnapshotMeta,
 } from "../snapshotTypes";
 

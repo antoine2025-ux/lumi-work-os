@@ -6,7 +6,6 @@
  */
 
 import { LoopbrainMode } from './orchestrator-types'
-import { ContextObject } from '@/lib/context/context-types'
 import type { MessageIntent } from './agent/types'
 
 /**
@@ -196,7 +195,7 @@ function isStopword(token: string): boolean {
  */
 export function detectIntentFromKeywords(
   queryLower: string,
-  tokens: string[]
+  _tokens: string[]
 ): { intent: LoopbrainIntent; confidence: number; reasons: string[] } {
   const reasons: string[] = []
   let confidence = 0.5

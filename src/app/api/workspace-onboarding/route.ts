@@ -9,7 +9,7 @@ import {
 } from '@/lib/workspace-onboarding'
 
 // GET /api/workspace-onboarding/templates - Get available workspace templates
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const templates = getWorkspaceTemplates()
     

@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -12,7 +11,6 @@ import {
   Calendar, 
   User, 
   Tag, 
-  MessageSquare, 
   Paperclip, 
   CheckCircle, 
   Clock, 
@@ -122,13 +120,13 @@ const mockAttachments: Attachment[] = [
   }
 ]
 
-const mockUsers = [
+const _mockUsers = [
   { id: '1', name: 'John Doe', email: 'john@example.com' },
   { id: '2', name: 'Jane Smith', email: 'jane@example.com' },
   { id: '3', name: 'Mike Johnson', email: 'mike@example.com' }
 ]
 
-export default function TaskDrawer({ isOpen, onClose, task, colors, onTaskUpdate }: TaskDrawerProps) {
+export default function TaskDrawer({ isOpen, onClose, task, colors, onTaskUpdate: _onTaskUpdate }: TaskDrawerProps) {
   const [newComment, setNewComment] = useState('')
   const [comments] = useState<Comment[]>(mockComments)
   const [attachments] = useState<Attachment[]>(mockAttachments)

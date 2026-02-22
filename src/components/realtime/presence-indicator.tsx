@@ -26,7 +26,7 @@ export function PresenceIndicator({
   try {
     const taskUpdatesHook = useTaskUpdates(projectId)
     activeUsers = taskUpdatesHook.activeUsers
-  } catch (error) {
+  } catch (_error) {
     activeUsers = []
   }
 

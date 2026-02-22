@@ -1,11 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Search, Clock, User, Tag, FileText } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState } from "react"
+import { Search, Clock, User, FileText } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import Link from "next/link"
 
 interface SearchResult {
   id: string

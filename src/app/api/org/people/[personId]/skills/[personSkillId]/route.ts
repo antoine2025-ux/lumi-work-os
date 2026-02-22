@@ -12,7 +12,6 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 
 const ALLOWED_SOURCES = ["SELF_REPORTED", "MANAGER_ADDED", "VERIFIED", "INFERRED"] as const;
-type SkillSource = typeof ALLOWED_SOURCES[number];
 
 export async function PATCH(
   request: NextRequest,

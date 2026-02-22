@@ -1,15 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { TaskTemplateSelector } from "@/components/templates/task-template-selector"
 import { TaskTemplatePreview } from "@/components/templates/task-template-preview"
 import { 
   CheckCircle,
-  ArrowRight,
   Loader2
 } from "lucide-react"
 

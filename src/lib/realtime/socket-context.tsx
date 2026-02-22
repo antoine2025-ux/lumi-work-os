@@ -1,8 +1,8 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { SocketType, createSocket, connectSocket, disconnectSocket, socketActions } from './socket-client'
-import { MockSocket, createMockSocket, connectMockSocket, disconnectMockSocket } from './mock-socket'
+import { SocketType, connectSocket, disconnectSocket, socketActions } from './socket-client'
+import { MockSocket, connectMockSocket, disconnectMockSocket } from './mock-socket'
 
 interface SocketContextType {
   socket: SocketType | MockSocket | null

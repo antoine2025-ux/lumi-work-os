@@ -10,55 +10,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Plus, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-interface Position {
+interface RoleTemplate {
   id: string
-  title: string
-  team?: {
-    id: string
-    name: string
-    department?: {
-      id: string
-      name: string
-    }
-  }
-}
-
-interface Department {
-  id: string
-  name: string
-}
-
-interface Team {
-  id: string
-  name: string
-  departmentId: string
+  roleName: string
+  jobFamily: string
+  level: string
+  roleDescription: string
+  responsibilities: string[]
+  keyMetrics: string[]
+  positionId?: string | null
 }
 
 interface RoleCardFormProps {
+  mode: 'create' | 'edit'
+  initialData?: RoleTemplate
   workspaceId: string
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
-  positions: Position[]
 }
 
 export function RoleCardForm({ 
-  workspaceId, 
+  mode,
+  initialData,
   isOpen, 
   onClose, 
   onSuccess,
-  positions 
 }: RoleCardFormProps) {
-  const [positionId, setPositionId] = useState("")
-  const [departmentId, setDepartmentId] = useState("")
-  const [teamId, setTeamId] = useState("")
-  const [departments, setDepartments] = useState<Department[]>([])
-  const [teams, setTeams] = useState<Team[]>([])
   const [roleName, setRoleName] = useState("")
   const [jobFamily, setJobFamily] = useState("")
+  const [level, setLevel] = useState("")
   const [roleDescription, setRoleDescription] = useState("")
   const [responsibility, setResponsibility] = useState("")
   const [responsibilities, setResponsibilities] = useState<string[]>([])
+  const [keyMetric, setKeyMetric] = useState("")
+  const [keyMetrics, setKeyMetrics] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -76,70 +62,31 @@ export function RoleCardForm({
     'Support'
   ]
 
-  // Load departments when modal opens
+  // Initialize form with data when opening (create or edit)
   useEffect(() => {
     if (isOpen) {
-      loadDepartments()
-      // Reset form when opening
-      setPositionId("")
-      setDepartmentId("")
-      setTeamId("")
-      setRoleName("")
-      setJobFamily("")
-      setRoleDescription("")
-      setResponsibilities([])
+      if (mode === 'edit' && initialData) {
+        // Populate form with existing data
+        setRoleName(initialData.roleName)
+        setJobFamily(initialData.jobFamily)
+        setLevel(initialData.level)
+        setRoleDescription(initialData.roleDescription)
+        setResponsibilities(initialData.responsibilities || [])
+        setKeyMetrics(initialData.keyMetrics || [])
+      } else {
+        // Reset form for create mode
+        setRoleName("")
+        setJobFamily("")
+        setLevel("")
+        setRoleDescription("")
+        setResponsibilities([])
+        setKeyMetrics([])
+      }
       setResponsibility("")
+      setKeyMetric("")
       setError(null)
     }
-  }, [isOpen, workspaceId])
-
-  // Load teams when department changes
-  useEffect(() => {
-    if (departmentId) {
-      loadTeams(departmentId)
-      setTeamId("") // Reset team when department changes
-      setPositionId("") // Reset position when department changes
-    } else {
-      setTeams([])
-      setTeamId("")
-    }
-  }, [departmentId])
-
-  // Filter positions by selected team
-  const filteredPositions = teamId
-    ? positions.filter(pos => pos.team?.id === teamId)
-    : []
-
-  const loadDepartments = async () => {
-    try {
-      const response = await fetch('/api/org/departments', {
-        credentials: 'include'
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setDepartments(data || [])
-      }
-    } catch (error) {
-      console.error('Error loading departments:', error)
-    }
-  }
-
-  const loadTeams = async (deptId: string) => {
-    try {
-      const response = await fetch(`/api/org/teams?departmentId=${deptId}`, {
-        credentials: 'include'
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setTeams(data || [])
-      }
-    } catch (error) {
-      console.error('Error loading teams:', error)
-    }
-  }
-
-  // Get selected position details
-  const selectedPosition = positions.find(p => p.id === positionId)
+  }, [isOpen, mode, initialData])
 
   const addResponsibility = () => {
     if (responsibility.trim()) {
@@ -152,54 +99,65 @@ export function RoleCardForm({
     setResponsibilities(responsibilities.filter((_, i) => i !== index))
   }
 
+  const addKeyMetric = () => {
+    if (keyMetric.trim()) {
+      setKeyMetrics([...keyMetrics, keyMetric.trim()])
+      setKeyMetric("")
+    }
+  }
+
+  const removeKeyMetric = (index: number) => {
+    setKeyMetrics(keyMetrics.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
 
     try {
-      if (!departmentId) {
-        throw new Error('Please select a department')
-      }
-      if (!teamId) {
-        throw new Error('Please select a team')
-      }
-      if (!positionId) {
-        throw new Error('Please select a position')
-      }
       if (!roleName.trim()) {
         throw new Error('Please enter a role name')
+      }
+      if (!jobFamily.trim()) {
+        throw new Error('Please select or enter a job family')
+      }
+      if (!level.trim()) {
+        throw new Error('Please enter a level (e.g., L3, Senior, Staff)')
       }
       if (!roleDescription.trim()) {
         throw new Error('Please enter a role description')
       }
 
-      const response = await fetch('/api/role-cards', {
-        method: 'POST',
+      const url = mode === 'create' 
+        ? '/api/org/role-templates'
+        : `/api/org/role-templates/${initialData?.id}`
+      
+      const method = mode === 'create' ? 'POST' : 'PUT'
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          positionId,
           roleName: roleName.trim(),
-          jobFamily: jobFamily || null, // Optional
+          jobFamily: jobFamily.trim(),
+          level: level.trim(),
           roleDescription: roleDescription.trim(),
           responsibilities,
-          workspaceId
+          requiredSkills: [], // Legacy field, empty
+          preferredSkills: [], // Legacy field, empty
+          keyMetrics,
         }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create role card')
+        throw new Error(errorData.error || `Failed to ${mode} role template`)
       }
 
       onSuccess()
-      setRoleName("")
-      setJobFamily("")
-      setRoleDescription("")
-      setResponsibilities([])
-      setResponsibility("")
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -211,118 +169,18 @@ export function RoleCardForm({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Role Card</DialogTitle>
+          <DialogTitle>{mode === 'create' ? 'Create Role Template' : 'Edit Role Template'}</DialogTitle>
           <DialogDescription>
-            Define what role this person actually performs in the team
+            {mode === 'create' 
+              ? 'Define a reusable role template that can be assigned to positions'
+              : 'Update the role template details'
+            }
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          {/* Position Metadata Section */}
-          <div className="space-y-4 pb-4 border-b">
-            <h3 className="text-sm font-medium text-gray-500">Position Metadata</h3>
-            
-            <div className="space-y-2">
-              <Label htmlFor="department">Department *</Label>
-              <Select 
-                value={departmentId} 
-                onValueChange={(value) => {
-                  setDepartmentId(value)
-                  setTeamId("")
-                  setPositionId("")
-                }} 
-                disabled={isLoading || departments.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept.id} value={dept.id}>
-                      {dept.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {departments.length === 0 && (
-                <p className="text-xs text-gray-500">
-                  Please create a department first
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="team">Team *</Label>
-              <Select 
-                value={teamId} 
-                onValueChange={(value) => {
-                  setTeamId(value)
-                  setPositionId("")
-                }} 
-                disabled={isLoading || teams.length === 0 || !departmentId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a team" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!departmentId && (
-                <p className="text-xs text-gray-500">
-                  Please select a department first
-                </p>
-              )}
-              {departmentId && teams.length === 0 && (
-                <p className="text-xs text-gray-500">
-                  No teams found for this department. Please create a team first.
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="position">Job Title *</Label>
-              <Select 
-                value={positionId} 
-                onValueChange={setPositionId} 
-                disabled={isLoading || filteredPositions.length === 0 || !teamId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a position" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredPositions.map((pos) => (
-                    <SelectItem key={pos.id} value={pos.id}>
-                      {pos.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!teamId && (
-                <p className="text-xs text-gray-500">
-                  Please select a team first
-                </p>
-              )}
-              {teamId && filteredPositions.length === 0 && (
-                <p className="text-xs text-gray-500">
-                  No positions found for this team. Please create a position first.
-                </p>
-              )}
-              {selectedPosition && (
-                <p className="text-xs text-gray-500 italic">
-                  Job Title: {selectedPosition.title}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Actual Role Section */}
+          {/* Role Template Section */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium text-gray-500">Actual Role (What They Do)</h3>
             
             <div className="space-y-2">
               <Label htmlFor="roleName">Role Name *</Label>
@@ -330,12 +188,46 @@ export function RoleCardForm({
                 id="roleName"
                 value={roleName}
                 onChange={(e) => setRoleName(e.target.value)}
-                placeholder="e.g., Epic Owner, Product Manager, Engineering Lead"
+                placeholder="e.g., Senior Software Engineer, Product Manager, Design Lead"
                 required
                 disabled={isLoading}
               />
               <p className="text-xs text-gray-500">
-                The functional identity of this person - what they actually do, not their job title
+                The title of this role template
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="jobFamily">Job Family *</Label>
+              <Select value={jobFamily} onValueChange={setJobFamily} disabled={isLoading}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select job family" />
+                </SelectTrigger>
+                <SelectContent>
+                  {jobFamilyOptions.map((family) => (
+                    <SelectItem key={family} value={family}>
+                      {family}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                Categorizes roles for organizational analysis
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="level">Level *</Label>
+              <Input
+                id="level"
+                value={level}
+                onChange={(e) => setLevel(e.target.value)}
+                placeholder="e.g., L3, Senior, Staff, IC4"
+                required
+                disabled={isLoading}
+              />
+              <p className="text-xs text-gray-500">
+                Seniority or career level (e.g., L3, Senior, Staff)
               </p>
             </div>
 
@@ -345,7 +237,7 @@ export function RoleCardForm({
                 id="roleDescription"
                 value={roleDescription}
                 onChange={(e) => setRoleDescription(e.target.value)}
-                placeholder="Describe what this role is responsible for and how it contributes to the team"
+                placeholder="Describe what this role is responsible for and how it contributes to the organization"
                 rows={4}
                 required
                 disabled={isLoading}
@@ -395,21 +287,47 @@ export function RoleCardForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="jobFamily">Job Family (Optional)</Label>
-              <Select value={jobFamily} onValueChange={setJobFamily} disabled={isLoading}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select job family" />
-                </SelectTrigger>
-                <SelectContent>
-                  {jobFamilyOptions.map((family) => (
-                    <SelectItem key={family} value={family}>
-                      {family}
-                    </SelectItem>
+              <Label>Key Metrics (Optional)</Label>
+              <div className="flex space-x-2">
+                <Input
+                  value={keyMetric}
+                  onChange={(e) => setKeyMetric(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addKeyMetric()
+                    }
+                  }}
+                  placeholder="Add a key metric or success indicator"
+                  disabled={isLoading}
+                />
+                <Button type="button" onClick={addKeyMetric} disabled={isLoading || !keyMetric.trim()}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {keyMetrics.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {keyMetrics.map((metric, index) => (
+                    <Badge
+                      key={index}
+                      variant="secondary"
+                      className="flex items-center gap-1 px-2 py-1 text-xs"
+                    >
+                      {metric}
+                      <button
+                        type="button"
+                        onClick={() => removeKeyMetric(index)}
+                        disabled={isLoading}
+                        className="ml-1 hover:opacity-70 focus:outline-none"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
               <p className="text-xs text-gray-500">
-                Helps LoopBrain generalize behaviors and patterns
+                Success metrics that define performance in this role
               </p>
             </div>
           </div>
@@ -427,19 +345,19 @@ export function RoleCardForm({
               onClick={onClose}
               disabled={isLoading}
             >
-              Skip (Optional)
+              Cancel
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading || !departmentId || !teamId || !positionId || !roleName.trim() || !roleDescription.trim()}
+              disabled={isLoading || !roleName.trim() || !jobFamily.trim() || !level.trim() || !roleDescription.trim()}
             >
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
+                  {mode === 'create' ? 'Creating...' : 'Saving...'}
                 </>
               ) : (
-                'Create Role Card'
+                mode === 'create' ? 'Create Role Template' : 'Save Changes'
               )}
             </Button>
           </div>

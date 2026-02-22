@@ -98,7 +98,7 @@ export async function getActiveOrgContext(request?: NextRequest) {
           };
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // getCurrentWorkspaceId may throw if no workspace found, that's ok
       // This is expected for users without workspaces
     }

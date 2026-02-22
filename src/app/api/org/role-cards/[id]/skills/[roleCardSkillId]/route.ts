@@ -12,7 +12,6 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 
 const ALLOWED_TYPES = ["REQUIRED", "PREFERRED"] as const;
-type RoleCardSkillType = typeof ALLOWED_TYPES[number];
 
 export async function PATCH(
   request: NextRequest,

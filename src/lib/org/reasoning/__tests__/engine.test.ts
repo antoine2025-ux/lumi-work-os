@@ -117,8 +117,8 @@ describe("computeOrgRecommendations: Determinism", () => {
     // Remove computedAt for comparison
     const { _meta: meta1, ...rest1 } = result1;
     const { _meta: meta2, ...rest2 } = result2;
-    const { computedAt: _, ...metaRest1 } = meta1;
-    const { computedAt: __, ...metaRest2 } = meta2;
+    const { ...metaRest1 } = meta1;
+    const { ...metaRest2 } = meta2;
 
     expect(rest1).toEqual(rest2);
     expect(metaRest1).toEqual(metaRest2);

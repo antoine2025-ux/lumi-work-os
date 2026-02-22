@@ -2,7 +2,6 @@
 
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { PeopleFilters } from "./people-filters";
 
 type PeopleControlsProps = {
   search: string;
@@ -39,7 +38,6 @@ export function PeopleControls({
   sort,
   onSortChange,
   sortDirection,
-  onSortDirectionToggle,
   availableTeams,
   availableDepartments,
   availableRoles,

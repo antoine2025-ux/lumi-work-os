@@ -91,7 +91,7 @@ export function computeOrgHealthSignals(params: {
   roles: ContextObject[];
   treeDepth?: number;
 }): OrgHealth {
-  const { people, teams, departments, roles, treeDepth = 0 } = params;
+  const { people, teams, roles, treeDepth = 0 } = params;
 
   // Compute role health
   const roleHealth = computeRoleHealth(roles ?? []);

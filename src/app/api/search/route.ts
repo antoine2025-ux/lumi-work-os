@@ -3,7 +3,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from "@/lib/db"
-import { FileText, Users, BookOpen, Hash, AtSign } from "lucide-react"
+import { FileText, Users, BookOpen } from "lucide-react"
 
 export async function GET(request: NextRequest) {
   try {

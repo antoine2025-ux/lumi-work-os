@@ -32,7 +32,7 @@ async function evaluateHasAnyDepartments(): Promise<{
 // - "org-has-any-departments" uses real Prisma data
 // - All other questions remain "stub"
 export async function evaluateOrgQaQuestionsForWorkspace(
-  workspaceId: string,
+  _workspaceId: string,
 ): Promise<OrgQaQuestionWithStatus[]> {
   // TODO: use workspaceId to scope OrgDepartment queries
   const hasDept = await evaluateHasAnyDepartments();

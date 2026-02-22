@@ -5,7 +5,6 @@
  * for debugging and testing org intelligence.
  */
 
-import type { ContextObject } from "@/lib/context/contextTypes";
 import { detectOrgQuestionType } from "./orgQuestionType";
 import {
   getOrgHeadcountContextForLoopbrain,

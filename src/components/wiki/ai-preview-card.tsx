@@ -117,7 +117,6 @@ export function AIPreviewCard({
   onAppend
 }: AIPreviewCardProps) {
   const [isExpanded, setIsExpanded] = useState(true)
-  const [showConflictOptions, setShowConflictOptions] = useState(false)
   const IntentIcon = intentIcons[response.intent]
   
   // Check if response indicates page conflict
@@ -151,7 +150,6 @@ export function AIPreviewCard({
   
   const handleAppend = () => {
     if (response.preview?.markdown && onContentUpdate) {
-      const cleanedMarkdown = cleanMarkdownContent(response.preview.markdown)
       // Get existing content from context (would need to be passed as prop)
       // For now, just call append callback
       onAppend?.()

@@ -1,7 +1,6 @@
 "use client";
 
-import { ArrowRight, Calendar } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Calendar } from "lucide-react";
 import type { OrgPerson } from "@/types/org";
 
 type ActivityMiniTimelineProps = {

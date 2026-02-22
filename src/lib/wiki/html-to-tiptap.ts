@@ -284,7 +284,7 @@ function parseInlineContent(html: string, warnings: string[]): JSONContent[] {
 /**
  * Parse text with formatting marks (bold, italic, underline, code)
  */
-function parseTextWithMarks(html: string, warnings: string[]): JSONContent[] {
+function parseTextWithMarks(html: string, _warnings: string[]): JSONContent[] {
   const result: JSONContent[] = []
   
   // Remove all tags and get plain text

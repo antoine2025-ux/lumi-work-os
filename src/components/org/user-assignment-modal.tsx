@@ -12,7 +12,6 @@ import {
   User, 
   Search,
   UserPlus,
-  Mail,
   Building
 } from "lucide-react"
 
@@ -64,7 +63,6 @@ export function UserAssignmentModal({
   onAssign,
   role,
   availableUsers,
-  workspaceId 
 }: UserAssignmentModalProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUserId, setSelectedUserId] = useState<string>('')

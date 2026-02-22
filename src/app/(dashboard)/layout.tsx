@@ -7,8 +7,6 @@ import { useSession } from "next-auth/react"
 import { useRouter, usePathname } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import dynamic from "next/dynamic"
-import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context"
-import { TaskSidebar } from "@/components/tasks/task-sidebar"
 import { useUserStatusContext } from "@/providers/user-status-provider"
 
 // Lazy load Header to reduce initial bundle size and improve LCP

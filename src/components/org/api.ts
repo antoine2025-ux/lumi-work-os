@@ -249,7 +249,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
           if (hint) {
             msg = hint;
           }
-        } catch (jsonError) {
+        } catch (_jsonError) {
           // Content-type says JSON but body is not JSON (likely HTML)
           msg = `Request failed: ${res.status} ${res.statusText || ''} (server returned HTML despite JSON content-type)`;
         }
@@ -271,7 +271,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
           }
         }
       }
-    } catch (parseError) {
+    } catch (_parseError) {
       // Ignore parse errors but keep the status-based message
       // Ensure msg is always a valid string
       if (!msg || typeof msg !== 'string') {
@@ -378,6 +378,7 @@ export const OrgApi = {
     title?: string | null;
     departmentId?: string | null;
     teamId?: string | null;
+    managerId?: string | null;
   }) =>
     api<{ id: string }>("/api/org/people/create", {
       method: "POST",

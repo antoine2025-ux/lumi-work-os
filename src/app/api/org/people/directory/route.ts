@@ -5,7 +5,6 @@ import { assertWorkspaceAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
 import { listWorkspaceMemberships } from "@/server/org/people/membershipDelegate"
-import { getProfileOverride } from "@/server/org/people/profileOverrides"
 
 export async function GET(req: NextRequest) {
   try {

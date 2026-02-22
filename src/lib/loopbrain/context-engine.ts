@@ -24,7 +24,6 @@ import {
   EpicSummary,
   TaskSummary,
   PersonSummary,
-  ProjectSummary,
   TeamSummary,
   RoleSummary,
   DepartmentSummary,
@@ -40,7 +39,7 @@ import {
 import { logger } from '@/lib/logger'
 import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
 import { projectToContext, taskToContext, pageToContext, roleToContext } from '@/lib/context/context-builders'
-import { buildProjectContext, type ProjectWithRelations } from './context-sources/pm/projects'
+import { buildProjectContext } from './context-sources/pm/projects'
 import { buildEpicContext, type EpicWithRelations } from './context-sources/pm/epics'
 import { buildTaskContext, type TaskWithRelations } from './context-sources/pm/tasks'
 
@@ -182,7 +181,7 @@ export class PrismaContextEngine implements ContextEngine {
    */
   async getWorkspaceContext(
     workspaceId: string,
-    options?: ContextOptions
+    _options?: ContextOptions
   ): Promise<WorkspaceContext | null> {
     try {
       // Fetch workspace with counts
@@ -482,7 +481,7 @@ export class PrismaContextEngine implements ContextEngine {
   async getTaskContext(
     taskId: string,
     workspaceId: string,
-    options?: ContextOptions
+    _options?: ContextOptions
   ): Promise<TaskContext | null> {
     try {
       // Fetch task with relations
@@ -883,7 +882,7 @@ export class PrismaContextEngine implements ContextEngine {
    */
   private async buildBreadcrumbs(
     pageId: string,
-    workspaceId: string
+    _workspaceId: string
   ): Promise<Breadcrumb[]> {
     const breadcrumbs: Breadcrumb[] = []
     let currentPageId: string | null = pageId
@@ -1586,7 +1585,7 @@ export async function getWorkspaceContextObjects(params: {
   limit?: number
 }): Promise<UnifiedContextObject[]> {
   try {
-    const { workspaceId, userId, includeTasks = false, limit = 50 } = params
+    const { workspaceId, includeTasks = false, limit = 50 } = params
 
     // Fetch active projects (exclude archived unless specifically requested)
     const projects = await prisma.project.findMany({

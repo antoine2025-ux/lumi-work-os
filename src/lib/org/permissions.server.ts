@@ -1,4 +1,4 @@
-import { OrgRole, OrgCapability, hasOrgCapability, getEffectiveCapabilities } from "./capabilities";
+import { OrgRole, OrgCapability, getEffectiveCapabilities } from "./capabilities";
 import { getOrgAndMembershipForUser } from "./context-db";
 import { getCurrentUserId } from "@/lib/auth/getCurrentUserId";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";

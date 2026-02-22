@@ -49,7 +49,6 @@ export function OrganizationStructureSection({
     [departments, teams]
   );
 
-  const contentKey = `${viewMode}-${normalizedDepartments.length}`;
 
   return (
     <section className="mt-12 pb-8 border-b border-slate-800/30">

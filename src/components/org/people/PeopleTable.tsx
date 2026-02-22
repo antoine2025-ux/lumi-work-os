@@ -2,7 +2,7 @@
 
 import { memo, useCallback } from "react";
 import Link from "next/link";
-import { ArrowUp, ArrowDown, Check, Plus, ChevronRight, MoreVertical, Trash2 } from "lucide-react";
+import { ArrowUp, ArrowDown, Check, ChevronRight, MoreVertical, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PersonIdentityCell } from "./PersonIdentityCell";
 import { tableHeaderClass, focusRingClass } from "./people-styles";
@@ -149,7 +149,7 @@ export const PeopleTable = memo(function PeopleTable({
           </tr>
         </thead>
         <tbody>
-          {people.map((person, index) => {
+          {people.map((person, _index) => {
             const isSelected = selectedIds.includes(person.id);
             const availabilityStatus = (person as any).availabilityStatus;
             

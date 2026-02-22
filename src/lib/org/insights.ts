@@ -70,7 +70,6 @@ export async function getOrgInsightsSnapshot(
 ): Promise<OrgInsightsSnapshot> {
   // Server-side guard: prevent accidental snapshot loading for Members
   assertCanViewInsights(ctx);
-  const period = opts.period ?? "month";
   const periods = opts.periods ?? 6;
 
   if (!prisma) {
@@ -200,7 +199,7 @@ export async function getOrgInsightsSnapshot(
       },
     ])
   );
-  const roleCardByPositionId = new Map(
+  const roleCardByPositionId = new Map<string, { id: string; roleName: string }>(
     roleCards
       .filter((rc: typeof roleCards[0]) => rc.positionId)
       .map((rc: typeof roleCards[0]) => [rc.positionId!, { id: rc.id, roleName: rc.roleName }])

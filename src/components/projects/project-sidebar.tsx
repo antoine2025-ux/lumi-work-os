@@ -42,7 +42,7 @@ function buildHref(base: string, workspaceSlug?: string): string {
 
 export default function ProjectSidebar({ 
   projectId, 
-  projectName = '', 
+  projectName: _projectName = '',
   workspaceSlug, 
   isHovered: externalIsHovered, 
   onHoverChange, 

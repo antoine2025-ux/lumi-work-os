@@ -16,7 +16,7 @@ const createCustomFieldSchema = z.object({
   options: z.array(z.string()).optional(),
 })
 
-const updateCustomFieldSchema = z.object({
+const _updateCustomFieldSchema = z.object({
   key: z.string().min(1, 'Key is required').regex(/^[a-zA-Z0-9_]+$/, 'Key must contain only letters, numbers, and underscores').optional(),
   label: z.string().min(1, 'Label is required').optional(),
   type: z.enum(['text', 'number', 'select', 'date', 'boolean']).optional(),

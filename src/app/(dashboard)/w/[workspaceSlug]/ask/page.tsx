@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { 
@@ -130,7 +129,7 @@ export default function AskPage() {
   const [currentSession, setCurrentSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [_isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [showScrollToBottom, setShowScrollToBottom] = useState(false)
   // Default to Gemini 2.5 Flash
   const [selectedModel, setSelectedModel] = useState(MODELS.find(m => m.id === 'gemini-2.5-flash') || MODELS[0])

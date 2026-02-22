@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { CheckCircle, Video, Phone, Calendar, FileText, Target, TrendingUp, RefreshCw } from "lucide-react"
+import { CheckCircle, Video, Phone, FileText, TrendingUp, RefreshCw } from "lucide-react"
 
 export function DashboardPreview() {
   const getGreeting = () => {

@@ -13,7 +13,6 @@
 
 import OpenAI from 'openai'
 import { ContextObject, ContextType } from './context-types'
-import { type ContextItemRecord } from './store/context-repository'
 import { saveEmbedding, searchEmbeddings } from './store/embedding-repository'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
@@ -23,7 +22,6 @@ import { logger } from '@/lib/logger'
  */
 const EMBEDDING_MODEL = 'text-embedding-3-small'
 const EXPECTED_EMBEDDING_DIM = 1536 // text-embedding-3-small produces 1536-dimensional vectors
-const MAX_CANDIDATES_FOR_SEARCH = 500 // Limit candidates to avoid CPU/memory issues
 
 /**
  * Initialize OpenAI client for embeddings

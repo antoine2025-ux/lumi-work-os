@@ -13,7 +13,7 @@ export class MigrationService {
 
   async startMigration(source: MigrationSource): Promise<MigrationProgress> {
     // Create migration record
-    const migration = await prisma.integration.create({
+    const _migration = await prisma.integration.create({
       data: {
         workspaceId: this.workspaceId,
         type: source.platform.toUpperCase() as any,
@@ -120,7 +120,7 @@ export class MigrationService {
     return plainText.substring(0, 200) + (plainText.length > 200 ? '...' : '')
   }
 
-  private async findParentPage(originalParentId: string): Promise<string | null> {
+  private async findParentPage(_originalParentId: string): Promise<string | null> {
     // This would need to be implemented based on how we track original IDs
     // For now, return null
     return null

@@ -123,7 +123,7 @@ export function VariantC() {
           
           {/* System layers stack */}
           <div className="space-y-1">
-            {systemLayers.map((layer, index) => (
+            {systemLayers.map((layer, _index) => (
               <div
                 key={layer.id}
                 className={layer.isSpanning
@@ -205,7 +205,7 @@ export function VariantC() {
           
           {/* Stats - Floating glass cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
-            {stats.map((stat, index) => (
+            {stats.map((stat, _index) => (
               <div 
                 key={stat.label} 
                 className="bg-slate-800/40 backdrop-blur-xl rounded-2xl p-6 text-center border border-slate-700/30 hover:bg-slate-800/60 transition-colors"
@@ -224,7 +224,7 @@ export function VariantC() {
             <div className="absolute left-6 top-8 bottom-8 w-px bg-gradient-to-b from-green-500/50 via-green-500/20 to-transparent hidden md:block" />
             
             <div className="space-y-4">
-              {benefitsList.map((benefit, index) => (
+              {benefitsList.map((benefit, _index) => (
                 <div
                   key={benefit.title}
                   className="relative flex items-start gap-6 bg-slate-800/30 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/30 hover:bg-slate-800/50 transition-all duration-300 hover:translate-x-2 md:ml-6"

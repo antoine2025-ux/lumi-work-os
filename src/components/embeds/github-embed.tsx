@@ -4,7 +4,7 @@ import { EmbedComponentProps } from "@/types/embeds"
 import { ExternalLink, Star, GitFork, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-export function GitHubEmbed({ embed, isEditable = false }: EmbedComponentProps) {
+export function GitHubEmbed({ embed, isEditable: _isEditable = false }: EmbedComponentProps) {
   const githubUrl = embed.url || ""
   const urlParts = githubUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/)
   const owner = urlParts?.[1]

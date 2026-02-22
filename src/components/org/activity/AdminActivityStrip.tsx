@@ -14,7 +14,7 @@ function mapAction(raw: {
   targetType: string | null;
   meta: any | null;
 }): { label: string } {
-  const { action, targetType, meta } = raw;
+  const { action, meta } = raw;
 
   if (action === "INVITE_CREATED") {
     const email = meta?.email ?? "Unknown";

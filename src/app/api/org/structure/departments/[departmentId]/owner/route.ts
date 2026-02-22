@@ -131,7 +131,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
           // Delete existing owner assignment for this department (raw SQL)
           // Note: Column names must be quoted for camelCase in PostgreSQL
           // Note: entityType is an enum, must cast to text for comparison
-          const deleteResult = await tx.$executeRawUnsafe(
+          const _deleteResult = await tx.$executeRawUnsafe(
             `DELETE FROM owner_assignments
              WHERE "workspaceId" = $1::text
                AND "entityType"::text = $2::text
@@ -147,7 +147,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
           // Create new owner assignment (raw SQL)
           // Note: Column names must be quoted for camelCase in PostgreSQL
           // Note: entityType must be cast to the OwnedEntityType enum
-          const insertResult = await tx.$executeRawUnsafe(
+          const _insertResult = await tx.$executeRawUnsafe(
             `INSERT INTO owner_assignments (id, "workspaceId", "entityType", "entityId", "entityLabel", "ownerPersonId", "isPrimary", "createdAt", "updatedAt")
              VALUES (gen_random_uuid()::text, $1::text, $2::"OwnedEntityType", $3::text, $4::text, $5::text, true, NOW(), NOW())`,
             workspaceId,

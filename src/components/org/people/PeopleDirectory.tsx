@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { OrgEmpty } from "@/components/org/ui/OrgEmpty"
 import { AvailabilityStatus, availabilityLabel, availabilityDotClass } from "@/components/org/people/profile/availability"
 import { PeopleDirectoryHeader } from "./PeopleDirectoryHeader"
@@ -63,7 +62,6 @@ async function fetchDirectory(params: {
 }
 
 export function PeopleDirectory() {
-  const router = useRouter()
   const [q, setQ] = React.useState("")
   const [departmentId, setDepartmentId] = React.useState<string>("")
   const [teamId, setTeamId] = React.useState<string>("")

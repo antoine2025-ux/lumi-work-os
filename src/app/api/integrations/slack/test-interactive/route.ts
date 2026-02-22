@@ -204,7 +204,7 @@ export async function GET(request: NextRequest) {
         },
       },
     })
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Failed to get Slack status' },
       { status: 500 }

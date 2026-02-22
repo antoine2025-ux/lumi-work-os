@@ -65,16 +65,6 @@ export function EditProfileForm(props: Props) {
     }
   }
 
-  function field<K extends keyof typeof state>(key: K) {
-    const value = state[key]
-    return {
-      value: typeof value === "string" ? value : Array.isArray(value) ? value.join(", ") : "",
-      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        const newValue = e.target.value
-        setState({ ...state, [key]: newValue })
-      },
-    }
-  }
 
   return (
     <div className="space-y-8">

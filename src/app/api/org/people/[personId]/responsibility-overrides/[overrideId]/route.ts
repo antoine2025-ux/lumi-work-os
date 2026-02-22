@@ -14,7 +14,7 @@ type RouteParams = { params: Promise<{ personId: string; overrideId: string }> }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { personId, overrideId } = await params;
+    const { personId: _personId, overrideId } = await params;
 
     const auth = await getUnifiedAuth(request);
     const userId = auth?.user?.userId;

@@ -1,8 +1,8 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useRouter, usePathname } from "next/navigation"
-import { useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 import { Header } from "@/components/layout/header"
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context"
 import { useUserStatusContext } from '@/providers/user-status-provider'
@@ -14,9 +14,9 @@ export default function HomeLayout({
   children: React.ReactNode
 }) {
   const { data: session, status } = useSession()
-  const router = useRouter()
+  const _router = useRouter()
   // Use centralized UserStatusContext - no separate API call needed
-  const { workspaceId, isFirstTime, isLoading: isLoadingWorkspace, pendingInvite, error, refetch } = useUserStatusContext()
+  const { workspaceId: _workspaceId, isFirstTime: _isFirstTime, isLoading: isLoadingWorkspace, pendingInvite: _pendingInvite, error: _error, refetch: _refetch } = useUserStatusContext()
 
   // PHASE C2: Removed workspace redirect logic - middleware handles all redirects now
   // This effect is kept for logout flag handling only

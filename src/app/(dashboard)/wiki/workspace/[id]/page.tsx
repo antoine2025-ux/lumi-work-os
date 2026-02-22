@@ -6,8 +6,6 @@ import {
   Plus, 
   FileText,
   Loader2,
-  ArrowRight,
-  Globe,
   Target,
   Shield
 } from "lucide-react"

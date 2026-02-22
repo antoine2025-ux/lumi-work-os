@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { OrgCapabilityGate } from "@/components/org/OrgCapabilityGate";
 import { useOrgPermissions } from "@/components/org/OrgPermissionsContext";
 import { useCurrentOrg } from "@/hooks/useCurrentOrg";
@@ -14,7 +13,6 @@ type DangerZoneSectionProps = {
 export function DangerZoneSection({ orgId }: DangerZoneSectionProps) {
   const perms = useOrgPermissions();
   const { org } = useCurrentOrg();
-  const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
   async function handleDeleteOrg() {

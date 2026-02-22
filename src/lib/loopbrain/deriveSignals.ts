@@ -70,8 +70,6 @@ export function derivePersonSignals(person: PersonData): LoopBrainEvent[] {
   }
 
   // ORPHAN_MANAGER: Manager has no reports (structural anomaly)
-  const reportCount = person.directReportCount ?? 0;
-  const isManager = reportCount > 0;
   // Note: ORPHAN_MANAGER detection would require cross-person analysis
   // For v1, we skip this as it requires full org context
 

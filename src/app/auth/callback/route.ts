@@ -40,11 +40,11 @@ export async function GET(request: NextRequest) {
     if (code) {
       try {
         // Exchange code for Supabase session (only if admin is configured)
-        const cookieStore = await cookies()
+        const _cookieStore = await cookies()
         let supabaseAdmin
         try {
           supabaseAdmin = getSupabaseAdmin()
-        } catch (adminError) {
+        } catch (_adminError) {
           // Admin not configured - skip Supabase code exchange, use NextAuth only
           console.log('Supabase admin not configured, skipping code exchange')
         }

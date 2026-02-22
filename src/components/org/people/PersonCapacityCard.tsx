@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Plus, Calendar, Clock, Loader2, X, Check } from "lucide-react";
+import { Plus, Clock, Loader2, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
@@ -150,7 +150,7 @@ export function PersonCapacityCard({ personId, canEdit = false, onCapacityChange
       toast({ description: "Contract deleted" });
       loadContracts();
       onCapacityChanged?.();
-    } catch (err) {
+    } catch (_err) {
       toast({
         title: "Failed to delete",
         description: "Please try again.",

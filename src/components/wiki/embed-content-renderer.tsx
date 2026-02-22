@@ -10,7 +10,7 @@ interface EmbedContentRendererProps {
   pageId?: string
 }
 
-export function EmbedContentRenderer({ content, pageId }: EmbedContentRendererProps) {
+export function EmbedContentRenderer({ content, pageId: _pageId }: EmbedContentRendererProps) {
   const [embeds, setEmbeds] = useState<EmbedData[]>([])
   const [isClient, setIsClient] = useState(false)
 

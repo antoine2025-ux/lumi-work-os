@@ -34,7 +34,7 @@ const levelColors = {
   INDIVIDUAL: 'bg-muted/50 text-muted-foreground border-border',
 }
 
-const statusColors = {
+const _statusColors = {
   DRAFT: 'bg-muted/50 text-muted-foreground',
   ACTIVE: 'bg-blue-500/10 text-blue-400',
   PAUSED: 'bg-yellow-500/10 text-yellow-400',
@@ -42,7 +42,7 @@ const statusColors = {
   CANCELLED: 'bg-red-500/10 text-red-400',
 }
 
-export function GoalCard({ goal, workspaceSlug, currentUser }: Props) {
+export function GoalCard({ goal, workspaceSlug, currentUser: _currentUser }: Props) {
   const getStatusColor = (status: string, progress: number) => {
     if (status === 'COMPLETED') return 'text-green-400 bg-green-500/10'
     if (progress >= 70) return 'text-green-400 bg-green-500/10'

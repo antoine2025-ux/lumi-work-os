@@ -7,7 +7,7 @@
  */
 
 import { Prisma } from '@prisma/client'
-import { ContextObject, ContextObjectType, ContextRelation } from './context-types'
+import { ContextObject, ContextRelation } from './context-types'
 
 export type WorkloadStats = {
   tasksAssignedTotal: number

@@ -2,35 +2,17 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { 
   ArrowLeft, 
-  Target, 
-  Calendar,
-  Users,
-  Clock,
-  CheckCircle,
   AlertCircle,
   Loader2,
-  Plus,
-  Edit,
-  MoreHorizontal,
-  TrendingUp,
   User,
-  Link as LinkIcon,
-  FileText,
-  ExternalLink,
-  Maximize2,
-  Search,
-  X,
-  BarChart3
 } from "lucide-react"
 import Link from "next/link"
 import { useWorkspace } from "@/lib/workspace-context"
@@ -42,19 +24,18 @@ import { useProjectSlackHints, setProjectSlackHints, getProjectSlackHints } from
 import ReactMarkdown from "react-markdown"
 import TaskList from "@/components/tasks/task-list"
 import type { ViewMode } from "@/components/tasks/view-switcher"
-import { ViewSwitcher } from "@/components/tasks/view-switcher"
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog"
 
 // Dynamic imports for heavy components to reduce initial bundle size
 const KanbanBoard = dynamic(() => import("@/components/kanban/kanban-board").then(mod => ({ default: mod.KanbanBoard })), { ssr: false })
 const InlineWikiViewer = dynamic(() => import("@/components/projects/inline-wiki-viewer").then(mod => ({ default: mod.InlineWikiViewer })), { ssr: false })
-const EmbedContentRenderer = dynamic(() => import("@/components/wiki/embed-content-renderer").then(mod => ({ default: mod.EmbedContentRenderer })), { ssr: false })
+const _EmbedContentRenderer = dynamic(() => import("@/components/wiki/embed-content-renderer").then(mod => ({ default: mod.EmbedContentRenderer })), { ssr: false })
 const ProjectEditDialog = dynamic(() => import("@/components/projects/project-edit-dialog").then(mod => ({ default: mod.ProjectEditDialog })), { ssr: false })
-const LiveTaskList = dynamic(() => import("@/components/realtime/live-task-list").then(mod => ({ default: mod.LiveTaskList })), { ssr: false })
-const PresenceIndicator = dynamic(() => import("@/components/realtime/presence-indicator").then(mod => ({ default: mod.PresenceIndicator })), { ssr: false })
+const _LiveTaskList = dynamic(() => import("@/components/realtime/live-task-list").then(mod => ({ default: mod.LiveTaskList })), { ssr: false })
+const _PresenceIndicator = dynamic(() => import("@/components/realtime/presence-indicator").then(mod => ({ default: mod.PresenceIndicator })), { ssr: false })
 const NotificationToast = dynamic(() => import("@/components/realtime/notification-toast").then(mod => ({ default: mod.NotificationToast })), { ssr: false })
-const NotificationBell = dynamic(() => import("@/components/realtime/notification-toast").then(mod => ({ default: mod.NotificationBell })), { ssr: false })
-const ConnectionStatus = dynamic(() => import("@/components/realtime/connection-status").then(mod => ({ default: mod.ConnectionStatus })), { ssr: false })
+const _NotificationBell = dynamic(() => import("@/components/realtime/notification-toast").then(mod => ({ default: mod.NotificationBell })), { ssr: false })
+const _ConnectionStatus = dynamic(() => import("@/components/realtime/connection-status").then(mod => ({ default: mod.ConnectionStatus })), { ssr: false })
 const Celebration = dynamic(() => import("@/components/ui/celebration").then(mod => ({ default: mod.Celebration })), { ssr: false })
 const TaskSearchFilter = dynamic(() => import("@/components/search/task-search-filter").then(mod => ({ default: mod.TaskSearchFilter })), { ssr: false })
 const ProjectHeader = dynamic(() => import("@/components/projects/project-header").then(mod => ({ default: mod.ProjectHeader })), { ssr: false })
@@ -195,19 +176,19 @@ export default function ProjectDetailPage() {
   const [isUpdatingWiki, setIsUpdatingWiki] = useState(false)
   const [isWikiDialogOpen, setIsWikiDialogOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [isCreatingSampleTasks, setIsCreatingSampleTasks] = useState(false)
+  const [_isCreatingSampleTasks, setIsCreatingSampleTasks] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isTaskListFullscreen, setIsTaskListFullscreen] = useState(false)
-  const [taskViewMode, setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
+  const [_taskViewMode, _setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
   const [currentView, setCurrentView] = useState<ViewMode>('board')
   const [headerView, setHeaderView] = useState<'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'>('board')
   const [showCelebration, setShowCelebration] = useState(false)
   const [wasCompleted, setWasCompleted] = useState(false)
   const [filteredTasks, setFilteredTasks] = useState<any[]>([])
   const [isFiltered, setIsFiltered] = useState(false)
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
-  const [selectedEpicId, setSelectedEpicId] = useState<string | undefined>(undefined)
-  const [epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
+  const [isSearchExpanded, _setIsSearchExpanded] = useState(false)
+  const [selectedEpicId, _setSelectedEpicId] = useState<string | undefined>(undefined)
+  const [_epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false)
   const [newEpicTitle, setNewEpicTitle] = useState('')
@@ -343,7 +324,7 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const createSampleTasks = async () => {
+  const _createSampleTasks = async () => {
     try {
       setIsCreatingSampleTasks(true)
       const response = await fetch(`/api/test-projects?projectId=${projectId}`, {
@@ -413,7 +394,7 @@ export default function ProjectDetailPage() {
   }
 
   // More menu handlers
-  const handleExportCSV = () => {
+  const _handleExportCSV = () => {
     if (!project) return
     
     // Create CSV content
@@ -524,7 +505,7 @@ export default function ProjectDetailPage() {
     else if (currentView === 'list') setHeaderView('tasks')
   }, [currentView])
 
-  const getStatusColor = (status: string) => {
+  const _getStatusColor = (status: string) => {
     switch (status) {
       case "ACTIVE": return "bg-green-100 text-green-800"
       case "ON_HOLD": return "bg-yellow-100 text-yellow-800"
@@ -534,7 +515,7 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const getPriorityColor = (priority: string) => {
+  const _getPriorityColor = (priority: string) => {
     switch (priority) {
       case "URGENT": return "bg-red-100 text-red-800"
       case "HIGH": return "bg-orange-100 text-orange-800"
@@ -566,7 +547,7 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const formatDate = (dateString: string) => {
+  const _formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',

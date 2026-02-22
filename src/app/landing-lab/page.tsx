@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VariantA } from "@/components/landing/variants/variant-a";
 import { VariantB } from "@/components/landing/variants/variant-b";
 import { VariantC } from "@/components/landing/variants/variant-c";

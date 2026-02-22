@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { PeopleViewToggle, type ViewMode } from "./PeopleViewToggle";
 import { SavedViewsDropdown } from "./SavedViewsDropdown";
 import { ShortlistsDropdown } from "./ShortlistsDropdown";
-import { chipBaseClass, chipInactiveClass, chipActiveClass, focusRingClass } from "./people-styles";
+import { chipBaseClass, focusRingClass } from "./people-styles";
 import { useOrgUrl } from "@/hooks/useOrgUrl";
 import type { QuickChip } from "./people-filters";
 import type { PeopleFilters } from "./people-filters";

@@ -38,7 +38,7 @@ export default function InviteAcceptPage() {
   
   const [loading, setLoading] = useState(true)
   const [accepting, setAccepting] = useState(false)
-  const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(null)
+  const [_inviteDetails, _setInviteDetails] = useState<InviteDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 

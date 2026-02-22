@@ -7,7 +7,6 @@ import { computeStructureMetrics } from "@/server/org/health/structure/metrics"
 import { computeLayerMetrics } from "@/server/org/health/structure/layers"
 import { computeOrgHealthCompleteness } from "@/server/org/health/setup/completeness"
 import { getDataQualityDeepDive } from "@/server/org/health/data-quality"
-import { computeDataQualityScore } from "@/server/org/health/data-quality-score"
 import { getFreshnessSummary } from "@/server/org/health/freshness"
 import { PHASE_C_VERSION } from "@/server/org/health/phaseC"
 
@@ -55,7 +54,6 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
   // In this codebase, orgId may be workspaceId, so we query by workspaceId.
   // If your repo already has strong typed Org/People models, tighten these in later steps.
 
-  const dataQualityScore: number | null = null
   const signals: ComputedHealth["signals"] = []
 
   const [peopleCount, teamsCount] = await Promise.all([

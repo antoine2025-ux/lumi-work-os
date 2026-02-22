@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
           url: `postgresql://${url.username}:***@${url.hostname}:${url.port || '5432'}/${url.pathname?.replace('/', '')}`
         }
       }
-    } catch (e) {
+    } catch (_e) {
       dbUrlInfo = { error: 'Could not parse DATABASE_URL', raw: databaseUrl ? 'set (invalid)' : 'NOT SET' }
     }
 
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
           url: `postgresql://${url.username}:***@${url.hostname}:${url.port || '5432'}/${url.pathname?.replace('/', '')}`
         }
       }
-    } catch (e) {
+    } catch (_e) {
       directUrlInfo = { error: 'Could not parse DIRECT_URL', raw: directUrl ? 'set (invalid)' : 'NOT SET' }
     }
 

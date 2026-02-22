@@ -1,12 +1,12 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Bell, Search, Plus, Filter, MoreHorizontal, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { Search, Plus, Filter, MoreHorizontal, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { PresenceIndicator } from '@/components/realtime/presence-indicator'
 import { NotificationBell } from '@/components/realtime/notification-toast'
 import { cn } from '@/lib/utils'
@@ -39,10 +39,10 @@ interface CleanDashboardProps {
   onTaskCreate?: (task: Omit<Task, 'id'>) => void
 }
 
-export function CleanDashboard({ project, onTaskUpdate, onTaskCreate }: CleanDashboardProps) {
+export function CleanDashboard({ project, onTaskUpdate: _onTaskUpdate, onTaskCreate: _onTaskCreate }: CleanDashboardProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterStatus, _setFilterStatus] = useState<string>('all')
 
   const filteredTasks = project.tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -110,7 +110,7 @@ export function CleanDashboard({ project, onTaskUpdate, onTaskCreate }: CleanDas
     </Card>
   )
 
-  const StatusColumn = ({ status, tasks, title }: { status: string; tasks: Task[]; title: string }) => (
+  const StatusColumn = ({ tasks, title }: { status: string; tasks: Task[]; title: string }) => (
     <div className="flex flex-col space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-gray-700 text-sm">{title}</h3>

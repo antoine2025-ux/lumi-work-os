@@ -115,9 +115,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
       const hasAvailability = (availabilityCountMap.get(personId) ?? 0) > 0;
       const meta: PersonCapacityMeta = { isContractDefault: !hasContract, hasAvailabilityData: hasAvailability };
 
-      const status = capacity ? getPersonCapacityStatus(capacity, meta, settings) : "MISSING" as const;
+      const _status = capacity ? getPersonCapacityStatus(capacity, meta, settings) : "MISSING" as const;
       const availableHours = capacity ? capacity.contractedHoursForWindow * capacity.availabilityFactor : 0;
-      const utilizationPct = availableHours > 0 && capacity ? capacity.allocatedHours / availableHours : 0;
+      const _utilizationPct = availableHours > 0 && capacity ? capacity.allocatedHours / availableHours : 0;
 
       return {
         personId,

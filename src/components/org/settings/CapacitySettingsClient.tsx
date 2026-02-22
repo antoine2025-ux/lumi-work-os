@@ -25,7 +25,7 @@ type CapacityThresholds = {
 };
 
 export function CapacitySettingsClient() {
-  const [thresholds, setThresholds] = useState<CapacityThresholds | null>(null);
+  const [_thresholds, setThresholds] = useState<CapacityThresholds | null>(null);
   const [defaults, setDefaults] = useState<CapacityThresholds | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

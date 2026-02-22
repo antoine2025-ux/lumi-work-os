@@ -6,7 +6,7 @@
 
 import { prisma } from '@/lib/db'
 import { getCurrentQuarter } from '@/lib/goals/utils'
-import { analyzeGoalHealth, ProgressHealth } from '@/lib/goals/progress'
+import { analyzeGoalHealth } from '@/lib/goals/progress'
 
 // ============================================================================
 // Query Detection

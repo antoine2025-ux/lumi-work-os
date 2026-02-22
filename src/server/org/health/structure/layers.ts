@@ -1,8 +1,5 @@
 import { prisma } from "@/lib/db"
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n))
-}
 
 type Edge = { personId: string; managerId: string }
 

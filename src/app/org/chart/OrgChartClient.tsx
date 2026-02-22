@@ -3,7 +3,6 @@
 
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { OrgDepartmentRow } from "@/components/org/OrgDepartmentRow";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 import { OrgNoAccessState } from "@/components/org/OrgNoAccessState";
@@ -81,7 +80,7 @@ function normalizeOrgForOrgChart(
   });
 }
 
-export function OrgChartClient({ orgId, chartData, chartTree, validation }: OrgChartClientProps) {
+export function OrgChartClient({ _orgId, chartData, chartTree, validation }: OrgChartClientProps) {
   const isLoading = !chartData;
   const noAccess = false; // Permission checked server-side
   const router = useRouter();
@@ -112,7 +111,7 @@ export function OrgChartClient({ orgId, chartData, chartTree, validation }: OrgC
   );
 
   // Compute org-level summary counts
-  const summary = useMemo(() => {
+  const _summary = useMemo(() => {
     if (!departments.length) {
       return { departmentCount: 0, teamCount: 0, peopleCount: 0 };
     }

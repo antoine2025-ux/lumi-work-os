@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { 
@@ -11,17 +11,7 @@ import {
   Eye,
   Heart,
   MessageSquare,
-  Share2,
-  Star,
-  Tag,
-  CheckCircle,
-  Upload,
-  Users,
-  Bell,
-  Archive,
-  Grid3X3
 } from "lucide-react"
-import Link from "next/link"
 import { WikiLayout } from "@/components/wiki/wiki-layout"
 import { EnhancedRichTextEditor } from "@/components/wiki/enhanced-rich-text-editor"
 
@@ -121,7 +111,7 @@ export default function EnhancedWikiPage() {
     setNewComment('')
   }
 
-  const formatDate = (dateString: string) => {
+  const _formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
     const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))

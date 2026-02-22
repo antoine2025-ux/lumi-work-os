@@ -78,7 +78,7 @@ export function WorkspaceCreationLoader() {
 
         {/* Loading Steps */}
         <div className="space-y-3">
-          {steps.map((step, index) => (
+          {steps.map((step, _index) => (
             <div
               key={step.id}
               className="flex items-center gap-4 p-4 rounded-lg bg-white shadow-sm border border-gray-100 transition-all duration-500"

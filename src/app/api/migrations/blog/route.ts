@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       try {
         await prisma.$executeRawUnsafe(index.sql)
         console.log(`[MIGRATIONS] Created index: ${index.name}`)
-      } catch (error: any) {
+      } catch (_error: any) {
         // Index might already exist, continue
         console.log(`[MIGRATIONS] Index ${index.name} may already exist, continuing...`)
       }

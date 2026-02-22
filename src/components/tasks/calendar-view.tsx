@@ -1,17 +1,14 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ChevronLeft, ChevronRight, Calendar, Plus, User, Tag, Clock } from 'lucide-react'
-import Link from 'next/link'
+import { ChevronLeft, ChevronRight, Plus, User } from 'lucide-react'
 import { TaskEditDialog } from './task-edit-dialog'
 import { CreateTaskDialog } from './create-task-dialog'
 import { useTaskSidebarStore } from '@/lib/stores/use-task-sidebar-store'
 import { cn } from '@/lib/utils'
-import { getEpicColor } from '@/lib/utils/epic-colors'
 
 interface Task {
   id: string
@@ -284,15 +281,15 @@ export default function CalendarView({ projectId, workspaceId }: CalendarViewPro
     })
   }
 
-  const getStatusOption = (status: string) => {
+  const _getStatusOption = (status: string) => {
     return statusOptions.find(option => option.value === status) || statusOptions[0]
   }
 
-  const getPriorityOption = (priority: string) => {
+  const _getPriorityOption = (priority: string) => {
     return priorityOptions.find(option => option.value === priority) || priorityOptions[1]
   }
 
-  const formatDate = (dateString: string) => {
+  const _formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
     const diffTime = date.getTime() - now.getTime()
@@ -314,7 +311,7 @@ export default function CalendarView({ projectId, workspaceId }: CalendarViewPro
     return date.toDateString() === today.toDateString()
   }
 
-  const isPastDue = (date: Date) => {
+  const _isPastDue = (date: Date) => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     return date < today

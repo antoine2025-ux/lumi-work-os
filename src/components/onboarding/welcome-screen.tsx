@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
-import { Building2, Users, Zap, ArrowRight, User, CheckCircle2, Rocket } from 'lucide-react'
+import { Building2, Users, Zap, User, CheckCircle2, Rocket } from 'lucide-react'
 
 interface WelcomeScreenProps {
   user: {

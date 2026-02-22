@@ -95,7 +95,7 @@ export function TipTapEditor({
         class: `prose prose-slate max-w-none focus:outline-none min-h-[200px] p-4 ${className}`,
       },
       // Let TipTap handle paste automatically (preserves formatting from external sources)
-      handlePaste: (view, event) => {
+      handlePaste: (_view, _event) => {
         // TipTap will handle HTML paste automatically
         return false
       },
@@ -149,7 +149,7 @@ export function TipTapEditor({
   }
 
   // Handle insert block from gutter
-  const handleInsertBlock = (position: { top: number; left: number }) => {
+  const handleInsertBlock = (_position: { top: number; left: number }) => {
     if (!editor) return
     
     // Get current block and move cursor to end

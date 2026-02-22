@@ -23,8 +23,6 @@ const ALLOWED_REASONS = [
   "OTHER",
 ] as const;
 
-type AvailabilityType = typeof ALLOWED_TYPES[number];
-type AvailabilityReason = typeof ALLOWED_REASONS[number];
 
 export async function PATCH(
   request: NextRequest,

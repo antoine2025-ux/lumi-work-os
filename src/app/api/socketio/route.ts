@@ -1,10 +1,9 @@
 import { NextRequest } from 'next/server'
-import { Server as NetServer } from 'http'
 import { Server as SocketIOServer } from 'socket.io'
 
 const io: SocketIOServer | null = null
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   if (!io) {
     // This is a workaround for Next.js App Router
     // In a real implementation, you'd need to set up the Socket.io server
@@ -15,7 +14,7 @@ export async function GET(req: NextRequest) {
   return new Response('Socket.io server is running', { status: 200 })
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   if (!io) {
     return new Response('Socket.io server not initialized', { status: 500 })
   }

@@ -250,7 +250,7 @@ The document should be production-ready and comprehensive.${wikiContext}`
       : `Document - ${new Date().toLocaleDateString()}`
 
     // Update session with draft
-    const updatedSession = await prisma.chatSession.update({
+    const _updatedSession = await prisma.chatSession.update({
       where: { id: sessionId },
       data: {
         draftTitle: title,

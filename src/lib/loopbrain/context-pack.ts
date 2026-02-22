@@ -6,7 +6,7 @@
  */
 
 import { ContextObject } from '@/lib/context/context-types'
-import { PROMPT_BUDGET, PRIMARY_CONTEXT_BUDGET } from './prompt-budgets'
+import { PRIMARY_CONTEXT_BUDGET } from './prompt-budgets'
 
 /**
  * Estimate character count for a value (JSON string length)

@@ -13,7 +13,6 @@ import {
   closestCorners,
   CollisionDetection,
 } from '@dnd-kit/core'
-import { arrayMove } from '@dnd-kit/sortable'
 import { DraggableTaskCard } from './draggable-task-card'
 
 interface DragDropContextType {

@@ -1,10 +1,10 @@
 "use client"
 
 import { EmbedComponentProps } from "@/types/embeds"
-import { ExternalLink, Image as ImageIcon } from "lucide-react"
+import { ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-export function LinkCardEmbed({ embed, isEditable = false }: EmbedComponentProps) {
+export function LinkCardEmbed({ embed, isEditable: _isEditable = false }: EmbedComponentProps) {
   const url = embed.url || ""
   const title = embed.title || "Link"
   const description = embed.description || ""

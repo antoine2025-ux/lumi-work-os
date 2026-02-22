@@ -5,7 +5,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
-import { GoalLevel, GoalPeriod, GoalStatus } from '@prisma/client'
+import { GoalLevel, GoalStatus } from '@prisma/client'
 import { syncGoalContext } from '@/lib/goals/loopbrain-integration'
 
 // ============================================================================

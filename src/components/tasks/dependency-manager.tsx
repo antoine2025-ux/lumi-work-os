@@ -14,8 +14,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  User,
-  Calendar,
   Loader2
 } from "lucide-react"
 

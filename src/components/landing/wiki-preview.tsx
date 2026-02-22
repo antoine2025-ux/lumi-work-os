@@ -1,8 +1,8 @@
 "use client"
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Clock, Search, BookOpen } from "lucide-react"
+import { Clock, Search } from "lucide-react"
 
 const mockPages = [
   {

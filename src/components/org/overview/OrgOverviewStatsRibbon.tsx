@@ -26,7 +26,6 @@ export function OrgOverviewStatsRibbon({
   const teamCount = insightsSnapshot?.summary.totalTeams ?? stats?.teamCount ?? 0;
   const departmentCount = insightsSnapshot?.summary.totalDepartments ?? stats?.departmentCount ?? 0;
   const roleCount = insightsSnapshot?.summary.totalRoles ?? 0;
-  const openInvitesCount = stats?.openInvitesCount ?? 0;
 
   const hasData = peopleCount > 0 || teamCount > 0 || departmentCount > 0 || roleCount > 0;
   const showViewAllLink = canViewInsights && hasData;

@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { User, Building, Users, Mail, Phone, MapPin } from "lucide-react"
+import { User } from "lucide-react"
 
 interface User {
   id: string
@@ -141,7 +141,7 @@ export function PositionForm({
     p.isActive
   )
 
-  const getLevelColor = (level: number) => {
+  const _getLevelColor = (level: number) => {
     const colors = [
       'bg-purple-500', // CEO
       'bg-blue-500',   // VPs
@@ -152,7 +152,7 @@ export function PositionForm({
     return colors[Math.min(level - 1, colors.length - 1)]
   }
 
-  const getDepartmentColor = (department: string) => {
+  const _getDepartmentColor = (department: string) => {
     const colors: { [key: string]: string } = {
       'Executive': 'bg-purple-100 text-purple-800',
       'Engineering': 'bg-blue-100 text-blue-800',

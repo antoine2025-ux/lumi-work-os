@@ -30,7 +30,6 @@ export async function POST(
     const { 
       projectName,
       projectDescription,
-      customizations = {}
     } = body
 
     if (!projectName) {

@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
  * GET /api/users/timezone
  * Get current user's timezone
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Get authenticated user - use getServerSession for user-level operations
     const session = await getServerSession(authOptions)

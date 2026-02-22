@@ -2,7 +2,6 @@
 
 import React from 'react'
 import { useDroppable } from '@dnd-kit/core'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
@@ -66,8 +65,8 @@ export function DroppableColumn({
   onEditTask,
   onManageDependencies,
   onAddTask,
-  viewDensity = 'comfortable',
-  screenSize = 'desktop',
+  viewDensity: _viewDensity = 'comfortable',
+  screenSize: _screenSize = 'desktop',
   epicId
 }: DroppableColumnProps) {
   const { isOver, setNodeRef } = useDroppable({

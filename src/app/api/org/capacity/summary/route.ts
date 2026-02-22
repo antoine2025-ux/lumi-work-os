@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     const settings = await getWorkspaceThresholdsAsync(workspaceId);
 
     // Get team rollups (includes member capacities)
-    const { teamRollups, memberCapacities } = await computeAllTeamRollups(workspaceId);
+    const { teamRollups, memberCapacities: _memberCapacities } = await computeAllTeamRollups(workspaceId);
 
     // Also get all active people (including those not on teams) for coverage count
     const allPositions = await prisma.orgPosition.findMany({

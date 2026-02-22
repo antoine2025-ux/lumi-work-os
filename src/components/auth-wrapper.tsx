@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 import { useUserStatusContext } from '@/providers/user-status-provider'
 import { useSession } from 'next-auth/react'
 import { LoadingInitializer } from '@/components/auth/loading-initializer'
@@ -13,7 +12,6 @@ interface AuthWrapperProps {
 }
 
 export function AuthWrapper({ children }: AuthWrapperProps) {
-  const router = useRouter()
   const pathname = usePathname()
   // Use centralized UserStatusContext - no separate API call needed
   const userStatusCtx = useUserStatusContext()
@@ -25,14 +23,11 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
     pendingInvite: userStatusCtx.pendingInvite,
   }
   const loading = userStatusCtx.isLoading
-  const error = userStatusCtx.error
-  const { data: session, status: sessionStatus, update: updateSession } = useSession({
+  const { data: session, status: sessionStatus } = useSession({
     required: false, // Don't require session - we'll check manually
   })
-  const hasRedirected = useRef(false)
-  const [showLoader, setShowLoader] = useState(false)
+  const [_showLoader, setShowLoader] = useState(false)
   const hasShownLoader = useRef(false)
-  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   useEffect(() => {
     // Skip loader logic if we're on public routes
@@ -66,20 +61,14 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
   // Keep only loading state management
 
   // Show loading only if we're on a protected route
-  const isPublic = isPublicRoute(pathname)
   
   // PHASE B2: Removed skip loader flag - loader shows based on loading state only
-  const skipLoaderFlag = false
   
   // Skip loader if user has no workspace (will redirect to /welcome)
   // Only check this if userStatus is actually loaded (not undefined)
-  const willRedirectToWelcome = !loading && userStatus && (userStatus.isFirstTime || !userStatus.workspaceId)
   
   // Only show loader for authenticated users with workspaces who are loading
   // Don't show if: on public route, skipping, redirecting to welcome, or don't have workspace yet
-  const userHasWorkspace = !loading && userStatus && userStatus.workspaceId
-  const isAuthenticated = sessionStatus === 'authenticated'
-  const isUserDataLoading = loading || showLoader
   
   // Never show loader after first authentication
   const shouldShowLoader = false // Always false - loader disabled for reloads

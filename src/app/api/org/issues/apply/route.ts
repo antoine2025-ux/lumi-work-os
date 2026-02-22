@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { getOrgContext, requireEdit } from "@/server/rbac";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { revalidateTag } from "next/cache";
-import { measureOrgOutcomes } from "@/server/loopbrain/outcomes";
 import { measureOrgHealth } from "@/server/orgHealth";
 
 export async function POST(req: NextRequest) {

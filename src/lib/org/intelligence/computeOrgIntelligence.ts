@@ -12,11 +12,8 @@ import {
   LoopBrainEvent,
   LoopBrainSignal,
   createSignalEvent,
-  SignalMetadata,
   sortEventsBySeverity,
 } from "@/lib/loopbrain/signals";
-import { deriveTeamAvailability, TeamAvailabilitySummary } from "../rollups/deriveTeamAvailability";
-import { deriveTeamSkillSummary, TeamSkillSummary } from "../rollups/deriveTeamSkills";
 import { deriveAllPositionIssues } from "../deriveIssues";
 
 // Intelligence computation result

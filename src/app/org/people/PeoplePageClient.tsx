@@ -1,16 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, memo, useCallback, useRef, useDeferredValue, startTransition } from "react";
-import Link from "next/link";
+import React, { useState, useEffect, useMemo, useCallback, useRef, useDeferredValue, startTransition } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
-import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 import { OrgNoAccessState } from "@/components/org/OrgNoAccessState";
 import { PeopleFiltersBar } from "@/components/org/people/PeopleFiltersBar";
 import { PeopleFiltersDrawer } from "@/components/org/people/PeopleFiltersDrawer";
 import { ActiveFiltersChips } from "@/components/org/people/ActiveFiltersChips";
-import { SavedViewsDropdown } from "@/components/org/people/SavedViewsDropdown";
 import { PeopleEmptyState } from "@/components/org/people/PeopleEmptyState";
 import { parsePeopleFiltersFromSearchParams, hasAnyPeopleFilter, buildPeopleFiltersURL, type PeopleFilters } from "@/components/org/people/people-filters";
 import { useOrgStructureLists } from "@/hooks/useOrgStructureLists";
@@ -30,7 +27,6 @@ import { PeopleInsightsDrawer } from "@/components/org/people/PeopleInsightsDraw
 import { PeopleCardsGrid } from "@/components/org/people/PeopleCardsGrid";
 import { PeopleSelectionBar } from "@/components/org/people/PeopleSelectionBar";
 import { ShortlistModal } from "@/components/org/people/ShortlistModal";
-import { ShortlistsDropdown } from "@/components/org/people/ShortlistsDropdown";
 import { CompareModal } from "@/components/org/people/CompareModal";
 import { DeletePersonModal } from "@/components/org/people/DeletePersonModal";
 import { usePeopleSelection } from "@/hooks/usePeopleSelection";
@@ -68,8 +64,8 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
   const { capacityMap, coverage, overloadedCount, underutilizedCount, refresh: refreshCapacity } = useCapacityPeople();
   
   // Load persistent preferences
-  const [prefs, setPrefs] = useState<Record<string, any>>({});
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [_prefs, setPrefs] = useState<Record<string, any>>({});
+  const [_prefsLoaded, setPrefsLoaded] = useState(false);
   
   useEffect(() => {
     loadOrgPreferences().then((loaded) => {
@@ -120,7 +116,6 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
     selectedCount,
     toggleSelection,
     clearSelection,
-    isSelected,
   } = usePeopleSelection();
 
   // Shortlists
@@ -143,7 +138,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
 
   // Deep-link: ?person=&openCapacity=true
   const deepLinkPersonId = searchParams.get("person");
-  const deepLinkOpenCapacity = searchParams.get("openCapacity") === "true";
+  const _deepLinkOpenCapacity = searchParams.get("openCapacity") === "true";
   const [highlightedPersonId, setHighlightedPersonId] = useState<string | null>(null);
   const deepLinkHandledRef = useRef(false);
   
@@ -252,7 +247,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
   }, [basePeople]);
 
   // Memoize lookup maps for department/team names
-  const departmentIdToName = useMemo(() => {
+  const _departmentIdToName = useMemo(() => {
     const map = new Map<string, string>();
     departments?.forEach((dept) => {
       map.set(dept.id, dept.name);
@@ -260,7 +255,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
     return map;
   }, [departments]);
 
-  const teamIdToName = useMemo(() => {
+  const _teamIdToName = useMemo(() => {
     const map = new Map<string, string>();
     teams?.forEach((team) => {
       map.set(team.id, team.name);

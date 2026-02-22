@@ -190,7 +190,7 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
       toast({ description: "Allocation deleted" });
       loadAllocations();
       onAllocationsChanged?.();
-    } catch (err) {
+    } catch (_err) {
       toast({
         title: "Failed to delete",
         description: "Please try again.",

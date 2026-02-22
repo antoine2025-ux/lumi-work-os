@@ -18,7 +18,7 @@
 import { prisma } from "@/lib/db";
 import { resolveEffectiveCapacityBatch, type EffectiveCapacity } from "./resolveEffectiveCapacity";
 import { getDefaultIssueWindow, getWorkspaceThresholdsAsync, type CapacityThresholds } from "./thresholds";
-import { getPersonCapacityStatus, type PersonCapacityMeta, type TeamCapacityRollup } from "./status";
+import { type PersonCapacityMeta, type TeamCapacityRollup } from "./status";
 
 // ============================================================================
 // Types

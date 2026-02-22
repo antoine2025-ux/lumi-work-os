@@ -1,11 +1,11 @@
 "use client";
 
-import { X, Check } from "lucide-react";
+import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ActiveFiltersChips } from "./ActiveFiltersChips";
-import type { PeopleFilters, QuickChip } from "./people-filters";
+import type { PeopleFilters } from "./people-filters";
 import type { StructureTeam, StructureDepartment, StructureRole } from "@/types/org";
 
 type PeopleFiltersDrawerProps = {
@@ -63,7 +63,7 @@ export function PeopleFiltersDrawer({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         className="max-w-md bg-slate-900 border-white/10 text-slate-100"
-        onInteractOutside={(e) => {
+        onInteractOutside={(_e) => {
           // Allow closing on outside click
         }}
       >

@@ -143,11 +143,8 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       }
     }
 
-    let isFirstTime = false
-
     if (!workspaceMembership) {
       // First-time user - they need to create a workspace
-      isFirstTime = true
       return {
         id: user.id,
         email: user.email,

@@ -29,7 +29,6 @@ export async function POST(
     const { 
       projectId,
       taskCount = 1,
-      customizations = {}
     } = body
 
     if (!projectId) {

@@ -125,7 +125,7 @@ export function TaskTemplatePreview({ template, onBack, onApply, projectId }: Ta
     return category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   }
 
-  const getTaskDependencies = (taskId: string) => {
+  const _getTaskDependencies = (taskId: string) => {
     return template.tasks.filter(task => task.dependencies.includes(taskId))
   }
 

@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Building, X } from 'lucide-react'
+import { Building } from 'lucide-react'
 
 interface RoleCardFormData {
   roleName: string

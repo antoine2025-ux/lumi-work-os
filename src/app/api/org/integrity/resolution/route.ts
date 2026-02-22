@@ -63,18 +63,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Step 5: Determine resolvedAt based on resolution
-    // On RESOLVED: set resolvedAt = now()
-    // On PENDING (reopen): clear resolvedAt
-    // On ACKNOWLEDGED/FALSE_POSITIVE: keep existing or set now()
-    let resolvedAt: Date | null = null;
-    if (body.resolution === "RESOLVED") {
-      resolvedAt = new Date();
-    } else if (body.resolution === "PENDING") {
-      resolvedAt = null; // Clear on reopen
-    }
-    // For ACKNOWLEDGED and FALSE_POSITIVE, we'll use upsert logic below
-
     // Step 6: Build issueKey for reconciliation (PRIMARY IDENTIFIER)
     // Format: `${issueType}:${entityType}:${entityId}`
     const entityTypeUpper = body.entityType.toUpperCase();
@@ -130,7 +118,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     // Fetch resolver name for response
-    const resolver = await prisma.user.findUnique({
+    const _resolver = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, name: true },
     });

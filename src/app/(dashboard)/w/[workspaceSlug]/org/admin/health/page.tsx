@@ -12,7 +12,7 @@ type PageProps = {
 };
 
 export default async function AdminHealthIssuesPage({ params }: PageProps) {
-  const { workspaceSlug } = await params;
+  const { workspaceSlug: _workspaceSlug } = await params;
 
   return (
     <>

@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (!adminPosition) {
-        const created = await createOrgPerson({
+        const _created = await createOrgPerson({
           userId: auth.user!.userId,
           fullName: adminName,
           email: auth.user!.email || null,

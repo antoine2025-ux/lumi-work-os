@@ -136,7 +136,6 @@ function deriveMetrics(people: OrgPerson[]): PeopleMetrics {
  */
 export function PeopleInsightsPanel({
   people,
-  filters,
   onFiltersChange,
   onScrollToTop,
 }: PeopleInsightsPanelProps) {

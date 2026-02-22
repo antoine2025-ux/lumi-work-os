@@ -1,6 +1,6 @@
 import { getOrgContext } from "@/server/rbac"
 import { NextRequest } from "next/server"
-import type { OrgId, WorkspaceId } from "@/lib/org/types"
+import type { WorkspaceId } from "@/lib/org/types"
 
 /**
  * Require an active org ID from the request context.

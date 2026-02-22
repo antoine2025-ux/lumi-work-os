@@ -25,7 +25,6 @@ export interface DepartmentOrgRowProps {
  * At-a-glance navigation map showing ownership, size, and hierarchy
  */
 export function DepartmentOrgRow({
-  id,
   name,
   teamsCount,
   peopleCount,
@@ -33,7 +32,6 @@ export function DepartmentOrgRow({
   leadInitials,
   parentName,
   hrefStructure,
-  hrefPeople,
   accentIndex = 0,
 }: DepartmentOrgRowProps) {
   const accent = getDepartmentAccent(accentIndex);

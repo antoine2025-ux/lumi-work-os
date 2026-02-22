@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import { ProfileHero } from "./ProfileHero"
 import { ContextStrip } from "./ContextStrip"
 import { WorkCapabilities } from "./WorkCapabilities"

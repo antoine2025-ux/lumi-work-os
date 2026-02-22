@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, memo, useMemo, useCallback, startTransition, useEffect } from "react";
+import { useState, memo, useCallback, startTransition, useEffect } from "react";
 import { parseApiError } from "@/lib/api-error";
 import { logOrgClientError } from "@/lib/org/observability.client";
 

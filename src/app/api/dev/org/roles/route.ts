@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   let workspaceId: string | null = null;
   try {
     workspaceId = await getCurrentWorkspaceId(req);
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: "Workspace not found for Org roles debug." },
       { status: 400 }

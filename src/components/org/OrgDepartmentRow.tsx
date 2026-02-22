@@ -8,21 +8,6 @@ import { getDepartmentAccent } from "@/components/org/structure/accent-colors";
  * Standardized Pill component for displaying counts
  * Used consistently across Org chart and other views
  */
-function Pill({ label }: { label: string }) {
-  return (
-    <div
-      className={cn(
-        "inline-flex items-center",
-        "rounded-full border border-white/10",
-        "bg-white/5",
-        "px-3 py-1",
-        "text-[11px] md:text-xs text-white/75"
-      )}
-    >
-      {label}
-    </div>
-  );
-}
 
 export type OrgDepartmentRowProps = {
   id: string;

@@ -9,9 +9,7 @@ import { useRecentPages } from "@/hooks/use-wiki-pages"
 import { useProjects } from "@/hooks/use-projects"
 import { useDrafts } from "@/hooks/use-drafts"
 import { 
-  Clock, 
   FileText, 
-  Folder, 
   Target,
   Plus,
   Globe,
@@ -27,26 +25,6 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 
-interface RecentPage {
-  id: string
-  title: string
-  slug: string
-  updatedAt: string
-  author: string
-  permissionLevel?: string
-  workspace_type?: string
-}
-
-interface Project {
-  id: string
-  name: string
-  description?: string
-  status: string
-  color?: string
-  updatedAt?: string
-  createdAt?: string
-}
-
 interface WikiWorkspace {
   id: string
   name: string
@@ -56,15 +34,6 @@ interface WikiWorkspace {
   pageCount?: number
   lastUpdated?: string
   memberCount?: number
-}
-
-interface Draft {
-  id: string
-  title: string
-  type: 'page' | 'session'
-  updatedAt: string
-  url?: string
-  excerpt?: string
 }
 
 interface AISuggestion {

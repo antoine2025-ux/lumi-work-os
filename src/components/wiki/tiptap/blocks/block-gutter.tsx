@@ -48,7 +48,7 @@ interface BlockGutterProps {
   onInsertBlock: (position: { top: number; left: number }) => void
 }
 
-export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
+export function BlockGutter({ editor, onInsertBlock: _onInsertBlock }: BlockGutterProps) {
   // PHASE 1: Canary to prove component mounts
   if (CANARY_MODE) {
     return createPortal(
@@ -206,7 +206,7 @@ export function BlockGutter({ editor, onInsertBlock }: BlockGutterProps) {
             return mouseBlock.from
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Silently ignore errors from posAtCoords (e.g., outside editor bounds)
       }
     }

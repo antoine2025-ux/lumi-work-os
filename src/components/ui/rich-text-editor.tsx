@@ -26,13 +26,13 @@ export function RichTextEditor({
   value, 
   onChange, 
   placeholder, 
-  rows = 8, 
+  rows: _rows = 8,
   className = "",
-  required = false 
+  required: _required = false
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const [showToolbar, setShowToolbar] = useState(false)
-  const [selectedText, setSelectedText] = useState('')
+  const [_selectedText, setSelectedText] = useState('')
   const [isComposing, setIsComposing] = useState(false)
 
   const handleInput = () => {
@@ -85,7 +85,7 @@ export function RichTextEditor({
         range.surroundContents(blockquote)
         handleInput()
         setShowToolbar(false)
-      } catch (e) {
+      } catch (_e) {
         // If surroundContents fails, insert as HTML
         const content = selection.toString()
         if (content) {

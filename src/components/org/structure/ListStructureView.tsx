@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Building, Users, ChevronDown, ArrowRight } from "lucide-react";
+import { Building, ChevronDown, ArrowRight } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { StructureDepartment, StructureTeam } from "@/types/org";
 import { getInitials } from "./utils";

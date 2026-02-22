@@ -16,7 +16,7 @@ type PeopleContentProps = {
 async function PeopleDataLoader({ context }: PeopleContentProps) {
   const startTime = process.env.NODE_ENV !== "production" ? Date.now() : 0;
   
-  const result = await getOrgPeople(context.orgId, context.userId, { page: 1, limit: 50 }).catch((error) => {
+  const _result = await getOrgPeople(context.orgId, context.userId, { page: 1, limit: 50 }).catch((error) => {
     console.error("[PeoplePage] Failed to load people:", error);
     return {
       items: [],

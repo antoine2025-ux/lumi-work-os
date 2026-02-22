@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useMemo } from "react";
-import { OrgApi, type OrgIntelligenceRollups, type OrgRecommendation, type OrgIntelligenceFilterPrefs, type OrgIntelligenceFinding, type SnapshotFreshness } from "@/components/org/api";
+import { OrgApi, type OrgIntelligenceRollups, type OrgIntelligenceFilterPrefs, type OrgIntelligenceFinding } from "@/components/org/api";
 import { useOrgQuery } from "@/components/org/useOrgQuery";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -125,7 +125,6 @@ export function IntelligencePageClient() {
   const rollups: OrgIntelligenceRollups = rawRollups?.totals 
     ? rawRollups 
     : computeRollupsFromFindings(findings);
-  const settings = settingsQ.data?.settings;
 
   // Apply filters to findings - MUST be called before early returns
   const filteredFindings = useMemo(() => {

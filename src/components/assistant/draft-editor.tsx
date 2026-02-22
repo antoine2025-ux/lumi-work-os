@@ -11,7 +11,6 @@ import {
   X, 
   Eye, 
   Edit,
-  CheckCircle
 } from "lucide-react"
 
 interface DraftEditorProps {

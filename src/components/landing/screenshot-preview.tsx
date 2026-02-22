@@ -2,8 +2,7 @@
 
 import Image from "next/image"
 import { useState } from "react"
-import { ZoomIn, ZoomOut, X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { ZoomIn, X } from "lucide-react"
 
 interface ScreenshotPreviewProps {
   src: string

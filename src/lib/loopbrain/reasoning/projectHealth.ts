@@ -18,7 +18,6 @@ import type {
   EpicProgressV0,
   MilestoneProgressV0,
   ProjectRiskV0,
-  ProjectRiskTypeV0,
   RiskSeverityV0,
   ResourceHealthV0,
   MemberAllocationV0,
@@ -49,9 +48,6 @@ interface BuildOptions {
 const DEFAULT_VELOCITY_WEEKS = 4;
 const BLOCKED_TASK_RISK_THRESHOLD = 0.1; // 10% blocked = risk
 const UNASSIGNED_TASK_RISK_THRESHOLD = 0.2; // 20% unassigned = risk
-const VELOCITY_DECLINE_THRESHOLD = -0.2; // 20% decline = risk
-const DAYS_BLOCKED_HIGH_SEVERITY = 3;
-const DAYS_BLOCKED_CRITICAL_SEVERITY = 7;
 
 // =============================================================================
 // Main Builder Function

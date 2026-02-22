@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { AssignTaskToEpicSchema, AssignTaskToMilestoneSchema, UpdateTaskPointsSchema } from '@/lib/pm/schemas'
+import { AssignTaskToEpicSchema } from '@/lib/pm/schemas'
 import { assertProjectWriteAccess } from '@/lib/pm/guards'
 import { logTaskHistory } from '@/lib/pm/history'
 import { emitProjectEvent } from '@/lib/pm/events'

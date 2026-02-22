@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, User, Calendar, Tag, X, Settings, MessageSquare, History, Plus, AlertCircle } from "lucide-react"
+import { Loader2, User, Calendar, Tag, X, Settings, MessageSquare, History, Plus } from "lucide-react"
 import { TaskComments } from "./task-comments"
 
 interface User {
@@ -450,7 +450,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
               errorMessage = errorText || errorMessage
             }
           }
-        } catch (e) {
+        } catch (_e) {
           // If we can't read the response, use status text
           errorMessage = response.statusText || errorMessage
         }

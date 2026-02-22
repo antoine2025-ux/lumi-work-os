@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import type { PeopleFilters } from "./people-filters";
 import { hasAnyPeopleFilter } from "./people-filters";
 

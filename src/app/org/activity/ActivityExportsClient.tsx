@@ -43,9 +43,9 @@ type ActivityExportsClientProps = {
 
 export function ActivityExportsClient({
   orgId,
-  initialAdminActivity,
+  initialAdminActivity: _initialAdminActivity,
   initialOrgActivity,
-  role,
+  role: _role,
 }: ActivityExportsClientProps) {
   const [activeTab, setActiveTab] = useState<string>("activity");
 

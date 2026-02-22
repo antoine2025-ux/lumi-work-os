@@ -70,7 +70,7 @@ const TooltipTrigger = React.forwardRef<
 })
 TooltipTrigger.displayName = "TooltipTrigger"
 
-const TooltipContent = ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
+const TooltipContent = ({ children }: React.HTMLAttributes<HTMLDivElement>) => {
   return <>{children}</>
 }
 

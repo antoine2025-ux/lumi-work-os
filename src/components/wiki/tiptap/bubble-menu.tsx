@@ -14,10 +14,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useEffect } from 'react'
@@ -94,7 +90,7 @@ export function BubbleMenu({ editor, onEscape }: BubbleMenuProps) {
     <TipTapBubbleMenu
       editor={editor}
       className="flex items-center gap-1 rounded-md border bg-popover p-1 shadow-md"
-      shouldShow={({ editor, view, state, oldState, from, to }) => {
+      shouldShow={({ editor, view: _view, state: _state, oldState: _oldState, from, to }) => {
         // Only show when there's a text selection (not collapsed)
         return from !== to && !editor.isActive('table')
       }}

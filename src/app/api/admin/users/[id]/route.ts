@@ -69,7 +69,7 @@ export async function PUT(
       role,
       department,
       positionId,
-      isActive = true,
+      isActive: _isActive = true,
       createOrgPosition = false,
       orgPositionTitle,
       orgPositionLevel = 3,
@@ -124,7 +124,7 @@ export async function PUT(
     // Handle org position assignment
     if (createOrgPosition && orgPositionTitle && workspaceId) {
       // Find positions that will be updated (for syncing)
-      const positionsToRemoveFrom = await prisma.orgPosition.findMany({
+      const _positionsToRemoveFrom = await prisma.orgPosition.findMany({
         where: {
           workspaceId,
           userId: params.id
@@ -141,7 +141,7 @@ export async function PUT(
       })
 
       // Create new org position
-      const newPosition = await prisma.orgPosition.create({
+      const _newPosition = await prisma.orgPosition.create({
         data: {
           workspaceId,
           title: orgPositionTitle,
@@ -160,7 +160,7 @@ export async function PUT(
       }
     } else if (positionId && positionId !== 'none' && workspaceId) {
       // Find positions that will be updated (for syncing)
-      const positionsToRemoveFrom = await prisma.orgPosition.findMany({
+      const _positionsToRemoveFrom = await prisma.orgPosition.findMany({
         where: {
           workspaceId,
           userId: params.id
@@ -203,7 +203,7 @@ export async function PUT(
 
       // Emit events for position and person updates
       const { emitEvent } = await import("@/lib/events/emit");
-      const { ORG_EVENTS, OrgPositionUpdatedEvent, OrgPersonUpdatedEvent } = await import("@/lib/events/orgEvents");
+      const { ORG_EVENTS, OrgPositionUpdatedEvent: _OrgPositionUpdatedEvent, OrgPersonUpdatedEvent: _OrgPersonUpdatedEvent } = await import("@/lib/events/orgEvents");
 
       await emitEvent<OrgPositionUpdatedEvent>(ORG_EVENTS.POSITION_UPDATED, {
         workspaceId,
@@ -276,7 +276,7 @@ export async function PUT(
 
       // Emit events for each position update
       const { emitEvent } = await import("@/lib/events/emit");
-      const { ORG_EVENTS, OrgPositionUpdatedEvent, OrgPersonUpdatedEvent } = await import("@/lib/events/orgEvents");
+      const { ORG_EVENTS, OrgPositionUpdatedEvent: _OrgPositionUpdatedEvent, OrgPersonUpdatedEvent: _OrgPersonUpdatedEvent } = await import("@/lib/events/orgEvents");
 
       for (const pos of positionsToUpdate) {
         await emitEvent<OrgPositionUpdatedEvent>(ORG_EVENTS.POSITION_UPDATED, {

@@ -1,10 +1,10 @@
 "use client";
 
 import { memo, useCallback, useState } from "react";
-import { ChevronRight, Users, Check, Plus, UserPlus, Network, AlertTriangle, UserCheck } from "lucide-react";
+import { Check, Plus, Network } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { surfaceCardClass, surfaceCardHoverClass, chipBaseClass, chipInactiveClass, focusRingClass } from "./people-styles";
+import { surfaceCardClass, focusRingClass } from "./people-styles";
 import { AvailabilityPill } from "@/components/org/AvailabilityPill";
 import type { OrgPerson } from "@/types/org";
 
@@ -37,18 +37,6 @@ function getInitials(name: string | null): string {
   return "U";
 }
 
-function getChipStyle(variant?: string) {
-  switch (variant) {
-    case "new":
-      return "bg-green-500/20 text-green-400 border-green-500/30";
-    case "manager":
-      return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-    case "unassigned":
-      return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-    default:
-      return chipInactiveClass;
-  }
-}
 
 /**
  * Premium person card component
@@ -62,8 +50,8 @@ export const PeopleCard = memo(function PeopleCard({
   managerName,
   managerId,
   onManagerClick,
-  directReportsCount,
-  statusChips = [], // Not used anymore, but keeping for backward compatibility
+  directReportsCount: _directReportsCount,
+  statusChips: _statusChips = [], // Not used anymore, but keeping for backward compatibility
   isSelected = false,
   onToggleSelection,
 }: PeopleCardProps) {
@@ -92,7 +80,7 @@ export const PeopleCard = memo(function PeopleCard({
     [person, onOpenPerson]
   );
 
-  const handleTeamClick = useCallback(
+  const _handleTeamClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
       if (person.teamId && onTeamClick) {
@@ -102,7 +90,7 @@ export const PeopleCard = memo(function PeopleCard({
     [person.teamId, onTeamClick]
   );
 
-  const handleDepartmentClick = useCallback(
+  const _handleDepartmentClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
       if (person.departmentId && onDepartmentClick) {

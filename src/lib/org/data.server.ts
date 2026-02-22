@@ -24,7 +24,6 @@ import type { OrgInsightsSnapshot } from "@/lib/org/insights";
 import { withTTLCache, cacheKeys } from "./cache.server";
 import { logQueryDuration } from "./query-performance";
 import { timeOrgLoader } from "./observability.server";
-import { perf } from "@/server/org/perf/log";
 
 export type { OrgInsightsSnapshot };
 
@@ -766,8 +765,99 @@ export const getOrgChartData = cache(async (orgId: string): Promise<{
 });
 
 /**
+ * Resolve the direct manager for a person by traversing OrgPosition.parentId.
+ *
+ * @param personUserId - The user ID of the person (OrgPerson.id)
+ * @param workspaceId  - The workspace scope
+ */
+export async function getManagerForPerson(
+  personUserId: string,
+  workspaceId: string
+): Promise<{
+  id: string;
+  name: string | null;
+  email: string;
+  role: string | null;
+} | null> {
+  const position = await prisma.orgPosition.findFirst({
+    where: { userId: personUserId, workspaceId, isActive: true },
+    select: {
+      parent: {
+        select: {
+          title: true,
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      },
+    },
+  });
+
+  const manager = position?.parent;
+  if (!manager?.user) return null;
+
+  return {
+    id: manager.user.id,
+    name: manager.user.name,
+    email: manager.user.email,
+    role: manager.title ?? null,
+  };
+}
+
+/**
+ * Resolve direct reports for a person by finding positions whose parentId
+ * points to this person's OrgPosition.
+ *
+ * @param personUserId - The user ID of the person (OrgPerson.id)
+ * @param workspaceId  - The workspace scope
+ */
+export async function getDirectReports(
+  personUserId: string,
+  workspaceId: string
+): Promise<
+  Array<{
+    id: string;
+    name: string | null;
+    email: string;
+    role: string | null;
+  }>
+> {
+  // Find the person's active position ID first
+  const position = await prisma.orgPosition.findFirst({
+    where: { userId: personUserId, workspaceId, isActive: true },
+    select: { id: true },
+  });
+
+  if (!position) return [];
+
+  const reports = await prisma.orgPosition.findMany({
+    where: {
+      parentId: position.id,
+      workspaceId,
+      isActive: true,
+      userId: { not: null },
+    },
+    select: {
+      title: true,
+      user: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+  });
+
+  return reports
+    .filter((r) => r.user !== null)
+    .map((r) => ({
+      id: r.user!.id,
+      name: r.user!.name,
+      email: r.user!.email,
+      role: r.title ?? null,
+    }));
+}
+
+/**
  * Load admin activity items for an org.
- * 
+ *
  * PERFORMANCE: Cached per-request to avoid duplicate queries.
  */
 export const getOrgAdminActivity = cache(async (

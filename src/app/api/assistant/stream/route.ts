@@ -13,7 +13,7 @@ function getOpenAIClient(): OpenAI | null {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await getUnifiedAuth(request)
+    const _auth = await getUnifiedAuth(request)
     
     const { message, sessionId } = await request.json()
 

@@ -4,7 +4,6 @@ import { OrgCapabilityGate } from "@/components/org/OrgCapabilityGate";
 import { useOrgPermissions } from "@/components/org/OrgPermissionsContext";
 import { MembersListClient } from "@/components/org/members/MembersListClient";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
-import { useCurrentOrg } from "@/hooks/useCurrentOrg";
 
 type MembersSectionProps = {
   orgId?: string;

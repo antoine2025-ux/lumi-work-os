@@ -1,4 +1,4 @@
-import { describe, it, expect, test } from "vitest";
+import { expect, test } from "vitest";
 import { deriveIssues } from "../deriveIssues";
 
 test("detects missing fields deterministically", () => {

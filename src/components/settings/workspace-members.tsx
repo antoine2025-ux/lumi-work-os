@@ -16,11 +16,10 @@ import {
   Copy, 
   Trash2, 
   Loader2,
-  AlertTriangle,
   CheckCircle
 } from "lucide-react"
 // Simple toast implementation - replace with actual toast hook if available
-const useToast = () => {
+const _useToast = () => {
   return {
     toast: (options: { title: string; description?: string; variant?: 'default' | 'destructive' }) => {
       // Simple alert for now - replace with actual toast implementation

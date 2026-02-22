@@ -4,35 +4,12 @@
  * Identifies people with UNKNOWN or STALE availability as structural gaps.
  */
 
-import { prisma } from "@/lib/db";
 import type { OrgIntelligenceFinding } from "./types";
-import { getOrCreateIntelligenceSettings } from "@/server/org/intelligence/settings";
-import { isAvailabilityStale } from "@/server/org/availability/stale";
-
 /**
  * Compute availability gap findings.
  * Returns findings for people with UNKNOWN or STALE availability.
  */
 export async function computeAvailabilityGaps(): Promise<OrgIntelligenceFinding[]> {
-  const settings = await getOrCreateIntelligenceSettings();
-
-  // Get people from OrgPosition with user relation
-  const positions = await prisma.orgPosition.findMany({
-    where: { 
-      isActive: true,
-      userId: { not: null }
-    },
-    select: {
-      id: true,
-      userId: true,
-      user: {
-        select: {
-          id: true,
-          name: true,
-        }
-      }
-    },
-  });
 
   const findings: OrgIntelligenceFinding[] = [];
 

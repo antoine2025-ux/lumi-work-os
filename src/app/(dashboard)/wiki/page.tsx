@@ -3,37 +3,18 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { 
-  BookOpen, 
   Plus, 
-  Search, 
-  Sparkles,
   Clock,
-  User,
-  Tag,
   FileText,
-  Folder,
   Star,
   Loader2,
-  ChevronRight,
-  MoreHorizontal,
-  Edit3,
-  Trash2,
-  Eye,
-  Share2,
   Users,
   MessageSquare,
   ArrowRight,
   Circle,
-  Lightbulb,
-  Brain,
-  Archive,
-  Grid3X3,
-  Upload,
   Bell
 } from "lucide-react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 interface WikiWorkspaceData {
@@ -48,7 +29,7 @@ interface WikiWorkspaceData {
 export default function WikiPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
-  const [workspaceData, setWorkspaceData] = useState<WikiWorkspaceData[] | null>(null)
+  const [_workspaceData, setWorkspaceData] = useState<WikiWorkspaceData[] | null>(null)
 
   useEffect(() => {
     const loadWorkspaceData = async () => {

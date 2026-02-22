@@ -39,7 +39,6 @@ export function PositionInviteDialog({
   onSuccess,
   positionId,
   positionTitle,
-  workspaceId,
   userRole = 'MEMBER'
 }: PositionInviteDialogProps) {
   const [email, setEmail] = useState("")

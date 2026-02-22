@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, User, Calendar, Palette, X } from "lucide-react"
+import { Loader2, User, Calendar, X } from "lucide-react"
 import { getProjectSlackHints, setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
 
 interface User {

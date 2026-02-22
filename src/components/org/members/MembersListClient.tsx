@@ -57,7 +57,6 @@ export function MembersListClient({ members, customRoles, currentUserId }: Props
       <ul className="space-y-2">
         {members.map((member) => {
           const isSelf = member.userId === currentUserId;
-          const label =
             member.user?.name ||
             member.user?.email ||
             "This member";

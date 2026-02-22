@@ -23,8 +23,8 @@ type PeopleCardsGridProps = {
  * Note: Status chips are no longer displayed, but kept for backward compatibility
  */
 function deriveStatusChips(
-  person: OrgPerson,
-  directReportsCount?: number
+  _person: OrgPerson,
+  _directReportsCount?: number
 ): Array<{ label: string; variant?: "new" | "manager" | "unassigned"; tooltip?: string }> {
   // Return empty array - we no longer show status chips per requirements
   return [];
@@ -35,8 +35,8 @@ function deriveStatusChips(
  * TODO: When managerId is available, use that instead
  */
 function derivePersonMetadata(
-  person: OrgPerson,
-  people: OrgPerson[]
+  _person: OrgPerson,
+  _people: OrgPerson[]
 ): {
   managerName?: string;
   managerId?: string;

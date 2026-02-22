@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -11,21 +11,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { 
-  CheckSquare, 
   Calendar,
   User,
   MessageSquare,
   MoreHorizontal,
   Plus,
-  Filter,
   Search,
-  ChevronDown,
   Edit,
   Maximize2,
   Minimize2,
   Link as LinkIcon
 } from "lucide-react"
-import Link from "next/link"
 import { TaskEditDialog } from "./task-edit-dialog"
 import { DependencyManager } from "./dependency-manager"
 import { CreateTaskDialog } from "./create-task-dialog"
@@ -198,7 +194,7 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
     setIsEditDialogOpen(false)
   }
 
-  const getStatusOption = (status: string) => {
+  const _getStatusOption = (status: string) => {
     return statusOptions.find(option => option.value === status) || statusOptions[0]
   }
 
@@ -522,7 +518,7 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
         open={isCreateTaskOpen}
         onOpenChange={setIsCreateTaskOpen}
         projectId={projectId}
-        onTaskCreated={(task) => {
+        onTaskCreated={(_task) => {
           // Reload tasks to show the new task
           loadTasks()
         }}

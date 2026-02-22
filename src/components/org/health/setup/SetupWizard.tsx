@@ -312,7 +312,6 @@ function QuickAssignOwnerModal(props: {
                     }),
                   })
                   if (!res.ok) throw new Error("failed")
-                  const data = await res.json()
                   // Optimistic update: show success toast with scoped response info
                   props.onToast({
                     title: "Ownership assigned",

@@ -17,8 +17,6 @@ import {
   Star,
   Edit,
   MoreHorizontal,
-  Building,
-  Calendar,
   Award
 } from "lucide-react"
 import {

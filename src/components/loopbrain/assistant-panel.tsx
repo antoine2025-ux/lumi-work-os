@@ -14,7 +14,6 @@ import {
   Move,
   Sidebar,
   Lightbulb,
-  Languages,
   Search,
   CheckSquare,
   ThumbsUp,
@@ -32,7 +31,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { callLoopbrainAssistant } from "@/lib/loopbrain/client"
 import { useLoopbrainAssistant } from "./assistant-context"
-import type { LoopbrainResponse, LoopbrainSuggestion, LoopbrainMode } from "@/lib/loopbrain/orchestrator-types"
+import type { LoopbrainResponse, LoopbrainMode } from "@/lib/loopbrain/orchestrator-types"
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from "@/lib/loopbrain/agent/types"
 import { PlanConfirmation } from "./plan-confirmation"
 import { ClarifyingQuestions } from "./clarifying-questions"
@@ -81,7 +80,7 @@ export function LoopbrainAssistantPanel({
   onDisplayModeChange
 }: LoopbrainAssistantPanelProps) {
   // Use context for persistent state
-  const { state, setIsOpen, setIsMinimized, setMessages, addMessage, clearMessages, pendingQuery, setPendingQuery } = useLoopbrainAssistant()
+  const { state, setIsOpen, setIsMinimized, addMessage, clearMessages, pendingQuery, setPendingQuery } = useLoopbrainAssistant()
 
   // Use controlled open if provided, otherwise use internal state
   const [internalOpen, setInternalOpen] = useState(defaultOpen)

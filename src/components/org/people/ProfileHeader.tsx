@@ -1,10 +1,9 @@
 "use client";
 
-import { X, ExternalLink } from "lucide-react";
+import { X } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { chipInactiveClass, chipActiveClass, focusRingClass } from "./people-styles";
-import Link from "next/link";
 import type { OrgPerson } from "@/types/org";
 
 type ProfileHeaderProps = {
@@ -30,7 +29,7 @@ export function ProfileHeader({
   onClose,
   onTeamClick,
   onDepartmentClick,
-  orgId,
+  orgId: _orgId,
 }: ProfileHeaderProps) {
   const initials = getInitials(person.name);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Copy, Mail, MapPin, Calendar, Briefcase, Building2, Users, UserCheck } from "lucide-react";
+import { Copy, Mail, MapPin, Calendar, Briefcase, Building2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { mutedLabelClass } from "./people-styles";

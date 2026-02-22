@@ -4,7 +4,6 @@ import { ProjectCreateSchema } from '@/lib/pm/schemas'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
@@ -13,7 +12,6 @@ import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
 import {
   createProjectAllocation,
-  canTakeOnWork,
 } from '@/lib/org/capacity/project-capacity'
 // Phase 5: Org sync event - no-op for now (pm/events is Socket.IO only)
 
@@ -51,7 +49,7 @@ export async function GET(request: NextRequest) {
         requireRole: ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] 
       })
     } catch (accessError: any) {
-      const accessDurationMs = performance.now() - accessStart
+      const _accessDurationMs = performance.now() - accessStart
       console.error('[PROJECTS API] Access check failed:', {
         userId: auth.user.userId,
         workspaceId: auth.workspaceId,
@@ -61,7 +59,7 @@ export async function GET(request: NextRequest) {
       
       // Check workspace membership directly for debugging
       // Exclude employmentStatus field that may not exist in database yet
-      const workspaceMember = await prisma.workspaceMember.findUnique({
+      const _workspaceMember = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
             workspaceId: auth.workspaceId,
@@ -299,8 +297,6 @@ export async function POST(request: NextRequest) {
       description, 
       status = 'ACTIVE',
       priority = 'MEDIUM',
-      startDate,
-      endDate,
       color,
       department,
       team,
@@ -309,8 +305,6 @@ export async function POST(request: NextRequest) {
       assigneeIds = [],
       wikiPageId,
       dailySummaryEnabled = false,
-      visibility,
-      memberUserIds = []
     } = validatedData
 
     // Extract watcher IDs from the request body

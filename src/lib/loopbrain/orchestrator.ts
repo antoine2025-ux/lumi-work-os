@@ -14,7 +14,7 @@
  * - Explicit prompts with clear sections
  */
 
-import { contextEngine, getWorkspaceContextObjects, getPersonalSpaceDocs, getOrgPeopleContext, getProjectContextObject, getEpicContextObject, getProjectEpicsContext, getProjectTasksContext } from './context-engine'
+import { contextEngine, getWorkspaceContextObjects, getPersonalSpaceDocs, getOrgPeopleContext, getProjectContextObject, getEpicContextObject, getProjectEpicsContext } from './context-engine'
 import { fetchOrgContextSliceForWorkspace } from './org-context-reader'
 import { getOrgContextForLoopbrain } from './orgContextForLoopbrain'
 import { buildOrgPromptContext, buildOrgContextText, type OrgPromptContext } from './orgPromptContextBuilder'
@@ -29,10 +29,6 @@ import {
 import { ORG_GUARDRAILS, ORG_OUTPUT_FORMAT_RULES } from './promptBlocks/orgGuardrails'
 import { validateOrgResponse } from './postProcessors/orgValidator'
 import {
-  expandPersonContext,
-  expandTeamContext,
-  expandDepartmentContext,
-  expandHealthAnalysisContext,
   expandOrgBundleByType,
 } from './org-bundle-expander'
 import type { ContextObject } from './contextTypes'
@@ -52,7 +48,6 @@ import {
   LoopbrainMode,
   LoopbrainContextSummary,
   LoopbrainSuggestion,
-  RetrievedItem
 } from './orchestrator-types'
 import { ContextType } from './context-types'
 import { isSlackAvailable, loopbrainSendSlackMessage, loopbrainReadSlackChannel } from './slack-helper'
@@ -77,7 +72,7 @@ import { detectIntentFromKeywords, classifyMessageIntent, type LoopbrainIntent }
 import { toolRegistry } from './agent/tool-registry'
 import { generatePlan, formatPlanForUser, formatClarifyForUser, formatAdvisoryForUser } from './agent/planner'
 import { executeAgentPlan } from './agent/executor'
-import type { AgentPlan, AgentContext, MessageIntent, PlannerResult } from './agent/types'
+import type { AgentPlan, AgentContext, MessageIntent } from './agent/types'
 import { buildPlannerContext, formatContextForPrompt } from './agent/context-builder'
 import { getUserTaskContext } from './context/getUserTaskContext'
 import { isGoalQuestion, handleGoalQuery } from './goals/goal-queries'
@@ -812,7 +807,7 @@ async function handleOrgMode(
           workspaceId: req.workspaceId,
           nodeCount: Object.keys(orgBundle.byId).length
         })
-      } catch (fallbackError) {
+      } catch (_fallbackError) {
         // Both methods failed
         orgGraphContextSection = null
         hasOrgContext = false
@@ -1146,13 +1141,13 @@ async function loadSpacesContextForRequest(
     // Merge project slackChannelHints into request (if project has them)
     // This allows projects to specify channels that Loopbrain should check
     try {
-      const project = await prisma.project.findUnique({
+      const _project = await prisma.project.findUnique({
         where: { id: req.projectId, workspaceId: req.workspaceId },
         select: { id: true } // We don't persist slackChannelHints, but check if project exists
       })
       // Note: slackChannelHints come from request body (not persisted in DB)
       // They should already be in req.slackChannelHints from the API route
-    } catch (err) {
+    } catch (_err) {
       // Ignore errors - project might not exist or slackChannelHints not available
     }
     
@@ -1988,7 +1983,7 @@ The system will automatically execute [SLACK_SEND:...] and [SLACK_READ:...] comm
  * 
  * @deprecated Use detectOrgQuestionType from ./orgQuestionType instead
  */
-function detectOrgQuestionType(
+function _detectOrgQuestionType(
   query: string
 ): "headcount" | "reporting" | "risk" | "generic" {
   const q = query.toLowerCase();
@@ -2694,7 +2689,7 @@ function filterTaskContextObjects(
  * Infer blocked and at-risk projects from ContextObjects
  * Uses simple, explainable rules based on task status, tags, and due dates
  */
-function inferBlockedOrAtRiskProjects(
+function _inferBlockedOrAtRiskProjects(
   structuredContext: UnifiedContextObject[] | undefined
 ): {
   blocked: UnifiedContextObject[]
@@ -3334,7 +3329,7 @@ async function handleSlackActions(
   req: LoopbrainRequest,
   llmResponse: string,
   slackAvailable: boolean,
-  contextSummary?: LoopbrainContextSummary
+  _contextSummary?: LoopbrainContextSummary
 ): Promise<string> {
   if (!slackAvailable) return llmResponse
 
@@ -3438,8 +3433,6 @@ Provide a clear, concise summary:`
   const slackSendPattern = /\[SLACK_SEND:channel=([^:]+):text=([^\]]+)\]/gi
   const matches = Array.from(updatedResponse.matchAll(slackSendPattern))
 
-  let sentCount = 0
-
   for (const match of matches) {
     let channel = match[1].trim()
     let text = match[2].trim()
@@ -3478,7 +3471,6 @@ Provide a clear, concise summary:`
         slackErrorMessage = userFriendlyError
       } else {
         logger.info('Loopbrain Slack message sent successfully', { workspaceId: req.workspaceId, channel, ts: result.ts })
-        sentCount++
         // Replace command with success message
         updatedResponse = updatedResponse.replace(match[0], `\n✅ Message sent to ${channel}`)
       }
@@ -3515,7 +3507,7 @@ Provide a clear, concise summary:`
  * Fallback detection: Try to extract Slack intent from LLM response and original query
  * This handles cases where the LLM didn't use the exact [SLACK_SEND:...] format
  */
-async function detectAndSendSlackFromResponse(
+async function _detectAndSendSlackFromResponse(
   req: LoopbrainRequest,
   llmResponse: string
 ): Promise<{ sent: boolean; message?: string }> {

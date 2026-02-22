@@ -26,12 +26,8 @@ import {
   Search, 
   Link as LinkIcon, 
   ExternalLink,
-  X,
   Check,
-  Edit,
-  Maximize2
 } from "lucide-react"
-import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 
 interface WikiPage {
@@ -58,7 +54,7 @@ interface InlineWikiViewerProps {
 export function InlineWikiViewer({ 
   currentWikiPageId, 
   onWikiPageSelect, 
-  isLoading = false,
+  isLoading: _isLoading = false,
   workspaceId
 }: InlineWikiViewerProps) {
   const { currentWorkspace } = useWorkspace()

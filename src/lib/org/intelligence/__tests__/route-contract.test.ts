@@ -14,9 +14,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { loadIntelligenceData } from "../queries";
 import { resolveOwnershipSignals } from "../resolvers/ownership";
-import { getOrgIntelligenceSnapshot } from "../index";
 import type { IntelligenceData } from "../queries";
 import type { OrgOwnershipDTO } from "@/server/org/dto";
 

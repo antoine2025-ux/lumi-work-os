@@ -15,7 +15,6 @@ import {
   Award, 
   BarChart3,
   Users,
-  DollarSign,
   Plus,
   X,
   CheckCircle,
@@ -57,7 +56,6 @@ export function RoleForm({
   onSave, 
   role,
   existingRoles,
-  workspaceId 
 }: RoleFormProps) {
   const [formData, setFormData] = useState({
     title: '',

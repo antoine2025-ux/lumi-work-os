@@ -14,9 +14,9 @@
  * Confidence is always explained (not just numbers).
  */
 
-import { getAvailabilityEvents, computeMinAvailabilityInWindow, type AvailabilityEvent, type AvailabilityExplanation } from "@/lib/org/availability";
-import { getCapacityContracts, resolveContractForWindow, getContractedHoursForWindow, DEFAULT_WEEKLY_CAPACITY_HOURS, type CapacityContract, type ContractResolution } from "@/lib/org/capacity";
-import { getWorkAllocations, computeTotalAllocatedHoursForWindow, computeAllocationSummaryForWindow, type WorkAllocation, type AllocationSummary } from "@/lib/org/allocations";
+import { getAvailabilityEvents, computeMinAvailabilityInWindow, type AvailabilityEvent } from "@/lib/org/availability";
+import { getCapacityContracts, resolveContractForWindow, getContractedHoursForWindow, DEFAULT_WEEKLY_CAPACITY_HOURS, type CapacityContract } from "@/lib/org/capacity";
+import { getWorkAllocations, computeTotalAllocatedHoursForWindow, computeAllocationSummaryForWindow, type WorkAllocation } from "@/lib/org/allocations";
 
 // ============================================================================
 // Types

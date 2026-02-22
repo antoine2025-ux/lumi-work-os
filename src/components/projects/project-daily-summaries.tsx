@@ -33,7 +33,6 @@ interface ProjectDailySummariesProps {
 
 export function ProjectDailySummaries({ 
   projectId, 
-  projectName, 
   dailySummaryEnabled, 
   onToggleDailySummary 
 }: ProjectDailySummariesProps) {
@@ -75,7 +74,6 @@ export function ProjectDailySummaries({
       })
 
       if (response.ok) {
-        const data = await response.json()
         // Reload summaries to show the new one
         await loadSummaries()
       } else {

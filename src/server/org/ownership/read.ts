@@ -53,7 +53,6 @@ export async function getOrgOwnership(workspaceId: string): Promise<OrgOwnership
   const signals = resolveOwnershipSignals(data);
 
   // Build entity lookup maps for additional details
-  const teamMap = new Map(data.teams.map((t) => [t.id, t]));
   const deptMap = new Map(data.departments.map((d) => [d.id, d]));
 
   // Get department names for teams (signals don't include this)

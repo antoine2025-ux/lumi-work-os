@@ -12,7 +12,6 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import {
   deriveTeamAvailability,
-  deriveDepartmentAvailability,
   type TeamMemberInput,
 } from "@/lib/org/rollups/deriveTeamAvailability";
 import type { AvailabilityWindow, EmploymentStatus } from "@/lib/org/deriveAvailability";

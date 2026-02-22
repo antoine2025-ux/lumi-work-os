@@ -4,42 +4,22 @@ import { useState } from "react"
 import { useSearchParams, useRouter, useParams, usePathname } from "next/navigation"
 import { useQueryClient } from '@tanstack/react-query'
 import { useProjects } from "@/hooks/use-projects"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Progress } from "@/components/ui/progress"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
   Plus, 
   Search, 
-  Filter,
-  Grid,
-  List,
   Calendar,
   Users,
-  CheckCircle,
   Clock,
-  AlertCircle,
-  MoreHorizontal,
   Folder,
   Loader2,
   Target,
-  TrendingUp,
-  Eye,
-  Edit,
-  Trash2,
-  User,
   FolderOpen,
   Layers,
-  Activity,
-  ChevronRight,
-  Zap,
-  Star,
-  ArrowRight,
 } from "lucide-react"
-import Link from "next/link"
 import { useWorkspace } from "@/lib/workspace-context"
 import { motion, AnimatePresence } from "framer-motion"
 import { WikiLayout } from "@/components/wiki/wiki-layout"
@@ -160,15 +140,15 @@ export default function ProjectsDashboard() {
   const validViewModes = ['projects', 'epics', 'tasks', 'my-epics', 'my-tasks'] as const
   const viewMode: ViewMode = validViewModes.includes(viewParam as ViewMode) ? (viewParam as ViewMode) : 'projects'
   const [searchQuery, setSearchQuery] = useState("")
-  const [epics, setEpics] = useState<Epic[]>([])
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [epics, _setEpics] = useState<Epic[]>([])
+  const [tasks, _setTasks] = useState<Task[]>([])
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
   const queryClient = useQueryClient()
   const { data: projectsData, isLoading } = useProjects(currentWorkspace?.id)
   const projects = (projectsData as Project[] | undefined) ?? []
 
-  const setViewMode = (mode: ViewMode) => {
+  const _setViewMode = (mode: ViewMode) => {
     const params = new URLSearchParams(searchParams.toString())
     if (mode === 'projects') {
       params.delete('view')
@@ -205,7 +185,7 @@ export default function ProjectsDashboard() {
     })
   }
 
-  const getDaysUntilDue = (dateString: string) => {
+  const _getDaysUntilDue = (dateString: string) => {
     const dueDate = new Date(dateString)
     const today = new Date()
     const diffTime = dueDate.getTime() - today.getTime()
@@ -270,7 +250,7 @@ export default function ProjectsDashboard() {
     })
     .slice(0, 5)
 
-  const viewModes = [
+  const _viewModes = [
     { id: 'projects', label: 'My Projects', icon: FolderOpen },
     { id: 'epics', label: 'My Epics', icon: Layers },
     { id: 'tasks', label: 'My Tasks', icon: Target },

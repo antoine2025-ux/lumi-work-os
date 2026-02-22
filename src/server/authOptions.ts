@@ -346,7 +346,7 @@ export const authOptions: NextAuthOptions = {
           } else {
             finalUrl = baseUrl;
           }
-        } catch (error) {
+        } catch (_error) {
           // If URL parsing fails, treat as relative
           finalUrl = `${baseUrl}${url}`;
         }
@@ -368,7 +368,7 @@ export const authOptions: NextAuthOptions = {
           logContext.urlOrigin = urlObj.origin;
           logContext.baseUrlOrigin = baseUrlObj.origin;
           logContext.isSameOrigin = urlObj.origin === baseUrlObj.origin;
-        } catch (error) {
+        } catch (_error) {
           // If URL parsing fails, skip origin comparison
           logContext.urlParseError = 'Failed to parse URL';
         }

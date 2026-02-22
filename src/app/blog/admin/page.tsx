@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Plus, Edit, Eye, Trash2, Loader2 } from "lucide-react"
-import { RichTextEditor } from "@/components/wiki/rich-text-editor"
 
 interface BlogPost {
   id: string

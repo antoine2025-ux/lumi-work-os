@@ -5,8 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Download, Loader2, CheckCircle, XCircle, AlertCircle } from "lucide-react"
+import { Download, Loader2, CheckCircle, XCircle } from "lucide-react"
 
 interface MigrationModalProps {
   platform: string

@@ -3,12 +3,11 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
-import { Calendar, User, Clock, Target } from 'lucide-react'
+import { Calendar, Target } from 'lucide-react'
 
 // Mock data for demonstration
 const mockTasks: Record<string, Task[]> = {

@@ -58,7 +58,7 @@ export function VariantB() {
               <span className="text-sm font-mono tracking-widest text-white uppercase">Loopwell</span>
             </div>
             <div className="hidden md:flex items-center">
-              {navLinks.slice(0, 3).map((link, index) => (
+              {navLinks.slice(0, 3).map((link, _index) => (
                 <a
                   key={link.href}
                   href={link.href}

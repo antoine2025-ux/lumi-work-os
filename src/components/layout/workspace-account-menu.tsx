@@ -21,7 +21,6 @@ import {
   ChevronDown, 
   Settings,
   LogOut,
-  Users,
   Building2,
   Loader2
 } from "lucide-react"

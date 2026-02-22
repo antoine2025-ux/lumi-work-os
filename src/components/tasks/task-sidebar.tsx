@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, User, Calendar, Tag, X, Settings, MessageSquare, History, Plus, AlertCircle } from "lucide-react"
+import { Loader2, User, Calendar, Tag, X, Settings, MessageSquare, History, Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { TaskComments } from "./task-comments"
 import { useUserStatusContext } from '@/providers/user-status-provider'
@@ -466,7 +466,7 @@ export function TaskSidebar() {
               errorMessage = errorText || errorMessage
             }
           }
-        } catch (e) {
+        } catch (_e) {
           errorMessage = response.statusText || errorMessage
         }
         

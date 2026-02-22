@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Only allow in development mode
     if (process.env.NODE_ENV !== 'development' || process.env.ALLOW_DEV_LOGIN !== 'true') {

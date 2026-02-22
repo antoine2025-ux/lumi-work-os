@@ -51,8 +51,8 @@ export function IntelligenceLandingClient({ isAdmin }: Props) {
   const [customEnd, setCustomEnd] = useState<string>("");
 
   // Resolution feedback state
-  const [resolvedCount, setResolvedCount] = useState(0);
-  const [lastResolvedAt, setLastResolvedAt] = useState<Date | null>(null);
+  const [_resolvedCount, setResolvedCount] = useState(0);
+  const [_lastResolvedAt, setLastResolvedAt] = useState<Date | null>(null);
 
   // Build query params based on preset
   const buildQueryParams = useCallback(() => {

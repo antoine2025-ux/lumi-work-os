@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, startTransition } from "react";
+import { useState } from "react";
 import { OrgTabNav, type OrgTab } from "@/components/org/OrgTabNav";
 import { MembersSection } from "@/components/org/settings/MembersSection";
 import { InvitesSection } from "@/components/org/settings/InvitesSection";

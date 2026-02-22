@@ -54,7 +54,6 @@ export function ProjectHeader({
   colors,
   currentView = 'board',
   onViewChange,
-  onMoreClick,
   channelHints = [],
   onEdit,
   onDelete

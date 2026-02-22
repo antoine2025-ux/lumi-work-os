@@ -12,7 +12,7 @@ interface LoadingStep {
 }
 
 export function LoadingInitializer() {
-  const { data: session, status: sessionStatus } = useSession()
+  const { status: sessionStatus } = useSession()
   // Use centralized UserStatusContext - no separate API call needed
   const { workspaceId } = useUserStatusContext()
   const [steps, setSteps] = useState<LoadingStep[]>([
@@ -23,7 +23,7 @@ export function LoadingInitializer() {
     { id: 'ready', label: 'Almost ready', status: 'pending' },
   ])
   const [startTime] = useState(() => Date.now())
-  const [isComplete, setIsComplete] = useState(false)
+  const [_isComplete, setIsComplete] = useState(false)
 
   // Prefetch dashboard data in the background and track completion
   const prefetchDashboardData = useCallback(async (wsId: string) => {
@@ -132,7 +132,7 @@ export function LoadingInitializer() {
 
         {/* Loading Steps */}
         <div className="space-y-4">
-          {steps.map((step, index) => (
+          {steps.map((step, _index) => (
             <div
               key={step.id}
               className="flex items-center gap-4 p-4 rounded-lg bg-white shadow-sm border border-gray-100 transition-all duration-300"

@@ -38,7 +38,6 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { deriveAllIssues } from "@/lib/org/issues/deriveAllIssues";
-import type { OrgIssueMetadata } from "@/lib/org/deriveIssues";
 import { handleApiError } from "@/lib/api-errors"
 
 export type IntegrityIssue = {
@@ -83,48 +82,6 @@ function validateIssueFixSurface(issue: IntegrityIssue): void {
       `Issue ${issue.issueKey} has invalid fixUrl: ${issue.fixUrl}`
     );
   }
-}
-
-// Helper functions for issue metadata
-function getIssueExplanation(issueType: string): string {
-  const explanations: Record<string, string> = {
-    MISSING_MANAGER: "Person is missing a manager assignment",
-    MISSING_TEAM: "Person is missing a team assignment",
-    MISSING_ROLE: "Person is missing a role/title",
-    UNOWNED_TEAM: "Team has no assigned owner",
-    UNOWNED_DEPARTMENT: "Department has no assigned owner",
-    UNASSIGNED_TEAM: "Team is not assigned to a department",
-    EMPTY_DEPARTMENT: "Department has no teams",
-    OWNERSHIP_CONFLICT: "Conflicting ownership sources detected",
-    ORPHAN_ENTITY: "Entity is not properly connected",
-    CYCLE_DETECTED: "Circular reporting chain detected",
-  };
-  return explanations[issueType] || `${issueType} issue detected`;
-}
-
-function getFocusForIssue(issueType: string): string {
-  const focusMap: Record<string, string> = {
-    MISSING_MANAGER: "manager",
-    MISSING_TEAM: "team",
-    MISSING_ROLE: "role",
-  };
-  return focusMap[issueType] || "";
-}
-
-function getFixAction(issueType: string): string {
-  const actions: Record<string, string> = {
-    MISSING_MANAGER: "Assign manager",
-    MISSING_TEAM: "Assign team",
-    MISSING_ROLE: "Assign role",
-    UNOWNED_TEAM: "Assign team owner",
-    UNOWNED_DEPARTMENT: "Assign department owner",
-    UNASSIGNED_TEAM: "Assign to department",
-    EMPTY_DEPARTMENT: "Add team to department",
-    OWNERSHIP_CONFLICT: "Resolve ownership conflict",
-    ORPHAN_ENTITY: "Fix entity connection",
-    CYCLE_DETECTED: "Fix reporting cycle",
-  };
-  return actions[issueType] || "Fix issue";
 }
 
 export async function GET(request: NextRequest) {

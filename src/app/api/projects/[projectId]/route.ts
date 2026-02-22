@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUnifiedAuth, NoWorkspaceError } from '@/lib/unified-auth'
+import { getUnifiedAuth } from '@/lib/unified-auth'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { ProjectUpdateSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { handleApiError } from '@/lib/api-errors'
 import { ProjectRole } from '@prisma/client'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { upsertProjectContext } from '@/lib/loopbrain/context-engine'
 import {
@@ -324,8 +323,6 @@ export async function PUT(
       wikiPageId,
       ownerId,
       dailySummaryEnabled,
-      visibility,
-      memberUserIds = []
     } = validatedData
 
     // Check if project exists (ProjectSpace is not in schema; no projectSpace include)

@@ -55,9 +55,9 @@ export function PerformanceHome({
   myReviews,
   reviewsToGive,
   directReports,
-  activeCycleId,
+  activeCycleId: _activeCycleId,
   isAdmin,
-  currentUserId,
+  currentUserId: _currentUserId,
   workspaceSlug,
 }: Props) {
   const activeCycles = cycles.filter((c) => c.status === 'ACTIVE' || c.status === 'SETUP')

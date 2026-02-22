@@ -16,7 +16,6 @@ import type {
   InsightTriggerV0,
   InsightCategoryV0,
   InsightPriorityV0,
-  InsightStatusV0,
   RecommendationV0,
   InsightEvidenceV0,
   AffectedEntityV0,
@@ -24,7 +23,6 @@ import type {
   InsightBatchSummaryV0,
 } from "./contract/proactiveInsight.v0";
 import {
-  INSIGHT_PRIORITY_ORDER_V0,
   INSIGHT_TTL_DEFAULTS_V0,
   calculateBatchFreshness,
   sortInsightsByUrgency,
@@ -156,7 +154,7 @@ export async function detectCapacityInsights(
 
   try {
     // Load capacity data
-    const [teams, allocations, contracts] = await Promise.all([
+    const [teams, allocations, _contracts] = await Promise.all([
       prisma.orgTeam.findMany({
         where: { workspaceId, isActive: true },
         include: {
@@ -551,7 +549,7 @@ export async function detectCoverageInsights(
 
   try {
     // Load coverage data
-    const [teams, departments, roleCoverages] = await Promise.all([
+    const [teams, _departments, roleCoverages] = await Promise.all([
       prisma.orgTeam.findMany({
         where: { workspaceId, isActive: true },
         select: {

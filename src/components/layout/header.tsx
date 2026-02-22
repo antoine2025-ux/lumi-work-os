@@ -6,42 +6,9 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/workspace-context"
 import { WorkspaceAccountMenu } from "@/components/layout/workspace-account-menu"
-import { LayoutDashboard, FolderKanban, Network, Sliders, Users, Bell, Target } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { LayoutDashboard, FolderKanban, Network, Target } from "lucide-react"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { Logo } from "@/components/logo"
-import { useSession, signOut } from "next-auth/react"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { clearUserStatusCache } from "@/hooks/use-user-status"
-
-// Prefetch common routes on mount for instant navigation
-function prefetchRoutes() {
-  const commonRoutes = [
-    '/spaces/home',
-    '/ask',
-    '/settings',
-    '/org'
-  ]
-  
-  commonRoutes.forEach(route => {
-    // Use dynamic import to prefetch in background
-    if (typeof window !== 'undefined') {
-      const router = require('next/router').default
-      router.prefetch(route).catch(() => {
-        // Silently fail if route doesn't exist yet
-      })
-    }
-  })
-}
-
 // Navigation items - hrefs will be made slug-aware in the component
 const navigationItems = [
   {
@@ -94,12 +61,11 @@ const navigationItems = [
 export function Header() {
   const pathname = usePathname()
   const router = useRouter()
-  const { currentWorkspace, userRole } = useWorkspace()
-  const { data: session } = useSession()
+  const { currentWorkspace } = useWorkspace()
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
-  const [userRoleFromPermissions, setUserRoleFromPermissions] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const [_userRoleFromPermissions, setUserRoleFromPermissions] = useState<string | null>(null)
+  const [_mounted, setMounted] = useState(false)
 
   // Fetch user permissions to check admin role
   useEffect(() => {

@@ -14,7 +14,6 @@ import { ChevronDown, ChevronUp, Info, Clock, Gauge, FileText, RefreshCw } from 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { SerializedIssueWindow, IntelligenceResponseMeta } from "@/lib/org/intelligence/types";
 import type { CapacityThresholds } from "@/lib/org/deriveIssues";
-import { cn } from "@/lib/utils";
 
 type Props = {
   issueWindow: SerializedIssueWindow;

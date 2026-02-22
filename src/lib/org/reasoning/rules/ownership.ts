@@ -7,7 +7,7 @@
 
 import type { OrgIntelligenceSnapshotDTO, OrgSnapshotIssueCode } from "../../intelligence/snapshotTypes";
 import type { OrgRecommendation, InputSnapshotMeta } from "../types";
-import { createRecommendation, buildEvidence } from "../helpers";
+import { createRecommendation } from "../helpers";
 import { REASONING_PREVIEW_COUNT, OWNERSHIP_RANK_BASE } from "../version";
 
 /**

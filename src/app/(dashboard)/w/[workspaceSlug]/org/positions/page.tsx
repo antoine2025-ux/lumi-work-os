@@ -23,7 +23,7 @@ export default async function PositionsPage({ params }: PageProps) {
     redirect("/welcome");
   }
 
-  const [positions, teams] = await Promise.all([
+  const [positions, teams, roleCards] = await Promise.all([
     prisma.orgPosition.findMany({
       where: { workspaceId: context.orgId, isActive: true, archivedAt: null },
       orderBy: [{ level: "asc" }, { title: "asc" }],
@@ -45,6 +45,23 @@ export default async function PositionsPage({ params }: PageProps) {
         department: { select: { id: true, name: true } },
       },
     }),
+    prisma.roleCard.findMany({
+      where: { workspaceId: context.orgId },
+      orderBy: [{ jobFamily: "asc" }, { level: "asc" }],
+      select: {
+        id: true,
+        roleName: true,
+        jobFamily: true,
+        level: true,
+        roleDescription: true,
+        responsibilities: true,
+        keyMetrics: true,
+        positionId: true,
+        _count: {
+          select: { skillRefs: true },
+        },
+      },
+    }),
   ]);
 
   const positionItems = positions.map((p) => ({
@@ -62,6 +79,18 @@ export default async function PositionsPage({ params }: PageProps) {
     department: t.department ?? undefined,
   }));
 
+  const roleTemplateItems = roleCards.map((rc) => ({
+    id: rc.id,
+    roleName: rc.roleName,
+    jobFamily: rc.jobFamily,
+    level: rc.level,
+    roleDescription: rc.roleDescription,
+    responsibilities: rc.responsibilities,
+    keyMetrics: rc.keyMetrics,
+    positionId: rc.positionId,
+    skillsCount: rc._count.skillRefs,
+  }));
+
   return (
     <>
       <OrgPageHeader
@@ -73,6 +102,7 @@ export default async function PositionsPage({ params }: PageProps) {
         <PositionsClient
           positions={positionItems}
           teams={teamItems}
+          roleTemplates={roleTemplateItems}
           workspaceId={context.orgId}
         />
       </div>

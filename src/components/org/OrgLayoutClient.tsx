@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { OrgSidebar } from "@/components/org/OrgSidebar";
 import { OrgDebugPanel } from "@/components/org/OrgDebugPanel";
 import { OrgPageTransition } from "@/components/org/OrgPageTransition";
+import type { NavItemRole } from "@/lib/org/nav-config";
 
 // Lazy load Header to reduce initial bundle size and improve LCP
 // Disable SSR to prevent Radix UI hydration mismatches (random ID generation)
@@ -19,8 +20,7 @@ type OrgLayoutClientProps = {
   beta?: boolean;
   showHeader?: boolean;
   workspaceSlug?: string;
-  isAdmin?: boolean;
-  isTeamLead?: boolean;
+  userRole: NavItemRole;
 };
 
 export function OrgLayoutClient({
@@ -28,8 +28,7 @@ export function OrgLayoutClient({
   beta = false,
   showHeader = true,
   workspaceSlug = "",
-  isAdmin = false,
-  isTeamLead = false,
+  userRole,
 }: OrgLayoutClientProps) {
   const pathname = usePathname();
 
@@ -41,8 +40,7 @@ export function OrgLayoutClient({
         <OrgSidebar
           beta={beta}
           workspaceSlug={workspaceSlug}
-          isAdmin={isAdmin}
-          isTeamLead={isTeamLead}
+          userRole={userRole}
         />
         <main className="relative flex-1 overflow-y-auto bg-[#020617]">
           {/* Smooth page transitions - doesn't block data load */}

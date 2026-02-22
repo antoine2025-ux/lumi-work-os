@@ -2,23 +2,16 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { 
   Search, 
   Plus, 
-  Folder, 
   FileText, 
-  ChevronRight,
-  ChevronDown,
   BookOpen,
-  Star,
   Sparkles,
-  Clock,
-  User,
-  Tag
 } from "lucide-react"
 
 interface WikiNavigationProps {
@@ -123,7 +116,7 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
   // Get unique categories
   const categories = Array.from(new Set(wikiPages.map(page => page.category)))
 
-  const navigationItems = createNavigationStructure()
+  const _navigationItems = createNavigationStructure()
 
   return (
     <div className="w-80 bg-card border-r border-border h-full flex flex-col">

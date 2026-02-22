@@ -10,7 +10,6 @@ export const revalidate = 0
  */
 
 import type { ReactNode } from "react";
-import { Suspense } from "react";
 import { OrgPermissionsProvider } from "@/components/org/OrgPermissionsContext";
 import { getOrgPermissionContext } from "@/lib/org/permissions.server";
 import { OrgLayoutClient } from "@/components/org/OrgLayoutClient";
@@ -21,11 +20,9 @@ import {
 } from "@/lib/org/feature-flags";
 import { OrgCenterDisabled } from "@/components/org/OrgCenterDisabled";
 import { OrgAnnouncementBanner } from "@/components/org/OrgAnnouncementBanner";
-import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/server/authOptions";
-import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import type { NavItemRole } from "@/lib/org/nav-config";
 
 type OrgLayoutProps = {
   children: ReactNode;
@@ -68,7 +65,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
     let context: Awaited<ReturnType<typeof getOrgPermissionContext>> = null;
     try {
       context = await getOrgPermissionContext();
-    } catch (error) {
+    } catch (_error) {
       // Catch any errors (including NoWorkspaceError) to prevent Next.js from logging them
       // getOrgPermissionContext should return null on error, but catch here as safety net
       context = null;
@@ -254,7 +251,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
     return (
       <OrgPermissionsProvider value={clientPermissions}>
         {isOrgCenterBeta() && <OrgAnnouncementBanner />}
-        <OrgLayoutClient beta={isOrgCenterBeta()}>
+        <OrgLayoutClient beta={isOrgCenterBeta()} userRole={context.role as NavItemRole}>
           {children}
         </OrgLayoutClient>
       </OrgPermissionsProvider>

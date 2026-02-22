@@ -69,7 +69,7 @@ function generateFallbackTasks(role: string, seniority: string, department: stri
   const totalTasks = Math.min(Math.floor(durationDays / 3), 15)
   const allTasks = [...baseTasks, ...roleTasks]
   
-  return allTasks.slice(0, totalTasks).map((task, index) => ({
+  return allTasks.slice(0, totalTasks).map((task, _index) => ({
     ...task,
     dueDay: Math.min(task.dueDay, durationDays)
   }))
@@ -168,7 +168,7 @@ Generate a comprehensive onboarding plan for this role.`
           throw new Error('No JSON found in response')
         }
         planData = JSON.parse(jsonMatch[0])
-      } catch (parseError) {
+      } catch (_parseError) {
         console.error('Failed to parse OpenAI response:', responseText)
         throw new Error('Invalid JSON response from AI')
       }

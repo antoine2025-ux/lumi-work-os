@@ -403,11 +403,11 @@ export function OrgCleanSlate({ workspaceId, onStructureCreated, colors }: OrgCl
 
       {activeStep === 'role-cards' && (
         <RoleCardForm
+          mode="create"
           workspaceId={workspaceId}
           isOpen={true}
           onClose={() => setActiveStep(null)}
           onSuccess={() => handleStepComplete('role-cards')}
-          positions={positions}
         />
       )}
     </div>

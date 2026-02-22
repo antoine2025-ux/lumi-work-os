@@ -209,7 +209,7 @@ export function TaskTemplateSelector({ onTemplateSelect, onSkip, projectId }: Ta
 
               {/* Task Preview */}
               <div className="mt-3 space-y-1">
-                {template.tasks.slice(0, 3).map((task, index) => (
+                {template.tasks.slice(0, 3).map((task, _index) => (
                   <div key={task.id} className="flex items-center space-x-2 text-xs text-gray-500">
                     <div className="w-1 h-1 bg-gray-400 rounded-full" />
                     <span className="truncate">{task.title}</span>

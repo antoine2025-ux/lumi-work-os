@@ -28,7 +28,19 @@ const eslintConfig = [
       "no-hardcoded-ids": require("./eslint-rules/no-hardcoded-ids.js")
     },
     rules: {
-      "no-hardcoded-ids/no-hardcoded-ids": "warn" // Changed from "error" to "warn" temporarily
+      "no-hardcoded-ids/no-hardcoded-ids": "warn", // Changed from "error" to "warn" temporarily
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          vars: "all",
+          varsIgnorePattern: "^_",
+          args: "after-used",
+          argsIgnorePattern: "^_",
+          caughtErrors: "all",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        }
+      ]
     }
   }
 ];

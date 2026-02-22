@@ -28,7 +28,7 @@ type UseOrgChartDataResult =
 export function useOrgChartData(): UseOrgChartDataResult {
   const { org, isLoading: isOrgLoading } = useCurrentOrg();
   const [data, setData] = useState<OrgChartData | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [_isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

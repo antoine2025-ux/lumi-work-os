@@ -3,7 +3,7 @@
 import { Users, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { mutedLabelClass, focusRingClass } from "./people-styles";
+import { mutedLabelClass } from "./people-styles";
 import type { OrgPerson } from "@/types/org";
 
 type ConnectionsProps = {

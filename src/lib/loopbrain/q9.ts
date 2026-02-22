@@ -41,7 +41,7 @@ export async function answerQ9(args: {
   let q3Result;
   try {
     q3Result = await answerQ3(args.projectId, args.workspaceId);
-  } catch (error) {
+  } catch (_error) {
     // If Q3 fails, treat as unknown
     q3Result = null;
   }
@@ -65,7 +65,7 @@ export async function answerQ9(args: {
         }
       );
       capacityAssessment = q4.feasibility;
-    } catch (error) {
+    } catch (_error) {
       capacityAssessment = "insufficient_data";
     }
   }

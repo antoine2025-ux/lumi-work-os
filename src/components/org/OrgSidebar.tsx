@@ -2,21 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  User,
-  Users,
-  Building2,
-  Network,
-  Briefcase,
-  Shield,
-  Activity,
-  // Gauge,   // Hidden until feature is complete — do not delete routes or page files.
-  // Scale,   // Hidden until feature is complete — do not delete routes or page files.
-  // UserCog, // Hidden until feature is complete — do not delete routes or page files.
-  Settings,
-  ClipboardCheck,
-} from "lucide-react";
+import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  MY_PROFILE_ITEMS,
+  MY_TEAM_ITEMS,
+  ORG_SECTION_ITEMS,
+  ADMIN_SECTION_ITEMS,
+  filterNavItems,
+  type NavItemRole,
+} from "@/lib/org/nav-config";
 
 function isItemActive(itemHref: string, pathname: string | null, allHrefs: string[]): boolean {
   if (!pathname) return false;
@@ -30,48 +25,31 @@ function isItemActive(itemHref: string, pathname: string | null, allHrefs: strin
 type OrgSidebarProps = {
   beta?: boolean;
   workspaceSlug?: string;
-  isAdmin?: boolean;
-  isTeamLead?: boolean;
+  userRole: NavItemRole;
 };
 
 export function OrgSidebar({
-  beta = false,
   workspaceSlug = "",
-  isAdmin = false,
-  isTeamLead = false,
+  userRole,
 }: OrgSidebarProps) {
   const pathname = usePathname();
   const base = workspaceSlug ? `/w/${workspaceSlug}/org` : "/org";
 
-  const mySection = [
-    { href: `${base}/profile`, label: "My Profile", icon: User },
-    ...(isTeamLead ? [{ href: `${base}/my-team`, label: "My Team", icon: Users }] : []),
-    { href: `${base}/my-department`, label: "My Department", icon: Building2 },
-  ];
+  const myProfileSection = filterNavItems(MY_PROFILE_ITEMS, userRole)
+    .map(item => ({ ...item, href: `${base}${item.href}` }));
 
-  const orgSection = [
-    { href: `${base}/directory`, label: "Directory", icon: Users },
-    { href: `${base}/structure`, label: "Teams & Departments", icon: Network },
-    { href: `${base}/chart`, label: "Org Chart", icon: Building2 },
-    { href: `${base}/positions`, label: "Positions & Roles", icon: Briefcase },
-    { href: `${base}/performance`, label: "Performance", icon: ClipboardCheck },
-  ];
+  const myTeamSection = filterNavItems(MY_TEAM_ITEMS, userRole)
+    .map(item => ({ ...item, href: `${base}${item.href}` }));
 
-  const adminSection = isAdmin
-    ? [
-        { href: `${base}/admin`, label: "Health & Issues", icon: Activity },
-        // Hidden until feature is complete — do not delete routes or page files.
-        // { href: `${base}/admin/capacity`, label: "Capacity Planning", icon: Gauge },
-        // Hidden until feature is complete — do not delete routes or page files.
-        // { href: `${base}/admin/decisions`, label: "Decision Authority", icon: Scale },
-        // Hidden until feature is complete — do not delete routes or page files.
-        // { href: `${base}/admin/responsibility`, label: "Responsibility Profiles", icon: UserCog },
-        { href: `${base}/admin/settings`, label: "Settings", icon: Settings },
-      ]
-    : [];
+  const orgSection = filterNavItems(ORG_SECTION_ITEMS, userRole)
+    .map(item => ({ ...item, href: `${base}${item.href}` }));
+
+  const adminSection = filterNavItems(ADMIN_SECTION_ITEMS, userRole)
+    .map(item => ({ ...item, href: `${base}${item.href}` }));
 
   const allHrefs = [
-    ...mySection.map((i) => i.href),
+    ...myProfileSection.map((i) => i.href),
+    ...myTeamSection.map((i) => i.href),
     ...orgSection.map((i) => i.href),
     ...adminSection.map((i) => i.href),
   ];
@@ -115,10 +93,27 @@ export function OrgSidebar({
       <nav className="space-y-6">
         <div>
           <h3 className="mb-2 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            My Profile & Team
+            My Profile
           </h3>
           <ul className="space-y-1">
-            {mySection.map((item) => {
+            {myProfileSection.map((item) => {
+              const Icon = item.icon;
+              return renderLink(
+                item.href,
+                item.label,
+                Icon,
+                isItemActive(item.href, pathname, allHrefs)
+              );
+            })}
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="mb-2 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            My Team
+          </h3>
+          <ul className="space-y-1">
+            {myTeamSection.map((item) => {
               const Icon = item.icon;
               return renderLink(
                 item.href,
@@ -151,7 +146,7 @@ export function OrgSidebar({
           <div>
             <h3 className="mb-2 flex items-center gap-1.5 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
               <Shield className="h-3 w-3" />
-              Org Admin
+              Admin
             </h3>
             <ul className="space-y-1">
               {adminSection.map((item) => {

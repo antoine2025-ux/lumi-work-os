@@ -649,10 +649,6 @@ function computeRecommendation(input: RecommendationInput): {
 // Helper Functions
 // ============================================================================
 
-function matchesRoleType(candidate: WorkCandidate, requiredRoleType: string): boolean {
-  if (!candidate.roleType) return false;
-  return candidate.roleType.toLowerCase().includes(requiredRoleType.toLowerCase());
-}
 
 function matchesSeniority(candidate: WorkCandidate, requiredSeniority: string): boolean {
   if (!candidate.seniorityLevel) return false;

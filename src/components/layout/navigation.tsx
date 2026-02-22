@@ -9,7 +9,6 @@ import {
   Home,
   BookOpen,
   Bot,
-  Users,
   Building2,
   Settings,
   Shield,
@@ -147,7 +146,7 @@ export function Navigation() {
   const pathname = usePathname()
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
-  const { userRole, canManageWorkspace, canViewAnalytics, currentWorkspace } = useWorkspace()
+  const { userRole, currentWorkspace } = useWorkspace()
   
   // Filter navigation items based on user role and feature flags
   const getVisibleNavigationItems = () => {

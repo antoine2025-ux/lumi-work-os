@@ -13,7 +13,7 @@ type TeamNodeProps = {
 /**
  * Presentational component for a team node in Tree View
  */
-export function TeamNode({ node, index }: TeamNodeProps) {
+export function TeamNode({ node, index: _index }: TeamNodeProps) {
   const router = useRouter();
 
   const handleOpenTeam = (e: React.MouseEvent) => {

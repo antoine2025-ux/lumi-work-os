@@ -47,7 +47,6 @@ export function ReviewForm({
   reviewerRole,
   status,
   employee,
-  manager,
   questions,
   initialResponses,
   initialFeedback,

@@ -17,12 +17,11 @@ import {
 } from "@/components/ui/select";
 import { getIssueTypeLabel, getIssueExplanation, getIssueOutcomeHint } from "@/lib/org/issues/issueCopy";
 import { OrgIssueDetailDrawer } from "@/components/org/issues/OrgIssueDetailDrawer";
-import { AlertTriangle, CheckCircle, Info } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mutationBus } from "@/lib/org/mutations";
 import type { OrgIssueMetadata, OrgIssue } from "@/lib/org/deriveIssues";
 import { WhyThisAnswerPanel } from "@/components/org/intelligence/WhyThisAnswerPanel";
-import { ExplainabilityPanel } from "@/components/org/explainability/ExplainabilityPanel";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 import { SeverityBadge } from "@/components/org/SeverityBadge";
 
@@ -85,23 +84,6 @@ function sortIssuesDeterministically(issues: OrgIssueMetadata[]): OrgIssueMetada
 
 // SeverityBadge is now imported from @/components/org/SeverityBadge
 
-function StatusIndicator({ resolution }: { resolution: Resolution }) {
-  const config: Record<Resolution, { dot: string; text: string; label: string }> = {
-    PENDING: { dot: "bg-amber-400", text: "text-amber-400", label: "Pending" },
-    RESOLVED: { dot: "bg-green-500/60", text: "text-green-500/60", label: "Resolved" },
-    ACKNOWLEDGED: { dot: "bg-slate-400", text: "text-slate-400", label: "Acknowledged" },
-    FALSE_POSITIVE: { dot: "bg-slate-400", text: "text-slate-400", label: "Intentional" },
-  };
-  
-  const { dot, text, label } = config[resolution] ?? { dot: "bg-slate-500", text: "text-slate-500", label: resolution };
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className={cn("h-1.5 w-1.5 rounded-full", dot)} />
-      <span className={cn("text-[10px]", text)}>{label}</span>
-    </div>
-  );
-}
 
 export function OrgIssuesInboxClient() {
   const router = useRouter();

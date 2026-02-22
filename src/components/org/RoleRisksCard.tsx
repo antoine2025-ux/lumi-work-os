@@ -116,7 +116,7 @@ function getRoleEditorHrefFromContextId(contextId: string): string | null {
   const parts = contextId.split(":");
   if (parts.length < 4) return null;
 
-  const [type, workspaceId, kind, entityId] = parts;
+  const [type, _workspaceId, kind, entityId] = parts;
   if (type !== "role") return null;
 
   if (kind === "position") {

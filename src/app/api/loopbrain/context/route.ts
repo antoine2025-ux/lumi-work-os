@@ -11,7 +11,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { contextEngine, getWorkspaceContextObjects } from '@/lib/loopbrain/context-engine'
-import { ContextType } from '@/lib/loopbrain/context-types'
 import { logger } from '@/lib/logger'
 
 /**

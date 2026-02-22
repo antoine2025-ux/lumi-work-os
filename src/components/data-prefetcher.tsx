@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
