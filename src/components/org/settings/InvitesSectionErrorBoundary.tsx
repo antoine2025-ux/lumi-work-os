@@ -23,7 +23,7 @@ export class InvitesSectionErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("[InvitesSectionErrorBoundary] Error:", error, errorInfo);
   }
 

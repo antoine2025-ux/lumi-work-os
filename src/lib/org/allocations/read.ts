@@ -50,41 +50,39 @@ export async function getWorkAllocations(
   personId: string,
   timeWindow?: { start: Date; end: Date }
 ): Promise<WorkAllocation[]> {
-  const where: any = {
-    workspaceId,
-    personId,
-  };
-
-  // Filter by time window if provided
-  if (timeWindow) {
-    where.OR = [
-      // Allocations that start within the window
-      {
-        startDate: {
-          gte: timeWindow.start,
-          lte: timeWindow.end,
-        },
-      },
-      // Allocations that end within the window
-      {
-        endDate: {
-          gte: timeWindow.start,
-          lte: timeWindow.end,
-        },
-      },
-      // Allocations that span the entire window
-      {
-        startDate: { lte: timeWindow.start },
-        OR: [
-          { endDate: { gte: timeWindow.end } },
-          { endDate: null },
-        ],
-      },
-    ];
-  }
-
   const allocations = await prisma.workAllocation.findMany({
-    where,
+    where: {
+      workspaceId,
+      personId,
+      ...(timeWindow
+        ? {
+            OR: [
+              // Allocations that start within the window
+              {
+                startDate: {
+                  gte: timeWindow.start,
+                  lte: timeWindow.end,
+                },
+              },
+              // Allocations that end within the window
+              {
+                endDate: {
+                  gte: timeWindow.start,
+                  lte: timeWindow.end,
+                },
+              },
+              // Allocations that span the entire window
+              {
+                startDate: { lte: timeWindow.start },
+                OR: [
+                  { endDate: { gte: timeWindow.end } },
+                  { endDate: null },
+                ],
+              },
+            ],
+          }
+        : {}),
+    },
     orderBy: { startDate: "desc" },
     select: {
       id: true,
@@ -114,27 +112,26 @@ export async function getWorkAllocationsBatch(
 ): Promise<Map<string, WorkAllocation[]>> {
   if (personIds.length === 0) return new Map();
 
-  const where: any = {
-    workspaceId,
-    personId: { in: personIds },
-  };
-
-  if (timeWindow) {
-    where.OR = [
-      { startDate: { gte: timeWindow.start, lte: timeWindow.end } },
-      { endDate: { gte: timeWindow.start, lte: timeWindow.end } },
-      {
-        startDate: { lte: timeWindow.start },
-        OR: [
-          { endDate: { gte: timeWindow.end } },
-          { endDate: null },
-        ],
-      },
-    ];
-  }
-
   const allocations = await prisma.workAllocation.findMany({
-    where,
+    where: {
+      workspaceId,
+      personId: { in: personIds },
+      ...(timeWindow
+        ? {
+            OR: [
+              { startDate: { gte: timeWindow.start, lte: timeWindow.end } },
+              { endDate: { gte: timeWindow.start, lte: timeWindow.end } },
+              {
+                startDate: { lte: timeWindow.start },
+                OR: [
+                  { endDate: { gte: timeWindow.end } },
+                  { endDate: null },
+                ],
+              },
+            ],
+          }
+        : {}),
+    },
     orderBy: { startDate: "desc" },
     select: {
       id: true,

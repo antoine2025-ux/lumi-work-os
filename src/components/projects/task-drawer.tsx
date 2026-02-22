@@ -53,7 +53,7 @@ interface TaskDrawerProps {
     warning: string
     error: string
   }
-  onTaskUpdate?: (taskId: string, updates: any) => void
+  onTaskUpdate?: (taskId: string, updates: Record<string, unknown>) => void
 }
 
 interface Comment {

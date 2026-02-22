@@ -90,7 +90,7 @@ interface KanbanBoardProps {
   projectId: string
   workspaceId?: string
   onTasksUpdated?: () => void
-  filteredTasks?: any[]
+  filteredTasks?: Task[]
   epicId?: string // Add epicId prop for Epic-specific filtering
 }
 
@@ -364,7 +364,7 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
       // Use functional update to avoid stale closure
       setTasks(prevTasks => {
         const updated = prevTasks.map(task =>
-          task.id === taskId ? { ...task, status: newStatus as any } : task
+          task.id === taskId ? { ...task, status: newStatus as Task['status'] } : task
         )
         console.log('[Kanban] tasks length after optimistic update', updated.length)
         console.log('[Kanban] Updated task status:', updated.find(t => t.id === taskId)?.status)
@@ -480,10 +480,10 @@ export function KanbanBoard({ projectId, workspaceId, onTasksUpdated, filteredTa
     setIsCreateTaskOpen(true)
   }
 
-  const handleTaskCreated = (task: any) => {
+  const handleTaskCreated = (task: { id: string; title: string; status: Task['status']; priority: Task['priority']; [key: string]: unknown }) => {
     // Add the new task to the local state optimistically
     hasOptimisticUpdateRef.current = true
-    setTasks(prevTasks => [...prevTasks, task])
+    setTasks(prevTasks => [...prevTasks, task as unknown as Task])
     // Reset the optimistic update flag after a delay
     setTimeout(() => {
       hasOptimisticUpdateRef.current = false

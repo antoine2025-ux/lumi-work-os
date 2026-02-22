@@ -56,8 +56,8 @@ async function fetchDirectory(params: {
     })
     
     return json
-  } catch (error: any) {
-    throw new Error(`Network error loading directory: ${error?.message || "Unknown error"}`)
+  } catch (error: unknown) {
+    throw new Error(`Network error loading directory: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
 }
 
@@ -85,10 +85,10 @@ export function PeopleDirectory() {
           availability: availability || undefined,
         })
         if (!cancelled) setData(payload)
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Failed to load directory:", error)
         if (!cancelled) {
-          setError(error?.message || "Failed to load directory")
+          setError(error instanceof Error ? error.message : "Failed to load directory")
           setData({
             departments: [],
             teams: [],

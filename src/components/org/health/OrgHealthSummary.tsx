@@ -55,7 +55,7 @@ export async function OrgHealthSummary(props: { orgId: string }) {
           <div className="rounded-xl border border-yellow-900/30 bg-yellow-950/20 p-4">
             <div className="text-xs font-medium text-muted-foreground mb-3">Items needing attention</div>
             <div className="space-y-2">
-              {signals.slice(0, 3).map((signal: any) => {
+              {signals.slice(0, 3).map((signal: { title?: string; key?: string; severity?: string }) => {
                 // Map signal keys to deep links
                 let href = "/org/people"
                 const label = signal.title || signal.key

@@ -282,7 +282,7 @@ describe("_meta stability guarantees", () => {
       _meta: createSnapshotMeta(),
     };
 
-    const serialized = serializeSnapshot(snapshot as any);
+    const serialized = serializeSnapshot(snapshot as unknown as Parameters<typeof serializeSnapshot>[0]);
 
     // Verify all _meta fields are present and correct
     expect(serialized._meta.schemaVersion).toBe(ORG_SNAPSHOT_SCHEMA_VERSION);

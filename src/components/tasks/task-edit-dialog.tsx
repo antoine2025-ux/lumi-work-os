@@ -90,14 +90,14 @@ interface CustomFieldDef {
   key: string
   label: string
   type: 'text' | 'number' | 'select' | 'date' | 'boolean'
-  options?: any
+  options?: string[]
   uniqueKey: string
   createdAt: string
 }
 
 interface CustomFieldValue {
   id: string
-  value: any
+  value: string | number | boolean | null
   field: {
     id: string
     label: string
@@ -134,7 +134,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
   const [epics, setEpics] = useState<Array<{id: string, title: string, color?: string}>>([])
   const [milestones, setMilestones] = useState<Array<{id: string, title: string, startDate?: string, endDate?: string}>>([])
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDef[]>([])
-  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({})
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string | number | boolean | null>>({})
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -178,7 +178,7 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
       })
 
       // Initialize custom field values
-      const initialValues: Record<string, any> = {}
+      const initialValues: Record<string, string | number | boolean | null> = {}
       if (task.customFields) {
         task.customFields.forEach(cf => {
           initialValues[cf.field.id] = cf.value
@@ -263,14 +263,14 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
     }
   }
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | number | boolean | undefined) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }))
   }
 
-  const handleCustomFieldChange = (fieldId: string, value: any) => {
+  const handleCustomFieldChange = (fieldId: string, value: string | number | boolean | null) => {
     setCustomFieldValues(prev => ({
       ...prev,
       [fieldId]: value
@@ -861,25 +861,25 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
                       {fieldDef.type === 'text' && (
                         <Input
                           id={`custom-${fieldDef.id}`}
-                          value={customFieldValues[fieldDef.id] || ''}
+                          value={String(customFieldValues[fieldDef.id] ?? '')}
                           onChange={(e) => handleCustomFieldChange(fieldDef.id, e.target.value)}
                           placeholder={`Enter ${fieldDef.label.toLowerCase()}`}
                         />
                       )}
-                      
+
                       {fieldDef.type === 'number' && (
                         <Input
                           id={`custom-${fieldDef.id}`}
                           type="number"
-                          value={customFieldValues[fieldDef.id] || ''}
+                          value={String(customFieldValues[fieldDef.id] ?? '')}
                           onChange={(e) => handleCustomFieldChange(fieldDef.id, e.target.value ? Number(e.target.value) : null)}
                           placeholder={`Enter ${fieldDef.label.toLowerCase()}`}
                         />
                       )}
-                      
+
                       {fieldDef.type === 'select' && (
                         <Select
-                          value={customFieldValues[fieldDef.id] || ''}
+                          value={String(customFieldValues[fieldDef.id] ?? '')}
                           onValueChange={(value) => handleCustomFieldChange(fieldDef.id, value)}
                         >
                           <SelectTrigger>
@@ -895,22 +895,26 @@ export function TaskEditDialog({ isOpen, onClose, task, onSave, workspaceId }: T
                           </SelectContent>
                         </Select>
                       )}
-                      
-                      {fieldDef.type === 'date' && (
-                        <Input
-                          id={`custom-${fieldDef.id}`}
-                          type="date"
-                          value={customFieldValues[fieldDef.id] ? customFieldValues[fieldDef.id].split('T')[0] : ''}
-                          onChange={(e) => handleCustomFieldChange(fieldDef.id, e.target.value ? new Date(e.target.value).toISOString() : null)}
-                        />
-                      )}
-                      
+
+                      {fieldDef.type === 'date' && (() => {
+                        const dateVal = customFieldValues[fieldDef.id];
+                        const dateStr = typeof dateVal === 'string' && dateVal ? dateVal.split('T')[0] : '';
+                        return (
+                          <Input
+                            id={`custom-${fieldDef.id}`}
+                            type="date"
+                            value={dateStr}
+                            onChange={(e) => handleCustomFieldChange(fieldDef.id, e.target.value ? new Date(e.target.value).toISOString() : null)}
+                          />
+                        );
+                      })()}
+
                       {fieldDef.type === 'boolean' && (
                         <div className="flex items-center space-x-2">
                           <Checkbox
                             id={`custom-${fieldDef.id}`}
-                            checked={customFieldValues[fieldDef.id] || false}
-                            onCheckedChange={(checked) => handleCustomFieldChange(fieldDef.id, checked)}
+                            checked={Boolean(customFieldValues[fieldDef.id])}
+                            onCheckedChange={(checked) => handleCustomFieldChange(fieldDef.id, checked === true)}
                           />
                           <Label htmlFor={`custom-${fieldDef.id}`} className="text-sm">
                             {customFieldValues[fieldDef.id] ? 'Yes' : 'No'}

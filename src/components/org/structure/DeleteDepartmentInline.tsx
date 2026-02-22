@@ -45,8 +45,8 @@ export function DeleteDepartmentInline({
       onDeleted?.();
       router.push("/org/structure?deleted=1");
       router.refresh();
-    } catch (e: any) {
-      setError(e?.message ?? "Could not delete department.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not delete department.");
     } finally {
       setIsDeleting(false);
     }

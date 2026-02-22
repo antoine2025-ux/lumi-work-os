@@ -55,7 +55,7 @@ export function WikiSearch({ placeholder = "Search wiki...", onResultClick, clas
       const data = await response.json()
       
       // Transform API response to match expected format
-      const transformedResults = data.results.map((page: any) => ({
+      const transformedResults = data.results.map((page: { id: string; title: string; slug: string; excerpt: string; content: string; tags: string[]; createdBy: { name: string }; updatedAt: string; parent?: { title: string } | null }) => ({
         id: page.id,
         title: page.title,
         slug: page.slug,

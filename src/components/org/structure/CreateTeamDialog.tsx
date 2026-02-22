@@ -146,7 +146,7 @@ export function CreateTeamDialog(props: CreateTeamDialogProps) {
       setSubmitting(false);
       setOpen(false);
       resetForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[CreateTeamDialog] Failed to create team:", err);
       setSubmitting(false);
       setError(

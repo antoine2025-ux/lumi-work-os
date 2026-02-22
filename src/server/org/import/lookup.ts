@@ -5,26 +5,26 @@ export async function getPersonIdByEmail(orgId: string, email: string): Promise<
   if (!e) return null
 
   // In this codebase, people are represented via OrgPosition with User
-  const position = await prisma.orgPosition?.findFirst?.({
+  const position = await prisma.orgPosition.findFirst({
     where: {
       workspaceId: orgId,
       isActive: true,
       userId: { not: null },
-      user: { email: { equals: e, mode: "insensitive" } } as any,
-    } as any,
-    select: { userId: true } as any,
-  } as any)
+      user: { email: { equals: e, mode: "insensitive" } },
+    },
+    select: { userId: true },
+  })
 
   return position?.userId ? String(position.userId) : null
 }
 
 export async function getPeopleEmailMap(orgId: string): Promise<Map<string, string>> {
-  const positions = await prisma.orgPosition?.findMany?.({
+  const positions = await prisma.orgPosition.findMany({
     where: {
       workspaceId: orgId,
       isActive: true,
       userId: { not: null },
-    } as any,
+    },
     include: {
       user: {
         select: {
@@ -32,9 +32,9 @@ export async function getPeopleEmailMap(orgId: string): Promise<Map<string, stri
           email: true,
         },
       },
-    } as any,
+    },
     take: 100000,
-  } as any).catch(() => [] as any[])
+  }).catch(() => [] as Array<{ user: { id: string; email: string | null } | null }>)
 
   const map = new Map<string, string>()
   for (const p of positions || []) {
@@ -45,4 +45,3 @@ export async function getPeopleEmailMap(orgId: string): Promise<Map<string, stri
   }
   return map
 }
-

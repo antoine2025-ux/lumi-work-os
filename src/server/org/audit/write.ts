@@ -81,17 +81,18 @@ export async function logOrgMutation(params: {
         createdAt: new Date(),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If audit table doesn't exist or has schema issues, log warning but don't throw
     // Audit logging should not break the main operation
-    const errorMessage = error?.message || '';
+    const errorMessage = error instanceof Error ? error.message : '';
+    const errorCode = (error as Record<string, unknown>)?.code;
     const isTableMissing = errorMessage.includes('does not exist') ||
                            errorMessage.includes('org_audit_log') ||
-                           error?.code === 'P2021' || // Table does not exist
-                           error?.code === '42P01';   // PostgreSQL: relation does not exist
-    
+                           errorCode === 'P2021' || // Table does not exist
+                           errorCode === '42P01';   // PostgreSQL: relation does not exist
+
     // Check for enum mismatch error (P2009)
-    const isEnumMismatch = error?.code === 'P2009' || 
+    const isEnumMismatch = errorCode === 'P2009' ||
                            errorMessage.includes('Invalid value for enum') ||
                            errorMessage.includes('OrgAuditEventType');
     
@@ -106,7 +107,7 @@ export async function logOrgMutation(params: {
     }
     
     // For other errors (constraint violations, foreign key issues, etc.), log but don't throw
-    console.error('[logOrgMutation] Failed to log audit event (non-fatal):', error?.message || error);
+    console.error('[logOrgMutation] Failed to log audit event (non-fatal):', errorMessage || error);
     // Don't throw - audit logging failures should not break the main operation
   }
 }

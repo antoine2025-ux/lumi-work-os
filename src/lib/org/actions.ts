@@ -21,20 +21,20 @@ export async function updateDepartment(input: {
       data: {
         name,
         ownerPersonId: input.ownerPersonId ?? null,
-      } as any,
+      },
     });
 
     revalidatePath("/org/structure");
     revalidatePath(`/org/structure/departments/${input.departmentId}`);
 
     return { ok: true as const };
-  } catch (e: any) {
+  } catch (e: unknown) {
     return {
       ok: false as const,
       error: "Could not save changes. Please try again.",
       details:
         process.env.NODE_ENV !== "production"
-          ? { prismaError: String(e?.message ?? e) }
+          ? { prismaError: e instanceof Error ? e.message : String(e) }
           : undefined,
     };
   }
@@ -135,14 +135,15 @@ export async function createTeam(input: CreateTeamInput) {
     }
 
     return { ok: true as const, teamId: team.id };
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[createTeam] Error:", e);
+    const message = e instanceof Error ? e.message : "";
     return {
       ok: false as const,
       error:
-        e?.message?.includes("Foreign key") || e?.message?.includes("constraint")
+        message.includes("Foreign key") || message.includes("constraint")
           ? "Could not create the team with the selected owner/department. Try again."
-          : e?.message || "Could not create team. Please try again.",
+          : message || "Could not create team. Please try again.",
     };
   }
 }

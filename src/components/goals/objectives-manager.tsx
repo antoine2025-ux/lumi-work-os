@@ -7,9 +7,28 @@ import { GoalProgressBar } from './goal-progress-bar'
 import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
+interface Objective {
+  id: string
+  title: string
+  description?: string | null
+  weight: number
+  status: string
+  progress: number
+  keyResults: Array<{
+    id: string
+    title: string
+    currentValue: number
+    targetValue: number
+    unit: string | null
+    progress: number
+    status: string
+    updates?: Array<{ id: string; newValue: number; note: string | null; createdAt: string; createdBy: { name: string | null } }>
+  }>
+}
+
 interface Props {
   goalId: string
-  objectives: any[]
+  objectives: Objective[]
 }
 
 export function ObjectivesManager({ goalId, objectives }: Props) {
@@ -163,7 +182,7 @@ export function ObjectivesManager({ goalId, objectives }: Props) {
                     <h4 className="text-sm font-medium text-foreground">
                       Key Results ({objective.keyResults.length})
                     </h4>
-                    {objective.keyResults.map((kr: any) => (
+                    {objective.keyResults.map((kr) => (
                       <KeyResultCard
                         key={kr.id}
                         goalId={goalId}

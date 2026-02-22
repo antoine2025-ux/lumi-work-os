@@ -101,7 +101,7 @@ export async function getOrCreateIntelligenceSettings(): Promise<OrgIntelligence
   let existing;
   try {
     existing = await prisma.orgIntelligenceSettings.findFirst();
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw error;
   }
 
@@ -125,7 +125,7 @@ export async function getOrCreateIntelligenceSettings(): Promise<OrgIntelligence
     created = await prisma.orgIntelligenceSettings.create({
       data: { workspaceId },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw error;
   }
 

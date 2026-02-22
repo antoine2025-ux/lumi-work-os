@@ -104,7 +104,7 @@ export function WikiEditorShell({
     
     // Attach saveNow to editor instance for parent access
     // This allows parent components to call saveNow() directly
-    ;(editor as any).saveNow = saveNow
+    ;(editor as unknown as Record<string, unknown>).saveNow = saveNow
     if (onEditorReady) {
       onEditorReady(editor)
     }
@@ -234,7 +234,7 @@ export function WikiEditorShell({
   useEffect(() => {
     if (onEditorReady && editorRef.current) {
       // Pass saveNow function via the editor instance
-      ;(editorRef.current as any).saveNow = saveNow
+      ;(editorRef.current as unknown as Record<string, unknown>).saveNow = saveNow
     }
   }, [saveNow, onEditorReady])
 

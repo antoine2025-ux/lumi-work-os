@@ -117,7 +117,7 @@ export function CreateRoleDialog(props: CreateRoleDialogProps) {
       setSubmitting(false);
       setOpen(false);
       resetForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[CreateRoleDialog] Failed to create role:", err);
       setSubmitting(false);
       setError(

@@ -11,15 +11,22 @@ const CANDIDATE_DELEGATES = [
   "workspaceUserMembership",
 ] as const
 
-function getDelegate(name: string) {
-  const anyPrisma = prisma as any
-  const d = anyPrisma?.[name]
-  if (!d) return null
-  if (typeof d.findMany !== "function" || typeof d.findFirst !== "function") return null
-  return d
+// Dynamic Prisma delegate - we need to access models by name at runtime
+type PrismaDelegate = {
+  findMany: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>
+  findFirst: (args: Record<string, unknown>) => Promise<Record<string, unknown> | null>
 }
 
-async function tryListMemberships(delegate: any, workspaceId: string, name: string): Promise<MembershipRow[] | null> {
+function getDelegate(name: string): PrismaDelegate | null {
+  const p = prisma as unknown as Record<string, unknown>
+  const d = p?.[name]
+  if (!d) return null
+  const delegate = d as Record<string, unknown>
+  if (typeof delegate.findMany !== "function" || typeof delegate.findFirst !== "function") return null
+  return delegate as unknown as PrismaDelegate
+}
+
+async function tryListMemberships(delegate: PrismaDelegate, workspaceId: string, name: string): Promise<MembershipRow[] | null> {
   // Try common field names and shapes. If include/user relation fails, fall back to select userId.
   // We require: membership.id + membership.userId.
   const where = { workspaceId }
@@ -32,7 +39,7 @@ async function tryListMemberships(delegate: any, workspaceId: string, name: stri
       take: 5000,
     })
     if (Array.isArray(rows) && rows.length && rows[0]?.id && rows[0]?.userId) {
-      return rows.map((r: any) => ({ id: String(r.id), userId: String(r.userId) }))
+      return rows.map((r) => ({ id: String(r.id), userId: String(r.userId) }))
     }
     if (Array.isArray(rows) && rows.length === 0) return []
   } catch (err) {
@@ -48,8 +55,8 @@ async function tryListMemberships(delegate: any, workspaceId: string, name: stri
     })
     if (Array.isArray(rows)) {
       const mapped = rows
-        .filter((r: any) => r?.id && r?.user?.id)
-        .map((r: any) => ({ id: String(r.id), userId: String(r.user.id) }))
+        .filter((r) => r?.id && (r?.user as Record<string, unknown>)?.id)
+        .map((r) => ({ id: String(r.id), userId: String((r.user as Record<string, unknown>).id) }))
       return mapped
     }
   } catch (err) {
@@ -59,7 +66,7 @@ async function tryListMemberships(delegate: any, workspaceId: string, name: stri
   return null
 }
 
-async function tryResolveMembership(delegate: any, workspaceId: string, personKey: string, name: string): Promise<MembershipRow | null> {
+async function tryResolveMembership(delegate: PrismaDelegate, workspaceId: string, personKey: string, name: string): Promise<MembershipRow | null> {
   const where = { workspaceId, id: personKey }
 
   // Attempt 1: select { id, userId }
@@ -73,7 +80,7 @@ async function tryResolveMembership(delegate: any, workspaceId: string, personKe
   // Attempt 2: select { id, user: { select: { id } } }
   try {
     const row = await delegate.findFirst({ where, select: { id: true, user: { select: { id: true } } } })
-    if (row?.id && row?.user?.id) return { id: String(row.id), userId: String(row.user.id) }
+    if (row?.id && (row?.user as Record<string, unknown>)?.id) return { id: String(row.id), userId: String((row.user as Record<string, unknown>).id) }
   } catch (err) {
     console.warn(`[membershipDelegate] Delegate ${name} resolve attempt 2 failed:`, err)
   }
@@ -110,4 +117,3 @@ export async function resolveWorkspaceMembership(workspaceId: string, personKey:
   }
   return { delegateName: null as string | null, row: null as MembershipRow | null }
 }
-

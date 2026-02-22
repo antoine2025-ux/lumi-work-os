@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { Loader2, X, Pencil, ChevronDown } from "lucide-react";
+import { Loader2, X, Pencil, ChevronDown, Check as CheckIcon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { getPersonDisplayBadges } from "@/lib/org/personDisplay";
 import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
@@ -176,8 +176,8 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
     department: person.department,
     title: person.title,
     role: person.role,
-    manager: (person as any).manager,
-    managerId: (person as any).managerId,
+    manager: (person as unknown as { manager?: { id: string; fullName?: string } }).manager,
+    managerId: (person as unknown as { managerId?: string }).managerId,
   });
 
   return (
@@ -401,7 +401,7 @@ function EditProfilePanel({
   const teams = Array.from(teamsMapByName.values());
   
   // Support both { ok, data: { people } } and { people } response shapes
-  const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
+  const people = ((peopleQ.data as Record<string, unknown>)?.data as Record<string, unknown>)?.people as Array<{ id: string; fullName: string; email?: string }> ?? (peopleQ.data as Record<string, unknown>)?.people as Array<{ id: string; fullName: string; email?: string }> ?? [];
   
   // Filter out the person themselves from manager options
   // person.id is OrgPosition ID (from getPerson), p.id in people list is also OrgPosition ID (from listPeople)
@@ -435,9 +435,9 @@ function EditProfilePanel({
       await OrgApi.setName(personId, { name: trimmedValue });
       toast({ title: "Name updated", description: "The name has been saved successfully." });
       onSave(); // Refresh person data to update avatar initials
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to set name:", error);
-      toast({ title: "Failed to update name", description: error?.message || "Please try again.", variant: "destructive" });
+      toast({ title: "Failed to update name", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
       // Revert to previous value on error
       setNameValue(person.fullName ?? "");
     } finally {
@@ -474,9 +474,9 @@ function EditProfilePanel({
       // The API will handle converting empty string to null if needed
       await OrgApi.setTitle(personId, { title: trimmedValue || "" });
       toast({ title: "Title updated", description: "The title has been saved successfully." });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to set title:", error);
-      toast({ title: "Failed to update title", description: error?.message || "Please try again.", variant: "destructive" });
+      toast({ title: "Failed to update title", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     }
   }, [person, personId, canWrite, toast]);
 
@@ -529,9 +529,9 @@ function EditProfilePanel({
       
       toast({ title: "Team updated", description: "The team assignment has been saved successfully." });
       onSave();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to set team:", error);
-      toast({ title: "Failed to update team", description: error?.message || "Please try again.", variant: "destructive" });
+      toast({ title: "Failed to update team", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -592,9 +592,9 @@ function EditProfilePanel({
       
       toast({ title: "Manager updated", description: "The manager assignment has been saved successfully." });
       onSave();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to set manager:", error);
-      const errMsg = error?.message || "";
+      const errMsg = error instanceof Error ? error.message : "";
       const isNotFound =
         errMsg.includes("Person position not found") ||
         errMsg.includes("Person not found") ||

@@ -11,18 +11,19 @@ type PersonIdentityCellProps = {
 };
 
 export function PersonIdentityCell({ person, className }: PersonIdentityCellProps) {
+  const fullNameValue = person.fullName || person.name;
   const displayName = getDisplayName({
-    fullName: (person as any).fullName || person.name,
+    fullName: fullNameValue,
     name: person.name,
     email: person.email,
   });
-  
+
   // Use email as fallback if name is missing (never show "Unknown" or "Unnamed")
   // If displayName is empty, try email; if email is also empty, show empty string
   const primaryText = displayName || person.email || "";
-  
+
   const initials = getInitials({
-    fullName: (person as any).fullName || person.name,
+    fullName: fullNameValue,
     name: person.name,
     email: person.email,
   });

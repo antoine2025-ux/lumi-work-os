@@ -41,8 +41,8 @@ export function PersonDrawer(props: { personId: string | null }) {
       try {
         const d = await fetchPerson(props.personId)
         if (!cancelled) setData(d)
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || "Failed to load person")
+      } catch (e: unknown) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load person")
       } finally {
         if (!cancelled) setLoading(false)
       }

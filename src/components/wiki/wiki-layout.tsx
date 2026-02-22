@@ -325,15 +325,17 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
   // Expose global trigger functions
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      (window as any).triggerCreatePage = () => {
+      const win = window as Window & { triggerCreatePage?: () => void; triggerCreatePageWithWorkspace?: (workspaceId: string) => void }
+      win.triggerCreatePage = () => {
         setShowWorkspaceSelectDialog(true)
       }
-      (window as any).triggerCreatePageWithWorkspace = createPageWithWorkspace
+      win.triggerCreatePageWithWorkspace = createPageWithWorkspace
     }
     return () => {
       if (typeof window !== 'undefined') {
-        delete (window as any).triggerCreatePage
-        delete (window as any).triggerCreatePageWithWorkspace
+        const win = window as Window & { triggerCreatePage?: () => void; triggerCreatePageWithWorkspace?: (workspaceId: string) => void }
+        delete win.triggerCreatePage
+        delete win.triggerCreatePageWithWorkspace
       }
     }
   }, [createPageWithWorkspace])
@@ -588,14 +590,14 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
             setWorkspaces([])
           } else {
             // Filter out empty objects and validate data
-            const validWorkspaces = workspacesData.filter((w: any) => w && (w.id || w.name))
+            const validWorkspaces = workspacesData.filter((w: WikiWorkspace) => w && (w.id || w.name))
             
             if (validWorkspaces.length === 0 && workspacesData.length > 0) {
               console.error('❌ All workspaces are empty objects:', workspacesData)
             }
             
             // Normalize workspace names on the frontend
-            const normalizedWorkspaces = validWorkspaces.map((w: any) => {
+            const normalizedWorkspaces = validWorkspaces.map((w: WikiWorkspace) => {
               // Check if this is a default Personal Space
               if (w.id?.startsWith('personal-space-')) {
                 return { ...w, name: 'Personal Space' }
@@ -786,7 +788,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
   const _personalWorkspacePages = useMemo(
     () =>
       recentPages.filter(p => {
-        const pageWorkspaceType = (p as any).workspace_type
+        const pageWorkspaceType = p.workspace_type
         const pagePermissionLevel = p.permissionLevel
         if (pageWorkspaceType === 'personal') return true
         if (!pageWorkspaceType || pageWorkspaceType === null || pageWorkspaceType === undefined || pageWorkspaceType === '') {
@@ -800,7 +802,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
   const _teamWorkspacePages = useMemo(
     () =>
       recentPages.filter(p => {
-        const pageWorkspaceType = (p as any).workspace_type
+        const pageWorkspaceType = p.workspace_type
         const pagePermissionLevel = p.permissionLevel
         if (pageWorkspaceType === 'personal') return false
         if (
@@ -829,7 +831,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
       .filter(w => w.type !== 'personal' && w.type !== 'team')
       .forEach(workspace => {
         const pages = recentPages.filter(p => {
-          const pageWorkspaceType = (p as any).workspace_type
+          const pageWorkspaceType = p.workspace_type
           return (
             pageWorkspaceType === workspace.id &&
             pageWorkspaceType !== 'team' &&

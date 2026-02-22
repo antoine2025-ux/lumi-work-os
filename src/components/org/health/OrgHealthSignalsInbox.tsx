@@ -61,7 +61,7 @@ export function OrgHealthSignalsInbox(props: {
           return (
             <a
               key={s.id}
-              href={hrefForSignal(s as any)}
+              href={hrefForSignal(s)}
               className="block rounded-2xl border p-4 hover:bg-muted/40"
             >
               <div className="flex items-start justify-between gap-3">

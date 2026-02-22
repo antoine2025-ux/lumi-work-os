@@ -23,7 +23,7 @@ interface PublishSheetProps {
     draftFormat: string
   }
   onClose: () => void
-  onPublish: (settings: any) => void
+  onPublish: (settings: { category: string; visibility: string; tags: string[]; owners: string[] }) => void
 }
 
 export function PublishSheet({ session, onClose, onPublish }: PublishSheetProps) {

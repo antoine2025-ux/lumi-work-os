@@ -77,7 +77,7 @@ export async function timeOrgLoader<T>(
     });
 
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     const duration = Date.now() - start;
 
     logOrgEvent({
@@ -89,8 +89,8 @@ export async function timeOrgLoader<T>(
       userId,
       durationMs: duration,
       meta: {
-        message: error?.message ?? "Unknown error",
-        stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+        message: error instanceof Error ? error.message : "Unknown error",
+        stack: process.env.NODE_ENV === "development" && error instanceof Error ? error.stack : undefined,
       },
     });
 

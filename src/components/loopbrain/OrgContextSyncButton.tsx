@@ -69,9 +69,9 @@ export function OrgContextSyncButton() {
       setTeamItemsCount(json.teamItems?.length ?? 0);
       setPersonItemsCount(json.personItems?.length ?? 0);
       setState("success");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("OrgContextSyncButton error:", err);
-      setErrorMessage(err?.message ?? "Failed to sync org context");
+      setErrorMessage(err instanceof Error ? err.message : "Failed to sync org context");
       setState("error");
     }
   }

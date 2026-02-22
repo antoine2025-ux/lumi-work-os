@@ -154,7 +154,7 @@ export function ContextMenu({ children, items, className }: ContextMenuProps) {
 
 // Predefined context menu items for different entity types
 export const contextMenuItems = {
-  project: (project: any): ContextMenuItem[] => [
+  project: (project: { id: string; name: string }): ContextMenuItem[] => [
     {
       id: "open",
       label: "Open",
@@ -221,7 +221,7 @@ export const contextMenuItems = {
     }
   ],
 
-  task: (task: any): ContextMenuItem[] => [
+  task: (task: { id: string }): ContextMenuItem[] => [
     {
       id: "open",
       label: "Open",
@@ -296,7 +296,7 @@ export const contextMenuItems = {
     }
   ],
 
-  wiki: (page: any): ContextMenuItem[] => [
+  wiki: (page: { id: string; slug: string; title: string }): ContextMenuItem[] => [
     {
       id: "open",
       label: "Open",

@@ -44,7 +44,9 @@ export function StructureClient() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [memberDialogOpen, setMemberDialogOpen] = useState<Record<string, boolean>>({});
-  const [teamDetails, setTeamDetails] = useState<Record<string, any>>({});
+  type TeamDetailMember = { personId: string; fullName: string; email?: string | null; title?: string | null; availabilityStatus?: string };
+  type TeamDetail = { id?: string; name?: string; departmentId?: string | null; ownerPersonId?: string | null; members: TeamDetailMember[] };
+  const [teamDetails, setTeamDetails] = useState<Record<string, TeamDetail>>({});
   const [loadingTeamDetails, setLoadingTeamDetails] = useState<Record<string, boolean>>({});
   const [addingMember, setAddingMember] = useState<Record<string, boolean>>({});
   const [selectedPersonId, setSelectedPersonId] = useState<Record<string, string>>({});
@@ -85,7 +87,9 @@ export function StructureClient() {
 
   const data = structureQ.data;
   // Support both { ok, data: { people } } and { people } response shapes
-  const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
+  type PeopleResponseShape = { data?: { people?: Array<{ id: string; fullName: string }> }; people?: Array<{ id: string; fullName: string }> };
+  const peopleResp = peopleQ.data as unknown as PeopleResponseShape | null;
+  const people: Array<{ id: string; fullName: string }> = peopleResp?.data?.people ?? peopleResp?.people ?? [];
   const structureDefinedItem = readiness?.items.find((i) => i.key === "structure_defined");
   const hasDepartments = data.departments.length > 0;
   const hasTeams = data.teams.length > 0;
@@ -98,8 +102,8 @@ export function StructureClient() {
     try {
       await OrgApi.setTeamOwner(teamId, { ownerPersonId });
       refetchStructure();
-    } catch (e: any) {
-      setErrors((prev) => ({ ...prev, [key]: e?.message || "Failed to set owner." }));
+    } catch (e: unknown) {
+      setErrors((prev) => ({ ...prev, [key]: e instanceof Error ? e.message : "Failed to set owner." }));
     } finally {
       setSaving((prev) => ({ ...prev, [key]: false }));
     }
@@ -111,8 +115,8 @@ export function StructureClient() {
     setLoadingTeamDetails((prev) => ({ ...prev, [teamId]: true }));
     try {
       const detail = await OrgApi.getTeamDetail(teamId);
-      setTeamDetails((prev) => ({ ...prev, [teamId]: detail.team }));
-    } catch (e: any) {
+      setTeamDetails((prev) => ({ ...prev, [teamId]: detail.team as TeamDetail }));
+    } catch (e: unknown) {
       console.error("Failed to load team details:", e);
     } finally {
       setLoadingTeamDetails((prev) => ({ ...prev, [teamId]: false }));
@@ -134,11 +138,11 @@ export function StructureClient() {
       await OrgApi.addTeamMember(teamId, { personId });
       // Reload team details
       const detail = await OrgApi.getTeamDetail(teamId);
-      setTeamDetails((prev) => ({ ...prev, [teamId]: detail.team }));
+      setTeamDetails((prev) => ({ ...prev, [teamId]: detail.team as TeamDetail }));
       setSelectedPersonId((prev) => ({ ...prev, [teamId]: "" }));
       refetchStructure();
-    } catch (e: any) {
-      setErrors((prev) => ({ ...prev, [key]: e?.message || "Failed to add member." }));
+    } catch (e: unknown) {
+      setErrors((prev) => ({ ...prev, [key]: e instanceof Error ? e.message : "Failed to add member." }));
     } finally {
       setAddingMember((prev) => ({ ...prev, [teamId]: false }));
     }
@@ -153,10 +157,10 @@ export function StructureClient() {
       await OrgApi.removeTeamMember(teamId, { personId });
       // Reload team details
       const detail = await OrgApi.getTeamDetail(teamId);
-      setTeamDetails((prev) => ({ ...prev, [teamId]: detail.team }));
+      setTeamDetails((prev) => ({ ...prev, [teamId]: detail.team as TeamDetail }));
       refetchStructure();
-    } catch (e: any) {
-      setErrors((prev) => ({ ...prev, [key]: e?.message || "Failed to remove member." }));
+    } catch (e: unknown) {
+      setErrors((prev) => ({ ...prev, [key]: e instanceof Error ? e.message : "Failed to remove member." }));
     } finally {
       setSaving((prev) => ({ ...prev, [key]: false }));
     }
@@ -365,9 +369,9 @@ export function StructureClient() {
                                   {/* Current members */}
                                   <div className="space-y-2">
                                     <Label>Current members</Label>
-                                    {teamDetails[t.id]?.members?.length > 0 ? (
+                                    {(teamDetails[t.id]?.members?.length ?? 0) > 0 ? (
                                       <div className="space-y-2">
-                                        {teamDetails[t.id].members.map((m: any) => (
+                                        {teamDetails[t.id]?.members?.map((m) => (
                                           <div
                                             key={m.personId}
                                             className="flex items-center justify-between rounded-lg border p-2"
@@ -419,7 +423,7 @@ export function StructureClient() {
                                             .filter(
                                               (p: typeof people[0]) =>
                                                 !teamDetails[t.id]?.members?.some(
-                                                  (m: any) => m.personId === p.id
+                                                  (m) => m.personId === p.id
                                                 )
                                             )
                                             .map((p: typeof people[0]) => (

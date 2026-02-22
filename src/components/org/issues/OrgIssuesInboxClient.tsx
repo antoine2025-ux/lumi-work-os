@@ -20,7 +20,8 @@ import { OrgIssueDetailDrawer } from "@/components/org/issues/OrgIssueDetailDraw
 import { AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mutationBus } from "@/lib/org/mutations";
-import type { OrgIssueMetadata, OrgIssue } from "@/lib/org/deriveIssues";
+import type { OrgIssueMetadata, OrgIssue, CapacityThresholds } from "@/lib/org/deriveIssues";
+import type { SerializedIssueWindow, IntelligenceResponseMeta } from "@/lib/org/intelligence/types";
 import { WhyThisAnswerPanel } from "@/components/org/intelligence/WhyThisAnswerPanel";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 import { SeverityBadge } from "@/components/org/SeverityBadge";
@@ -108,7 +109,15 @@ export function OrgIssuesInboxClient() {
 
   // Base issues state (canonical fetched issues + mutation deltas)
   const [baseIssues, setBaseIssues] = useState<OrgIssueMetadata[]>([]);
-  const [responseMeta, setResponseMeta] = useState<any | null>(null);
+  // Response metadata from the integrity endpoint - shape varies by endpoint version
+  type ResponseMeta = {
+    generatedAt?: string;
+    assumptionsId?: string;
+    issueWindow?: { start: string; end: string; label: string };
+    thresholds?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+  const [responseMeta, setResponseMeta] = useState<ResponseMeta | null>(null);
   const [appliedMutationIds, setAppliedMutationIds] = useState<string[]>([]);
   const appliedMutationIdsRef = useRef<Set<string>>(new Set()); // Dedup guard (capped to last ~200)
   const MAX_DEDUP_IDS = 200;
@@ -148,8 +157,9 @@ export function OrgIssuesInboxClient() {
       setBaseIssues(normalized);
       // Note: integrity endpoint may not return responseMeta, so we'll handle it gracefully
       // Store any metadata that might be available
-      if ((integrityQ.data as any).responseMeta) {
-        setResponseMeta((integrityQ.data as any).responseMeta);
+      const dataWithMeta = integrityQ.data as unknown as { responseMeta?: ResponseMeta };
+      if (dataWithMeta.responseMeta) {
+        setResponseMeta(dataWithMeta.responseMeta);
       }
     }
   }, [integrityQ.data]);
@@ -569,9 +579,9 @@ export function OrgIssuesInboxClient() {
                 </div>
               )}
               <WhyThisAnswerPanel
-                issueWindow={responseMeta.issueWindow}
-                thresholds={responseMeta.thresholds}
-                responseMeta={responseMeta}
+                issueWindow={responseMeta.issueWindow as unknown as SerializedIssueWindow}
+                thresholds={responseMeta.thresholds as unknown as CapacityThresholds & { issueWindowDays: number }}
+                responseMeta={responseMeta as unknown as IntelligenceResponseMeta}
               />
             </>
           ) : (

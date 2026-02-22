@@ -109,40 +109,57 @@ type PersonProfileData = {
 
 // Temporary adapter: current API might not return full contract shape yet
 // This allows graceful degradation
-function adaptData(data: any): PersonProfileData {
+// Loose shape for raw API data that may not match the contract
+type RawProfileData = Record<string, unknown> & {
+  person?: unknown
+  orgPlacement?: unknown
+  relationships?: unknown
+}
+
+function adaptData(data: RawProfileData): PersonProfileData {
   // If data already matches contract, return as-is
   if (data.person && data.orgPlacement && data.relationships) {
-    return data as PersonProfileData
+    return data as unknown as PersonProfileData
   }
+
+  // Use a loose accessor for nested properties
+  const d = data as Record<string, Record<string, unknown> | unknown[] | string | null | undefined>
+  const loc = d.location as Record<string, string | null> | null | undefined
+  const mgr = d.manager as Record<string, string> | null | undefined
+  const avail = d.availability as Record<string, string | null> | string | null | undefined
+  const rawSkills = d.skills as Record<string, unknown> | string[] | null | undefined
+  const rawTeams = d.teams as Array<{ id: string; name: string }> | null | undefined
+  const rawId = d.id as string | undefined
+  const rawNotes = d.notes as string | null | undefined
 
   // Otherwise, adapt from current API shape
   return {
     person: {
-      personKey: data.id || data.personKey || "",
-      userId: data.userId || "",
-      displayName: data.name || "Unnamed",
-      email: data.email || null,
-      personId: data.personId || data.id?.slice(0, 8).toUpperCase() || "UNKNOWN",
-      avatarUrl: data.avatarUrl || null,
-      location: data.location
+      personKey: rawId || (d.personKey as string) || "",
+      userId: (d.userId as string) || "",
+      displayName: (d.name as string) || "Unnamed",
+      email: (d.email as string) || null,
+      personId: (d.personId as string) || rawId?.slice(0, 8).toUpperCase() || "UNKNOWN",
+      avatarUrl: (d.avatarUrl as string) || null,
+      location: loc
         ? {
-            city: data.location.city || null,
-            country: data.location.country || null,
-            timezone: data.location.timezone || null,
-            localTime: data.location.localTime || null,
+            city: loc.city || null,
+            country: loc.country || null,
+            timezone: loc.timezone || null,
+            localTime: loc.localTime || null,
           }
         : null,
     },
     orgPlacement: {
-      department: data.department || null,
-      primaryTeam: data.teams?.[0] || null,
-      teams: data.teams || [],
-      role: data.title ? { title: data.title, id: null } : null,
+      department: (d.department as { id: string; name: string }) || null,
+      primaryTeam: rawTeams?.[0] || null,
+      teams: rawTeams || [],
+      role: d.title ? { title: d.title as string, id: null } : null,
     },
     relationships: {
-      manager: data.manager ? {
-        personKey: data.manager.id,
-        displayName: data.manager.name,
+      manager: mgr ? {
+        personKey: mgr.id,
+        displayName: mgr.name,
         title: null,
         avatarUrl: null,
       } : null,
@@ -150,28 +167,28 @@ function adaptData(data: any): PersonProfileData {
       peers: null,
     },
     availability: {
-      status: (data.availability?.status || data.availability || "UNKNOWN") as Availability["status"],
-      statusSource: data.availability?.statusSource || "UNKNOWN",
-      statusNote: data.availability?.statusNote || null,
-      nextChangeAt: data.availability?.nextChangeAt || null,
-      lastUpdatedAt: data.availability?.lastUpdatedAt || null,
+      status: (typeof avail === 'object' && avail !== null ? avail.status || "UNKNOWN" : avail || "UNKNOWN") as Availability["status"],
+      statusSource: ((typeof avail === 'object' && avail !== null ? avail.statusSource : null) || "UNKNOWN") as "UNKNOWN" | "MANUAL" | "CALENDAR" | "SYSTEM",
+      statusNote: (typeof avail === 'object' && avail !== null ? avail.statusNote : null) || null,
+      nextChangeAt: (typeof avail === 'object' && avail !== null ? avail.nextChangeAt : null) || null,
+      lastUpdatedAt: (typeof avail === 'object' && avail !== null ? avail.lastUpdatedAt : null) || null,
     },
     capacity: null,
     skills: {
-      items: Array.isArray(data.skills?.items)
-        ? data.skills.items
-        : Array.isArray(data.skills)
-        ? data.skills.map((s: string) => ({ key: s.toLowerCase().replace(/\s+/g, "-"), label: s }))
+      items: rawSkills && typeof rawSkills === 'object' && !Array.isArray(rawSkills) && Array.isArray((rawSkills as Record<string, unknown>).items)
+        ? (rawSkills as Record<string, unknown>).items as Skills['items']
+        : Array.isArray(rawSkills)
+        ? (rawSkills as string[]).map((s: string) => ({ key: s.toLowerCase().replace(/\s+/g, "-"), label: s }))
         : [],
-      missing: !data.skills || (Array.isArray(data.skills?.items) ? data.skills.items.length === 0 : Array.isArray(data.skills) ? data.skills.length === 0 : true),
+      missing: !rawSkills || (typeof rawSkills === 'object' && !Array.isArray(rawSkills) && Array.isArray((rawSkills as Record<string, unknown>).items) ? ((rawSkills as Record<string, unknown>).items as unknown[]).length === 0 : Array.isArray(rawSkills) ? rawSkills.length === 0 : true),
     },
     ownership: null,
     health: null,
-    notes: data.notes ? { summary: data.notes, lastUpdatedAt: null } : null,
+    notes: rawNotes ? { summary: rawNotes, lastUpdatedAt: null } : null,
   }
 }
 
-export function PersonProfile(props: { data: any }) {
+export function PersonProfile(props: { data: RawProfileData }) {
   const profile = adaptData(props.data)
 
   return (

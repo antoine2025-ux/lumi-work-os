@@ -2,112 +2,140 @@ import { prisma } from "@/lib/db"
 import type { OrgSnapshotV1 } from "@/server/org/contracts/org-snapshot-v1"
 import { computeMinimalOrgHealth } from "@/server/org/health/compute-minimal"
 
+// Local result types for Prisma select queries
+type PositionRow = {
+  teamId: string | null
+  userId: string | null
+  title: string | null
+  user: { id: string; name: string | null; email: string | null } | null
+}
+
+type TeamRow = { id: string; name: string; leaderId: string | null }
+type OwnerRow = { entityType: string; entityId: string; ownerPersonId: string }
+type AvailabilityRow = { personId: string; status: string; reason: string | null; updatedAt: Date; createdAt: Date }
+type RoleRow = { personId: string; role: string; percent: number }
+type SkillRow = { personId: string; skill: { name: string } }
+type TaxonomyRow = { label: string }
+type CapacityRow = { personId: string; fte: number; shrinkagePct: number }
+type DomainRow = { id: string; name: string }
+type SystemRow = { id: string; name: string }
+type TeamMemberRow = { teamId: string; personId: string }
+type ManagerLinkRow = { personId: string; managerId: string }
+
+type AvailabilityStatus = "AVAILABLE" | "LIMITED" | "UNAVAILABLE"
+
 export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> {
   // Get people from OrgPosition with User join
-  const positions = await prisma.orgPosition.findMany({
-    where: { workspaceId: orgId, userId: { not: null }, isActive: true } as any,
-    include: {
+  const positions: PositionRow[] = await prisma.orgPosition.findMany({
+    where: { workspaceId: orgId, userId: { not: null }, isActive: true },
+    select: {
+      teamId: true,
+      userId: true,
+      title: true,
       user: {
         select: { id: true, name: true, email: true },
       },
     },
     take: 10000, // Hard cap
-  }).catch(() => [] as any[])
+  }).catch(() => [] as PositionRow[])
 
   // Fetch health signals (used later in snapshot)
-  const health = await computeMinimalOrgHealth(orgId).catch(() => ({ trustScore: 0, signals: [] }))
+  const health = await computeMinimalOrgHealth(orgId).catch(() => ({ trustScore: 0, signals: [] as { key: string; severity: "INFO" | "WARNING" | "HIGH"; count?: number }[] }))
 
   const [orgRow, teams, owners, availability, roles, skills, taxRoles, taxSkills, capacityRows, domains, systems] = await Promise.all([
-    prisma.org.findFirst({ where: { id: orgId } as any, select: { id: true, name: true } as any }).catch(() => null),
-    prisma.orgTeam.findMany({ where: { workspaceId: orgId } as any, select: { id: true, name: true, leadPersonId: true } as any, take: 2000 }).catch(() => [] as any[]),
-    (async () => {
+    prisma.org.findFirst({ where: { id: orgId }, select: { id: true, name: true } }).catch(() => null),
+    prisma.orgTeam.findMany({ where: { workspaceId: orgId }, select: { id: true, name: true, leaderId: true }, take: 2000 }).catch(() => [] as TeamRow[]),
+    (async (): Promise<OwnerRow[]> => {
       try {
-        if (prisma.ownerAssignment && typeof (prisma.ownerAssignment as any).findMany === "function") {
-          return await (prisma.ownerAssignment as any).findMany({
-            where: { orgId, isPrimary: true } as any,
-            select: { entityType: true, entityId: true, personId: true } as any,
+        const ownerModel = prisma.ownerAssignment
+        if (ownerModel && typeof ownerModel.findMany === "function") {
+          return await ownerModel.findMany({
+            where: { workspaceId: orgId, isPrimary: true },
+            select: { entityType: true, entityId: true, ownerPersonId: true },
             take: 200000,
-          } as any).catch((error: any) => {
-            if (error?.code === "P2021" || error?.message?.includes("does not exist")) {
-              return [] as any[]
+          }).catch((error: unknown) => {
+            if (error instanceof Error && (
+              (error as Error & { code?: string }).code === "P2021" ||
+              error.message?.includes("does not exist")
+            )) {
+              return [] as OwnerRow[]
             }
-            return [] as any[]
+            return [] as OwnerRow[]
           })
         }
-        return [] as any[]
+        return [] as OwnerRow[]
       } catch {
-        return [] as any[]
+        return [] as OwnerRow[]
       }
     })(),
     prisma.personAvailabilityHealth.findMany({
-      where: { orgId } as any,
-      select: { personId: true, status: true, reason: true, updatedAt: true, createdAt: true } as any,
+      where: { workspaceId: orgId },
+      select: { personId: true, status: true, reason: true, updatedAt: true, createdAt: true },
       take: 50000,
-    }).catch(() => [] as any[]),
+    }).catch(() => [] as AvailabilityRow[]),
     prisma.personRoleAssignment.findMany({
-      where: { orgId } as any,
-      select: { personId: true, role: true, percent: true } as any,
+      where: { orgId },
+      select: { personId: true, role: true, percent: true },
       take: 200000,
-    }).catch(() => [] as any[]),
+    }).catch(() => [] as RoleRow[]),
     prisma.personSkill.findMany({
-      where: { orgId } as any,
-      select: { personId: true, skill: true } as any,
+      where: { workspaceId: orgId },
+      select: { personId: true, skill: { select: { name: true } } },
       take: 200000,
-    }).catch(() => [] as any[]),
-    prisma.orgRoleTaxonomy.findMany({ where: { orgId } as any, select: { label: true } as any, take: 5000 }).catch(() => [] as any[]),
-    prisma.orgSkillTaxonomy.findMany({ where: { orgId } as any, select: { label: true } as any, take: 5000 }).catch(() => [] as any[]),
-    // Capacity data (FTE, shrinkage, allocation)
+    }).catch(() => [] as SkillRow[]),
+    prisma.orgRoleTaxonomy.findMany({ where: { orgId }, select: { label: true }, take: 5000 }).catch(() => [] as TaxonomyRow[]),
+    prisma.orgSkillTaxonomy.findMany({ where: { orgId }, select: { label: true }, take: 5000 }).catch(() => [] as TaxonomyRow[]),
+    // Capacity data (FTE, shrinkage)
     prisma.personCapacity
       .findMany({
-        where: { orgId } as any,
-        select: { personId: true, fte: true, shrinkagePct: true, allocationPct: true } as any,
+        where: { orgId },
+        select: { personId: true, fte: true, shrinkagePct: true },
         take: 50000,
       })
-      .catch(() => [] as any[]),
+      .catch(() => [] as CapacityRow[]),
     // Domains
     prisma.domain
-      .findMany({ where: { orgId } as any, select: { id: true, name: true } as any, take: 2000 })
-      .catch(() => [] as any[]),
+      .findMany({ where: { orgId }, select: { id: true, name: true }, take: 2000 })
+      .catch(() => [] as DomainRow[]),
     // Systems
     prisma.systemEntity
-      .findMany({ where: { orgId } as any, select: { id: true, name: true } as any, take: 2000 })
-      .catch(() => [] as any[]),
+      .findMany({ where: { orgId }, select: { id: true, name: true }, take: 2000 })
+      .catch(() => [] as SystemRow[]),
   ])
 
   // Get team memberships from OrgPosition (teamId + userId)
-  const teamMembers = await prisma.orgPosition
-    .findMany({ 
-      where: { workspaceId: orgId, teamId: { not: null }, userId: { not: null }, isActive: true } as any, 
-      select: { teamId: true, userId: true } as any, 
-      take: 200000 
+  const teamMembers: TeamMemberRow[] = await prisma.orgPosition
+    .findMany({
+      where: { workspaceId: orgId, teamId: { not: null }, userId: { not: null }, isActive: true },
+      select: { teamId: true, userId: true },
+      take: 200000
     })
-    .then((positions: any[]) => positions.map((p: any) => ({ teamId: p.teamId, personId: p.userId })))
-    .catch(() => [] as any[])
+    .then((rows) => rows.map((p) => ({ teamId: p.teamId!, personId: p.userId! })))
+    .catch(() => [] as TeamMemberRow[])
 
-  const managerLinks = await prisma.personManagerLink
-    .findMany({ where: { orgId } as any, select: { personId: true, managerId: true } as any, take: 200000 })
-    .catch(() => [] as any[])
+  const managerLinks: ManagerLinkRow[] = await prisma.personManagerLink
+    .findMany({ where: { workspaceId: orgId }, select: { personId: true, managerId: true }, take: 200000 })
+    .catch(() => [] as ManagerLinkRow[])
 
-  const availabilityBy = new Map<string, any>()
-  for (const a of availability) availabilityBy.set(String((a as any).personId), a)
+  const availabilityBy = new Map<string, AvailabilityRow>()
+  for (const a of availability) availabilityBy.set(String(a.personId), a)
 
   const rolesBy = new Map<string, Array<{ role: string; percent: number }>>()
   for (const r of roles) {
-    const pid = String((r as any).personId)
+    const pid = String(r.personId)
     const arr = rolesBy.get(pid) ?? []
-    arr.push({ role: String((r as any).role ?? ""), percent: Number((r as any).percent ?? 100) })
+    arr.push({ role: String(r.role ?? ""), percent: Number(r.percent ?? 100) })
     rolesBy.set(pid, arr)
   }
-  for (const [k, arr] of rolesBy) {
+  for (const [, arr] of rolesBy) {
     arr.sort((x, y) => (y.percent ?? 0) - (x.percent ?? 0))
-    rolesBy.set(k, arr.slice(0, 10))
   }
 
   const skillsBy = new Map<string, string[]>()
   for (const s of skills) {
-    const pid = String((s as any).personId)
+    const pid = String(s.personId)
     const arr = skillsBy.get(pid) ?? []
-    const v = String((s as any).skill ?? "")
+    const v = s.skill?.name ?? ""
     if (v) arr.push(v)
     skillsBy.set(pid, arr)
   }
@@ -115,27 +143,26 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
   const teamIdsByPerson = new Map<string, string[]>()
   const memberIdsByTeam = new Map<string, string[]>()
   for (const tm of teamMembers) {
-    const tid = String((tm as any).teamId)
-    const pid = String((tm as any).personId)
+    const tid = String(tm.teamId)
+    const pid = String(tm.personId)
     teamIdsByPerson.set(pid, Array.from(new Set([...(teamIdsByPerson.get(pid) ?? []), tid])))
     memberIdsByTeam.set(tid, Array.from(new Set([...(memberIdsByTeam.get(tid) ?? []), pid])))
   }
 
   const managerIdsByPerson = new Map<string, string[]>()
   for (const ml of managerLinks) {
-    const pid = String((ml as any).personId)
-    const mid = String((ml as any).managerId)
+    const pid = String(ml.personId)
+    const mid = String(ml.managerId)
     managerIdsByPerson.set(pid, Array.from(new Set([...(managerIdsByPerson.get(pid) ?? []), mid])))
   }
 
   // Build capacity map
-  const capacityByPerson = new Map<string, { fte?: number; shrinkagePct?: number; allocationPct?: number }>()
+  const capacityByPerson = new Map<string, { fte?: number; shrinkagePct?: number }>()
   for (const c of capacityRows || []) {
-    const pid = String((c as any).personId)
+    const pid = String(c.personId)
     capacityByPerson.set(pid, {
-      fte: (c as any).fte ? Number((c as any).fte) : undefined,
-      shrinkagePct: (c as any).shrinkagePct ? Number((c as any).shrinkagePct) : undefined,
-      allocationPct: (c as any).allocationPct ? Number((c as any).allocationPct) : undefined,
+      fte: c.fte ? Number(c.fte) : undefined,
+      shrinkagePct: c.shrinkagePct ? Number(c.shrinkagePct) : undefined,
     })
   }
 
@@ -147,27 +174,27 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
   const systemsCapped = (systems || []).slice(0, 2000)
 
   // Map positions to people format
-  const people = positions.map((pos: any) => {
+  const people = positions.map((pos) => {
     const user = pos.user
     if (!user) return null
     const pid = String(user.id)
     const a = availabilityBy.get(pid)
-    const dt = (a?.updatedAt ?? a?.createdAt ?? null) ? new Date(a?.updatedAt ?? a?.createdAt).toISOString() : null
-    
+    const dt = (a?.updatedAt ?? a?.createdAt ?? null) ? new Date(a?.updatedAt ?? a?.createdAt ?? 0).toISOString() : null
+
     // Get team IDs from position and merge with teamMember table
     const positionTeamIds = pos.teamId ? [String(pos.teamId)] : []
     const memberTeamIds = teamIdsByPerson.get(pid) ?? []
     const teamIds = Array.from(new Set([...positionTeamIds, ...memberTeamIds]))
-    
+
     const capacity = capacityByPerson.get(pid)
-    
+
     return {
       id: pid,
       name: String(user.name ?? ""),
       email: user.email ? String(user.email) : null,
       title: pos.title ? String(pos.title) : null,
       availability: {
-        status: String(a?.status ?? "AVAILABLE") as any,
+        status: String(a?.status ?? "AVAILABLE") as AvailabilityStatus,
         reason: a?.reason ? String(a.reason) : null,
         updatedAt: dt,
       },
@@ -175,7 +202,7 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
       skills: skillsBy.get(pid) ?? [],
       teamIds,
       managerIds: managerIdsByPerson.get(pid) ?? [],
-      capacity: capacity ? { fte: capacity.fte, shrinkagePct: capacity.shrinkagePct, allocationPct: capacity.allocationPct } : undefined,
+      capacity: capacity ? { fte: capacity.fte, shrinkagePct: capacity.shrinkagePct } : undefined,
     }
   }).filter((p): p is NonNullable<typeof p> => p !== null)
 
@@ -187,28 +214,28 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
       name: orgRow?.name ? String(orgRow.name) : null,
     },
     people: people.slice(0, 10000), // Hard cap: max 10,000 people
-    teams: teamsCapped.map((t: any) => ({
+    teams: teamsCapped.map((t) => ({
       id: String(t.id),
       name: String(t.name ?? "Team"),
-      leadPersonId: t.leadPersonId ? String(t.leadPersonId) : null,
+      leadPersonId: t.leaderId ? String(t.leaderId) : null,
       memberIds: memberIdsByTeam.get(String(t.id)) ?? [],
     })),
-    domains: domainsCapped.length > 0 ? domainsCapped.map((d: any) => ({
+    domains: domainsCapped.length > 0 ? domainsCapped.map((d) => ({
       id: String(d.id),
       name: String(d.name ?? "Domain"),
     })) : undefined,
-    systems: systemsCapped.length > 0 ? systemsCapped.map((s: any) => ({
+    systems: systemsCapped.length > 0 ? systemsCapped.map((s) => ({
       id: String(s.id),
       name: String(s.name ?? "System"),
     })) : undefined,
-    ownership: ownersCapped.map((o: any) => ({
-      entityType: String(o.entityType) as any,
+    ownership: ownersCapped.map((o) => ({
+      entityType: String(o.entityType) as OrgSnapshotV1["ownership"][number]["entityType"],
       entityId: String(o.entityId),
-      primaryOwnerPersonId: String(o.personId),
+      primaryOwnerPersonId: String(o.ownerPersonId),
     })),
     taxonomy: {
-      roles: (taxRoles || []).map((r: any) => String(r.label ?? "")).filter(Boolean),
-      skills: (taxSkills || []).map((s: any) => String(s.label ?? "")).filter(Boolean),
+      roles: (taxRoles || []).map((r) => String(r.label ?? "")).filter(Boolean),
+      skills: (taxSkills || []).map((s) => String(s.label ?? "")).filter(Boolean),
     },
     health: {
       trustScore: health.trustScore,
@@ -220,4 +247,3 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
     },
   }
 }
-

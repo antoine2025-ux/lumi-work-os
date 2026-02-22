@@ -11,6 +11,15 @@ import { Badge } from '@/components/ui/badge'
 import { X, Plus, Loader2, AlertCircle } from 'lucide-react'
 
 type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED'
+type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+
+interface CreatedTask {
+  id: string
+  title: string
+  status: TaskStatus
+  priority: TaskPriority
+  [key: string]: unknown
+}
 
 interface CreateTaskDialogProps {
   open: boolean
@@ -19,7 +28,7 @@ interface CreateTaskDialogProps {
   defaultStatus?: TaskStatus
   defaultEpicId?: string | null
   defaultDueDate?: string | null
-  onTaskCreated?: (task: any) => void
+  onTaskCreated?: (task: CreatedTask) => void
 }
 
 interface Subtask {
@@ -141,7 +150,7 @@ export function CreateTaskDialog({
       setErrors({})
       
       // Build request body, omitting undefined/null values for optional fields
-      const requestBody: any = {
+      const requestBody: Record<string, unknown> = {
         projectId,
         title: title.trim(),
         status,
@@ -206,7 +215,7 @@ export function CreateTaskDialog({
         
         if (errorData.details) {
           if (Array.isArray(errorData.details)) {
-            const validationErrors = errorData.details.map((err: any) => 
+            const validationErrors = errorData.details.map((err: { path?: string[]; message: string }) =>
               `${err.path?.join('.') || 'field'}: ${err.message}`
             ).join(', ')
             errorMessage = `Validation error: ${validationErrors}`
@@ -331,7 +340,7 @@ export function CreateTaskDialog({
 
             <div className="space-y-2">
               <Label>Priority</Label>
-              <Select value={priority} onValueChange={(value: any) => setPriority(value)} disabled={isLoading}>
+              <Select value={priority} onValueChange={(value: string) => setPriority(value as TaskPriority)} disabled={isLoading}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

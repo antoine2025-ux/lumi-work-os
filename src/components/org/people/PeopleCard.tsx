@@ -8,6 +8,14 @@ import { surfaceCardClass, focusRingClass } from "./people-styles";
 import { AvailabilityPill } from "@/components/org/AvailabilityPill";
 import type { OrgPerson } from "@/types/org";
 
+type AvailabilityStatus = "UNKNOWN" | "AVAILABLE" | "PARTIALLY_AVAILABLE" | "UNAVAILABLE";
+
+// Extended person type with API fields beyond base OrgPerson
+type ExtendedOrgPerson = OrgPerson & {
+  availabilityStatus?: AvailabilityStatus | null;
+  availabilityStale?: boolean;
+};
+
 type PeopleCardProps = {
   person: OrgPerson;
   onOpenPerson: (person: OrgPerson) => void;
@@ -139,7 +147,7 @@ export const PeopleCard = memo(function PeopleCard({
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.stopPropagation();
-              handleSelectionClick(e as any);
+              handleSelectionClick(e as unknown as React.MouseEvent);
             }
           }}
           className={cn(
@@ -227,17 +235,21 @@ export const PeopleCard = memo(function PeopleCard({
       )}
 
       {/* Availability - subtle bottom right */}
-      {(person as any).availabilityStatus && (person as any).availabilityStatus !== "UNKNOWN" && (
-        <div className="mt-auto pt-2 border-t border-white/5">
-          <div className="flex items-center justify-end">
-            <AvailabilityPill
-              status={(person as any).availabilityStatus}
-              stale={(person as any).availabilityStale ?? false}
-              subtle={true}
-            />
+      {(() => {
+        const extended = person as ExtendedOrgPerson;
+        if (!extended.availabilityStatus || extended.availabilityStatus === "UNKNOWN") return null;
+        return (
+          <div className="mt-auto pt-2 border-t border-white/5">
+            <div className="flex items-center justify-end">
+              <AvailabilityPill
+                status={extended.availabilityStatus}
+                stale={extended.availabilityStale ?? false}
+                subtle={true}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 });

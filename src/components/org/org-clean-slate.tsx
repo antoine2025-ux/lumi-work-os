@@ -71,9 +71,10 @@ export function OrgCleanSlate({ workspaceId, onStructureCreated, colors }: OrgCl
   ])
 
   const [activeStep, setActiveStep] = useState<string | null>(null)
-  const [departments, setDepartments] = useState<any[]>([])
-  const [teams, setTeams] = useState<any[]>([])
-  const [positions, setPositions] = useState<any[]>([])
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([])
+  const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([])
+  const [positions, setPositions] = useState<Array<{ id: string; name: string }>>([])
+
 
   const handleStepComplete = (stepId: string) => {
     setSteps(prev => prev.map(step => 

@@ -32,7 +32,7 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
   const stepStatus = useMemo(() => {
     const overview = overviewQ.data;
     // Support both { ok, data: { people } } and { people } response shapes
-    const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
+    const people = ((peopleQ.data as Record<string, unknown>)?.data as Record<string, unknown>)?.people as Array<{ teamId?: string | null }> ?? (peopleQ.data as Record<string, unknown>)?.people as Array<{ teamId?: string | null }> ?? [];
 
     if (!overview) {
       return {
@@ -59,7 +59,7 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
     const assignPeople = 
       addPeople && 
       createTeam && 
-      people.some((p: any) => p.teamId !== null && p.teamId !== undefined);
+      people.some((p) => p.teamId !== null && p.teamId !== undefined);
 
     // Step 4: Assign ownership - complete if no unowned entities
     const assignOwnership = unownedEntities === 0 || readiness.ownership_assigned === true;

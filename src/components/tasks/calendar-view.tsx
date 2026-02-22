@@ -50,7 +50,7 @@ interface Task {
   points?: number
   customFields?: Array<{
     id: string
-    value: any
+    value: string | number | boolean | null
     field: {
       id: string
       label: string

@@ -12,6 +12,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import type { OwnedEntityType } from "@prisma/client";
 
 export type OwnerResolution = {
   ownerPersonId: string | null;
@@ -38,7 +39,7 @@ export async function resolveOwner(
   const assignment = await prisma.ownerAssignment.findFirst({
     where: {
       workspaceId,
-      entityType: entityType as any,
+      entityType: entityType as OwnedEntityType,
       entityId,
     },
     select: { ownerPersonId: true },
@@ -95,7 +96,7 @@ export async function resolveTeamOwners(workspaceId: string, teamIds: string[]):
   const assignments = await prisma.ownerAssignment.findMany({
     where: {
       workspaceId,
-      entityType: 'TEAM' as any,
+      entityType: 'TEAM' as OwnedEntityType,
       entityId: { in: teamIds },
     },
     select: { entityId: true, ownerPersonId: true },
@@ -143,7 +144,7 @@ export async function resolveDepartmentOwners(workspaceId: string, deptIds: stri
   const assignments = await prisma.ownerAssignment.findMany({
     where: {
       workspaceId,
-      entityType: 'DEPARTMENT' as any,
+      entityType: 'DEPARTMENT' as OwnedEntityType,
       entityId: { in: deptIds },
     },
     select: { entityId: true, ownerPersonId: true },

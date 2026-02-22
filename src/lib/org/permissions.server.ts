@@ -101,7 +101,7 @@ function normalizeOrgRoleFromDb(dbRole: string): OrgRole {
 }
 
 function parseCustomRole(
-  dbCustomRole: { id: string; key: string; name: string; capabilities: any } | null | undefined
+  dbCustomRole: { id: string; key: string; name: string; capabilities: unknown } | null | undefined
 ): OrgCustomRoleContext | undefined {
   if (!dbCustomRole) return undefined;
 
@@ -110,8 +110,8 @@ function parseCustomRole(
 
   if (Array.isArray(raw)) {
     caps = raw.filter((c): c is OrgCapability => typeof c === "string");
-  } else if (raw && typeof raw === "object" && Array.isArray(raw.values)) {
-    caps = raw.values.filter((c: unknown): c is OrgCapability => typeof c === "string");
+  } else if (raw && typeof raw === "object" && "values" in raw && Array.isArray((raw as Record<string, unknown>).values)) {
+    caps = ((raw as Record<string, unknown>).values as unknown[]).filter((c: unknown): c is OrgCapability => typeof c === "string");
   }
 
   return {

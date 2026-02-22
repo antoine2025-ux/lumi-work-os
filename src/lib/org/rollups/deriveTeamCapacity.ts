@@ -9,15 +9,22 @@ export type TeamCapacityRow = {
   overallocatedCount: number;
 };
 
+type TeamCapacityPerson = {
+  id: string;
+  teamId?: string | null;
+  teamName?: string | null;
+  team?: string | null;
+};
+
 export function deriveTeamCapacity(args: {
-  people: any[];
+  people: TeamCapacityPerson[];
   availabilityByPersonId: Record<string, { status: "available" | "partial" | "unavailable"; fraction?: number }>;
   allocationsByPersonId: Record<string, { fraction: number; startDate: Date; endDate?: Date }[]>;
   at?: Date;
 }): TeamCapacityRow[] {
   const at = args.at ?? new Date();
 
-  const byTeam = new Map<string, any[]>();
+  const byTeam = new Map<string, TeamCapacityPerson[]>();
   for (const p of args.people) {
     const key = (p.teamId || p.teamName || p.team || "Unassigned").toString();
     if (!byTeam.has(key)) byTeam.set(key, []);

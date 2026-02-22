@@ -84,11 +84,11 @@ export function useOrgLoopbrainGraph() {
         error: null,
         bundle: json.bundle,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("useOrgLoopbrainGraph error:", err);
       setState({
         loading: false,
-        error: err?.message || "Unknown error",
+        error: err instanceof Error ? err.message : "Unknown error",
         bundle: null,
       });
     }

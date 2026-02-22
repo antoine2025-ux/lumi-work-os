@@ -26,22 +26,21 @@ export async function ensureDefaultTaxonomy(orgId: string) {
   ]
 
   const [roleCount, skillCount] = await Promise.all([
-    prisma.orgRoleTaxonomy.count({ where: { orgId } as any }),
-    prisma.orgSkillTaxonomy.count({ where: { orgId } as any }),
+    prisma.orgRoleTaxonomy.count({ where: { orgId } }),
+    prisma.orgSkillTaxonomy.count({ where: { orgId } }),
   ])
 
   if (roleCount === 0) {
     await prisma.orgRoleTaxonomy.createMany({
-      data: defaultRoles.map((r) => ({ orgId, label: normalizeRole(r) })) as any,
+      data: defaultRoles.map((r) => ({ orgId, label: normalizeRole(r) })),
       skipDuplicates: true,
-    } as any)
+    })
   }
 
   if (skillCount === 0) {
     await prisma.orgSkillTaxonomy.createMany({
-      data: defaultSkills.map((s) => ({ orgId, label: normalizeSkill(s) })) as any,
+      data: defaultSkills.map((s) => ({ orgId, label: normalizeSkill(s) })),
       skipDuplicates: true,
-    } as any)
+    })
   }
 }
-

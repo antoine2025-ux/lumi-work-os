@@ -6,9 +6,9 @@ export async function dedupManagerLinks(orgId: string): Promise<DedupResult> {
   // PersonManagerLink unique: (workspaceId, personId, managerId)
   const rows = await prisma.personManagerLink.findMany({
     where: { workspaceId: orgId },
-    select: { id: true, personId: true, managerId: true, createdAt: true } as any,
+    select: { id: true, personId: true, managerId: true, createdAt: true },
     take: 200000,
-    orderBy: { createdAt: "asc" } as any,
+    orderBy: { createdAt: "asc" },
   })
 
   const seen = new Set<string>()
@@ -23,7 +23,7 @@ export async function dedupManagerLinks(orgId: string): Promise<DedupResult> {
   if (toDelete.length === 0) return { table: "PersonManagerLink", removed: 0 }
 
   await prisma.personManagerLink.deleteMany({
-    where: { id: { in: toDelete } } as any,
+    where: { id: { in: toDelete } },
   })
 
   return { table: "PersonManagerLink", removed: toDelete.length }
@@ -33,9 +33,9 @@ export async function dedupCapacity(orgId: string): Promise<DedupResult> {
   // PersonCapacity unique: (orgId, personId)
   const rows = await prisma.personCapacity.findMany({
     where: { orgId },
-    select: { id: true, personId: true, createdAt: true } as any,
+    select: { id: true, personId: true, createdAt: true },
     take: 200000,
-    orderBy: { createdAt: "desc" } as any, // keep newest
+    orderBy: { createdAt: "desc" }, // keep newest
   })
 
   const seen = new Set<string>()
@@ -49,7 +49,7 @@ export async function dedupCapacity(orgId: string): Promise<DedupResult> {
 
   if (toDelete.length === 0) return { table: "PersonCapacity", removed: 0 }
 
-  await prisma.personCapacity.deleteMany({ where: { id: { in: toDelete } } as any })
+  await prisma.personCapacity.deleteMany({ where: { id: { in: toDelete } } })
   return { table: "PersonCapacity", removed: toDelete.length }
 }
 
@@ -57,9 +57,9 @@ export async function dedupAvailability(orgId: string): Promise<DedupResult> {
   // PersonAvailability unique: (workspaceId, personId)
   const rows = await prisma.personAvailability.findMany({
     where: { workspaceId: orgId },
-    select: { id: true, personId: true, createdAt: true } as any,
+    select: { id: true, personId: true, createdAt: true },
     take: 200000,
-    orderBy: { createdAt: "desc" } as any, // keep newest
+    orderBy: { createdAt: "desc" }, // keep newest
   })
 
   const seen = new Set<string>()
@@ -73,7 +73,7 @@ export async function dedupAvailability(orgId: string): Promise<DedupResult> {
 
   if (toDelete.length === 0) return { table: "PersonAvailability", removed: 0 }
 
-  await prisma.personAvailability.deleteMany({ where: { id: { in: toDelete } } as any })
+  await prisma.personAvailability.deleteMany({ where: { id: { in: toDelete } } })
   return { table: "PersonAvailability", removed: toDelete.length }
 }
 
@@ -81,9 +81,9 @@ export async function dedupRoles(orgId: string): Promise<DedupResult> {
   // PersonRoleAssignment unique: (orgId, personId, role)
   const rows = await prisma.personRoleAssignment.findMany({
     where: { orgId },
-    select: { id: true, personId: true, role: true, createdAt: true } as any,
+    select: { id: true, personId: true, role: true, createdAt: true },
     take: 200000,
-    orderBy: { createdAt: "desc" } as any, // keep newest
+    orderBy: { createdAt: "desc" }, // keep newest
   })
 
   const seen = new Set<string>()
@@ -97,7 +97,7 @@ export async function dedupRoles(orgId: string): Promise<DedupResult> {
 
   if (toDelete.length === 0) return { table: "PersonRoleAssignment", removed: 0 }
 
-  await prisma.personRoleAssignment.deleteMany({ where: { id: { in: toDelete } } as any })
+  await prisma.personRoleAssignment.deleteMany({ where: { id: { in: toDelete } } })
   return { table: "PersonRoleAssignment", removed: toDelete.length }
 }
 
@@ -109,4 +109,3 @@ export async function dedupAllImportTables(orgId: string) {
   results.push(await dedupRoles(orgId))
   return results
 }
-

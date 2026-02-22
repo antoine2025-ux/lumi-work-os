@@ -35,8 +35,8 @@ export function CustomRolesSection() {
       }
       const data = await res.json();
       setRoles(data.roles ?? []);
-    } catch (e: any) {
-      setError(e.message || "Failed to load custom roles.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load custom roles.");
     } finally {
       setLoading(false);
     }
@@ -74,8 +74,8 @@ export function CustomRolesSection() {
       }
       setForm({ key: "", name: "", description: "", capabilities: [] });
       await load();
-    } catch (e: any) {
-      setError(e.message || "Failed to create custom role.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to create custom role.");
     } finally {
       setSaving(false);
     }

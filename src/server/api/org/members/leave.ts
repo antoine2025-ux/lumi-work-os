@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return createSuccessResponse<{}>({});
+    return createSuccessResponse<Record<string, never>>({});
   } catch (error) {
     return handleApiError(error);
   }

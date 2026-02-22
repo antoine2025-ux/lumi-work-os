@@ -70,9 +70,9 @@ export function StructureWriteControls({
       
       // Trigger refetch
       onSuccess?.();
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Extract hint from API error response (api.ts already extracts it)
-      const errorMessage = e?.message || "Failed to create department.";
+      const errorMessage = e instanceof Error ? e.message : "Failed to create department.";
       setError(errorMessage);
       // Keep dialog open so user can fix and retry
     } finally {
@@ -89,18 +89,18 @@ export function StructureWriteControls({
     setSaving(true);
     try {
       // Call API - this will throw if there's an error
-      
+
       // Success - clear form and close dialog
       setTeamName("");
       setTeamDeptId(null);
       setError(null);
       setTeamOpen(false);
-      
+
       // Trigger refetch
       onSuccess?.();
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Extract hint from API error response (api.ts already extracts it)
-      const errorMessage = e?.message || "Failed to create team.";
+      const errorMessage = e instanceof Error ? e.message : "Failed to create team.";
       setError(errorMessage);
       // Keep dialog open so user can fix and retry
     } finally {

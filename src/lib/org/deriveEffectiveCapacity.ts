@@ -1,4 +1,4 @@
-import { sumAllocationFraction } from "./deriveAllocations";
+import { sumAllocationFraction, type AllocationWindow } from "./deriveAllocations";
 
 export function deriveEffectiveCapacity(args: {
   availabilityStatus: "available" | "partial" | "unavailable";
@@ -17,7 +17,7 @@ export function deriveEffectiveCapacity(args: {
       ? Math.max(0, Math.min(1, args.partialFraction ?? 0.5))
       : 1;
 
-  const allocated = sumAllocationFraction(args.allocations as any, at);
+  const allocated = sumAllocationFraction(args.allocations as AllocationWindow[], at);
   const effective = Math.max(0, base - allocated);
 
   return {

@@ -32,7 +32,7 @@ function AssignOwnerModal(props: {
         if (cancelled) return
         // Adapt existing API response format
         const peopleList = json.ok && Array.isArray(json.people) ? json.people : []
-        setPeople(peopleList.map((p: any) => ({
+        setPeople(peopleList.map((p: Record<string, unknown>) => ({
           id: String(p.id),
           name: String(p.name ?? p.email ?? `Person ${String(p.id).slice(0, 8)}`),
           email: p.email ? String(p.email) : null,
@@ -145,8 +145,8 @@ function AssignOwnerModal(props: {
                 if (res.ok) {
                   // Optimistic update: use scoped response data
                   // Toast notification (if toast available)
-                  if (typeof window !== 'undefined' && (window as any).toast) {
-                    (window as any).toast({ title: "Ownership assigned", description: "Ownership coverage updated." })
+                  if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).toast) {
+                    (window as unknown as { toast: (t: { title: string; description: string }) => void }).toast({ title: "Ownership assigned", description: "Ownership coverage updated." })
                   }
                   // Refresh to update UI with latest data
                   router.refresh()
@@ -428,7 +428,7 @@ export function OwnershipDeepDive(props: {
   const [bulkOpen, setBulkOpen] = React.useState(false)
 
   const grouped = React.useMemo(() => {
-    const g = new Map<string, Array<any>>()
+    const g = new Map<string, Array<{ entityType: string; entityId: string; entityLabel: string }>>()
     const filtered = filter === "ALL" ? data.unowned : data.unowned.filter((u) => String(u.entityType).toUpperCase() === filter)
     for (const u of filtered) {
       const key = String(u.entityType).toUpperCase()
@@ -488,7 +488,7 @@ export function OwnershipDeepDive(props: {
           <select
             className="rounded-xl border bg-background px-3 py-2 text-sm"
             value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
+            onChange={(e) => setFilter(e.target.value as "ALL" | "TEAM" | "DOMAIN" | "SYSTEM")}
           >
             <option value="ALL">All types</option>
             <option value="TEAM">Teams</option>

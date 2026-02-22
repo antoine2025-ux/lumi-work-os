@@ -40,11 +40,11 @@ export function OrgHealthCard(props: {
       { key: "ownershipScore", label: HEALTH_SCORE_LABELS.ownershipScore, score: clampScore(snapshot.ownershipScore) },
       { key: "balanceScore", label: HEALTH_SCORE_LABELS.balanceScore, score: clampScore(snapshot.balanceScore) },
     ]
-    const mgmtScore = clampScore((snapshot as any).managementScore)
+    const mgmtScore = clampScore(snapshot.managementScore)
     if (mgmtScore !== null) {
       rows.push({ key: "managementScore", label: HEALTH_SCORE_LABELS.managementScore, score: mgmtScore })
     }
-    const dqScore = clampScore((snapshot as any).dataQualityScore)
+    const dqScore = clampScore(snapshot.dataQualityScore)
     if (dqScore !== null) {
       rows.push({ key: "dataQualityScore", label: HEALTH_SCORE_LABELS.dataQualityScore, score: dqScore })
     }

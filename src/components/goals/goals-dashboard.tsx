@@ -22,8 +22,8 @@ interface Goal {
     name: string | null
     email: string
   } | null
-  objectives: any[]
-  linkedProjects: any[]
+  objectives: Array<{ id: string; title: string; progress: number }>
+  linkedProjects: Array<{ id: string; project: { id: string; name: string; status: string } }>
 }
 
 interface Metrics {
@@ -40,6 +40,7 @@ interface Props {
   goals: Goal[]
   metrics: Metrics
   currentUser: {
+    id?: string
     userId: string
     email: string
     name?: string | null
@@ -116,7 +117,7 @@ export function GoalsDashboard({ goals, metrics, currentUser, workspaceSlug, ini
               key={goal.id}
               goal={goal}
               workspaceSlug={workspaceSlug}
-              currentUser={currentUser}
+              currentUser={{ id: currentUser.id ?? currentUser.userId, name: currentUser.name, email: currentUser.email }}
             />
           ))}
         </div>

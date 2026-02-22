@@ -104,11 +104,14 @@ export async function updateAvailability(
             personId: true,
           },
         });
-  } catch (dbError: any) {
+  } catch (dbError: unknown) {
+    const errMsg = dbError instanceof Error ? dbError.message : "Database error";
+    const errCode = (dbError as Record<string, unknown>)?.code;
+    const errMeta = (dbError as Record<string, unknown>)?.meta;
     console.error("[updateAvailability] Database error:", {
-      error: dbError?.message,
-      code: dbError?.code,
-      meta: dbError?.meta,
+      error: errMsg,
+      code: errCode,
+      meta: errMeta,
       positionId,
       userId: position.userId,
       workspaceId: position.workspaceId,
@@ -116,7 +119,7 @@ export async function updateAvailability(
       existing: !!existing,
     });
     // Re-throw with more context
-    throw new Error(`Failed to ${existing ? 'update' : 'create'} availability: ${dbError?.message || 'Database error'}`);
+    throw new Error(`Failed to ${existing ? 'update' : 'create'} availability: ${errMsg}`);
   }
 
   // Map back to DTO format

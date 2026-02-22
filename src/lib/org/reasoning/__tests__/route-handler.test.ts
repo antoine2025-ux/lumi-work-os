@@ -144,7 +144,7 @@ describe("Route Handler: Auth", () => {
 
   it("returns 401 when unauthenticated", async () => {
     const { getUnifiedAuth } = await import("@/lib/unified-auth");
-    vi.mocked(getUnifiedAuth).mockResolvedValueOnce(null as any);
+    vi.mocked(getUnifiedAuth).mockResolvedValueOnce(null as unknown as Awaited<ReturnType<typeof getUnifiedAuth>>);
 
     const res = await getReasoningHandler(createRequest("/api/org/reasoning"));
 

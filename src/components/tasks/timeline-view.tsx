@@ -85,7 +85,7 @@ export default function TimelineView({ projectId, workspaceId }: TimelineViewPro
     }
   }
 
-  const handleTaskUpdate = (updatedTask: any) => {
+  const handleTaskUpdate = (updatedTask: Partial<Task> & { id: string }) => {
     setTasks(prevTasks =>
       prevTasks.map(task =>
         task.id === updatedTask.id ? { ...task, ...updatedTask } : task

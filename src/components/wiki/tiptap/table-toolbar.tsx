@@ -72,24 +72,34 @@ export function TableToolbar({ editor }: TableToolbarProps) {
     return null
   }
 
+  // Table extension commands are not in the base Editor type; cast chain to access them
+  type TableChain = ReturnType<typeof editor.chain> & {
+    addRowAfter: () => TableChain
+    addColumnAfter: () => TableChain
+    deleteRow: () => TableChain
+    deleteColumn: () => TableChain
+    deleteTable: () => TableChain
+    run: () => void
+  }
+
   const handleAddRowBelow = () => {
-    (editor.chain().focus() as any).addRowAfter().run()
+    (editor.chain().focus() as unknown as TableChain).addRowAfter().run()
   }
 
   const handleAddColumnRight = () => {
-    (editor.chain().focus() as any).addColumnAfter().run()
+    (editor.chain().focus() as unknown as TableChain).addColumnAfter().run()
   }
 
   const handleDeleteRow = () => {
-    (editor.chain().focus() as any).deleteRow().run()
+    (editor.chain().focus() as unknown as TableChain).deleteRow().run()
   }
 
   const handleDeleteColumn = () => {
-    (editor.chain().focus() as any).deleteColumn().run()
+    (editor.chain().focus() as unknown as TableChain).deleteColumn().run()
   }
 
   const handleDeleteTable = () => {
-    (editor.chain().focus() as any).deleteTable().run()
+    (editor.chain().focus() as unknown as TableChain).deleteTable().run()
   }
 
   const toolbarContent = (

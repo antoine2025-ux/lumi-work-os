@@ -1,9 +1,15 @@
 import { prisma } from "@/lib/db"
 
-function getProfileOverrideModel() {
-  const prismaAny = prisma as any
-  if (prismaAny.orgPersonProfileOverride && typeof prismaAny.orgPersonProfileOverride.findUnique === 'function') {
-    return prismaAny.orgPersonProfileOverride
+type PrismaDelegate = {
+  findUnique: (args: Record<string, unknown>) => Promise<Record<string, unknown> | null>
+  upsert: (args: Record<string, unknown>) => Promise<Record<string, unknown>>
+}
+
+function getProfileOverrideModel(): PrismaDelegate | null {
+  const p = prisma as unknown as Record<string, unknown>
+  const model = p.orgPersonProfileOverride as PrismaDelegate | undefined
+  if (model && typeof model.findUnique === 'function') {
+    return model
   }
   return null
 }

@@ -27,7 +27,7 @@ interface ProjectTemplate {
   category: string
   isDefault: boolean
   isPublic: boolean
-  templateData: any
+  templateData: Record<string, unknown>
   createdAt: string
   createdBy: {
     id: string
@@ -114,7 +114,8 @@ export function TemplateSelector({ isOpen, onClose, onSelectTemplate }: Template
   }
 
   const getTaskCount = (template: ProjectTemplate) => {
-    return template.templateData?.tasks?.length || 0
+    const tasks = template.templateData?.tasks
+    return Array.isArray(tasks) ? tasks.length : 0
   }
 
   return (

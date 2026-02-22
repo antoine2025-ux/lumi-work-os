@@ -153,7 +153,7 @@ export default function TaskList({ projectId, workspaceId, isFullscreen = false,
         // Update the task in the local state immediately for better UX
         setTasks(prevTasks => 
           prevTasks.map(task => 
-            task.id === taskId ? { ...task, status: newStatus as any } : task
+            task.id === taskId ? { ...task, status: newStatus as Task['status'] } : task
           )
         )
       } else {

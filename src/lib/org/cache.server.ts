@@ -11,7 +11,7 @@ type CacheEntry<T> = {
   ttl: number; // Time to live in milliseconds
 };
 
-const cacheStore = new Map<string, CacheEntry<any>>();
+const cacheStore = new Map<string, CacheEntry<unknown>>();
 
 /**
  * Get cached value if it exists and hasn't expired.
@@ -62,7 +62,8 @@ export function clearAllCache(): void {
  * @param keyGenerator - Function that generates cache key from function arguments
  * @param ttlMs - Time to live in milliseconds (default: 1 minute)
  */
-export function withTTLCache<T extends (...args: any[]) => Promise<any>>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic function wrapper requires flexible constraints
+export function withTTLCache<T extends (...args: any[]) => Promise<unknown>>(
   fn: T,
   keyGenerator: (...args: Parameters<T>) => string,
   ttlMs: number = 60 * 1000 // 1 minute default
@@ -80,7 +81,7 @@ export function withTTLCache<T extends (...args: any[]) => Promise<any>>(
     // Call function and cache result
     const result = await fn(...args);
     setCached(cacheKey, result, ttlMs);
-    return result;
+    return result as ReturnType<T>;
   }) as T;
 }
 

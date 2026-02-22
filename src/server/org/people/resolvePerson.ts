@@ -13,7 +13,7 @@ export async function resolvePersonByKey(args: { workspaceId: string; personKey:
   // Try Workspace membership first
   // Use try-catch with type assertion to handle cases where model might not exist
   try {
-    const membership = await (prisma as any).workspaceMember?.findFirst?.({
+    const membership = await prisma.workspaceMember?.findFirst?.({
       where: { id: personKey, workspaceId },
       include: { user: { select: { id: true, name: true, email: true } } },
     })
@@ -26,9 +26,9 @@ export async function resolvePersonByKey(args: { workspaceId: string; personKey:
         email: membership.user.email,
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If model doesn't exist or query fails, fall back to user id resolution
-    console.warn("[resolvePersonByKey] WorkspaceMember lookup failed, falling back to user:", error?.message)
+    console.warn("[resolvePersonByKey] WorkspaceMember lookup failed, falling back to user:", error instanceof Error ? error.message : error)
   }
 
   // Fallback: treat personKey as userId

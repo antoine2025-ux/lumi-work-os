@@ -170,9 +170,9 @@ export function WorkspaceMembers() {
 
       // Reload invites
       await loadData()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating invite:", error)
-      setToastMessage({ type: 'error', message: error.message || 'Failed to create invite' })
+      setToastMessage({ type: 'error', message: error instanceof Error ? error.message : 'Failed to create invite' })
     } finally {
       setInviteLoading(false)
     }
@@ -197,9 +197,9 @@ export function WorkspaceMembers() {
 
       // Reload invites
       await loadData()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error revoking invite:", error)
-      setToastMessage({ type: 'error', message: error.message || 'Failed to revoke invite' })
+      setToastMessage({ type: 'error', message: error instanceof Error ? error.message : 'Failed to revoke invite' })
     } finally {
       setRevokeLoading(null)
     }

@@ -45,8 +45,8 @@ export function CustomRoleSelector({
 
       // Refresh the page to show updated data
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to update custom role.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update custom role.");
     } finally {
       setUpdating(false);
     }

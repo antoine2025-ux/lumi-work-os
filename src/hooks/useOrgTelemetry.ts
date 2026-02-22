@@ -61,8 +61,8 @@ export function useOrgTelemetry(
 
       setStats(data.stats);
       setEvents(data.events);
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to load Org telemetry");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load Org telemetry");
     } finally {
       setLoading(false);
     }

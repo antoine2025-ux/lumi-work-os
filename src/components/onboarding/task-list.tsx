@@ -43,7 +43,7 @@ export function TaskList({ tasks, onTaskUpdate, readonly = false }: TaskListProp
     }
   }
 
-  const handleEditStart = (task: any) => {
+  const handleEditStart = (task: { id: string; title: string; description?: string | null }) => {
     setEditingTask(task.id)
     setEditTitle(task.title)
     setEditDescription(task.description || '')

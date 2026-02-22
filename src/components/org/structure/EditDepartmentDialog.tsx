@@ -38,7 +38,7 @@ export function EditDepartmentDialog({
   const { toast } = useToast();
   const peopleQ = useOrgQuery(() => OrgApi.listPeople(), []);
   // Support both { ok, data: { people } } and { people } response shapes
-  const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
+  const people = ((peopleQ.data as Record<string, unknown>)?.data as Record<string, unknown>)?.people as Array<{ id: string; fullName: string }> ?? (peopleQ.data as Record<string, unknown>)?.people as Array<{ id: string; fullName: string }> ?? [];
 
   const [name, setName] = useState(department.name);
   const [ownerPersonId, setOwnerPersonId] = useState<string>(department.ownerPersonId || "");
@@ -103,7 +103,7 @@ export function EditDepartmentDialog({
 
       router.refresh();
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[EditDepartmentDialog] Failed to update department:", err);
       setError(
         err instanceof Error

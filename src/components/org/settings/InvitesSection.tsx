@@ -7,9 +7,20 @@ import { CancelInvitationButton } from "@/components/org/cancel-invitation-butto
 import { CopyInviteLinkButton } from "@/components/org/copy-invite-link-button";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 
+type Invitation = {
+  id: string;
+  email: string;
+  status: string;
+  token?: string;
+  inviteUrl?: string;
+  expiresAt?: string | null;
+  acceptedAt?: string | null;
+  invitedBy?: { name?: string | null; email?: string | null } | null;
+};
+
 type InvitesSectionProps = {
   orgId?: string;
-  initialInvitations?: any[];
+  initialInvitations?: Invitation[];
 };
 
 /**
@@ -93,7 +104,7 @@ export function InvitesSection({
                           Pending
                         </span>
                         <CopyInviteLinkButton
-                          token={invitation.token}
+                          token={invitation.token ?? ""}
                           inviteUrl={invitation.inviteUrl}
                         />
                         <CancelInvitationButton

@@ -33,7 +33,7 @@ interface WikiPageContent {
   title: string
   content: string
   contentFormat?: 'HTML' | 'JSON'
-  contentJson?: any
+  contentJson?: Record<string, unknown>
   slug: string
   workspace_type: string | null
   updatedAt: string
@@ -77,7 +77,7 @@ export function ProjectDocumentationSection({
       } else {
         const errorText = await response.text()
         let errorMessage = response.statusText
-        let errorDetails: any = null
+        let errorDetails: string | null = null
         try {
           const errorJson = JSON.parse(errorText)
           errorMessage = errorJson.error || errorMessage

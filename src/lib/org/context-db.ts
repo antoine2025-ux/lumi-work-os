@@ -9,7 +9,7 @@ export type OrgMembershipRecord = {
     id: string;
     key: string;
     name: string;
-    capabilities: any;
+    capabilities: unknown;
   } | null;
 };
 
@@ -69,9 +69,11 @@ export async function getOrgAndMembershipForUser(
           // Exclude customRole - it may not exist in database
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If customRole relation doesn't exist yet (before migrations), fetch without it
-      if (error?.message?.includes('customRole') || error?.code === 'P2025') {
+      const message = error instanceof Error ? error.message : '';
+      const code = (error as { code?: string })?.code;
+      if (message.includes('customRole') || code === 'P2025') {
         membership = await prisma.workspaceMember.findUnique({
           where: {
             workspaceId_userId: {
@@ -155,9 +157,11 @@ export async function getOrgAndMembershipForUser(
         // Exclude customRole - it may not exist in database
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If customRole relation doesn't exist yet (before migrations), fetch without it
-    if (error?.message?.includes('customRole') || error?.code === 'P2025') {
+    const message = error instanceof Error ? error.message : '';
+    const code = (error as { code?: string })?.code;
+    if (message.includes('customRole') || code === 'P2025') {
       membership = await prisma.workspaceMember.findFirst({
         where: { userId },
         orderBy: { joinedAt: "asc" },

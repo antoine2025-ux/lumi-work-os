@@ -19,8 +19,8 @@ export async function getOrgOverviewSummary(orgId: OrgId) {
     const workspaceId: WorkspaceId = orgId
     
     const [peopleCountResult, teamCountResult, healthResult, completenessResult] = await Promise.allSettled([
-      prisma.orgPosition.count({ where: { workspaceId, userId: { not: null }, isActive: true } as any }).catch(() => 0),
-      prisma.orgTeam.count({ where: { workspaceId, isActive: true } as any }).catch(() => 0),
+      prisma.orgPosition.count({ where: { workspaceId, userId: { not: null }, isActive: true } }).catch(() => 0),
+      prisma.orgTeam.count({ where: { workspaceId, isActive: true } }).catch(() => 0),
       computeMinimalOrgHealth(orgId).catch((error) => {
         console.error("[getOrgOverviewSummary] Error computing health:", error);
         return { trustScore: 0, signals: [] };
@@ -39,7 +39,7 @@ export async function getOrgOverviewSummary(orgId: OrgId) {
     const topSignals = (health.signals || [])
       .slice()
       .sort((a, b) => {
-        const w = (s: any) => (s.severity === "HIGH" ? 3 : s.severity === "WARNING" ? 2 : 1)
+        const w = (s: { severity: string }) => (s.severity === "HIGH" ? 3 : s.severity === "WARNING" ? 2 : 1)
         return w(b) - w(a)
       })
       .slice(0, 2)
@@ -51,7 +51,7 @@ export async function getOrgOverviewSummary(orgId: OrgId) {
       topSignals,
       completeness,
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[getOrgOverviewSummary] Unexpected error:", error);
     // Return safe defaults
     return {

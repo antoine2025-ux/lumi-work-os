@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     await prisma.$transaction(async (tx) => {
-      await logOrgAuditEvent(tx as any, {
+      await logOrgAuditEvent(tx as Parameters<typeof logOrgAuditEvent>[0], {
         workspaceId,
         actorUserId: auth.user.userId,
         event: "ORG_DELETED",
@@ -52,8 +52,8 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    return createSuccessResponse<{}>({});
-  } catch (err: any) {
+    return createSuccessResponse<Record<string, never>>({});
+  } catch (err: unknown) {
     console.error("[ORG_DELETE_ERROR]", err);
     return createErrorResponse(
       "INTERNAL_SERVER_ERROR",

@@ -23,7 +23,7 @@ export class ActivitySectionErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("[ActivitySectionErrorBoundary] Error:", error, errorInfo);
   }
 

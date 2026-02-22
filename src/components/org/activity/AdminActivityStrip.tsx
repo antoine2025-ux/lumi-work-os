@@ -12,7 +12,7 @@ type AdminActivityStripProps = {
 function mapAction(raw: {
   action: string;
   targetType: string | null;
-  meta: any | null;
+  meta: Record<string, unknown> | null;
 }): { label: string } {
   const { action, meta } = raw;
 
@@ -45,8 +45,9 @@ function mapAction(raw: {
   }
 
   if (action === "MEMBER_CUSTOM_ROLE_UPDATED") {
-    const p = meta || {};
-    const actorName = p.actorName || p.actor?.name || p.actor?.email || "Someone";
+    const p: Record<string, unknown> = meta || {};
+    const actor = p.actor as Record<string, unknown> | undefined;
+    const actorName = p.actorName || actor?.name || actor?.email || "Someone";
     const targetName = p.memberName || p.memberEmail || p.memberId || "a member";
 
     let actionText = "";

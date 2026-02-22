@@ -731,12 +731,12 @@ export function WikiAIAssistant({
             if (workspacesResponse.ok) {
               const workspacesData = await workspacesResponse.json()
               if (Array.isArray(workspacesData) && workspacesData.length > 0) {
-                workspacesToUse = workspacesData.map((w: any) => ({
-                  id: w.id,
-                  name: w.name,
-                  type: w.type || 'team',
-                  color: w.color,
-                  icon: w.icon
+                workspacesToUse = workspacesData.map((w: Record<string, unknown>) => ({
+                  id: w.id as string,
+                  name: w.name as string,
+                  type: (w.type as WikiWorkspace['type']) || 'team',
+                  color: w.color as string | undefined,
+                  icon: w.icon as string | undefined
                 }))
               }
             }

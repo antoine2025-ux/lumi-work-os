@@ -22,7 +22,7 @@ export function InviteMemberForm({ workspaceId }: InviteMemberFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const inviteAction = useApiAction<
-    { invitation: any },
+    { invitation: unknown },
     { workspaceId: string; email: string }
   >(orgApi.inviteCreate());
 

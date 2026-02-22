@@ -10,8 +10,8 @@ import { Progress } from "@/components/ui/progress"
 import { CheckCircle, ArrowRight } from "lucide-react"
 
 interface RequirementsFlowProps {
-  onComplete: (requirements: any) => void
-  onUpdateSession: (updates: any) => void
+  onComplete: (requirements: Record<string, string>) => void
+  onUpdateSession: (updates: { phase: string; requirementNotes: Record<string, string> }) => void
 }
 
 const REQUIREMENT_QUESTIONS = [

@@ -1,26 +1,31 @@
 import { prisma } from "@/lib/db";
 
+/** Minimal DMMF field shape from Prisma internals */
+type DMMFField = { name: string };
+type DMMFModel = { fields?: DMMFField[] };
+type DMMFModelMap = { modelMap?: Record<string, DMMFModel> };
+
 /**
  * We avoid hardcoding owner assignment field names.
  * This probes the Prisma model fields so we can map to what exists.
  */
 export function getOwnerAssignmentModel() {
   // Prisma exposes DMMF on the client; use it to inspect models/fields.
-  const dmmf = (prisma as any)._dmmf;
+  const dmmf = (prisma as unknown as { _dmmf?: DMMFModelMap })._dmmf;
   if (!dmmf?.modelMap) return null;
 
   // Common model names
   const candidates = ["OwnerAssignment", "OwnershipAssignment", "OrgOwnerAssignment"];
   for (const name of candidates) {
     if (dmmf.modelMap[name]) {
-      const fields = dmmf.modelMap[name].fields?.map((f: any) => f.name) ?? [];
+      const fields = dmmf.modelMap[name].fields?.map((f) => f.name) ?? [];
       return { name, fields };
     }
   }
 
   // Fallback: find something that looks like owner assignment
-  for (const [name, model] of Object.entries<any>(dmmf.modelMap)) {
-    const fields = model.fields?.map((f: any) => f.name) ?? [];
+  for (const [name, model] of Object.entries(dmmf.modelMap) as [string, DMMFModel][]) {
+    const fields = model.fields?.map((f) => f.name) ?? [];
     const looksLikeOwner =
       fields.some((f: string) => f.toLowerCase().includes("owner")) ||
       fields.some((f: string) => f.toLowerCase().includes("assignee"));

@@ -54,33 +54,37 @@ async function fetchPerson(id: string): Promise<Detail> {
     throw new Error("Invalid response format")
   }
 
-  const raw = json as any
+  // Type-safe raw response shape (API may return nested or flat)
+  type RawPersonResponse = Record<string, unknown> & {
+    data?: Record<string, unknown>;
+  };
+  const raw = json as RawPersonResponse
 
   // Normalize payload - prioritize id (personKey) and userId from payload
   // Treat `id` as personKey (canonical identifier)
-  const resolvedId = raw.id ?? raw.userId ?? raw.data?.id ?? null
-  const resolvedUserId = raw.userId ?? raw.id ?? raw.data?.userId ?? null
+  const resolvedId = (raw.id ?? raw.userId ?? raw.data?.id ?? null) as string | null
+  const resolvedUserId = (raw.userId ?? raw.id ?? raw.data?.userId ?? null) as string | null
   const normalized: Detail = {
     id: resolvedId ?? "", // personKey (canonical identifier)
     userId: resolvedUserId ?? null, // Reference to user table (null for error responses)
-    personId: raw.personId ?? (resolvedUserId ? String(resolvedUserId).slice(0, 8).toUpperCase() : null),
-    name: raw.name ?? raw.data?.name ?? null,
-    title: raw.title ?? raw.role ?? null,
-    email: raw.email ?? raw.data?.email ?? null,
-    phone: raw.phone ?? null,
-    location: raw.location ?? null,
-    avatarUrl: raw.avatarUrl ?? null,
-    availability: raw.availability ?? null,
-    department: raw.department ?? null,
-    teams: raw.teams ?? [],
-    manager: raw.manager ?? null,
-    skills: raw.skills ?? [],
-    notes: raw.notes ?? null,
+    personId: (raw.personId as string | null) ?? (resolvedUserId ? String(resolvedUserId).slice(0, 8).toUpperCase() : null),
+    name: (raw.name ?? raw.data?.name ?? null) as string | null,
+    title: (raw.title ?? raw.role ?? null) as string | null,
+    email: (raw.email ?? raw.data?.email ?? null) as string | null,
+    phone: (raw.phone ?? null) as string | null,
+    location: (raw.location ?? null) as string | null,
+    avatarUrl: (raw.avatarUrl ?? null) as string | null,
+    availability: (raw.availability ?? null) as string | null,
+    department: (raw.department ?? null) as { id: string; name: string } | null,
+    teams: (raw.teams ?? []) as Array<{ id: string; name: string }>,
+    manager: (raw.manager ?? null) as { id: string; name: string } | null,
+    skills: (raw.skills ?? []) as string[],
+    notes: (raw.notes ?? null) as string | null,
   }
 
   // Validate required fields: id (personKey) must exist
   if (!normalized.id) {
-    const errorMsg = raw.error || "Invalid response format: missing field 'id'"
+    const errorMsg = (raw.error as string) || "Invalid response format: missing field 'id'"
     const devDebugLink = process.env.NODE_ENV === "development" 
       ? ` Check raw response: /api/dev/org/people-raw/${id}`
       : ""
@@ -112,17 +116,13 @@ export function PersonPanel(props: { personId: string | null }) {
   const [error, setError] = React.useState<string | null>(null)
   
   // Helper to safely extract error message
-  const extractErrorMessage = React.useCallback((e: any): string => {
+  const extractErrorMessage = React.useCallback((e: unknown): string => {
     try {
       if (typeof e === "string") return e
-      if (e?.message && typeof e.message === "string") return e.message
+      if (e instanceof Error) return e.message
       if (e && typeof e === "object") {
-        if ("message" in e && typeof e.message === "string") {
-          return e.message
-        }
-        // If it's an error object with code/message, extract message
-        if ("code" in e && "message" in e && typeof e.message === "string") {
-          return e.message
+        if ("message" in e && typeof (e as Record<string, unknown>).message === "string") {
+          return (e as Record<string, unknown>).message as string
         }
         // Fallback: try to stringify safely
         try {
@@ -154,7 +154,7 @@ export function PersonPanel(props: { personId: string | null }) {
           setData(d)
           setError(null)
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!cancelled) {
           const errorMessage = extractErrorMessage(e)
           // Ensure we always set a string, never an object

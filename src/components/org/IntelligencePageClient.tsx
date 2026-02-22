@@ -22,7 +22,7 @@ function applyFilters<T extends { signal?: string; severity?: string; entityType
   getSourceFinding?: (item: T) => OrgIntelligenceFinding | null
 ): T[] {
   return items.filter((item) => {
-    const finding = getSourceFinding ? getSourceFinding(item) : (item as any as OrgIntelligenceFinding);
+    const finding = getSourceFinding ? getSourceFinding(item) : (item as unknown as OrgIntelligenceFinding);
 
     // Filter by signal
     if (prefs.signals.length > 0 && finding?.signal) {
@@ -103,13 +103,14 @@ export function IntelligencePageClient() {
       setTimeout(() => {
         window.location.reload();
       }, 1000);
-    } catch (e: any) {
-      if (e?.message?.includes("403") || e?.message?.includes("Forbidden")) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.includes("403") || msg.includes("Forbidden")) {
         setGenerateError("You don't have permission to generate snapshots.");
-      } else if (e?.message?.includes("401") || e?.message?.includes("Unauthorized")) {
+      } else if (msg.includes("401") || msg.includes("Unauthorized")) {
         setGenerateError("You must be logged in to generate snapshots.");
       } else {
-        setGenerateError(e?.message || "Failed to generate snapshot.");
+        setGenerateError(msg || "Failed to generate snapshot.");
       }
     } finally {
       setGenerating(false);

@@ -83,8 +83,8 @@ export async function getDepartmentsWithTeams() {
   });
 
   // Use batch resolvers for performance (avoids N+1 queries)
-  const deptIds = departments.map((d: any) => d.id);
-  const allTeamIds = departments.flatMap((d: any) => (d.teams || []).map((t: any) => t.id));
+  const deptIds = departments.map((d) => d.id);
+  const allTeamIds = departments.flatMap((d) => (d.teams || []).map((t) => t.id));
   
   const [deptResolutions, teamResolutions] = await Promise.all([
     resolveDepartmentOwners(workspaceId, deptIds),
@@ -127,14 +127,14 @@ export async function getDepartmentsWithTeams() {
   const ownerMap = new Map(owners.map((p) => [p.id, p]));
 
   // Map departments and teams using canonical resolver results
-  const result = departments.map((d: any) => {
+  const result = departments.map((d) => {
     const deptResolution = deptResolutions.get(d.id);
     const deptOwnerId = deptResolution?.ownerPersonId || null;
     
     return {
       ...d,
       ownerPerson: deptOwnerId ? ownerMap.get(deptOwnerId) ?? null : null,
-      teams: (d.teams || []).map((t: any) => {
+      teams: (d.teams || []).map((t) => {
         const teamResolution = teamResolutions.get(t.id);
         const teamOwnerId = teamResolution?.ownerPersonId || null;
         return {
@@ -182,7 +182,7 @@ export async function getUnassignedTeams() {
   });
 
   // Use batch resolver for performance (avoids N+1 queries)
-  const teamIds = teams.map((t: any) => t.id);
+  const teamIds = teams.map((t) => t.id);
   const teamResolutions = await resolveTeamOwners(workspaceId, teamIds);
 
   // Collect all owner IDs from resolver results
@@ -218,7 +218,7 @@ export async function getUnassignedTeams() {
   const ownerMap = new Map(owners.map((p) => [p.id, p]));
 
   // Map teams using canonical resolver results
-  return teams.map((t: any) => {
+  return teams.map((t) => {
     const teamResolution = teamResolutions.get(t.id);
     const teamOwnerId = teamResolution?.ownerPersonId || null;
     return {
@@ -240,7 +240,7 @@ export async function getOrgStructure() {
   // Filter out any "Unassigned" department if it exists (legacy cleanup)
   // Unassigned is a STATE, not an ENTITY - it should never be a department
   const departments = allDepartments.filter(
-    (d: any) => d.name?.trim().toLowerCase() !== "unassigned"
+    (d) => d.name?.trim().toLowerCase() !== "unassigned"
   );
   
   // Get unassigned teams separately (teams with departmentId = null)
@@ -248,15 +248,15 @@ export async function getOrgStructure() {
   
   // Map to the expected format (normalize owner field names)
   return {
-    departments: departments.map((d: any) => ({
+    departments: departments.map((d) => ({
       id: d.id,
       name: d.name,
       ownerPerson: d.ownerPerson ? {
         id: d.ownerPerson.id,
         name: d.ownerPerson.fullName || [d.ownerPerson.firstName, d.ownerPerson.lastName].filter(Boolean).join(" ") || d.ownerPerson.email || "Unnamed",
       } : null,
-      teams: (d.teams || []).map((t: any) => {
-        const owner = t.owner || t.ownerPerson;
+      teams: (d.teams || []).map((t) => {
+        const owner = t.owner;
         return {
           id: t.id,
           name: t.name,
@@ -267,7 +267,7 @@ export async function getOrgStructure() {
         };
       }),
     })),
-    unassignedTeams: unassignedTeams.map((t: any) => ({
+    unassignedTeams: unassignedTeams.map((t) => ({
       id: t.id,
       name: t.name,
       ownerPerson: t.ownerPerson ? {
@@ -324,9 +324,9 @@ export async function getDepartmentById(departmentId: string) {
 
   // Collect all owner IDs (department + teams)
   const ownerIds = new Set<string>();
-  const deptOwnerPersonId = (department as any).ownerPersonId as string | null | undefined;
+  const deptOwnerPersonId = department.ownerPersonId;
   if (deptOwnerPersonId) ownerIds.add(deptOwnerPersonId);
-  (department.teams as any[]).forEach((t: any) => {
+  (department.teams).forEach((t) => {
     if (t.ownerPersonId) ownerIds.add(t.ownerPersonId);
   });
 
@@ -364,7 +364,7 @@ export async function getDepartmentById(departmentId: string) {
   const result = {
     ...department,
     ownerPerson: deptOwnerPersonId ? ownerMap.get(deptOwnerPersonId) ?? null : null,
-    teams: (department.teams as any[]).map((t: any) => ({
+    teams: (department.teams).map((t) => ({
       ...t,
       owner: t.ownerPersonId ? ownerMap.get(t.ownerPersonId) ?? null : null,
     })),
@@ -398,7 +398,7 @@ export async function getTeamById(teamId: string) {
 
   if (!team) return null;
 
-  const ownerPersonId = (team as any).ownerPersonId as string | null | undefined;
+  const ownerPersonId = team.ownerPersonId;
   const ownerPerson = ownerPersonId ? await getPersonById(ownerPersonId) : null;
 
   return {
@@ -517,8 +517,8 @@ export async function getDepartmentsForPicker(): Promise<DepartmentForPicker[]> 
     });
 
     return departments;
-  } catch (error: any) {
-    console.error("[getDepartmentsForPicker] Error fetching departments:", error?.message);
+  } catch (error: unknown) {
+    console.error("[getDepartmentsForPicker] Error fetching departments:", error instanceof Error ? error.message : error);
     // Return empty array on error to prevent page crash
     return [];
   }

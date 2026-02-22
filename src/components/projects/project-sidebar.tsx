@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from "framer-motion"
 interface ProjectNavItem {
   id: string
   label: string
-  icon: any
+  icon: React.ComponentType<{ className?: string }>
   href: string
   badge?: string
   badgeColor?: string

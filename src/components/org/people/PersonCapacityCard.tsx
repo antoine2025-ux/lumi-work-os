@@ -133,10 +133,10 @@ export function PersonCapacityCard({ personId, canEdit = false, onCapacityChange
       setDialogOpen(false);
       loadContracts();
       onCapacityChanged?.();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Failed to save",
-        description: err.message || "Please try again.",
+        description: err instanceof Error ? err.message : "Please try again.",
         variant: "destructive",
       });
     } finally {

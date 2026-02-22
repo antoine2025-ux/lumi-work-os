@@ -14,7 +14,7 @@ type OrgActivityItem = {
   actorEmail: string | null;
   targetName: string | null;
   targetEmail: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   createdAt: string;
 };
 
@@ -59,8 +59,8 @@ function formatEventDescription(item: OrgActivityItem): string {
       return `${actor} removed ${target} from the workspace.`;
 
     case "MEMBER_ROLE_CHANGED": {
-      const fromRole = item.metadata?.fromRole;
-      const toRole = item.metadata?.toRole;
+      const fromRole = item.metadata?.fromRole as string | undefined;
+      const toRole = item.metadata?.toRole as string | undefined;
       if (fromRole && toRole) {
         return `${actor} changed ${target}'s role from ${fromRole.toLowerCase()} to ${toRole.toLowerCase()}.`;
       }
@@ -144,17 +144,18 @@ export function OrgActivityPanel({
     useState<OrgActivityTimeframeFilter>(initialTimeframe);
   const [reloading, setReloading] = useState(false);
 
-  function extractPayload(body: any): { items: OrgActivityItem[]; nextCursor: string | null } {
-    if (body && body.ok && body.data) {
+  function extractPayload(body: Record<string, unknown>): { items: OrgActivityItem[]; nextCursor: string | null } {
+    const data = body?.data as Record<string, unknown> | undefined;
+    if (body && body.ok && data) {
       return {
-        items: body.data.items ?? [],
-        nextCursor: body.data.nextCursor ?? null,
+        items: (data.items ?? []) as OrgActivityItem[],
+        nextCursor: (data.nextCursor ?? null) as string | null,
       };
     }
     // Backwards compatibility (non-envelope)
     return {
-      items: body?.items ?? [],
-      nextCursor: body?.nextCursor ?? null,
+      items: (body?.items ?? []) as OrgActivityItem[],
+      nextCursor: (body?.nextCursor ?? null) as string | null,
     };
   }
 

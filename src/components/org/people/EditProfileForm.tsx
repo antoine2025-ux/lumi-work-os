@@ -58,8 +58,8 @@ export function EditProfileForm(props: Props) {
       setTimeout(() => {
         router.push("/org/directory")
       }, 500)
-    } catch (e: any) {
-      setError(e?.message || "Failed to save changes")
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save changes")
     } finally {
       setSaving(false)
     }

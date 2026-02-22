@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache"
 
-export function cacheOrg<TArgs extends any[], TResult>(
+export function cacheOrg<TArgs extends unknown[], TResult>(
   keyParts: string[],
   fn: (...args: TArgs) => Promise<TResult>,
   opts?: { revalidate?: number; tags?: string[] }

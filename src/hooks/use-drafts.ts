@@ -34,14 +34,14 @@ export function useDrafts() {
       if (unpublishedRes?.ok) {
         const unpublishedData = await unpublishedRes.json()
         const unpublishedPages = (Array.isArray(unpublishedData) ? unpublishedData : unpublishedData.data || [])
-          .filter((p: any) => !p.isPublished)
-          .map((p: any) => ({
-            id: p.id,
-            title: p.title,
+          .filter((p: Record<string, unknown>) => !p.isPublished)
+          .map((p: Record<string, unknown>) => ({
+            id: p.id as string,
+            title: p.title as string,
             type: 'page' as const,
-            updatedAt: p.updatedAt,
-            url: `/wiki/${p.slug}`,
-            excerpt: p.excerpt || p.content?.substring(0, 100) + '...'
+            updatedAt: p.updatedAt as string,
+            url: `/wiki/${p.slug as string}`,
+            excerpt: (p.excerpt as string) || (p.content as string)?.substring(0, 100) + '...'
           }))
         drafts.push(...unpublishedPages)
       }
@@ -50,13 +50,13 @@ export function useDrafts() {
       if (sessionsRes?.ok) {
         const sessionsData = await sessionsRes.json()
         const draftSessions = (Array.isArray(sessionsData) ? sessionsData : [])
-          .filter((s: any) => s.draftTitle && s.draftBody && s.phase !== 'published')
-          .map((s: any) => ({
-            id: s.id,
-            title: s.draftTitle,
+          .filter((s: Record<string, unknown>) => s.draftTitle && s.draftBody && s.phase !== 'published')
+          .map((s: Record<string, unknown>) => ({
+            id: s.id as string,
+            title: s.draftTitle as string,
             type: 'session' as const,
-            updatedAt: s.updatedAt,
-            excerpt: s.draftBody?.substring(0, 100) + '...'
+            updatedAt: s.updatedAt as string,
+            excerpt: (s.draftBody as string)?.substring(0, 100) + '...'
           }))
         drafts.push(...draftSessions)
       }

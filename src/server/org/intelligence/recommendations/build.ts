@@ -42,7 +42,7 @@ export function buildRecommendations(
         title: "Assign an owner",
         description: f.explanation,
         severity: f.severity,
-        entityType: f.entityType as any,
+        entityType: f.entityType as "TEAM" | "DEPARTMENT",
         entityId: f.entityId,
         fixHref: "/org/ownership",
         sourceFinding: f,

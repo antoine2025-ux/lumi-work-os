@@ -86,9 +86,10 @@ export async function getOrgStructure(workspaceId?: string): Promise<OrgStructur
         ownerPersonId: true,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If enum doesn't exist or table doesn't exist, use raw SQL as fallback
-    if (error?.message?.includes("OwnedEntityType") || error?.message?.includes("does not exist")) {
+    const errorMessage = error instanceof Error ? error.message : "";
+    if (errorMessage.includes("OwnedEntityType") || errorMessage.includes("does not exist")) {
         try {
           const rawResults = await prisma.$queryRawUnsafe<Array<{ entity_id: string; owner_person_id: string }>>(
             `SELECT entity_id, owner_person_id
@@ -102,9 +103,9 @@ export async function getOrgStructure(workspaceId?: string): Promise<OrgStructur
             entityId: r.entity_id,
             ownerPersonId: r.owner_person_id,
           }));
-        } catch (rawError: any) {
+        } catch (rawError: unknown) {
           // If raw SQL also fails (table doesn't exist), just continue without owners
-          console.warn("[getOrgStructure] Could not load department owners:", rawError?.message);
+          console.warn("[getOrgStructure] Could not load department owners:", rawError instanceof Error ? rawError.message : rawError);
           departmentOwners = [];
         }
     } else {

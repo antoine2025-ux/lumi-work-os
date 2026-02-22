@@ -725,7 +725,7 @@ export type DepartmentInput = {
  */
 export function buildIssueExplainability(
   issue: { type: OrgIssue; entityType: string; entityId: string; issueKey: string },
-  context: { fixUrl?: string; fixAction?: string; evidence?: any; entityName?: string }
+  context: { fixUrl?: string; fixAction?: string; evidence?: Record<string, unknown>; entityName?: string }
 ): ExplainabilityBlock {
   const dependsOn: ExplainDependency[] = [
     { type: "DATA", label: `${issue.entityType} data`, reference: issue.entityId },
@@ -734,17 +734,17 @@ export function buildIssueExplainability(
   // Add evidence-specific dependencies if available
   if (context.evidence) {
     if (context.evidence.personId) {
-      dependsOn.push({ type: "DATA", label: "Person data", reference: context.evidence.personId });
+      dependsOn.push({ type: "DATA", label: "Person data", reference: String(context.evidence.personId) });
     }
     if (context.evidence.teamId) {
-      dependsOn.push({ type: "DATA", label: "Team data", reference: context.evidence.teamId });
+      dependsOn.push({ type: "DATA", label: "Team data", reference: String(context.evidence.teamId) });
     }
     if (context.evidence.departmentId) {
-      dependsOn.push({ type: "DATA", label: "Department data", reference: context.evidence.departmentId });
+      dependsOn.push({ type: "DATA", label: "Department data", reference: String(context.evidence.departmentId) });
     }
     if (context.evidence.workRequestId) {
-      dependsOn.push({ type: "DATA", label: "Work request data", reference: context.evidence.workRequestId });
-      dependsOn.push({ type: "DATA", label: "Impact resolution", reference: context.evidence.workRequestId });
+      dependsOn.push({ type: "DATA", label: "Work request data", reference: String(context.evidence.workRequestId) });
+      dependsOn.push({ type: "DATA", label: "Impact resolution", reference: String(context.evidence.workRequestId) });
     }
   }
 
@@ -798,8 +798,9 @@ export function buildIssueExplainability(
       break;
     case "WORK_IMPACT_UNDEFINED":
       if (context.evidence?.workRequestId) {
-        const inferredText = context.evidence.inferredCount > 0
-          ? ` (${context.evidence.inferredCount} inferred impact(s) found, but no explicit impacts defined)`
+        const inferredCount = Number(context.evidence.inferredCount) || 0;
+        const inferredText = inferredCount > 0
+          ? ` (${inferredCount} inferred impact(s) found, but no explicit impacts defined)`
           : " (no explicit or inferred impacts defined)";
         why.push(`Work request "${context.entityName || issue.entityId}" has no explicit impacts defined${inferredText}`);
       } else {
@@ -1184,7 +1185,13 @@ export async function deriveOwnershipIssuesForEntity(
 import type { EffectiveCapacity } from "./capacity/resolveEffectiveCapacity";
 import type { ContractResolution } from "./capacity/read";
 // import type { RoleCoverage } from "./coverage/read"; // Module not found
-type RoleCoverage = any; // Temporary placeholder
+type RoleCoverage = {
+  id: string;
+  roleType: string;
+  roleLabel: string | null;
+  primaryPersonId: string;
+  secondaryPersonIds: string[];
+};
 
 /**
  * Capacity issue thresholds (re-exported from thresholds.ts for backwards compat)

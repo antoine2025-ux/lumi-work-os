@@ -93,7 +93,7 @@ export function AddPersonForm() {
           window.dispatchEvent(new CustomEvent("org:person:created"));
         }
       }, 100);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Log full error in development for debugging
       if (process.env.NODE_ENV !== "production") {
         console.error("[AddPersonForm] Error creating person:", err);
@@ -101,15 +101,16 @@ export function AddPersonForm() {
       
       // Extract user-friendly error message from API response
       let errorMessage = "Failed to create person. Please try again.";
-      if (err?.message) {
+      const errMsg = err instanceof Error ? err.message : "";
+      if (errMsg) {
         // If the error message is user-friendly (from API), use it
         if (
-          err.message.includes("email already exists") ||
-          err.message.includes("already exists") ||
-          err.message.includes("duplicate")
+          errMsg.includes("email already exists") ||
+          errMsg.includes("already exists") ||
+          errMsg.includes("duplicate")
         ) {
-          errorMessage = err.message;
-        } else if (err.message.includes("409")) {
+          errorMessage = errMsg;
+        } else if (errMsg.includes("409")) {
           // Conflict status code
           errorMessage = "A person with this email already exists. Please use a different email.";
         }

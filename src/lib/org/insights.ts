@@ -115,7 +115,7 @@ export async function getOrgInsightsSnapshot(
           });
           // Filter to only positions with a userId (occupied positions)
           return allPositions.filter(p => p.userId !== null);
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('[getOrgInsightsSnapshot] Failed to load positions:', error);
           // Return empty array on any error to prevent page crash
           return [];
@@ -143,7 +143,7 @@ export async function getOrgInsightsSnapshot(
       // RoleCard.positionId links to OrgPosition.id (not a field on OrgPosition)
       (async () => {
         try {
-          return await (prisma as any).roleCard.findMany({
+          return await (prisma as unknown as { roleCard: { findMany: (args: { where: { workspaceId: string }; select: { id: true; roleName: true; positionId: true } }) => Promise<Array<{ id: string; roleName: string; positionId: string | null }>> } }).roleCard.findMany({
             where: { workspaceId: orgId },
             select: {
               id: true,
@@ -151,9 +151,11 @@ export async function getOrgInsightsSnapshot(
               positionId: true, // This is the OrgPosition.id that this RoleCard links to
             },
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           // If model doesn't exist yet (before migrations), return empty array
-          if (error?.message?.includes('roleCard') || error?.code === 'P2025') {
+          const message = error instanceof Error ? error.message : '';
+          const code = (error as { code?: string })?.code;
+          if (message.includes('roleCard') || code === 'P2025') {
             return [];
           }
           throw error;
@@ -310,7 +312,7 @@ export async function getOrgInsightsSnapshot(
     const { start, end } = bucket;
     const count = memberships.filter((m) => {
       const joined =
-        m.joinedAt instanceof Date ? m.joinedAt : new Date(m.joinedAt as any);
+        m.joinedAt instanceof Date ? m.joinedAt : new Date(m.joinedAt as string | number);
       return joined >= start && joined < end;
     }).length;
 

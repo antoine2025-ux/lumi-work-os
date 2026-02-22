@@ -15,8 +15,18 @@ import {
 } from '@dnd-kit/core'
 import { DraggableTaskCard } from './draggable-task-card'
 
+interface DragTask {
+  id: string
+  title: string
+  description: string
+  status: string
+  priority: string
+  dependsOn: string[]
+  [key: string]: unknown
+}
+
 interface DragDropContextType {
-  activeTask: any | null
+  activeTask: DragTask | null
   onTaskMove: (taskId: string, newStatus: string, newOrder?: number) => Promise<void>
   onTaskReorder: (taskId: string, newOrder: number) => Promise<void>
 }
@@ -42,7 +52,7 @@ export function DragDropProvider({
   onTaskMove, 
   onTaskReorder 
 }: DragDropProviderProps) {
-  const [activeTask, setActiveTask] = useState<any | null>(null)
+  const [activeTask, setActiveTask] = useState<DragTask | null>(null)
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -165,7 +175,7 @@ export function DragDropProvider({
         <DragOverlay>
           {activeTask ? (
             <div className="pointer-events-none w-fit max-w-full">
-              <DraggableTaskCard task={activeTask} isOverlay />
+              <DraggableTaskCard task={activeTask as unknown as React.ComponentProps<typeof DraggableTaskCard>['task']} isOverlay />
             </div>
           ) : null}
         </DragOverlay>

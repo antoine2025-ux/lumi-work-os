@@ -5,11 +5,28 @@ import { useOrgPermissions } from "@/components/org/OrgPermissionsContext";
 import { MembersListClient } from "@/components/org/members/MembersListClient";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 
+type Member = {
+  id: string;
+  userId: string;
+  role: string;
+  customRoleId?: string | null;
+  customRole?: {
+    id: string;
+    name: string;
+    capabilities: string[];
+  } | null;
+  user?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+};
+
 type MembersSectionProps = {
   orgId?: string;
   currentUserId?: string;
-  initialMembers?: any[];
-  initialCustomRoles?: any[];
+  initialMembers?: Member[];
+  initialCustomRoles?: Array<{ id: string; name: string }>;
 };
 
 /**

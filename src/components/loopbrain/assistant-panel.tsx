@@ -602,10 +602,10 @@ export function LoopbrainAssistantPanel({
         {/* Org Routing Debug Badge - Only visible in dev mode */}
         {lastLoopbrainResponse?.metadata?.routing && (
           <OrgRoutingBadge
-            contextType={(lastLoopbrainResponse.metadata.routing as any)?.contextType || 'unknown'}
-            confidence={(lastLoopbrainResponse.metadata.routing as any)?.confidence || 0}
+            contextType={lastLoopbrainResponse.metadata.routing?.contextType || 'unknown'}
+            confidence={lastLoopbrainResponse.metadata.routing?.confidence || 0}
             itemCount={lastLoopbrainResponse.metadata.retrievedCount || 0}
-            usedFallback={(lastLoopbrainResponse.metadata.routing as any)?.usedFallback || false}
+            usedFallback={lastLoopbrainResponse.metadata.routing?.usedFallback || false}
             enabled={process.env.NODE_ENV !== "production"}
           />
         )}

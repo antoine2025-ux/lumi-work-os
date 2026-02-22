@@ -25,7 +25,7 @@ export async function getOrgPreferenceForUser<T>(input: {
     },
     select: { valueJson: true },
   });
-  return (row?.valueJson as any) ?? null;
+  return (row?.valueJson as T) ?? null;
 }
 
 /**
@@ -35,7 +35,7 @@ export async function setOrgPreferenceForUser(input: {
   workspaceId: string;
   userId: string;
   key: string;
-  valueJson: any;
+  valueJson: import("@prisma/client").Prisma.InputJsonValue;
 }): Promise<void> {
   await prisma.orgUiPreference.upsert({
     where: {

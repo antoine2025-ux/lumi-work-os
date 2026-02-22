@@ -65,7 +65,7 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
       const response = await fetch(`/api/projects/${projectId}/members`)
       if (response.ok) {
         const data = await response.json()
-        setProjectMembers(data.map((member: any) => member.user))
+        setProjectMembers(data.map((member: { user: User }) => member.user))
       }
     } catch (error) {
       console.error('Error loading project members:', error)

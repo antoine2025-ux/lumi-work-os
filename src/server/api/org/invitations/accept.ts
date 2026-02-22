@@ -26,9 +26,9 @@ export async function POST(req: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     const message =
-      typeof err?.message === "string"
+      err instanceof Error
         ? err.message
         : "Unable to accept invitation.";
 

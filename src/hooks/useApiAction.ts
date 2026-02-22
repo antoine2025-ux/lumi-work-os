@@ -47,7 +47,7 @@ type UseApiActionResult<TData, TBody> = {
   loading: boolean;
 };
 
-export function useApiAction<TData = any, TBody = any>(
+export function useApiAction<TData = unknown, TBody = unknown>(
   options: UseApiActionOptions<TBody>
 ): UseApiActionResult<TData, TBody> {
   const {

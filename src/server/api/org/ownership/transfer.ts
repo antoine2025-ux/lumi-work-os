@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const updates: any[] = [];
+    const updates: import("@prisma/client").Prisma.PrismaPromise<unknown>[] = [];
 
     if (targetMembership.role !== "ADMIN" && targetMembership.role !== "OWNER") {
       updates.push(
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return createSuccessResponse<{}>({});
+    return createSuccessResponse<Record<string, never>>({});
   } catch (err) {
     console.error("[ORG_OWNERSHIP_TRANSFER_ERROR]", err);
     return createErrorResponse(

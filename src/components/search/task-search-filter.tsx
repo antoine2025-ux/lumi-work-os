@@ -40,9 +40,20 @@ function parseFiltersFromPartial(partial?: Partial<TaskFilter>): TaskFilter {
   }
 }
 
+interface FilterableTask {
+  title: string
+  description?: string | null
+  status: string
+  priority: string
+  assignee?: { name: string } | null
+  dueDate?: string | null
+  dependsOn: string[]
+  [key: string]: unknown
+}
+
 export interface TaskSearchFilterProps {
-  tasks: any[]
-  onFilterChange: (filteredTasks: any[]) => void
+  tasks: FilterableTask[]
+  onFilterChange: (filteredTasks: FilterableTask[]) => void
   onFilterReset: () => void
   /** Initial filter values (e.g. from URL). When provided, filters sync when this changes. */
   initialFilters?: Partial<TaskFilter>
@@ -66,7 +77,7 @@ export function TaskSearchFilter({ tasks, onFilterChange, onFilterReset, initial
   // Get unique values for filter options
   const uniqueStatuses = [...new Set(tasks.map(task => task.status))].filter(Boolean)
   const uniquePriorities = [...new Set(tasks.map(task => task.priority))].filter(Boolean)
-  const uniqueAssignees = [...new Set(tasks.map(task => task.assignee?.name).filter(Boolean))]
+  const uniqueAssignees = [...new Set(tasks.map(task => task.assignee?.name).filter((n): n is string => Boolean(n)))]
 
   // Apply filters to tasks
   useEffect(() => {

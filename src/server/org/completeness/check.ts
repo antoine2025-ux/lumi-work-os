@@ -10,14 +10,11 @@ export type OrgCompletenessItem = {
 export async function getOrgCompleteness(orgId: string): Promise<OrgCompletenessItem[]> {
   try {
     const [peopleCountResult, teamCountResult, ownersCountResult] = await Promise.allSettled([
-      prisma.orgPosition.count({ where: { workspaceId: orgId, userId: { not: null }, isActive: true } as any }).catch(() => 0),
-      prisma.orgTeam.count({ where: { workspaceId: orgId } as any }).catch(() => 0),
+      prisma.orgPosition.count({ where: { workspaceId: orgId, userId: { not: null }, isActive: true } }).catch(() => 0),
+      prisma.orgTeam.count({ where: { workspaceId: orgId } }).catch(() => 0),
       (async () => {
         try {
-          if (prisma.ownerAssignment && typeof (prisma.ownerAssignment as any).count === "function") {
-            return await (prisma.ownerAssignment as any).count({ where: { orgId, isPrimary: true } as any }).catch(() => 0);
-          }
-          return 0;
+          return await prisma.ownerAssignment.count({ where: { workspaceId: orgId, isPrimary: true } }).catch(() => 0);
         } catch {
           return 0;
         }
@@ -48,7 +45,7 @@ export async function getOrgCompleteness(orgId: string): Promise<OrgCompleteness
         hint: ownersCount === 0 ? "Assign at least one primary owner" : undefined,
       },
     ]
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[getOrgCompleteness] Unexpected error:", error);
     // Return safe defaults
     return [
@@ -73,4 +70,3 @@ export async function getOrgCompleteness(orgId: string): Promise<OrgCompleteness
     ]
   }
 }
-

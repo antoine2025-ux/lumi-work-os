@@ -16,7 +16,9 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 interface Props {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Complex Prisma GoalWithDetails type; proper typing requires deep refactor
   goal: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Server auth shape varies
   currentUser: any
   workspaceSlug: string
 }

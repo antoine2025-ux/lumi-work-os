@@ -13,7 +13,16 @@ export type OrgCompleteness = {
   roles: number;
 };
 
-export function deriveCompleteness(people: any[]): OrgCompleteness {
+type CompletenessPerson = {
+  managerId?: string | null;
+  team?: string | null;
+  teamName?: string | null;
+  teamId?: string | null;
+  role?: string | null;
+  title?: string | null;
+};
+
+export function deriveCompleteness(people: CompletenessPerson[]): OrgCompleteness {
   if (people.length === 0) {
     return { reportingLines: 0, teams: 0, roles: 0 };
   }

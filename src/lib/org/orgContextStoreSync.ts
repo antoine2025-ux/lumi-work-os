@@ -78,7 +78,7 @@ async function pruneStaleOrgContextItems(
   const existingOrgItems = await prisma.contextItem.findMany({
     where: {
       workspaceId,
-      type: { in: ORG_CONTEXT_TYPES as any },
+      type: { in: [...ORG_CONTEXT_TYPES] },
     },
     select: {
       id: true,

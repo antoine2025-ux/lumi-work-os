@@ -52,11 +52,11 @@ export default function OrgQaStatusList() {
           error: null,
           questions: data.questions,
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (cancelled) return;
         setState({
           loading: false,
-          error: error?.message || "Unexpected error while loading Org QA.",
+          error: error instanceof Error ? error.message : "Unexpected error while loading Org QA.",
           questions: [],
         });
       }

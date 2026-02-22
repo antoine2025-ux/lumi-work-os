@@ -36,7 +36,7 @@ export async function requireOrgContext(
 
   if (!userId || !workspaceId) {
     const error = new Error("Unauthorized: Authentication required");
-    (error as any).status = 401;
+    (error as Error & { status?: number }).status = 401;
     throw error;
   }
 
@@ -45,7 +45,7 @@ export async function requireOrgContext(
     userId,
     workspaceId,
     scope: "workspace", // Org uses workspace scope
-    requireRole: role ? [role as any] : ["MEMBER"],
+    requireRole: role ? [role as "VIEWER" | "MEMBER" | "ADMIN" | "OWNER"] : ["MEMBER"],
   });
 
   // Step 3: Set workspace context (enables automatic Prisma scoping)

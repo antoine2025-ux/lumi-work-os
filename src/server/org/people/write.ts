@@ -69,9 +69,10 @@ export async function createOrgPerson(input: UpsertOrgPersonInput) {
         select: { id: true },
       });
       userId = user.id;
-    } catch (prismaError: any) {
+    } catch (prismaError: unknown) {
       // Fallback to raw SQL if Prisma fails due to schema mismatch
-      if (prismaError?.code === 'P2022' || prismaError?.message?.includes('does not exist')) {
+      const pErr = prismaError as Error & { code?: string };
+      if (pErr?.code === 'P2022' || pErr?.message?.includes('does not exist')) {
         const { randomBytes } = await import('crypto');
         const cuid = 'c' + Date.now().toString(36) + randomBytes(4).toString('hex');
         const escapedEmail = email.replace(/'/g, "''");
@@ -130,9 +131,10 @@ export async function createOrgPerson(input: UpsertOrgPersonInput) {
       select: { id: true, userId: true },
     });
     position = created;
-  } catch (prismaError: any) {
+  } catch (prismaError: unknown) {
     // Fallback to raw SQL if Prisma fails due to schema mismatch
-    if (prismaError?.code === 'P2022' || prismaError?.message?.includes('does not exist')) {
+    const pErr = prismaError as Error & { code?: string };
+    if (pErr?.code === 'P2022' || pErr?.message?.includes('does not exist')) {
       const { randomBytes } = await import('crypto');
       const cuid = 'c' + Date.now().toString(36) + randomBytes(4).toString('hex');
       // Note: title might be required (NOT NULL), so provide a default if missing

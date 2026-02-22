@@ -60,41 +60,39 @@ export async function getAvailabilityEvents(
   personId: string,
   timeWindow?: { start: Date; end: Date }
 ): Promise<AvailabilityEvent[]> {
-  const where: any = {
-    workspaceId,
-    personId,
-  };
-
-  // Filter by time window if provided
-  if (timeWindow) {
-    where.OR = [
-      // Events that start within the window
-      {
-        startDate: {
-          gte: timeWindow.start,
-          lte: timeWindow.end,
-        },
-      },
-      // Events that end within the window
-      {
-        endDate: {
-          gte: timeWindow.start,
-          lte: timeWindow.end,
-        },
-      },
-      // Events that span the entire window
-      {
-        startDate: { lte: timeWindow.start },
-        OR: [
-          { endDate: { gte: timeWindow.end } },
-          { endDate: null },
-        ],
-      },
-    ];
-  }
-
   const events = await prisma.personAvailability.findMany({
-    where,
+    where: {
+      workspaceId,
+      personId,
+      ...(timeWindow
+        ? {
+            OR: [
+              // Events that start within the window
+              {
+                startDate: {
+                  gte: timeWindow.start,
+                  lte: timeWindow.end,
+                },
+              },
+              // Events that end within the window
+              {
+                endDate: {
+                  gte: timeWindow.start,
+                  lte: timeWindow.end,
+                },
+              },
+              // Events that span the entire window
+              {
+                startDate: { lte: timeWindow.start },
+                OR: [
+                  { endDate: { gte: timeWindow.end } },
+                  { endDate: null },
+                ],
+              },
+            ],
+          }
+        : {}),
+    },
     orderBy: { startDate: "asc" },
     select: {
       id: true,
@@ -124,27 +122,26 @@ export async function getAvailabilityEventsBatch(
 ): Promise<Map<string, AvailabilityEvent[]>> {
   if (personIds.length === 0) return new Map();
 
-  const where: any = {
-    workspaceId,
-    personId: { in: personIds },
-  };
-
-  if (timeWindow) {
-    where.OR = [
-      { startDate: { gte: timeWindow.start, lte: timeWindow.end } },
-      { endDate: { gte: timeWindow.start, lte: timeWindow.end } },
-      {
-        startDate: { lte: timeWindow.start },
-        OR: [
-          { endDate: { gte: timeWindow.end } },
-          { endDate: null },
-        ],
-      },
-    ];
-  }
-
   const events = await prisma.personAvailability.findMany({
-    where,
+    where: {
+      workspaceId,
+      personId: { in: personIds },
+      ...(timeWindow
+        ? {
+            OR: [
+              { startDate: { gte: timeWindow.start, lte: timeWindow.end } },
+              { endDate: { gte: timeWindow.start, lte: timeWindow.end } },
+              {
+                startDate: { lte: timeWindow.start },
+                OR: [
+                  { endDate: { gte: timeWindow.end } },
+                  { endDate: null },
+                ],
+              },
+            ],
+          }
+        : {}),
+    },
     orderBy: { startDate: "asc" },
     select: {
       id: true,

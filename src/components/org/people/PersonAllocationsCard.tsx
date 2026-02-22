@@ -173,10 +173,10 @@ export function PersonAllocationsCard({ personId, canEdit = false, onAllocations
       setFormEndDate("");
       loadAllocations();
       onAllocationsChanged?.();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Failed to save",
-        description: err.message || "Please try again.",
+        description: err instanceof Error ? err.message : "Please try again.",
         variant: "destructive",
       });
     } finally {

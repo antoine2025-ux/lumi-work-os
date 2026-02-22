@@ -12,7 +12,7 @@ export type LoopbrainOrgContext = {
   readiness: {
     ready: boolean;
     // deterministic checklist summary, not UI text
-    items: Array<{ key: string; complete: boolean; meta?: Record<string, any> }>;
+    items: Array<{ key: string; complete: boolean; meta?: Record<string, number | string | boolean> }>;
   };
 
   orgCounts: {
@@ -27,13 +27,13 @@ export type LoopbrainOrgContext = {
 
   intelligence: {
     snapshot: null | { id: string; createdAt: string; source: string; findingCount: number };
-    rollups: any | null; // JSON-compatible rollups structure
-    topFindings: any[]; // JSON-compatible findings array
+    rollups: Record<string, unknown> | null; // JSON-compatible rollups structure
+    topFindings: Record<string, unknown>[]; // JSON-compatible findings array
   };
 
   recommendations: {
     snapshot: null | { id: string; createdAt: string };
-    topActions: any[]; // JSON-compatible recommendations array
+    topActions: Record<string, unknown>[]; // JSON-compatible recommendations array
   };
 
   freshness: {

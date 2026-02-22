@@ -21,9 +21,9 @@ interface AuditLogEntry {
   action: string
   entityType: string
   entityId: string
-  oldValues?: any
-  newValues?: any
-  metadata?: any
+  oldValues?: Record<string, unknown>
+  newValues?: Record<string, unknown>
+  metadata?: Record<string, unknown>
   createdAt: string
   user: {
     id: string

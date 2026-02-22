@@ -137,7 +137,7 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
         teamId: project.teamId ?? '',
         assigneeIds: project.assignees?.map(a => a.user.id) || [],
         // Load channel hints from localStorage (fallback) or from project if it exists
-        slackChannelHints: (project as any).slackChannelHints || getProjectSlackHints(project.id) || []
+        slackChannelHints: ('slackChannelHints' in project ? (project as { slackChannelHints?: string[] }).slackChannelHints : undefined) || getProjectSlackHints(project.id) || []
       })
       setChannelInput('')
       
@@ -155,7 +155,7 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
       const response = await fetch(`/api/workspaces/${workspaceId}/members`)
       if (response.ok) {
         const data = await response.json()
-        setWorkspaceMembers(data.members?.map((m: any) => ({
+        setWorkspaceMembers(data.members?.map((m: { userId: string; user?: { name?: string; email?: string } }) => ({
           id: m.userId,
           name: m.user?.name || m.user?.email || 'Unknown',
           email: m.user?.email || ''
@@ -171,14 +171,14 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
       const response = await fetch(`/api/project-spaces/${projectSpaceId}/members`)
       if (response.ok) {
         const data = await response.json()
-        setSelectedMemberIds(data.members?.map((m: any) => m.userId) || [])
+        setSelectedMemberIds(data.members?.map((m: { userId: string }) => m.userId) || [])
       }
     } catch (error) {
       console.error('Error loading ProjectSpace members:', error)
     }
   }
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | string[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -294,7 +294,7 @@ export function ProjectEditDialog({ isOpen, onClose, project, onSave, workspaceI
         
         // Show detailed validation errors if available
         if (errorData.details && Array.isArray(errorData.details)) {
-          const errorMessages = errorData.details.map((d: any) => `${d.path || 'field'}: ${d.message}`).join('\n')
+          const errorMessages = errorData.details.map((d: { path?: string; message: string }) => `${d.path || 'field'}: ${d.message}`).join('\n')
           alert(`Validation error:\n${errorMessages}`)
         } else {
           alert(errorData.error || 'Failed to update project. Please check your permissions.')

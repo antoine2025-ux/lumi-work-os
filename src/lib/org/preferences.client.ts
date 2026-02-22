@@ -1,6 +1,6 @@
 "use client";
 
-export async function saveOrgPreferences(prefs: Record<string, any>) {
+export async function saveOrgPreferences(prefs: Record<string, unknown>) {
   try {
     await fetch("/api/org/preferences/update", {
       method: "POST",
@@ -12,11 +12,11 @@ export async function saveOrgPreferences(prefs: Record<string, any>) {
   }
 }
 
-export async function loadOrgPreferences(): Promise<Record<string, any>> {
+export async function loadOrgPreferences(): Promise<Record<string, unknown>> {
   try {
     const res = await fetch("/api/org/preferences/get", { cache: "no-store" });
     const data = await res.json();
-    return (data.preferences ?? {}) as Record<string, any>;
+    return (data.preferences ?? {}) as Record<string, unknown>;
   } catch {
     return {};
   }

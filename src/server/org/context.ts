@@ -17,7 +17,7 @@ export async function requireActiveOrgId(request?: NextRequest): Promise<Workspa
   const ctx = await getOrgContext(request)
   if (!ctx.orgId) {
     const error = new Error("No active organization found")
-    ;(error as any).status = 401
+    ;(error as Error & { status?: number }).status = 401
     throw error
   }
   // orgId IS workspaceId in this codebase

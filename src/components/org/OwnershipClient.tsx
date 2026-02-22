@@ -41,7 +41,7 @@ export function OwnershipClient() {
   // Extract data with safe defaults - must be done before any conditional returns
   const assignments = ownQ.data?.assignments ?? [];
   // Support both { ok, data: { people } } and { people } response shapes
-  const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
+  const people = ((peopleQ.data as Record<string, unknown>)?.data as Record<string, unknown>)?.people as Array<{ id: string; fullName: string }> ?? (peopleQ.data as Record<string, unknown>)?.people as Array<{ id: string; fullName: string }> ?? [];
   const coverage = ownQ.data?.coverage;
   const structureQ = useOrgQuery(() => OrgApi.getStructure(), []);
   const structure = structureQ.data;
@@ -294,11 +294,11 @@ export function OwnershipClient() {
       }
       
       setSavingKey(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to assign owner:", error);
       setErrors((prev) => ({
         ...prev,
-        [key]: error?.message || "Failed to assign owner. Please try again.",
+        [key]: error instanceof Error ? error.message : "Failed to assign owner. Please try again.",
       }));
       setSavingKey(null);
       // Reset selection on error

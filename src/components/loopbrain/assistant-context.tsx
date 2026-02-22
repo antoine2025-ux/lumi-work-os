@@ -52,7 +52,7 @@ function loadStateFromStorage(): Partial<AssistantState> {
       const parsed = JSON.parse(stored)
       // Convert message timestamps back to Date objects
       if (parsed.messages) {
-        parsed.messages = parsed.messages.map((msg: any) => ({
+        parsed.messages = parsed.messages.map((msg: { timestamp: string; role: string; content: string; id: string }) => ({
           ...msg,
           timestamp: new Date(msg.timestamp)
         }))

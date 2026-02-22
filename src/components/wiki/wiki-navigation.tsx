@@ -88,8 +88,8 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
   }
 
   const handleNewPage = () => {
-    if (typeof window !== 'undefined' && (window as any).triggerCreatePage) {
-      (window as any).triggerCreatePage()
+    if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).triggerCreatePage) {
+      ((window as unknown as Record<string, unknown>).triggerCreatePage as () => void)()
     } else {
       router.push('/wiki/new')
     }

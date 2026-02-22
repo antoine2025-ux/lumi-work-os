@@ -3,12 +3,12 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
-function displayName(p: any) {
+function displayName(p: { fullName?: string; firstName?: string; lastName?: string; email?: string } | null | undefined) {
   if (!p) return "Unassigned";
   return p.fullName || [p.firstName, p.lastName].filter(Boolean).join(" ") || p.email || "Unassigned";
 }
 
-function TeamMiniList(props: { teams: any[] }) {
+function TeamMiniList(props: { teams: Array<{ id: string; name: string; owner?: { fullName?: string; firstName?: string; lastName?: string; email?: string } | null }> }) {
   const teams = props.teams ?? [];
   if (!teams.length) {
     return <div className="text-sm text-muted-foreground">No teams yet.</div>;
@@ -39,8 +39,8 @@ export function DepartmentRowsCard(props: {
   departments: Array<{
     id: string;
     name: string;
-    ownerPerson?: any | null;
-    teams?: any[];
+    ownerPerson?: { fullName?: string; firstName?: string; lastName?: string; email?: string } | null;
+    teams?: Array<{ id: string; name: string; owner?: { fullName?: string; firstName?: string; lastName?: string; email?: string } | null }>;
   }>;
 }) {
   const departments = props.departments ?? [];

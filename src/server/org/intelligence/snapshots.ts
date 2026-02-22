@@ -32,8 +32,8 @@ export async function createIntelligenceSnapshot(input: {
     data: {
       source: input.source,
       findingCount: findings.length,
-      findingsJson: findings as any,
-      rollupsJson: rollups as any,
+      findingsJson: findings as unknown as import("@prisma/client").Prisma.InputJsonValue,
+      rollupsJson: rollups as unknown as import("@prisma/client").Prisma.InputJsonValue,
       workspace: { connect: { id: input.workspaceId } },
     },
     select: { id: true, createdAt: true, findingCount: true },

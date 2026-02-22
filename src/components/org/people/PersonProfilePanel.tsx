@@ -29,7 +29,9 @@ export function PersonProfilePanel(props: {
   const [profile, setProfile] = React.useState<Profile | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [edit, setEdit] = React.useState(false)
-  const [draft, setDraft] = React.useState<any>(null)
+  type DraftState = { name: string; title: string; availabilityStatus: string; availabilityReason: string }
+  const defaultDraft: DraftState = { name: "", title: "", availabilityStatus: "AVAILABLE", availabilityReason: "" }
+  const [draft, setDraft] = React.useState<DraftState | null>(null)
   const [draftSkills, setDraftSkills] = React.useState<string[]>([])
   const [draftRoles, setDraftRoles] = React.useState<Array<{ role: string; percent: number }>>([])
   const [saving, setSaving] = React.useState(false)
@@ -192,18 +194,18 @@ export function PersonProfilePanel(props: {
             <div>
               <div className="text-xs font-medium text-muted-foreground">Name</div>
               <input className={`mt-1 ${orgTokens.input}`}
-                value={draft?.name ?? ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+                value={draft?.name ?? ""} onChange={(e) => setDraft({ ...(draft ?? defaultDraft), name: e.target.value })} />
             </div>
             <div>
               <div className="text-xs font-medium text-muted-foreground">Title</div>
               <input className={`mt-1 ${orgTokens.input}`}
-                value={draft?.title ?? ""} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+                value={draft?.title ?? ""} onChange={(e) => setDraft({ ...(draft ?? defaultDraft), title: e.target.value })} />
             </div>
             <div>
               <div className="text-xs font-medium text-muted-foreground">Availability</div>
               <select className={`mt-1 ${orgTokens.input}`}
                 value={draft?.availabilityStatus ?? "AVAILABLE"}
-                onChange={(e) => setDraft({ ...draft, availabilityStatus: e.target.value })}>
+                onChange={(e) => setDraft({ ...(draft ?? defaultDraft), availabilityStatus: e.target.value })}>
                 <option value="AVAILABLE">Available</option>
                 <option value="LIMITED">Limited</option>
                 <option value="UNAVAILABLE">Unavailable</option>
@@ -212,7 +214,7 @@ export function PersonProfilePanel(props: {
             <div>
               <div className="text-xs font-medium text-muted-foreground">Reason (optional)</div>
               <input className={`mt-1 ${orgTokens.input}`}
-                value={draft?.availabilityReason ?? ""} onChange={(e) => setDraft({ ...draft, availabilityReason: e.target.value })} />
+                value={draft?.availabilityReason ?? ""} onChange={(e) => setDraft({ ...(draft ?? defaultDraft), availabilityReason: e.target.value })} />
             </div>
             <div className="md:col-span-2">
               <div className="text-xs font-medium text-muted-foreground">Skills</div>
@@ -310,9 +312,9 @@ export function PersonProfilePanel(props: {
                     headers: { "content-type": "application/json" },
                     body: JSON.stringify({
                       id: p.person.id,
-                      name: draft.name,
-                      title: draft.title ? draft.title : null,
-                      availability: { status: draft.availabilityStatus, reason: draft.availabilityReason ? draft.availabilityReason : null },
+                      name: draft!.name,
+                      title: draft!.title ? draft!.title : null,
+                      availability: { status: draft!.availabilityStatus, reason: draft!.availabilityReason ? draft!.availabilityReason : null },
                       skills: draftSkills,
                       roles,
                     }),

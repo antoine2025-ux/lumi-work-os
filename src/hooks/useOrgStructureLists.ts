@@ -62,25 +62,28 @@ export function useOrgStructureLists(): UseOrgStructureListsResult {
 
         // NEW endpoint returns { departments, teams } directly
         // Transform to match expected format
-        const departmentsList = (Array.isArray(json.departments) ? json.departments : []).map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          ownerPersonId: d.ownerPersonId || null,
-          teamCount: d.teams?.length || 0, // Count teams in department
+        const rawDepts: Record<string, unknown>[] = Array.isArray(json.departments) ? json.departments : [];
+        const departmentsList = rawDepts.map((d) => ({
+          id: d.id as string,
+          name: d.name as string,
+          ownerPersonId: (d.ownerPersonId as string) || null,
+          teamCount: (d.teams as unknown[] | undefined)?.length || 0, // Count teams in department
         }));
-        
+
         // Create department map for looking up department names
         const departmentMap = new Map(
-          departmentsList.map((d: any) => [d.id, d.name])
+          departmentsList.map((d) => [d.id, d.name])
         );
-        
-        const teamsList = (Array.isArray(json.teams) ? json.teams : []).map((t: any) => ({
-          id: t.id,
-          name: t.name,
-          departmentId: t.departmentId,
-          departmentName: t.departmentId ? departmentMap.get(t.departmentId) || null : null,
-          ownerPersonId: t.ownerPersonId || null,
-          memberCount: t.memberCount || 0,
+
+        const rawTeams: Record<string, unknown>[] = Array.isArray(json.teams) ? json.teams : [];
+        const teamsList = rawTeams.map((t) => ({
+          id: t.id as string,
+          name: t.name as string,
+          departmentId: t.departmentId as string | null,
+          departmentName: t.departmentId ? departmentMap.get(t.departmentId as string) || null : null,
+          leadName: (t.leadName as string) || null,
+          ownerPersonId: (t.ownerPersonId as string) || null,
+          memberCount: (t.memberCount as number) || 0,
         }));
         
         setTeams(teamsList);

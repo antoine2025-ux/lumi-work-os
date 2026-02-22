@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger'
 // AI Content Analysis Hook
 export function useAIContentAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysis, setAnalysis] = useState<any>(null)
+  const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null)
 
   const analyzeContent = useCallback(async (content: string, pageId?: string) => {
     setIsAnalyzing(true)
@@ -140,7 +140,7 @@ export function useAIContentGeneration() {
 // AI Search Enhancement Hook
 export function useAISearchEnhancement() {
   const [isEnhancing, setIsEnhancing] = useState(false)
-  const [enhancedResults, setEnhancedResults] = useState<any[]>([])
+  const [enhancedResults, setEnhancedResults] = useState<Record<string, unknown>[]>([])
 
   const enhanceSearch = useCallback(async (query: string, workspaceId: string) => {
     setIsEnhancing(true)
@@ -184,7 +184,7 @@ export function useAISearchEnhancement() {
 // AI Content Suggestions Hook
 export function useAIContentSuggestions() {
   const [isSuggesting, setIsSuggesting] = useState(false)
-  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [suggestions, setSuggestions] = useState<Record<string, unknown>[]>([])
 
   const getSuggestions = useCallback(async (content: string, pageId?: string) => {
     setIsSuggesting(true)
@@ -228,7 +228,7 @@ export function useAIContentSuggestions() {
 // AI Content Quality Check Hook
 export function useAIContentQuality() {
   const [isChecking, setIsChecking] = useState(false)
-  const [qualityReport, setQualityReport] = useState<any>(null)
+  const [qualityReport, setQualityReport] = useState<Record<string, unknown> | null>(null)
 
   const checkQuality = useCallback(async (content: string, pageId?: string) => {
     setIsChecking(true)

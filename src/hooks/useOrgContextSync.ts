@@ -73,9 +73,9 @@ export function useOrgContextSync() {
       setRoleItems(json.roleItems ?? []);
 
       setState("success");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("useOrgContextSync error:", err);
-      setErrorMessage(err?.message ?? "Failed to sync org context");
+      setErrorMessage(err instanceof Error ? err.message : "Failed to sync org context");
       setState("error");
     }
   }, []);

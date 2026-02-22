@@ -31,7 +31,7 @@ export type OrgContextObjectInput = {
   actorUserId: string;
   action: OrgContextAction;
   entity: { type: "person" | "team" | "department" | "ownership"; id: string };
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
 };
 
 /**
@@ -62,7 +62,7 @@ export async function emitOrgContextObject(input: OrgContextObjectInput): Promis
   // Persist to ContextItem (this is durable)
   // saveContextItem expects a ContextObject that extends BaseContext
   // BaseContext has type, id, workspaceId, timestamp, and optional metadata
-  const saved = await saveContextItem(context as any);
+  const saved = await saveContextItem(context as unknown as Parameters<typeof saveContextItem>[0]);
 
   // Trigger indexing non-blocking (don't await - fire and forget)
   // Use setImmediate to ensure it runs after the current request completes

@@ -4,20 +4,20 @@ import { cacheOrg } from "@/server/org/cache"
 const _getOrgSetupStatus = async (orgId: string) => {
   // Minimal completeness gates (v0). Tune later.
   const [peopleCount, teamCount, ownerCount, peopleWithRoles, peopleWithTeams] = await Promise.all([
-    prisma.orgPosition.count({ where: { workspaceId: orgId, userId: { not: null }, isActive: true } as any }).catch(() => 0),
-    prisma.orgTeam.count({ where: { workspaceId: orgId } as any }).catch(() => 0),
+    prisma.orgPosition.count({ where: { workspaceId: orgId, userId: { not: null }, isActive: true } }).catch(() => 0),
+    prisma.orgTeam.count({ where: { workspaceId: orgId } }).catch(() => 0),
     (async () => {
       try {
-        if (prisma.ownerAssignment && typeof (prisma.ownerAssignment as any).count === "function") {
-          return await (prisma.ownerAssignment as any).count({ where: { orgId, isPrimary: true } as any }).catch((error: any) => {
-            // Handle missing table (P2021)
-            if (error?.code === "P2021" || error?.message?.includes("does not exist")) {
-              return 0
-            }
+        return await prisma.ownerAssignment.count({ where: { workspaceId: orgId, isPrimary: true } }).catch((error: unknown) => {
+          // Handle missing table (P2021)
+          if (error instanceof Error && (
+            (error as Error & { code?: string }).code === "P2021" ||
+            error.message?.includes("does not exist")
+          )) {
             return 0
-          })
-        }
-        return 0
+          }
+          return 0
+        })
       } catch {
         return 0
       }
@@ -29,7 +29,7 @@ const _getOrgSetupStatus = async (orgId: string) => {
         userId: { not: null },
         isActive: true,
         title: { not: null },
-      } as any,
+      },
     }).catch(() => 0),
     // Count people with teams assigned
     prisma.orgPosition.count({
@@ -38,7 +38,7 @@ const _getOrgSetupStatus = async (orgId: string) => {
         userId: { not: null },
         isActive: true,
         teamId: { not: null },
-      } as any,
+      },
     }).catch(() => 0),
   ])
 
@@ -63,4 +63,3 @@ export const getOrgSetupStatus = cacheOrg(
   _getOrgSetupStatus,
   { revalidate: 30, tags: ["org:setup"] }
 )
-

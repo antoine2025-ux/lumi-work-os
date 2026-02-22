@@ -41,7 +41,7 @@ export function CreateDepartmentDialog(props: CreateDepartmentDialogProps) {
   const perms = useOrgPermissions();
   const peopleQ = useOrgQuery(() => OrgApi.listPeople(), []);
   // Support both { ok, data: { people } } and { people } response shapes
-  const people = (peopleQ.data as any)?.data?.people ?? peopleQ.data?.people ?? [];
+  const people = ((peopleQ.data as Record<string, unknown>)?.data as Record<string, unknown>)?.people as Array<{ id: string; fullName: string }> ?? (peopleQ.data as Record<string, unknown>)?.people as Array<{ id: string; fullName: string }> ?? [];
 
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<CreateDepartmentFormValues>({
@@ -136,7 +136,7 @@ export function CreateDepartmentDialog(props: CreateDepartmentDialogProps) {
       setSubmitting(false);
       setOpen(false);
       resetForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[CreateDepartmentDialog] Failed to create department:", err);
       setSubmitting(false);
       setError(

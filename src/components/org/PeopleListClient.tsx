@@ -33,6 +33,25 @@ import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
 import { useOrgUrl } from "@/hooks/useOrgUrl";
 import type { OrgPerson } from "@/types/org";
 
+type AvailabilityStatus = "UNKNOWN" | "AVAILABLE" | "PARTIALLY_AVAILABLE" | "UNAVAILABLE";
+
+// Extended person type with fields from API that aren't on base OrgPerson
+type ExtendedOrgPerson = OrgPerson & {
+  title?: string | null;
+  fullName?: string | null;
+  manager?: { id: string; name: string } | null;
+  topSkills?: Array<{ id: string; name: string; proficiency: number }>;
+  availabilityStatus?: AvailabilityStatus | null;
+  employmentStatus?: string | null;
+};
+
+// Shape of the API response data (supports multiple response envelopes)
+type PeopleApiResponse = {
+  ok?: boolean;
+  data?: { people?: ExtendedOrgPerson[] };
+  people?: ExtendedOrgPerson[];
+};
+
 type PeopleListClientProps = {
   searchQuery?: string;
   hideSearch?: boolean;
@@ -83,11 +102,12 @@ export function PeopleListClient({
           if (!currentData) return currentData;
           
           // Support both { ok, data: { people } } and { people } shapes
-          const people = Array.isArray(currentData) 
-            ? currentData 
-            : ((currentData as any)?.data?.people ?? (currentData as any)?.people ?? []);
-          
-          const personIndex = people.findIndex((p: any) => p.id === updatedData.personId);
+          const response = currentData as unknown as PeopleApiResponse;
+          const people = Array.isArray(currentData)
+            ? currentData
+            : (response?.data?.people ?? response?.people ?? []);
+
+          const personIndex = people.findIndex((p: ExtendedOrgPerson) => p.id === updatedData.personId);
           if (personIndex !== -1) {
             // Update the person's manager in the local data
             const updatedPeople = [...people];
@@ -99,10 +119,11 @@ export function PeopleListClient({
             // Return updated data structure preserving original shape
             if (Array.isArray(currentData)) {
               return updatedPeople as typeof currentData;
-            } else if ((currentData as any)?.data?.people) {
+            } else if ((currentData as unknown as PeopleApiResponse)?.data?.people) {
+              const resp = currentData as unknown as PeopleApiResponse;
               return {
                 ...currentData,
-                data: { ...(currentData as any).data, people: updatedPeople },
+                data: { ...resp.data, people: updatedPeople },
               } as typeof currentData;
             } else {
               return {
@@ -136,10 +157,13 @@ export function PeopleListClient({
   
   // Extract people array from API response - API returns { ok, data: { people: [...] } }
   // The API route returns OrgPeopleListDTO which is { people: Array<...> }
-  const people = hasData 
-    ? (Array.isArray(peopleQ.data) 
+  const people: ExtendedOrgPerson[] = hasData
+    ? (Array.isArray(peopleQ.data)
         ? peopleQ.data  // Fallback: if API returns array directly
-        : ((peopleQ.data as any)?.data?.people ?? (peopleQ.data as any)?.people ?? []))  // Support { ok, data: { people } } and { people }
+        : (() => {
+            const resp = peopleQ.data as unknown as PeopleApiResponse;
+            return resp?.data?.people ?? resp?.people ?? [];
+          })())
     : [];
 
   // Dev-only logging for debugging render state
@@ -160,19 +184,25 @@ export function PeopleListClient({
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return people;
-    return people.filter((p: typeof people[0]) => {
+    return people.filter((p: ExtendedOrgPerson) => {
       const displayName = getDisplayName({
-        fullName: (p as any).fullName || p.name,
+        fullName: p.fullName || p.name,
         name: p.name,
         email: p.email,
       });
+      const teamName = typeof p.team === "object" && p.team !== null
+        ? (p.team as unknown as { name: string }).name
+        : p.team;
+      const deptName = typeof p.department === "object" && p.department !== null
+        ? (p.department as unknown as { name: string }).name
+        : p.department;
       return (
         displayName.toLowerCase().includes(needle) ||
         p.email?.toLowerCase().includes(needle) ||
         p.title?.toLowerCase().includes(needle) ||
         p.role?.toLowerCase().includes(needle) ||
-        (typeof p.team === "object" && p.team !== null ? (p.team as any).name : p.team)?.toLowerCase().includes(needle) ||
-        (typeof p.department === "object" && p.department !== null ? (p.department as any).name : p.department)?.toLowerCase().includes(needle)
+        teamName?.toLowerCase().includes(needle) ||
+        deptName?.toLowerCase().includes(needle)
       );
     });
   }, [people, q]);
@@ -371,7 +401,7 @@ export function PeopleListClient({
           </div>
         ) : (
           <div className="divide-y divide-white/5">
-            {filtered.map((person: typeof people[0]) => {
+            {filtered.map((person: ExtendedOrgPerson) => {
               // Get display badges (team label and issue label)
               const badges = getPersonDisplayBadges({
                 team: person.team,
@@ -412,9 +442,9 @@ export function PeopleListClient({
                     )}
 
                     {/* Top skills (up to 3) */}
-                    {(person as any).topSkills?.length > 0 && (
+                    {person.topSkills && person.topSkills.length > 0 && (
                       <div className="flex items-center gap-1">
-                        {(person as any).topSkills.slice(0, 3).map((skill: { id: string; name: string; proficiency: number }) => (
+                        {person.topSkills.slice(0, 3).map((skill) => (
                           <span
                             key={skill.id}
                             className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20"

@@ -58,9 +58,10 @@ export async function createDepartment(input: { name: string; workspaceId: strin
           isPrimary: true,
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If enum doesn't exist, use raw SQL
-      if (error?.message?.includes("OwnedEntityType") || error?.message?.includes("does not exist")) {
+      const errorMessage = error instanceof Error ? error.message : "";
+      if (errorMessage.includes("OwnedEntityType") || errorMessage.includes("does not exist")) {
         try {
           await prisma.$executeRawUnsafe(
             `INSERT INTO owner_assignments (id, workspace_id, entity_type, entity_id, entity_label, owner_person_id, is_primary, created_at, updated_at)
@@ -71,8 +72,8 @@ export async function createDepartment(input: { name: string; workspaceId: strin
             department.name,
             userId
           );
-        } catch (rawError: any) {
-          console.warn("[createDepartment] Could not create owner assignment:", rawError?.message);
+        } catch (rawError: unknown) {
+          console.warn("[createDepartment] Could not create owner assignment:", rawError instanceof Error ? rawError.message : rawError);
           // Continue without owner assignment if table doesn't exist
         }
       } else {

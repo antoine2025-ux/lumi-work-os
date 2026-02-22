@@ -99,7 +99,7 @@ export async function buildLoopbrainOrgContext(): Promise<LoopbrainOrgContext> {
   const availability_set =
     peopleCount === 0 ? false : availabilityUnknown === 0 && availabilityStale === 0;
 
-  const readinessItems = [
+  const readinessItems: Array<{ key: string; complete: boolean; meta: Record<string, number> }> = [
     { key: "people_added", complete: people_added, meta: { peopleCount } },
     { key: "structure_defined", complete: structure_defined, meta: { teamCount, deptCount } },
     { key: "ownership_assigned", complete: ownership_assigned, meta: { unownedEntities } },
@@ -126,11 +126,11 @@ export async function buildLoopbrainOrgContext(): Promise<LoopbrainOrgContext> {
     },
   });
 
-  const findings = latestSnap && Array.isArray(latestSnap.findingsJson) ? latestSnap.findingsJson : [];
-  const topFindings = (findings as any[]).slice(0, 25);
+  const findings = latestSnap && Array.isArray(latestSnap.findingsJson) ? latestSnap.findingsJson as Record<string, unknown>[] : [];
+  const topFindings = findings.slice(0, 25);
 
   // Build recommendations from snapshot findings
-  const recs = buildRecommendations(findings as any);
+  const recs = buildRecommendations(findings as unknown as import("@/server/org/intelligence/types").OrgIntelligenceFinding[]);
   const topActions = recs.slice(0, 25);
 
   // Compute snapshot freshness
@@ -165,7 +165,7 @@ export async function buildLoopbrainOrgContext(): Promise<LoopbrainOrgContext> {
             findingCount: latestSnap.findingCount,
           }
         : null,
-      rollups: (latestSnap?.rollupsJson as any) ?? null,
+      rollups: (latestSnap?.rollupsJson as Record<string, unknown> | null) ?? null,
       topFindings,
     },
     recommendations: {

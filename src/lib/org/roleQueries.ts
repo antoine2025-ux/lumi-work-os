@@ -38,7 +38,7 @@ export async function getRolesForPerson(
   const result: RoleContextData[] = [];
 
   for (const item of items) {
-    const data = item.data as any;
+    const data = item.data as Record<string, unknown>;
     if (!data || typeof data !== "object") continue;
     if (data.type !== "role") continue;
 
@@ -82,7 +82,7 @@ export async function getRolesForTeam(
   const result: RoleContextData[] = [];
 
   for (const item of items) {
-    const data = item.data as any;
+    const data = item.data as Record<string, unknown>;
     if (!data || typeof data !== "object") continue;
     if (data.type !== "role") continue;
 

@@ -40,7 +40,7 @@ export function PeopleFiltersDrawer({
   departmentName,
   roleName,
 }: PeopleFiltersDrawerProps) {
-  const handleFilterChange = (key: keyof PeopleFilters, value: any) => {
+  const handleFilterChange = (key: keyof PeopleFilters, value: PeopleFilters[keyof PeopleFilters]) => {
     onFiltersChange({ [key]: value });
   };
 

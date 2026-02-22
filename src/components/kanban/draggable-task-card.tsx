@@ -46,7 +46,7 @@ interface Task {
   customFields?: {
     id: string
     fieldId: string
-    value: any
+    value: string | number | boolean | null
     field: {
       id: string
       label: string

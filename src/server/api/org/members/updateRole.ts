@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
     // If no role change, nothing to do.
     if (targetMembership.role === role) {
-      return createSuccessResponse<{}>({});
+      return createSuccessResponse<Record<string, never>>({});
     }
 
     // Prevent removing the last ADMIN/OWNER by demoting them.
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return createSuccessResponse<{}>({});
+    return createSuccessResponse<Record<string, never>>({});
   } catch (error) {
     return handleApiError(error);
   }

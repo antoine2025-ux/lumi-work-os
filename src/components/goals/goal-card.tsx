@@ -18,13 +18,13 @@ interface Goal {
     name: string | null
     email: string
   } | null
-  objectives: any[]
+  objectives: Array<{ id: string; title: string; progress: number }>
 }
 
 interface Props {
   goal: Goal
   workspaceSlug: string
-  currentUser: any
+  currentUser: { id: string; name?: string | null; email?: string }
 }
 
 const levelColors = {
@@ -123,7 +123,7 @@ export function GoalCard({ goal, workspaceSlug, currentUser: _currentUser }: Pro
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>{goal.objectives.length} objectives</span>
               <span>
-                {goal.objectives.filter((obj: any) => obj.progress >= 100).length} completed
+                {goal.objectives.filter((obj) => obj.progress >= 100).length} completed
               </span>
             </div>
           </div>

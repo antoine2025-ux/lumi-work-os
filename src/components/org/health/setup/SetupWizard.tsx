@@ -249,7 +249,7 @@ function QuickAssignOwnerModal(props: {
                 className="mt-1 w-full rounded-xl border bg-background px-3 py-2 text-sm"
                 value={entityType}
                 onChange={(e) => {
-                  setEntityType(e.target.value as any)
+                  setEntityType(e.target.value as "TEAM" | "DOMAIN" | "SYSTEM")
                   setEntity(null)
                 }}
               >
@@ -778,7 +778,7 @@ function ImportCsvPanel(props: {
 }) {
   const [entity, setEntity] = React.useState("manager_links")
   const [csv, setCsv] = React.useState("")
-  const [preview, setPreview] = React.useState<any | null>(null)
+  const [preview, setPreview] = React.useState<{ ok?: boolean; count?: number; sample?: unknown[]; errors?: Array<{ row: number; field?: string; message: string }>; applied?: number } | null>(null)
   const [loading, setLoading] = React.useState(false)
 
   async function runPreview() {
@@ -922,7 +922,7 @@ function ImportCsvPanel(props: {
             <div className="mt-3">
               <div className="text-xs font-medium text-muted-foreground">Sample</div>
               <div className="mt-2 space-y-2">
-                {preview.sample.map((s: any, i: number) => (
+                {preview.sample.map((s: unknown, i: number) => (
                   <div key={i} className="rounded-xl border px-3 py-2 text-xs text-muted-foreground">
                     {JSON.stringify(s)}
                   </div>
@@ -935,7 +935,7 @@ function ImportCsvPanel(props: {
             <div className="mt-4">
               <div className="text-xs font-medium text-muted-foreground">Errors</div>
               <div className="mt-2 space-y-2">
-                {preview.errors.slice(0, 12).map((e: any, i: number) => (
+                {preview.errors.slice(0, 12).map((e, i) => (
                   <div key={i} className="rounded-xl border px-3 py-2 text-xs text-muted-foreground">
                     Row {e.row}{e.field ? ` · ${e.field}` : ""}: {e.message}
                   </div>

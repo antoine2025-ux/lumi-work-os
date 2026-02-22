@@ -53,7 +53,7 @@ export async function assignOwnership(input: {
     result = await prisma.ownerAssignment.create({
       data: {
         workspaceId: input.workspaceId,
-        entityType: input.entityType as any,
+        entityType: input.entityType,
         entityId: input.entityId,
         ownerPersonId: input.ownerPersonId,
       },

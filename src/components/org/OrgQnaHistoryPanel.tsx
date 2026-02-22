@@ -6,7 +6,7 @@ type OrgQnaLog = {
   id: string;
   question: string;
   location: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   createdAt: string;
 };
 

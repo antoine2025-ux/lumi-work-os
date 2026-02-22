@@ -19,6 +19,14 @@ import {
 import type { OrgPerson } from "@/types/org";
 import type { PeopleFilters } from "./people-filters";
 
+type AvailabilityStatus = "UNKNOWN" | "AVAILABLE" | "PARTIALLY_AVAILABLE" | "UNAVAILABLE";
+
+// Extended person type with API fields beyond base OrgPerson
+type ExtendedTablePerson = OrgPerson & {
+  availabilityStatus?: AvailabilityStatus | null;
+  availabilityStale?: boolean;
+};
+
 export type PersonCapacityRow = {
   personId: string;
   status: CapacityStatus;
@@ -151,7 +159,8 @@ export const PeopleTable = memo(function PeopleTable({
         <tbody>
           {people.map((person, _index) => {
             const isSelected = selectedIds.includes(person.id);
-            const availabilityStatus = (person as any).availabilityStatus;
+            const extended = person as ExtendedTablePerson;
+            const availabilityStatus = extended.availabilityStatus;
             
             return (
               <tr
@@ -181,7 +190,7 @@ export const PeopleTable = memo(function PeopleTable({
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.stopPropagation();
-                          handleSelectionClick(person.id)(e as any);
+                          handleSelectionClick(person.id)(e as unknown as React.MouseEvent);
                         }
                       }}
                       className={cn(
@@ -277,7 +286,7 @@ export const PeopleTable = memo(function PeopleTable({
                   {availabilityStatus && availabilityStatus !== "UNKNOWN" ? (
                     <AvailabilityPill
                       status={availabilityStatus}
-                      stale={(person as any).availabilityStale ?? false}
+                      stale={extended.availabilityStale ?? false}
                       subtle={true}
                     />
                   ) : null}

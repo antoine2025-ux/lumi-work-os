@@ -12,7 +12,7 @@ interface MigrationModalProps {
   platformIcon: React.ReactNode
   description: string
   features: string[]
-  onStartMigration: (apiKey: string, workspaceId: string, additionalConfig?: any) => Promise<{ previewUrl?: string } | void>
+  onStartMigration: (apiKey: string, workspaceId: string, additionalConfig?: Record<string, unknown>) => Promise<{ previewUrl?: string } | void>
 }
 
 export function MigrationModal({ 

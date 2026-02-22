@@ -20,7 +20,7 @@ export function NotificationToast({
   maxNotifications = 5
 }: NotificationToastProps) {
   // Check if we're in a socket context before using the hook
-  type Notification = { id: string; type: string; message: string; data?: any; timestamp: Date }
+  type Notification = { id: string; type: string; message: string; data?: Record<string, unknown>; timestamp: Date }
   let notifications: Notification[]
   let clearNotification: (id: string) => void
   let clearAllNotifications: () => void
@@ -143,12 +143,12 @@ export function NotificationToast({
                 
                 {notification.data && (
                   <div className="mt-2 text-xs text-muted-foreground">
-                    {notification.data.taskTitle && (
-                      <p>Task: {notification.data.taskTitle}</p>
-                    )}
-                    {notification.data.projectName && (
-                      <p>Project: {notification.data.projectName}</p>
-                    )}
+                    {notification.data.taskTitle ? (
+                      <p>Task: {String(notification.data.taskTitle)}</p>
+                    ) : null}
+                    {notification.data.projectName ? (
+                      <p>Project: {String(notification.data.projectName)}</p>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -192,7 +192,7 @@ export function NotificationToast({
 // Notification Bell Component
 export function NotificationBell({ className }: { className?: string }) {
   // Check if we're in a socket context before using the hook
-  type Notification = { id: string; type: string; message: string; data?: any; timestamp: Date }
+  type Notification = { id: string; type: string; message: string; data?: Record<string, unknown>; timestamp: Date }
   let notifications: Notification[]
   
   try {
