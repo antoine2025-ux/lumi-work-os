@@ -7,13 +7,13 @@ export async function getFreshnessSummary(orgId: string) {
 
   try {
     const rows = await prisma.personAvailability.findMany({
-      where: { orgId } as any,
-      select: { updatedAt: true, createdAt: true } as any,
+      where: { workspaceId: orgId },
+      select: { updatedAt: true, createdAt: true },
       take: 50000,
     })
 
     for (const r of rows) {
-      const ts = new Date((r as any).updatedAt ?? (r as any).createdAt).getTime()
+      const ts = new Date(r.updatedAt ?? r.createdAt).getTime()
       if (Number.isFinite(ts) && ts < cutoff) staleAvailability += 1
     }
   } catch {

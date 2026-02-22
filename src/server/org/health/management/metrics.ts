@@ -20,14 +20,14 @@ export async function computeManagementLoad(orgId: string): Promise<{
   const now = Date.now()
 
   // Pull people count if available
-  const peopleCount = await prisma.orgPosition?.count?.({
-    where: { workspaceId: orgId, isActive: true, userId: { not: null } } as any,
-  } as any).catch(() => null)
+  const peopleCount = await prisma.orgPosition.count({
+    where: { workspaceId: orgId, isActive: true, userId: { not: null } },
+  }).catch(() => null)
   const p = typeof peopleCount === "number" ? peopleCount : 0
 
   const links = await prisma.personManagerLink.findMany({
     where: { workspaceId: orgId },
-    select: { personId: true, managerId: true, startsAt: true, endsAt: true } as any,
+    select: { personId: true, managerId: true, startsAt: true, endsAt: true },
     take: 200000,
   })
 
@@ -55,14 +55,14 @@ export async function computeManagementLoad(orgId: string): Promise<{
   // v0: if we can't read people list, estimate 0
   let missingManagerLinks = 0
   try {
-    const positions = await prisma.orgPosition?.findMany?.({
-      where: { workspaceId: orgId, isActive: true, userId: { not: null } } as any,
-      select: { userId: true } as any,
+    const positions = await prisma.orgPosition.findMany({
+      where: { workspaceId: orgId, isActive: true, userId: { not: null } },
+      select: { userId: true },
       take: 50000,
-    } as any)
+    })
     if (Array.isArray(positions)) {
       for (const pos of positions) {
-        const id = String((pos as any).userId)
+        const id = String(pos.userId)
         if (id && !hasManagerByPerson.has(id)) missingManagerLinks += 1
       }
     }

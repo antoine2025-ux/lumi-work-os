@@ -12,9 +12,9 @@ export async function computeDataQualityScore(orgId: string): Promise<{
 }> {
   const dq = await getDataQualityDeepDive(orgId)
 
-  const staleSec = dq.sections.find((s: any) => String(s.title).startsWith("Stale availability"))
-  const confSec = dq.sections.find((s: any) => String(s.title).startsWith("Conflicting manager"))
-  const overSec = dq.sections.find((s: any) => String(s.title).startsWith("Over-allocated"))
+  const staleSec = dq.sections.find((s) => s.title.startsWith("Stale availability"))
+  const confSec = dq.sections.find((s) => s.title.startsWith("Conflicting manager"))
+  const overSec = dq.sections.find((s) => s.title.startsWith("Over-allocated"))
 
   const stale = (staleSec?.rows ?? []).length
   const conflicts = (confSec?.rows ?? []).length

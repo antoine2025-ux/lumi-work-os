@@ -45,17 +45,17 @@ export async function getCapacityDeepDive(orgId: string) {
   let hotspots: Array<{ id: string; name: string; note?: string }> = []
 
   try {
-    const profiles = await prisma.personCapacity?.findMany?.({
+    const profiles = await prisma.personCapacity.findMany({
       where: { orgId },
-      select: { personId: true, fte: true, shrinkagePct: true } as any,
+      select: { personId: true, fte: true, shrinkagePct: true },
       take: 2000,
-    } as any)
+    }).catch(() => null)
 
-    const allocations = await prisma.capacityAllocation?.findMany?.({
+    const allocations = await prisma.capacityAllocation.findMany({
       where: { orgId },
-      select: { personId: true, percent: true } as any,
+      select: { personId: true, percent: true },
       take: 20000,
-    } as any)
+    }).catch(() => null)
 
     if (Array.isArray(profiles) && profiles.length > 0) {
       const allocByPerson = new Map<string, number>()
@@ -91,7 +91,7 @@ export async function getCapacityDeepDive(orgId: string) {
       if (over > 0) {
         hotspots = profiles
           .slice(0, 20)
-          .map((pr: any) => {
+          .map((pr) => {
             const allocPct = allocByPerson.get(String(pr.personId)) ?? 0
             const fte = Number(pr.fte ?? 1)
             const shrink = clamp(Number(pr.shrinkagePct ?? 20), 0, 95)
@@ -104,7 +104,7 @@ export async function getCapacityDeepDive(orgId: string) {
               note: `Allocated ${Math.round(allocPct)}% vs available ${avail.toFixed(2)} FTE (shrinkage ${Math.round(shrink)}%).`,
             }
           })
-          .filter(Boolean) as any
+          .filter((x): x is NonNullable<typeof x> => x !== null)
       }
     }
   } catch {
@@ -167,7 +167,7 @@ export async function getOwnershipDeepDive(orgId: string) {
   try {
     const unowned = await findUnownedEntities(orgId).catch((error) => {
       console.error("[getOwnershipDeepDive] Error finding unowned entities:", error)
-      return [] as any[]
+      return []
     })
 
     const recs: string[] = []
@@ -189,7 +189,7 @@ export async function getOwnershipDeepDive(orgId: string) {
       recommendations: recs,
       unowned,
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[getOwnershipDeepDive] Unexpected error:", error)
     // Return a safe default structure
     return {

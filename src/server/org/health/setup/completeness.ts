@@ -23,24 +23,24 @@ export async function computeOrgHealthCompleteness(orgId: string): Promise<{
     ownerPrimary,
     managerLinks,
   ] = await Promise.all([
-    prisma.orgPosition?.count?.({
-      where: { workspaceId: orgId, isActive: true, userId: { not: null } } as any,
-    } as any).catch(() => 0),
-    prisma.orgTeam?.count?.({
-      where: { workspaceId: orgId, isActive: true } as any,
-    } as any).catch(() => 0),
+    prisma.orgPosition.count({
+      where: { workspaceId: orgId, isActive: true, userId: { not: null } },
+    }).catch(() => 0),
+    prisma.orgTeam.count({
+      where: { workspaceId: orgId, isActive: true },
+    }).catch(() => 0),
 
-    prisma.personCapacity?.count?.({ where: { orgId } } as any).catch(() => 0),
-    prisma.capacityAllocation?.count?.({ where: { orgId } } as any).catch(() => 0),
+    prisma.personCapacity.count({ where: { orgId } }).catch(() => 0),
+    prisma.capacityAllocation.count({ where: { orgId } }).catch(() => 0),
 
-    prisma.personAvailability?.count?.({ where: { orgId } } as any).catch(() => 0),
-    prisma.personRoleAssignment?.count?.({ where: { orgId } } as any).catch(() => 0),
+    prisma.personAvailability.count({ where: { workspaceId: orgId } }).catch(() => 0),
+    prisma.personRoleAssignment.count({ where: { orgId } }).catch(() => 0),
 
-    prisma.ownerAssignment?.count?.({
-      where: { orgId, isPrimary: true } as any,
-    } as any).catch(() => 0),
+    prisma.ownerAssignment.count({
+      where: { workspaceId: orgId, isPrimary: true },
+    }).catch(() => 0),
 
-    prisma.personManagerLink?.count?.({ where: { orgId } } as any).catch(() => 0),
+    prisma.personManagerLink.count({ where: { workspaceId: orgId } }).catch(() => 0),
   ])
 
   const p = Number(peopleCount ?? 0)

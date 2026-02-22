@@ -28,11 +28,11 @@ export async function computeTeamCapacityMetrics({ orgId }: Inputs): Promise<{
   hasCapacityData: boolean
 }> {
   const [teams, memberships] = await Promise.all([
-    prisma.orgTeam?.findMany?.({
+    prisma.orgTeam.findMany({
       where: { workspaceId: orgId },
-      select: { id: true, name: true } as any,
+      select: { id: true, name: true },
       take: 2000,
-    } as any).catch(() => [] as any[]),
+    }).catch(() => []),
     getTeamMemberships(orgId),
   ])
 
@@ -40,43 +40,43 @@ export async function computeTeamCapacityMetrics({ orgId }: Inputs): Promise<{
   for (const t of teams || []) teamNameById.set(String(t.id), t.name ?? "Untitled team")
 
   // Capacity profiles (FTE + shrinkage)
-  const profiles = await prisma.personCapacity?.findMany?.({
-    where: { orgId } as any,
-    select: { personId: true, fte: true, shrinkagePct: true } as any,
+  const profiles = await prisma.personCapacity.findMany({
+    where: { orgId },
+    select: { personId: true, fte: true, shrinkagePct: true },
     take: 50000,
-  } as any).catch(() => [] as any[])
+  }).catch(() => [])
 
   const hasCapacityData = Array.isArray(profiles) && profiles.length > 0
 
   // Availability now
   const now = Date.now()
-  const availability = await prisma.personAvailability?.findMany?.({
-    where: { orgId } as any,
-    select: { personId: true, status: true, startsAt: true, endsAt: true } as any,
+  const availability = await prisma.personAvailability.findMany({
+    where: { workspaceId: orgId },
+    select: { personId: true, type: true, startDate: true, endDate: true },
     take: 50000,
-  } as any).catch(() => [] as any[])
+  }).catch(() => [])
 
   const availabilityByPerson = new Map<string, string>()
   for (const a of availability || []) {
-    const startsOk = !a.startsAt || new Date(a.startsAt).getTime() <= now
-    const endsOk = !a.endsAt || new Date(a.endsAt).getTime() >= now
+    const startsOk = new Date(a.startDate).getTime() <= now
+    const endsOk = !a.endDate || new Date(a.endDate).getTime() >= now
     if (!startsOk || !endsOk) continue
-    availabilityByPerson.set(String(a.personId), String(a.status))
+    availabilityByPerson.set(String(a.personId), String(a.type))
   }
 
   // Allocations (team demand)
-  const allocations = await prisma.capacityAllocation?.findMany?.({
-    where: { orgId } as any,
-    select: { personId: true, teamId: true, percent: true, startsAt: true, endsAt: true } as any,
+  const allocations = await prisma.capacityAllocation.findMany({
+    where: { orgId },
+    select: { personId: true, teamId: true, percent: true, startsAt: true, endsAt: true },
     take: 200000,
-  } as any).catch(() => [] as any[])
+  }).catch(() => [])
 
   // Role assignments (optional)
-  const roles = await prisma.personRoleAssignment?.findMany?.({
-    where: { orgId } as any,
-    select: { personId: true, role: true, percent: true } as any,
+  const roles = await prisma.personRoleAssignment.findMany({
+    where: { orgId },
+    select: { personId: true, role: true, percent: true },
     take: 200000,
-  } as any).catch(() => [] as any[])
+  }).catch(() => [])
 
   const roleByPerson = new Map<string, Array<{ role: string; percent: number }>>()
   for (const r of roles || []) {
@@ -112,7 +112,7 @@ export async function computeTeamCapacityMetrics({ orgId }: Inputs): Promise<{
     const baseAvail = Math.max(0, fte * (1 - shrink / 100))
 
     const st = (availabilityByPerson.get(personId) ?? "AVAILABLE").toUpperCase()
-    const mult = st === "UNAVAILABLE" ? 0 : st === "LIMITED" ? 0.5 : 1
+    const mult = st === "UNAVAILABLE" ? 0 : st === "PARTIAL" ? 0.5 : 1
     return baseAvail * mult
   }
 

@@ -108,11 +108,12 @@ export const authOptions: NextAuthOptions = {
           // Attach database user ID to user object for JWT callback
           user.id = dbUser.id;
           return true;
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('❌ [NextAuth] Error creating/updating user:', error);
-          console.error('❌ Error message:', error?.message);
-          console.error('❌ Error code:', error?.code);
-          console.error('❌ Error stack:', error?.stack);
+          const err = error as { message?: string; code?: string; stack?: string; name?: string };
+          console.error('❌ Error message:', err?.message);
+          console.error('❌ Error code:', err?.code);
+          console.error('❌ Error stack:', err?.stack);
           console.error('❌ [NextAuth] User data:', { email: user.email, name: user.name });
           console.error('❌ [NextAuth] Error details:', error instanceof Error ? {
             message: error.message,
@@ -121,7 +122,7 @@ export const authOptions: NextAuthOptions = {
           } : error);
 
           // If it's a database connection error, log it but don't fail auth
-          if (error?.code === 'P1001' || error?.message?.includes('connect') || error?.message?.includes('timeout')) {
+          if (err?.code === 'P1001' || err?.message?.includes('connect') || err?.message?.includes('timeout')) {
             console.error('⚠️ Database connection issue - allowing auth to proceed');
           }
 
@@ -150,8 +151,9 @@ export const authOptions: NextAuthOptions = {
               session.user.id = dbUser.id;
               console.log('✅ Session: Set user ID from database lookup:', dbUser.id);
             }
-          } catch (prismaError: any) {
-            console.error('[Session] Prisma lookup failed:', prismaError.message);
+          } catch (prismaError: unknown) {
+            const sessionErr = prismaError instanceof Error ? prismaError : new Error(String(prismaError));
+            console.error('[Session] Prisma lookup failed:', sessionErr.message);
             // If Prisma fails, we can't proceed - log error but don't crash
           }
         }
@@ -165,7 +167,7 @@ export const authOptions: NextAuthOptions = {
         session.expiresAt = token.expiresAt;
       }
       // Also support activeOrgId for backward compatibility
-      (session as any).activeOrgId = (token as any).activeOrgId || null;
+      session.activeOrgId = token.activeOrgId || null;
       return session;
     },
     async jwt({ token, user, account, trigger, session }) {
@@ -189,8 +191,9 @@ export const authOptions: NextAuthOptions = {
             } else {
               console.warn('⚠️ JWT: User not found in database:', user.email);
             }
-          } catch (prismaError: any) {
-            console.error('[JWT] Prisma lookup failed:', prismaError.message);
+          } catch (prismaError: unknown) {
+            const jwtErr = prismaError instanceof Error ? prismaError : new Error(String(prismaError));
+            console.error('[JWT] Prisma lookup failed:', jwtErr.message);
             // If Prisma fails, we can't proceed - log error but don't crash
           }
         }
@@ -279,9 +282,9 @@ export const authOptions: NextAuthOptions = {
       if (trigger === 'update') {
         // Allow client to update activeOrgId via session update
         if (session) {
-          const nextOrg = (session as any).activeOrgId;
+          const nextOrg = session.activeOrgId;
           if (typeof nextOrg === "string") {
-            (token as any).activeOrgId = nextOrg;
+            token.activeOrgId = nextOrg;
           }
         }
 
@@ -354,7 +357,16 @@ export const authOptions: NextAuthOptions = {
       
       // Log redirect callback for debugging invite flow
       // Only parse URLs for logging if they're absolute (to avoid errors)
-      const logContext: any = {
+      const logContext: {
+        url: string;
+        baseUrl: string;
+        finalUrl: string;
+        isRelative: boolean;
+        urlOrigin?: string;
+        baseUrlOrigin?: string;
+        isSameOrigin?: boolean;
+        urlParseError?: string;
+      } = {
         url,
         baseUrl,
         finalUrl,

@@ -15,12 +15,12 @@ export type StructureMetric = {
 
 export async function computeStructureMetrics(orgId: string): Promise<StructureMetric> {
   const [peopleCount, teamCount] = await Promise.all([
-    prisma.orgPosition?.count?.({
-      where: { workspaceId: orgId, isActive: true, userId: { not: null } } as any,
-    } as any).catch(() => null),
-    prisma.orgTeam?.count?.({
-      where: { workspaceId: orgId, isActive: true } as any,
-    } as any).catch(() => null),
+    prisma.orgPosition.count({
+      where: { workspaceId: orgId, isActive: true, userId: { not: null } },
+    }).catch(() => null),
+    prisma.orgTeam.count({
+      where: { workspaceId: orgId, isActive: true },
+    }).catch(() => null),
   ])
 
   const p = typeof peopleCount === "number" ? peopleCount : 0
@@ -31,19 +31,20 @@ export async function computeStructureMetrics(orgId: string): Promise<StructureM
   try {
     // Try common membership models defensively.
     const memberCountByTeam = new Map<string, number>()
-    const candidates: Array<() => Promise<any[]>> = [
+    type TeamIdRow = { teamId: string | null }
+    const candidates: Array<() => Promise<TeamIdRow[]>> = [
       // Try OrgPosition with teamId (primary source)
       async () => {
         const positions = await prisma.orgPosition.findMany({
-          where: { workspaceId: orgId, isActive: true, teamId: { not: null } } as any,
-          select: { teamId: true } as any,
+          where: { workspaceId: orgId, isActive: true, teamId: { not: null } },
+          select: { teamId: true },
           take: 200000,
-        } as any).catch(() => [])
+        }).catch(() => [])
         return positions || []
       },
     ]
 
-    let rows: any[] = []
+    let rows: TeamIdRow[] = []
     for (const fn of candidates) {
       try {
         rows = await fn()
@@ -59,13 +60,13 @@ export async function computeStructureMetrics(orgId: string): Promise<StructureM
         memberCountByTeam.set(id, (memberCountByTeam.get(id) ?? 0) + 1)
       }
 
-      const teams = await prisma.orgTeam?.findMany?.({
-        where: { workspaceId: orgId, isActive: true } as any,
-        select: { id: true } as any,
+      const teams = await prisma.orgTeam.findMany({
+        where: { workspaceId: orgId, isActive: true },
+        select: { id: true },
         take: 50000,
-      } as any).catch(() => [] as any[])
+      }).catch(() => [])
 
-      orphanTeams = (teams || []).filter((tt: any) => (memberCountByTeam.get(String(tt.id)) ?? 0) === 0).length
+      orphanTeams = (teams || []).filter((tt) => (memberCountByTeam.get(String(tt.id)) ?? 0) === 0).length
     }
   } catch {
     orphanTeams = 0

@@ -33,6 +33,15 @@ export interface AuthContext {
   isDevelopment: boolean
 }
 
+/** Minimal workspace member shape used across auth resolution paths. */
+interface WorkspaceMemberLike {
+  id: string
+  workspaceId: string
+  userId: string
+  role: string
+  joinedAt: Date
+}
+
 /**
  * Custom error class for "no workspace found" case
  * Allows callers to check error type instead of message string
@@ -100,7 +109,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
             })
           },
         },
-      } as any
+      }
 
       session = await getServerSession(authOptions)
     } else {
@@ -181,7 +190,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
   const workspaceStartTime = performance.now()
   // PHASE A3: Use JWT workspaceId first, then fall back to DB query
   let activeWorkspaceId: string
-  let workspaceMember: any
+  let workspaceMember: WorkspaceMemberLike | null = null
   
   // Check if URL specifies a different workspace (slug or query param)
   const hasExplicitWorkspace = request && (
@@ -320,7 +329,7 @@ export async function getUnifiedAuth(request?: NextRequest): Promise<AuthContext
 async function resolveActiveWorkspaceIdWithMember(
   userId: string, 
   request?: NextRequest
-): Promise<{ workspaceId: string; workspaceMember: any } | null> {
+): Promise<{ workspaceId: string; workspaceMember: WorkspaceMemberLike } | null> {
   const startTime = performance.now()
   const requestId = request?.headers.get('x-request-id') || 'no-request-id'
   

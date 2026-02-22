@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { OrgHealthSignalType, OrgHealthSeverity } from "@prisma/client"
 import type { ComputedHealth } from "@/server/org/health/compute"
 
 type StoreInput = {
@@ -20,9 +21,9 @@ export async function storeOrgHealthSnapshot({ orgId, computed }: StoreInput) {
         capacityScore: computed.snapshot.capacityScore ?? null,
         ownershipScore: computed.snapshot.ownershipScore ?? null,
         balanceScore: computed.snapshot.balanceScore ?? null,
-        managementScore: (computed.snapshot as any).managementScore ?? null,
-        dataQualityScore: (computed.snapshot as any).dataQualityScore ?? null,
-        phaseCVersion: (computed.snapshot as any).phaseCVersion ?? null,
+        managementScore: computed.snapshot.managementScore ?? null,
+        dataQualityScore: computed.snapshot.dataQualityScore ?? null,
+        phaseCVersion: computed.snapshot.phaseCVersion ?? null,
       },
   })
 
@@ -51,14 +52,14 @@ export async function storeOrgHealthSnapshot({ orgId, computed }: StoreInput) {
       data: toCreate.map((s) => ({
         orgId,
         signalKey: s.signalKey,
-        type: s.type as any,
-        severity: s.severity as any,
+        type: s.type as OrgHealthSignalType,
+        severity: s.severity as OrgHealthSeverity,
         title: s.title,
         description: s.description,
-        contextType: (s as any).contextType ?? null,
-        contextId: (s as any).contextId ?? null,
-        contextLabel: (s as any).contextLabel ?? null,
-        href: (s as any).href ?? null,
+        contextType: s.contextType ?? null,
+        contextId: s.contextId ?? null,
+        contextLabel: s.contextLabel ?? null,
+        href: s.href ?? null,
         resolvedAt: null,
         dismissedAt: null,
       })),

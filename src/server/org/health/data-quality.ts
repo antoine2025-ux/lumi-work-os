@@ -8,15 +8,15 @@ export async function getDataQualityDeepDive(orgId: string) {
   const stale: Array<{ personId: string; label: string; updatedAt: string }> = []
   try {
     const rows = await prisma.personAvailability.findMany({
-      where: { workspaceId: orgId } as any,
-      select: { personId: true, updatedAt: true, createdAt: true } as any,
+      where: { workspaceId: orgId },
+      select: { personId: true, updatedAt: true, createdAt: true },
       take: 50000,
     })
     const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000
     for (const r of rows) {
-      const ts = new Date((r as any).updatedAt ?? (r as any).createdAt).getTime()
+      const ts = new Date(r.updatedAt ?? r.createdAt).getTime()
       if (Number.isFinite(ts) && ts < cutoff) {
-        const id = String((r as any).personId)
+        const id = String(r.personId)
         stale.push({
           personId: id,
           label: peopleMap.get(id)?.label ?? `Person ${id.slice(0, 8)}`,
@@ -32,15 +32,15 @@ export async function getDataQualityDeepDive(orgId: string) {
   const conflicts: Array<{ personId: string; label: string; managers: number; managerIds: string[] }> = []
   try {
     const links = await prisma.personManagerLink.findMany({
-      where: { workspaceId: orgId } as any,
-      select: { personId: true, managerId: true } as any,
+      where: { workspaceId: orgId },
+      select: { personId: true, managerId: true },
       take: 200000,
     })
 
     const mgrSetByPerson = new Map<string, Set<string>>()
     for (const l of links) {
-      const pid = String((l as any).personId)
-      const mid = String((l as any).managerId)
+      const pid = String(l.personId)
+      const mid = String(l.managerId)
       const set = mgrSetByPerson.get(pid) ?? new Set<string>()
       set.add(mid)
       mgrSetByPerson.set(pid, set)
@@ -65,15 +65,15 @@ export async function getDataQualityDeepDive(orgId: string) {
   const overAllocated: Array<{ personId: string; label: string; demandPct: number }> = []
   try {
     const allocs = await prisma.capacityAllocation.findMany({
-      where: { orgId } as any,
-      select: { personId: true, percent: true } as any,
+      where: { orgId },
+      select: { personId: true, percent: true },
       take: 200000,
     })
 
     const pctByPerson = new Map<string, number>()
     for (const a of allocs) {
-      const pid = String((a as any).personId)
-      const pct = Number((a as any).percent ?? 0)
+      const pid = String(a.personId)
+      const pct = Number(a.percent ?? 0)
       pctByPerson.set(pid, (pctByPerson.get(pid) ?? 0) + pct)
     }
 

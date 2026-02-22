@@ -2,6 +2,19 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/authOptions'
 import { prisma } from '@/lib/db'
 
+/** Typed shape of Prisma (and Prisma-like) errors used for error narrowing. */
+interface PrismaLikeError {
+  code?: string
+  message?: string
+  meta?: unknown
+}
+
+/** Error subtype that carries Prisma error metadata. */
+interface ErrorWithCode extends Error {
+  code?: string
+  meta?: unknown
+}
+
 // Note: Direct PostgreSQL connection via 'pg' library has issues connecting from host to Docker
 // Prisma should work for most operations, so we'll rely on Prisma with better error messages
 
@@ -73,9 +86,10 @@ export async function getAuthUser(): Promise<AuthUser | null> {
           }
         })
       }
-    } catch (prismaError: any) {
+    } catch (prismaError: unknown) {
       // Prisma failed - fall back to direct SQL query via Docker
-      console.warn('[getAuthUser] Prisma failed, using direct SQL fallback:', prismaError.message)
+      const prismaErr = prismaError instanceof Error ? prismaError : new Error(String(prismaError));
+      console.warn('[getAuthUser] Prisma failed, using direct SQL fallback:', prismaErr.message)
       
       try {
         const { execSync } = await import('child_process')
@@ -126,8 +140,9 @@ export async function getAuthUser(): Promise<AuthUser | null> {
             workspaceMembership = { workspaceId: wsId }
           }
         }
-      } catch (sqlError: any) {
-        console.error('[getAuthUser] SQL fallback also failed:', sqlError.message)
+      } catch (sqlError: unknown) {
+        const sqlErr = sqlError instanceof Error ? sqlError : new Error(String(sqlError));
+        console.error('[getAuthUser] SQL fallback also failed:', sqlErr.message)
         // Even if SQL fails, return user info from session if we have it
         if (session?.user?.id && session?.user?.email) {
           return {
@@ -214,26 +229,27 @@ export async function createUserWorkspace(userData: {
           themePreference: true,
         }
       })
-    } catch (prismaError: any) {
-      console.error('[createUserWorkspace] Prisma upsert failed, trying raw SQL:', prismaError.message)
-      
+    } catch (prismaError: unknown) {
+      const prismaErr = prismaError as PrismaLikeError;
+      console.error('[createUserWorkspace] Prisma upsert failed, trying raw SQL:', prismaErr.message)
+
       // If Prisma fails because the table does not exist, do not fall back to raw SQL
       // (raw SQL will fail the same way). Throw a clear message so the user can run migrations.
       const tableMissing =
-        prismaError.code === 'P2021' ||
-        prismaError.code === 'P2022' ||
-        (prismaError.message?.includes('does not exist') && prismaError.message?.includes('users'));
+        prismaErr.code === 'P2021' ||
+        prismaErr.code === 'P2022' ||
+        (prismaErr.message?.includes('does not exist') && prismaErr.message?.includes('users'));
 
       if (tableMissing) {
         const schemaHint = new Error(
           'Database schema is not initialized. The "users" table is missing. Run: npm run db:push (or npx prisma migrate deploy) then try again.'
-        );
-        (schemaHint as any).code = prismaError.code;
+        ) as ErrorWithCode;
+        schemaHint.code = prismaErr.code;
         throw schemaHint;
       }
 
       // Legacy: other schema mismatch (e.g. column missing) – use raw SQL
-      if (prismaError.code === 'P2022' || prismaError.message?.includes('does not exist')) {
+      if (prismaErr.code === 'P2022' || prismaErr.message?.includes('does not exist')) {
         // Use raw SQL to insert/update user with only existing columns
         // Escape single quotes in user input
         const escapedEmail = userData.email.replace(/'/g, "''")
@@ -294,7 +310,7 @@ export async function createUserWorkspace(userData: {
         }
       } else {
         // For other errors, throw as-is
-        throw prismaError
+        throw prismaError as Error
       }
     }
 
@@ -342,11 +358,12 @@ export async function createUserWorkspace(userData: {
           ownerId: true,
         }
       })
-    } catch (prismaError: any) {
-      console.error('[createUserWorkspace] Prisma workspace.create failed, trying raw SQL:', prismaError.message)
-      
+    } catch (prismaError: unknown) {
+      const prismaErr2 = prismaError as PrismaLikeError;
+      console.error('[createUserWorkspace] Prisma workspace.create failed, trying raw SQL:', prismaErr2.message)
+
       // If Prisma fails due to schema mismatch, use raw SQL
-      if (prismaError.code === 'P2022' || prismaError.message?.includes('does not exist')) {
+      if (prismaErr2.code === 'P2022' || prismaErr2.message?.includes('does not exist')) {
         // Use raw SQL to create workspace with only existing columns
         // Generate CUID-like ID
         const { randomBytes } = await import('crypto')
@@ -405,7 +422,7 @@ export async function createUserWorkspace(userData: {
         
       } else {
         // For other errors, throw as-is
-        throw prismaError
+        throw prismaError as Error
       }
     }
 
@@ -428,9 +445,10 @@ export async function createUserWorkspace(userData: {
       `)
       
       console.log('[createUserWorkspace] WorkspaceMember created successfully via raw SQL')
-    } catch (rawSQLError: any) {
-      console.error('[createUserWorkspace] Raw SQL workspaceMember.create failed:', rawSQLError.message)
-      console.error('[createUserWorkspace] Raw SQL error code:', rawSQLError.code)
+    } catch (rawSQLError: unknown) {
+      const sqlErr2 = rawSQLError as { message?: string; code?: string };
+      console.error('[createUserWorkspace] Raw SQL workspaceMember.create failed:', sqlErr2.message)
+      console.error('[createUserWorkspace] Raw SQL error code:', sqlErr2.code)
       // Don't throw - workspace is already created, member can be added later via manual fix
       // This is a non-critical error - the workspace exists, membership can be fixed manually if needed
       console.warn('[createUserWorkspace] Workspace created but member creation failed. Workspace ID:', workspace.id)
@@ -452,26 +470,26 @@ export async function createUserWorkspace(userData: {
     // Extract serializable error details
     const errorMessage = error instanceof Error ? error.message : String(error)
     const errorName = error instanceof Error ? error.name : 'Unknown'
-    const errorCode = (error as any)?.code
-    const prismaError = error as any
-    
+    const prismaErr3 = error as PrismaLikeError;
+    const errorCode = prismaErr3.code
+
     console.error('[createUserWorkspace] Error details:', {
       message: errorMessage,
       name: errorName,
       code: errorCode,
-      prismaCode: prismaError?.code,
-      prismaMeta: prismaError?.meta ? JSON.stringify(prismaError.meta) : undefined,
+      prismaCode: prismaErr3.code,
+      prismaMeta: prismaErr3.meta ? JSON.stringify(prismaErr3.meta) : undefined,
       stack: error instanceof Error ? error.stack : undefined,
       userData: { id: userData.id, email: userData.email },
       workspaceData: { name: workspaceData.name, slug: workspaceData.slug }
     })
-    
+
     // Create a new Error with serializable properties to avoid circular reference issues
-    const serializableError = new Error(errorMessage)
-    ;(serializableError as any).code = errorCode
-    ;(serializableError as any).name = errorName
-    if (prismaError?.meta) {
-      ;(serializableError as any).meta = prismaError.meta
+    const serializableError = new Error(errorMessage) as ErrorWithCode;
+    serializableError.code = errorCode;
+    serializableError.name = errorName;
+    if (prismaErr3.meta) {
+      serializableError.meta = prismaErr3.meta;
     }
     throw serializableError
   }

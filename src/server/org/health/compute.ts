@@ -14,6 +14,11 @@ type ComputeInput = {
   orgId: string
 }
 
+type PersonCapacityRow = { personId: string; fte: number; shrinkagePct: number }
+type CapacityAllocationRow = { personId: string; percent: number | null; teamId: string | null; startsAt: Date | null; endsAt: Date | null }
+type PersonAvailabilityTypeRow = { personId: string; type: string; startDate: Date; endDate: Date | null }
+type OrgTeamNameRow = { id: string; name: string | null }
+
 type SignalType = "CAPACITY" | "OWNERSHIP" | "STRUCTURE" | "MANAGEMENT_LOAD" | "DATA_QUALITY"
 type Severity = "INFO" | "WARNING" | "CRITICAL"
 
@@ -85,17 +90,17 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
 
   // If capacity primitives exist, compute "available capacity" signal from real data.
   try {
-    const profiles = await prisma.personCapacity?.findMany?.({
+    const profiles = await prisma.personCapacity.findMany({
       where: { orgId },
-      select: { fte: true, shrinkagePct: true, personId: true } as any,
+      select: { fte: true, shrinkagePct: true, personId: true },
       take: 2000,
-    } as any)
+    }).catch(() => null) as PersonCapacityRow[] | null
 
-    const allocations = await prisma.capacityAllocation?.findMany?.({
+    const allocations = await prisma.capacityAllocation.findMany({
       where: { orgId },
-      select: { personId: true, percent: true, teamId: true, endsAt: true, startsAt: true } as any,
+      select: { personId: true, percent: true, teamId: true, endsAt: true, startsAt: true },
       take: 20000,
-    } as any)
+    }).catch(() => null) as CapacityAllocationRow[] | null
 
     if (Array.isArray(profiles) && profiles.length > 0) {
       const now = Date.now()
@@ -135,11 +140,11 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
 
       const availabilityByPerson = new Map<string, string>()
       try {
-        const av = await prisma.personAvailability?.findMany?.({
+        const av = await prisma.personAvailability.findMany({
           where: { workspaceId: orgId },
-          select: { personId: true, type: true, startDate: true, endDate: true } as any,
+          select: { personId: true, type: true, startDate: true, endDate: true },
           take: 5000,
-        } as any)
+        }).catch(() => null) as PersonAvailabilityTypeRow[] | null
 
         if (Array.isArray(av)) {
           const nowMs = Date.now()
@@ -260,12 +265,12 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
       // Team-scoped signals (v0): if allocations have teamId, warn when allocated demand is high vs available supply.
       // This is a proxy until we compute per-team supply precisely (requires person->team membership).
       // Only use this if we didn't already generate team signals from true metrics.
-      if (signals.filter((s) => s.type === "CAPACITY" && (s as any).contextType === "TEAM").length === 0 && allocByTeam.size > 0) {
-        const teams = await prisma.orgTeam?.findMany?.({
+      if (signals.filter((s) => s.type === "CAPACITY" && s.contextType === "TEAM").length === 0 && allocByTeam.size > 0) {
+        const teams = await prisma.orgTeam.findMany({
           where: { workspaceId: orgId },
-          select: { id: true, name: true } as any,
+          select: { id: true, name: true },
           take: 200,
-        } as any).catch(() => [] as any[])
+        }).catch(() => [] as OrgTeamNameRow[])
 
         const nameByTeam = new Map<string, string>()
         for (const t of teams || []) nameByTeam.set(String(t.id), t.name ?? "Untitled team")
@@ -284,15 +289,10 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
             severity,
             title: "Team capacity hotspot",
             description: `${label} has high active allocation demand (~${Math.round(pct)}%). Review staffing, scope, or allocations.`,
-            // signal context for drill-down
-            // NOTE: store layer will persist these fields
-             
-            ...({
-              contextType: "TEAM",
-              contextId: teamId,
-              contextLabel: label,
-              href: `/org/health/capacity?teamId=${encodeURIComponent(teamId)}`,
-            } as any),
+            contextType: "TEAM",
+            contextId: teamId,
+            contextLabel: label,
+            href: `/org/health/capacity?teamId=${encodeURIComponent(teamId)}`,
           })
         }
       }
@@ -555,7 +555,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
     const dq = await getDataQualityDeepDive(orgId)
 
     // Stale availability signals: one per person (top 10)
-    const staleSec = dq.sections.find((s: any) => s.title.startsWith("Stale availability"))
+    const staleSec = dq.sections.find((s) => s.title.startsWith("Stale availability"))
     for (const r of (staleSec?.rows ?? []).slice(0, 10)) {
       signals.push({
         type: "DATA_QUALITY",
@@ -570,7 +570,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
     }
 
     // Manager conflicts: one per person (top 10)
-    const confSec = dq.sections.find((s: any) => s.title.startsWith("Conflicting manager"))
+    const confSec = dq.sections.find((s) => s.title.startsWith("Conflicting manager"))
     for (const r of (confSec?.rows ?? []).slice(0, 10)) {
       signals.push({
         type: "DATA_QUALITY",
@@ -585,7 +585,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
     }
 
     // Over-allocation: one per person (top 10)
-    const overSec = dq.sections.find((s: any) => s.title.startsWith("Over-allocated"))
+    const overSec = dq.sections.find((s) => s.title.startsWith("Over-allocated"))
     for (const r of (overSec?.rows ?? []).slice(0, 10)) {
       signals.push({
         type: "DATA_QUALITY",

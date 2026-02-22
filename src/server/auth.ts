@@ -13,7 +13,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   if (!session || !session.user) return null;
 
   return {
-    id: (session.user as any).id,
+    id: session.user.id,
     email: session.user.email,
     name: session.user.name,
   };
@@ -21,5 +21,5 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
 export async function getActiveOrgId(): Promise<string> {
   const session = await getServerSession(authOptions);
-  return ((session as any)?.activeOrgId as string) || "";
+  return session?.activeOrgId || "";
 }

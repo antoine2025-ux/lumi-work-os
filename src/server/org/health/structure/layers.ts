@@ -27,22 +27,22 @@ export async function computeLayerMetrics(orgId: string): Promise<LayerMetrics> 
 
   // In this codebase, people are represented via OrgPosition with User
   const [positions, links] = await Promise.all([
-    prisma.orgPosition?.findMany?.({
-      where: { workspaceId: orgId, isActive: true, userId: { not: null } } as any,
-      select: { userId: true } as any,
+    prisma.orgPosition.findMany({
+      where: { workspaceId: orgId, isActive: true, userId: { not: null } },
+      select: { userId: true },
       take: 100000,
-    } as any).catch(() => [] as any[]),
+    }).catch(() => []),
 
-    prisma.personManagerLink?.findMany?.({
-      where: { workspaceId: orgId } as any,
-      select: { personId: true, managerId: true, startsAt: true, endsAt: true } as any,
+    prisma.personManagerLink.findMany({
+      where: { workspaceId: orgId },
+      select: { personId: true, managerId: true, startsAt: true, endsAt: true },
       take: 200000,
-    } as any).catch(() => [] as any[]),
+    }).catch(() => []),
   ])
 
   const peopleIds = (positions || [])
-    .map((p: any) => String(p.userId))
-    .filter((id: string) => id && id !== "null")
+    .map((p) => String(p.userId))
+    .filter((id) => id && id !== "null")
   const peopleSet = new Set(peopleIds)
 
   const activeEdges: Edge[] = []

@@ -14,12 +14,15 @@ declare module "next-auth" {
     accessToken?: string
     refreshToken?: string
     expiresAt?: number
+    activeOrgId?: string | null
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     uid: string
+    /** Custom DB user ID (distinct from `sub`) */
+    id?: string
     accessToken?: string
     refreshToken?: string
     expiresAt?: number
@@ -28,5 +31,6 @@ declare module "next-auth/jwt" {
     role?: string
     isFirstTime?: boolean
     onboardingComplete?: boolean
+    activeOrgId?: string | null
   }
 }
