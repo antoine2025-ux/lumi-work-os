@@ -10,7 +10,8 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { AuthWrapper } from "@/components/auth-wrapper"
 import { DataPrefetcher } from "@/components/data-prefetcher"
 import { UserStatusProvider, useUserStatusContext } from "@/providers/user-status-provider"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { usePathname } from "next/navigation"
 
 /**
  * SocketWrapper - Provides real-time socket connection
@@ -41,6 +42,22 @@ function KeyboardShortcutsWrapper({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+/**
+ * Conditional wrapper - only applies ThemeProvider if NOT on landing page
+ * Landing page uses next-themes, app pages use custom ThemeProvider
+ */
+function ConditionalThemeProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+
+  // Skip app's ThemeProvider on landing page - it has next-themes
+  // Don't wait for mount, check pathname immediately
+  if (pathname === '/') {
+    return <>{children}</>
+  }
+
+  return <ThemeProvider>{children}</ThemeProvider>
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
@@ -67,7 +84,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         {/* UserStatusProvider must be inside QueryClientProvider and SessionProvider */}
         <UserStatusProvider>
-        <ThemeProvider>
+        <ConditionalThemeProvider>
           <AuthWrapper>
             <WorkspaceProvider>
               <SocketWrapper>
@@ -79,7 +96,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               </SocketWrapper>
             </WorkspaceProvider>
           </AuthWrapper>
-        </ThemeProvider>
+        </ConditionalThemeProvider>
         </UserStatusProvider>
       </QueryClientProvider>
     </SessionProvider>

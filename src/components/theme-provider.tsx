@@ -20,6 +20,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Apply dark theme on mount and ensure consistency
   useEffect(() => {
+    // Skip theme forcing on landing page - it has its own theme toggle
+    if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
+      return;
+    }
+    
     // Clean up any existing 'light' theme preference
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('lumi-theme')
@@ -32,8 +37,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const config = themeConfigs[theme]
     const root = document.documentElement
     
-    // Ensure dark class is present
+    // Ensure dark class is present (but not on landing page - next-themes handles that)
     root.classList.add('dark')
+    root.classList.remove('light')
     
     // Apply all theme variables
     root.style.setProperty('--primary', config.primary)

@@ -97,6 +97,13 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                // Landing page has its own theme toggle with next-themes
+                // DO NOT interfere with it at all
+                if (window.location.pathname === '/' || window.location.pathname === '') {
+                  // Completely exit - don't touch anything
+                  return;
+                }
+                
                 // PHASE A2/B1: Removed redirect loop prevention hack - middleware handles redirects now
                 try {
                   // Force dark mode - always apply dark theme

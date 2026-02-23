@@ -41,9 +41,9 @@ export function NewsletterSignup() {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-2">
+    <div className="w-full">
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="flex gap-2">
           <Input
             type="email"
             placeholder="Enter your email"
@@ -51,21 +51,21 @@ export function NewsletterSignup() {
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={status === "loading"}
-            className="flex-1 bg-white/10 border-slate-600 text-white placeholder:text-slate-400 focus:border-blue-400"
+            className="flex-1 px-3 py-2 text-sm bg-landing-surface border-landing-border text-landing-text placeholder:text-landing-text-muted focus:ring-2 focus:ring-landing-accent/50"
           />
           <Button
             type="submit"
             disabled={status === "loading" || !email}
-            className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-landing-accent hover:bg-landing-accent-hover text-white text-sm font-medium whitespace-nowrap"
           >
             {status === "loading" ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
                 Subscribing...
               </>
             ) : (
               <>
-                <Mail className="w-4 h-4 mr-2" />
+                <Mail className="w-4 h-4" />
                 Subscribe
               </>
             )}
@@ -73,15 +73,15 @@ export function NewsletterSignup() {
         </div>
         {message && (
           <div
-            className={`text-sm flex items-center gap-2 ${
+            className={`text-xs flex items-center gap-2 ${
               status === "success"
-                ? "text-green-400"
+                ? "text-green-500"
                 : status === "error"
-                ? "text-red-400"
-                : "text-slate-300"
+                ? "text-red-500"
+                : "text-landing-text-secondary"
             }`}
           >
-            {status === "success" && <CheckCircle className="w-4 h-4" />}
+            {status === "success" && <CheckCircle className="w-3.5 h-3.5" />}
             {message}
           </div>
         )}
