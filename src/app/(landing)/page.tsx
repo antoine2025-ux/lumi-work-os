@@ -122,6 +122,15 @@ function HeroSection() {
   const [showSubheadline, setShowSubheadline] = useState(false);
   const [showCTA, setShowCTA] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [isMobile, setIsMobile] = useState(true); // default true to avoid overflow on first paint
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    setIsMobile(!mq.matches);
+    const h = (e: MediaQueryListEvent) => setIsMobile(!e.matches);
+    mq.addEventListener("change", h);
+    return () => mq.removeEventListener("change", h);
+  }, []);
 
   // All timings pre-calculated — no state changes occur during the typing phase
   const line1Start = 0.3;
@@ -173,8 +182,8 @@ function HeroSection() {
   if (reducedMotion) {
     return (
       <section className="min-h-screen flex items-center bg-landing-bg-hero relative">
-        <div className="max-w-6xl mx-auto px-6 w-full">
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-semibold text-landing-text leading-tight tracking-tight">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 w-full">
+          <h1 className="text-3xl md:text-5xl lg:text-7xl font-semibold text-landing-text leading-tight tracking-tight">
             <span className="block">One workspace.</span>
             <span className="block">One brain.</span>
             <span className="block">Full stop.</span>
@@ -193,24 +202,24 @@ function HeroSection() {
 
   return (
     <section className="min-h-screen flex items-center bg-landing-bg-hero relative overflow-hidden">
-      <div className="max-w-6xl mx-auto px-6 w-full">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 w-full">
         {/* Fixed-height spans prevent layout shift; lines 2+3 slide from indented to left */}
-        <h1 className="text-5xl md:text-6xl lg:text-7xl font-semibold text-landing-text leading-tight tracking-tight">
+        <h1 className="text-3xl md:text-5xl lg:text-7xl font-semibold text-landing-text leading-tight tracking-tight">
           <motion.span className="block h-[1.2em]" initial={{ x: 0 }} animate={{ x: 0 }}>
             <TypewriterText text="One workspace." startDelay={line1Start} />
           </motion.span>
           <motion.span
             className="block h-[1.2em]"
-            initial={{ x: "20vw" }}
-            animate={{ x: typingComplete ? 0 : "20vw" }}
+            initial={{ x: isMobile ? 0 : "20vw" }}
+            animate={{ x: typingComplete ? 0 : isMobile ? 0 : "20vw" }}
             transition={{ duration: slideDuration, ease: [0.25, 0.1, 0.25, 1] }}
           >
             <TypewriterText text="One brain." startDelay={line2Start} />
           </motion.span>
           <motion.span
             className="block h-[1.2em]"
-            initial={{ x: "40vw" }}
-            animate={{ x: typingComplete ? 0 : "40vw" }}
+            initial={{ x: isMobile ? 0 : "40vw" }}
+            animate={{ x: typingComplete ? 0 : isMobile ? 0 : "40vw" }}
             transition={{ duration: slideDuration, ease: [0.25, 0.1, 0.25, 1] }}
           >
             <TypewriterText text="Full stop." startDelay={line3Start} />
@@ -267,7 +276,7 @@ export default function LandingPage() {
       storageKey="landing-theme"
       disableTransitionOnChange={false}
     >
-    <div className="min-h-screen bg-landing-bg transition-colors duration-300">
+    <div className="min-h-screen bg-landing-bg transition-colors duration-300 overflow-x-hidden">
       <LandingNav />
 
       {/* Hero */}
@@ -277,7 +286,7 @@ export default function LandingPage() {
       <section id="features" className="border-t border-landing-border">
 
         {/* 1.0 Dashboard */}
-        <div id="dashboard-section" className="pt-12 pb-24 md:pb-32 px-4 sm:px-6 lg:px-8 bg-landing-bg-hero">
+        <div id="dashboard-section" className="pt-12 pb-16 md:pb-24 lg:pb-32 px-4 sm:px-6 lg:px-8 bg-landing-bg-hero">
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -287,7 +296,7 @@ export default function LandingPage() {
           >
             <div className="max-w-2xl mb-12">
               <p className="text-sm text-landing-text-muted font-mono tracking-widest mb-4">1.0</p>
-              <h2 className="text-3xl md:text-4xl font-semibold text-landing-text leading-tight mb-4">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-landing-text leading-tight mb-4">
                 From overview to action in seconds
               </h2>
               <p className="text-lg text-landing-text-secondary leading-relaxed">
@@ -299,7 +308,7 @@ export default function LandingPage() {
         </div>
 
         {/* 2.0 Spaces */}
-        <div id="spaces-section" className="py-24 md:py-32 px-4 sm:px-6 lg:px-8 bg-landing-bg-main">
+        <div id="spaces-section" className="py-16 md:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 bg-landing-bg-main">
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -309,7 +318,7 @@ export default function LandingPage() {
           >
             <div className="max-w-2xl mb-12">
               <p className="text-sm text-landing-text-muted font-mono tracking-widest mb-4">2.0</p>
-              <h2 className="text-3xl md:text-4xl font-semibold text-landing-text leading-tight mb-4">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-landing-text leading-tight mb-4">
                 Work with context, not assumptions
               </h2>
               <p className="text-lg text-landing-text-secondary leading-relaxed">
@@ -321,7 +330,7 @@ export default function LandingPage() {
         </div>
 
         {/* 3.0 Org */}
-        <div id="org-section" className="py-24 md:py-32 px-4 sm:px-6 lg:px-8 bg-landing-bg-main">
+        <div id="org-section" className="py-16 md:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 bg-landing-bg-main">
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -331,7 +340,7 @@ export default function LandingPage() {
           >
             <div className="max-w-2xl mb-12">
               <p className="text-sm text-landing-text-muted font-mono tracking-widest mb-4">3.0</p>
-              <h2 className="text-3xl md:text-4xl font-semibold text-landing-text leading-tight mb-4">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-landing-text leading-tight mb-4">
                 Org management without the spreadsheets
               </h2>
               <p className="text-lg text-landing-text-secondary leading-relaxed">
@@ -343,7 +352,7 @@ export default function LandingPage() {
         </div>
 
         {/* 4.0 Loopbrain */}
-        <div id="loopbrain-section" className="py-24 md:py-32 px-4 sm:px-6 lg:px-8 bg-landing-bg-main">
+        <div id="loopbrain-section" className="py-16 md:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 bg-landing-bg-main">
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -353,7 +362,7 @@ export default function LandingPage() {
           >
             <div className="max-w-2xl mb-12">
               <p className="text-sm text-landing-text-muted font-mono tracking-widest mb-4">4.0</p>
-              <h2 className="text-3xl md:text-4xl font-semibold text-landing-text leading-tight mb-4">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-landing-text leading-tight mb-4">
                 A proactive agent, not a chatbot
               </h2>
               <p className="text-lg text-landing-text-secondary leading-relaxed">
@@ -365,7 +374,7 @@ export default function LandingPage() {
         </div>
 
         {/* 5.0 Architecture */}
-        <div id="architecture-section" className="py-24 md:py-32 px-4 sm:px-6 lg:px-8 bg-landing-bg-main">
+        <div id="architecture-section" className="py-16 md:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 bg-landing-bg-main">
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -375,7 +384,7 @@ export default function LandingPage() {
           >
             <div className="max-w-2xl mb-12">
               <p className="text-sm text-landing-text-muted font-mono tracking-widest mb-4">5.0</p>
-              <h2 className="text-3xl md:text-4xl font-semibold text-landing-text leading-tight mb-4">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-landing-text leading-tight mb-4">
                 Intelligence built in, not bolted on
               </h2>
               <p className="text-lg text-landing-text-secondary leading-relaxed">
@@ -389,8 +398,8 @@ export default function LandingPage() {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works-section" className="py-24 md:py-32 border-t border-landing-border bg-landing-bg-footer">
-        <div className="max-w-6xl mx-auto px-6">
+      <section id="how-it-works-section" className="py-16 md:py-24 lg:py-32 border-t border-landing-border bg-landing-bg-footer">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -398,7 +407,7 @@ export default function LandingPage() {
             variants={fadeUp}
           >
             <p className="text-sm text-landing-text-muted font-mono tracking-widest mb-3">6.0</p>
-            <h2 className="text-3xl md:text-4xl font-semibold text-landing-text mb-12">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-landing-text mb-12">
               How it works
             </h2>
           </motion.div>
@@ -450,13 +459,13 @@ export default function LandingPage() {
       </section>
 
       {/* Credibility */}
-      <section className="py-24 md:py-32 border-t border-landing-border bg-landing-bg-footer">
+      <section className="py-16 md:py-24 lg:py-32 border-t border-landing-border bg-landing-bg-footer">
         <motion.div
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeUp}
-          className="max-w-4xl mx-auto px-6 text-center"
+          className="max-w-4xl mx-auto px-4 sm:px-6 text-center"
         >
           <p className="text-xl md:text-2xl text-landing-text-secondary mb-6">
             We&apos;re building the tool we wished we had &rarr; and we&apos;re doing it with the speed of startups and the rigor of institutional banking.
@@ -468,9 +477,9 @@ export default function LandingPage() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-24 md:py-32 border-t border-landing-border bg-landing-bg-footer">
-        <div className="max-w-4xl mx-auto px-6">
-          <h2 className="text-4xl md:text-5xl font-semibold text-landing-text mb-8">
+      <section className="py-16 md:py-24 lg:py-32 border-t border-landing-border bg-landing-bg-footer">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <h2 className="text-2xl md:text-4xl lg:text-5xl font-semibold text-landing-text mb-8">
             Put operations on autopilot.
           </h2>
           <a

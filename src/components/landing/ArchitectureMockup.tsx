@@ -120,7 +120,7 @@ function LayerData({ phase }: { phase: number }) {
         variants={containerVariants}
         initial="hidden"
         animate={visible ? "visible" : "hidden"}
-        className="grid grid-cols-4 gap-4 mb-4"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4"
       >
         {items.map(({ icon: Icon, label }) => (
           <motion.div
@@ -188,7 +188,7 @@ function LayerLoopbrain({ phase }: { phase: number }) {
         variants={containerVariants}
         initial="hidden"
         animate={visible ? "visible" : "hidden"}
-        className="grid grid-cols-4 gap-4 pl-3"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-4 pl-3"
       >
         {items.map(({ icon: Icon, label }) => (
           <motion.div
@@ -236,7 +236,7 @@ function LayerAction({ phase }: { phase: number }) {
         variants={containerVariants}
         initial="hidden"
         animate={visible ? "visible" : "hidden"}
-        className="grid grid-cols-4 gap-4 mb-4"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4"
       >
         {items.map(({ icon: Icon, label }) => (
           <motion.div
@@ -347,7 +347,7 @@ export function ArchitectureMockup({ className = "", autoPlay = true }: Architec
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut", delay: 0.15 }}
-      className={`w-full max-w-[800px] mx-auto transition-opacity duration-500 ${className}`}
+      className={`w-full max-w-full md:max-w-[800px] mx-auto transition-opacity duration-500 ${className}`}
       style={{ opacity: wrapperOpacity }}
     >
       {/* Stack: Data on top, Loopbrain middle, Action on bottom */}
@@ -367,8 +367,10 @@ export function ArchitectureMockup({ className = "", autoPlay = true }: Architec
         {/* Layer 3 — Action (bottom) */}
         <LayerAction phase={phase} />
 
-        {/* Loop pulse overlay */}
-        <LoopPulse active={phase === 3} />
+        {/* Loop pulse overlay — hidden on mobile (fixed positions misalign when layers stack) */}
+        <div className="hidden md:block absolute inset-0 pointer-events-none">
+          <LoopPulse active={phase === 3} />
+        </div>
       </div>
 
       {/* Tagline */}
@@ -378,7 +380,7 @@ export function ArchitectureMockup({ className = "", autoPlay = true }: Architec
           y: phase >= 4 ? 0 : 8,
         }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="text-center text-xl font-medium text-landing-text mt-10"
+        className="text-center text-base md:text-xl font-medium text-landing-text mt-10"
       >
         The operating system that runs itself.
       </motion.p>

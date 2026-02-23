@@ -83,7 +83,7 @@ function OrgNavSidebar({ activeView, onViewChange }: OrgNavSidebarProps) {
   ]
 
   return (
-    <div className="w-[180px] shrink-0 bg-landing-surface-elevated border-r border-landing-border flex flex-col py-3 gap-4 overflow-hidden">
+    <div className="hidden md:flex w-[180px] shrink-0 bg-landing-surface-elevated border-r border-landing-border flex-col py-3 gap-4 overflow-hidden">
       {/* My Profile */}
       <div>
         <p className="text-[10px] uppercase tracking-widest text-landing-text-muted font-medium px-3 mb-1">
@@ -281,7 +281,7 @@ function TeamMemberGrid() {
   ]
 
   return (
-    <div className="grid grid-cols-4 gap-2 mb-2.5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 mb-2.5">
       {members.map((m) => (
         <TeamMemberCard key={m.name} member={m} />
       ))}
@@ -338,7 +338,7 @@ function ProfileView() {
       </div>
 
       {/* Two-column grid */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {/* ── Left column ── */}
         <div className="flex flex-col gap-2">
           {/* Capacity */}
@@ -498,7 +498,7 @@ function LoopbrainAvatar({ size = "md" }: { size?: "sm" | "md" }) {
 
 function LoopbrainSidebar() {
   return (
-    <div className="w-[250px] shrink-0 bg-landing-surface-elevated border-l border-landing-border flex flex-col">
+    <div className="hidden md:flex w-[250px] shrink-0 bg-landing-surface-elevated border-l border-landing-border flex-col">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-landing-border">
         <LoopbrainAvatar />
@@ -592,7 +592,7 @@ function LoopbrainSidebar() {
 
 function ProfileLoopbrain() {
   return (
-    <div className="w-[250px] shrink-0 bg-landing-surface-elevated border-l border-landing-border flex flex-col">
+    <div className="hidden md:flex w-[250px] shrink-0 bg-landing-surface-elevated border-l border-landing-border flex-col">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-landing-border">
         <LoopbrainAvatar />
@@ -686,7 +686,7 @@ export function OrgMockup() {
     >
       <WindowChrome />
 
-      <div className="flex min-h-0" style={{ maxHeight: 520 }}>
+      <div className="flex min-h-0 overflow-hidden min-h-[280px] max-h-[70vh] md:max-h-[520px]">
         {/* Left nav sidebar */}
         <OrgNavSidebar activeView={activeView} onViewChange={setActiveView} />
 

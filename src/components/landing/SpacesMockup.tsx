@@ -100,7 +100,7 @@ function SpacesNavSidebar({
   onSelect: (v: SpaceView) => void
 }) {
   return (
-    <div className="w-[180px] shrink-0 bg-landing-surface-elevated border-r border-landing-border flex flex-col py-3 gap-4 overflow-hidden">
+    <div className="hidden md:flex w-[180px] shrink-0 bg-landing-surface-elevated border-r border-landing-border flex-col py-3 gap-4 overflow-hidden">
       {/* My Space */}
       <div>
         <p className="text-[10px] uppercase tracking-widest text-landing-text-muted font-medium px-3 mb-1">
@@ -224,7 +224,7 @@ function ProjectsSection({
         <Folder className="w-3 h-3 text-landing-text-muted" />
         <span className="text-[10px] uppercase tracking-widest text-landing-text-muted font-medium">Projects</span>
       </div>
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
         {projects.map((p) => (
           <div
             key={p.name}
@@ -328,7 +328,7 @@ function PersonalContent() {
           <FolderKanban className="w-3 h-3 text-landing-text-muted" />
           <span className="text-[10px] uppercase tracking-widest text-landing-text-muted font-medium">Currently Working On</span>
         </div>
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
           {workingOn.map((w) => (
             <div key={w.name} className="bg-landing-surface border border-landing-border rounded-lg p-3 flex flex-col gap-1.5">
               <span className="text-xs font-medium text-landing-text leading-tight">{w.name}</span>
@@ -474,9 +474,9 @@ function WikiContent() {
   ]
 
   return (
-    <div className="flex gap-3 flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-col md:flex-row gap-3 flex-1 min-h-0 overflow-hidden">
       {/* TOC */}
-      <div className="w-[160px] shrink-0 flex flex-col gap-1 overflow-hidden">
+      <div className="w-full md:w-[160px] shrink-0 flex flex-col gap-1 overflow-hidden">
         <p className="text-[10px] uppercase tracking-widest text-landing-text-muted font-medium mb-1">Company Wiki</p>
         {tocItems.map((item) => (
           <div
@@ -570,7 +570,7 @@ function TemplatesContent() {
           <FileText className="w-3 h-3 text-landing-text-muted" />
           <span className="text-[10px] uppercase tracking-widest text-landing-text-muted font-medium">All Templates</span>
         </div>
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
           {templates.map((t) => (
             <div
               key={t.name}
@@ -749,7 +749,7 @@ function LoopbrainSidebar({ activeSpace }: { activeSpace: SpaceView }) {
   const messages = LOOPBRAIN_CONVERSATIONS[activeSpace]
 
   return (
-    <div className="w-[250px] shrink-0 bg-landing-surface-elevated border-l border-landing-border flex flex-col">
+    <div className="hidden md:flex w-[250px] shrink-0 bg-landing-surface-elevated border-l border-landing-border flex-col">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-landing-border shrink-0">
         <LoopbrainAvatar />
@@ -810,7 +810,7 @@ export function SpacesMockup() {
     >
       <WindowChrome />
 
-      <div className="flex min-h-0" style={{ maxHeight: 520 }}>
+      <div className="flex min-h-0 overflow-hidden min-h-[280px] max-h-[70vh] md:max-h-[520px]">
         {/* Left nav sidebar */}
         <SpacesNavSidebar activeSpace={activeSpace} onSelect={setActiveSpace} />
 

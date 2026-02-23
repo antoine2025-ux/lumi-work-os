@@ -8,13 +8,13 @@ export const metadata = {
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="min-h-screen bg-landing-bg transition-colors duration-300">
+    <div className="min-h-screen bg-landing-bg transition-colors duration-300 overflow-x-hidden">
       <LandingNav />
 
       <main>
-        <article className="max-w-3xl mx-auto px-6 py-24 md:py-32">
+        <article className="max-w-3xl mx-auto px-4 md:px-6 py-16 md:py-24 lg:py-32">
           <header className="mb-12">
-            <h1 className="text-4xl md:text-5xl font-semibold text-landing-text mb-4">
+            <h1 className="text-2xl md:text-4xl lg:text-5xl font-semibold text-landing-text mb-4">
               Privacy Policy
             </h1>
             <p className="text-landing-text-muted">Last updated: February 2026</p>
