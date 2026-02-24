@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     // Check if Org Loopbrain is enabled (dev-friendly: allow in dev even if flag disabled)
     const enabled = await isOrgLoopbrainEnabled(workspaceId);
-    if (!enabled && process.env.NODE_ENV === "production") {
+    if (!enabled && (process.env.NODE_ENV as string) === "production") {
       return NextResponse.json(
         {
           ok: false,

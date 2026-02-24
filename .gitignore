@@ -35,7 +35,7 @@ dist/
 Thumbs.db
 
 # Logs
-logs
+/logs
 *.log
 
 # Runtime data
@@ -45,7 +45,7 @@ pids
 *.pid.lock
 
 # Coverage directory used by tools like istanbul
-coverage/
+/coverage/
 
 # Dependency directories
 jspm_packages/

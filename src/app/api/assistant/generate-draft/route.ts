@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import OpenAI from 'openai'
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import { searchWikiKnowledge, formatWikiKnowledgeForAI } from '@/lib/wiki-knowledge'
 import { handleApiError } from '@/lib/api-errors'
 
@@ -223,11 +224,15 @@ The document should be production-ready and comprehensive.${wikiContext}`
       draftContent = getMockDraftContent()
     } else {
       try {
+        const typedHistory = conversationHistory.map(m => ({
+          role: m.role as 'user' | 'assistant' | 'system',
+          content: m.content,
+        })) satisfies ChatCompletionMessageParam[]
         const completion = await openai.chat.completions.create({
         model: "gpt-4",
         messages: [
           { role: "system", content: systemPrompt },
-          ...conversationHistory
+          ...typedHistory
         ],
         temperature: 0.7,
         max_tokens: 2000,
