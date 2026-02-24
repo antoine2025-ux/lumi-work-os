@@ -5,8 +5,8 @@ import { NewsletterSignup } from "@/components/landing/newsletter-signup"
 export function LandingFooter() {
   return (
     <footer className="border-t border-landing-border bg-landing-bg-footer">
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
 
           {/* Brand Column */}
           <div className="md:col-span-1">
@@ -52,7 +52,7 @@ export function LandingFooter() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-12 pt-8 border-t border-landing-border">
+        <div className="mt-12 pt-8 border-t border-landing-border flex flex-col md:flex-row md:justify-start justify-center items-center md:items-start text-center md:text-left">
           <p className="text-sm text-landing-text-muted">
             &copy; 2026 Loopwell. All rights reserved.
           </p>

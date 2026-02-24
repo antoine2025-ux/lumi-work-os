@@ -539,11 +539,11 @@ export function HeroDashboardMockup() {
           onOrgClick={() => scrollTo("org-section")}
         />
 
-        <div className="flex min-h-0 overflow-hidden" style={{ maxHeight: 520 }}>
+        <div className="flex min-h-0 overflow-hidden min-h-[280px] max-h-[70vh] md:max-h-[520px]">
           {/* Main content area — flex-1 shrinks naturally as sidebar expands */}
           <div className="flex-1 bg-landing-bg p-3 flex flex-col gap-3 overflow-hidden min-w-0">
             {/* Row 1 */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <CalendarWidget
                 onExpand={() => setCalendarOpen(true)}
                 hinted={!hasHinted}
@@ -556,19 +556,19 @@ export function HeroDashboardMockup() {
             </div>
 
             {/* Row 2 */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <TodoWidget />
               <ProjectsWidget />
               <QuickActionsWidget />
             </div>
           </div>
 
-          {/* Loopbrain sidebar — animates in from the right */}
+          {/* Loopbrain sidebar — animates in from the right; hidden on mobile */}
           <motion.div
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: showLoopbrain ? 250 : 0, opacity: showLoopbrain ? 1 : 0 }}
             transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-            className="shrink-0 bg-landing-surface-elevated border-l border-landing-border overflow-hidden"
+            className="hidden md:block shrink-0 bg-landing-surface-elevated border-l border-landing-border overflow-hidden"
           >
             <LoopbrainChat step={loopbrainStep} />
           </motion.div>
