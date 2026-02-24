@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertAccess } from "@/lib/auth/assertAccess"
+import { handleApiError } from "@/lib/api-errors"
 import { assertWriteAllowed } from "@/server/org/writes/guard"
 
 type Body = {
@@ -13,10 +15,12 @@ type Body = {
 export async function POST(req: NextRequest) {
   try {
     const auth = await getUnifiedAuth(req)
+    const userId = auth?.user?.userId
     const workspaceId = auth.workspaceId
-    if (!workspaceId) {
+    if (!userId || !workspaceId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    await assertAccess({ userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] })
     assertWriteAllowed("ownership.bulkAssign")
     const body = (await req.json()) as Body
 
@@ -67,8 +71,8 @@ export async function POST(req: NextRequest) {
     revalidateTag("org:contracts")
 
     return NextResponse.json({ ok: true, count: entityIds.length })
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  } catch (error) {
+    return handleApiError(error, req)
   }
 }
 

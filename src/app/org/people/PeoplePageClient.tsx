@@ -368,29 +368,21 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
     // Apply quick chip filters
     if (filters.quickChip && filters.quickChip !== "all") {
       switch (filters.quickChip) {
-        case "leaders":
-          // TODO: Implement when managerId/directReports data is available
-          // For now, filter by role containing "lead", "manager", "director", etc.
-          result = result.filter((person) => {
-            const role = person.role?.toLowerCase() || "";
-            return (
-              role.includes("lead") ||
-              role.includes("manager") ||
-              role.includes("director") ||
-              role.includes("head") ||
-              role.includes("chief")
-            );
-          });
+        case "leaders": {
+          const leaderIds = new Set(basePeople.map((p) => p.managerId).filter(Boolean));
+          result = result.filter((p) => leaderIds.has(p.id));
           break;
+        }
         case "unassigned":
           result = result.filter((person) => !person.teamId && !person.departmentId);
           break;
-        case "new":
-          // TODO: Implement when joinedAt data is available
-          // Filter by joinedAt within last 30 days
+        case "new": {
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+          result = result.filter((p) => p.joinedAt && new Date(p.joinedAt) >= thirtyDaysAgo);
           break;
+        }
         case "recentlyChanged":
-          // TODO: Implement when change history is available
+          // TODO: T2.5 — requires OrgAuditLog change history tracking
           break;
       }
     }
@@ -965,13 +957,22 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
           availableTeams={teams || []}
           availableDepartments={departments || []}
           availablePeople={basePeople.map((p) => ({ id: p.id, name: p.name || "Unknown" }))}
-          onConfirm={(targetId) => {
-            // TODO: Implement bulk assignment API call
-            // For now, show a confirmation message
-            console.log(`Bulk assign ${selectedCount} people to ${bulkAssignModal.type} ${targetId}`);
-            // In production, this would call an API endpoint
-            clearSelection();
-            setBulkAssignModal({ ...bulkAssignModal, isOpen: false });
+          onConfirm={async (targetId) => {
+            const response = await fetch('/api/org/ownership/bulk-assign', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                entityType: bulkAssignModal.type,
+                ownerPersonId: targetId,
+                entityIds: [...selectedIds],
+              }),
+            });
+            if (!response.ok) {
+              alert('Failed to assign ownership');
+            } else {
+              clearSelection();
+              setBulkAssignModal({ ...bulkAssignModal, isOpen: false });
+            }
           }}
         />
 
