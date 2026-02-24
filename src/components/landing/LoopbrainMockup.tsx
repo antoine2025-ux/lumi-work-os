@@ -473,7 +473,7 @@ export function LoopbrainMockup({ className = "", autoPlay = true }: LoopbrainMo
 
       {/* Chat body — responsive height for mobile */}
       <div
-        className="bg-landing-bg px-3 sm:px-4 py-4 flex flex-col gap-4 transition-opacity duration-500 overflow-hidden min-h-[320px] md:min-h-[560px] md:h-[560px]"
+        className="bg-landing-bg px-3 sm:px-4 py-4 flex flex-col gap-4 transition-opacity duration-500 overflow-hidden h-[620px] md:h-[560px]"
         style={{ opacity: bodyOpacity }}
       >
         {/* User message — always visible once step >= 0 */}

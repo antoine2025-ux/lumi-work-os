@@ -783,6 +783,179 @@ function LoopbrainSidebar({ activeSpace }: { activeSpace: SpaceView }) {
   )
 }
 
+// ─── Mobile: space tabs ───────────────────────────────────────────────────────
+
+function MobileSpaceTabs({
+  activeSpace,
+  onSelect,
+}: {
+  activeSpace: SpaceView
+  onSelect: (v: SpaceView) => void
+}) {
+  const spaces: { value: SpaceView; label: string }[] = [
+    { value: "personal",    label: "Personal"    },
+    { value: "engineering", label: "Engineering" },
+    { value: "product",     label: "Product"     },
+    { value: "marketing",   label: "Marketing"   },
+    { value: "wiki",        label: "Wiki"        },
+    { value: "templates",   label: "Templates"   },
+  ]
+  return (
+    <div className="md:hidden flex items-center gap-1 px-3 py-2 border-b border-landing-border overflow-x-auto">
+      {spaces.map((s) => (
+        <button
+          key={s.value}
+          onClick={() => onSelect(s.value)}
+          className={cn(
+            "px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
+            activeSpace === s.value
+              ? "bg-landing-accent/10 text-landing-accent"
+              : "text-landing-text-muted"
+          )}
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ─── Mobile: space content ────────────────────────────────────────────────────
+
+function MobileSpaceContent({ activeSpace }: { activeSpace: SpaceView }) {
+  const dataBySpace: Record<SpaceView, {
+    title: string
+    projects: { name: string; progress: number; status: string; statusColor: string }[]
+    pages: { title: string; meta: string }[]
+  }> = {
+    personal: {
+      title: "My Work",
+      projects: [
+        { name: "API v2 Migration", progress: 34, status: "3 tasks", statusColor: "text-landing-text-muted" },
+        { name: "Q2 Planning Doc", progress: 72, status: "Editing", statusColor: "text-green-400/80" },
+      ],
+      pages: [
+        { title: "Architecture Decision Records", meta: "Draft · Today" },
+        { title: "1:1 Notes: Sarah Mitchell", meta: "Private · Yesterday" },
+      ],
+    },
+    engineering: {
+      title: "Engineering",
+      projects: [
+        { name: "Mobile App Redesign", progress: 68, status: "On track", statusColor: "text-green-400/80" },
+        { name: "API v2 Migration", progress: 34, status: "At risk", statusColor: "text-yellow-400/80" },
+      ],
+      pages: [
+        { title: "API Documentation", meta: "Updated 2h ago" },
+        { title: "Sprint 14 Retro Notes", meta: "Yesterday" },
+      ],
+    },
+    product: {
+      title: "Product",
+      projects: [
+        { name: "Q2 Roadmap Planning", progress: 72, status: "On track", statusColor: "text-green-400/80" },
+        { name: "Pricing Revamp", progress: 28, status: "At risk", statusColor: "text-yellow-400/80" },
+      ],
+      pages: [
+        { title: "PRD: Mobile Checkout", meta: "1 hour ago" },
+        { title: "Competitive Analysis Q2", meta: "Yesterday" },
+      ],
+    },
+    marketing: {
+      title: "Marketing",
+      projects: [
+        { name: "Brand Refresh", progress: 90, status: "On track", statusColor: "text-green-400/80" },
+        { name: "Q2 Campaign", progress: 55, status: "On track", statusColor: "text-green-400/80" },
+      ],
+      pages: [
+        { title: "Brand Guidelines v2", meta: "2 hours ago" },
+        { title: "Q2 Campaign Brief", meta: "Today" },
+      ],
+    },
+    wiki: {
+      title: "Company Wiki",
+      projects: [],
+      pages: [
+        { title: "Engineering Standards", meta: "2 weeks ago" },
+        { title: "Onboarding Guide", meta: "1 month ago" },
+        { title: "Security Policies", meta: "3 weeks ago" },
+      ],
+    },
+    templates: {
+      title: "Templates",
+      projects: [],
+      pages: [
+        { title: "Project Brief", meta: "12 uses" },
+        { title: "PRD Template", meta: "28 uses" },
+        { title: "Meeting Notes", meta: "45 uses" },
+      ],
+    },
+  }
+
+  const data = dataBySpace[activeSpace]
+
+  return (
+    <div className="flex-1 bg-landing-bg p-3 overflow-y-auto flex flex-col gap-3">
+      {/* Space title */}
+      <div className="flex items-center gap-2">
+        <Folder className="w-4 h-4 text-landing-accent" />
+        <span className="text-sm font-semibold text-landing-text">{data.title}</span>
+      </div>
+
+      {/* Projects */}
+      {data.projects.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] uppercase tracking-widest text-landing-text-muted font-medium">Projects</span>
+          <div className="flex flex-col gap-2">
+            {data.projects.map((p) => (
+              <div
+                key={p.name}
+                className="bg-landing-surface border border-landing-border rounded-lg p-3 flex flex-col gap-2"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-landing-text">{p.name}</span>
+                  <span className={cn("text-[10px]", p.statusColor)}>{p.status}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-landing-border overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-landing-accent"
+                      style={{ width: `${p.progress}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-landing-text-muted">{p.progress}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pages */}
+      <div className="flex flex-col gap-2">
+        <span className="text-[10px] uppercase tracking-widest text-landing-text-muted font-medium">Pages</span>
+        <div className="bg-landing-surface border border-landing-border rounded-lg overflow-hidden">
+          {data.pages.map((page, i) => (
+            <div
+              key={page.title}
+              className={cn(
+                "flex items-center gap-2.5 px-3 py-2.5",
+                i < data.pages.length - 1 && "border-b border-landing-border/40"
+              )}
+            >
+              <FileText className="w-4 h-4 text-landing-text-muted shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="text-sm text-landing-text block truncate">{page.title}</span>
+                <span className="text-xs text-landing-text-muted">{page.meta}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Content renderer ─────────────────────────────────────────────────────────
 
 function renderContent(view: SpaceView) {
@@ -809,13 +982,19 @@ export function SpacesMockup() {
       className="w-full max-w-6xl mx-auto rounded-xl border border-landing-border overflow-hidden shadow-2xl shadow-black/20"
     >
       <WindowChrome />
+      <MobileSpaceTabs activeSpace={activeSpace} onSelect={setActiveSpace} />
 
       <div className="flex min-h-0 overflow-hidden min-h-[280px] max-h-[70vh] md:max-h-[520px]">
-        {/* Left nav sidebar */}
+        {/* Mobile: simplified content */}
+        <div className="md:hidden flex-1 flex flex-col overflow-hidden">
+          <MobileSpaceContent activeSpace={activeSpace} />
+        </div>
+
+        {/* Desktop: full layout */}
         <SpacesNavSidebar activeSpace={activeSpace} onSelect={setActiveSpace} />
 
         {/* Main content with transition */}
-        <div className="flex-1 bg-landing-bg p-3 flex flex-col overflow-hidden min-w-0">
+        <div className="hidden md:flex flex-1 bg-landing-bg p-3 flex-col overflow-hidden min-w-0">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeSpace}

@@ -540,9 +540,11 @@ export function HeroDashboardMockup() {
         />
 
         <div className="flex min-h-0 overflow-hidden min-h-[280px] max-h-[70vh] md:max-h-[520px]">
-          {/* Mobile: chat panel only */}
-          <div className="md:hidden flex-1 flex flex-col bg-landing-surface-elevated overflow-hidden">
-            <LoopbrainChat step={loopbrainStep} />
+          {/* Mobile: focused dashboard widgets */}
+          <div className="md:hidden flex-1 flex flex-col bg-landing-bg p-3 gap-3 overflow-y-auto">
+            <CalendarWidget />
+            <TodoWidget />
+            <ProjectsWidget />
           </div>
 
           {/* Desktop: main content area — flex-1 shrinks naturally as sidebar expands */}
