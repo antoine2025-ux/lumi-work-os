@@ -8,9 +8,19 @@ import {
 import { logOrgAudit } from "@/lib/orgAudit";
 import { OrgDepartmentCreateSchema } from "@/lib/validations/org";
 import { handleApiError } from "@/lib/api-errors";
+import { getUnifiedAuth } from '@/lib/unified-auth';
+import { assertAccess } from '@/lib/auth/assertAccess';
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] });
+    setWorkspaceContext(auth.workspaceId);
+
     const body = OrgDepartmentCreateSchema.parse(await req.json());
     const name = body.name;
 
