@@ -180,10 +180,10 @@ export function LandingNav() {
     <nav className="border-b border-landing-border bg-landing-surface/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center space-x-2">
             <LandingLogo width={28} height={28} className="w-7 h-7" />
             <span className="text-lg font-semibold text-landing-text">Loopwell</span>
-          </div>
+          </Link>
 
           <div className="hidden md:flex items-center space-x-6">
             <ProductDropdown />
