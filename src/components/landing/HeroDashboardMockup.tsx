@@ -314,7 +314,7 @@ function LoopbrainChat({ step }: { step: number }) {
   }
 
   return (
-    <div className="w-[250px] flex flex-col h-full">
+    <div className="w-full flex flex-col h-full">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -540,8 +540,13 @@ export function HeroDashboardMockup() {
         />
 
         <div className="flex min-h-0 overflow-hidden min-h-[280px] max-h-[70vh] md:max-h-[520px]">
-          {/* Main content area — flex-1 shrinks naturally as sidebar expands */}
-          <div className="flex-1 bg-landing-bg p-3 flex flex-col gap-3 overflow-hidden min-w-0">
+          {/* Mobile: chat panel only */}
+          <div className="md:hidden flex-1 flex flex-col bg-landing-surface-elevated overflow-hidden">
+            <LoopbrainChat step={loopbrainStep} />
+          </div>
+
+          {/* Desktop: main content area — flex-1 shrinks naturally as sidebar expands */}
+          <div className="hidden md:flex flex-1 bg-landing-bg p-3 flex-col gap-3 overflow-hidden min-w-0">
             {/* Row 1 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <CalendarWidget
