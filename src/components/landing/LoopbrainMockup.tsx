@@ -471,10 +471,10 @@ export function LoopbrainMockup({ className = "", autoPlay = true }: LoopbrainMo
     >
       <WindowChrome />
 
-      {/* Chat body — fixed height so the container never resizes */}
+      {/* Chat body — responsive height for mobile */}
       <div
-        className="bg-landing-bg px-4 py-4 flex flex-col gap-4 transition-opacity duration-500 overflow-hidden"
-        style={{ height: 560, opacity: bodyOpacity }}
+        className="bg-landing-bg px-3 sm:px-4 py-4 flex flex-col gap-4 transition-opacity duration-500 overflow-hidden h-[620px] md:h-[560px]"
+        style={{ opacity: bodyOpacity }}
       >
         {/* User message — always visible once step >= 0 */}
         <TypewriterMessage step={step} />

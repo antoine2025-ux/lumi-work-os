@@ -206,20 +206,28 @@ export function LandingNav() {
         </div>
 
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-landing-border bg-landing-surface py-4">
-            <div className="flex flex-col space-y-1 px-2">
+          <div className="md:hidden border-t border-landing-border bg-landing-surface py-4 w-full">
+            <div className="flex flex-col space-y-1 px-2 w-full">
               <p className="text-[10px] uppercase tracking-wider text-landing-text-muted font-medium px-2 pt-1 pb-0.5">Product</p>
               {PRODUCT_ITEMS.map((item) => (
-                <a
+                <Link
                   key={item.name}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-sm text-landing-text-secondary hover:text-landing-text transition-colors py-1.5 px-2 rounded-md hover:bg-landing-surface-elevated"
+                  className="flex items-center gap-2 text-sm text-landing-text-secondary hover:text-landing-text transition-colors py-1.5 px-2 rounded-md hover:bg-landing-surface-elevated w-full"
                 >
                   <item.icon className="w-3.5 h-3.5 text-landing-text-muted shrink-0" />
                   {item.name}
-                </a>
+                </Link>
               ))}
+              <Link
+                href="/#how-it-works-section"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 text-sm text-landing-text-secondary hover:text-landing-text transition-colors py-1.5 px-2 rounded-md hover:bg-landing-surface-elevated w-full"
+              >
+                <span>See how it works</span>
+                <span className="text-landing-accent">→</span>
+              </Link>
               <div className="border-t border-landing-border/50 my-2" />
               <div className="px-2 py-1 text-sm text-landing-text-muted cursor-default select-none flex items-center justify-between">
                 <span>Pricing</span>
@@ -230,7 +238,7 @@ export function LandingNav() {
                   setMobileMenuOpen(false)
                   signIn("google", { callbackUrl: "/home" })
                 }}
-                className="text-sm text-landing-text-secondary hover:text-landing-text transition-colors py-1 px-2 text-left"
+                className="text-sm text-landing-text-secondary hover:text-landing-text transition-colors py-1.5 px-2 text-left w-full rounded-md hover:bg-landing-surface-elevated"
               >
                 Login with Google
               </button>

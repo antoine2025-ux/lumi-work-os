@@ -251,12 +251,6 @@ export async function createUserWorkspace(userData: {
       // Legacy: other schema mismatch (e.g. column missing) – use raw SQL
       if (prismaErr.code === 'P2022' || prismaErr.message?.includes('does not exist')) {
         // Use raw SQL to insert/update user with only existing columns
-        // Escape single quotes in user input
-        const escapedEmail = userData.email.replace(/'/g, "''")
-        const escapedName = (userData.name || null)?.replace(/'/g, "''") || 'NULL'
-        const escapedImage = (userData.image || null)?.replace(/'/g, "''") || 'NULL'
-        const escapedId = userData.id.replace(/'/g, "''")
-        
         const result = await prisma.$queryRawUnsafe<Array<{
           id: string
           email: string
@@ -266,16 +260,13 @@ export async function createUserWorkspace(userData: {
           createdAt: Date
           updatedAt: Date
           themePreference: string | null
-        }>>(`
-          INSERT INTO users (id, email, name, image, "emailVerified", "createdAt", "updatedAt", "themePreference")
-          VALUES ('${escapedId}', '${escapedEmail}', ${escapedName === 'NULL' ? 'NULL' : `'${escapedName}'`}, ${escapedImage === 'NULL' ? 'NULL' : `'${escapedImage}'`}, NOW(), NOW(), NOW(), 'default')
-          ON CONFLICT (email) 
-          DO UPDATE SET 
-            name = EXCLUDED.name,
-            image = EXCLUDED.image,
-            "updatedAt" = NOW()
-          RETURNING id, email, name, image, "emailVerified", "createdAt", "updatedAt", "themePreference"
-        `)
+        }>>(
+          'INSERT INTO users (id, email, name, image, "emailVerified", "createdAt", "updatedAt", "themePreference") VALUES ($1, $2, $3, $4, NOW(), NOW(), NOW(), \'default\') ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, image = EXCLUDED.image, "updatedAt" = NOW() RETURNING id, email, name, image, "emailVerified", "createdAt", "updatedAt", "themePreference"',
+          userData.id,
+          userData.email,
+          userData.name ?? null,
+          userData.image ?? null
+        )
         
         if (result && result.length > 0) {
           user = {
@@ -368,11 +359,6 @@ export async function createUserWorkspace(userData: {
         // Generate CUID-like ID
         const { randomBytes } = await import('crypto')
         const workspaceId = 'c' + Date.now().toString(36) + randomBytes(4).toString('hex')
-        const escapedName = workspaceData.name.replace(/'/g, "''")
-        const escapedSlug = workspaceData.slug.replace(/'/g, "''")
-        const escapedDescription = (workspaceData.description || null)?.replace(/'/g, "''") || 'NULL'
-        const escapedOwnerId = user.id.replace(/'/g, "''")
-        
         const result = await prisma.$queryRawUnsafe<Array<{
           id: string
           name: string
@@ -382,11 +368,14 @@ export async function createUserWorkspace(userData: {
           createdAt: Date
           updatedAt: Date
           ownerId: string
-        }>>(`
-          INSERT INTO workspaces (id, name, slug, description, "ownerId", "createdAt", "updatedAt")
-          VALUES ('${workspaceId}', '${escapedName}', '${escapedSlug}', ${escapedDescription === 'NULL' ? 'NULL' : `'${escapedDescription}'`}, '${escapedOwnerId}', NOW(), NOW())
-          RETURNING id, name, slug, description, logo, "createdAt", "updatedAt", "ownerId"
-        `)
+        }>>(
+          'INSERT INTO workspaces (id, name, slug, description, "ownerId", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING id, name, slug, description, logo, "createdAt", "updatedAt", "ownerId"',
+          workspaceId,
+          workspaceData.name,
+          workspaceData.slug,
+          workspaceData.description ?? null,
+          user.id
+        )
         
         if (result && result.length > 0) {
           workspace = {
@@ -433,16 +422,14 @@ export async function createUserWorkspace(userData: {
       // Generate CUID-like ID for membership
       const { randomBytes } = await import('crypto')
       const membershipId = 'c' + Date.now().toString(36) + randomBytes(4).toString('hex')
-      const escapedUserId = user.id.replace(/'/g, "''")
-      const escapedWorkspaceId = workspace.id.replace(/'/g, "''")
-      
       // Use raw SQL to create workspace member with only existing columns
       // This avoids Prisma schema validation issues when schema is out of sync
-      await prisma.$executeRawUnsafe(`
-        INSERT INTO workspace_members (id, "userId", "workspaceId", role, "joinedAt")
-        VALUES ('${membershipId}', '${escapedUserId}', '${escapedWorkspaceId}', 'OWNER', NOW())
-        ON CONFLICT ("workspaceId", "userId") DO NOTHING
-      `)
+      await prisma.$executeRawUnsafe(
+        'INSERT INTO workspace_members (id, "userId", "workspaceId", role, "joinedAt") VALUES ($1, $2, $3, \'OWNER\', NOW()) ON CONFLICT ("workspaceId", "userId") DO NOTHING',
+        membershipId,
+        user.id,
+        workspace.id
+      )
       
       console.log('[createUserWorkspace] WorkspaceMember created successfully via raw SQL')
     } catch (rawSQLError: unknown) {

@@ -75,16 +75,14 @@ export async function createOrgPerson(input: UpsertOrgPersonInput) {
       if (pErr?.code === 'P2022' || pErr?.message?.includes('does not exist')) {
         const { randomBytes } = await import('crypto');
         const cuid = 'c' + Date.now().toString(36) + randomBytes(4).toString('hex');
-        const escapedEmail = email.replace(/'/g, "''");
-        const escapedName = input.fullName.replace(/'/g, "''");
-        
+
         // Use raw SQL INSERT with ON CONFLICT to handle duplicate emails
-        const result = await prisma.$queryRawUnsafe<Array<{ id: string }>>(`
-          INSERT INTO users (id, email, name, "createdAt", "updatedAt")
-          VALUES ('${cuid}', '${escapedEmail}', '${escapedName}', NOW(), NOW())
-          ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
-          RETURNING id
-        `);
+        const result = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+          'INSERT INTO users (id, email, name, "createdAt", "updatedAt") VALUES ($1, $2, $3, NOW(), NOW()) ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name RETURNING id',
+          cuid,
+          email,
+          input.fullName
+        );
         
         if (result && result.length > 0) {
           userId = result[0].id;
@@ -139,18 +137,17 @@ export async function createOrgPerson(input: UpsertOrgPersonInput) {
       const cuid = 'c' + Date.now().toString(36) + randomBytes(4).toString('hex');
       // Note: title might be required (NOT NULL), so provide a default if missing
       const titleValue = input.title || input.fullName || 'Untitled Position';
-      const escapedTitle = titleValue.replace(/'/g, "''");
-      const escapedWorkspaceId = input.workspaceId.replace(/'/g, "''");
-      const escapedUserId = userId.replace(/'/g, "''");
-      const escapedTeamId = input.teamId ? input.teamId.replace(/'/g, "''") : null;
-      const escapedParentId = input.managerId ? input.managerId.replace(/'/g, "''") : null;
-      
+
       // Use raw SQL INSERT - only insert columns that exist in the database
-      const result = await prisma.$queryRawUnsafe<Array<{ id: string; userId: string | null }>>(`
-        INSERT INTO org_positions (id, "workspaceId", "userId", title, "teamId", "parentId", "isActive", "createdAt", "updatedAt", "level", "order")
-        VALUES ('${cuid}', '${escapedWorkspaceId}', '${escapedUserId}', '${escapedTitle}', ${escapedTeamId ? `'${escapedTeamId}'` : 'NULL'}, ${escapedParentId ? `'${escapedParentId}'` : 'NULL'}, true, NOW(), NOW(), 1, 0)
-        RETURNING id, "userId"
-      `);
+      const result = await prisma.$queryRawUnsafe<Array<{ id: string; userId: string | null }>>(
+        'INSERT INTO org_positions (id, "workspaceId", "userId", title, "teamId", "parentId", "isActive", "createdAt", "updatedAt", "level", "order") VALUES ($1, $2, $3, $4, $5, $6, true, NOW(), NOW(), 1, 0) RETURNING id, "userId"',
+        cuid,
+        input.workspaceId,
+        userId,
+        titleValue,
+        input.teamId ?? null,
+        input.managerId ?? null
+      );
       
       if (result && result.length > 0) {
         position = result[0];
