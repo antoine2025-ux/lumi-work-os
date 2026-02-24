@@ -10,36 +10,38 @@ import { LandingFooter } from "@/components/landing/LandingFooter";
 import { ArrowRight } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { ThemeProvider } from "next-themes";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
-const fadeUp = {
+const EASE_OUT: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 40 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.7, ease: [0.25, 0.1, 0.25, 1] },
+    transition: { duration: 0.7, ease: EASE_OUT },
   },
 };
 
-const slideFromLeft = {
+const slideFromLeft: Variants = {
   hidden: { opacity: 0, x: -60 },
   visible: {
     opacity: 1,
     x: 0,
-    transition: { duration: 0.7, ease: [0.25, 0.1, 0.25, 1] },
+    transition: { duration: 0.7, ease: EASE_OUT },
   },
 };
 
-const slideFromRight = {
+const slideFromRight: Variants = {
   hidden: { opacity: 0, x: 60 },
   visible: {
     opacity: 1,
     x: 0,
-    transition: { duration: 0.7, ease: [0.25, 0.1, 0.25, 1] },
+    transition: { duration: 0.7, ease: EASE_OUT },
   },
 };
 
-const staggerContainer = {
+const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -47,12 +49,12 @@ const staggerContainer = {
   },
 };
 
-const staggerItem = {
+const staggerItem: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] },
+    transition: { duration: 0.5, ease: EASE_OUT },
   },
 };
 

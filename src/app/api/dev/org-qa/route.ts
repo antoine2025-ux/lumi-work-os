@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { runOrgQa } from "@/lib/loopbrain/orgQaService";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/server/authOptions";
 import { isOrgLoopbrainEnabled } from "@/lib/loopbrain/orgGate";
 

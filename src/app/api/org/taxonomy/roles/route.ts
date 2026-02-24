@@ -1,12 +1,22 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { requireActiveOrgId } from "@/server/org/context"
 import { ensureDefaultTaxonomy } from "@/server/org/taxonomy/seed"
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
 export const revalidate = 60
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(req)
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(auth.workspaceId)
+
     const orgId = await requireActiveOrgId()
     await ensureDefaultTaxonomy(orgId)
 
@@ -26,4 +36,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 }
-

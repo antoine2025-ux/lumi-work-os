@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
 import { createUserWorkspace } from '@/lib/simple-auth'
 import { handleApiError } from '@/lib/api-errors'

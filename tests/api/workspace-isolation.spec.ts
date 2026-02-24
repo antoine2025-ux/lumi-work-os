@@ -36,6 +36,11 @@ vi.mock('@/lib/db', () => {
     project: { findMany: vi.fn(), findUnique: vi.fn() },
     task: { findMany: vi.fn() },
     wikiPage: wikiPageMock,
+    wiki_workspaces: {
+      findMany: vi.fn().mockResolvedValue([]),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+    },
     goal: { findMany: vi.fn(), findFirst: vi.fn() },
     orgPerson: { findMany: vi.fn() },
     workspaceMember: { findUnique: vi.fn().mockResolvedValue(null) },

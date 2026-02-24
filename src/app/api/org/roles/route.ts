@@ -3,9 +3,19 @@ import { prisma } from "@/lib/db";
 import { getOrgContext } from "@/server/rbac";
 import { OrgRoleCreateSchema } from "@/lib/validations/org";
 import { handleApiError } from "@/lib/api-errors";
+import { getUnifiedAuth } from '@/lib/unified-auth';
+import { assertAccess } from '@/lib/auth/assertAccess';
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request);
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] });
+    setWorkspaceContext(auth.workspaceId);
+
     const ctx = await getOrgContext(request);
     if (!ctx.user) {
       return NextResponse.json(
@@ -63,6 +73,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(request);
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['OWNER'] });
+    setWorkspaceContext(auth.workspaceId);
+
     const ctx = await getOrgContext(request);
     if (!ctx.user) {
       return NextResponse.json(

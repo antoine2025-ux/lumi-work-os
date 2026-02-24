@@ -1,5 +1,5 @@
 import { google, calendar_v3 } from 'googleapis'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
 
 /**
