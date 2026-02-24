@@ -1,0 +1,1265 @@
+
+> loopwell@0.1.0 lint
+> eslint
+
+(node:93694) ESLintIgnoreWarning: The ".eslintignore" file is no longer supported. Switch to using the "ignores" property in "eslint.config.js": https://eslint.org/docs/latest/use/configure/migration-guide#ignoring-files
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+/Users/alekseis./Loopwell HR/lumi-work-os/check-db-config.js
+   12:12  error    A `require()` style import is forbidden                                          @typescript-eslint/no-require-imports
+   13:7   warning  'path' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   13:14  error    A `require()` style import is forbidden                                          @typescript-eslint/no-require-imports
+   41:12  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u     @typescript-eslint/no-unused-vars
+  101:12  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u     @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/check-workspace-membership.js
+  1:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/eslint-rules/no-hardcoded-ids.js
+   7:11  warning  Hardcoded ID "dev-user-1" is not allowed. Use environment variables or dynamic values instead          no-hardcoded-ids/no-hardcoded-ids
+   7:11  warning  Dev bypass pattern "dev-user-1" should be gated behind environment flags                               no-hardcoded-ids/no-hardcoded-ids
+   8:11  warning  Hardcoded ID "dev-workspace" is not allowed. Use environment variables or dynamic values instead       no-hardcoded-ids/no-hardcoded-ids
+   9:11  warning  Hardcoded ID "test-workspace" is not allowed. Use environment variables or dynamic values instead      no-hardcoded-ids/no-hardcoded-ids
+  10:11  warning  Hardcoded ID "fixed-workspace-id" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+
+/Users/alekseis./Loopwell HR/lumi-work-os/get-workspace-id.js
+  1:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/health-check.js
+    8:15  error    A `require()` style import is forbidden                                                   @typescript-eslint/no-require-imports
+    9:14  error    A `require()` style import is forbidden                                                   @typescript-eslint/no-require-imports
+   10:9   warning  'execSync' is assigned a value but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+   10:22  error    A `require()` style import is forbidden                                                   @typescript-eslint/no-require-imports
+   11:12  error    A `require()` style import is forbidden                                                   @typescript-eslint/no-require-imports
+   12:14  error    A `require()` style import is forbidden                                                   @typescript-eslint/no-require-imports
+  103:18  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u              @typescript-eslint/no-unused-vars
+  168:9   warning  'missingFields' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  232:14  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u              @typescript-eslint/no-unused-vars
+  541:12  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u              @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/landing-only/next-env.d.ts
+  3:1  error  Do not use a triple slash reference for ./.next/types/routes.d.ts, use `import` style instead  @typescript-eslint/triple-slash-reference
+
+/Users/alekseis./Loopwell HR/lumi-work-os/landing-only/src/app/page.tsx
+  28:9  warning  'handleSignIn' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/prisma/seed-loopwell-mock.js
+  2:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  3:20  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  4:21  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/prisma/seed.js
+   30:26  error    A `require()` style import is forbidden                                          @typescript-eslint/no-require-imports
+   31:20  error    A `require()` style import is forbidden                                          @typescript-eslint/no-require-imports
+   32:21  error    A `require()` style import is forbidden                                          @typescript-eslint/no-require-imports
+   39:10  warning  'slugify' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  224:64  warning  'allocationPct' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/prisma/seed.ts
+  173:9  warning  'seniorEngineerRole' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  206:9  warning  'productManagerRole' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/prisma/seed/loopbrain_fixtures.ts
+  318:9  warning  'alexPosition' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  334:9  warning  'samPosition' is assigned a value but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  350:9  warning  'danaPosition' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  366:9  warning  'chrisPosition' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/prisma/seed/org-seed.ts
+  56:21  warning  Dev bypass pattern "senior.dev@lumi.com" should be gated behind environment flags  no-hardcoded-ids/no-hardcoded-ids
+  59:14  warning  Dev bypass pattern "senior.dev@lumi.com" should be gated behind environment flags  no-hardcoded-ids/no-hardcoded-ids
+  65:21  warning  Dev bypass pattern "dev@lumi.com" should be gated behind environment flags         no-hardcoded-ids/no-hardcoded-ids
+  68:14  warning  Dev bypass pattern "dev@lumi.com" should be gated behind environment flags         no-hardcoded-ids/no-hardcoded-ids
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/audit-targeted-spaces.ts
+  36:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/audit-workspace-scoping.ts
+  141:20  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/check-all-databases.js
+   6:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  36:16  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  37:18  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/check-auth-config.js
+  8:12  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  9:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/check-auth-status.js
+   8:14  error    A `require()` style import is forbidden                                       @typescript-eslint/no-require-imports
+  48:14  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/check-both-databases.js
+  6:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/check-database-connection.js
+  6:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/check-org-migrations.ts
+  35:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/check-users-in-workspace.js
+  6:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/create-workspace-invites-in-dev-db.js
+  6:26  error    A `require()` style import is forbidden                                          @typescript-eslint/no-require-imports
+  7:7   warning  'fs' is assigned a value but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  7:12  error    A `require()` style import is forbidden                                          @typescript-eslint/no-require-imports
+  8:7   warning  'path' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  8:14  error    A `require()` style import is forbidden                                          @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/debug-oauth-callback.js
+  8:7   warning  'http' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  8:14  error    A `require()` style import is forbidden                                          @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/dev-smoke-invite-link.ts
+   24:11  warning  'InviteOptions' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  140:11  warning  'invite' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/diagnostic/inspect-loaded-context.ts
+  48:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/epic-task-helper.js
+  10:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/migrate-epic-task-binding.js
+  14:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/migration-templates/express-to-nextjs-route-template.ts
+   42:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   65:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  135:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  202:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  250:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/org-context-doc-guard.js
+   9:22  error    A `require()` style import is forbidden                                           @typescript-eslint/no-require-imports
+  15:12  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+  21:14  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u      @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/org-guard.js
+  13:12  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  14:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/org-inventory.js
+   1:12  error    A `require()` style import is forbidden                                            @typescript-eslint/no-require-imports
+   2:14  error    A `require()` style import is forbidden                                            @typescript-eslint/no-require-imports
+  68:10  warning  'isOrgLayoutFile' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/org-loopbrain-contract-v2.js
+  13:14  error    A `require()` style import is forbidden                                       @typescript-eslint/no-require-imports
+  14:15  error    A `require()` style import is forbidden                                       @typescript-eslint/no-require-imports
+  20:10  warning  'mustEnv' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  65:18  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/org-loopbrain-contract.js
+  13:14  error    A `require()` style import is forbidden                                       @typescript-eslint/no-require-imports
+  14:15  error    A `require()` style import is forbidden                                       @typescript-eslint/no-require-imports
+  53:18  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/org-mvp-pressure-test.ts
+   40:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   71:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   73:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   87:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  163:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  198:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  636:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/org-scan.js
+  13:12  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  14:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/print-db.ts
+   32:14  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+   43:14  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+   78:27  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   98:23  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  129:19  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/seed-dev.ts
+   33:23  warning  Dev bypass pattern "dev@lumi.com" should be gated behind environment flags           no-hardcoded-ids/no-hardcoded-ids
+   36:16  warning  Dev bypass pattern "dev@lumi.com" should be gated behind environment flags           no-hardcoded-ids/no-hardcoded-ids
+  236:11  warning  'wikiPage' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/seed-org-sample-data.ts
+   83:7   warning  'ROLES' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  224:23  warning  Dev bypass pattern "dev@lumi.com" should be gated behind environment flags        no-hardcoded-ids/no-hardcoded-ids
+  227:16  warning  Dev bypass pattern "dev@lumi.com" should be gated behind environment flags        no-hardcoded-ids/no-hardcoded-ids
+  299:25  warning  Dev bypass pattern "dev@lumi.com" should be gated behind environment flags        no-hardcoded-ids/no-hardcoded-ids
+  499:23  error    Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/seed-task-templates.ts
+  352:25  warning  Hardcoded ID "dev-user-1" is not allowed. Use environment variables or dynamic values instead     no-hardcoded-ids/no-hardcoded-ids
+  352:25  warning  Dev bypass pattern "dev-user-1" should be gated behind environment flags                          no-hardcoded-ids/no-hardcoded-ids
+  363:17  warning  Hardcoded ID "dev-workspace" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+  379:18  warning  Dev bypass pattern "dev@lumi.com" should be gated behind environment flags                        no-hardcoded-ids/no-hardcoded-ids
+  392:46  error    Unexpected any. Specify a different type                                                          @typescript-eslint/no-explicit-any
+  400:38  error    Unexpected any. Specify a different type                                                          @typescript-eslint/no-explicit-any
+  401:42  error    Unexpected any. Specify a different type                                                          @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/seed-templates.ts
+  307:21  warning  Hardcoded ID "dev-user-1" is not allowed. Use environment variables or dynamic values instead     no-hardcoded-ids/no-hardcoded-ids
+  307:21  warning  Dev bypass pattern "dev-user-1" should be gated behind environment flags                          no-hardcoded-ids/no-hardcoded-ids
+  318:17  warning  Hardcoded ID "dev-workspace" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+  334:18  warning  Dev bypass pattern "dev@lumi.com" should be gated behind environment flags                        no-hardcoded-ids/no-hardcoded-ids
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/sweep-loopbrain.mjs
+  29:10  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/test-context-object-contract.ts
+  246:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  253:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  260:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  267:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  274:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  288:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  295:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  303:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  349:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  412:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/test-loopbrain-smoke.ts
+   14:10  warning  'getUnifiedAuth' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+   15:10  warning  'assertAccess' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+   16:10  warning  'getWorkspaceContextObjects' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  343:16  warning  'testFreshness' is defined but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+  403:16  warning  'testErrorHandling' is defined but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+  454:16  warning  'testIntentRouting' is defined but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+  533:16  warning  'testTemplateCompliance' is defined but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+  592:16  warning  'testIndexingSync' is defined but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+  686:16  warning  'testIndexCoverage' is defined but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+  737:16  warning  'testPerformanceSanity' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/test-oauth-config.js
+   8:14  error    A `require()` style import is forbidden                                           @typescript-eslint/no-require-imports
+   9:7   warning  'https' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   9:15  error    A `require()` style import is forbidden                                           @typescript-eslint/no-require-imports
+  76:18  warning  'err' is defined but never used. Allowed unused caught errors must match /^_/u    @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/test-org-positions-api.ts
+   45:12  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+   72:45  error    Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+   74:59  error    Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+   79:50  error    Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+   85:48  error    Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+  117:52  error    Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+  132:53  error    Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+  171:45  error    Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/update-oauth-urls.js
+  8:22  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/validate-phase1-spaces.ts
+    8:24  warning  'SpaceType' is defined but never used. Allowed unused vars must match /^_/u                          @typescript-eslint/no-unused-vars
+    8:35  warning  'SpaceVisibility' is defined but never used. Allowed unused vars must match /^_/u                    @typescript-eslint/no-unused-vars
+   19:19  error    Unexpected any. Specify a different type                                                             @typescript-eslint/no-explicit-any
+   32:19  error    Unexpected any. Specify a different type                                                             @typescript-eslint/no-explicit-any
+   42:11  warning  'project' is assigned a value but never used. Allowed unused vars must match /^_/u                   @typescript-eslint/no-unused-vars
+   46:19  error    Unexpected any. Specify a different type                                                             @typescript-eslint/no-explicit-any
+   53:11  warning  'page' is assigned a value but never used. Allowed unused vars must match /^_/u                      @typescript-eslint/no-unused-vars
+   57:19  error    Unexpected any. Specify a different type                                                             @typescript-eslint/no-explicit-any
+   70:13  warning  'getOrCreateTeamSpace' is assigned a value but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+   70:35  warning  'getOrCreatePersonalSpace' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   79:13  warning  'backfillCanonicalSpaces' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  113:18  error    A `require()` style import is forbidden                                                              @typescript-eslint/no-require-imports
+  133:16  error    A `require()` style import is forbidden                                                              @typescript-eslint/no-require-imports
+  151:16  error    A `require()` style import is forbidden                                                              @typescript-eslint/no-require-imports
+  171:16  error    A `require()` style import is forbidden                                                              @typescript-eslint/no-require-imports
+  185:16  error    A `require()` style import is forbidden                                                              @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/verify-oauth-redirect.js
+   9:12  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  10:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/verify-slack-integration.js
+   15:26  error    A `require()` style import is forbidden                                                   @typescript-eslint/no-require-imports
+  218:9   warning  'slackClientId' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/verify-workspace-invites-table.js
+  6:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/scripts/wiki-format-smoke.ts
+  207:14  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/server.js
+   1:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   2:19  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   3:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   4:36  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   5:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  10:3   error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  24:75  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  54:32  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  92:60  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/smoke-test.js
+  29:24  warning  Hardcoded ID "test-workspace" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+  47:22  warning  Hardcoded ID "test-workspace" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+  61:22  warning  Hardcoded ID "test-workspace" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+  89:22  warning  Hardcoded ID "test-workspace" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/(dashboard)/my-tasks/page.tsx
+  106:6  warning  React Hook useEffect has a missing dependency: 'loadMyTasks'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/(dashboard)/projects/[id]/page.tsx
+  142:9  warning  The 'channelHints' logical expression could make the dependencies of useEffect Hook (at line 176) change on every render. To fix this, wrap the initialization of 'channelHints' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  485:6  warning  React Hook useEffect has missing dependencies: 'loadEpics' and 'loadProject'. Either include them or remove the dependency array                                                                            react-hooks/exhaustive-deps
+  489:6  warning  React Hook useEffect has a missing dependency: 'checkProjectCompletion'. Either include it or remove the dependency array                                                                                   react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/(dashboard)/projects/[id]/settings/custom-fields/page.tsx
+  49:6  warning  React Hook useEffect has a missing dependency: 'loadCustomFields'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/(dashboard)/projects/[id]/tasks/[taskId]/page.tsx
+  116:6  warning  React Hook useEffect has a missing dependency: 'loadTask'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx
+  426:6  warning  React Hook useEffect has a missing dependency: 'checkProjectCompletion'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/settings/custom-fields/page.tsx
+  49:6  warning  React Hook useEffect has a missing dependency: 'loadCustomFields'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/tasks/[taskId]/page.tsx
+  117:6  warning  React Hook useEffect has a missing dependency: 'loadTask'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/(dashboard)/w/[workspaceSlug]/settings/page.tsx
+  168:6  warning  React Hook useEffect has a missing dependency: 'fetchSlackIntegration'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  227:6  warning  React Hook useEffect has a missing dependency: 'fetchSlackIntegration'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/(dashboard)/wiki/[slug]/wiki-page-client.tsx
+  291:6   warning  React Hook useEffect has missing dependencies: 'loadRelatedPages', 'searchParams', 'streamPageContent', and 'userStatus?.workspaceId'. Either include them or remove the dependency array                                                                                                react-hooks/exhaustive-deps
+  764:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/(dashboard)/wiki/search/page.tsx
+  148:6  warning  React Hook useEffect has a missing dependency: 'performSearch'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/admin/invite/route.ts
+  124:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/admin/users/[id]/route.ts
+    1:1   error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+  113:25  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/ai/chat/route.ts
+  701:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/ai/chat/stream/route.ts
+   99:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  152:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/assistant/create-project/route.ts
+   69:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  169:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  170:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/assistant/message/route.ts
+    1:1   error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+   19:35  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+  355:13  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+  359:23  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/assistant/session/route.ts
+  12:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/assistant/sessions/route.ts
+  53:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/auth/check-workspace-by-email/route.ts
+  51:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/auth/user-status/route.ts
+   52:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   65:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  274:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/blog/admin/posts/route.ts
+  109:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  152:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  164:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/debug/db/route.ts
+  22:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  92:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/debug/org-department-fields/route.ts
+  22:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/debug/org-department/route.ts
+  13:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/debug/prisma-models/route.ts
+  12:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  38:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  47:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/dev/org-loopbrain/relations-debug/route.ts
+  76:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/dev/org-self-test/route.ts
+  65:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  93:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/dev/org/roles/route.ts
+  86:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/goals/route.ts
+  63:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/integrations/slack/webhook/route.ts
+  105:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  206:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  218:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  231:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  232:11  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/loopbrain/chat/route.ts
+  181:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  184:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/loopbrain/org/debug/route.ts
+  21:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/loopbrain/org/prompt-compose/route.ts
+  6:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/loopbrain/org/qna/history/route.ts
+  18:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/loopbrain/org/qna/route.ts
+  11:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/migrations/blog/route.ts
+   51:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   65:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  104:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/migrations/import/route.ts
+   1:1   error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+  45:50  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/migrations/route.ts
+   1:1   error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+  76:41  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/my-tasks/route.ts
+  26:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/onboarding/generate/route.ts
+  156:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  213:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/onboarding/plans/[id]/route.ts
+  73:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/onboarding/plans/route.ts
+   1:1   error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+  48:41  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/onboarding/tasks/[id]/route.ts
+   1:1   error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+  38:23  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/onboarding/templates/[id]/route.ts
+  76:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/allocations/route.ts
+  64:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/audit/route.ts
+  68:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/coverage/resolve/route.ts
+  22:50  warning  'RoleCoverage' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/custom-roles/[roleId]/route.ts
+  36:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/data-quality/adjust-allocation/route.ts
+  31:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  32:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  36:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  40:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  43:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  43:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  44:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  48:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  53:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  59:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/data-quality/refresh-availability/route.ts
+  27:66  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  34:74  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  36:71  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  38:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  45:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  51:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/data-quality/resolve-manager-conflicts/route.ts
+  29:85  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  36:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  42:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/departments/[id]/route.ts
+  1:1  error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/digest/config/route.ts
+  39:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/domains/route.ts
+  19:79  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  44:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  68:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/duplicates/merge/route.ts
+  136:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/duplicates/route.ts
+  63:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/duplicates/sync/route.ts
+   74:99  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   94:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  132:95  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  138:95  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/duplicates/undo/route.ts
+  24:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  25:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/entities/route.ts
+  24:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/fix-events/route.ts
+   31:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   36:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   41:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   48:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  151:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/flags/route.ts
+  60:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/health/capacity/route.ts
+  240:118  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/health/ownership/route.ts
+  38:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/import/apply/route.ts
+   32:21   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   52:36   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   57:33   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:36   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   84:105  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   85:45   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   86:24   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:44   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:42   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:86   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  120:41   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  120:76   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  121:83   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  121:118  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  126:44   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  146:42   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  152:86   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  153:67   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  154:24   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  159:44   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/import/preview/route.ts
+  11:68  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:67  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  14:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  34:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/integrity/route.ts
+    1:1   error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+  136:21  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/intelligence/recommendations/latest/route.ts
+  60:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  62:62  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  71:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/intelligence/snapshots/create/route.ts
+  49:51  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/intelligence/snapshots/latest/route.ts
+  117:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/invitations/route.ts
+  33:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/issues/apply/route.ts
+    1:1   error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+   13:23  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+   19:47  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+   34:20  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+  112:57  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/issues/preview/route.ts
+    9:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   16:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  132:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  138:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  166:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/issues/sync/route.ts
+  10:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/loopbrain/context/route.ts
+  51:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/management/link/route.ts
+  22:81  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  24:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:82  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  27:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  28:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  47:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  49:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/members/[memberId]/custom-role/route.ts
+   31:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   88:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  148:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/ownership/bulk-assign/route.ts
+  36:55   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  36:110  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  44:35   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  49:31   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  56:30   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  61:12   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/ownership/route.ts
+  48:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/[personId]/availability-windows/route.ts
+  293:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/[personId]/availability/route.ts
+  54:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  75:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/[personId]/manager/route.ts
+  129:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  142:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/[personId]/name/route.ts
+  81:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/[personId]/team/route.ts
+  154:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/[personId]/title/route.ts
+  82:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/archived/restore/route.ts
+  13:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/archived/route.ts
+  12:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/availability/route.ts
+  22:79  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  27:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/bulk/route.ts
+  60:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/create/route.ts
+  77:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/directory/route.ts
+  113:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  118:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  120:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/export/route.ts
+  9:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/update-profile/route.ts
+   60:59   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   61:39   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   62:56   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   63:12   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   73:63   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   75:14   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:75   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   81:73   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   83:14   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   97:67   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   99:14   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  102:84   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  105:108  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:14   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/people/update/route.ts
+   1:1   error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+  11:44  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+  15:60  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/permissions/route.ts
+  44:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/positions/[id]/route.ts
+    1:1   error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+  145:23  error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/preferences/get/route.ts
+  23:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/preferences/route.ts
+  36:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/projects/route.ts
+  1:1  error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/role-cards/[id]/position/route.ts
+  42:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/role-cards/[id]/skills/route.ts
+  1:1  error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/roles/[id]/route.ts
+  126:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  127:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/roles/assign/route.ts
+  32:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  33:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  34:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/setup-status/route.ts
+  79:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/structure/departments/[departmentId]/owner/route.ts
+  160:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  179:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  210:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/structure/departments/create/route.ts
+  78:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/structure/teams/[teamId]/members/add/route.ts
+  59:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/structure/teams/[teamId]/members/remove/route.ts
+  59:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/structure/teams/[teamId]/owner/route.ts
+  94:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/structure/teams/create/route.ts
+  56:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/systems/route.ts
+  10:79  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  29:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  47:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  51:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/taxonomy/roles/route.ts
+  18:80  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  18:97  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  19:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  20:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  24:62  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/taxonomy/skills/route.ts
+  18:80  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  18:97  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  19:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  20:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  24:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/taxonomy/upsert/route.ts
+  22:101  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:132  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  29:102  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  29:133  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/teams/[id]/route.ts
+  1:1  error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/teams/roles/route.ts
+  36:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/track/route.ts
+  28:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/org/views/default/route.ts
+  10:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  18:80  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  24:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/project-templates/[id]/apply/route.ts
+  43:66  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+  54:30  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  98:53  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects-optimized/route.ts
+  41:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects/[projectId]/assignees/route.ts
+  30:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects/[projectId]/custom-fields/[fieldId]/route.ts
+  128:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects/[projectId]/daily-summary-settings/route.ts
+  45:23  error    Unexpected any. Specify a different type                                                                                             @typescript-eslint/no-explicit-any
+  51:19  error    Unexpected any. Specify a different type                                                                                             @typescript-eslint/no-explicit-any
+  58:19  warning  Dev bypass pattern "Daily summary settings access check failed, using development bypass:" should be gated behind environment flags  no-hardcoded-ids/no-hardcoded-ids
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects/[projectId]/documentation/[docId]/route.ts
+  28:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects/[projectId]/documentation/route.ts
+   49:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   80:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  147:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects/[projectId]/epics/[epicId]/route.ts
+   30:100  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   90:100  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  176:100  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects/[projectId]/milestones/[milestoneId]/route.ts
+   27:100  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   90:100  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  153:28   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  180:100  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects/[projectId]/reports/route.ts
+   41:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  306:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects/[projectId]/route.ts
+   52:10  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+   56:57  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+  281:10  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  521:43  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  522:49  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  683:10  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects/[projectId]/tasks/route.ts
+  46:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/projects/route.ts
+   51:27  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  101:44  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  102:35  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  129:18  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  217:42  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  218:33  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  263:19  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  342:58  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+  347:29  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  348:33  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  405:40  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/search/route.ts
+  77:52  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/task-templates/[id]/apply/route.ts
+  52:63  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+  63:21  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  87:51  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/task-templates/[id]/route.ts
+  85:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  91:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/task-templates/route.ts
+   28:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  106:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/tasks/[id]/custom-fields/route.ts
+   58:51  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+   71:16  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+   72:53  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+   72:65  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  177:55  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/tasks/[id]/dependencies/route.ts
+   61:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  204:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/tasks/[id]/subtasks/route.ts
+  57:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/tasks/route.ts
+   55:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  317:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  318:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  413:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/test-db/route.ts
+  6:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/test-projects/route.ts
+   97:38  error    Unexpected any. Specify a different type                                                       @typescript-eslint/no-explicit-any
+   98:42  error    Unexpected any. Specify a different type                                                       @typescript-eslint/no-explicit-any
+  101:24  warning  Hardcoded ID "dev-user-1" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+  101:24  warning  Dev bypass pattern "dev-user-1" should be gated behind environment flags                       no-hardcoded-ids/no-hardcoded-ids
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/wiki/pages/[id]/route.ts
+  135:31  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  139:19  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  185:54  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  190:44  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  235:91  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  305:43  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+  332:19  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  370:45  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  387:19  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/wiki/pages/[id]/upgrade/route.ts
+   53:55  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+  132:52  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+  135:48  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  160:39  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+  164:48  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/wiki/pages/route.ts
+   52:74  error  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  114:36  error  The `Function` type accepts any function-like value.
+Prefer explicitly defining any function parameters and return type  @typescript-eslint/no-unsafe-function-type
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/wiki/recent-pages/route.ts
+  41:74  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  50:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  55:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/workspace/create/route.ts
+   65:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  105:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/api/workspaces/route.ts
+  135:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/auth/callback/route.ts
+  192:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/blog/admin/[id]/page.tsx
+  34:6  warning  React Hook useEffect has a missing dependency: 'fetchPost'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/blog/admin/page.tsx
+  31:6  warning  React Hook useEffect has a missing dependency: 'fetchPosts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/dev/loopbrain/org-graph/route.ts
+  43:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/org/people/PeoplePageClient.tsx
+   94:6  warning  React Hook useEffect has missing dependencies: 'filters.q' and 'updateFiltersURL'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  151:6  warning  React Hook useEffect has a missing dependency: 'searchInput'. Either include it or remove the dependency array                         react-hooks/exhaustive-deps
+  475:6  warning  React Hook useCallback has a missing dependency: 'filters'. Either include it or remove the dependency array                           react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/app/presentation/page.tsx
+  30:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/admin/org-chart-preview.tsx
+  181:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/admin/user-management-table.tsx
+  183:31  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/ai-logo.tsx
+  57:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/auth-wrapper.tsx
+  18:9  warning  The 'userStatus' object makes the dependencies of useEffect Hook (at line 58) change on every render. Move it inside the useEffect callback. Alternatively, wrap the initialization of 'userStatus' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/embeds/link-card-embed.tsx
+  18:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/goals/analytics-dashboard.tsx
+  30:6  warning  React Hook useEffect has a missing dependency: 'loadAnalytics'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/goals/check-in-panel.tsx
+  55:6  warning  React Hook useEffect has a missing dependency: 'loadCheckIns'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/goals/conflict-indicator.tsx
+  38:6  warning  React Hook useEffect has a missing dependency: 'detectConflicts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/goals/recommendations-panel.tsx
+  47:6  warning  React Hook useEffect has a missing dependency: 'loadRecommendations'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/landing/LoopbrainMockup.tsx
+  206:79  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  206:98  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/landing/SpacesMockup.tsx
+  16:3  warning  'Target' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/landing/ai-assistant-preview.tsx
+  80:41  warning  The ref value 'componentRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'componentRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/layout/workspace-account-menu.tsx
+  68:6  warning  React Hook useEffect has a missing dependency: 'loadMembers'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/logo.tsx
+  68:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/AddPersonForm.tsx
+  42:9  warning  The 'teams' logical expression could make the dependencies of useMemo Hook (at line 47) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'teams' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/IntelligencePageClient.tsx
+  123:9  warning  The 'findings' logical expression could make the dependencies of useMemo Hook (at line 133) change on every render. To fix this, wrap the initialization of 'findings' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/OwnershipClient.tsx
+  43:9  warning  The 'assignments' logical expression could make the dependencies of useMemo Hook (at line 85) change on every render. To fix this, wrap the initialization of 'assignments' in its own useMemo() Hook   react-hooks/exhaustive-deps
+  43:9  warning  The 'assignments' logical expression could make the dependencies of useMemo Hook (at line 107) change on every render. To fix this, wrap the initialization of 'assignments' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  45:9  warning  The 'people' logical expression could make the dependencies of useMemo Hook (at line 85) change on every render. To fix this, wrap the initialization of 'people' in its own useMemo() Hook             react-hooks/exhaustive-deps
+  45:9  warning  The 'people' logical expression could make the dependencies of useMemo Hook (at line 107) change on every render. To fix this, wrap the initialization of 'people' in its own useMemo() Hook            react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/PeopleListClient.tsx
+  160:9  warning  The 'people' conditional could make the dependencies of useMemo Hook (at line 208) change on every render. To fix this, wrap the initialization of 'people' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  181:6  warning  React Hook useEffect has a missing dependency: 'people'. Either include it or remove the dependency array                                                                              react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/audit-trail.tsx
+  54:6  warning  React Hook useEffect has a missing dependency: 'loadAuditLogs'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/decision/SetAuthorityDrawer.tsx
+  72:6  warning  React Hook useEffect has a missing dependency: 'fetchDomainAuthority'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/members/MembersListClient.tsx
+  60:13  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/people/PersonPanel.tsx
+  172:6  warning  React Hook React.useEffect has a missing dependency: 'extractErrorMessage'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/people/RoleCard.tsx
+  144:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/people/profile/ProfileHeader.tsx
+  131:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/people/profile/ProfileHero.tsx
+  86:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/position-form.tsx
+   74:6   warning  React Hook useEffect has a missing dependency: 'loadUsers'. Either include it or remove the dependency array                                                                                                                                                                             react-hooks/exhaustive-deps
+  298:27  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  352:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/role-card.tsx
+  125:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  182:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/user-profile-form.tsx
+  189:6  warning  React Hook useEffect has a missing dependency: 'formData.positionId'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/org/work/WorkRequestDetailClient.tsx
+  191:6  warning  React Hook useEffect has a missing dependency: 'fetchRequest'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/performance/direct-reports-review-list.tsx
+  75:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/projects/epic-drawer.tsx
+  68:6  warning  React Hook useEffect has a missing dependency: 'loadTasks'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/projects/epics-view.tsx
+  69:6  warning  React Hook useEffect has missing dependencies: 'loadEpics' and 'loadTasks'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/projects/project-daily-summaries.tsx
+  46:6  warning  React Hook useEffect has a missing dependency: 'loadSummaries'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/projects/project-documentation-section.tsx
+  168:6  warning  React Hook useEffect has a missing dependency: 'loadDocumentation'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/projects/project-edit-dialog.tsx
+  118:6  warning  React Hook useEffect has a missing dependency: 'loadWorkspaceMembers'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/projects/project-reports.tsx
+  114:6  warning  React Hook useEffect has a missing dependency: 'loadReports'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/projects/project-space-members-modal.tsx
+  65:6  warning  React Hook useEffect has missing dependencies: 'loadMembers', 'loadProjectSpaceInfo', and 'loadWorkspaceMembers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/providers.tsx
+  13:20  warning  'useEffect' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/settings/workspace-members.tsx
+  83:6  warning  React Hook useEffect has a missing dependency: 'loadData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/shared/people-picker.tsx
+  121:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  191:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/tasks/calendar-view.tsx
+  100:6  warning  React Hook useEffect has a missing dependency: 'loadTasks'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/tasks/create-task-dialog.tsx
+  82:6  warning  React Hook useEffect has missing dependencies: 'loadEpics' and 'loadUsers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/tasks/dependency-manager.tsx
+  75:6  warning  React Hook useEffect has missing dependencies: 'loadAvailableTasks' and 'loadDependencies'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/tasks/task-comments.tsx
+  44:6  warning  React Hook useEffect has missing dependencies: 'loadComments' and 'loadProjectMembers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/tasks/task-edit-dialog.tsx
+  162:6  warning  React Hook useEffect has missing dependencies: 'loadCustomFields', 'loadEpics', 'loadMilestones', and 'loadUsers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/tasks/task-list.tsx
+  101:6  warning  React Hook useEffect has a missing dependency: 'loadTasks'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/tasks/task-sidebar.tsx
+  157:6  warning  React Hook useEffect has a missing dependency: 'loadTask'. Either include it or remove the dependency array                                                            react-hooks/exhaustive-deps
+  167:6  warning  React Hook useEffect has missing dependencies: 'loadCustomFields', 'loadEpics', 'loadMilestones', and 'loadUsers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/tasks/timeline-view.tsx
+  66:6  warning  React Hook useEffect has a missing dependency: 'loadTasks'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/theme-provider.tsx
+  64:6  warning  React Hook useEffect has a missing dependency: 'theme'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/ui/command-palette.tsx
+  198:9  warning  The 'allItems' array makes the dependencies of useCallback Hook (at line 240) change on every render. To fix this, wrap the initialization of 'allItems' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/ui/rich-text-editor.tsx
+  133:6  warning  React Hook useEffect has a missing dependency: 'handleInput'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/wiki/enhanced-rich-text-editor.tsx
+  306:15  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images  jsx-a11y/alt-text
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/components/wiki/rich-text-editor.tsx
+  578:11  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images  jsx-a11y/alt-text
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/hooks/use-favorites.ts
+  165:6  warning  React Hook useEffect has a missing dependency: 'checkFavoriteStatus'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/hooks/use-feature-flags.tsx
+  75:6  warning  React Hook useEffect has a missing dependency: 'flags'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/hooks/use-keyboard-shortcuts.ts
+  20:9  warning  The 'shortcuts' array makes the dependencies of useCallback Hook (at line 217) change on every render. To fix this, wrap the initialization of 'shortcuts' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/lib/org/reasoning/__tests__/route-handler.test.ts
+  120:3  error  Do not assign to the variable `module`. See: https://nextjs.org/docs/messages/no-assign-module-variable  @next/next/no-assign-module-variable
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/lib/pm/guards.ts
+  5:6  warning  'ProjectWithMembers' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  6:6  warning  'MemberResult' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/lib/prisma/scopingMiddleware.ts
+  271:5  warning  Hardcoded ID "dev-workspace" is not allowed. Use environment variables or dynamic values instead   no-hardcoded-ids/no-hardcoded-ids
+  272:5  warning  Hardcoded ID "test-workspace" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/lib/realtime/socket-context.tsx
+  97:6  warning  React Hook useCallback has an unnecessary dependency: 'retryCount'. Either exclude it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/lib/workspace-context.test.ts
+  73:13  warning  Hardcoded ID "test-workspace" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+
+/Users/alekseis./Loopwell HR/lumi-work-os/src/types/org.ts
+  60:9  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/alekseis./Loopwell HR/lumi-work-os/test-ai-auth.js
+   3:15  error    A `require()` style import is forbidden                                                                       @typescript-eslint/no-require-imports
+  24:13  warning  Dev bypass pattern "email=dev@lumi.com&name=Dev User&callbackUrl=/" should be gated behind environment flags  no-hardcoded-ids/no-hardcoded-ids
+
+/Users/alekseis./Loopwell HR/lumi-work-os/test-anthropic.js
+  2:32  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/api/phase1-migrated-routes.spec.ts
+  392:13  warning  'setWorkspaceContext' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  511:13  warning  'setWorkspaceContext' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/api/projects.auth.spec.ts
+    3:38  warning  'createProject' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+    4:35  warning  'createTask' is defined but never used. Allowed unused vars must match /^_/u                   @typescript-eslint/no-unused-vars
+  241:17  warning  Hardcoded ID "dev-user-1" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+  241:17  warning  Dev bypass pattern "dev-user-1" should be gated behind environment flags                       no-hardcoded-ids/no-hardcoded-ids
+  245:16  warning  Dev bypass pattern "dev@lumi.com" should be gated behind environment flags                     no-hardcoded-ids/no-hardcoded-ids
+  257:35  warning  Hardcoded ID "dev-user-1" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+  257:35  warning  Dev bypass pattern "dev-user-1" should be gated behind environment flags                       no-hardcoded-ids/no-hardcoded-ids
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/api/workspace-isolation.spec.ts
+  400:15  warning  'prisma' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/e2e/api-projects-regression.spec.ts
+  15:97  warning  'context' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/e2e/auth-redirects.spec.ts
+  1:24  warning  'BrowserContext' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/e2e/auth-snapshot.spec.ts
+  1:16  warning  'expect' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/e2e/auth.setup.ts
+  1:25  warning  'expect' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/e2e/goals-workflow.spec.ts
+  2:28  warning  'gotoAuthenticated' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/e2e/onboarding-flow.spec.ts
+  2:28  warning  'gotoAuthenticated' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/e2e/todos.spec.ts
+   2:28  warning  'waitForApiResponse' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  74:11  warning  'hasFilters' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/e2e/workspace-isolation.spec.ts
+  2:28  warning  'gotoAuthenticated' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/helpers/fixtures.ts
+  20:11  warning  Hardcoded ID "test-workspace" is not allowed. Use environment variables or dynamic values instead  no-hardcoded-ids/no-hardcoded-ids
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/loopbrain/answer-envelope.contract.test.ts
+  32:8  warning  'LoopbrainQuestionV0' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/loopbrain/entity-graph.contract.test.ts
+  13:3  warning  'EntityTypeV0' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  14:3  warning  'LinkTypeV0' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/loopbrain/entity-graph.test.ts
+   8:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u                       @typescript-eslint/no-unused-vars
+   8:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+  11:3   warning  'EntityNodeV0' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+  12:3   warning  'EntityLinkV0' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+  13:3   warning  'SkillProficiencyV0' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+  14:3   warning  'PersonCapacitySummaryV0' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/alekseis./Loopwell HR/lumi-work-os/tests/loopbrain/proactiveInsights.contract.test.ts
+  19:3  warning  'InsightPriorityV0' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+✖ 675 problems (467 errors, 208 warnings)
+
