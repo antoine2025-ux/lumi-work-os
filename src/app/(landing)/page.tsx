@@ -122,6 +122,16 @@ function HeroSection() {
   const [showSubheadline, setShowSubheadline] = useState(false);
   const [showCTA, setShowCTA] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [isMobile, setIsMobile] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    setMounted(true);
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // All timings pre-calculated — no state changes occur during the typing phase
   const line1Start = 0.3;
@@ -170,7 +180,7 @@ function HeroSection() {
     </>
   );
 
-  if (reducedMotion) {
+  if (reducedMotion || !mounted) {
     return (
       <section className="min-h-screen flex items-center bg-landing-bg-hero relative">
         <div className="max-w-6xl mx-auto px-6 w-full">
@@ -195,22 +205,22 @@ function HeroSection() {
     <section className="min-h-screen flex items-center bg-landing-bg-hero relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-6 w-full">
         {/* Fixed-height spans prevent layout shift; lines 2+3 slide from indented to left */}
-        <h1 className="text-5xl md:text-6xl lg:text-7xl font-semibold text-landing-text leading-tight tracking-tight">
-          <motion.span className="block h-[1.2em]" initial={{ x: 0 }} animate={{ x: 0 }}>
+        <h1 className="text-5xl md:text-6xl lg:text-7xl font-semibold text-landing-text leading-tight tracking-tight overflow-hidden">
+          <motion.span className="block h-auto md:h-[1.2em]" initial={{ x: 0 }} animate={{ x: 0 }}>
             <TypewriterText text="One workspace." startDelay={line1Start} />
           </motion.span>
           <motion.span
-            className="block h-[1.2em]"
-            initial={{ x: "20vw" }}
-            animate={{ x: typingComplete ? 0 : "20vw" }}
+            className="block h-auto md:h-[1.2em]"
+            initial={{ x: isMobile ? 0 : "800px" }}
+            animate={{ x: isMobile ? 0 : (typingComplete ? 0 : "800px") }}
             transition={{ duration: slideDuration, ease: [0.25, 0.1, 0.25, 1] }}
           >
             <TypewriterText text="One brain." startDelay={line2Start} />
           </motion.span>
           <motion.span
-            className="block h-[1.2em]"
-            initial={{ x: "40vw" }}
-            animate={{ x: typingComplete ? 0 : "40vw" }}
+            className="block h-auto md:h-[1.2em]"
+            initial={{ x: isMobile ? 0 : "1200px" }}
+            animate={{ x: isMobile ? 0 : (typingComplete ? 0 : "1200px") }}
             transition={{ duration: slideDuration, ease: [0.25, 0.1, 0.25, 1] }}
           >
             <TypewriterText text="Full stop." startDelay={line3Start} />
