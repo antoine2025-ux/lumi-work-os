@@ -136,9 +136,9 @@ These files are high-import-count shared dependencies. Changes require extra cau
 | `src/middleware.ts` | Route protection |
 | `src/server/authOptions.ts` | NextAuth configuration |
 | `src/lib/prisma/scopingMiddleware.ts` | Workspace isolation |
-| `prisma/schema.prisma` | Data model (150 models) |
-| `src/lib/auth/assertAccess.ts` | RBAC enforcement for all routes (222 routes) |
-| `src/lib/api-errors.ts` | Centralized error handling (179 routes) |
+| `prisma/schema.prisma` | Data model (162 models) |
+| `src/lib/auth/assertAccess.ts` | RBAC enforcement for all routes (290 routes) |
+| `src/lib/api-errors.ts` | Centralized error handling (246 routes) |
 | `src/lib/validations/` | Zod schema library (85 routes) |
 | `src/lib/auth/assertManagerAccess.ts` | Manager-scoped access helper |
 
@@ -166,34 +166,45 @@ For changes touching stable seams or core flows, run the full suite:
 npm run typecheck && npm run lint && npm run test && npm run test:e2e
 ```
 
-### Phase 2 Metrics (Feb 20, 2026) — Full Audit
+### Phase 2 Metrics (Feb 24, 2026) — Full Audit
 
-See `CODEBASE_AUDIT_2026-02-20.md` for full findings. See `LEVEL4_ARCHITECTURE.md` for roadmap.
+See `CODEBASE_AUDIT_2026-02-24.md` for full findings. See `LEVEL4_ARCHITECTURE.md` for roadmap.
 
-| Metric | Feb 17 Baseline | Feb 20 Current |
-|--------|----------------|----------------|
-| Zod validation | 85/427 (20%) | 335/430 (78%) |
-| Auth (`getUnifiedAuth`) | 260/427 (61%) | 335/430 (78%) |
-| RBAC (`assertAccess`) | 222/427 (52%) | 282/430 (66%) |
-| Error handling (`handleApiError`) | 179/427 (42%) | 335/430 (78%) |
-| Workspace scoping (`setWorkspaceContext`) | 228/427 (53%) | 228/430 (53%) |
-| Test files | 56 | 66 |
-| Prisma models | 150 | **160** (88 in WORKSPACE_SCOPED_MODELS) |
-| TS/TSX files | — | 1,950 |
-| API routes | 427 | 430 |
+> Zod and handleApiError counts use call-site methodology (.parse/.safeParse grep) in Feb 24. Feb 20 used broader import-presence methodology — not directly comparable.
+
+| Metric | Feb 17 Baseline | Feb 20 | Feb 24 Current |
+|--------|----------------|--------|----------------|
+| Auth (`getUnifiedAuth`) | 260/427 (61%) | 335/430 (78%) | 326/439 (74%) |
+| RBAC (`assertAccess`) | 222/427 (52%) | 282/430 (66%) | 290/439 (66%) |
+| Workspace scoping (`setWorkspaceContext`) | 228/427 (53%) | 228/430 (53%) | **296/439 (67%)** |
+| Error handling (`handleApiError`) | 179/427 (42%) | 335/430* | 246/439 (56%)* |
+| Zod validation | 85/427 (20%) | 335/430* | 102/439 (23%)* |
+| Test files | 56 | 66 | 66 |
+| Prisma models | 150 | 160 | **162** (79 in WORKSPACE_SCOPED_MODELS) |
+| TS/TSX files | — | 1,950 | 1,877 |
+| API routes | 427 | 430 | **439** |
 
 #### P0 Issues (fix immediately)
-1. **8 models missing from WORKSPACE_SCOPED_MODELS**: `CustomFieldDef`, `ProjectDocumentation`, `ProjectAccountability`, `FeatureFlag`, `Activity`, `ContextItem`, `ContextEmbedding`, `ContextSummary` — add to `scopingMiddleware.ts`
-2. **Slack webhook signature** not verified at `/api/integrations/slack/webhook`
+1. **43 models missing from WORKSPACE_SCOPED_MODELS** — schema grew without middleware sync; includes `OrgDepartment`, `OrgTeam`, `Todo`, `PersonAvailability`, `DecisionDomain`, `CapacityContract`, `OrgInvitation`, `LeaveRequest` and 35 more — add to `scopingMiddleware.ts`
+2. **`$queryRawUnsafe` with string interpolation** in `src/lib/simple-auth.ts:260,376,441` and `src/server/org/people/write.ts:82,149` — replace with parameterized queries
 
 #### P1 Issues (next sprint)
-- Manager relationships stored as text (not linked to Person records) — org chart incomplete
-- Invite system not end-to-end wired
-- Wiki AI actions (`extract_tasks`, `tag_pages`) not wired to executor
-- `ProjectAllocation` uses `orgId` instead of `workspaceId` (hybrid scoping bug)
+- Projects epic/timeline/files views not wired (`projects/[id]/page.tsx:672`)
+- OrgChart department context/hiring/reorg unpopulated (`OrgChartClient.tsx:74-79`)
+- People filters (Leaders/New/Recently Changed) incomplete (`PeoplePageClient.tsx:372,389,393`)
+- `orgId` fallback pattern in 138 API route occurrences — migrate to clean `workspaceId`
+
+#### Resolved Since Feb 20
+- ✅ 8 P0 scoping models added (FeatureFlag, Activity, ContextItem, ContextEmbedding, ContextSummary, ProjectDocumentation, ProjectAccountability, CustomFieldDef)
+- ✅ Slack webhook HMAC-SHA256 signature verification + replay prevention
+- ✅ Manager relationships: `PersonManagerLink` model with FK + time windows
+- ✅ Invite system end-to-end wired with email sending + user-status detection
+- ✅ Wiki AI `extract_tasks` and `tag_pages` actions wired (`wiki-ai-assistant.tsx:1107,1133`)
+- ✅ `setWorkspaceContext` coverage +14pp (228→296 routes)
+- ✅ Landing page: mobile-responsive, 500 lines, 23 components
 
 #### Known Stable Seam Updates
-- `prisma/schema.prisma` now has **160 models** (not 150)
-- `src/lib/auth/assertAccess.ts` now covers 282 routes (not 222)
-- `src/lib/api-errors.ts` now covers 335 routes (not 179)
-- Loopbrain: all Q1-Q9 pipelines fully implemented (~41,400 lines in `src/lib/loopbrain/`)
+- `prisma/schema.prisma` now has **162 models** (not 150)
+- `src/lib/auth/assertAccess.ts` now covers **290 routes** (not 222)
+- `src/lib/api-errors.ts` now covers **246 routes** (call-site count)
+- Loopbrain: all Q1-Q9 pipelines fully implemented (~41,357 lines, 144 files in `src/lib/loopbrain/`)
