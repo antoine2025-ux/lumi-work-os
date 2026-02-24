@@ -180,13 +180,15 @@ See `CODEBASE_AUDIT_2026-02-24.md` for full findings. See `LEVEL4_ARCHITECTURE.m
 | Error handling (`handleApiError`) | 179/427 (42%) | 335/430* | 246/439 (56%)* |
 | Zod validation | 85/427 (20%) | 335/430* | 102/439 (23%)* |
 | Test files | 56 | 66 | 66 |
-| Prisma models | 150 | 160 | **162** (79 in WORKSPACE_SCOPED_MODELS) |
+| Prisma models | 150 | 160 | **162** |
+| Models in WORKSPACE_SCOPED_MODELS | — | 88 | **122** |
 | TS/TSX files | — | 1,950 | 1,877 |
 | API routes | 427 | 430 | **439** |
 
-#### P0 Issues (fix immediately)
-1. **43 models missing from WORKSPACE_SCOPED_MODELS** — schema grew without middleware sync; includes `OrgDepartment`, `OrgTeam`, `Todo`, `PersonAvailability`, `DecisionDomain`, `CapacityContract`, `OrgInvitation`, `LeaveRequest` and 35 more — add to `scopingMiddleware.ts`
-2. **`$queryRawUnsafe` with string interpolation** in `src/lib/simple-auth.ts:260,376,441` and `src/server/org/people/write.ts:82,149` — replace with parameterized queries
+#### P0 Issues (as of Feb 24)
+1. ✅ **43 models missing from WORKSPACE_SCOPED_MODELS** — RESOLVED Feb 24 (expanded from 79 → 122 total)
+2. ⚠️ **Security Sprint (Aleksei)** — 20 org routes missing auth, wiki test failures, NextAuth types (target: Feb 28)
+3. ❌ **`$queryRawUnsafe` with string interpolation** — SQL injection risk in `src/lib/simple-auth.ts:260,376,441` and `src/server/org/people/write.ts:82,149` (HIGH priority)
 
 #### P1 Issues (next sprint)
 - Projects epic/timeline/files views not wired (`projects/[id]/page.tsx:672`)
@@ -205,6 +207,14 @@ See `CODEBASE_AUDIT_2026-02-24.md` for full findings. See `LEVEL4_ARCHITECTURE.m
 
 #### Known Stable Seam Updates
 - `prisma/schema.prisma` now has **162 models** (not 150)
+- `src/lib/prisma/scopingMiddleware.ts` now has **122 models** in WORKSPACE_SCOPED_MODELS (was 79 on Feb 20)
 - `src/lib/auth/assertAccess.ts` now covers **290 routes** (not 222)
 - `src/lib/api-errors.ts` now covers **246 routes** (call-site count)
 - Loopbrain: all Q1-Q9 pipelines fully implemented (~41,357 lines, 144 files in `src/lib/loopbrain/`)
+
+## Recent Updates (Feb 24, 2026)
+
+- ✅ Completed workspace scoping gap closure: Added 43 missing models (79 → 122 total)
+- ✅ Production readiness audit completed (7 categories analyzed)
+- 🔄 Security sprint in progress (Aleksei): Auth gaps, wiki isolation, type safety
+- Target production-ready state: Feb 28, 2026
