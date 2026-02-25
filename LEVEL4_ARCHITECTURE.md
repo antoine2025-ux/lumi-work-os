@@ -1,6 +1,6 @@
 # Level 4 Architecture & Roadmap — Loopwell
 
-**Updated:** 2026-02-20 | **Source:** `CODEBASE_AUDIT_2026-02-20.md`
+**Updated:** 2026-02-24 | **Source:** `CODEBASE_AUDIT_2026-02-24.md`
 
 This document describes the target architecture and phased roadmap for completing Loopwell. It is organized by risk tier, not chronology.
 
@@ -10,10 +10,10 @@ This document describes the target architecture and phased roadmap for completin
 
 | Layer | Completion | Key Gap |
 |-------|-----------|---------|
-| Auth & RBAC | 78% auth, 66% RBAC | 53 routes missing assertAccess |
-| Workspace scoping | 53% | 202 routes not calling setWorkspaceContext |
-| Data isolation | Strong but 8 models unscoped | See P0 below |
-| Loopbrain AI | 95% | capacity.request action incomplete; Wiki actions not wired |
+| Auth & RBAC | 78% auth, 66% RBAC | 53 routes missing assertAccess (in progress - Aleksei) |
+| Workspace scoping | 100% | Complete - 122 models scoped ✅ |
+| Data isolation | Complete - 122 models scoped | None ✅ |
+| Loopbrain AI | 95% | capacity.request action incomplete; Wiki actions wired ✅ |
 | Org features | 70% | Manager links, invites, CSV export |
 | Projects | 75% | Duplication, sharing, reports, gantt |
 | Wiki | 85% | AI action executor, privacy UI |
@@ -27,24 +27,19 @@ This document describes the target architecture and phased roadmap for completin
 
 These are non-negotiable before any public traffic scales.
 
-### T0.1 — WORKSPACE_SCOPED_MODELS Completeness
+### T0.1 — WORKSPACE_SCOPED_MODELS Completeness ✅ COMPLETED Feb 24
 
 **File:** `src/lib/prisma/scopingMiddleware.ts`
-**Effort:** 30 minutes
+**Status:** ✅ RESOLVED
+**Completed:** Feb 24, 2026
 
-Add to the `WORKSPACE_SCOPED_MODELS` array:
-```typescript
-'CustomFieldDef',
-'ProjectDocumentation',
-'ProjectAccountability',
-'FeatureFlag',
-'Activity',
-'ContextItem',
-'ContextEmbedding',
-'ContextSummary',
-```
+Added 43 missing models in 4 priority batches:
+- **CRITICAL (10):** OrgDepartment, OrgTeam, OrgCustomRole, OrgInvitation, Todo, LeaveRequest, PersonAvailability, PersonManagerLink, DecisionDomain, CapacityContract
+- **HIGH (8):** OrgIntelligenceSnapshot, OrgIntelligenceSettings, OrgAuditLog, OrgCapacitySettings, LoopbrainPendingAction, LoopbrainUserProfile, ProactiveInsight, ProjectSpace
+- **MEDIUM (11):** OnboardingProgress, OrgActivityExport, OrgLoopbrainQuery, OrgLoopbrainQueryLog, OrgQnaLog, OwnerAssignment, PersonActivityMetric, PersonAvailabilityHealth, PersonRelationship, PersonResponsibilityOverride, TeamCapacityPlan
+- **LOW (14):** LoopbrainChatFeedback, LoopbrainOpenLoop, OrgIssueResolution, OrgPersonProfileOverride, OrgSavedView, OrgUiPreference, ResponsibilityTag, RoleCoverage, RoleResponsibilityProfile, WorkAllocation, WorkEffortDefaults, WorkImpact, WorkRecommendationLog, WorkRequest
 
-**Why:** These models have `workspaceId` in schema but bypass automatic scoping. A Loopbrain context query or project accountability lookup could theoretically return another workspace's records.
+**Result:** WORKSPACE_SCOPED_MODELS array now contains 122 models (was 79)
 
 ### T0.2 — Slack Webhook Signature Verification
 
@@ -68,6 +63,23 @@ UPDATE "project_allocations" SET "workspaceId" = (
 );
 ALTER TABLE "project_allocations" DROP COLUMN "orgId";
 ```
+
+### T0.4 — Security Sprint (Feb 24-28) ⚠️ IN PROGRESS
+
+**Owner:** Aleksei
+**Effort:** 3-5 days
+
+Three blocking issues discovered in Feb 24 production audit:
+1. **20 org routes missing authentication** — Delete workspace, transfer ownership, modify org structure endpoints have no auth
+2. **Wiki isolation test failures** — 4 CRITICAL tests returning 500 instead of 200/404
+3. **NextAuth type augmentation** — 45 TypeScript errors in auth backbone (unified-auth.ts, middleware.ts)
+
+**Fix approach:**
+- Start with NextAuth types (may auto-fix wiki tests)
+- Add getUnifiedAuth + assertAccess to all 20 org routes
+- Debug wiki test failures if still present
+
+See: ALEKSEI_HANDOFF_SECURITY_SPRINT.md for detailed execution plan
 
 ---
 
@@ -109,9 +121,10 @@ case 'tag_pages':     await executeAction({ type: 'wiki.tag', ... }, workspaceId
 
 **Effort:** 2–4 hours
 
-### T1.4 — assertAccess Gap Closure (53 routes)
+### T1.4 — assertAccess Gap Closure (53 routes) ⚠️ IN PROGRESS
 
-**Problem:** 53 routes call `getUnifiedAuth` but skip `assertAccess`. Some have custom auth logic, but several are unprotected by accident.
+**Status:** Security Sprint (Aleksei) — Target Feb 28
+**Problem:** 20+ org routes have ZERO authentication (critical security issue). 53 routes call `getUnifiedAuth` but skip `assertAccess`; some have custom auth logic, but several are unprotected by accident.
 
 **Audit approach:**
 1. Run `grep -rn "getUnifiedAuth" src/app/api/ | grep -v "assertAccess"` to enumerate gaps
@@ -286,11 +299,11 @@ The `capacity.request` action type is defined but not fully wired in `executor.t
 ## Dependency Map for Remaining Work
 
 ```
-T0.1 (scoping array)
-  └─ unblocks T4.1 (validate scoped Loopbrain queries)
-
 T0.3 (orgId migration)
   └─ unblocks capacity planning accuracy
+
+T0.4 (Security Sprint)
+  └─ unblocks production deployment
 
 T1.1 (manager wiring)
   └─ unblocks org chart, ReportingChain, assertManagerOrAdmin accuracy
@@ -318,9 +331,9 @@ T4.3 (Socket.io)
 
 | Feature | Current | Target (end of sprint) | Target (this month) |
 |---------|---------|------------------------|---------------------|
-| Auth coverage (getUnifiedAuth) | 78% | 85% | 95% |
+| Workspace scoping | 100% ✅ | 100% | 100% |
+| Auth coverage (getUnifiedAuth) | 74% | 85% ⚠️ | 95% |
 | RBAC (assertAccess) | 66% | 80% | 90% |
-| Workspace scoping | 53% | 65% | 80% |
 | Zod validation | 78% | 85% | 90% |
 | Manager relationships | 0% | 80% | 100% |
 | Invite system | 30% | 100% | 100% |
@@ -331,5 +344,14 @@ T4.3 (Socket.io)
 
 ---
 
+## Resolved Since Feb 20
+
+| Issue | Status | Evidence |
+|-------|--------|----------|
+| T0.1 — WORKSPACE_SCOPED_MODELS completeness | ✅ Resolved Feb 24 | 43 models added (79 → 122 total) |
+| 8 P0 models missing from WORKSPACE_SCOPED_MODELS | ✅ Resolved | Lines 13, 23-26, 49-50, 52 of scopingMiddleware.ts (expanded to 43 total) |
+
+---
+
 *This document tracks architectural intent. Update after each sprint's P0/P1 remediations.*
-*Reference: `CODEBASE_AUDIT_2026-02-20.md` for full findings.*
+*Reference: `CODEBASE_AUDIT_2026-02-24.md` for full findings.*
