@@ -1,25 +1,35 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getOrgContext } from "@/server/rbac";
+import { prisma } from "@/lib/db";
+import { getUnifiedAuth } from '@/lib/unified-auth';
+import { assertAccess } from '@/lib/auth/assertAccess';
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as { id: string; pinned: boolean };
-  const ctx = await getOrgContext(req);
-  if (!ctx.orgId) return NextResponse.json({ ok: false }, { status: 401 });
+  try {
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] });
+    setWorkspaceContext(auth.workspaceId);
 
-  const view = await prisma.savedView.findUnique({ where: { id: body.id } });
-  if (!view) return NextResponse.json({ ok: false }, { status: 404 });
-  if (view.orgId !== ctx.orgId) return NextResponse.json({ ok: false }, { status: 403 });
+    const orgId = auth.workspaceId;
+    const body = (await req.json()) as { id: string; pinned: boolean };
 
-  if (view.shared && !ctx.canAdmin) return NextResponse.json({ ok: false }, { status: 403 });
-  if (!view.shared && view.userId !== ctx.user?.id) return NextResponse.json({ ok: false }, { status: 403 });
+    const view = await prisma.savedView.findUnique({ where: { id: body.id } });
+    if (!view) return NextResponse.json({ ok: false }, { status: 404 });
+    if (view.orgId !== orgId) return NextResponse.json({ ok: false }, { status: 403 });
 
-  const updated = await prisma.savedView.update({
-    where: { id: body.id },
-    data: { pinned: !!body.pinned },
-  });
+    const isAdmin = auth.user.roles.some((r) => ['ADMIN', 'OWNER'].includes(r));
+    if (view.shared && !isAdmin) return NextResponse.json({ ok: false }, { status: 403 });
+    if (!view.shared && view.userId !== auth.user.userId) return NextResponse.json({ ok: false }, { status: 403 });
 
-  return NextResponse.json({ ok: true, view: updated });
+    const updated = await prisma.savedView.update({
+      where: { id: body.id },
+      data: { pinned: !!body.pinned },
+    });
+
+    return NextResponse.json({ ok: true, view: updated });
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 }
-

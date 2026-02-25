@@ -67,7 +67,7 @@ vi.mock('@/lib/db', () => {
   }
   const wikiWorkspacesMock = {
     findUnique: vi.fn(),
-    findMany: vi.fn(),
+    findMany: vi.fn().mockResolvedValue([]),
     create: vi.fn(),
   }
   const prismaObj: Record<string, unknown> = {

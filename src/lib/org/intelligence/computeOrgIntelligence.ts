@@ -15,6 +15,7 @@ import {
   sortEventsBySeverity,
 } from "@/lib/loopbrain/signals";
 import { deriveAllPositionIssues } from "../deriveIssues";
+import { deriveTeamSkillSummary } from "../rollups/deriveTeamSkills";
 
 // Intelligence computation result
 export type OrgIntelligenceResult = {
