@@ -49,3 +49,14 @@ export const WikiWorkspaceCreateSchema = z.object({
   visibility: z.enum(['PERSONAL', 'PRIVATE', 'PUBLIC']).optional(),
   memberIds: z.array(z.string()).optional(),
 })
+
+/** POST /api/wiki/templates */
+export const WikiTemplateCreateSchema = z.object({
+  name: nonEmptyString.max(255),
+  description: z.string().trim().max(500).optional(),
+  icon: z.string().max(50).optional(),
+  category: z
+    .enum(['meetings', 'engineering', 'product', 'operations', 'general', 'custom'])
+    .optional(),
+  content: z.record(z.string(), z.unknown()), // ProseMirror JSON
+})

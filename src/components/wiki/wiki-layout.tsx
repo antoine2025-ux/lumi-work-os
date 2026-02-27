@@ -42,8 +42,10 @@ import { useWorkspace } from '@/lib/workspace-context'
 import { CreateSpaceDialog } from '@/components/spaces/create-space-dialog'
 import { useRecentPages } from '@/hooks/use-wiki-pages'
 import { TemplateSelector } from '@/components/wiki/TemplateSelector'
+import { SaveAsTemplateDialog } from '@/components/wiki/SaveAsTemplateDialog'
 import { EMPTY_TIPTAP_DOC } from '@/lib/wiki/constants'
 import type { WikiTemplate } from '@/lib/wiki/templates'
+import { useToast } from '@/components/ui/use-toast'
 
 interface WikiLayoutProps {
   children: React.ReactNode
@@ -133,9 +135,11 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
   const [isSavingWorkspace, setIsSavingWorkspace] = useState(false)
   const [showWorkspaceSelectDialog, setShowWorkspaceSelectDialog] = useState(false)
   const [showTemplateDialog, setShowTemplateDialog] = useState(false)
+  const [showSaveAsTemplateDialog, setShowSaveAsTemplateDialog] = useState(false)
   const [selectedWorkspaceForPage, setSelectedWorkspaceForPage] = useState<string | null>(null)
   const [activeEditorPage, setActiveEditorPage] = useState<ActiveEditorPage | null>(null)
   const pathname = usePathname() || ''
+  const { toast } = useToast()
   const { data: _sidebarRecentPages, isLoading: _isLoadingSidebarRecent } = useRecentPages(5)
   const editorRef = useRef<Editor | null>(null)
   const latestContentRef = useRef<JSONContent | null>(null)
@@ -1080,6 +1084,14 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
                     <Grid3X3 className="h-4 w-4 flex-shrink-0" />
                     <span>Use a template</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveAsTemplateDialog(true)}
+                    className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap"
+                  >
+                    <FileText className="h-4 w-4 flex-shrink-0" />
+                    <span>Save as template</span>
+                  </button>
                   <button className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap">
                     <Upload className="h-4 w-4 flex-shrink-0" />
                     <span>Import</span>
@@ -1218,6 +1230,33 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Save as Template */}
+    <SaveAsTemplateDialog
+      open={showSaveAsTemplateDialog}
+      onOpenChange={setShowSaveAsTemplateDialog}
+      defaultName={newPageTitle || 'Untitled'}
+      isSaving={isSaving}
+      onSave={async (values) => {
+        const content =
+          editorRef.current?.getJSON?.() ?? latestContentRef.current ?? EMPTY_TIPTAP_DOC
+        const res = await fetch('/api/wiki/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: values.name,
+            description: values.description,
+            category: values.category,
+            content,
+          }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error ?? 'Failed to save template')
+        }
+        toast({ title: 'Template saved', description: 'Your template has been saved successfully' })
+      }}
+    />
 
     {/* Use a template (insert into current editor) */}
     <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>

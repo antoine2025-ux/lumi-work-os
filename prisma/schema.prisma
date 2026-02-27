@@ -85,6 +85,7 @@ model User {
   wikiPagePermissions   WikiPagePermission[]
   wiki_page_views       wiki_page_views[]
   wikiPages             WikiPage[]
+  wikiTemplates         WikiTemplate[]
   wikiVersions          WikiVersion[]
   wiki_workspaces       wiki_workspaces[]
   wikiWorkspaceMembers  WikiWorkspaceMember[]
@@ -192,6 +193,7 @@ model Workspace {
   tasks                          Task[]
   wikiChunks                     WikiChunk[]
   wikiPages                      WikiPage[]
+  wikiTemplates                  WikiTemplate[]
   wiki_workspaces                wiki_workspaces[]
   workflowInstances              WorkflowInstance[]
   workflows                      Workflow[]
@@ -593,6 +595,25 @@ model WikiPage {
   @@index([updatedAt(sort: Desc)], map: "idx_wiki_pages_updated_at")
   @@index([spaceId], map: "idx_wiki_pages_space_id")
   @@map("wiki_pages")
+}
+
+model WikiTemplate {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?
+  icon        String?
+  category    String   @default("custom")
+  content     Json     // ProseMirror JSON content
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("wiki_templates")
 }
 
 model WikiFavorite {

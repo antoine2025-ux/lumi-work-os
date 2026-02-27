@@ -12,6 +12,7 @@ export type WikiTemplateCategory =
   | 'product'
   | 'operations'
   | 'general'
+  | 'custom'
 
 export interface WikiTemplate {
   id: string

@@ -1,5 +1,6 @@
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { prisma } from "@/lib/db";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import WikiPageClient from "./wiki-page-client";
 
 type PageProps = {
@@ -13,6 +14,8 @@ export default async function WikiPage({ params }: PageProps) {
   if (!isAuthenticated || !workspaceId) {
     return <WikiPageClient authorOrgInfo={null} />;
   }
+
+  setWorkspaceContext(workspaceId);
 
   // Pre-fetch just enough for the author card (the client fetches full page data itself)
   const page = await prisma.wikiPage.findFirst({

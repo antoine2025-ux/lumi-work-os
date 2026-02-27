@@ -8,6 +8,7 @@ export const WORKSPACE_SCOPED_MODELS = [
   'Epic',
   'Milestone',
   'WikiPage',
+  'WikiTemplate',
   'WikiChunk',
   'ChatSession',
   'FeatureFlag',

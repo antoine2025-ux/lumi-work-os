@@ -43,7 +43,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { TemplateSelector } from "@/components/wiki/TemplateSelector"
+import { SaveAsTemplateDialog } from "@/components/wiki/SaveAsTemplateDialog"
 import { EMPTY_TIPTAP_DOC } from "@/lib/wiki/constants"
+import { useToast } from "@/components/ui/use-toast"
 
 interface WikiPageData {
   id: string
@@ -92,6 +94,9 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
   const [showTemplateDialog, setShowTemplateDialog] = useState(false)
+  const [showSaveAsTemplateDialog, setShowSaveAsTemplateDialog] = useState(false)
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false)
+  const { toast } = useToast()
   const editorRef = useRef<(Editor & { saveNow?: () => Promise<void> }) | null>(null)
   // Check URL params for AI assistant state on mount
   const initialAIOpen = searchParams?.get('ai') === 'open'
@@ -838,6 +843,14 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                     <Settings className="h-4 w-4 flex-shrink-0" />
                     Use a template
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveAsTemplateDialog(true)}
+                    className="flex items-center gap-2 hover:text-foreground whitespace-nowrap"
+                  >
+                    <FileText className="h-4 w-4 flex-shrink-0" />
+                    Save as template
+                  </button>
                   <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
                     <Download className="h-4 w-4 flex-shrink-0" />
                     Import
@@ -858,6 +871,44 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
           )}
         </div>
       </div>
+
+      {/* Save as Template dialog */}
+      <SaveAsTemplateDialog
+        open={showSaveAsTemplateDialog}
+        onOpenChange={setShowSaveAsTemplateDialog}
+        defaultName={pageData?.title ?? "Untitled"}
+        isSaving={isSavingTemplate}
+        onSave={async (values) => {
+          setIsSavingTemplate(true)
+          try {
+            const editor = editorRef.current as (Editor & { getJSON?: () => JSONContent }) | null
+            const content =
+              pageData?.contentFormat === "JSON"
+                ? (editor?.getJSON?.() ?? pageData.contentJson ?? EMPTY_TIPTAP_DOC)
+                : EMPTY_TIPTAP_DOC
+            const res = await fetch("/api/wiki/templates", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: values.name,
+                description: values.description,
+                category: values.category,
+                content,
+              }),
+            })
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}))
+              throw new Error(data.error ?? "Failed to save template")
+            }
+            toast({
+              title: "Template saved",
+              description: "Your template has been saved successfully",
+            })
+          } finally {
+            setIsSavingTemplate(false)
+          }
+        }}
+      />
 
       {/* Use a template dialog */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
