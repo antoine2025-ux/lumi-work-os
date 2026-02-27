@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getOrgContext, requireAdmin } from "@/server/rbac";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { sendEmail } from "@/server/mailer";
 import crypto from "crypto";
 import { OrgInvitationSchema } from "@/lib/validations/org";
@@ -12,29 +14,50 @@ function token() {
 }
 
 export async function GET(req: NextRequest) {
-  const ctx = await getOrgContext(req);
-  if (!ctx.orgId) return NextResponse.json({ ok: false, error: "Unauthenticated" }, { status: 401 });
+  try {
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["VIEWER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
 
-  const invites = await prisma.orgInvitation.findMany({
-    where: { orgId: ctx.orgId },
+    const invites = await prisma.orgInvitation.findMany({
+      where: { orgId: auth.workspaceId },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
 
-  return NextResponse.json({ ok: true, invites });
+    return NextResponse.json({ ok: true, invites });
+  } catch (error) {
+    return handleApiError(error, req);
+  }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = OrgInvitationSchema.parse(await req.json());
-    const ctx = await getOrgContext(req);
-    if (!ctx.orgId) return NextResponse.json({ ok: false, error: "Unauthenticated" }, { status: 401 });
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
 
-    requireAdmin((ctx as any).canAdmin);
+    const body = OrgInvitationSchema.parse(await req.json());
 
     const created = await prisma.orgInvitation.create({
       data: {
-        orgId: ctx.orgId,
+        orgId: auth.workspaceId,
         email: body.email.toLowerCase().trim(),
         role: body.role,
         token: token(),
@@ -43,7 +66,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const org = await prisma.org.findUnique({ where: { id: ctx.orgId }, select: { name: true } });
+    const org = await prisma.org.findUnique({ where: { id: auth.workspaceId }, select: { name: true } });
     const orgName = org?.name || "your organization";
     const link = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/org/invite/${created.token}`;
 

@@ -1,30 +1,30 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  getOrgPermissionContext,
-  assertOrgCapability,
-  mapPermissionErrorToStatus,
-} from "@/lib/org/permissions.server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 
 /**
  * POST /api/org/onboarding/complete
  *
  * Sets orgCenterOnboardingCompletedAt on the workspace.
  * Idempotent: if already set, returns ok without overwriting.
- * Auth: OWNER / ADMIN only (org:settings:manage).
+ * Auth: ADMIN / OWNER only.
  */
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
-    const context = await getOrgPermissionContext();
-
-    try {
-      assertOrgCapability(context, "org:settings:manage");
-    } catch (err) {
-      return NextResponse.json(
-        { error: "Only owners or admins can complete onboarding." },
-        { status: mapPermissionErrorToStatus(err) }
-      );
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
 
     if (!prisma) {
       return NextResponse.json(
@@ -35,7 +35,7 @@ export async function POST() {
 
     // Idempotent: if already set, return ok without overwriting the timestamp
     const workspace = await prisma.workspace.findUnique({
-      where: { id: context!.orgId },
+      where: { id: auth.workspaceId },
       select: { orgCenterOnboardingCompletedAt: true },
     });
 
@@ -44,17 +44,13 @@ export async function POST() {
     }
 
     await prisma.workspace.update({
-      where: { id: context!.orgId },
+      where: { id: auth.workspaceId },
       data: { orgCenterOnboardingCompletedAt: new Date() },
     });
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
-    console.error("[POST /api/org/onboarding/complete] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to update onboarding." },
-      { status: 500 }
-    );
+    return handleApiError(error, req);
   }
 }
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { handleApiError } from "@/lib/api-errors"
 
@@ -16,7 +18,19 @@ import { handleApiError } from "@/lib/api-errors"
  */
 export async function GET(request: NextRequest) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(request);
+    const auth = await getUnifiedAuth(request);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
+
+    const workspaceId = auth.workspaceId;
     const { searchParams } = new URL(request.url);
     
     const orgId = searchParams.get("orgId") || workspaceId;
@@ -116,7 +130,19 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(request);
+    const auth = await getUnifiedAuth(request);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
+
+    const workspaceId = auth.workspaceId;
     const body = await request.json();
 
     const {

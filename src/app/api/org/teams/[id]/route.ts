@@ -1,7 +1,9 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 
 type RouteParams = {
   params: Promise<{
@@ -10,11 +12,23 @@ type RouteParams = {
 };
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: RouteParams
 ) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(_req);
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["VIEWER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
+
+    const workspaceId = auth.workspaceId;
     const { id } = await params;
 
     const team = await prisma.orgTeam.findFirst({
@@ -88,10 +102,6 @@ export async function GET(
 
     return NextResponse.json({ ok: true, team: dto });
   } catch (error) {
-    console.error("Error loading team detail:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to load team" },
-      { status: 500 }
-    );
+    return handleApiError(error, req);
   }
 }

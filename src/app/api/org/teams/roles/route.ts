@@ -1,11 +1,26 @@
 // src/app/api/org/teams/roles/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { getRolesForTeam } from "@/lib/org/roleQueries";
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["VIEWER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
+
     const { teamContextId } = await req.json().catch(() => ({}));
 
     if (!teamContextId || typeof teamContextId !== "string") {
@@ -15,14 +30,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const workspaceId = await getCurrentWorkspaceId(req);
-    if (!workspaceId) {
-      return NextResponse.json(
-        { ok: false, error: "Missing workspace" },
-        { status: 400 }
-      );
-    }
-
+    const workspaceId = auth.workspaceId;
     const roles = await getRolesForTeam(workspaceId, teamContextId);
 
     const simplified = roles.map((r) => ({
@@ -33,12 +41,8 @@ export async function POST(req: NextRequest) {
     }));
 
     return NextResponse.json({ ok: true, roles: simplified });
-  } catch (err: any) {
-    console.error("[Org] Failed to get roles for team", err);
-    return NextResponse.json(
-      { ok: false, error: err?.message ?? "Failed to get roles for team" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req);
   }
 }
 

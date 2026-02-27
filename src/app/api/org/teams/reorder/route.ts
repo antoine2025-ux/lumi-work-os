@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getOrgPermissionContext } from "@/lib/org/permissions.server";
-import { assertOrgCapability, mapPermissionErrorToStatus } from "@/lib/org/permissions.server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { isOrgCenterForceDisabled } from "@/lib/org/feature-flags";
 import { recordOrgApiHit } from "@/lib/org/monitoring.server";
 
@@ -17,22 +19,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const context = await getOrgPermissionContext();
-    if (!context) {
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       await recordOrgApiHit(routeId, 401, null, null);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    try {
-      assertOrgCapability(context, "org:structure:write");
-    } catch (err) {
-      const status = mapPermissionErrorToStatus(err);
-      await recordOrgApiHit(routeId, status, context.orgId, context.userId);
-      return NextResponse.json(
-        { error: "You don't have permission to reorder teams." },
-        { status }
-      );
-    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
 
     const body = await req.json();
     const updates: { id: string; position: number }[] = body.updates ?? [];
@@ -41,18 +39,17 @@ export async function POST(req: NextRequest) {
     await Promise.all(
       updates.map((u) =>
         prisma.orgTeam.update({
-          where: { id: u.id, workspaceId: context.orgId },
+          where: { id: u.id, workspaceId: auth.workspaceId },
           data: { order: u.position },
         })
       )
     );
 
-    await recordOrgApiHit(routeId, 200, context.orgId, context.userId);
+    await recordOrgApiHit(routeId, 200, auth.workspaceId, auth.user.userId);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[POST /api/org/teams/reorder] Error", error);
     await recordOrgApiHit(routeId, 500, null, null);
-    return NextResponse.json({ error: "Failed to reorder teams" }, { status: 500 });
+    return handleApiError(error, req);
   }
 }
 
