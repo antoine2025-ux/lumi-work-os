@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from "next/server"
-import { checkBlogAdmin } from "@/lib/blog-admin-auth"
+import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { handleApiError } from "@/lib/api-errors"
 import { blogPrisma } from "@/lib/blog-db"
 
 // GET /api/blog/admin/posts - List all posts
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const isAdmin = await checkBlogAdmin()
-    if (!isAdmin) {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["OWNER"],
+    })
+    setWorkspaceContext(auth.workspaceId)
 
     const posts = await blogPrisma.blogPost.findMany({
       orderBy: {
@@ -18,24 +28,24 @@ export async function GET(_request: NextRequest) {
 
     return NextResponse.json({ posts })
   } catch (error) {
-    console.error("Error fetching blog posts:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    return handleApiError(error)
   }
 }
 
 // POST /api/blog/admin/posts - Create new post
 export async function POST(request: NextRequest) {
   try {
-    console.log("[BLOG API] POST /api/blog/admin/posts - Starting request")
-    
-    const isAdmin = await checkBlogAdmin()
-    console.log("[BLOG API] Admin check result:", isAdmin)
-    if (!isAdmin) {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["OWNER"],
+    })
+    setWorkspaceContext(auth.workspaceId)
 
     let body
     try {
@@ -158,29 +168,7 @@ export async function POST(request: NextRequest) {
       throw prismaError // Re-throw to be caught by outer catch
     }
   } catch (error) {
-    console.error("[BLOG API] Error creating blog post:", error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    const errorStack = error instanceof Error ? error.stack : undefined
-    const errorCode = (error as any)?.code
-    console.error("[BLOG API] Error details:", { 
-      errorMessage, 
-      errorStack, 
-      errorCode,
-      error 
-    })
-    return NextResponse.json(
-      { 
-        error: "Internal server error",
-        message: errorMessage,
-        code: errorCode,
-        details: process.env.NODE_ENV === "development" ? {
-          message: errorMessage,
-          stack: errorStack,
-          code: errorCode
-        } : undefined
-      },
-      { status: 500 }
-    )
+    return handleApiError(error)
   }
 }
 

@@ -1,18 +1,27 @@
-// @ts-nocheck
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
-import { getOrgContext, requireEdit } from "@/server/rbac";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import { OrgPersonPatchSchema } from "@/lib/validations/org";
+import { revalidateTag } from "next/cache";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const ctx = await getOrgContext(req as any);
-    if (!ctx.orgId) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-    requireEdit(ctx.canEdit);
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
 
-    const workspaceId = await getCurrentWorkspaceId(req as any);
+    const workspaceId = auth.workspaceId;
     const body = OrgPersonPatchSchema.parse(await req.json());
 
     const patch = body.patch;
@@ -85,17 +94,17 @@ export async function POST(req: Request) {
 
     await prisma.auditLogEntry.create({
       data: {
-        orgId: ctx.orgId,
-        actorUserId: ctx.user?.id ?? null,
-        actorLabel: ctx.user?.name || ctx.user?.email || "Unknown user",
+        orgId: auth.workspaceId,
+        actorUserId: auth.user.userId,
+        actorLabel: auth.user.name || auth.user.email || "Unknown user",
         action: "update_person",
         targetCount: 1,
         summary: `Updated person (${body.id})`,
       },
     });
 
-    revalidateTag(`org:${ctx.orgId}:people`);
-    revalidateTag(`org:${ctx.orgId}:audit`);
+    revalidateTag(`org:${auth.workspaceId}:people`);
+    revalidateTag(`org:${auth.workspaceId}:audit`);
 
     return NextResponse.json({ ok: true, position: updated });
   } catch (error) {

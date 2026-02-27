@@ -1,21 +1,24 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getOrgContext, requireAdmin } from "@/server/rbac";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 
 export async function POST(req: NextRequest) {
   try {
-    const ctx = await getOrgContext(req);
-    if (!ctx.orgId) return NextResponse.json({ ok: false }, { status: 401 });
-    requireAdmin((ctx as any).canAdmin);
-
-    // Set workspace context for proper scoping
-    const workspaceId = await getCurrentWorkspaceId(req);
-    if (!workspaceId) return NextResponse.json({ ok: false, error: "Workspace required" }, { status: 400 });
-    setWorkspaceContext(workspaceId);
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
 
     const body = (await req.json()) as { id: string };
 
@@ -32,9 +35,9 @@ export async function POST(req: NextRequest) {
 
     await prisma.auditLogEntry.create({
       data: {
-        orgId: ctx.orgId,
-        actorUserId: ctx.user?.id ?? null,
-        actorLabel: ctx.user?.name || ctx.user?.email || "Unknown user",
+        orgId: auth.workspaceId,
+        actorUserId: auth.user.userId,
+        actorLabel: auth.user.name || auth.user.email || "Unknown user",
         action: "restore_person",
         targetCount: 1,
         summary: `Restored archived person ${body.id}`,

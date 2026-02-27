@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  getOrgPermissionContext,
-  assertOrgCapability,
-  mapPermissionErrorToStatus,
-} from "@/lib/org/permissions.server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { logOrgAudit } from "@/lib/orgAudit";
 import { handleApiError } from "@/lib/api-errors";
 
@@ -14,27 +12,26 @@ type Params = {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    const context = await getOrgPermissionContext();
-
-    try {
-      // Reuse whatever capability you use for managing member roles
-      assertOrgCapability(context, "org:member:role.change");
-    } catch (permError) {
-      const status = mapPermissionErrorToStatus(permError);
-      return NextResponse.json(
-        { error: "You are not allowed to change member roles." },
-        { status }
-      );
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
 
     const { memberId } = await params;
-    const body = await req.json().catch(() => ({} as any));
+    const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const requestedCustomRoleId =
       typeof body.customRoleId === "string" && body.customRoleId.trim().length > 0
         ? body.customRoleId.trim()
         : null;
 
-    const orgId = context!.orgId;
+    const orgId = auth.workspaceId;
 
     // Load membership and ensure it belongs to this org
     // ADAPT: Using WorkspaceMember model (workspaceId = orgId)
@@ -149,7 +146,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       : null;
 
     // Get actor info for enriched payload
-    const actorId = context!.userId;
+    const actorId = auth.user.userId;
     const actor = await prisma.user.findUnique({
       where: { id: actorId },
       select: { id: true, name: true, email: true },
