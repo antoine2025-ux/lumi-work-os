@@ -23,12 +23,18 @@ export function useKeyboardShortcuts() {
       key: "k",
       metaKey: true,
       action: () => {
-        // Trigger command palette by dispatching a custom event
-        console.log("CmdK shortcut triggered")
-        const event = new CustomEvent("openCommandPalette")
-        document.dispatchEvent(event)
+        document.dispatchEvent(new CustomEvent("openCommandPalette"))
       },
-      description: "Open command palette",
+      description: "Open command palette (Mac)",
+      category: "navigation"
+    },
+    {
+      key: "k",
+      ctrlKey: true,
+      action: () => {
+        document.dispatchEvent(new CustomEvent("openCommandPalette"))
+      },
+      description: "Open command palette (Windows/Linux)",
       category: "navigation"
     },
     {

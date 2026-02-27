@@ -5,6 +5,8 @@ import { useEffect } from "react"
 import { useWorkspace } from "@/lib/workspace-context"
 import { NavTab } from "@/components/navigation/NavTab"
 import { Clock } from "@/components/navigation/Clock"
+import { Search } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export function Header() {
   const pathname = usePathname()
@@ -37,6 +39,10 @@ export function Header() {
   const isSpacesActive = pathname?.includes("/spaces") ?? false
   const isOrgActive = pathname?.startsWith("/org") ?? false
 
+  const openSearch = () => {
+    document.dispatchEvent(new CustomEvent("openCommandPalette"))
+  }
+
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b border-border/50 sticky top-0 z-50 bg-card">
       <nav className="flex items-center gap-6">
@@ -51,7 +57,24 @@ export function Header() {
         </NavTab>
       </nav>
 
-      <Clock />
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={openSearch}
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-muted-foreground",
+            "hover:bg-muted hover:text-foreground transition-colors"
+          )}
+          aria-label="Search"
+        >
+          <Search className="h-4 w-4" />
+          <span className="hidden sm:inline">Search</span>
+          <kbd className="hidden sm:inline pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+            <span className="text-xs">⌘</span>K
+          </kbd>
+        </button>
+        <Clock />
+      </div>
     </header>
   )
 }
