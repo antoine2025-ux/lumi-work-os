@@ -27,6 +27,7 @@ import {
   Brain
 } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
@@ -47,6 +48,11 @@ import { SaveAsTemplateDialog } from "@/components/wiki/SaveAsTemplateDialog"
 import { EMPTY_TIPTAP_DOC } from "@/lib/wiki/constants"
 import { useToast } from "@/components/ui/use-toast"
 
+interface LinkedProject {
+  id: string
+  name: string
+}
+
 interface WikiPageData {
   id: string
   title: string
@@ -62,6 +68,7 @@ interface WikiPageData {
   is_featured?: boolean
   workspace_type?: string
   permissionLevel?: string
+  linkedProjects?: LinkedProject[]
 }
 
 interface AuthorOrgInfo {
@@ -760,6 +767,20 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       {/* Main Editor Area - Clean Document */}
       <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen overflow-x-hidden w-full min-w-0">
         <div className="max-w-4xl mx-auto w-full min-w-0">
+          {pageData?.linkedProjects && pageData.linkedProjects.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {pageData.linkedProjects.map((project) => (
+                <Link
+                  key={project.id}
+                  href={`/projects/${project.id}`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Part of {project.name}
+                </Link>
+              ))}
+            </div>
+          )}
           {isEditing ? (
             <>
               {/* Page Info */}

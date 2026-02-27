@@ -47,6 +47,13 @@ const WIKI_PAGE_INCLUDE = {
       }
     },
     orderBy: { version: 'desc' } as const
+  },
+  projectDocumentation: {
+    select: {
+      project: {
+        select: { id: true, name: true }
+      }
+    }
   }
 } as const
 
@@ -129,10 +136,20 @@ export async function GET(
       }
     }
 
+    // Build linkedProjects from projectDocumentation (dedupe by id)
+    const projectDoc = (page as { projectDocumentation?: Array<{ project: { id: string; name: string } }> }).projectDocumentation
+    const linkedProjects = projectDoc
+      ? Array.from(
+          new Map(projectDoc.map((pd) => [pd.project.id, pd.project])).values()
+        )
+      : []
+
     // Ensure contentFormat has a default value
+    const { projectDocumentation: _pd, ...pageRest } = page as typeof page & { projectDocumentation?: unknown }
     const response = {
-      ...page,
-      contentFormat: (page as any).contentFormat || 'HTML'
+      ...pageRest,
+      contentFormat: (page as { contentFormat?: string }).contentFormat || 'HTML',
+      linkedProjects
     }
 
     return NextResponse.json(response)

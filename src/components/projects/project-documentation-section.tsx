@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
@@ -9,10 +10,12 @@ import {
   X, 
   Plus,
   ExternalLink,
-  Loader2
+  Loader2,
+  FilePlus
 } from "lucide-react"
 import { WikiPageSelector } from "./wiki-page-selector"
 import { WikiPageBody } from "@/components/wiki/wiki-page-body"
+import { EMPTY_TIPTAP_DOC } from "@/lib/wiki/constants"
 
 interface ProjectDocumentation {
   id: string
@@ -45,16 +48,20 @@ interface WikiPageContent {
 
 interface ProjectDocumentationSectionProps {
   projectId: string
+  projectName?: string
   workspaceId: string
 }
 
 export function ProjectDocumentationSection({ 
   projectId, 
+  projectName,
   workspaceId 
 }: ProjectDocumentationSectionProps) {
+  const router = useRouter()
   const [documentation, setDocumentation] = useState<ProjectDocumentation[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAttaching, setIsAttaching] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
   const [selectedPageContent, setSelectedPageContent] = useState<WikiPageContent | null>(null)
@@ -258,6 +265,51 @@ export function ProjectDocumentationSection({
     }
   }
 
+  // Handle creating a new wiki page and linking it to the project
+  const handleCreateNewPage = async () => {
+    if (!projectName) return
+    try {
+      setIsCreating(true)
+      const createRes = await fetch("/api/wiki/pages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `${projectName} — New Page`,
+          contentJson: EMPTY_TIPTAP_DOC,
+          contentFormat: "JSON",
+          workspace_type: "team",
+          type: "PROJECT_DOC",
+        }),
+      })
+      if (!createRes.ok) {
+        const err = await createRes.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to create page")
+      }
+      const newPage = await createRes.json()
+
+      const linkRes = await fetch(`/api/projects/${projectId}/documentation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wikiPageId: newPage.id }),
+      })
+      if (!linkRes.ok) {
+        const err = await linkRes.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to link page to project")
+      }
+
+      const newDoc = await linkRes.json()
+      setDocumentation((prev) => [...prev, newDoc])
+      setSelectedDocId(newDoc.id)
+      router.push(`/wiki/${newPage.slug}?edit=true`)
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Failed to create page"
+      console.error("Error creating project doc:", error)
+      alert(msg)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   // Get space label from workspace_type
   const getSpaceLabel = (workspaceType: string | null): string => {
     if (!workspaceType) return 'Team'
@@ -325,23 +377,67 @@ export function ProjectDocumentationSection({
             )
           })}
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setIsSelectorOpen(true)}
-          disabled={isAttaching}
-          aria-label="Attach documentation"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {projectName && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleCreateNewPage}
+              disabled={isCreating}
+              aria-label="Create new page"
+            >
+              {isCreating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FilePlus className="h-4 w-4" />
+              )}
+              <span className="ml-1.5">New Page</span>
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsSelectorOpen(true)}
+            disabled={isAttaching}
+            aria-label="Attach existing documentation"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {documentation.length === 0 ? (
         <div className="text-center py-6 border-2 border-dashed border-muted rounded-lg">
           <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">
-            No documentation attached yet. Attach relevant docs from Spaces so Loopbrain can see them.
+          <p className="text-sm text-muted-foreground mb-4">
+            No documentation yet. Create your first page or attach existing docs from Spaces.
           </p>
+          <div className="flex items-center justify-center gap-2">
+            {projectName && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleCreateNewPage}
+                disabled={isCreating}
+              >
+                {isCreating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <FilePlus className="h-4 w-4 mr-2" />
+                )}
+                New Page
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSelectorOpen(true)}
+              disabled={isAttaching}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Attach existing
+            </Button>
+          </div>
         </div>
       ) : (
         <>

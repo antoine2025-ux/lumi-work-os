@@ -138,8 +138,8 @@ interface Project {
   }
 }
 
-type HeaderView = 'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'
-const VALID_HEADER_VIEWS: HeaderView[] = ['board', 'epics', 'tasks', 'calendar', 'timeline', 'files']
+type HeaderView = 'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files' | 'health'
+const VALID_HEADER_VIEWS: HeaderView[] = ['board', 'epics', 'tasks', 'calendar', 'timeline', 'files', 'health']
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -745,13 +745,6 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Project-Org Status */}
-      {project?.members && project.members.length > 0 && (
-        <div className="max-w-[1600px] mx-auto px-6 py-2">
-          <ProjectOrgStatus members={project.members} />
-        </div>
-      )}
-
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-6 pb-8">
         <div className="space-y-6">
@@ -765,6 +758,10 @@ export default function ProjectDetailPage() {
                   colors={colors}
                   onCreateEpic={handleCreateEpic}
                 />
+              </div>
+            ) : headerView === 'health' ? (
+              <div className="px-6 pt-3 pb-6">
+                <ProjectOrgStatus members={project?.members ?? []} />
               </div>
             ) : (
               <Card className="bg-background border-0 shadow-none rounded-none">
@@ -840,6 +837,7 @@ export default function ProjectDetailPage() {
                     <div className="px-6 pt-3 pb-6">
                       <ProjectDocumentationSection 
                         projectId={project.id} 
+                        projectName={project.name}
                         workspaceId={project.workspaceId || currentWorkspace.id} 
                       />
                     </div>
