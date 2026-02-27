@@ -1,5 +1,27 @@
 import { z } from 'zod'
 
+// Template data schema for project creation (built-in starter templates)
+const TemplateTaskSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
+})
+
+const TemplateTaskGroupSchema = z.object({
+  name: z.string(),
+  tasks: z.array(TemplateTaskSchema),
+})
+
+export const ProjectTemplateDataSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  icon: z.string(),
+  category: z.enum(['engineering', 'product', 'marketing', 'operations', 'general']),
+  defaultStatuses: z.array(z.string()),
+  taskGroups: z.array(TemplateTaskGroupSchema),
+})
+
 // Project schemas
 export const ProjectCreateSchema = z.object({
   workspaceId: z.string().min(1, 'Workspace ID is required'),
@@ -31,6 +53,7 @@ export const ProjectCreateSchema = z.object({
   visibility: z.enum(['PUBLIC', 'TARGETED']).optional(), // New: simplified visibility
   memberUserIds: z.array(z.string()).optional(), // New: members for TARGETED projects
   dailySummaryEnabled: z.boolean().default(false),
+  templateData: ProjectTemplateDataSchema.optional(), // Built-in starter template to apply
 }).refine(
   (data) => {
     if (data.startDate && data.endDate) {

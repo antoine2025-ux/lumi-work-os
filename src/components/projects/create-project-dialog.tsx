@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, Loader2, Target, Calendar, X, Users, LayoutGrid } from "lucide-react"
 import { setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
+import { ProjectTemplateSelector } from "@/components/projects/ProjectTemplateSelector"
+import type { ProjectTemplateData } from "@/lib/projects/templates"
 
 interface Space {
   id: string
@@ -91,6 +93,9 @@ export function CreateProjectDialog({
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>('')
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([])
 
+  // Template selection (null = Blank Project)
+  const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplateData | null>(null)
+
   // Resolve workspaceId: use initialWorkspaceId if provided, otherwise use current workspace
   // Note: This design supports a future visible workspace selector in the UI
   const resolvedWorkspaceId = initialWorkspaceId || currentWorkspace?.id
@@ -159,6 +164,7 @@ export function CreateProjectDialog({
       setSelectedOwnerId('')
       setSelectedAssigneeIds([])
       setSelectedSpaceId(initialSpaceId ?? '')
+      setSelectedTemplate(null)
     }
   }, [open, initialSpaceId])
 
@@ -260,6 +266,10 @@ export function CreateProjectDialog({
         requestBody.assigneeIds = selectedAssigneeIds
       }
 
+      if (selectedTemplate) {
+        requestBody.templateData = selectedTemplate
+      }
+
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: {
@@ -323,6 +333,12 @@ export function CreateProjectDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Template Selection */}
+          <ProjectTemplateSelector
+            selectedTemplate={selectedTemplate}
+            onSelect={setSelectedTemplate}
+          />
+
           {/* Project Name */}
           <div className="space-y-2">
             <Label htmlFor="name">Project Name *</Label>
