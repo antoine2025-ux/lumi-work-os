@@ -15,7 +15,6 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] });
     setWorkspaceContext(auth.workspaceId);
 
-    const orgId = auth.workspaceId;
     const workspaceId = auth.workspaceId;
 
     const body = (await req.json()) as {
@@ -28,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     // Capture baseline health snapshot before applying changes
     const beforeSnapshot = await prisma.orgHealthSnapshot.findFirst({
-      where: { orgId },
+      where: { orgId: workspaceId },
       orderBy: { createdAt: "desc" },
     });
 
@@ -62,7 +61,7 @@ export async function POST(req: NextRequest) {
 
       await tx.auditLogEntry.create({
         data: {
-          orgId,
+          orgId: workspaceId,
           actorUserId: auth.user.userId,
           actorLabel: auth.user.userId,
           action: "apply_issue_suggestions",
@@ -74,13 +73,13 @@ export async function POST(req: NextRequest) {
 
     if (body.suggestionRunId) {
       await prisma.loopBrainFeedback.create({
-        data: { orgId, scope: "people_issues", suggestionRunId: body.suggestionRunId, accepted: true },
+        data: { orgId: workspaceId, scope: "people_issues", suggestionRunId: body.suggestionRunId, accepted: true },
       });
 
-      const afterSnapshot = await measureOrgHealth(orgId);
+      const afterSnapshot = await measureOrgHealth(workspaceId);
       await prisma.loopBrainOutcome.create({
         data: {
-          orgId,
+          orgId: workspaceId,
           scope: "people_issues",
           suggestionRunId: body.suggestionRunId,
           beforeMetrics: beforeSnapshot?.metrics || {},
@@ -89,11 +88,11 @@ export async function POST(req: NextRequest) {
         },
       }).catch(() => null);
     } else {
-      await measureOrgHealth(orgId).catch(() => null);
+      await measureOrgHealth(workspaceId).catch(() => null);
     }
 
-    revalidateTag(`org:${orgId}:people`);
-    revalidateTag(`org:${orgId}:audit`);
+    revalidateTag(`org:${workspaceId}:people`);
+    revalidateTag(`org:${workspaceId}:audit`);
 
     return NextResponse.json({ ok: true, applied: actions.length });
   } catch {

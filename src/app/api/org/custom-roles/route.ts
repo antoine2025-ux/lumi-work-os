@@ -22,12 +22,12 @@ export async function GET(req: NextRequest) {
     const context = await getOrgPermissionContext();
     assertOrgCapability(context, "org:settings:manage");
 
-    const orgId = context!.orgId;
+    const workspaceId = auth.workspaceId;
 
     // ADAPT: After running migrations, this will work
     // The model name matches your Prisma schema (OrgCustomRole → orgCustomRole)
     const roles = await prisma.orgCustomRole.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       orderBy: { createdAt: "asc" },
     });
 
@@ -53,11 +53,11 @@ export async function POST(req: NextRequest) {
       await req.json()
     );
 
-    const orgId = context!.orgId;
+    const workspaceId = auth.workspaceId;
 
     const created = await prisma.orgCustomRole.create({
       data: {
-        workspaceId: orgId,
+        workspaceId,
         key,
         name,
         description: description || null,

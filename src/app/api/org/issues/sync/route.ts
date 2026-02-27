@@ -12,7 +12,6 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] });
     setWorkspaceContext(auth.workspaceId);
 
-    const orgId = auth.workspaceId;
     const workspaceId = auth.workspaceId;
 
     const positions = await prisma.orgPosition.findMany({
@@ -31,38 +30,38 @@ export async function POST(req: NextRequest) {
 
     for (const id of missingManager) {
       await prisma.orgPersonIssue.upsert({
-        where: { orgId_personId_type: { orgId, personId: id, type: "MISSING_MANAGER" } },
+        where: { orgId_personId_type: { orgId: workspaceId, personId: id, type: "MISSING_MANAGER" } },
         update: { lastSeenAt: now, resolvedAt: null },
-        create: { orgId, personId: id, type: "MISSING_MANAGER", firstSeenAt: now, lastSeenAt: now },
+        create: { orgId: workspaceId, personId: id, type: "MISSING_MANAGER", firstSeenAt: now, lastSeenAt: now },
       });
     }
 
     await prisma.orgPersonIssue.updateMany({
-      where: { orgId, type: "MISSING_MANAGER", resolvedAt: null, personId: { notIn: Array.from(missingManager) } },
+      where: { orgId: workspaceId, type: "MISSING_MANAGER", resolvedAt: null, personId: { notIn: Array.from(missingManager) } },
       data: { resolvedAt: now, lastSeenAt: now },
     });
 
     const missingTeam = positions.filter((p) => !p.teamId && !p.team?.id).map((p) => p.id);
     for (const id of missingTeam) {
       await prisma.orgPersonIssue.upsert({
-        where: { orgId_personId_type: { orgId, personId: id, type: "MISSING_TEAM" } },
+        where: { orgId_personId_type: { orgId: workspaceId, personId: id, type: "MISSING_TEAM" } },
         update: { lastSeenAt: now, resolvedAt: null },
-        create: { orgId, personId: id, type: "MISSING_TEAM", firstSeenAt: now, lastSeenAt: now },
+        create: { orgId: workspaceId, personId: id, type: "MISSING_TEAM", firstSeenAt: now, lastSeenAt: now },
       });
     }
 
     const missingRole = positions.filter((p) => !p.title || p.title.trim() === "").map((p) => p.id);
     for (const id of missingRole) {
       await prisma.orgPersonIssue.upsert({
-        where: { orgId_personId_type: { orgId, personId: id, type: "MISSING_ROLE" } },
+        where: { orgId_personId_type: { orgId: workspaceId, personId: id, type: "MISSING_ROLE" } },
         update: { lastSeenAt: now, resolvedAt: null },
-        create: { orgId, personId: id, type: "MISSING_ROLE", firstSeenAt: now, lastSeenAt: now },
+        create: { orgId: workspaceId, personId: id, type: "MISSING_ROLE", firstSeenAt: now, lastSeenAt: now },
       });
     }
 
     await prisma.orgPersonIssue.updateMany({
       where: {
-        orgId,
+        orgId: workspaceId,
         resolvedAt: null,
         OR: [
           { type: "MISSING_TEAM", personId: { notIn: missingTeam } },

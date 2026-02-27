@@ -12,14 +12,14 @@ export async function GET(req: NextRequest) {
     const auth = await getUnifiedAuth(req)
     await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['MEMBER'])
     setWorkspaceContext(auth.workspaceId)
-    const orgId = auth.workspaceId
+    const workspaceId = auth.workspaceId
     
     const url = new URL(req.url)
     const take = Math.max(1, Math.min(50, Number(url.searchParams.get("take") ?? 20)))
 
     // In this codebase, orgId is workspaceId, and people are Users with OrgPositions
     const positions = await prisma.orgPosition.findMany({
-      where: { workspaceId: orgId, isActive: true, userId: { not: null } } as any,
+      where: { workspaceId, isActive: true, userId: { not: null } } as any,
       select: { userId: true } as any,
       take: 2000,
     })
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     })
 
     const availabilities = await prisma.personAvailabilityHealth.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { personId: true, status: true, reason: true, updatedAt: true, createdAt: true },
       take: 5000,
     })

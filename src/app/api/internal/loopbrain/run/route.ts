@@ -129,15 +129,13 @@ export async function POST(request: NextRequest) {
   } & ProactiveEngineResult> = [];
 
   for (const workspaceId of unique) {
-    // When workspace fallback is used, orgId === workspaceId
-    const orgId = workspaceId;
     try {
-      const result = await engine.run({ workspaceId, orgId });
-      results.push({ workspaceId, orgId, ...result });
+      const result = await engine.run({ workspaceId, orgId: workspaceId });
+      results.push({ workspaceId, orgId: workspaceId, ...result });
     } catch (err) {
       results.push({
         workspaceId,
-        orgId,
+        orgId: workspaceId,
         ok: false,
         error: err instanceof Error ? err.message : "Unknown error",
       });

@@ -19,9 +19,9 @@ export async function GET(req: NextRequest) {
     })
     setWorkspaceContext(auth.workspaceId)
 
-    const orgId = auth.workspaceId
+    const workspaceId = auth.workspaceId
     const systems = await prisma.systemEntity.findMany({
-      where: { orgId },
+      where: { orgId: workspaceId },
       select: { id: true, name: true, description: true, createdAt: true } as any,
       take: 5000,
       orderBy: { createdAt: "desc" } as any,
@@ -46,13 +46,13 @@ export async function POST(req: NextRequest) {
     })
     setWorkspaceContext(auth.workspaceId)
 
-    const orgId = auth.workspaceId
+    const workspaceId = auth.workspaceId
     const body = (await req.json()) as { name?: string; description?: string }
     const name = String(body?.name ?? "").trim()
     if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 })
 
     const created = await prisma.systemEntity.create({
-      data: { orgId, name, description: body?.description ?? null },
+      data: { orgId: workspaceId, name, description: body?.description ?? null },
       select: { id: true } as any,
     })
     return NextResponse.json({ ok: true, id: created.id })

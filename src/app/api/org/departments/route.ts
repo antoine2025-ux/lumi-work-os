@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const orgId = context!.orgId;
+    const workspaceId = auth.workspaceId;
 
     if (!prisma) {
       return NextResponse.json(
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     // Check for duplicate department name
     const existingDepartment = await prisma.orgDepartment.findFirst({
       where: {
-        workspaceId: orgId,
+        workspaceId,
         name,
       },
     });
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     // TODO: adjust model/field names as needed.
     const department = await prisma.orgDepartment.create({
       data: {
-        workspaceId: orgId,
+        workspaceId,
         name,
         description: body.description?.trim() || null,
         isActive: true,
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     // Audit log
     await logOrgAudit(
       {
-        orgId,
+        orgId: workspaceId,
         action: "DEPARTMENT_CREATED",
         targetType: "DEPARTMENT",
         targetId: department.id,

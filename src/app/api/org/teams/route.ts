@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     const body = OrgTeamCreateSchema.parse(await req.json());
     const name = body.name;
-    const orgId = auth.workspaceId;
+    const workspaceId = auth.workspaceId;
 
     // DepartmentId is optional - teams can be unassigned (departmentId = null)
     // This allows teams to exist temporarily without a department
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       const department = await prisma.orgDepartment.findFirst({
         where: {
           id: body.departmentId,
-          workspaceId: orgId,
+          workspaceId,
         },
       });
 
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     // Check for duplicate team name in the same department (or unassigned)
     const existingTeam = await prisma.orgTeam.findFirst({
       where: {
-        workspaceId: orgId,
+        workspaceId,
         departmentId: body.departmentId ?? null,
         name,
       },
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     // Create team (departmentId can be null for unassigned teams)
     const team = await prisma.orgTeam.create({
       data: {
-        workspaceId: orgId,
+        workspaceId,
         departmentId: body.departmentId ?? null,
         name,
         description: body.description?.trim() || null,
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     // Audit log
     await logOrgAudit(
       {
-        orgId,
+        orgId: workspaceId,
         action: "TEAM_CREATED",
         targetType: "TEAM",
         targetId: team.id,

@@ -12,15 +12,15 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] });
     setWorkspaceContext(auth.workspaceId);
 
-    const orgId = auth.workspaceId;
+    const workspaceId = auth.workspaceId;
     const body = (await req.json()) as { id: string; role: "VIEWER" | "EDITOR" | "ADMIN" | null };
 
     const view = await prisma.savedView.findUnique({ where: { id: body.id } });
     if (!view) return NextResponse.json({ ok: false }, { status: 404 });
-    if (view.orgId !== orgId) return NextResponse.json({ ok: false }, { status: 403 });
+    if (view.orgId !== workspaceId) return NextResponse.json({ ok: false }, { status: 403 });
 
     await prisma.savedView.updateMany({
-      where: { orgId, scope: view.scope, defaultForRole: body.role as any },
+      where: { orgId: workspaceId, scope: view.scope, defaultForRole: body.role as any },
       data: { defaultForRole: null },
     });
 

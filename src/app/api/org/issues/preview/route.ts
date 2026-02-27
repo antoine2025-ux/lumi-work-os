@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] });
     setWorkspaceContext(auth.workspaceId);
 
-    const orgId = auth.workspaceId;
     const workspaceId = auth.workspaceId;
 
     const body = (await req.json()) as { personIds: string[] };
@@ -55,8 +54,8 @@ export async function POST(req: NextRequest) {
     const people = positions.map(toPersonShape);
     const allPeople = allPositions.map(toPersonShape);
 
-    const { engine, engineId } = await selectEngineForOrg({ orgId, scope: "people_issues" });
-    const suggestions = await engine.run({ context: { orgId, scope: "people_issues" }, people, allPeople });
+    const { engine, engineId } = await selectEngineForOrg({ orgId: workspaceId, scope: "people_issues" });
+    const suggestions = await engine.run({ context: { orgId: workspaceId, scope: "people_issues" }, people, allPeople });
 
     const preview = people.map((p) => {
       const s = suggestions.find((x) => x.personId === p.id);
@@ -82,10 +81,10 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const inputHash = hash({ orgId, ids });
+    const inputHash = hash({ orgId: workspaceId, ids });
     const suggestionRun = await prisma.orgSuggestionRun.create({
       data: {
-        orgId,
+        orgId: workspaceId,
         scope: "people_issues",
         inputHash,
         output: preview as Parameters<typeof prisma.orgSuggestionRun.create>[0]['data']['output'],

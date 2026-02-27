@@ -15,11 +15,11 @@ export async function GET(request: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] });
     setWorkspaceContext(auth.workspaceId);
 
-    const orgId = auth.workspaceId;
+    const workspaceId = auth.workspaceId;
 
     const roles = await prisma.role.findMany({
       where: {
-        orgId,
+        orgId: workspaceId,
       },
       include: {
         responsibilities: {
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['OWNER'] });
     setWorkspaceContext(auth.workspaceId);
 
-    const orgId = auth.workspaceId;
+    const workspaceId = auth.workspaceId;
 
     const { name, description, responsibilities } = OrgRoleCreateSchema.parse(
       await request.json()
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     // Create role with responsibilities
     const role = await prisma.role.create({
       data: {
-        orgId,
+        orgId: workspaceId,
         name: name.trim(),
         description: description?.trim() || null,
         responsibilities: {

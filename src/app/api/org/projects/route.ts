@@ -19,14 +19,12 @@ export async function GET(request: NextRequest) {
     });
     setWorkspaceContext(auth.workspaceId);
 
-    // For v1, orgId = workspaceId
-    const orgId = auth.workspaceId;
     const workspaceId = auth.workspaceId;
 
     const projects = await prisma.project.findMany({
       where: {
         OR: [
-          { orgId },
+          { orgId: workspaceId },
           { workspaceId }, // Fallback for projects without orgId
         ],
       },

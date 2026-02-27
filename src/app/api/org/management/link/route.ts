@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] })
     setWorkspaceContext(auth.workspaceId)
 
-    const orgId = await requireActiveOrgId(req)
+    const workspaceId = await requireActiveOrgId(req)
     const body = (await req.json()) as Body
 
     if (!body?.personId || !body?.managerId) {
@@ -29,11 +29,11 @@ export async function POST(req: NextRequest) {
     // Basic validation: ensure both are people in org (best-effort via OrgPosition)
     const [p1, p2] = await Promise.all([
       prisma.orgPosition?.findFirst?.({
-        where: { workspaceId: orgId, userId: body.personId, isActive: true } as any,
+        where: { workspaceId, userId: body.personId, isActive: true } as any,
         select: { userId: true } as any,
       } as any),
       prisma.orgPosition?.findFirst?.({
-        where: { workspaceId: orgId, userId: body.managerId, isActive: true } as any,
+        where: { workspaceId, userId: body.managerId, isActive: true } as any,
         select: { userId: true } as any,
       } as any),
     ])
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.personManagerLink.create({
       data: {
-        workspaceId: orgId,
+        workspaceId,
         personId: body.personId,
         managerId: body.managerId,
       },
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     // Resolve specific "People missing manager links" signal (precise)
     await prisma.orgHealthSignal.updateMany({
       where: {
-        orgId,
+        orgId: workspaceId,
         resolvedAt: null,
         dismissedAt: null,
         type: "MANAGEMENT_LOAD" as any,

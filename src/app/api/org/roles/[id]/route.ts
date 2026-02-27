@@ -75,7 +75,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['OWNER'] });
     setWorkspaceContext(auth.workspaceId);
 
-    const orgId = auth.workspaceId;
+    const workspaceId = auth.workspaceId;
 
     const { id } = await params;
     const body = await request.json();
@@ -101,7 +101,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (existingRole.orgId !== orgId) {
+    if (existingRole.orgId !== workspaceId) {
       return NextResponse.json(
         { ok: false, error: "Unauthorized" },
         { status: 403 }
@@ -166,7 +166,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['OWNER'] });
     setWorkspaceContext(auth.workspaceId);
 
-    const orgId = auth.workspaceId;
+    const workspaceId = auth.workspaceId;
 
     const { id } = await params;
 
@@ -183,7 +183,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (existingRole.orgId !== orgId) {
+    if (existingRole.orgId !== workspaceId) {
       return NextResponse.json(
         { ok: false, error: "Unauthorized" },
         { status: 403 }

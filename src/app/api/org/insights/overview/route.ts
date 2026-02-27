@@ -39,21 +39,21 @@ export async function GET(request: NextRequest) {
     });
     setWorkspaceContext(auth.workspaceId);
 
-    const orgId = auth.workspaceId;
+    const workspaceId = auth.workspaceId;
     // getOrgInsightsSnapshot requires org:insights:view (ADMIN+); map workspace role to OrgRole
     const wsRole = auth.user.roles?.[0] ?? "VIEWER";
     const orgRole: "OWNER" | "ADMIN" | "MEMBER" =
       wsRole === "OWNER" ? "OWNER" : wsRole === "ADMIN" ? "ADMIN" : "MEMBER";
-    const context = { orgId, userId: auth.user.userId, role: orgRole };
+    const context = { orgId: workspaceId, userId: auth.user.userId, role: orgRole };
 
     // Reuse existing insights loader (already cached with TTL)
-    const snapshot = await getOrgInsightsSnapshot(orgId, context, {
+    const snapshot = await getOrgInsightsSnapshot(workspaceId, context, {
       period: "month",
       periods: 6,
     });
 
     const duration = Date.now() - startedAt;
-    logOrgApiEvent("api_success", route, orgId, auth.user.userId, duration);
+    logOrgApiEvent("api_success", route, workspaceId, auth.user.userId, duration);
 
     return NextResponse.json({
       ok: true,

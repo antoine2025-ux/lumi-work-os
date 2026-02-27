@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] })
     setWorkspaceContext(auth.workspaceId)
 
-    const orgId = await requireActiveOrgId()
+    const workspaceId = await requireActiveOrgId()
     assertWriteAllowed("people.updateProfile")
     const body = (await req.json()) as Body
     const personId = String(body.id ?? "")
@@ -67,9 +67,9 @@ export async function POST(req: NextRequest) {
       const status = String(body.availability.status ?? "AVAILABLE").toUpperCase()
       const reason = body.availability.reason ? String(body.availability.reason) : null
       await prisma.personAvailabilityHealth.upsert({
-        where: { orgId_personId: { orgId, personId } } as any,
+        where: { workspaceId_personId: { workspaceId, personId } } as any,
         update: { status, reason } as any,
-        create: { orgId, personId, status, reason } as any,
+        create: { workspaceId, personId, status, reason } as any,
       } as any)
     }
 
@@ -80,15 +80,15 @@ export async function POST(req: NextRequest) {
       // Upsert skills into taxonomy
       if (cleaned.length) {
         await prisma.orgSkillTaxonomy.createMany({
-          data: cleaned.map((label) => ({ orgId, label })) as any,
+          data: cleaned.map((label) => ({ orgId: workspaceId, label })) as any,
           skipDuplicates: true,
         } as any)
       }
       
-      await prisma.personSkill.deleteMany({ where: { orgId, personId } as any })
+      await prisma.personSkill.deleteMany({ where: { orgId: workspaceId, personId } as any })
       if (cleaned.length) {
         await prisma.personSkill.createMany({
-          data: cleaned.map((skill) => ({ orgId, personId, skill })) as any,
+          data: cleaned.map((skill) => ({ orgId: workspaceId, personId, skill })) as any,
           skipDuplicates: true,
         } as any)
       }
@@ -104,15 +104,15 @@ export async function POST(req: NextRequest) {
       // Upsert roles into taxonomy
       if (cleaned.length) {
         await prisma.orgRoleTaxonomy.createMany({
-          data: cleaned.map((r) => ({ orgId, label: r.role })) as any,
+          data: cleaned.map((r) => ({ orgId: workspaceId, label: r.role })) as any,
           skipDuplicates: true,
         } as any)
       }
 
-      await prisma.personRoleAssignment.deleteMany({ where: { orgId, personId } as any })
+      await prisma.personRoleAssignment.deleteMany({ where: { orgId: workspaceId, personId } as any })
       if (cleaned.length) {
         await prisma.personRoleAssignment.createMany({
-          data: cleaned.map((r) => ({ orgId, personId, role: r.role, percent: Math.round(r.percent) })) as any,
+          data: cleaned.map((r) => ({ orgId: workspaceId, personId, role: r.role, percent: Math.round(r.percent) })) as any,
           skipDuplicates: true,
         } as any)
       }

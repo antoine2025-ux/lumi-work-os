@@ -65,14 +65,12 @@ export async function POST(request: NextRequest) {
   }> = [];
 
   for (const workspaceId of unique) {
-    // When workspace fallback is used, orgId === workspaceId
-    const orgId = workspaceId;
-    const result = await runPeopleIssuesSuggestionsForOrg({ orgId, workspaceId });
+    const result = await runPeopleIssuesSuggestionsForOrg({ orgId: workspaceId, workspaceId });
 
     if (result.ok) {
       results.push({
         workspaceId,
-        orgId,
+        orgId: workspaceId,
         ok: true,
         suggestionRunId: result.suggestionRunId,
         suggestionCount: result.suggestionCount,
@@ -81,7 +79,7 @@ export async function POST(request: NextRequest) {
     } else if (!result.ok && 'skipped' in result) {
       results.push({
         workspaceId,
-        orgId,
+        orgId: workspaceId,
         ok: false,
         skipped: true,
         reason: result.reason,
@@ -89,7 +87,7 @@ export async function POST(request: NextRequest) {
     } else if (!result.ok) {
       results.push({
         workspaceId,
-        orgId,
+        orgId: workspaceId,
         ok: false,
         error: result.error,
       });

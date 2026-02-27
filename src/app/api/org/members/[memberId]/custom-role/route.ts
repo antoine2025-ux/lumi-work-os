@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         ? body.customRoleId.trim()
         : null;
 
-    const orgId = auth.workspaceId;
+    const workspaceId = auth.workspaceId;
 
     // Load membership and ensure it belongs to this org
     // ADAPT: Using WorkspaceMember model (workspaceId = orgId)
@@ -49,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       },
     });
 
-    if (!membership || membership.workspaceId !== orgId) {
+    if (!membership || membership.workspaceId !== workspaceId) {
       return NextResponse.json(
         { error: "Member not found in this org." },
         { status: 404 }
@@ -87,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
       await logOrgAudit(
         {
-          orgId,
+          orgId: workspaceId,
           action: "MEMBER_CUSTOM_ROLE_UPDATED",
           targetType: "MEMBER",
           targetId: memberId,
@@ -113,7 +113,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       where: { id: requestedCustomRoleId },
     });
 
-    if (!customRole || customRole.workspaceId !== orgId) {
+    if (!customRole || customRole.workspaceId !== workspaceId) {
       return NextResponse.json(
         { error: "Custom role not found in this org." },
         { status: 400 }
@@ -154,7 +154,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     await logOrgAudit(
       {
-        orgId,
+        orgId: workspaceId,
         action: "MEMBER_CUSTOM_ROLE_UPDATED",
         targetType: "MEMBER",
         targetId: memberId,

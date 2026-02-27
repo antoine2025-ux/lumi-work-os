@@ -11,12 +11,12 @@ export async function GET(req: NextRequest) {
     const auth = await getUnifiedAuth(req)
     await assertWorkspaceAccess(auth.user.userId, auth.workspaceId, ['MEMBER'])
     setWorkspaceContext(auth.workspaceId)
-    const orgId = auth.workspaceId
+    const workspaceId = auth.workspaceId
     
     const url = new URL(req.url)
     const personId = String(url.searchParams.get("id") ?? "")
     if (!personId) return NextResponse.json({ error: "id required" }, { status: 400 })
-    const profile = await getPersonProfile(orgId, personId)
+    const profile = await getPersonProfile(workspaceId, personId)
     if (!profile) return NextResponse.json({ error: "not found" }, { status: 404 })
     return NextResponse.json({ ok: true, profile })
   } catch (error) {
