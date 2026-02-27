@@ -54,6 +54,7 @@ const CreateItemDialog = dynamic(() => import("@/components/projects/create-item
 const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
 const ProjectOrgStatus = dynamic(() => import("@/components/projects/project-org-status").then(mod => ({ default: mod.ProjectOrgStatus })), { ssr: false })
 const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
+const TaskTableView = dynamic(() => import("@/components/projects/TaskTableView").then(mod => ({ default: mod.TaskTableView })), { ssr: false })
 
 interface Project {
   id: string
@@ -187,7 +188,7 @@ export default function ProjectDetailPage() {
   const [isTaskListFullscreen, setIsTaskListFullscreen] = useState(false)
   const [_taskViewMode, _setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
   const [currentView, setCurrentView] = useState<ViewMode>('board')
-  const [headerView, setHeaderView] = useState<'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files' | 'health'>('board')
+  const [headerView, setHeaderView] = useState<'board' | 'epics' | 'tasks' | 'table' | 'calendar' | 'timeline' | 'files' | 'health'>('board')
   const [showCelebration, setShowCelebration] = useState(false)
   const [wasCompleted, setWasCompleted] = useState(false)
   const [filteredTasks, setFilteredTasks] = useState<KanbanTask[]>([])
@@ -672,6 +673,7 @@ export default function ProjectDetailPage() {
               if (view === 'board') setCurrentView('board')
               else if (view === 'calendar') setCurrentView('calendar')
               else if (view === 'tasks') setCurrentView('list')
+              else if (view === 'table') setCurrentView('list')
               // TODO: Handle epics, timeline, files views
             }}
             onEdit={() => {
@@ -873,6 +875,14 @@ export default function ProjectDetailPage() {
                       workspaceId={currentWorkspace?.id || 'workspace-1'}
                       isFullscreen={false}
                       onToggleFullscreen={() => setIsTaskListFullscreen(true)}
+                    />
+                  )}
+
+                  {headerView === 'table' && (
+                    <TaskTableView
+                      projectId={projectId}
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                      onTasksUpdated={loadProject}
                     />
                   )}
                   

@@ -48,6 +48,7 @@ const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mo
 const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
 const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
 const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
+const TaskTableView = dynamic(() => import("@/components/projects/TaskTableView").then(mod => ({ default: mod.TaskTableView })), { ssr: false })
 
 import { ProjectOrgStatus } from '@/components/projects/project-org-status'
 import type { TaskFilter } from '@/components/search/task-search-filter'
@@ -138,8 +139,8 @@ interface Project {
   }
 }
 
-type HeaderView = 'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files' | 'health'
-const VALID_HEADER_VIEWS: HeaderView[] = ['board', 'epics', 'tasks', 'calendar', 'timeline', 'files', 'health']
+type HeaderView = 'board' | 'epics' | 'tasks' | 'table' | 'calendar' | 'timeline' | 'files' | 'health'
+const VALID_HEADER_VIEWS: HeaderView[] = ['board', 'epics', 'tasks', 'table', 'calendar', 'timeline', 'files', 'health']
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -811,14 +812,22 @@ export default function ProjectDetailPage() {
                   )}
                   
                   {headerView === 'tasks' && (
-                    <TaskList 
-                      projectId={projectId} 
+                    <TaskList
+                      projectId={projectId}
                       workspaceId={currentWorkspace?.id || 'workspace-1'}
                       isFullscreen={false}
                       onToggleFullscreen={() => setIsTaskListFullscreen(true)}
                     />
                   )}
-                  
+
+                  {headerView === 'table' && (
+                    <TaskTableView
+                      projectId={projectId}
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                      onTasksUpdated={loadProject}
+                    />
+                  )}
+
                   {headerView === 'calendar' && (
                     <CalendarView 
                       projectId={projectId} 

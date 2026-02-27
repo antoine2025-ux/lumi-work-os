@@ -40,8 +40,8 @@ interface ProjectHeaderProps {
     border: string
     success: string
   }
-  currentView?: 'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files' | 'health'
-  onViewChange?: (view: 'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files' | 'health') => void
+  currentView?: 'board' | 'epics' | 'tasks' | 'table' | 'calendar' | 'timeline' | 'files' | 'health'
+  onViewChange?: (view: 'board' | 'epics' | 'tasks' | 'table' | 'calendar' | 'timeline' | 'files' | 'health') => void
   onMoreClick?: () => void
   channelHints?: string[]
   onEdit?: () => void
@@ -206,6 +206,20 @@ export function ProjectHeader({
           >
             Tasks
             {currentView === 'tasks' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ backgroundColor: colors.primary }} />
+            )}
+          </button>
+          <button
+            onClick={() => onViewChange?.('table')}
+            className={`px-3 py-1.5 text-sm font-medium transition-colors relative ${
+              currentView === 'table'
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            style={currentView === 'table' ? { color: colors.text } : {}}
+          >
+            Table
+            {currentView === 'table' && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ backgroundColor: colors.primary }} />
             )}
           </button>
