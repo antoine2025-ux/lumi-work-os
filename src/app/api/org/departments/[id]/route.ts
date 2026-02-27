@@ -200,9 +200,8 @@ export async function DELETE(
       );
     }
 
-    // Get actor user ID for audit logging
-    const auth = await getUnifiedAuth(req);
-    const actorUserId = auth?.user?.userId || "system";
+    // Get actor user ID for audit logging (auth already obtained above)
+    const actorUserId = auth.user.userId || "system";
 
     if (hardDelete) {
       // Hard delete (admin-only): check audit logs and resolved issues

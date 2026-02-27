@@ -42,6 +42,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { TemplateSelector } from "@/components/wiki/TemplateSelector"
+import { EMPTY_TIPTAP_DOC } from "@/lib/wiki/constants"
 
 interface WikiPageData {
   id: string
@@ -89,6 +91,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false)
   const editorRef = useRef<(Editor & { saveNow?: () => Promise<void> }) | null>(null)
   // Check URL params for AI assistant state on mount
   const initialAIOpen = searchParams?.get('ai') === 'open'
@@ -827,7 +830,11 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                 )}
                 {/* Action Suggestions - Only show when editing */}
                 <div className="flex items-center gap-3 sm:gap-6 text-sm text-muted-foreground mt-8 flex-wrap overflow-x-auto w-full">
-                  <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplateDialog(true)}
+                    className="flex items-center gap-2 hover:text-foreground whitespace-nowrap"
+                  >
                     <Settings className="h-4 w-4 flex-shrink-0" />
                     Use a template
                   </button>
@@ -851,6 +858,37 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
           )}
         </div>
       </div>
+
+      {/* Use a template dialog */}
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-light text-2xl">Use a template</DialogTitle>
+            <DialogDescription className="text-base font-light">
+              Replace your content with a template
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 min-h-0 py-2">
+            <TemplateSelector
+              onSelect={(template) => {
+                setShowTemplateDialog(false)
+                const editor = editorRef.current as (Editor & { commands?: { setContent: (c: JSONContent) => void } }) | null
+                if (editor?.commands?.setContent) {
+                  editor.commands.setContent(template?.content ?? EMPTY_TIPTAP_DOC)
+                }
+                if (template && pageData) {
+                  setPageData({ ...pageData, contentJson: template.content as JSONContent })
+                }
+              }}
+              onCancel={() => setShowTemplateDialog(false)}
+              workspaces={[]}
+              selectedWorkspaceId={null}
+              onWorkspaceChange={() => {}}
+              hideWorkspaceSelector
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Upgrade Dialog */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>

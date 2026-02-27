@@ -34,7 +34,7 @@ const TOTAL_STEPS = 5
 export default function OnboardingStepPage() {
   const params = useParams()
   const router = useRouter()
-  const { update: updateSession } = useSession()
+  const { data: session, update: updateSession } = useSession()
 
   const stepParam = Number(params.step)
   const step = Number.isInteger(stepParam) && stepParam >= 1 && stepParam <= TOTAL_STEPS ? stepParam : 1
@@ -189,7 +189,14 @@ export default function OnboardingStepPage() {
 
       {step === 1 && (
         <Step1Workspace
-          defaultValues={progress?.orgName ? { workspaceName: progress.orgName } : undefined}
+          defaultValues={
+            progress?.orgName || session?.user?.name
+              ? {
+                  ...(progress?.orgName ? { workspaceName: progress.orgName } : {}),
+                  ...(session?.user?.name ? { adminName: session.user.name } : {}),
+                }
+              : undefined
+          }
           submitting={submitting}
           onSubmit={data => submitStep(1, data)}
         />
