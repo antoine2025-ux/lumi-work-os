@@ -5,6 +5,7 @@ import { useEffect } from "react"
 import { useWorkspace } from "@/lib/workspace-context"
 import { NavTab } from "@/components/navigation/NavTab"
 import { Clock } from "@/components/navigation/Clock"
+import { NotificationCenter } from "@/components/notifications/NotificationCenter"
 import { Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -73,6 +74,7 @@ export function Header() {
             <span className="text-xs">⌘</span>K
           </kbd>
         </button>
+        <NotificationCenter />
         <Clock />
       </div>
     </header>
