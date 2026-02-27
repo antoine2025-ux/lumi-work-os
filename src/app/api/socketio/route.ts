@@ -1,23 +1,22 @@
 import { NextRequest } from 'next/server'
-import { Server as SocketIOServer } from 'socket.io'
 
-const io: SocketIOServer | null = null
-
+/**
+ * Socket.io health/info endpoint.
+ * WebSocket upgrade happens at the HTTP server level (custom server), not in this route.
+ * Use npm run dev:realtime or npm start to enable Socket.io.
+ */
 export async function GET(_req: NextRequest) {
-  if (!io) {
-    // This is a workaround for Next.js App Router
-    // In a real implementation, you'd need to set up the Socket.io server
-    // at the application level, not in an API route
-    return new Response('Socket.io server not initialized', { status: 500 })
-  }
-  
-  return new Response('Socket.io server is running', { status: 200 })
+  return Response.json({
+    status: 'ok',
+    message:
+      'Socket.io is served by the custom server at the default path. Use npm run dev:realtime or npm start.',
+  })
 }
 
 export async function POST(_req: NextRequest) {
-  if (!io) {
-    return new Response('Socket.io server not initialized', { status: 500 })
-  }
-  
-  return new Response('Socket.io server is running', { status: 200 })
+  return Response.json({
+    status: 'ok',
+    message:
+      'Socket.io is served by the custom server at the default path. Use npm run dev:realtime or npm start.',
+  })
 }

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "PORT=3000 next dev",
     "dev:turbo": "next dev --turbo",
-    "dev:realtime": "node server.js",
+    "dev:realtime": "tsx server.js",
     "dev:clear-cache": "rm -rf .next && echo '✅ Cleared .next build cache'",
     "dev:free-port": "./scripts/free-port-auto.sh 3000",
     "dev:free-port:all": "./scripts/free-port-auto.sh 3000 && ./scripts/free-port-auto.sh 3001 && ./scripts/free-port-auto.sh 3002",
@@ -19,7 +19,7 @@
     "db:seed:loopwell": "node prisma/seed-loopwell-mock.js",
     "db:seed:loopwell:ws": "node prisma/seed-loopwell-mock.js",
     "db:seed:org": "tsx prisma/seed/org-seed.ts",
-    "start": "NODE_ENV=production node server.js",
+    "start": "NODE_ENV=production tsx server.js",
     "start:e2e": "npm run build && next start -p 3000",
     "lint": "eslint",
     "seed": "ts-node prisma/seed.ts",

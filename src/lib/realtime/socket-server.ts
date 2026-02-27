@@ -5,6 +5,7 @@ import { startEntityGraphListener } from '@/lib/loopbrain/event-listener'
 import { emitEvent } from '@/lib/events/emit'
 import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
 import { calculateCompletionDays } from '@/lib/org/listeners/utils'
+import { setSocketServer } from '@/lib/pm/events'
 
 const prisma = new PrismaClient()
 
@@ -66,6 +67,11 @@ export interface ClientToServerEvents {
   leaveProject: (projectId: string) => void
   joinWikiPage: (pageId: string) => void
   leaveWikiPage: (pageId: string) => void
+  // Phase 1: page/project rooms for collaborative editing
+  'join:page': (pageId: string) => void
+  'leave:page': (pageId: string) => void
+  'join:project': (projectId: string) => void
+  'leave:project': (projectId: string) => void
 
   // Task events
   updateTask: (data: { taskId: string; updates: Record<string, unknown> }) => void
@@ -148,6 +154,11 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
     // Handle user authentication and data
     socket.on('authenticate', async (data: { userId: string; userName: string; workspaceId: string }) => {
       socket.data = data
+
+      // Phase 1: Join workspace room for workspace-scoped events
+      if (data.workspaceId) {
+        socket.join(`workspace:${data.workspaceId}`)
+      }
       
       // Add to active users
       activeUsers.set(socket.id, {
@@ -231,6 +242,45 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
             wikiEditors.delete(pageId)
           }
         }
+      }
+    })
+
+    // Phase 1: page room management (page:${pageId}) — for collaborative editing
+    // TODO: JWT handshake auth; path /api/socketio migration
+    socket.on('join:page', (pageId: string) => {
+      socket.join(`page:${pageId}`)
+    })
+
+    socket.on('leave:page', (pageId: string) => {
+      socket.leave(`page:${pageId}`)
+    })
+
+    socket.on('join:project', (projectId: string) => {
+      socket.join(`project:${projectId}`)
+      if (socket.data) {
+        activeUsers.set(socket.id, {
+          ...activeUsers.get(socket.id)!,
+          currentProject: projectId
+        })
+        socket.to(`project:${projectId}`).emit('userJoined', {
+          userId: socket.data.userId,
+          userName: socket.data.userName,
+          projectId
+        })
+      }
+    })
+
+    socket.on('leave:project', (projectId: string) => {
+      socket.leave(`project:${projectId}`)
+      if (socket.data) {
+        activeUsers.set(socket.id, {
+          ...activeUsers.get(socket.id)!,
+          currentProject: undefined
+        })
+        socket.to(`project:${projectId}`).emit('userLeft', {
+          userId: socket.data.userId,
+          projectId
+        })
       }
     })
 
@@ -539,6 +589,9 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
       console.log(`User disconnected: ${socket.id}`)
     })
   })
+
+  // Wire shared instance so API routes can emit via getSocketServer()
+  setSocketServer(io)
 
   return io
 }
