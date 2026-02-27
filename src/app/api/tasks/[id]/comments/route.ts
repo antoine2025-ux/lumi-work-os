@@ -225,18 +225,28 @@ export async function POST(
       }).catch((err) => console.error('Failed to create comment notification:', err))
     }
 
-    // TODO: Send notifications to mentioned users
-    // This would integrate with your existing notification system
+    // Mention notifications (fire-and-forget)
     if (validatedData.mentions && validatedData.mentions.length > 0) {
-      // Get mentioned user details for notifications
-      const mentionedUsers = await prisma.user.findMany({
-        where: { id: { in: validatedData.mentions } },
-        select: { id: true, name: true, email: true }
-      })
+      const taskUrl = `/projects/${task.projectId}/tasks/${task.id}`
+      const excerpt = validatedData.content.substring(0, 200)
+      const actorName = authCtx.user.name ?? 'Someone'
 
-      // Here you would send notifications to mentioned users
-      // Example: await sendNotification(mentionedUsers, { type: 'mention', taskId, commentId: comment.id })
-      console.log('Mentioned users:', mentionedUsers.map(u => u.name))
+      for (const mentionId of validatedData.mentions) {
+        if (mentionId === authCtx.user.userId) continue // no self-mention
+        createNotification({
+          workspaceId: authCtx.workspaceId,
+          recipientId: mentionId,
+          actorId: authCtx.user.userId,
+          type: 'MENTION',
+          title: `${actorName} mentioned you on "${task.title}"`,
+          body: excerpt,
+          entityType: 'task',
+          entityId: task.id,
+          url: taskUrl,
+        }).catch((err) =>
+          console.error('Failed to create mention notification:', err)
+        )
+      }
     }
 
     return NextResponse.json(comment)

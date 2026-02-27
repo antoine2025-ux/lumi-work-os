@@ -15,6 +15,7 @@ import { JSONContent, Editor } from '@tiptap/core'
 import { useEffect, useMemo } from 'react'
 import { Embed } from './tiptap/extensions/embed'
 import { SlashCommand } from './tiptap/extensions/slash-command'
+import { createMentionExtension } from './tiptap/extensions/mention-suggestion'
 import { useSlashCommand } from './tiptap/use-slash-command'
 import { SlashCommandMenu } from './tiptap/slash-command-menu'
 import { TableToolbar } from './tiptap/table-toolbar'
@@ -78,6 +79,7 @@ export function TipTapEditor({
       TableCell,
       Embed,
       SlashCommand,
+      createMentionExtension(),
     ],
     [placeholder]
   )
