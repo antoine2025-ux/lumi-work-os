@@ -14,6 +14,7 @@ type PeopleActionsMenuProps = {
   onAssignDepartment?: () => void;
   onAssignManager?: () => void;
   onExport?: () => void;
+  isExporting?: boolean;
 };
 
 /**
@@ -26,6 +27,7 @@ export function PeopleActionsMenu({
   onAssignTeam,
   onAssignManager,
   onExport,
+  isExporting = false,
 }: PeopleActionsMenuProps) {
   const handleAction = (action: () => void | undefined) => {
     if (action) {
@@ -146,15 +148,29 @@ export function PeopleActionsMenu({
 
           <div className="h-px bg-white/5 my-1" />
 
-          {/* Export */}
-          <button
-            type="button"
-            onClick={() => handleAction(onExport)}
-            className={actionButtonClass}
-          >
-            <Download className="h-4 w-4 text-slate-400" />
-            <span>Export people (CSV)</span>
-          </button>
+          {/* Export - ADMIN+ only */}
+          {canManagePeople ? (
+            <button
+              type="button"
+              onClick={() => handleAction(onExport)}
+              disabled={isExporting}
+              className={isExporting ? disabledButtonClass : actionButtonClass}
+            >
+              <Download className="h-4 w-4 text-slate-400" />
+              <span>{isExporting ? "Exporting…" : "Export people (CSV)"}</span>
+            </button>
+          ) : (
+            <Tooltip content="Admins only">
+              <button
+                type="button"
+                disabled
+                className={disabledButtonClass}
+              >
+                <Download className="h-4 w-4 text-slate-400" />
+                <span>Export people (CSV)</span>
+              </button>
+            </Tooltip>
+          )}
         </div>
       </PopoverContent>
     </Popover>

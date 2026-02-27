@@ -22,7 +22,7 @@ import { PersonIdentityCell } from "@/components/org/people/PersonIdentityCell";
 import { DeletePersonModal } from "@/components/org/people/DeletePersonModal";
 import { getDisplayName, getPersonDisplayBadges } from "@/lib/org/personDisplay";
 import { cn } from "@/lib/utils";
-import { MoreVertical, Trash2, Eye, Edit } from "lucide-react";
+import { MoreVertical, Trash2, Eye, Edit, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
 import { useOrgUrl } from "@/hooks/useOrgUrl";
+import { canRole } from "@/lib/orgPermissions";
+import { useToast } from "@/components/ui/use-toast";
 import type { OrgPerson } from "@/types/org";
 
 type AvailabilityStatus = "UNKNOWN" | "AVAILABLE" | "PARTIALLY_AVAILABLE" | "UNAVAILABLE";
@@ -71,7 +73,10 @@ export function PeopleListClient({
   const q = externalQuery !== undefined ? externalQuery : internalQ;
   const { role } = useCurrentOrgRole();
   const isOwner = role === "OWNER";
-  
+  const canManagePeople = canRole(role, "managePeople");
+  const { toast } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
+
   // Delete modal state
   const [personToDelete, setPersonToDelete] = useState<OrgPerson | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -256,6 +261,30 @@ export function PeopleListClient({
     }
   }, [personToDelete, peopleQ]);
 
+  const handleExport = useCallback(async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const response = await fetch("/api/org/people/export", { credentials: "include" });
+      if (!response.ok) {
+        toast({ variant: "destructive", title: "Export failed", description: "Could not download people export." });
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `people-export-${new Date().toISOString().split("T")[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ description: "Export downloaded" });
+    } catch {
+      toast({ variant: "destructive", title: "Export failed", description: "Could not download people export." });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, toast]);
+
   // Show skeleton while loading (no flash of empty state)
   // CRITICAL: Only show skeleton when actively loading AND we don't have cached data
   if (isLoading && !hasData) {
@@ -270,11 +299,24 @@ export function PeopleListClient({
               className="flex-1"
               disabled
             />
-            {!hideAddButton && canAdd && (
-              <Button asChild>
-                <Link href={orgUrl.newPerson}>Add person</Link>
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canManagePeople && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {isExporting ? "Exporting…" : "Export CSV"}
+                </Button>
+              )}
+              {!hideAddButton && canAdd && (
+                <Button asChild>
+                  <Link href={orgUrl.newPerson}>Add person</Link>
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
@@ -297,11 +339,24 @@ export function PeopleListClient({
               placeholder="Search people…"
               className="flex-1"
             />
-            {!hideAddButton && canAdd && (
-              <Button asChild>
-                <Link href={orgUrl.newPerson}>Add person</Link>
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canManagePeople && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {isExporting ? "Exporting…" : "Export CSV"}
+                </Button>
+              )}
+              {!hideAddButton && canAdd && (
+                <Button asChild>
+                  <Link href={orgUrl.newPerson}>Add person</Link>
+                </Button>
+              )}
+            </div>
           </div>
         )}
         <Card className="border-white/5 bg-slate-900/40 p-6">
@@ -324,11 +379,24 @@ export function PeopleListClient({
               placeholder="Search people…"
               className="flex-1"
             />
-            {!hideAddButton && canAdd && (
-              <Button asChild>
-                <Link href={orgUrl.newPerson}>Add person</Link>
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canManagePeople && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {isExporting ? "Exporting…" : "Export CSV"}
+                </Button>
+              )}
+              {!hideAddButton && canAdd && (
+                <Button asChild>
+                  <Link href={orgUrl.newPerson}>Add person</Link>
+                </Button>
+              )}
+            </div>
           </div>
         )}
         <Card className="border-white/5 bg-slate-900/40 p-6">
@@ -354,11 +422,24 @@ export function PeopleListClient({
               className="flex-1"
               disabled
             />
-            {!hideAddButton && canAdd && (
-              <Button asChild>
-                <Link href={orgUrl.newPerson}>Add person</Link>
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canManagePeople && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {isExporting ? "Exporting…" : "Export CSV"}
+                </Button>
+              )}
+              {!hideAddButton && canAdd && (
+                <Button asChild>
+                  <Link href={orgUrl.newPerson}>Add person</Link>
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
@@ -383,11 +464,24 @@ export function PeopleListClient({
             placeholder="Search people…"
             className="flex-1"
           />
-          {!hideAddButton && canAdd && (
-            <Button asChild>
-              <Link href={orgUrl.newPerson}>Add person</Link>
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {canManagePeople && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={isExporting}
+              >
+                <Download className="h-4 w-4 mr-1.5" />
+                {isExporting ? "Exporting…" : "Export CSV"}
+              </Button>
+            )}
+            {!hideAddButton && canAdd && (
+              <Button asChild>
+                <Link href={orgUrl.newPerson}>Add person</Link>
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
