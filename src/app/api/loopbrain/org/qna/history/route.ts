@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 
 export async function GET(request: NextRequest) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(request);
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["VIEWER"] });
+    setWorkspaceContext(workspaceId);
 
     const url = new URL(request.url);
     const locationParam = url.searchParams.get("location") || "all";
@@ -15,7 +23,7 @@ export async function GET(request: NextRequest) {
     const limitRaw = limitParam ? parseInt(limitParam, 10) : 20; // default 20
     const limit = Number.isNaN(limitRaw) ? 20 : Math.min(limitRaw, 50);
 
-    const where: any = { workspaceId };
+    const where: { workspaceId: string; location?: string; createdAt?: { gte: Date } } = { workspaceId };
 
     if (locationParam && locationParam !== "all") {
       where.location = locationParam;
@@ -44,11 +52,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error("Failed to load Org Q&A history", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to load history" },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }
 

@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { updatePlanProgress } from '@/lib/progress'
 import { prisma } from '@/lib/db'
-
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 const updatePlanSchema = z.object({
   name: z.string().min(1).max(80).optional(),
@@ -17,6 +20,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     const plan = await prisma.onboardingPlan.findUnique({
       where: { id: resolvedParams.id },
@@ -39,11 +49,7 @@ export async function GET(
 
     return NextResponse.json(plan)
   } catch (error) {
-    console.error('Error fetching plan:', error)
-    return NextResponse.json(
-      { error: { code: 'FETCH_ERROR', message: 'Failed to fetch plan' } },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 
@@ -53,6 +59,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     const body = await request.json()
     const validatedData = updatePlanSchema.parse(body)
@@ -103,12 +116,7 @@ export async function PATCH(
         { status: 400 }
       )
     }
-
-    console.error('Error updating plan:', error)
-    return NextResponse.json(
-      { error: { code: 'UPDATE_ERROR', message: 'Failed to update plan' } },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 
@@ -118,6 +126,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     // Check if plan exists
     const existingPlan = await prisma.onboardingPlan.findUnique({
@@ -138,11 +153,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting plan:', error)
-    return NextResponse.json(
-      { error: { code: 'DELETE_ERROR', message: 'Failed to delete plan' } },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildOrgSummaryPreambleForCurrentWorkspace } from "@/lib/loopbrain/org-prompt-builder";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { logOrgQna } from "@/lib/org-qna-log";
 import { generateAIResponse } from "@/lib/ai/providers";
 import { LOOPBRAIN_ORG_CONFIG } from "@/lib/loopbrain/config";
 import { getRefusalTitleV0, getRefusalSubtitleV0 } from "@/lib/loopbrain/contract/refusalCopy.v0";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 
 type OrgQnaRequest = {
   question?: string;
@@ -13,6 +16,13 @@ type OrgQnaRequest = {
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["MEMBER"] });
+    setWorkspaceContext(workspaceId);
+
     const body = (await request.json()) as OrgQnaRequest | null;
 
     const questionRaw = body?.question ?? "";
@@ -61,15 +71,12 @@ export async function POST(request: NextRequest) {
 
     // 3) Log the Q&A request (best effort, doesn't block response)
     try {
-      const workspaceId = await getCurrentWorkspaceId(request);
-      if (workspaceId) {
-        await logOrgQna({
-          workspaceId,
-          question,
-          location: body?.metadata?.location ?? null,
-          metadata: body?.metadata ?? null,
-        });
-      }
+      await logOrgQna({
+        workspaceId,
+        question,
+        location: body?.metadata?.location ?? null,
+        metadata: body?.metadata ?? null,
+      });
     } catch (logError) {
       // Logging failures should not affect the Q&A response
       console.error("Failed to log Org Q&A request", logError);
@@ -88,14 +95,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Loopbrain Org Q&A error", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Failed to handle Org Q&A request",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }
 

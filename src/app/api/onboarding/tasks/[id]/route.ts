@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { updatePlanProgress } from '@/lib/progress'
 import { prisma } from '@/lib/db'
-
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 const updateTaskSchema = z.object({
   status: z.enum(['PENDING', 'IN_PROGRESS', 'DONE']).optional(),
@@ -17,6 +20,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     const body = await request.json()
     const validatedData = updateTaskSchema.parse(body)
@@ -79,12 +89,7 @@ export async function PATCH(
         { status: 400 }
       )
     }
-
-    console.error('Error updating task:', error)
-    return NextResponse.json(
-      { error: { code: 'UPDATE_ERROR', message: 'Failed to update task' } },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 

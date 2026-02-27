@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/ai/chat-sessions/[id]/messages - Get messages for a session
 export async function GET(
@@ -7,6 +11,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     const messages = await prisma.chatMessage.findMany({
       where: { sessionId: resolvedParams.id },
@@ -31,10 +42,6 @@ export async function GET(
       }))
     })
   } catch (error) {
-    console.error('Error fetching messages:', error)
-    return NextResponse.json({ 
-      success: false,
-      error: 'Failed to fetch messages' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
