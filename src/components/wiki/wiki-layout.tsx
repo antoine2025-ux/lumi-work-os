@@ -108,7 +108,8 @@ interface Project {
 export function WikiLayout({ children, currentPage: _currentPage, workspaceId: propWorkspaceId }: WikiLayoutProps) {
   const router = useRouter()
   // Use centralized UserStatusContext as fallback if no prop provided
-  const { workspaceId: contextWorkspaceId } = useUserStatusContext()
+  const userStatus = useUserStatusContext()
+  const { workspaceId: contextWorkspaceId } = userStatus
   const { currentWorkspace: _currentWorkspace } = useWorkspace()
   const [_searchQuery, _setSearchQuery] = useState("")
   const [workspaceId, setWorkspaceId] = useState<string>(propWorkspaceId || contextWorkspaceId || '')
@@ -1067,6 +1068,9 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
                         }}
                     placeholder="Click here to start writing"
                     className="min-h-[400px] border-none shadow-none bg-transparent"
+                    pageId={activeEditorPage?.id}
+                    userId={userStatus?.user?.id}
+                    userName={userStatus?.user?.name ?? undefined}
                     onEditorReady={(editor) => {
                       editorRef.current = editor
                       latestContentRef.current = editor.getJSON()

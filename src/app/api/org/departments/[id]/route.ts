@@ -5,6 +5,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { OrgDepartmentUpdateSchema } from "@/lib/validations/org";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 import { handleApiError } from "@/lib/api-errors";
 
 type RouteParams = {
@@ -133,15 +135,37 @@ export async function PUT(
       );
     }
 
+    const before = {
+      name: existing.name,
+      description: existing.description ?? null,
+      ownerPersonId: existing.ownerPersonId ?? null,
+    };
+    const after = {
+      name: body.name?.trim() || existing.name,
+      description: body.description?.trim() || null,
+      ownerPersonId: body.ownerPersonId ?? null,
+    };
+
     // Update department (all fields editable)
     const updated = await prisma.orgDepartment.update({
       where: { id },
       data: {
-        name: body.name?.trim() || existing.name,
-        description: body.description?.trim() || null,
-        ownerPersonId: body.ownerPersonId || null,
+        name: after.name,
+        description: after.description,
+        ownerPersonId: after.ownerPersonId,
       },
     });
+
+    const changes = computeChanges(before, after, ["name", "description", "ownerPersonId"]);
+    logOrgAudit({
+      workspaceId,
+      entityType: "DEPARTMENT",
+      entityId: id,
+      entityName: updated.name,
+      action: "UPDATED",
+      actorId: auth.user.userId,
+      changes: changes ?? undefined,
+    }).catch((e) => console.error("[PUT /api/org/departments/[id]] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ ok: true, department: updated });
   } catch (error) {

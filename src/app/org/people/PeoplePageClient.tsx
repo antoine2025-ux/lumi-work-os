@@ -132,6 +132,9 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
   
+  // Recently changed person IDs (from audit log) — used when quickChip === "recentlyChanged"
+  const [recentlyChangedIds, setRecentlyChangedIds] = useState<Set<string> | null>(null);
+
   // Ref for scrolling to top
   const resultsRef = useRef<HTMLDivElement>(null);
   
@@ -152,6 +155,33 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
       setSearchInput(q);
     }
   }, [searchParams]);
+
+  // Fetch recently changed person IDs when "Recently Changed" filter is active
+  useEffect(() => {
+    if (filters.quickChip !== "recentlyChanged") {
+      setRecentlyChangedIds(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/org/audit-log?entityType=PERSON&limit=50")
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled || !json.ok) return;
+        const ids = new Set<string>(
+          (json.entries as Array<{ entityId: string }>).map((e) => e.entityId)
+        );
+        setRecentlyChangedIds(ids);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("[PeoplePage] Failed to fetch recently changed:", err);
+          setRecentlyChangedIds(new Set());
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.quickChip]);
 
   // Update URL with new filters
   const updateFiltersURL = useCallback((newFilters: Partial<PeopleFilters>) => {
@@ -385,7 +415,11 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
           break;
         }
         case "recentlyChanged":
-          // TODO: T2.5 — requires OrgAuditLog change history tracking
+          if (recentlyChangedIds) {
+            result = result.filter((p) => recentlyChangedIds.has(p.id));
+          } else {
+            result = []; // Loading or no data
+          }
           break;
       }
     }
@@ -450,7 +484,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
     }
 
     return result;
-  }, [shortlistFilteredPeople, deferredSearch, filters.quickChip, filters.leadersOnly, filters.unassignedOnly, filters.sort, filters.direction]);
+  }, [shortlistFilteredPeople, deferredSearch, filters.quickChip, filters.leadersOnly, filters.unassignedOnly, filters.sort, filters.direction, recentlyChangedIds]);
 
   // Handle search input change (immediate, no debounce for responsive typing)
   // useDeferredValue handles the deferral automatically
@@ -655,7 +689,19 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
           visibleCount={displayPeople.length}
           totalCount={basePeople.length}
           filters={filters}
-          activeView={filters.quickChip === "all" ? undefined : filters.quickChip === "leaders" ? "Leaders" : filters.quickChip === "unassigned" ? "Unassigned" : undefined}
+          activeView={
+            filters.quickChip === "all"
+              ? undefined
+              : filters.quickChip === "leaders"
+                ? "Leaders"
+                : filters.quickChip === "unassigned"
+                  ? "Unassigned"
+                  : filters.quickChip === "new"
+                    ? "New"
+                    : filters.quickChip === "recentlyChanged"
+                      ? "Recently Changed"
+                      : undefined
+          }
           activeShortlistName={activeShortlistId ? getShortlist(activeShortlistId)?.name : undefined}
           searchQuery={deferredSearch}
         />

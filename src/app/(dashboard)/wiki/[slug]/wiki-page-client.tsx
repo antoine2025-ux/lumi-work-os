@@ -833,6 +833,8 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                   placeholder="Click here to start writing"
                   className="min-h-[400px] border-none shadow-none bg-transparent"
                   pageId={pageData.id}
+                  userId={userStatus?.user?.id}
+                  userName={userStatus?.user?.name ?? undefined}
                   onEditorReady={(editor: Editor) => {
                     // Store editor ref for saveNow access
                     editorRef.current = editor as Editor & { saveNow?: () => Promise<void> }

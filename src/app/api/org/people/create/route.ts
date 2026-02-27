@@ -12,6 +12,7 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { OrgPersonCreateSchema } from "@/lib/validations/org";
 import { createOrgPerson } from "@/server/org/people/write";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 import { handleApiError } from "@/lib/api-errors";
 
 export async function POST(request: NextRequest) {
@@ -74,17 +75,26 @@ export async function POST(request: NextRequest) {
         entity: { type: "person", id: created.id },
         payload: { fullName, email, title, departmentId, teamId, managerId },
       });
-    } catch (contextError: any) {
+    } catch (contextError: unknown) {
       // Log but don't fail - context emission is non-blocking
-      // Common case: context_items table may not exist yet if migrations haven't run
-      console.warn("[POST /api/org/people/create] Failed to emit context object (non-blocking):", contextError?.message);
+      const err = contextError as { message?: string; code?: string };
+      console.warn("[POST /api/org/people/create] Failed to emit context object (non-blocking):", err?.message);
       if (process.env.NODE_ENV !== "production") {
         console.warn("[POST /api/org/people/create] Context error details:", {
-          message: contextError?.message,
-          code: contextError?.code,
+          message: err?.message,
+          code: err?.code,
         });
       }
     }
+
+    logOrgAudit({
+      workspaceId,
+      entityType: "PERSON",
+      entityId: created.id,
+      entityName: fullName,
+      action: "CREATED",
+      actorId: userId,
+    }).catch((e) => console.error("[POST /api/org/people/create] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ id: created.id }, { status: 201 });
   } catch (error) {
