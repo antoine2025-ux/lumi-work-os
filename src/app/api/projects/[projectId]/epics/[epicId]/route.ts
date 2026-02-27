@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { upsertEpicContext } from '@/lib/loopbrain/context-engine'
 import { logger } from '@/lib/logger'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
 import { ProjectRole } from '@prisma/client'
@@ -18,10 +19,11 @@ export async function GET(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
-    setWorkspaceContext(auth.workspaceId)
-    if (!auth.isAuthenticated || !auth.user) {
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(auth.workspaceId)
 
     const resolvedParams = await params
     const { projectId, epicId } = resolvedParams
@@ -78,10 +80,11 @@ export async function PATCH(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
-    setWorkspaceContext(auth.workspaceId)
-    if (!auth.isAuthenticated || !auth.user) {
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(auth.workspaceId)
 
     const resolvedParams = await params
     const { projectId, epicId } = resolvedParams
@@ -164,10 +167,11 @@ export async function DELETE(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
-    setWorkspaceContext(auth.workspaceId)
-    if (!auth.isAuthenticated || !auth.user) {
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(auth.workspaceId)
 
     const resolvedParams = await params
     const { projectId, epicId } = resolvedParams

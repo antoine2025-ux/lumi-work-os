@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { getOrgContext } from "@/server/rbac";
 import { handleApiError } from "@/lib/api-errors"
 
@@ -31,9 +33,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ v
     }
 
     const workspaceId = auth.workspaceId;
-    if (!workspaceId) {
-      return NextResponse.json({ ok: false, error: "No workspace" }, { status: 403 });
+    if (!auth.isAuthenticated || !workspaceId) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId, scope: "workspace", requireRole: ["MEMBER"] });
+    setWorkspaceContext(workspaceId);
 
     const resolvedParams = await params;
 

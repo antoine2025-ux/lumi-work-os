@@ -9,6 +9,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
@@ -20,9 +23,11 @@ export async function GET(request: NextRequest) {
     const auth = await getUnifiedAuth(request)
     const workspaceId = auth.workspaceId
 
-    if (!workspaceId) {
+    if (!auth.isAuthenticated || !workspaceId) {
       return NextResponse.json({ error: 'Workspace ID required' }, { status: 400 })
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId, scope: 'workspace', requireRole: ['ADMIN'] })
+    setWorkspaceContext(workspaceId)
 
     const { searchParams } = new URL(request.url)
     const sampleSize = parseInt(searchParams.get('sample') || '0', 10)
@@ -258,14 +263,7 @@ export async function GET(request: NextRequest) {
       }),
     })
   } catch (error) {
-    console.error('Error fetching index health:', error)
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch index health',
-        message: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 

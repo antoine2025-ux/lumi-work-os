@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { getOrgContext } from "@/server/rbac";
 import { handleApiError } from "@/lib/api-errors"
 
@@ -19,9 +21,11 @@ export async function GET(req: NextRequest) {
     const scope = searchParams.get("scope") || "people";
 
     const workspaceId = auth.workspaceId;
-    if (!workspaceId) {
-      return NextResponse.json({ ok: false, error: "No workspace" }, { status: 403 });
+    if (!auth.isAuthenticated || !workspaceId) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId, scope: "workspace", requireRole: ["VIEWER"] });
+    setWorkspaceContext(workspaceId);
 
     const views = await prisma.orgSavedView.findMany({
       where: { workspaceId, scope },
@@ -58,9 +62,11 @@ export async function POST(req: NextRequest) {
     }
 
     const workspaceId = auth.workspaceId;
-    if (!workspaceId) {
-      return NextResponse.json({ ok: false, error: "No workspace" }, { status: 403 });
+    if (!auth.isAuthenticated || !workspaceId) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId, scope: "workspace", requireRole: ["MEMBER"] });
+    setWorkspaceContext(workspaceId);
 
     const body = await req.json().catch(() => null);
     if (!body) return badRequest("Invalid JSON body");

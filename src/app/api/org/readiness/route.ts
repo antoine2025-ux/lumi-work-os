@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 
@@ -45,7 +46,7 @@ function riskBand(value: number, warnAt: number, riskAt: number): "ok" | "warn" 
   return "ok";
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const personId = url.searchParams.get("personId");
@@ -53,15 +54,16 @@ export async function GET(req: Request) {
 
     let auth;
     try {
-      auth = await getUnifiedAuth();
+      auth = await getUnifiedAuth(req);
     } catch {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const workspaceId = auth.workspaceId;
-    if (!workspaceId) {
-      return NextResponse.json({ error: "No active org found." }, { status: 400 });
+    if (!auth.isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId, scope: "workspace", requireRole: ["VIEWER"] });
     setWorkspaceContext(workspaceId);
 
     const now = new Date();

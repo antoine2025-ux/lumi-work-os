@@ -1,8 +1,9 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { OrgDepartmentUpdateSchema } from "@/lib/validations/org";
 import { handleApiError } from "@/lib/api-errors";
 
@@ -13,11 +14,17 @@ type RouteParams = {
 };
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: RouteParams
 ) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(_req);
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: "workspace", requireRole: ["VIEWER"] });
+    setWorkspaceContext(auth.workspaceId);
+    const workspaceId = auth.workspaceId;
     const { id } = await params;
 
     const department = await prisma.orgDepartment.findFirst({
@@ -91,7 +98,7 @@ export async function GET(
 
     return NextResponse.json({ ok: true, department: dto });
   } catch (error) {
-    return handleApiError(error, _req);
+    return handleApiError(error, req);
   }
 }
 
@@ -104,7 +111,13 @@ export async function PUT(
   { params }: RouteParams
 ) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(req);
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    setWorkspaceContext(auth.workspaceId);
+    const workspaceId = auth.workspaceId;
     const { id } = await params;
     const body = OrgDepartmentUpdateSchema.parse(await req.json());
 
@@ -146,7 +159,13 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(req);
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    setWorkspaceContext(auth.workspaceId);
+    const workspaceId = auth.workspaceId;
     const { id } = await params;
     const { searchParams } = new URL(req.url);
     const hardDelete = searchParams.get("hard") === "true";

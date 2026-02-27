@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 
 
@@ -20,6 +22,10 @@ export async function GET(
 
     // Set workspace context for Prisma scoping
     const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
     setWorkspaceContext(auth.workspaceId)
 
     const { projectId } = await params
@@ -59,28 +65,8 @@ export async function GET(
     }
 
     return NextResponse.json(reports)
-  } catch (error: unknown) {
-    console.error('Error fetching project reports:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    
-    // Handle RBAC errors
-    if (errorMessage === 'Unauthorized: User not authenticated.' || 
-        errorMessage === 'User not found.') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (errorMessage === 'Project not found.') {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    if (errorMessage === 'Forbidden: Insufficient project permissions.') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({
-      error: 'Failed to fetch project reports',
-      details: errorMessage
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 

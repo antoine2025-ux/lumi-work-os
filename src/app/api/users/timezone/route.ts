@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { isValidTimezone } from '@/lib/datetime'
 import { z } from 'zod'
@@ -26,6 +30,13 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(auth.workspaceId)
 
     // Get user ID from database
     const user = await prisma.user.findUnique({
@@ -81,8 +92,7 @@ export async function POST(request: NextRequest) {
       updated: true
     })
   } catch (error) {
-    console.error('Error setting user timezone:', error)
-    return NextResponse.json({ error: 'Failed to set timezone' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -90,7 +100,7 @@ export async function POST(request: NextRequest) {
  * GET /api/users/timezone
  * Get current user's timezone
  */
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     // Get authenticated user - use getServerSession for user-level operations
     const session = await getServerSession(authOptions)
@@ -98,6 +108,13 @@ export async function GET(_request: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(auth.workspaceId)
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -108,8 +125,7 @@ export async function GET(_request: NextRequest) {
       timezone: user?.timezone || null 
     })
   } catch (error) {
-    console.error('Error getting user timezone:', error)
-    return NextResponse.json({ error: 'Failed to get timezone' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 

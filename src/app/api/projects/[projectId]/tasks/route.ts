@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
+import { handleApiError } from '@/lib/api-errors'
 import { ProjectRole } from '@prisma/client'
 import { prisma } from '@/lib/db'
 
@@ -28,6 +30,10 @@ export async function GET(
 
     // Get authenticated user with workspace context
     const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
     setWorkspaceContext(auth.workspaceId)
     
     // Get authenticated user from database
@@ -163,11 +169,7 @@ export async function GET(
         pages: Math.ceil(totalCount / limit)
       }
     })
-  } catch (error: unknown) {
-    console.error('Error fetching project tasks:', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch project tasks',
-      details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }

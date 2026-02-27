@@ -1,14 +1,21 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as { token: string; decision: "ACCEPT" | "DECLINE" };
-    const { user, isAuthenticated } = await getUnifiedAuth(req);
+    const { user, isAuthenticated, workspaceId } = await getUnifiedAuth(req);
     if (!isAuthenticated) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // When user has workspace, enforce VIEWER role (self-action: accepting/declining own invite)
+    if (workspaceId) {
+      await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["VIEWER"] });
+      setWorkspaceContext(workspaceId);
     }
 
     const invite = await prisma.orgInvitation.findUnique({ where: { token: body.token } });
