@@ -8,6 +8,7 @@ import { assertProjectAccess } from '@/lib/pm/guards'
 import { handleApiError } from '@/lib/api-errors'
 import { logTaskHistory } from '@/lib/pm/history'
 import { emitProjectEvent } from '@/lib/pm/events'
+import { createNotification } from '@/lib/notifications/create'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 
@@ -208,6 +209,21 @@ export async function POST(
       },
       userId: session.user.id
     })
+
+    // Notify task assignee when someone else comments (fire-and-forget)
+    if (task.assignee && task.assignee.id !== authCtx.user.userId) {
+      createNotification({
+        workspaceId: authCtx.workspaceId,
+        recipientId: task.assignee.id,
+        actorId: authCtx.user.userId,
+        type: 'comment',
+        title: `New comment on "${task.title}"`,
+        body: validatedData.content.substring(0, 200),
+        entityType: 'task',
+        entityId: task.id,
+        url: `/projects/${task.projectId}/tasks/${task.id}`,
+      }).catch((err) => console.error('Failed to create comment notification:', err))
+    }
 
     // TODO: Send notifications to mentioned users
     // This would integrate with your existing notification system

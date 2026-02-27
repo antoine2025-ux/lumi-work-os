@@ -13,6 +13,7 @@ import {
 } from '@/lib/org/capacity/project-capacity'
 import { syncProjectToGoals } from '@/lib/goals/project-sync'
 import { TaskPutSchema } from '@/lib/pm/schemas'
+import { createNotification } from '@/lib/notifications/create'
 
 // Shared include for task queries
 const taskInclude = {
@@ -154,6 +155,7 @@ export async function PUT(
       },
       select: { 
         id: true,
+        assigneeId: true,
         completedAt: true,
         createdAt: true,
         projectId: true,
@@ -198,6 +200,21 @@ export async function PUT(
       data: updateData,
       include: taskInclude
     })
+
+    // Notify new assignee when assignment changed (fire-and-forget)
+    if (assigneeId !== undefined && assigneeId && assigneeId !== auth.user.userId && assigneeId !== existingTask.assigneeId) {
+      createNotification({
+        workspaceId: auth.workspaceId,
+        recipientId: assigneeId,
+        actorId: auth.user.userId,
+        type: 'task.assigned',
+        title: `You were assigned to "${task.title}"`,
+        body: task.description?.substring(0, 200) || undefined,
+        entityType: 'task',
+        entityId: task.id,
+        url: `/projects/${task.projectId}/tasks/${task.id}`,
+      }).catch((err) => console.error('Failed to create task.assigned notification:', err))
+    }
 
     // Link to org and create WorkAllocation when assignee is set
     let capacityWarning: { message: string; currentUtilization: number; newUtilization: number } | null = null
