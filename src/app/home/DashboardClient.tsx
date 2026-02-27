@@ -55,6 +55,11 @@ const QuickActions = dynamic(() => import("@/components/dashboard/quick-actions"
   ssr: false
 })
 
+const MyTasksWidget = dynamic(() => import("@/components/dashboard/my-tasks-widget").then(mod => ({ default: mod.MyTasksWidget })), {
+  loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />,
+  ssr: false
+})
+
 interface Task {
   id: string
   title: string
@@ -203,17 +208,22 @@ export default function DashboardClient({
 
 
 
-        {/* Dashboard Grid - 3x2 Layout */}
+        {/* Dashboard Grid - 3x3 Layout */}
         <div className="dashboard-grid">
-          {/* Row 1: Calendar - Email - Notifications */}
+          {/* Row 1: Calendar - Email - Recent Activity */}
           <MeetingsCard />
           <EmailWidget />
           <NotificationsWidget />
 
-          {/* Row 2: To-do - Projects - Quick Actions */}
+          {/* Row 2: My Tasks - To-do - Projects */}
+          <MyTasksWidget />
           <TodaysTodosCard />
           <ProjectsCard projects={projects} workspaceSlug={workspaceSlug} />
-          <QuickActions workspaceSlug={workspaceSlug} />
+
+          {/* Row 3: Quick Actions (full width) */}
+          <div className="col-span-3 min-h-0">
+            <QuickActions workspaceSlug={workspaceSlug} />
+          </div>
         </div>
         </div>
       </main>
@@ -222,7 +232,7 @@ export default function DashboardClient({
         .dashboard-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
-          grid-template-rows: repeat(2, 320px);
+          grid-template-rows: repeat(3, 320px);
           gap: 1.5rem;
         }
 
