@@ -363,6 +363,11 @@ export async function POST(request: NextRequest) {
     })
 
     logger.info('Wiki page created successfully', { pageId: page.id, title, workspaceId: auth.workspaceId, workspace_type: page.workspace_type })
+
+    // Link orphan attachments to this page when their URLs appear in content
+    const { extractUploadUrlsFromContent, linkAttachmentsToPage } = await import('@/lib/wiki/attachments')
+    const urls = extractUploadUrlsFromContent(finalContentJson)
+    await linkAttachmentsToPage(auth.workspaceId, page.id, urls)
     
     // Emit activity event
     emitEvent(ACTIVITY_EVENTS.WIKI_PAGE_CREATED, {

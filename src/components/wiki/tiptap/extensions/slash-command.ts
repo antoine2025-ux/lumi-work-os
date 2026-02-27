@@ -241,6 +241,19 @@ export function getSlashCommandItems(): SlashCommandItem[] {
       },
     },
     {
+      id: 'image',
+      title: 'Image',
+      description: 'Upload an image or PDF',
+      icon: 'Image',
+      keywords: ['image', 'img', 'photo', 'picture', 'upload', 'pdf'],
+      run: ({ editor, range }) => {
+        if (range) {
+          editor.chain().focus().deleteRange(range).run()
+        }
+        window.dispatchEvent(new CustomEvent('wiki:trigger-image-upload'))
+      },
+    },
+    {
       id: 'embed',
       title: 'Embed',
       description: 'Insert an embed placeholder',

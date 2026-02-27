@@ -21,7 +21,8 @@ import {
   Code, 
   CheckSquare, 
   FileText,
-  Table
+  Table,
+  Image
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -46,6 +47,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   CheckSquare,
   FileText,
   Table,
+  Image,
 }
 
 export function SlashCommandMenu({ 

@@ -3,6 +3,7 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import styles from './tiptap-editor.module.css'
 import StarterKit from '@tiptap/starter-kit'
+import Image from '@tiptap/extension-image'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -12,7 +13,8 @@ import TaskItem from '@tiptap/extension-task-item'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import { lowlight } from 'lowlight'
 import { JSONContent, Editor } from '@tiptap/core'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useCallback } from 'react'
+import { ImagePlus } from 'lucide-react'
 import { Embed } from './tiptap/extensions/embed'
 import { SlashCommand } from './tiptap/extensions/slash-command'
 import { createMentionExtension } from './tiptap/extensions/mention-suggestion'
@@ -24,6 +26,20 @@ import { BlockGutter } from './tiptap/blocks/block-gutter'
 import { useKeyboardShortcuts } from './tiptap/hooks/use-keyboard-shortcuts'
 import { getActiveBlock } from './tiptap/ui/block-targeting'
 import { extractTextFromProseMirror } from '@/lib/wiki/text-extract'
+import { uploadWikiFile } from './tiptap/hooks/use-wiki-upload'
+import { useToast } from '@/components/ui/use-toast'
+import { Button } from '@/components/ui/button'
+
+const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+const PDF_MIME = 'application/pdf'
+
+function isImageFile(file: File): boolean {
+  return IMAGE_MIMES.includes(file.type)
+}
+
+function isPdfFile(file: File): boolean {
+  return file.type === PDF_MIME
+}
 
 interface TipTapEditorProps {
   content: JSONContent | null
@@ -32,6 +48,7 @@ interface TipTapEditorProps {
   editable?: boolean
   className?: string
   onEditorReady?: (editor: Editor) => void
+  pageId?: string
 }
 
 /**
@@ -44,8 +61,12 @@ export function TipTapEditor({
   placeholder = "Type '/' for commands...",
   editable = true,
   className = "",
-  onEditorReady
+  onEditorReady,
+  pageId,
 }: TipTapEditorProps) {
+  const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const extensions = useMemo(
     () => [
       StarterKit.configure({
@@ -60,6 +81,10 @@ export function TipTapEditor({
         HTMLAttributes: {
           class: 'text-blue-600 underline cursor-pointer',
         },
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: false,
       }),
       Placeholder.configure({
         placeholder,
@@ -84,6 +109,52 @@ export function TipTapEditor({
     [placeholder]
   )
 
+  const editorRefForHandlers = useRef<Editor | null>(null)
+
+  const processFiles = useCallback(
+    async (files: File[], editorInstance: Editor) => {
+      const imageFiles = files.filter(isImageFile)
+      const pdfFiles = files.filter(isPdfFile)
+      const toProcess = [...imageFiles, ...pdfFiles]
+      if (toProcess.length === 0) return
+
+      for (const file of toProcess) {
+        try {
+          const result = await uploadWikiFile(file, pageId)
+          if (isImageFile(file)) {
+            editorInstance
+              .chain()
+              .focus()
+              .setImage({ src: result.url, alt: result.filename })
+              .run()
+          } else if (isPdfFile(file)) {
+            editorInstance
+              .chain()
+              .focus()
+              .insertContent({
+                type: 'paragraph',
+                content: [
+                  {
+                    type: 'text',
+                    marks: [{ type: 'link', attrs: { href: result.url } }],
+                    text: result.filename,
+                  },
+                ],
+              })
+              .run()
+          }
+        } catch (err) {
+          toast({
+            title: 'Upload failed',
+            description: err instanceof Error ? err.message : 'Could not upload file',
+            variant: 'destructive',
+          })
+        }
+      }
+    },
+    [pageId, toast]
+  )
+
   const editor = useEditor({
     immediatelyRender: false, // Prevent SSR hydration mismatches
     extensions,
@@ -96,9 +167,36 @@ export function TipTapEditor({
       attributes: {
         class: `prose prose-slate max-w-none focus:outline-none min-h-[200px] p-4 ${className}`,
       },
-      // Let TipTap handle paste automatically (preserves formatting from external sources)
-      handlePaste: (_view, _event) => {
-        // TipTap will handle HTML paste automatically
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items
+        if (!items) return false
+        const files: File[] = []
+        for (let i = 0; i < items.length; i++) {
+          const file = items[i]?.getAsFile()
+          if (file && (isImageFile(file) || isPdfFile(file))) {
+            files.push(file)
+          }
+        }
+        if (files.length > 0) {
+          event.preventDefault()
+          const ed = editorRefForHandlers.current
+          if (ed) processFiles(files, ed)
+          return true
+        }
+        return false
+      },
+      handleDrop: (view, event) => {
+        const files = event.dataTransfer?.files
+        if (!files || files.length === 0) return false
+        const fileList: File[] = Array.from(files).filter(
+          (f) => isImageFile(f) || isPdfFile(f)
+        )
+        if (fileList.length > 0) {
+          event.preventDefault()
+          const ed = editorRefForHandlers.current
+          if (ed) processFiles(fileList, ed)
+          return true
+        }
         return false
       },
     },
@@ -106,6 +204,10 @@ export function TipTapEditor({
       onChange(editor.getJSON())
     },
   })
+
+  useEffect(() => {
+    editorRefForHandlers.current = editor
+  }, [editor])
 
   // Slash command menu hook
   const slashCommand = useSlashCommand(editor)
@@ -141,6 +243,31 @@ export function TipTapEditor({
     }
   }, [content, editor])
 
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files
+      if (!files || files.length === 0 || !editor) return
+      const fileList = Array.from(files).filter(
+        (f) => isImageFile(f) || isPdfFile(f)
+      )
+      if (fileList.length > 0) {
+        await processFiles(fileList, editor)
+      }
+      e.target.value = ''
+    },
+    [editor, processFiles]
+  )
+
+  const triggerFileInput = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
+  useEffect(() => {
+    const handler = () => triggerFileInput()
+    window.addEventListener('wiki:trigger-image-upload', handler)
+    return () => window.removeEventListener('wiki:trigger-image-upload', handler)
+  }, [triggerFileInput])
+
   if (!editor) {
     return (
       <div className="min-h-[200px] p-4 border rounded-lg bg-muted/50 animate-pulse">
@@ -165,6 +292,27 @@ export function TipTapEditor({
 
   return (
     <div className={styles.editor}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.pdf"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+      {editable && (
+        <div className="flex items-center gap-1 mb-2 px-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={triggerFileInput}
+            title="Upload image or PDF"
+          >
+            <ImagePlus className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
       <EditorContent editor={editor} />
       {editor && editable && (
         <>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type { JSONContent } from '@tiptap/core'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
@@ -11,6 +12,7 @@ import { logger } from '@/lib/logger'
 import { WikiPageUpdateSchema } from '@/lib/validations/wiki'
 import { extractMentions } from '@/lib/mentions/extract'
 import { createNotification } from '@/lib/notifications/create'
+import { extractUploadUrlsFromContent, linkAttachmentsToPage } from '@/lib/wiki/attachments'
 
 // Shared include clause for wiki page queries (DRY)
 const WIKI_PAGE_INCLUDE = {
@@ -335,6 +337,12 @@ export async function PUT(
           workspaceId: auth.workspaceId
         }
       })
+    }
+
+    // Link orphan attachments to this page when their URLs appear in content
+    if (finalFormat === 'JSON' && contentJson) {
+      const urls = extractUploadUrlsFromContent(contentJson as JSONContent)
+      await linkAttachmentsToPage(auth.workspaceId, resolvedParams.id, urls)
     }
 
     // Emit activity event

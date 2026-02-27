@@ -636,17 +636,18 @@ model WikiFavorite {
 
 model WikiAttachment {
   id          String    @id @default(cuid())
-  pageId      String
+  pageId      String?
   workspaceId String
   fileName    String
   fileSize    Int
   fileType    String
-  fileUrl     String
+  fileUrl     String    @db.Text
   createdAt   DateTime  @default(now())
-  page        WikiPage  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  page        WikiPage? @relation(fields: [pageId], references: [id], onDelete: Cascade)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+  @@index([pageId])
   @@map("wiki_attachments")
 }
 

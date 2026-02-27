@@ -13,6 +13,7 @@ interface WikiEditorShellProps {
   placeholder?: string
   className?: string
   onEditorReady?: (editor: Editor) => void
+  pageId?: string
 }
 
 /**
@@ -24,7 +25,8 @@ export function WikiEditorShell({
   onSave,
   placeholder,
   className,
-  onEditorReady
+  onEditorReady,
+  pageId,
 }: WikiEditorShellProps) {
   const [content, setContent] = useState<JSONContent | null>(initialContent)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
@@ -246,6 +248,7 @@ export function WikiEditorShell({
         placeholder={placeholder}
         editable={true}
         onEditorReady={handleEditorReady}
+        pageId={pageId}
       />
       <div className="mt-2 flex justify-end">
         <AutosaveStatus status={saveStatus} lastSaved={lastSaved} />

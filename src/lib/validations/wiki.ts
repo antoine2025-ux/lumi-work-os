@@ -50,6 +50,18 @@ export const WikiWorkspaceCreateSchema = z.object({
   memberIds: z.array(z.string()).optional(),
 })
 
+/** POST /api/wiki/upload - file validation constants */
+export const WIKI_UPLOAD_ALLOWED_MIME = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'application/pdf',
+] as const
+
+export const WIKI_UPLOAD_MAX_SIZE = 10 * 1024 * 1024 // 10MB
+
 /** POST /api/wiki/templates */
 export const WikiTemplateCreateSchema = z.object({
   name: nonEmptyString.max(255),
