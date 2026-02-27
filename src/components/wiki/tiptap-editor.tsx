@@ -13,8 +13,8 @@ import TaskItem from '@tiptap/extension-task-item'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import { lowlight } from 'lowlight'
 import { JSONContent, Editor } from '@tiptap/core'
-import { useEffect, useMemo, useRef, useCallback } from 'react'
-import { ImagePlus } from 'lucide-react'
+import { useEffect, useMemo, useRef, useCallback, useState } from 'react'
+import { ImagePlus, Code2 } from 'lucide-react'
 import { Embed } from './tiptap/extensions/embed'
 import { SlashCommand } from './tiptap/extensions/slash-command'
 import { createMentionExtension } from './tiptap/extensions/mention-suggestion'
@@ -26,6 +26,9 @@ import { BlockGutter } from './tiptap/blocks/block-gutter'
 import { useKeyboardShortcuts } from './tiptap/hooks/use-keyboard-shortcuts'
 import { getActiveBlock } from './tiptap/ui/block-targeting'
 import { extractTextFromProseMirror } from '@/lib/wiki/text-extract'
+import { parseEmbedUrl, isEmbeddableUrl } from '@/lib/wiki/embed-utils'
+import { EmbedDialog } from './tiptap/EmbedDialog'
+import { PasteEmbedPrompt } from './tiptap/PasteEmbedPrompt'
 import { uploadWikiFile } from './tiptap/hooks/use-wiki-upload'
 import { useToast } from '@/components/ui/use-toast'
 import { Button } from '@/components/ui/button'
@@ -66,6 +69,18 @@ export function TipTapEditor({
 }: TipTapEditorProps) {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [embedDialogOpen, setEmbedDialogOpen] = useState(false)
+  const [embedDialogProvider, setEmbedDialogProvider] = useState<
+    'youtube' | 'figma' | 'loom' | undefined
+  >(undefined)
+  const [pendingPaste, setPendingPaste] = useState<{
+    url: string
+    position: { top: number; left: number }
+  } | null>(null)
+  const setPendingPasteRef = useRef(setPendingPaste)
+  useEffect(() => {
+    setPendingPasteRef.current = setPendingPaste
+  }, [])
 
   const extensions = useMemo(
     () => [
@@ -169,18 +184,33 @@ export function TipTapEditor({
       },
       handlePaste: (view, event) => {
         const items = event.clipboardData?.items
-        if (!items) return false
-        const files: File[] = []
-        for (let i = 0; i < items.length; i++) {
-          const file = items[i]?.getAsFile()
-          if (file && (isImageFile(file) || isPdfFile(file))) {
-            files.push(file)
+        if (items) {
+          const files: File[] = []
+          for (let i = 0; i < items.length; i++) {
+            const file = items[i]?.getAsFile()
+            if (file && (isImageFile(file) || isPdfFile(file))) {
+              files.push(file)
+            }
+          }
+          if (files.length > 0) {
+            event.preventDefault()
+            const ed = editorRefForHandlers.current
+            if (ed) processFiles(files, ed)
+            return true
           }
         }
-        if (files.length > 0) {
+        const text = event.clipboardData?.getData('text/plain')
+        if (text && isEmbeddableUrl(text)) {
           event.preventDefault()
-          const ed = editorRefForHandlers.current
-          if (ed) processFiles(files, ed)
+          const pos = view.state.selection.from
+          const coords = view.coordsAtPos(pos)
+          setPendingPasteRef.current?.({
+            url: text.trim(),
+            position: {
+              top: coords.bottom + window.scrollY + 4,
+              left: coords.left + window.scrollX,
+            },
+          })
           return true
         }
         return false
@@ -268,6 +298,60 @@ export function TipTapEditor({
     return () => window.removeEventListener('wiki:trigger-image-upload', handler)
   }, [triggerFileInput])
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ provider?: 'youtube' | 'figma' | 'loom' }>)
+        .detail
+      setEmbedDialogProvider(detail?.provider)
+      setEmbedDialogOpen(true)
+    }
+    window.addEventListener('wiki:open-embed-dialog', handler)
+    return () => window.removeEventListener('wiki:open-embed-dialog', handler)
+  }, [])
+
+  const handlePasteEmbed = useCallback(() => {
+    if (!editor || !pendingPaste) return
+    const result = parseEmbedUrl(pendingPaste.url)
+    if (result) {
+      editor
+        .chain()
+        .focus()
+        .setEmbed({
+          src: result.src,
+          embedUrl: result.embedUrl,
+          provider: result.provider,
+          title: result.title,
+        })
+        .run()
+    }
+    setPendingPaste(null)
+  }, [editor, pendingPaste])
+
+  const handlePasteKeepAsLink = useCallback(() => {
+    if (!editor || !pendingPaste) return
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: pendingPaste.url,
+            marks: [{ type: 'link', attrs: { href: pendingPaste.url } }],
+          },
+        ],
+      })
+      .run()
+    setPendingPaste(null)
+  }, [editor, pendingPaste])
+
+  const handlePasteDismiss = useCallback(() => {
+    if (!editor || !pendingPaste) return
+    editor.chain().focus().insertContent(pendingPaste.url).run()
+    setPendingPaste(null)
+  }, [editor, pendingPaste])
+
   if (!editor) {
     return (
       <div className="min-h-[200px] p-4 border rounded-lg bg-muted/50 animate-pulse">
@@ -311,6 +395,19 @@ export function TipTapEditor({
           >
             <ImagePlus className="h-4 w-4" />
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => {
+              setEmbedDialogProvider(undefined)
+              setEmbedDialogOpen(true)
+            }}
+            title="Embed (YouTube, Figma, Loom...)"
+          >
+            <Code2 className="h-4 w-4" />
+          </Button>
         </div>
       )}
       <EditorContent editor={editor} />
@@ -330,6 +427,21 @@ export function TipTapEditor({
         />
       )}
       {editor && <TableToolbar editor={editor} />}
+      <EmbedDialog
+        open={embedDialogOpen}
+        onClose={() => setEmbedDialogOpen(false)}
+        editor={editor}
+        initialProvider={embedDialogProvider}
+      />
+      {pendingPaste && (
+        <PasteEmbedPrompt
+          url={pendingPaste.url}
+          position={pendingPaste.position}
+          onEmbed={handlePasteEmbed}
+          onKeepAsLink={handlePasteKeepAsLink}
+          onDismiss={handlePasteDismiss}
+        />
+      )}
     </div>
   )
 }

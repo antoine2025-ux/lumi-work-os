@@ -256,31 +256,67 @@ export function getSlashCommandItems(): SlashCommandItem[] {
     {
       id: 'embed',
       title: 'Embed',
-      description: 'Insert an embed placeholder',
+      description: 'Embed a URL (YouTube, Figma, Loom...)',
       icon: 'FileText',
-      keywords: ['embed', 'iframe', 'media'],
+      keywords: ['embed', 'iframe', 'media', 'url'],
       run: ({ editor, range }) => {
-        const embedId = `embed-${Date.now()}`
         if (range) {
-          editor
-            .chain()
-            .focus()
-            .deleteRange(range)
-            .insertContent({
-              type: 'embed',
-              attrs: { embedId },
-            })
-            .run()
-        } else {
-          editor
-            .chain()
-            .focus()
-            .insertContent({
-              type: 'embed',
-              attrs: { embedId },
-            })
-            .run()
+          editor.chain().focus().deleteRange(range).run()
         }
+        window.dispatchEvent(
+          new CustomEvent('wiki:open-embed-dialog', { detail: {} })
+        )
+      },
+    },
+    {
+      id: 'youtube',
+      title: 'YouTube',
+      description: 'Embed a YouTube video',
+      icon: 'Youtube',
+      keywords: ['youtube', 'video', 'embed'],
+      run: ({ editor, range }) => {
+        if (range) {
+          editor.chain().focus().deleteRange(range).run()
+        }
+        window.dispatchEvent(
+          new CustomEvent('wiki:open-embed-dialog', {
+            detail: { provider: 'youtube' },
+          })
+        )
+      },
+    },
+    {
+      id: 'figma',
+      title: 'Figma',
+      description: 'Embed a Figma design or prototype',
+      icon: 'Figma',
+      keywords: ['figma', 'design', 'embed'],
+      run: ({ editor, range }) => {
+        if (range) {
+          editor.chain().focus().deleteRange(range).run()
+        }
+        window.dispatchEvent(
+          new CustomEvent('wiki:open-embed-dialog', {
+            detail: { provider: 'figma' },
+          })
+        )
+      },
+    },
+    {
+      id: 'loom',
+      title: 'Loom',
+      description: 'Embed a Loom video',
+      icon: 'Video',
+      keywords: ['loom', 'video', 'embed'],
+      run: ({ editor, range }) => {
+        if (range) {
+          editor.chain().focus().deleteRange(range).run()
+        }
+        window.dispatchEvent(
+          new CustomEvent('wiki:open-embed-dialog', {
+            detail: { provider: 'loom' },
+          })
+        )
       },
     },
   ]
