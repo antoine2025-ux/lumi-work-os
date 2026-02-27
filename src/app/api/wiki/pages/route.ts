@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
     logger.info('Creating new wiki page')
     const body = WikiPageCreateSchema.parse(await request.json())
     
-    const { title, content: _content, contentJson, parentId, tags = [], category = 'general', permissionLevel, workspace_type, spaceId } = body
+    const { title, content: _content, contentJson, parentId, tags = [], category = 'general', permissionLevel, workspace_type, spaceId, type: pageType } = body
     
     // Enforce JSON format for all new pages created via POST /api/wiki/pages
     // This ensures all new pages use the TipTap editor (Stage 1 requirement)
@@ -268,26 +268,54 @@ export async function POST(request: NextRequest) {
       }, { status: 409 })
     }
 
+    // Resolve space when spaceId provided (for type and workspace_type inference)
+    const space = spaceId
+      ? await prisma.space.findUnique({
+          where: { id: spaceId },
+          select: { type: true, isPersonal: true, slug: true },
+        })
+      : null
+
+    // Determine WikiPage type from explicit pageType or space
+    let finalPageType: 'TEAM_DOC' | 'COMPANY_WIKI' | 'PERSONAL_NOTE' | 'PROJECT_DOC' | null = null
+    if (pageType) {
+      finalPageType = pageType
+    } else if (space) {
+      if (space.isPersonal) finalPageType = 'PERSONAL_NOTE'
+      else if (space.type === 'WIKI') finalPageType = 'COMPANY_WIKI'
+      else finalPageType = 'TEAM_DOC'
+    }
+
     // Determine workspace_type with strict validation
-    // Priority: explicit workspace_type > permissionLevel > default to 'team'
+    // Priority: explicit workspace_type > spaceId > permissionLevel > default
     let finalWorkspaceType: string
     let finalPermissionLevel: string
-    
+
     if (workspace_type) {
-      // Explicit workspace_type provided - use it
       finalWorkspaceType = workspace_type
-      // If permissionLevel matches workspace_type, use it; otherwise infer from workspace_type
-      if (permissionLevel && (permissionLevel === 'personal' || permissionLevel === 'team')) {
-        finalPermissionLevel = permissionLevel
+      finalPermissionLevel =
+        permissionLevel && (permissionLevel === 'personal' || permissionLevel === 'team')
+          ? permissionLevel
+          : workspace_type === 'personal'
+            ? 'personal'
+            : 'team'
+    } else if (space) {
+      if (space.isPersonal) {
+        finalWorkspaceType = 'personal'
+        finalPermissionLevel = 'personal'
+      } else if (space.type === 'WIKI') {
+        finalWorkspaceType = 'company-wiki'
+        finalPermissionLevel = 'team'
       } else {
-        finalPermissionLevel = workspace_type === 'personal' ? 'personal' : 'team'
+        finalWorkspaceType = space.slug ?? 'team'
+        finalPermissionLevel = permissionLevel || 'team'
       }
     } else if (permissionLevel === 'personal') {
       // No workspace_type but permissionLevel is 'personal' - infer personal workspace
       finalWorkspaceType = 'personal'
       finalPermissionLevel = 'personal'
     } else {
-      // Default fallback - but log a warning
+      // Default fallback
       finalWorkspaceType = 'team'
       finalPermissionLevel = permissionLevel || 'team'
     }
@@ -319,6 +347,7 @@ export async function POST(request: NextRequest) {
           permissionLevel: finalPermissionLevel,
           workspace_type: finalWorkspaceType,
           spaceId: spaceId ?? null,
+          type: finalPageType,
           createdById: auth.user.userId
         },
         include: {

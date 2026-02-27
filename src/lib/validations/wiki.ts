@@ -17,6 +17,7 @@ export const WikiPageCreateSchema = z.object({
   permissionLevel: z.string().optional(),
   workspace_type: z.string().optional(),
   spaceId: z.string().optional(),
+  type: z.enum(['TEAM_DOC', 'COMPANY_WIKI', 'PERSONAL_NOTE', 'PROJECT_DOC']).optional(),
 })
 
 /** PUT /api/wiki/pages/[id] */

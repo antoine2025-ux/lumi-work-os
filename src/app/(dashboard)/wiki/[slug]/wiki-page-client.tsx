@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { RichTextEditor } from "@/components/wiki/rich-text-editor"
 import { WikiEditorShell } from "@/components/wiki/wiki-editor-shell"
-import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
+import { useLoopbrainAnchors } from "@/components/loopbrain/assistant-context"
 import { WikiPageBody } from "@/components/wiki/wiki-page-body"
 import { useUserStatusContext } from '@/providers/user-status-provider'
 import { JSONContent, Editor } from '@tiptap/core'
@@ -94,6 +94,9 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
   const initialAIOpen = searchParams?.get('ai') === 'open'
   const [isAISidebarOpen, setIsAISidebarOpen] = useState(initialAIOpen)
   const [aiDisplayMode, setAiDisplayMode] = useState<'floating' | 'sidebar'>('floating')
+
+  // Register page context for Loopbrain (layout provides the launcher)
+  useLoopbrainAnchors(pageData?.id ? { pageId: pageData.id } : {})
 
   // Get workspace ID from user status
   useEffect(() => {
@@ -848,12 +851,6 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
           )}
         </div>
       </div>
-
-      {/* Global Loopbrain Assistant */}
-      <LoopbrainAssistantLauncher 
-        mode="spaces" 
-        anchors={{ pageId: pageData?.id }} 
-      />
 
       {/* Upgrade Dialog */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>

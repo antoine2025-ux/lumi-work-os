@@ -7,7 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context";
 import { TaskSidebar } from "@/components/tasks/task-sidebar";
-import { Sidebar } from "@/components/layout/sidebar";
+import { GlobalSidebar } from "@/components/layout/GlobalSidebar";
+import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher";
+import type { LoopbrainMode } from "@/lib/loopbrain/orchestrator-types";
 // PHASE C2: Removed redirect-handler import - middleware handles redirects
 
 // Lazy load Header to reduce initial bundle size and improve LCP
@@ -25,10 +27,15 @@ export function DashboardLayoutClient({
   const pathname = usePathname();
   const [isFirstTime, setIsFirstTime] = useState(false);
   
-  // Determine if we should show the Spaces sidebar
-  // Only show on Spaces routes, not on Org or Goals/OKRs pages
-  const showSpacesSidebar = pathname?.includes('/spaces') || pathname?.includes('/wiki');
-  
+  // Derive Loopbrain mode from pathname for context-aware assistance
+  const loopbrainMode: LoopbrainMode = pathname?.includes("/spaces")
+    ? "spaces"
+    : pathname?.includes("/org")
+      ? "org"
+      : pathname?.includes("/wiki")
+        ? "spaces"
+        : "dashboard";
+
   // Use React Query for user status - automatic caching and no sequential delays
   const { data: userStatus, isLoading: isLoadingWorkspace } = useQuery({
     queryKey: ['user-status'],
@@ -134,13 +141,14 @@ export function DashboardLayoutClient({
       <div className="flex h-screen flex-col bg-[#020617]">
         <Header />
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          {showSpacesSidebar && <Sidebar />}
+          <GlobalSidebar />
           <main className="flex flex-1 flex-col min-h-0 overflow-y-auto">
             {children}
           </main>
         </div>
       </div>
       <TaskSidebar />
+      <LoopbrainAssistantLauncher mode={loopbrainMode} />
     </LoopbrainAssistantProvider>
   );
 }

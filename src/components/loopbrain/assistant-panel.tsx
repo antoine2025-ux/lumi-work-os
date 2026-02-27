@@ -64,8 +64,8 @@ export interface LoopbrainAssistantPanelProps {
   defaultOpen?: boolean
   /** Callback when open state changes */
   onOpenChange?: (isOpen: boolean) => void
-  /** Display mode (sidebar or floating) */
-  displayMode?: 'sidebar' | 'floating'
+  /** Display mode (sidebar, floating, or dashboard-sidebar) */
+  displayMode?: 'sidebar' | 'floating' | 'dashboard-sidebar'
   /** Callback when display mode changes */
   onDisplayModeChange?: (mode: 'sidebar' | 'floating') => void
 }
@@ -99,7 +99,7 @@ export function LoopbrainAssistantPanel({
     }
   }, [pendingQuery, isOpen, setPendingQuery])
   const [isLoading, setIsLoading] = useState(false)
-  const [displayMode, setDisplayMode] = useState<'sidebar' | 'floating'>(propDisplayMode || 'floating')
+  const [displayMode, setDisplayMode] = useState<'sidebar' | 'floating' | 'dashboard-sidebar'>(propDisplayMode || 'floating')
   const [lastLoopbrainResponse, setLastLoopbrainResponse] = useState<LoopbrainResponse | null>(null)
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, string>>({}) // messageId -> rating|signal
   const [topInsights, setTopInsights] = useState<Array<{ id: string; title: string; priority: string; category: string; recommendations: Array<{ action: string; deepLink?: string }> }>>([])
@@ -516,23 +516,36 @@ export function LoopbrainAssistantPanel({
     }
   }
 
+  const isDashboardSidebar = displayMode === 'dashboard-sidebar'
+
+  // In dashboard-sidebar mode, hide entirely when not open
+  if (isDashboardSidebar && !isOpen) return null
+
   return (
-    <div 
+    <aside
       className={cn(
-        "fixed shadow-lg flex flex-col",
-        "transition-all duration-500 ease-in-out z-50",
-        isOpen 
-          ? isMinimized
-            ? "bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center cursor-pointer hover:shadow-xl bg-purple-600 hover:bg-purple-700 border-0"
-            : "bg-card border border-border " + (displayMode === 'floating'
-              ? "top-[50%] right-4 -translate-y-1/2 h-[600px] rounded-lg w-[500px]"
-              : "right-0 top-0 h-full rounded-none w-full md:w-96")
-          : "hidden"
+        "fixed flex flex-col z-50",
+        isDashboardSidebar
+          ? cn(
+              "right-0 top-14 bottom-0 w-[320px] bg-card border-l border-border",
+              "transition-transform duration-300 ease-in-out",
+              !isMinimized ? "translate-x-0" : "translate-x-full"
+            )
+          : cn(
+              "shadow-lg transition-all duration-500 ease-in-out",
+              isOpen
+                ? isMinimized
+                  ? "bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center cursor-pointer hover:shadow-xl bg-purple-600 hover:bg-purple-700 border-0"
+                  : "bg-card border border-border " + (displayMode === 'floating'
+                    ? "top-[50%] right-4 -translate-y-1/2 h-[600px] rounded-lg w-[500px]"
+                    : "right-0 top-0 h-full rounded-none w-full md:w-96")
+                : "hidden"
+            )
       )}
-      onClick={isOpen && isMinimized ? () => setIsMinimized(false) : undefined}
+      onClick={isOpen && isMinimized && !isDashboardSidebar ? () => setIsMinimized(false) : undefined}
     >
-      {/* Minimized Logo - Only visible when minimized */}
-      {isOpen && isMinimized && (
+      {/* Minimized Logo - Only visible when minimized (floating/sidebar modes only) */}
+      {isOpen && isMinimized && !isDashboardSidebar && (
         <AILogo 
           width={28} 
           height={28} 
@@ -545,31 +558,53 @@ export function LoopbrainAssistantPanel({
       {isOpen && !isMinimized && (
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 bg-card">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground">New AI chat</span>
-            <button
-              onClick={handleNewChat}
-              className="p-1.5 hover:bg-muted rounded transition-colors"
-              title="Start new chat"
-            >
-              <Plus className="h-4 w-4 text-muted-foreground" />
-            </button>
+            {isDashboardSidebar ? (
+              <>
+                <AILogo width={24} height={24} className="w-6 h-6" />
+                <span className="text-sm font-semibold text-foreground">Loopbrain</span>
+                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" aria-hidden />
+              </>
+            ) : (
+              <>
+                <span className="text-sm font-medium text-foreground">New AI chat</span>
+                <button
+                  onClick={handleNewChat}
+                  className="p-1.5 hover:bg-muted rounded transition-colors"
+                  title="Start new chat"
+                >
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-1">
-            {/* Floating/Sidebar Toggle Button */}
-            <button
-              onClick={() => {
-                const newMode = displayMode === 'sidebar' ? 'floating' : 'sidebar'
-                handleDisplayModeChange(newMode)
-              }}
-              className="p-1.5 hover:bg-muted rounded transition-colors"
-              title={displayMode === 'sidebar' ? 'Switch to floating' : 'Switch to sidebar'}
-            >
-              {displayMode === 'sidebar' ? (
-                <Move className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <Sidebar className="h-4 w-4 text-muted-foreground" />
-              )}
-            </button>
+            {/* Floating/Sidebar Toggle - hidden in dashboard-sidebar */}
+            {!isDashboardSidebar && (
+              <button
+                onClick={() => {
+                  const newMode = displayMode === 'sidebar' ? 'floating' : 'sidebar'
+                  handleDisplayModeChange(newMode)
+                }}
+                className="p-1.5 hover:bg-muted rounded transition-colors"
+                title={displayMode === 'sidebar' ? 'Switch to floating' : 'Switch to sidebar'}
+              >
+                {displayMode === 'sidebar' ? (
+                  <Move className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Sidebar className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+            )}
+            {/* New chat - only in dashboard-sidebar (floating/sidebar have it in header start) */}
+            {isDashboardSidebar && (
+              <button
+                onClick={handleNewChat}
+                className="p-1.5 hover:bg-muted rounded transition-colors"
+                title="Start new chat"
+              >
+                <Plus className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
             {/* Minimize Button */}
             <button 
               onClick={() => setIsMinimized(!isMinimized)}
@@ -582,11 +617,9 @@ export function LoopbrainAssistantPanel({
                 <Minus className="h-4 w-4 text-muted-foreground" />
               )}
             </button>
-            {/* Close Button */}
+            {/* Close Button - closes panel (user re-opens via Quick Actions) */}
             <button 
-              onClick={() => {
-                handleOpenChange(false)
-              }}
+              onClick={() => handleOpenChange(false)}
               className="p-1.5 hover:bg-muted rounded transition-colors"
               title="Close"
             >
@@ -1013,7 +1046,7 @@ export function LoopbrainAssistantPanel({
           </div>
         </div>
       )}
-    </div>
+    </aside>
   )
 }
 

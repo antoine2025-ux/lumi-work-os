@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/server/authOptions'
 import { getGoogleCalendarClient, handleGoogleApiError } from '@/lib/google-calendar'
 import {
   CalendarEventCreateSchema,
@@ -89,6 +91,12 @@ function transformGoogleEvent(event: calendar_v3.Schema$Event) {
   const type = isVideo ? 'video' : 'phone'
 
   const attendees = event.attendees?.length || 0
+  const attendeeList = (event.attendees || []).map((a) => ({
+    email: a.email,
+    displayName: a.displayName || a.email?.split('@')[0] || 'Guest',
+    organizer: a.organizer ?? false,
+    responseStatus: a.responseStatus,
+  }))
 
   let priority = 'MEDIUM'
   const titleLower = event.summary?.toLowerCase() || ''
@@ -114,6 +122,7 @@ function transformGoogleEvent(event: calendar_v3.Schema$Event) {
     time: timeString,
     duration,
     attendees,
+    attendeeList,
     team: event.organizer?.displayName || 'Unknown',
     priority,
     type,
@@ -127,9 +136,26 @@ function transformGoogleEvent(event: calendar_v3.Schema$Event) {
 
 // ---------------------------------------------------------------------------
 // GET /api/calendar/events — List events for a date range
+// Optional: ?personId={userId} — when absent or matches current user, fetches
+// from Google Calendar. When different user: returns empty (calendar sharing
+// would require OAuth per user or shared calendar IDs).
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const personId = searchParams.get('personId')
+    const startParam = searchParams.get('start')
+    const endParam = searchParams.get('end')
+
+    const session = await getServerSession(authOptions)
+    const currentUserId = (session?.user as { id?: string } | undefined)?.id
+
+    // When requesting another person's calendar: we can only fetch current user's
+    // Google Calendar. Return empty until calendar sharing is implemented.
+    if (personId && currentUserId && personId !== currentUserId) {
+      return NextResponse.json({ events: [] })
+    }
+
     const result = await getGoogleCalendarClient()
     if (!result.ok) {
       return NextResponse.json(
@@ -139,9 +165,6 @@ export async function GET(request: NextRequest) {
     }
 
     const { calendar } = result
-    const { searchParams } = new URL(request.url)
-    const startParam = searchParams.get('start')
-    const endParam = searchParams.get('end')
 
     const today = new Date()
     const defaultStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())

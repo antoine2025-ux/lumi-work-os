@@ -185,16 +185,17 @@ See `CODEBASE_AUDIT_2026-02-24.md` for full findings. See `LEVEL4_ARCHITECTURE.m
 | TS/TSX files | — | 1,950 | 1,877 |
 | API routes | 427 | 430 | **439** |
 
-#### P0 Issues (as of Feb 24)
+#### P0 Issues (as of Feb 25)
 1. ✅ **43 models missing from WORKSPACE_SCOPED_MODELS** — RESOLVED Feb 24 (expanded from 79 → 122 total)
-2. ⚠️ **Security Sprint (Aleksei)** — 20 org routes missing auth, wiki test failures, NextAuth types (target: Feb 28)
-3. ❌ **`$queryRawUnsafe` with string interpolation** — SQL injection risk in `src/lib/simple-auth.ts:260,376,441` and `src/server/org/people/write.ts:82,149` (HIGH priority)
+2. ✅ **Security Sprint (Aleksei)** — RESOLVED Feb 24–25: 20 org routes secured, wiki tests 23/23 passing, NextAuth types 0 errors
+3. ✅ **`$queryRawUnsafe` with string interpolation** — RESOLVED (all 13 call sites now parameterized; SQL injection risk eliminated)
 
 #### P1 Issues (next sprint)
-- Projects epic/timeline/files views not wired (`projects/[id]/page.tsx:672`)
 - OrgChart department context/hiring/reorg unpopulated (`OrgChartClient.tsx:74-79`)
-- People filters (Leaders/New/Recently Changed) incomplete (`PeoplePageClient.tsx:372,389,393`)
-- `orgId` fallback pattern in 138 API route occurrences — migrate to clean `workspaceId`
+- People "Recently Changed" filter unimplemented (blocked on OrgAuditLog population)
+- `orgId` fallback pattern in ~69 API route files — migrate to clean `workspaceId`
+- `POST /api/migrations/blog` has no auth check — DDL exposed publicly (medium risk)
+- Test mock gaps in `auth-patterns.spec.ts` (2) and `phase1-migrated-routes.spec.ts` (1)
 
 #### Resolved Since Feb 20
 - ✅ 8 P0 scoping models added (FeatureFlag, Activity, ContextItem, ContextEmbedding, ContextSummary, ProjectDocumentation, ProjectAccountability, CustomFieldDef)
@@ -204,6 +205,13 @@ See `CODEBASE_AUDIT_2026-02-24.md` for full findings. See `LEVEL4_ARCHITECTURE.m
 - ✅ Wiki AI `extract_tasks` and `tag_pages` actions wired (`wiki-ai-assistant.tsx:1107,1133`)
 - ✅ `setWorkspaceContext` coverage +14pp (228→296 routes)
 - ✅ Landing page: mobile-responsive, 500 lines, 23 components
+- ✅ 43 missing workspace scoping models added (79 → 122 total) — Feb 24
+- ✅ SQL injection risk eliminated — all `$queryRawUnsafe` calls now parameterized
+- ✅ Security sprint complete: 20 org routes secured, wiki isolation tests passing, NextAuth types clean
+- ✅ TypeScript: 0 errors (`tsc --noEmit` exits clean)
+- ✅ `.gitignore` scoping fixed: `logs` → `/logs`, `coverage/` → `/coverage/` (unblocked 5 source files)
+- ✅ Epic/Timeline/Files project views wired (`projects/[id]/page.tsx`)
+- ✅ People filters: Leaders, Unassigned, New — wired
 
 #### Known Stable Seam Updates
 - `prisma/schema.prisma` now has **162 models** (not 150)
@@ -212,9 +220,16 @@ See `CODEBASE_AUDIT_2026-02-24.md` for full findings. See `LEVEL4_ARCHITECTURE.m
 - `src/lib/api-errors.ts` now covers **246 routes** (call-site count)
 - Loopbrain: all Q1-Q9 pipelines fully implemented (~41,357 lines, 144 files in `src/lib/loopbrain/`)
 
-## Recent Updates (Feb 24, 2026)
+## Recent Updates (Feb 25, 2026)
 
-- ✅ Completed workspace scoping gap closure: Added 43 missing models (79 → 122 total)
+- ✅ Security sprint complete (Aleksei): All 3 P0 issues resolved
+  - 20 org routes secured with canonical `getUnifiedAuth → assertAccess → setWorkspaceContext`
+  - Wiki isolation tests: 4 failures → 0 (workspace-isolation + wiki-security now 23/23)
+  - NextAuth type augmentation: 80 TS errors → 0 (clean `tsc --noEmit`)
+  - 7 pre-existing TS errors resolved as bonus
+  - `.gitignore` scoping fixed as bonus (5 previously-masked source files now tracked)
+- ✅ Test suite: **780/795 passing** (14 failing tests are all pre-existing, pre-sprint)
+  - Remaining failures: loopbrain snapshots (requires live server), duplication-tripwire (arch lint), entity-graph sort, 3 mock-gap tests
+- ✅ Completed workspace scoping gap closure: Added 43 missing models (79 → 122 total) — Feb 24
 - ✅ Production readiness audit completed (7 categories analyzed)
-- 🔄 Security sprint in progress (Aleksei): Auth gaps, wiki isolation, type safety
-- Target production-ready state: Feb 28, 2026
+- Next: P1 work — OrgChart context wiring, `orgId` migration, blog migration auth

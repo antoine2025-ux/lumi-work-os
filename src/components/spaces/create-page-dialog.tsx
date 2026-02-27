@@ -25,7 +25,7 @@ interface Space {
 interface CreatePageDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  workspaceSlug: string
+  workspaceSlug?: string
 }
 
 function flattenSpaces(

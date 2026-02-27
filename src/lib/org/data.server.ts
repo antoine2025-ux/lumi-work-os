@@ -715,6 +715,10 @@ export const getOrgChartData = cache(async (orgId: string): Promise<{
     name: string;
     leadName: string | null;
     leadId: string | null;
+    reportsToName: string | null;
+    isHiring: boolean;
+    recentChangeSummary: string | undefined;
+    isReorg: boolean;
     teams: Array<{
       id: string;
       name: string;
@@ -738,6 +742,16 @@ export const getOrgChartData = cache(async (orgId: string): Promise<{
                   name: true,
                 },
               },
+              parent: {
+                select: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
             },
             orderBy: [{ level: "desc" }, { order: "asc" }],
           },
@@ -746,6 +760,33 @@ export const getOrgChartData = cache(async (orgId: string): Promise<{
     },
     orderBy: { name: "asc" },
   });
+
+  // Batch-query most recent OrgAuditLog per department — graceful if table is empty
+  const latestAuditByDept = new Map<string, { action: string; createdAt: Date }>();
+  const deptIds = departments.map((d) => d.id);
+  if (deptIds.length > 0) {
+    try {
+      const auditLogs = await prisma.orgAuditLog.findMany({
+        where: {
+          workspaceId: orgId,
+          entityType: "DEPARTMENT",
+          entityId: { in: deptIds },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { entityId: true, action: true, createdAt: true },
+        take: 200,
+      });
+      for (const log of auditLogs) {
+        if (!latestAuditByDept.has(log.entityId)) {
+          latestAuditByDept.set(log.entityId, { action: log.action, createdAt: log.createdAt });
+        }
+      }
+    } catch {
+      // OrgAuditLog may not yet be populated — handle gracefully
+    }
+  }
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   return {
     departments: departments.map((dept) => {
@@ -757,6 +798,7 @@ export const getOrgChartData = cache(async (orgId: string): Promise<{
             level: pos.level,
             userName: pos.user!.name,
             userId: pos.user!.id,
+            parentUserName: pos.parent?.user?.name ?? null,
           }))
       );
 
@@ -765,11 +807,46 @@ export const getOrgChartData = cache(async (orgId: string): Promise<{
           ? allPositions.sort((a, b) => b.level - a.level)[0]
           : null;
 
+      // isHiring: any active position in this dept has no assigned person
+      const isHiring = dept.teams.some((team) =>
+        team.positions.some((pos) => pos.user === null)
+      );
+
+      // isReorg: any position in this dept was created within the last 30 days
+      const isReorg = dept.teams.some((team) =>
+        team.positions.some((pos) => pos.createdAt > thirtyDaysAgo)
+      );
+
+      // recentChangeSummary: OrgAuditLog first; fallback to updatedAt when empty
+      const dateFmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      let recentChangeSummary: string | undefined;
+      const latestLog = latestAuditByDept.get(dept.id);
+      if (latestLog) {
+        recentChangeSummary = `${latestLog.action} · ${dateFmt(latestLog.createdAt)}`;
+      } else {
+        const recentPositions = dept.teams.flatMap((t) => t.positions).filter((p) => p.updatedAt > thirtyDaysAgo);
+        const deptUpdated = dept.updatedAt > thirtyDaysAgo;
+        if (recentPositions.length > 0 || deptUpdated) {
+          const mostRecent = [
+            ...recentPositions.map((p) => p.updatedAt),
+            ...(deptUpdated ? [dept.updatedAt] : []),
+          ].reduce((a, b) => (a > b ? a : b));
+          recentChangeSummary =
+            recentPositions.length > 0
+              ? `${recentPositions.length} position${recentPositions.length > 1 ? "s" : ""} updated · ${dateFmt(mostRecent)}`
+              : `Updated · ${dateFmt(dept.updatedAt)}`;
+        }
+      }
+
       return {
         id: dept.id,
         name: dept.name,
         leadName: departmentLead?.userName ?? null,
         leadId: departmentLead?.userId ?? null,
+        reportsToName: departmentLead?.parentUserName ?? null,
+        isHiring,
+        recentChangeSummary,
+        isReorg,
         teams: dept.teams.map((team) => {
           const leadPosition = team.positions.find((pos) => pos.user !== null);
           const leadName = leadPosition?.user?.name ?? null;

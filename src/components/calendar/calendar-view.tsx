@@ -6,13 +6,16 @@
 import { format } from 'date-fns'
 import type { CalendarEvent } from '@/hooks/use-calendar-events'
 import {
-  getWeekDates,
+  getVisibleWeekDates,
   getMonthDates,
   getTimeSlots,
   getEventsForDate,
   getCurrentTimeGridRow,
+  getEventPosition,
   isInCurrentMonth,
 } from '@/lib/calendar-utils'
+
+const ROW_HEIGHT_PX = 48
 import { EventCard } from './event-card'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +25,7 @@ interface CalendarViewProps {
   events: CalendarEvent[]
   onEventClick: (event: CalendarEvent) => void
   onDayClick?: (date: Date) => void
+  showWeekend?: boolean
 }
 
 export function CalendarView({
@@ -30,6 +34,7 @@ export function CalendarView({
   events,
   onEventClick,
   onDayClick,
+  showWeekend = false,
 }: CalendarViewProps) {
   if (view === 'month') {
     return (
@@ -57,6 +62,7 @@ export function CalendarView({
       currentDate={currentDate}
       events={events}
       onEventClick={onEventClick}
+      showWeekend={showWeekend}
     />
   )
 }
@@ -66,53 +72,63 @@ function WeekView({
   currentDate,
   events,
   onEventClick,
+  showWeekend = false,
 }: {
   currentDate: Date
   events: CalendarEvent[]
   onEventClick: (event: CalendarEvent) => void
+  showWeekend?: boolean
 }) {
-  const weekDates = getWeekDates(currentDate)
+  const weekDates = getVisibleWeekDates(currentDate, showWeekend)
   const timeSlots = getTimeSlots()
   const currentTimeRow = getCurrentTimeGridRow()
   const today = new Date()
 
+  const colCount = weekDates.length
   return (
-    <div className="border rounded-lg overflow-hidden bg-card">
+    <div className="border rounded-md overflow-hidden bg-card">
       {/* Header: Day names and dates */}
-      <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b bg-muted/30">
+      <div
+        className="grid border-b bg-muted/30"
+        style={{ gridTemplateColumns: `56px repeat(${colCount}, 1fr)` }}
+      >
         <div className="border-r" /> {/* Empty corner */}
-        {weekDates.map((date) => {
+        {weekDates.map((date: Date) => {
           const isToday = date.toDateString() === today.toDateString()
           return (
             <div
               key={date.toISOString()}
-              className="py-3 px-2 text-center border-r last:border-r-0"
+              className="py-2 px-1.5 text-center border-r last:border-r-0"
             >
               <div className="text-xs text-muted-foreground">
                 {format(date, 'EEE')}
               </div>
-              <div
+              <span
                 className={cn(
-                  'text-sm font-semibold mt-1',
-                  isToday && 'text-primary'
+                  'inline-flex items-center justify-center w-8 h-8 rounded-full mt-1 text-sm',
+                  isToday && 'bg-amber-500 text-black font-semibold',
+                  !isToday && 'font-medium'
                 )}
               >
                 {format(date, 'd')}
-              </div>
+              </span>
             </div>
           )
         })}
       </div>
 
       {/* Time grid */}
-      <div className="overflow-auto max-h-[600px]">
-        <div className="grid grid-cols-[60px_repeat(7,1fr)] relative">
+      <div className="overflow-auto max-h-[500px]">
+        <div
+          className="grid relative"
+          style={{ gridTemplateColumns: `56px repeat(${colCount}, 1fr)` }}
+        >
           {/* Time labels column */}
           <div className="border-r">
             {timeSlots.map((time) => (
               <div
                 key={time}
-                className="h-16 px-2 text-xs text-muted-foreground text-right border-b"
+                className="h-12 px-1.5 text-xs text-muted-foreground text-right border-b"
               >
                 {time}
               </div>
@@ -120,7 +136,7 @@ function WeekView({
           </div>
 
           {/* Day columns with events */}
-          {weekDates.map((date, dayIndex) => {
+          {weekDates.map((date: Date, dayIndex: number) => {
             const dayEvents = getEventsForDate(events, date)
             const isToday = date.toDateString() === today.toDateString()
 
@@ -129,28 +145,39 @@ function WeekView({
                 key={date.toISOString()}
                 className={cn(
                   'border-r last:border-r-0 relative',
-                  isToday && 'bg-primary/5'
+                  isToday && 'bg-amber-500/5'
                 )}
               >
                 {/* Time slot backgrounds */}
                 {timeSlots.map((time) => (
                   <div
                     key={`${time}-${dayIndex}`}
-                    className="h-16 border-b hover:bg-muted/30 transition-colors relative z-0"
+                    className="h-12 border-b hover:bg-muted/30 transition-colors relative z-0"
                   />
                 ))}
 
-                {/* Events */}
-                <div className="absolute inset-0 p-1 space-y-1 overflow-hidden z-10">
-                  {dayEvents.map((event) => (
-                    <div key={event.id}>
-                      <EventCard
-                        event={event}
-                        onClick={onEventClick}
-                        variant="week"
-                      />
-                    </div>
-                  ))}
+                {/* Events - positioned by start/end time */}
+                <div className="absolute inset-0 p-1 overflow-hidden z-10 pointer-events-none">
+                  {dayEvents.map((event) => {
+                    const pos =
+                      event.startTime && event.endTime
+                        ? getEventPosition(event.startTime, event.endTime)
+                        : { top: 0, height: ROW_HEIGHT_PX }
+                    if (!pos) return null
+                    return (
+                      <div
+                        key={event.id}
+                        className="absolute left-1 right-1 pointer-events-auto"
+                        style={{ top: pos.top + 4, height: pos.height - 8 }}
+                      >
+                        <EventCard
+                          event={event}
+                          onClick={onEventClick}
+                          variant="week"
+                        />
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )
@@ -159,9 +186,9 @@ function WeekView({
           {/* Current time indicator */}
           {currentTimeRow !== null && (
             <div
-              className="absolute left-[60px] right-0 h-0.5 bg-red-500 z-20 pointer-events-none"
+              className="absolute left-[56px] right-0 h-0.5 bg-red-500 z-20 pointer-events-none"
               style={{
-                top: `${(currentTimeRow - 2) * 64}px`,
+                top: `${(currentTimeRow - 2) * 48}px`,
               }}
             >
               <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-red-500" />
@@ -190,29 +217,38 @@ function DayView({
   const isToday = currentDate.toDateString() === today.toDateString()
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-card">
+    <div className="border rounded-md overflow-hidden bg-card">
       {/* Header */}
-      <div className="grid grid-cols-[60px_1fr] border-b bg-muted/30">
+      <div className="grid grid-cols-[56px_1fr] border-b bg-muted/30">
         <div className="border-r" />
-        <div className="py-3 px-4">
-          <div className="text-xs text-muted-foreground">
-            {format(currentDate, 'EEEE')}
-          </div>
-          <div className={cn('text-sm font-semibold mt-1', isToday && 'text-primary')}>
-            {format(currentDate, 'MMMM d, yyyy')}
+        <div className="py-2 px-4 flex items-center gap-2">
+          <span
+            className={cn(
+              'inline-flex items-center justify-center w-8 h-8 rounded-full text-sm',
+              isToday && 'bg-amber-500 text-black font-semibold',
+              !isToday && 'font-semibold'
+            )}
+          >
+            {format(currentDate, 'd')}
+          </span>
+          <div>
+            <div className="text-xs text-muted-foreground">
+              {format(currentDate, 'EEEE')}
+            </div>
+            <div className="text-sm">{format(currentDate, 'MMMM yyyy')}</div>
           </div>
         </div>
       </div>
 
       {/* Time grid */}
-      <div className="overflow-auto max-h-[600px]">
-        <div className="grid grid-cols-[60px_1fr] relative">
+      <div className="overflow-auto max-h-[500px]">
+        <div className="grid grid-cols-[56px_1fr] relative">
           {/* Time labels */}
           <div className="border-r">
             {timeSlots.map((time) => (
               <div
                 key={time}
-                className="h-20 px-2 text-xs text-muted-foreground text-right border-b"
+                className="h-12 px-1.5 text-xs text-muted-foreground text-right border-b"
               >
                 {time}
               </div>
@@ -220,26 +256,37 @@ function DayView({
           </div>
 
           {/* Day column with events */}
-          <div className={cn('relative', isToday && 'bg-primary/5')}>
+          <div className={cn('relative', isToday && 'bg-amber-500/5')}>
             {/* Time slot backgrounds */}
             {timeSlots.map((time) => (
               <div
                 key={time}
-                className="h-20 border-b hover:bg-muted/30 transition-colors relative z-0"
+                className="h-12 border-b hover:bg-muted/30 transition-colors relative z-0"
               />
             ))}
 
-            {/* Events */}
-            <div className="absolute inset-0 p-2 space-y-2 overflow-hidden z-10">
-              {dayEvents.map((event) => (
-                <div key={event.id}>
-                  <EventCard
-                    event={event}
-                    onClick={onEventClick}
-                    variant="day"
-                  />
-                </div>
-              ))}
+            {/* Events - positioned by start/end time */}
+            <div className="absolute inset-0 p-2 overflow-hidden z-10 pointer-events-none">
+              {dayEvents.map((event) => {
+                const pos =
+                  event.startTime && event.endTime
+                    ? getEventPosition(event.startTime, event.endTime)
+                    : { top: 0, height: ROW_HEIGHT_PX }
+                if (!pos) return null
+                return (
+                  <div
+                    key={event.id}
+                    className="absolute left-2 right-2 pointer-events-auto"
+                    style={{ top: pos.top + 8, height: pos.height - 16 }}
+                  >
+                    <EventCard
+                      event={event}
+                      onClick={onEventClick}
+                      variant="day"
+                    />
+                  </div>
+                )
+              })}
             </div>
 
             {/* Current time indicator */}
@@ -247,7 +294,7 @@ function DayView({
               <div
                 className="absolute left-0 right-0 h-0.5 bg-red-500 z-20 pointer-events-none"
                 style={{
-                  top: `${((currentTimeRow - 2) / timeSlots.length) * (timeSlots.length * 80)}px`,
+                  top: `${((currentTimeRow - 2) / timeSlots.length) * (timeSlots.length * 48)}px`,
                 }}
               >
                 <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-red-500" />
@@ -273,7 +320,7 @@ function MonthView({
   onDayClick?: (date: Date) => void
 }) {
   const monthDates = getMonthDates(currentDate)
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const today = new Date()
 
   // Group dates by week
@@ -283,18 +330,18 @@ function MonthView({
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-card">
+    <div className="border rounded-md overflow-hidden bg-card">
       {/* Weekday headers */}
       <div className="grid grid-cols-7 border-b bg-muted/30">
         {weekDays.map((day) => (
-          <div key={day} className="py-2 text-center text-xs font-medium text-muted-foreground border-r last:border-r-0">
+          <div key={day} className="py-1.5 text-center text-xs font-medium text-muted-foreground border-r last:border-r-0">
             {day}
           </div>
         ))}
       </div>
 
       {/* Calendar grid */}
-      <div className="grid grid-rows-[repeat(auto-fit,minmax(100px,1fr))]">
+      <div className="grid grid-rows-[repeat(auto-fit,minmax(80px,1fr))]">
         {weeks.map((week, weekIndex) => (
           <div key={weekIndex} className="grid grid-cols-7">
             {week.map((date) => {
@@ -311,21 +358,22 @@ function MonthView({
                   key={date.toISOString()}
                   onClick={() => onDayClick?.(date)}
                   className={cn(
-                    'min-h-[100px] border-r border-b last:border-r-0 p-2 cursor-pointer',
+                    'min-h-[80px] border-r border-b last:border-r-0 p-1.5 cursor-pointer',
                     'hover:bg-muted/30 transition-colors',
                     !isCurrentMonth && 'bg-muted/10',
-                    isToday && 'bg-primary/5'
+                    isToday && 'bg-amber-500/5'
                   )}
                 >
-                  <div
+                  <span
                     className={cn(
-                      'text-sm font-medium mb-1',
-                      isToday && 'text-primary',
+                      'inline-flex items-center justify-center w-7 h-7 rounded-full text-sm mb-1',
+                      isToday && 'bg-amber-500 text-black font-semibold',
+                      !isToday && isCurrentMonth && 'font-medium',
                       !isCurrentMonth && 'text-muted-foreground'
                     )}
                   >
                     {format(date, 'd')}
-                  </div>
+                  </span>
                   
                   <div className="space-y-0.5">
                     {visibleEvents.map((event) => (

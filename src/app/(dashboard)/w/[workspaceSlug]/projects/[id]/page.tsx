@@ -46,7 +46,6 @@ const TimelineView = dynamic(() => import("@/components/tasks/timeline-view"), {
 const EpicsView = dynamic(() => import("@/components/projects/epics-view").then(mod => ({ default: mod.EpicsView })), { ssr: false })
 const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mod => ({ default: mod.WikiLayout })), { ssr: false })
 const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
-const LoopbrainAssistantLauncher = dynamic(() => import("@/components/loopbrain/assistant-launcher").then(mod => ({ default: mod.LoopbrainAssistantLauncher })), { ssr: false })
 const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
 const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
 
@@ -55,6 +54,7 @@ import type { TaskFilter } from '@/components/search/task-search-filter'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProject, useProjectEpics } from '@/hooks/use-projects'
 import { useInvalidateProject } from '@/hooks/useProjectMutations'
+import { useLoopbrainAnchors } from '@/components/loopbrain/assistant-context'
 
 interface Project {
   id: string
@@ -149,6 +149,8 @@ export default function ProjectDetailPage() {
   const projectId = params?.id as string
   const workspaceSlug = params?.workspaceSlug as string | undefined
   const { themeConfig } = useTheme()
+
+  useLoopbrainAnchors(projectId ? { projectId } : {})
   const { currentWorkspace } = useWorkspace()
 
   const tabParam = searchParams.get('tab')
@@ -996,12 +998,6 @@ export default function ProjectDetailPage() {
           </DialogContent>
         </Dialog>
       </div>
-
-      {/* Global Loopbrain Assistant */}
-      <LoopbrainAssistantLauncher 
-        mode="spaces" 
-        anchors={{ projectId }} 
-      />
 
       {/* Create Task Dialog */}
       <CreateTaskDialog

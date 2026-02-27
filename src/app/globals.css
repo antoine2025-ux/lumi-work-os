@@ -608,6 +608,37 @@ img[src*="transparent"] {
   font-weight: 600;
 }
 
+/* Email body rendering (Gmail modal) */
+.email-body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+}
+
+.email-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.email-body a {
+  color: rgb(96, 165, 250);
+  text-decoration: underline;
+}
+
+.email-body a:hover {
+  color: rgb(147, 197, 253);
+}
+
+.email-body table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.email-body th,
+.email-body td {
+  border: 1px solid var(--border);
+  padding: 0.5rem;
+}
+
 /* Org Center polish utilities */
 
 /* Hover card effect for interactive cards */

@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
@@ -22,6 +20,10 @@ type OrgChartClientProps = {
       name: string;
       leadName: string | null;
       leadId: string | null;
+      reportsToName: string | null;
+      isHiring: boolean;
+      recentChangeSummary: string | undefined;
+      isReorg: boolean;
       teams: Array<{
         id: string;
         name: string;
@@ -50,19 +52,21 @@ type DepartmentRowData = {
   accentIndex: number;
 };
 
+type ChartDepartment = NonNullable<OrgChartClientProps["chartData"]>["departments"][number];
+
 /**
  * Normalize department data for OrgDepartmentRow component
  */
 function normalizeOrgForOrgChart(
-  departments: OrgChartClientProps["chartData"]["departments"],
+  departments: ChartDepartment[] | null | undefined,
   baseIndex: number = 0
 ): DepartmentRowData[] {
   if (!departments) return [];
 
-  return departments.map((dept, index) => {
+  return departments.map((dept: ChartDepartment, index: number) => {
     const teamsCount = dept.teams.length;
     const peopleCount = dept.teams.reduce(
-      (sum, team) => sum + team.headcount,
+      (sum: number, team: { headcount: number }) => sum + team.headcount,
       0
     );
 
@@ -71,18 +75,18 @@ function normalizeOrgForOrgChart(
       name: dept.name,
       leaderName: dept.leadName,
       leaderInitials: dept.leadName ? getInitials(dept.leadName) : undefined,
-      reportsToName: undefined, // TODO: Populate from department hierarchy when available
+      reportsToName: dept.reportsToName ?? undefined,
       teamsCount,
       peopleCount,
-      isHiring: false, // TODO: Determine from recent job postings or positions
-      recentChangeSummary: undefined, // TODO: Calculate from recent changes
-      isReorg: false, // TODO: Determine from recent structural changes
+      isHiring: dept.isHiring,
+      recentChangeSummary: dept.recentChangeSummary,
+      isReorg: dept.isReorg,
       accentIndex: baseIndex + index,
     };
   });
 }
 
-export function OrgChartClient({ _orgId, chartData, chartTree, validation }: OrgChartClientProps) {
+export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation }: OrgChartClientProps) {
   const isLoading = !chartData;
   const noAccess = false; // Permission checked server-side
   const router = useRouter();

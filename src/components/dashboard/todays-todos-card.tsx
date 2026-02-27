@@ -96,39 +96,39 @@ export function TodaysTodosCard({ className }: TodaysTodosCardProps) {
 
   return (
     <>
-      <Card className={cn("", className)}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center justify-between">
-            <Link href="/todos" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <List className="h-5 w-5 text-primary" />
-              <span className="cursor-pointer">To-do list</span>
+      <Card className={cn("widget-card", className)}>
+        <div className="widget-header">
+          <div className="widget-header-start">
+            <List className="h-4 w-4 flex-shrink-0" aria-hidden />
+            <Link href="/todos" className="hover:opacity-80 transition-opacity">
+              <span className="widget-title cursor-pointer">TO-DO</span>
             </Link>
-            <div className="flex items-center gap-2">
-              {openCount > 0 && (
-                <Badge variant="outline" className="text-xs">{openCount}</Badge>
-              )}
-              <Select value={scheduleFilter} onValueChange={(v) => setScheduleFilter(v as ScheduleFilter)}>
-                <SelectTrigger className="w-32 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="thisWeek">This week</SelectItem>
-                  <SelectItem value="all">All</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-6 w-6"
-                onClick={() => setIsDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
+          </div>
+          <div className="widget-actions">
+            {openCount > 0 && (
+              <Badge variant="outline" className="text-xs">{openCount}</Badge>
+            )}
+            <Select value={scheduleFilter} onValueChange={(v) => setScheduleFilter(v as ScheduleFilter)}>
+              <SelectTrigger className="w-32 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="thisWeek">This week</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6"
+              onClick={() => setIsDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="widget-content space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
           {!isLoading && openCount === 0 ? (
             <div className="text-center py-6">
               <p className="text-sm text-muted-foreground">
@@ -173,7 +173,7 @@ export function TodaysTodosCard({ className }: TodaysTodosCardProps) {
               </Button>
             </Link>
           )}
-        </CardContent>
+        </div>
       </Card>
 
       <CreateTodoDialog

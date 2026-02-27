@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,6 +38,25 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
     }
   }
 
+  // Filter to today's events only
+  const todayEvents = useMemo(() => {
+    const today = new Date()
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    return events.filter((event) => {
+      if (!event.startTime) return false
+      // Date-only format "yyyy-MM-dd" - compare directly
+      if (event.startTime.length === 10 && !event.startTime.includes('T')) {
+        return event.startTime === todayStr
+      }
+      const eventDate = new Date(event.startTime)
+      return (
+        eventDate.getDate() === today.getDate() &&
+        eventDate.getMonth() === today.getMonth() &&
+        eventDate.getFullYear() === today.getFullYear()
+      )
+    })
+  }, [events])
+
   const formatTime = (timeString: string) => {
     // If it's "All day", return as is
     if (timeString === 'All day') return timeString
@@ -54,37 +73,38 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
 
   return (
     <>
-      <Card className={className}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center justify-between">
-            <span>Today&apos;s Meetings</span>
-            <div className="flex items-center space-x-2">
-              <Badge variant="outline" className="text-xs">
-                {isLoading ? '...' : events.length}
-              </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleOpenCalendar}
-                disabled={isLoading}
-                className="h-6 w-6 p-0"
-                title="Open full calendar"
-              >
-                <Maximize2 className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={refetch}
-                disabled={isLoading}
-                className="h-6 w-6 p-0"
-              >
-                <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-      <CardContent className="space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
+      <Card className={`widget-card ${className || ''}`}>
+        <div className="widget-header">
+          <div className="widget-header-start">
+            <Calendar className="h-4 w-4 flex-shrink-0" aria-hidden />
+            <span className="widget-title">CALENDAR</span>
+          </div>
+          <div className="widget-actions">
+            <Badge variant="outline" className="text-xs">
+              {isLoading ? '...' : todayEvents.length}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleOpenCalendar}
+              disabled={isLoading}
+              className="h-6 w-6 p-0"
+              title="Open full calendar"
+            >
+              <Maximize2 className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={refetch}
+              disabled={isLoading}
+              className="h-6 w-6 p-0"
+            >
+              <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </div>
+        <div className="widget-content space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, index) => (
@@ -118,13 +138,13 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
               Try Again
             </Button>
           </div>
-        ) : events.length === 0 ? (
+        ) : todayEvents.length === 0 ? (
           <div className="text-center py-6">
             <Calendar className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">No meetings scheduled for today</p>
           </div>
         ) : (
-          events.map((meeting: CalendarEvent) => (
+          todayEvents.map((meeting: CalendarEvent) => (
             <div 
               key={meeting.id} 
               className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer group bg-muted/50"
@@ -179,8 +199,8 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
             </div>
           ))
         )}
-      </CardContent>
-    </Card>
+        </div>
+      </Card>
     
     <CalendarModal 
       open={calendarModalOpen} 

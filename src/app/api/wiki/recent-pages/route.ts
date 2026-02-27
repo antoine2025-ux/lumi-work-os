@@ -6,17 +6,18 @@ import { prisma } from '@/lib/db'
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import { handleApiError } from '@/lib/api-errors'
 import { canAccessWikiWorkspace } from '@/lib/wiki/permissions'
+import { getCompanyWikiPages } from '@/lib/spaces/queries'
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
-    
+
     // Assert workspace access
-    await assertAccess({ 
-      userId: auth.user.userId, 
-      workspaceId: auth.workspaceId, 
-      scope: 'workspace', 
-      requireRole: ['MEMBER'] 
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
     })
 
     // Set workspace context for Prisma middleware
@@ -24,7 +25,23 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
-    const workspaceType = searchParams.get('workspace_type') // Filter by workspace_type if provided
+    const scope = searchParams.get('scope') // 'company-wiki' = only company wiki pages
+    const workspaceType = searchParams.get('workspace_type') // Filter by workspace_type if provided (legacy)
+
+    // scope=company-wiki: ONLY pages where spaceId = companyWikiSpaceId (fixes sidebar bug)
+    if (scope === 'company-wiki') {
+      const pages = await getCompanyWikiPages(auth.workspaceId, { limit })
+      const formatted = pages.map((p) => ({
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        updatedAt: p.updatedAt,
+        author: p.createdBy?.name ?? 'Unknown',
+      }))
+      const response = NextResponse.json(formatted)
+      response.headers.set('Cache-Control', 'private, s-maxage=120, stale-while-revalidate=240')
+      return response
+    }
 
     // Generate cache key — include userId so personal page results aren't shared across users
     const cacheKey = cache.generateKey(

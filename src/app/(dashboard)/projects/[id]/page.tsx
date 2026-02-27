@@ -19,6 +19,7 @@ import { useWorkspace } from "@/lib/workspace-context"
 import dynamic from "next/dynamic"
 import { useTheme } from "@/components/theme-provider"
 import { useProjectSlackHints, setProjectSlackHints, getProjectSlackHints } from "@/lib/client-state/project-slack-hints"
+import { useLoopbrainAnchors } from "@/components/loopbrain/assistant-context"
 
 // Keep essential imports at top for faster initial render
 import ReactMarkdown from "react-markdown"
@@ -50,7 +51,6 @@ const TimelineView = dynamic(() => import("@/components/tasks/timeline-view"), {
 const EpicsView = dynamic(() => import("@/components/projects/epics-view").then(mod => ({ default: mod.EpicsView })), { ssr: false })
 const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mod => ({ default: mod.WikiLayout })), { ssr: false })
 const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
-const LoopbrainAssistantLauncher = dynamic(() => import("@/components/loopbrain/assistant-launcher").then(mod => ({ default: mod.LoopbrainAssistantLauncher })), { ssr: false })
 const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
 const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
 
@@ -130,6 +130,8 @@ export default function ProjectDetailPage() {
   const projectId = params?.id as string
   const { themeConfig } = useTheme()
   const { currentWorkspace, userRole } = useWorkspace()
+
+  useLoopbrainAnchors(projectId ? { projectId } : {})
   
   const [project, setProject] = useState<Project | null>(null)
   const [accessDenied, setAccessDenied] = useState(false)
@@ -1045,12 +1047,6 @@ export default function ProjectDetailPage() {
           </DialogContent>
         </Dialog>
       </div>
-
-      {/* Global Loopbrain Assistant */}
-      <LoopbrainAssistantLauncher 
-        mode="spaces" 
-        anchors={{ projectId }} 
-      />
 
       {/* Create Task Dialog */}
       <CreateTaskDialog

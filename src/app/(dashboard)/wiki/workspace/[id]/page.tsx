@@ -13,7 +13,6 @@ import { useRouter, usePathname } from "next/navigation"
 import { useUserStatusContext } from "@/providers/user-status-provider"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 
 interface WorkspacePageProps {
   params: Promise<{
@@ -412,9 +411,6 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
           )}
         </div>
       </div>
-      
-      {/* Global Loopbrain Assistant */}
-      <LoopbrainAssistantLauncher mode="spaces" />
     </>
   )
 }

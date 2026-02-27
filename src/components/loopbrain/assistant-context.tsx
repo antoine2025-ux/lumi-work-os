@@ -181,3 +181,14 @@ export function useLoopbrainAssistant() {
   return context
 }
 
+/** Register page-specific anchors (pageId, projectId, etc.) - use in pages that need Loopbrain context. Clears on unmount. */
+export function useLoopbrainAnchors(anchors: AssistantState['anchors']) {
+  const { setAnchors } = useLoopbrainAssistant()
+  const anchorsJson = JSON.stringify(anchors ?? {})
+
+  useEffect(() => {
+    setAnchors(anchors ?? {})
+    return () => setAnchors({})
+  }, [anchorsJson, setAnchors])
+}
+

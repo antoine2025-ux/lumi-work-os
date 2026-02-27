@@ -80,6 +80,10 @@ export async function getAccessibleSpaces(
     include: {
       _count: { select: { projects: true, wikiPages: true, children: true } },
       owner: { select: { id: true, name: true, image: true } },
+      children: {
+        select: { id: true, name: true, slug: true },
+        orderBy: { name: 'asc' },
+      },
     },
     orderBy: [
       { isPersonal: 'desc' }, // personal space first

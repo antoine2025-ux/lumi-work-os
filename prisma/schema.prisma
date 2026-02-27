@@ -238,6 +238,8 @@ model Workspace {
   loopbrainPendingActions LoopbrainPendingAction[]
   projectSpaces           ProjectSpace[]
   spaces                  Space[]
+  companyWikiSpace        Space?                   @relation("WorkspaceCompanyWiki", fields: [companyWikiSpaceId], references: [id], onDelete: SetNull)
+  companyWikiSpaceId      String?                  @unique
 
   // Loopbrain proactive insights
   proactiveInsights ProactiveInsight[]
@@ -366,6 +368,11 @@ enum SpaceVisibility {
   PUBLIC   // all workspace members
 }
 
+enum SpaceType {
+  TEAM // team space (Engineering, Marketing, etc.)
+  WIKI // company wiki space (one per workspace)
+}
+
 enum SpaceRole {
   OWNER
   EDITOR
@@ -414,6 +421,7 @@ model Space {
 
   visibility  SpaceVisibility @default(PUBLIC)
   isPersonal  Boolean         @default(false)
+  type        SpaceType?      // TEAM (default) or WIKI (company wiki); null for personal
   ownerId     String
 
   // Hierarchy support (for sub-spaces)
@@ -423,6 +431,7 @@ model Space {
   updatedAt   DateTime        @updatedAt
 
   workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  companyWikiFor Workspace?   @relation("WorkspaceCompanyWiki")
   owner       User            @relation("SpaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   parent      Space?          @relation("SpaceHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   children    Space[]         @relation("SpaceHierarchy")
@@ -435,6 +444,7 @@ model Space {
   // Personal-space uniqueness is enforced by a DB-level partial index
   // WHERE "isPersonal" = true (migration 20260220200000_unified_spaces).
   @@index([workspaceId])
+  @@index([workspaceId, type])
   @@index([parentId])
   @@index([ownerId])
   @@map("spaces")
@@ -516,6 +526,13 @@ enum ContentFormat {
   JSON
 }
 
+enum WikiPageType {
+  TEAM_DOC      // page in team space
+  COMPANY_WIKI  // page in company wiki
+  PERSONAL_NOTE // private note
+  PROJECT_DOC   // linked to project via ProjectDocumentation
+}
+
 model WikiPage {
   id                   String                 @id @default(cuid())
   workspaceId          String
@@ -538,6 +555,7 @@ model WikiPage {
   view_count           Int?                   @default(0)
   is_featured          Boolean?               @default(false)
   workspace_type       String?                @default("team") @db.VarChar(50)
+  type                 WikiPageType?         // TEAM_DOC | COMPANY_WIKI | PERSONAL_NOTE | PROJECT_DOC
   last_viewed_at       DateTime?              @db.Timestamp(6)
   ai_analysis          Json?
   quality_score        Decimal?               @db.Decimal(3, 2)
@@ -1820,6 +1838,7 @@ enum MigrationStatus {
 
 enum IntegrationType {
   SLACK
+  GMAIL
   GOOGLE_DRIVE
   MICROSOFT_TEAMS
   ZOOM

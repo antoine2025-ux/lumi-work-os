@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
         icon: body.icon,
         visibility: body.visibility,
         parentId: body.parentId,
+        type: 'TEAM',
       },
       include: {
         owner: { select: { id: true, name: true, image: true } },

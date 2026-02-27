@@ -1,76 +1,36 @@
 # Loopwell Codebase Audit — Current State
-**Generated:** 2026-02-24
+**Generated:** 2026-02-24 | **Last updated:** 2026-02-25
 **Branch:** integration/merge-stabilized
 
 ---
 
 ## 1. WORKSPACE_SCOPED_MODELS Audit
 
-**Current models in `WORKSPACE_SCOPED_MODELS` (scopingMiddleware.ts): 79**
+**Current models in `WORKSPACE_SCOPED_MODELS` (scopingMiddleware.ts): 122** ✅ COMPLETE
+
+All 43 previously-missing models were added on Feb 24 (commit `d8619f1`). Total went from 79 → 122.
 
 <details>
-<summary>Full list (79 models)</summary>
+<summary>Full list — original 79 models</summary>
 
 Project, Task, Epic, Milestone, WikiPage, WikiChunk, ChatSession, FeatureFlag, Integration, Migration, Workflow, WorkflowInstance, OnboardingTemplate, OnboardingPlan, OrgPosition, ProjectTemplate, TaskTemplate, Activity, ContextItem, ContextEmbedding, ContextSummary, Goal, GoalTemplate, PerformanceReview, PerformanceCycle, ReviewQuestion, ReviewResponse, OneOnOneTemplate, OneOnOneMeeting, OneOnOneSeries, OneOnOneTalkingPoint, OneOnOneActionItem, GoalWorkflowRule, Subtask, TaskComment, TaskHistory, CustomFieldVal, ProjectMember, ProjectWatcher, ProjectAssignee, ProjectPersonLink, ProjectDocumentation, ProjectAccountability, ProjectDailySummary, CustomFieldDef, WikiVersion, WikiComment, WikiEmbed, WikiAttachment, WikiPagePermission, WikiFavorite, wiki_ai_interactions, wiki_page_views, Objective, GoalComment, GoalUpdate, ProjectGoalLink, GoalStakeholder, GoalApproval, GoalProgressUpdate, GoalAnalytics, GoalRecommendation, GoalCheckIn, KeyResult, KeyResultUpdate, ChatMessage, OnboardingTask, onboarding_task_assignments, TaskTemplateItem, WorkflowAssignment, RoleCardSkill, RoleCard, Skill, PersonSkill, DecisionAuthority, DecisionEscalationStep, ProjectAllocation, Space, SpaceMember
 
 </details>
 
-### Still Missing (all 43 from Feb 24 remain unresolved)
+<details>
+<summary>Added Feb 24 — 43 models</summary>
 
-**CRITICAL — Missing (10/10 still open):**
-- ❌ OrgDepartment
-- ❌ OrgTeam
-- ❌ OrgCustomRole
-- ❌ OrgInvitation
-- ❌ Todo
-- ❌ LeaveRequest
-- ❌ PersonAvailability
-- ❌ PersonManagerLink
-- ❌ DecisionDomain
-- ❌ CapacityContract
+**CRITICAL (10):** OrgDepartment, OrgTeam, OrgCustomRole, OrgInvitation, Todo, LeaveRequest, PersonAvailability, PersonManagerLink, DecisionDomain, CapacityContract
 
-**HIGH — Missing (8/8 still open):**
-- ❌ OrgIntelligenceSnapshot
-- ❌ OrgIntelligenceSettings
-- ❌ OrgAuditLog
-- ❌ OrgCapacitySettings
-- ❌ LoopbrainPendingAction
-- ❌ LoopbrainUserProfile
-- ❌ ProactiveInsight
-- ❌ ProjectSpace
+**HIGH (8):** OrgIntelligenceSnapshot, OrgIntelligenceSettings, OrgAuditLog, OrgCapacitySettings, LoopbrainPendingAction, LoopbrainUserProfile, ProactiveInsight, ProjectSpace
 
-**MEDIUM — Missing (11/11 still open):**
-- ❌ OrgLoopbrainQuery
-- ❌ OrgLoopbrainQueryLog
-- ❌ OrgQnaLog
-- ❌ OrgActivityExport
-- ❌ PersonActivityMetric
-- ❌ PersonAvailabilityHealth
-- ❌ PersonRelationship
-- ❌ PersonResponsibilityOverride
-- ❌ OwnerAssignment
-- ❌ TeamCapacityPlan
-- ❌ OnboardingProgress
+**MEDIUM (11):** OrgLoopbrainQuery, OrgLoopbrainQueryLog, OrgQnaLog, OrgActivityExport, PersonActivityMetric, PersonAvailabilityHealth, PersonRelationship, PersonResponsibilityOverride, OwnerAssignment, TeamCapacityPlan, OnboardingProgress
 
-**LOW — Missing (14/14 still open):**
-- ❌ OrgSavedView
-- ❌ OrgUiPreference
-- ❌ OrgIssueResolution
-- ❌ ResponsibilityTag
-- ❌ RoleCoverage
-- ❌ RoleResponsibilityProfile
-- ❌ WorkAllocation
-- ❌ WorkEffortDefaults
-- ❌ WorkImpact
-- ❌ WorkRecommendationLog
-- ❌ WorkRequest
-- ❌ LoopbrainOpenLoop
-- ❌ LoopbrainChatFeedback
-- ❌ OrgPersonProfileOverride
+**LOW (14):** OrgSavedView, OrgUiPreference, OrgIssueResolution, ResponsibilityTag, RoleCoverage, RoleResponsibilityProfile, WorkAllocation, WorkEffortDefaults, WorkImpact, WorkRecommendationLog, WorkRequest, LoopbrainOpenLoop, LoopbrainChatFeedback, OrgPersonProfileOverride
 
-**✅ Fixed since Feb 24:** None (all 43 remain unaddressed)
+</details>
 
-> **Note:** Before adding to `WORKSPACE_SCOPED_MODELS`, verify each model has a direct `workspaceId` column in the database schema. Some models (e.g., OwnerAssignment) use `workspace_id` (snake_case) as the legacy column name — confirm correct casing.
+> **Note:** `Workspace`, `WorkspaceMember`, `WorkspaceOnboardingState` are intentionally excluded as root/auth entities. Before adding any new workspace-scoped model, verify it has a direct `workspaceId` column (camelCase) in the schema.
 
 ---
 
@@ -195,9 +155,12 @@ These fields render as empty/false in the OrgChart department cards. No actual d
 
 | # | Issue | Status |
 |---|-------|--------|
-| 1 | **43 models missing from WORKSPACE_SCOPED_MODELS** — OrgDepartment, OrgTeam, Todo, LeaveRequest, OrgInvitation, PersonManagerLink, DecisionDomain, CapacityContract, and 35 more | ❌ STILL OPEN — unchanged since Feb 24 |
-| 2 | **SQL injection via `$queryRawUnsafe` string interpolation** — simple-auth.ts, people/write.ts | ✅ FIXED — all calls now use parameterized queries |
-| 3 | **Unauthenticated migration endpoint** — `POST /api/migrations/blog` | ❌ NEW — no auth check, DDL operations exposed publicly |
+| 1 | **43 models missing from WORKSPACE_SCOPED_MODELS** | ✅ RESOLVED Feb 24 — all 43 added (79 → 122 total) |
+| 2 | **SQL injection via `$queryRawUnsafe` string interpolation** — simple-auth.ts, people/write.ts | ✅ RESOLVED — all 13 call sites now parameterized |
+| 3 | **20 org routes missing authentication** — departments, roles, taxonomy, issues, views, etc. | ✅ RESOLVED Feb 24–25 — canonical auth pattern applied to all 20 routes |
+| 4 | **Wiki isolation test failures** — 4 tests returning 500 | ✅ RESOLVED Feb 24–25 — 23/23 passing |
+| 5 | **NextAuth type augmentation** — 80 TypeScript errors in auth backbone | ✅ RESOLVED Feb 24–25 — 0 TS errors |
+| 6 | **Unauthenticated migration endpoint** — `POST /api/migrations/blog` | ⚠️ OPEN — no auth check, DDL operations exposed publicly (medium risk, blog schema only) |
 
 ---
 
@@ -229,8 +192,8 @@ These fields render as empty/false in the OrgChart department cards. No actual d
 3. **Add 8 HIGH models to `WORKSPACE_SCOPED_MODELS`**
    `OrgIntelligenceSnapshot`, `OrgIntelligenceSettings`, `OrgAuditLog`, `OrgCapacitySettings`, `LoopbrainPendingAction`, `LoopbrainUserProfile`, `ProactiveInsight`, `ProjectSpace`
 
-4. **Wire OrgChart department context**
-   Populate `reportsToName` from `OrgDepartment.parentId` hierarchy, `isHiring` from open `OrgPosition` slots, `recentChangeSummary` from `OrgAuditLog` when available.
+4. ~~**Wire OrgChart department context**~~ — RESOLVED
+   `reportsToName` (department lead's manager), `isHiring`, `recentChangeSummary` (OrgAuditLog + updatedAt fallback), `isReorg` wired in `getOrgChartData`. Note: `OrgDepartment.parentId` does not exist in schema; uses department lead's manager via OrgPosition.parent.
 
 5. **Implement `recentlyChanged` people filter**
    Requires `OrgAuditLog` to be populated on org mutations. Add write to audit log in org person update endpoints, then query in `PeoplePageClient`.
@@ -259,6 +222,6 @@ These fields render as empty/false in the OrgChart department cards. No actual d
 | `src/lib/simple-auth.ts` | Auth fallback (contains Docker exec SQL path) |
 | `src/server/org/people/write.ts` | Org people write operations |
 | `src/app/(dashboard)/w/[workspaceSlug]/projects/[id]/page.tsx` | Project detail (epics/timeline/files now wired) |
-| `src/app/org/chart/OrgChartClient.tsx` | OrgChart (department context TODOs at lines 74–79) |
+| `src/app/org/chart/OrgChartClient.tsx` | OrgChart (department context wired in getOrgChartData) |
 | `src/app/org/people/PeoplePageClient.tsx` | People page (recentlyChanged filter TODO at line 386) |
 | `src/app/api/migrations/blog/route.ts` | Unauthenticated migration endpoint |
