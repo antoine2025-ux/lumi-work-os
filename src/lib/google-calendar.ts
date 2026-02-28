@@ -1,6 +1,7 @@
 import { google, calendar_v3 } from 'googleapis'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
+import { prismaUnscoped } from '@/lib/db'
 
 /**
  * Result from getGoogleCalendarClient — either a working calendar client
@@ -42,6 +43,8 @@ export async function getGoogleCalendarClient(): Promise<CalendarClientResult> {
   }
 
   const baseUrl = getOAuthRedirectBaseUrl()
+  // Capture email now (narrowed to string by the session check above)
+  const userEmail = session.user.email
 
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -54,13 +57,24 @@ export async function getGoogleCalendarClient(): Promise<CalendarClientResult> {
     refresh_token: session.refreshToken,
   })
 
-  // Handle token refresh — logs only; proper persistence requires session/DB update
+  // Handle token refresh — persist new tokens to DB so they survive the session
   oauth2Client.on('tokens', (tokens) => {
     if (tokens.refresh_token) {
       console.log('[Calendar] Token refreshed, new refresh_token provided')
     }
     if (tokens.access_token) {
       console.log('[Calendar] Token refreshed, new access_token provided')
+      prismaUnscoped.account.updateMany({
+        where: { user: { email: userEmail }, provider: 'google' },
+        data: {
+          access_token: tokens.access_token,
+          expires_at: tokens.expiry_date
+            ? Math.floor(tokens.expiry_date / 1000)
+            : undefined,
+        },
+      }).catch((err: unknown) => {
+        console.error('[Calendar] Failed to persist refreshed token', err)
+      })
     }
   })
 
