@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rate-limit'
+import { rateLimitExceeded } from '@/lib/rate-limit-response'
 
 /**
  * Mailchimp Newsletter Subscription API
@@ -20,6 +22,9 @@ interface SubscribeRequest {
 }
 
 export async function POST(request: NextRequest) {
+  const limit = await rateLimit(request, { windowMs: 60 * 60 * 1000, max: 3, identifier: 'newsletter' })
+  if (!limit.success) return rateLimitExceeded(limit.resetAt)
+
   try {
     const body: SubscribeRequest = await request.json()
     const { email, name, companyName } = body

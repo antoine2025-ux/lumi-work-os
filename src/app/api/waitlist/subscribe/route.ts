@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rate-limit'
+import { rateLimitExceeded } from '@/lib/rate-limit-response'
 
 /**
  * Mailchimp Waitlist Subscription API
@@ -24,6 +26,9 @@ interface WaitlistSubscribeRequest {
 }
 
 export async function POST(request: NextRequest) {
+  const limit = await rateLimit(request, { windowMs: 60 * 60 * 1000, max: 3, identifier: 'waitlist' })
+  if (!limit.success) return rateLimitExceeded(limit.resetAt)
+
   try {
     const body: WaitlistSubscribeRequest = await request.json()
     const { firstName, lastName, email, linkedin, company } = body
