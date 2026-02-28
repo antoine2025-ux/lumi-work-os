@@ -31,6 +31,7 @@ export type LoopbrainIntent =
   | 'workload_analysis'
   | 'calendar_availability'
   | 'extract_tasks'
+  | 'onboarding_briefing'
   | 'unknown'
 
 /**
@@ -214,6 +215,21 @@ export function detectIntentFromKeywords(
     intent = 'extract_tasks'
     confidence = 0.92
     reasons.push('Detected task extraction keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Onboarding briefing (high specificity — checked before generic intents) -----
+
+  const onboardingKeywords = [
+    'brief me', 'briefing', 'get me up to speed', 'what should i know',
+    'new here', 'just joined', 'orientation', 'onboard me', 'onboarding',
+    'catch me up', 'help me get started', 'what do i need to know',
+    'introduce me', 'my orientation',
+  ]
+  if (onboardingKeywords.some((kw) => queryLower.includes(kw))) {
+    intent = 'onboarding_briefing'
+    confidence = 0.93
+    reasons.push('Detected onboarding/briefing keywords')
     return { intent, confidence, reasons }
   }
 
@@ -416,6 +432,11 @@ function selectModeFromIntent(
   let mode: LoopbrainMode | undefined
   
   switch (intent) {
+    case 'onboarding_briefing':
+      mode = 'onboarding_briefing'
+      reasons.push('Onboarding briefing has its own dedicated mode')
+      break
+
     case 'task_status':
     case 'task_priority':
       // Task intents always route to spaces (where task context lives)

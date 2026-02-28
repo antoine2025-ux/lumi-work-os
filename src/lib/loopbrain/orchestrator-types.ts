@@ -10,8 +10,10 @@ import { ContextObject as UnifiedContextObject } from '@/lib/context/context-typ
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from './agent/types'
 import type { OrgQuestionContext } from './org-question-types'
 import type { ExtractedTask, MeetingTaskExtractionResult } from './scenarios/meeting-task-extraction'
+import type { OnboardingBriefing } from './scenarios/onboarding-briefing'
 
 export type { ExtractedTask, MeetingTaskExtractionResult }
+export type { OnboardingBriefing }
 
 /**
  * Loopbrain operating modes
@@ -19,8 +21,9 @@ export type { ExtractedTask, MeetingTaskExtractionResult }
  * - spaces: Workspace/Spaces mode - focuses on projects, pages, tasks
  * - org: Organization mode - focuses on teams, roles, hierarchy
  * - dashboard: Dashboard mode - focuses on workspace overview and activity
+ * - onboarding_briefing: Generates a personalized briefing for new workspace members
  */
-export type LoopbrainMode = 'spaces' | 'org' | 'dashboard' | 'goals'
+export type LoopbrainMode = 'spaces' | 'org' | 'dashboard' | 'goals' | 'onboarding_briefing'
 
 /**
  * Loopbrain request parameters
@@ -199,6 +202,8 @@ export interface LoopbrainResponse {
   insights?: string[]
   /** Structured extraction result from meeting notes (for MeetingTaskReview UI) */
   meetingExtraction?: MeetingTaskExtractionResult
+  /** Personalized onboarding briefing (for OnboardingBriefing UI) */
+  onboardingBriefing?: OnboardingBriefing
   /** Optional metadata (model, tokens, etc.) */
   metadata?: {
     model?: string

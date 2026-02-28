@@ -83,6 +83,7 @@ import { formatProjectHealthEnvelope } from './reasoning/projectHealthAnswer'
 import { formatWorkloadEnvelope, formatTeamWorkloadEnvelope } from './reasoning/workloadAnswer'
 import { buildCalendarAvailabilitySnapshot, buildTeamAvailabilitySnapshot } from './reasoning/calendarAvailability'
 import { formatCalendarAvailabilityEnvelope, formatTeamAvailabilityEnvelope } from './reasoning/calendarAvailabilityAnswer'
+import { generateOnboardingBriefing } from './scenarios/onboarding-briefing'
 import { extractEntityContext } from './reasoning/entityLinksAnswer'
 import { getCachedEntityGraph } from './entity-graph'
 import type { ProjectHealthSnapshotV0 } from './contract/projectHealth.v0'
@@ -318,6 +319,11 @@ export async function runLoopbrainQuery(
   // Check for calendar availability queries
   if (intent === 'calendar_availability') {
     return await handleCalendarAvailabilityMode(req)
+  }
+
+  // Check for onboarding briefing queries
+  if (intent === 'onboarding_briefing' || req.mode === 'onboarding_briefing') {
+    return await handleOnboardingBriefingMode(req, userCtx)
   }
 
   try {
@@ -2905,6 +2911,65 @@ function formatContextObject(ctx: LoopbrainContextObject): string {
 /**
  * Call LLM via existing AI provider
  */
+// ---------------------------------------------------------------------------
+// Onboarding Briefing mode
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a personalized onboarding briefing for the current user.
+ * Wraps generateOnboardingBriefing and returns a LoopbrainResponse with
+ * the `onboardingBriefing` field populated.
+ */
+async function handleOnboardingBriefingMode(
+  req: LoopbrainRequest,
+  userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('[onboarding-briefing] Mode handler started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    projectId: req.projectId,
+  })
+
+  // Extract project ID hint from query (e.g. "brief me on [project name]")
+  // req.projectId takes precedence if the UI anchored it
+  const briefing = await generateOnboardingBriefing(req.userId, req.workspaceId, {
+    projectId: req.projectId,
+  })
+
+  const answer = [
+    briefing.greeting,
+    '',
+    briefing.roleSummary,
+    '',
+    briefing.sections.map((s) => `**${s.title}**\n${s.content}`).join('\n\n'),
+  ].join('\n')
+
+  return {
+    mode: 'onboarding_briefing',
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer,
+    suggestions: [
+      { label: 'Brief me on a specific project', action: 'onboarding_briefing', payload: { scope: 'project' } },
+      { label: 'Show my tasks', action: 'navigate', payload: { url: '/my-tasks' } },
+    ],
+    onboardingBriefing: briefing,
+    metadata: {
+      routing: {
+        contextType: 'onboarding_briefing',
+        confidence: briefing.confidence === 'high' ? 0.9 : briefing.confidence === 'medium' ? 0.7 : 0.5,
+        itemCount: briefing.sections.length,
+        usedFallback: false,
+      },
+      userContextResolved: true,
+      userRole: userCtx.role,
+      userTeam: userCtx.teamName ?? undefined,
+    },
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Meeting Task Extraction modes
 // ---------------------------------------------------------------------------

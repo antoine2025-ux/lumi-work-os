@@ -23,6 +23,7 @@ import {
 import { useTheme } from "@/components/theme-provider"
 import { OrgSetupBanner } from "@/components/onboarding/org-setup-banner"
 import { LoopbrainWelcomeCard } from "@/components/dashboard/loopbrain-welcome-card"
+import { OnboardingBriefingCard } from "@/components/dashboard/onboarding-briefing-card"
 
 // Lazy load heavy components
 const MeetingsCard = dynamic(() => import("@/components/dashboard/meetings-card").then(mod => ({ default: mod.MeetingsCard })), {
@@ -202,6 +203,12 @@ export default function DashboardClient({
         <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Onboarding Banner */}
         <OrgSetupBanner workspaceSlug={workspaceSlug} />
+
+        {/* Onboarding briefing card — shown for 30 days after workspace onboarding */}
+        <OnboardingBriefingCard
+          userId={user.userId}
+          className="mb-4"
+        />
 
         {/* Loopbrain first-visit welcome */}
         <LoopbrainWelcomeCard

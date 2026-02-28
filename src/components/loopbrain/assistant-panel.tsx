@@ -31,10 +31,11 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { callLoopbrainAssistant } from "@/lib/loopbrain/client"
 import { useLoopbrainAssistant } from "./assistant-context"
-import type { LoopbrainResponse, LoopbrainMode, MeetingTaskExtractionResult } from "@/lib/loopbrain/orchestrator-types"
+import type { LoopbrainResponse, LoopbrainMode, MeetingTaskExtractionResult, OnboardingBriefing } from "@/lib/loopbrain/orchestrator-types"
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from "@/lib/loopbrain/agent/types"
 import { PlanConfirmation } from "./plan-confirmation"
 import { MeetingTaskReview } from "./MeetingTaskReview"
+import { OnboardingBriefing as OnboardingBriefingView } from "./OnboardingBriefing"
 import { ClarifyingQuestions } from "./clarifying-questions"
 import { ExecutionProgress } from "./execution-progress"
 import { AdvisorySuggestion } from "./advisory-suggestion"
@@ -116,6 +117,7 @@ export function LoopbrainAssistantPanel({
   const [advisoryContext, setAdvisoryContext] = useState<AdvisoryContext | null>(null)
   const [advisoryResponse, setAdvisoryResponse] = useState<AdvisoryResponse | null>(null)
   const [meetingExtraction, setMeetingExtraction] = useState<MeetingTaskExtractionResult | null>(null)
+  const [onboardingBriefing, setOnboardingBriefing] = useState<OnboardingBriefing | null>(null)
   const [isCreatingMeetingTasks, setIsCreatingMeetingTasks] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -496,6 +498,11 @@ export function LoopbrainAssistantPanel({
       // Meeting task extraction — show review UI
       if (result.meetingExtraction) {
         setMeetingExtraction(result.meetingExtraction)
+      }
+
+      // Onboarding briefing — show inline briefing card
+      if (result.onboardingBriefing) {
+        setOnboardingBriefing(result.onboardingBriefing)
       }
 
       // Extract preamble from the answer if there are clarifying questions
@@ -1028,6 +1035,15 @@ export function LoopbrainAssistantPanel({
                                         setIsCreatingMeetingTasks(false)
                                       }
                                     }}
+                                  />
+                                )}
+
+                                {/* Onboarding Briefing */}
+                                {onboardingBriefing && (
+                                  <OnboardingBriefingView
+                                    briefing={onboardingBriefing}
+                                    onDismiss={() => setOnboardingBriefing(null)}
+                                    className="mt-2"
                                   />
                                 )}
 
