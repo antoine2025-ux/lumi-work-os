@@ -23,7 +23,18 @@ const nextConfig: NextConfig = {
   },
   // Performance optimizations
   experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      'framer-motion',
+      '@radix-ui/react-primitive',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+    ],
   },
   // Transpile packages that need to be bundled
   transpilePackages: ['gray-matter', 'turndown'],
@@ -35,28 +46,6 @@ const nextConfig: NextConfig = {
         destination: '/api/:path*',
       },
     ]
-  },
-  // Bundle optimization
-  webpack: (config, { dev, isServer }) => {
-    if (!dev && !isServer) {
-      config.optimization.splitChunks = {
-        chunks: 'all',
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
-          },
-          common: {
-            name: 'common',
-            minChunks: 2,
-            chunks: 'all',
-            enforce: true,
-          },
-        },
-      };
-    }
-    return config;
   },
   async headers() {
     return [

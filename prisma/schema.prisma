@@ -25,6 +25,8 @@ model Account {
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  // perf: NextAuth queries accounts by userId on every authenticated request
+  @@index([userId])
   @@map("accounts")
 }
 
@@ -35,6 +37,8 @@ model Session {
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // perf: NextAuth queries sessions by userId on every authenticated request
+  @@index([userId])
   @@map("sessions")
 }
 
@@ -698,6 +702,10 @@ model WikiChunk {
   page        WikiPage  @relation(fields: [pageId], references: [id], onDelete: Cascade)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  // perf: workspaceId scoping middleware injects this filter on every query; Loopbrain context engine queries WikiChunk on every AI chat turn
+  @@index([workspaceId])
+  // perf: wiki chunk lookups always join on pageId (FK to WikiPage)
+  @@index([pageId])
   @@map("wiki_chunks")
 }
 
@@ -756,6 +764,8 @@ model OnboardingTemplate {
   onboarding_tasks OnboardingTask[]
   workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  // perf: workspaceId scoping middleware injects this filter on every query
+  @@index([workspaceId])
   @@map("onboarding_templates")
 }
 
@@ -796,6 +806,8 @@ model OnboardingPlan {
   onboarding_task_assignments onboarding_task_assignments[]
 
   @@index([userId, status], map: "idx_onboarding_plans_employee_status")
+  // perf: workspaceId scoping middleware injects this filter on every query
+  @@index([workspaceId])
   @@map("onboarding_plans")
 }
 
@@ -1024,6 +1036,8 @@ model Workflow {
   instances   WorkflowInstance[]
   workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  // perf: workspaceId scoping middleware injects this filter on every query
+  @@index([workspaceId])
   @@map("workflows")
 }
 
@@ -1044,6 +1058,10 @@ model WorkflowInstance {
   workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, status], map: "idx_workflow_instances_workspace_status")
+  // perf: FK join to parent Workflow — queried when loading instance details
+  @@index([workflowId])
+  // perf: composite index for filtering instances by workspace + user (e.g. "show me my active workflows")
+  @@index([workspaceId, userId])
   @@map("workflow_instances")
 }
 
@@ -1113,6 +1131,8 @@ model LoopbrainPendingAction {
   @@index([workspaceId, status])
   @@index([slackMessageTs])
   @@index([assignedTo, status])
+  // perf: expiry cleanup jobs and pending action queries filter by expiresAt within workspace
+  @@index([workspaceId, expiresAt])
   @@map("loopbrain_pending_actions")
 }
 
@@ -1159,6 +1179,8 @@ model ChatSession {
   @@index([userId, workspaceId], map: "idx_chat_sessions_user_workspace")
   @@index([workspaceId, userId, phase], map: "idx_chat_sessions_workspace_user_draft")
   @@index([updatedAt(sort: Desc)], map: "idx_chat_sessions_updated_at")
+  // perf: session list ordered by most recent — workspaceId scoping + DESC sort
+  @@index([workspaceId, updatedAt(sort: Desc)])
   @@map("chat_sessions")
 }
 
@@ -1476,6 +1498,8 @@ model ProjectTemplate {
   createdBy    User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
   workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  // perf: workspaceId scoping middleware injects this filter on every query
+  @@index([workspaceId])
   @@map("project_templates")
 }
 
@@ -3930,6 +3954,8 @@ model LeaveRequest {
   @@index([workspaceId, approvedById])
   @@index([startDate, endDate])
   @@index([workspaceId, personId, startDate])
+  // perf: overlap detection queries use startDate/endDate range per workspace; existing [startDate, endDate] lacks workspaceId prefix
+  @@index([workspaceId, startDate, endDate])
   @@map("leave_requests")
 }
 
@@ -4004,6 +4030,8 @@ model Goal {
   @@index([workspaceId, status])
   @@index([parentId])
   @@index([workspaceId, level, reviewCycle])
+  // perf: deadline range queries always filter workspaceId + endDate window
+  @@index([workspaceId, endDate])
   @@map("goals")
 }
 
@@ -4319,6 +4347,8 @@ model PerformanceReview {
   @@index([workspaceId, managerId, status])
   @@index([workspaceId, period])
   @@index([workspaceId, cycleId])
+  // perf: dedicated 2-column index for employeeId lookups; unique constraint covers prefix but this is faster for workspaceId+employeeId-only queries
+  @@index([workspaceId, employeeId])
   @@map("performance_reviews")
 }
 
@@ -4483,6 +4513,8 @@ model OneOnOneMeeting {
   @@index([workspaceId, managerId])
   @@index([scheduledAt])
   @@index([seriesId])
+  // perf: supports batch pre-load of upcoming meetings by date within a workspace (N+1 fix in proactiveInsights.ts)
+  @@index([workspaceId, scheduledAt])
   @@map("one_on_one_meetings")
 }
 
@@ -4529,6 +4561,8 @@ model OneOnOneActionItem {
   @@index([workspaceId])
   @@index([meetingId])
   @@index([assigneeId])
+  // perf: supports batch pre-load of open action items by assignee within workspace (N+1 fix in proactiveInsights.ts)
+  @@index([workspaceId, assigneeId, status])
   @@map("one_on_one_action_items")
 }
 
