@@ -28,3 +28,10 @@ export const SubtaskCreateSchema = z.object({
     )
     .min(1, 'At least one subtask is required'),
 })
+
+/** POST /api/tasks/[id]/wiki-links */
+export const TaskWikiLinkCreateSchema = z.object({
+  wikiPageId: z.string().min(1, 'Wiki page ID is required'),
+})
+
+export type TaskWikiLinkCreate = z.infer<typeof TaskWikiLinkCreateSchema>

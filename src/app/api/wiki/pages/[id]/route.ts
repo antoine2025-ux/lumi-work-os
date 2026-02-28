@@ -58,6 +58,23 @@ const WIKI_PAGE_INCLUDE = {
         select: { id: true, name: true }
       }
     }
+  },
+  taskLinks: {
+    select: {
+      task: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          project: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        }
+      }
+    }
   }
 } as const
 
@@ -148,12 +165,25 @@ export async function GET(
         )
       : []
 
+    // Build linkedTasks from taskLinks
+    const taskLinksData = (page as { taskLinks?: Array<{ task: { id: string; title: string; status: string; project: { id: string; name: string } } }> }).taskLinks
+    const linkedTasks = taskLinksData
+      ? taskLinksData.map((tl) => ({
+          id: tl.task.id,
+          title: tl.task.title,
+          status: tl.task.status,
+          projectId: tl.task.project.id,
+          projectName: tl.task.project.name
+        }))
+      : []
+
     // Ensure contentFormat has a default value
-    const { projectDocumentation: _pd, ...pageRest } = page as typeof page & { projectDocumentation?: unknown }
+    const { projectDocumentation: _pd, taskLinks: _tl, ...pageRest } = page as typeof page & { projectDocumentation?: unknown; taskLinks?: unknown }
     const response = {
       ...pageRest,
       contentFormat: (page as { contentFormat?: string }).contentFormat || 'HTML',
-      linkedProjects
+      linkedProjects,
+      linkedTasks
     }
 
     return NextResponse.json(response)
