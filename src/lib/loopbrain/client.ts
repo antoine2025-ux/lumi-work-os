@@ -214,3 +214,16 @@ export async function callSpacesLoopbrainAssistant(
   })
 }
 
+/**
+ * Call Loopbrain assistant in Org mode
+ * 
+ * @param params - Loopbrain assistant parameters (without mode)
+ * @returns Loopbrain response with answer, context, and suggestions
+ * @throws Error if API call fails or returns non-2xx status
+ */
+export async function callOrgLoopbrainAssistant(
+  params: Omit<LoopbrainAssistantParams, 'mode'>
+): Promise<LoopbrainResponse> {
+  return callLoopbrainAssistant({ mode: 'org', ...params })
+}
+

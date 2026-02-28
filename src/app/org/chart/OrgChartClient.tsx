@@ -9,6 +9,7 @@ import { OrgNoAccessState } from "@/components/org/OrgNoAccessState";
 import { OrgChartFilters, type OrgChartFilter } from "@/components/org/OrgChartFilters";
 import { OrgChartEmptyState } from "@/components/org/OrgChartEmptyState";
 import dynamic from "next/dynamic";
+import { cn } from "@/lib/utils";
 
 // Lazy-load: react-d3-tree SVG renderer — only needed when tree view is active
 const OrgChartTreeView = dynamic(
@@ -24,6 +25,12 @@ const OrgChartTreeView = dynamic(
 );
 import { getInitials } from "@/components/org/structure/utils";
 import type { OrgChartTree } from "@/lib/org/projections/buildOrgChartTree";
+
+// Lazy-load: Loopbrain panel — includes AI client calls
+const OrgChartLoopbrainPanel = dynamic(
+  () => import("@/components/org/OrgChartLoopbrainPanel").then(m => ({ default: m.OrgChartLoopbrainPanel })),
+  { ssr: false }
+);
 
 type OrgChartClientProps = {
   orgId: string;
@@ -108,6 +115,10 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
   const [error, setError] = useState<Error | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("flat");
+
+  // Loopbrain selection state
+  const [selectedDept, setSelectedDept] = useState<{ id: string; name: string } | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<{ id: string; name: string } | null>(null);
 
   // Load view preference from localStorage
   useEffect(() => {
@@ -305,23 +316,36 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
                       />
                     ) : (
                       visibleDepartments.map((dept) => (
-                        <OrgDepartmentRow
+                        <div
                           key={dept.id}
-                          id={dept.id}
-                          name={dept.name}
-                          leaderName={dept.leaderName}
-                          leaderInitials={dept.leaderInitials}
-                          leaderRole="Department lead"
-                          reportsToName={dept.reportsToName}
-                          teamsCount={dept.teamsCount}
-                          peopleCount={dept.peopleCount}
-                          isHiring={dept.isHiring}
-                          recentChangeSummary={dept.recentChangeSummary}
-                          isReorg={dept.isReorg}
-                          onOpenStructure={handleOpenStructure}
-                          onViewPeople={handleViewPeople}
-                          accentIndex={dept.accentIndex}
-                        />
+                          className={cn(
+                            "rounded-3xl transition-all duration-150",
+                            selectedDept?.id === dept.id
+                              ? "ring-1 ring-primary/40"
+                              : "ring-0"
+                          )}
+                          onClick={() => {
+                            setSelectedDept({ id: dept.id, name: dept.name });
+                            setSelectedPerson(null);
+                          }}
+                        >
+                          <OrgDepartmentRow
+                            id={dept.id}
+                            name={dept.name}
+                            leaderName={dept.leaderName}
+                            leaderInitials={dept.leaderInitials}
+                            leaderRole="Department lead"
+                            reportsToName={dept.reportsToName}
+                            teamsCount={dept.teamsCount}
+                            peopleCount={dept.peopleCount}
+                            isHiring={dept.isHiring}
+                            recentChangeSummary={dept.recentChangeSummary}
+                            isReorg={dept.isReorg}
+                            onOpenStructure={handleOpenStructure}
+                            onViewPeople={handleViewPeople}
+                            accentIndex={dept.accentIndex}
+                          />
+                        </div>
                       ))
                     )}
                   </div>
@@ -331,7 +355,13 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
                       <OrgChartTreeView
                         tree={chartTree}
                         onNodeClick={(node) => {
-                          if (node.personId) {
+                          if (node.personId && node.personName) {
+                            // Set person context for Loopbrain panel.
+                            // Use "View profile" link in the panel to navigate.
+                            setSelectedPerson({ id: node.personId, name: node.personName });
+                            setSelectedDept(null);
+                          } else if (node.personId) {
+                            // personName unavailable — fall back to navigation
                             router.push(`/org/people/${node.personId}`);
                           }
                         }}
@@ -345,6 +375,14 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
                 )}
               </>
             )}
+
+            {/* Loopbrain intelligence panel — updates based on selected person or department */}
+            <OrgChartLoopbrainPanel
+              selectedPersonId={selectedPerson?.id}
+              selectedPersonName={selectedPerson?.name}
+              selectedDeptId={selectedDept?.id}
+              selectedDeptName={selectedDept?.name}
+            />
           </>
         ) : (
           <OrgEmptyState

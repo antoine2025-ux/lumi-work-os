@@ -49,6 +49,7 @@ const CreateItemDialog = dynamic(() => import("@/components/projects/create-item
 const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
 const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
 const TaskTableView = dynamic(() => import("@/components/projects/TaskTableView").then(mod => ({ default: mod.TaskTableView })), { ssr: false })
+const ProjectLoopbrainPanel = dynamic(() => import("@/components/projects/ProjectLoopbrainPanel").then(mod => ({ default: mod.ProjectLoopbrainPanel })), { ssr: false })
 
 import { ProjectOrgStatus } from '@/components/projects/project-org-status'
 import type { TaskFilter } from '@/components/search/task-search-filter'
@@ -749,6 +750,14 @@ export default function ProjectDetailPage() {
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-6 pb-8">
         <div className="space-y-6">
+          {/* Loopbrain Intelligence Panel — MEMBER+ only; handles 403 gracefully */}
+          {project && currentWorkspace && (
+            <ProjectLoopbrainPanel
+              projectId={project.id}
+              projectName={project.name}
+              workspaceId={currentWorkspace.id}
+            />
+          )}
           {/* Tasks Section */}
           <>
             {headerView === 'epics' ? (
