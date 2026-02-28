@@ -44,13 +44,13 @@ export async function findUnownedEntities(orgId: string): Promise<UnownedEntity[
     }).catch(() => []),
 
     prisma.domain.findMany({
-      where: { orgId },
+      where: { workspaceId: orgId },
       select: { id: true, name: true },
       take: 5000,
     }).catch(() => []),
 
     prisma.systemEntity.findMany({
-      where: { orgId },
+      where: { workspaceId: orgId },
       select: { id: true, name: true },
       take: 5000,
     }).catch(() => []),

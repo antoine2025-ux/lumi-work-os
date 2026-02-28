@@ -156,7 +156,7 @@ export async function seedLoopbrainFixtures() {
     },
     update: {},
     create: {
-      orgId: org.id,
+      workspaceId: org.id,
       name: 'Product Manager',
       description: 'Owns product roadmap and feature prioritization',
     },
@@ -169,7 +169,7 @@ export async function seedLoopbrainFixtures() {
     update: {},
     create: {
       id: 'fixture-em-role',
-      orgId: org.id,
+      workspaceId: org.id,
       name: 'Engineering Manager',
       description: 'Owns technical decisions and engineering execution',
     },
@@ -182,7 +182,7 @@ export async function seedLoopbrainFixtures() {
     update: {},
     create: {
       id: 'fixture-eng-role',
-      orgId: org.id,
+      workspaceId: org.id,
       name: 'Engineer',
       description: 'Software engineer',
     },

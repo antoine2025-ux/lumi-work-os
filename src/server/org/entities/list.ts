@@ -17,7 +17,7 @@ export async function listEntitiesForOrg(orgId: string, type: EntityType) {
 
   if (type === "DOMAIN") {
     const rows: EntityRow[] = await prisma.domain.findMany({
-      where: { orgId },
+      where: { workspaceId: orgId },
       select: { id: true, name: true },
       take: 2000,
       orderBy: { createdAt: "desc" },
@@ -27,7 +27,7 @@ export async function listEntitiesForOrg(orgId: string, type: EntityType) {
 
   // SYSTEM
   const rows: EntityRow[] = await prisma.systemEntity.findMany({
-    where: { orgId },
+    where: { workspaceId: orgId },
     select: { id: true, name: true },
     take: 2000,
     orderBy: { createdAt: "desc" },

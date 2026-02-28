@@ -5,8 +5,8 @@ export async function computeOwnershipCoverageScore(orgId: string): Promise<numb
   // Coverage % = entities with a primary owner / total entities (teams + domains + systems)
   const [teamCount, domainCount, systemCount] = await Promise.all([
     prisma.orgTeam.count({ where: { workspaceId: orgId } }).catch(() => 0),
-    prisma.domain.count({ where: { orgId } }).catch(() => 0),
-    prisma.systemEntity.count({ where: { orgId } }).catch(() => 0),
+    prisma.domain.count({ where: { workspaceId: orgId } }).catch(() => 0),
+    prisma.systemEntity.count({ where: { workspaceId: orgId } }).catch(() => 0),
   ])
 
   const total = Number(teamCount ?? 0) + Number(domainCount ?? 0) + Number(systemCount ?? 0)

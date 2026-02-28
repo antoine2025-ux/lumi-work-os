@@ -30,11 +30,11 @@ export async function computeOrgHealthCompleteness(orgId: string): Promise<{
       where: { workspaceId: orgId, isActive: true },
     }).catch(() => 0),
 
-    prisma.personCapacity.count({ where: { orgId } }).catch(() => 0),
-    prisma.capacityAllocation.count({ where: { orgId } }).catch(() => 0),
+    prisma.personCapacity.count({ where: { workspaceId: orgId } }).catch(() => 0),
+    prisma.capacityAllocation.count({ where: { workspaceId: orgId } }).catch(() => 0),
 
     prisma.personAvailability.count({ where: { workspaceId: orgId } }).catch(() => 0),
-    prisma.personRoleAssignment.count({ where: { orgId } }).catch(() => 0),
+    prisma.personRoleAssignment.count({ where: { workspaceId: orgId } }).catch(() => 0),
 
     prisma.ownerAssignment.count({
       where: { workspaceId: orgId, isPrimary: true },

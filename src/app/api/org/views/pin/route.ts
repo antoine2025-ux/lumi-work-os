@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     const view = await prisma.savedView.findUnique({ where: { id: body.id } });
     if (!view) return NextResponse.json({ ok: false }, { status: 404 });
-    if (view.orgId !== workspaceId) return NextResponse.json({ ok: false }, { status: 403 });
+    if (view.workspaceId !== workspaceId) return NextResponse.json({ ok: false }, { status: 403 });
 
     const isAdmin = auth.user.roles.some((r) => ['ADMIN', 'OWNER'].includes(r));
     if (view.shared && !isAdmin) return NextResponse.json({ ok: false }, { status: 403 });

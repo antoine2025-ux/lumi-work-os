@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     if (!person) return NextResponse.json({ error: "Person not found" }, { status: 404 })
 
     await prisma.personRoleAssignment.create({
-      data: { orgId: workspaceId, personId: body.personId, role: body.role, percent },
+      data: { workspaceId, personId: body.personId, role: body.role, percent },
     })
 
     // Note: Role-gap signals will be recomputed on next refresh for accuracy

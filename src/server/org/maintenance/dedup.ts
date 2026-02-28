@@ -32,7 +32,7 @@ export async function dedupManagerLinks(orgId: string): Promise<DedupResult> {
 export async function dedupCapacity(orgId: string): Promise<DedupResult> {
   // PersonCapacity unique: (orgId, personId)
   const rows = await prisma.personCapacity.findMany({
-    where: { orgId },
+    where: { workspaceId: orgId },
     select: { id: true, personId: true, createdAt: true },
     take: 200000,
     orderBy: { createdAt: "desc" }, // keep newest
@@ -80,7 +80,7 @@ export async function dedupAvailability(orgId: string): Promise<DedupResult> {
 export async function dedupRoles(orgId: string): Promise<DedupResult> {
   // PersonRoleAssignment unique: (orgId, personId, role)
   const rows = await prisma.personRoleAssignment.findMany({
-    where: { orgId },
+    where: { workspaceId: orgId },
     select: { id: true, personId: true, role: true, createdAt: true },
     take: 200000,
     orderBy: { createdAt: "desc" }, // keep newest

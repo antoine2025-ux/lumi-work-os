@@ -41,7 +41,7 @@ export async function computeTeamCapacityMetrics({ orgId }: Inputs): Promise<{
 
   // Capacity profiles (FTE + shrinkage)
   const profiles = await prisma.personCapacity.findMany({
-    where: { orgId },
+    where: { workspaceId: orgId },
     select: { personId: true, fte: true, shrinkagePct: true },
     take: 50000,
   }).catch(() => [])
@@ -66,14 +66,14 @@ export async function computeTeamCapacityMetrics({ orgId }: Inputs): Promise<{
 
   // Allocations (team demand)
   const allocations = await prisma.capacityAllocation.findMany({
-    where: { orgId },
+    where: { workspaceId: orgId },
     select: { personId: true, teamId: true, percent: true, startsAt: true, endsAt: true },
     take: 200000,
   }).catch(() => [])
 
   // Role assignments (optional)
   const roles = await prisma.personRoleAssignment.findMany({
-    where: { orgId },
+    where: { workspaceId: orgId },
     select: { personId: true, role: true, percent: true },
     take: 200000,
   }).catch(() => [])

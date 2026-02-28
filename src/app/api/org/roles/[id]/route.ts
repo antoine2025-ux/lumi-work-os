@@ -91,7 +91,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Verify role exists and belongs to org
     const existingRole = await prisma.role.findUnique({
       where: { id },
-      select: { orgId: true },
+      select: { workspaceId: true },
     });
 
     if (!existingRole) {
@@ -101,7 +101,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (existingRole.orgId !== workspaceId) {
+    if (existingRole.workspaceId !== workspaceId) {
       return NextResponse.json(
         { ok: false, error: "Unauthorized" },
         { status: 403 }
@@ -173,7 +173,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Verify role exists and belongs to org
     const existingRole = await prisma.role.findUnique({
       where: { id },
-      select: { orgId: true },
+      select: { workspaceId: true },
     });
 
     if (!existingRole) {
@@ -183,7 +183,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (existingRole.orgId !== workspaceId) {
+    if (existingRole.workspaceId !== workspaceId) {
       return NextResponse.json(
         { ok: false, error: "Unauthorized" },
         { status: 403 }

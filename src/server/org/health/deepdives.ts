@@ -46,13 +46,13 @@ export async function getCapacityDeepDive(orgId: string) {
 
   try {
     const profiles = await prisma.personCapacity.findMany({
-      where: { orgId },
+      where: { workspaceId: orgId },
       select: { personId: true, fte: true, shrinkagePct: true },
       take: 2000,
     }).catch(() => null)
 
     const allocations = await prisma.capacityAllocation.findMany({
-      where: { orgId },
+      where: { workspaceId: orgId },
       select: { personId: true, percent: true },
       take: 20000,
     }).catch(() => null)

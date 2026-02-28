@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     setWorkspaceContext(workspaceId)
 
     const domains = await prisma.domain.findMany({
-      where: { orgId: workspaceId },
+      where: { workspaceId },
       select: { id: true, name: true, description: true, createdAt: true } as any,
       take: 5000,
       orderBy: { createdAt: "desc" } as any,
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 })
 
     const created = await prisma.domain.create({
-      data: { orgId: workspaceId, name, description: body?.description ?? null },
+      data: { workspaceId, name, description: body?.description ?? null },
       select: { id: true } as any,
     })
     return NextResponse.json({ ok: true, id: created.id })

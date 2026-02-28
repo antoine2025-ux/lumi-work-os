@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const minConf = Number(searchParams.get("minConf") || "0.8");
 
     const rows = await prisma.orgDuplicateCandidate.findMany({
-      where: { orgId: workspaceId, status: "OPEN", confidence: { gte: minConf } },
+      where: { workspaceId, status: "OPEN", confidence: { gte: minConf } },
       orderBy: [{ confidence: "desc" }, { createdAt: "desc" }],
       take: 200,
     });

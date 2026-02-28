@@ -7,7 +7,7 @@ export async function isLoopBrainEnabledForUser(args: {
   teamName?: string | null;
 }) {
   const cfg = await prisma.orgLoopBrainRollout.findUnique({
-    where: { orgId_scope: { orgId: args.orgId, scope: args.scope } },
+    where: { workspaceId_scope: { workspaceId: args.orgId, scope: args.scope } },
   });
 
   if (!cfg || !cfg.enabled) return false;

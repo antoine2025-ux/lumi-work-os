@@ -44,7 +44,7 @@ const _getPersonProfile = async (orgId: string, personId: string) => {
       .catch(() => null),
     prisma.personRoleAssignment
       .findMany({
-        where: { orgId, personId: userId },
+        where: { workspaceId: orgId, personId: userId },
         select: { role: true, percent: true },
         orderBy: { percent: "desc" },
         take: 20,

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     const candidate = await prisma.orgDuplicateCandidate.findUnique({ where: { id: body.candidateId } });
-    if (!candidate || candidate.orgId !== workspaceId) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+    if (!candidate || candidate.workspaceId !== workspaceId) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
 
     // Load positions (personId refers to OrgPosition.id)
     const canonicalPos = await prisma.orgPosition.findUnique({
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
     // Snapshot merged for undo (including report rewires)
     await prisma.orgPersonMergeLog.create({
       data: {
-        orgId: workspaceId,
+        workspaceId,
         canonicalId: body.canonicalId,
         mergedId: body.mergedId,
         snapshot: mergedSnapshot,
@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
 
       await tx.auditLogEntry.create({
         data: {
-          orgId: workspaceId,
+          workspaceId,
           actorUserId: user.userId,
           actorLabel: user.name || user.email || "Unknown user",
           action: "merge_person",

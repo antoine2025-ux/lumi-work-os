@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.loopBrainFeedback.create({
       data: {
-        orgId: workspaceId,
+        workspaceId,
         scope: "people_issues",
         personId: body.personId,
         suggestionRunId: body.suggestionRunId,

@@ -17,10 +17,10 @@ export async function POST(req: NextRequest) {
 
     const view = await prisma.savedView.findUnique({ where: { id: body.id } });
     if (!view) return NextResponse.json({ ok: false }, { status: 404 });
-    if (view.orgId !== workspaceId) return NextResponse.json({ ok: false }, { status: 403 });
+    if (view.workspaceId !== workspaceId) return NextResponse.json({ ok: false }, { status: 403 });
 
     await prisma.savedView.updateMany({
-      where: { orgId: workspaceId, scope: view.scope, defaultForRole: body.role as any },
+      where: { workspaceId, scope: view.scope, defaultForRole: body.role as any },
       data: { defaultForRole: null },
     });
 

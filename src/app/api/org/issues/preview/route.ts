@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     const inputHash = hash({ orgId: workspaceId, ids });
     const suggestionRun = await prisma.orgSuggestionRun.create({
       data: {
-        orgId: workspaceId,
+        workspaceId,
         scope: "people_issues",
         inputHash,
         output: preview as Parameters<typeof prisma.orgSuggestionRun.create>[0]['data']['output'],

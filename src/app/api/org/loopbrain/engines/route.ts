@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const engines = listEngines().filter((e) => e.scope === "people_issues");
 
     const cfg = await prisma.orgLoopBrainConfig.findUnique({
-      where: { orgId_scope: { orgId: workspaceId, scope: "people_issues" } },
+      where: { workspaceId_scope: { workspaceId, scope: "people_issues" } },
     });
 
     return NextResponse.json({ ok: true, engines, config: cfg || null });
@@ -40,14 +40,14 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as { engineId: string; enabled: boolean };
 
     const updated = await prisma.orgLoopBrainConfig.upsert({
-      where: { orgId_scope: { orgId: workspaceId, scope: "people_issues" } },
+      where: { workspaceId_scope: { workspaceId, scope: "people_issues" } },
       update: { engineId: body.engineId, enabled: !!body.enabled },
-      create: { orgId: workspaceId, scope: "people_issues", engineId: body.engineId, enabled: !!body.enabled },
+      create: { workspaceId, scope: "people_issues", engineId: body.engineId, enabled: !!body.enabled },
     });
 
     await prisma.auditLogEntry.create({
       data: {
-        orgId: workspaceId,
+        workspaceId,
         actorUserId: user.userId,
         actorLabel: user.name || user.email || "Unknown user",
         action: "update_loopbrain_engine",

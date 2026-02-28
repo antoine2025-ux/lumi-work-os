@@ -74,7 +74,7 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
       take: 50000,
     }).catch(() => [] as AvailabilityRow[]),
     prisma.personRoleAssignment.findMany({
-      where: { orgId },
+      where: { workspaceId: orgId },
       select: { personId: true, role: true, percent: true },
       take: 200000,
     }).catch(() => [] as RoleRow[]),
@@ -83,23 +83,23 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
       select: { personId: true, skill: { select: { name: true } } },
       take: 200000,
     }).catch(() => [] as SkillRow[]),
-    prisma.orgRoleTaxonomy.findMany({ where: { orgId }, select: { label: true }, take: 5000 }).catch(() => [] as TaxonomyRow[]),
-    prisma.orgSkillTaxonomy.findMany({ where: { orgId }, select: { label: true }, take: 5000 }).catch(() => [] as TaxonomyRow[]),
+    prisma.orgRoleTaxonomy.findMany({ where: { workspaceId: orgId }, select: { label: true }, take: 5000 }).catch(() => [] as TaxonomyRow[]),
+    prisma.orgSkillTaxonomy.findMany({ where: { workspaceId: orgId }, select: { label: true }, take: 5000 }).catch(() => [] as TaxonomyRow[]),
     // Capacity data (FTE, shrinkage)
     prisma.personCapacity
       .findMany({
-        where: { orgId },
+        where: { workspaceId: orgId },
         select: { personId: true, fte: true, shrinkagePct: true },
         take: 50000,
       })
       .catch(() => [] as CapacityRow[]),
     // Domains
     prisma.domain
-      .findMany({ where: { orgId }, select: { id: true, name: true }, take: 2000 })
+      .findMany({ where: { workspaceId: orgId }, select: { id: true, name: true }, take: 2000 })
       .catch(() => [] as DomainRow[]),
     // Systems
     prisma.systemEntity
-      .findMany({ where: { orgId }, select: { id: true, name: true }, take: 2000 })
+      .findMany({ where: { workspaceId: orgId }, select: { id: true, name: true }, take: 2000 })
       .catch(() => [] as SystemRow[]),
   ])
 

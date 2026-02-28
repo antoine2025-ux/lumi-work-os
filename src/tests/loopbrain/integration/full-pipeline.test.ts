@@ -232,7 +232,7 @@ beforeAll(async () => {
       "Engineer",
       "Brand Lead",
       "Senior Designer",
-    ].map((name) => ({ orgId: workspaceId, name })),
+    ].map((name) => ({ workspaceId, name })),
   });
 
   // ── 9. Projects (orgId = workspaceId for Q3's OR[{ orgId }, { workspaceId }]) ─

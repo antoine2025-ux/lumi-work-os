@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     setWorkspaceContext(auth.workspaceId);
 
     const members = await prisma.orgMembership.findMany({
-      where: { orgId: auth.workspaceId },
+      where: { workspaceId: auth.workspaceId },
       select: {
         id: true,
         role: true,
@@ -56,11 +56,11 @@ export async function POST(req: NextRequest) {
     const body = OrgMemberCreateSchema.parse(await req.json());
 
     const created = await prisma.orgMembership.upsert({
-      where: { orgId_userId: { orgId: auth.workspaceId, userId: body.userId } },
+      where: { workspaceId_userId: { workspaceId: auth.workspaceId, userId: body.userId } },
       // Prisma expects OrgRole enum; body.role is a validated string from Zod.
       // The mismatch is pre-existing (was `as any` before Zod) — safe to cast.
       update: { role: body.role as unknown as import("@prisma/client").OrgRole },
-      create: { orgId: auth.workspaceId, userId: body.userId, role: body.role as unknown as import("@prisma/client").OrgRole },
+      create: { workspaceId: auth.workspaceId, userId: body.userId, role: body.role as unknown as import("@prisma/client").OrgRole },
     });
 
     return NextResponse.json({ ok: true, member: created });

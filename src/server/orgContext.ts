@@ -28,7 +28,7 @@ export async function getActiveOrgContext(request?: NextRequest) {
       if (prisma.orgMembership) {
         const membership = activeOrgId
           ? await prisma.orgMembership.findUnique({
-              where: { orgId_userId: { orgId: activeOrgId, userId } },
+              where: { workspaceId_userId: { workspaceId: activeOrgId, userId } },
               select: { role: true, org: { select: { id: true, name: true } } },
             })
           : await prisma.orgMembership.findFirst({

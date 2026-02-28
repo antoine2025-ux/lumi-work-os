@@ -69,7 +69,7 @@ async function seedGoldenPath() {
     update: {},
     create: {
       id: 'golden-path-pm-role',
-      orgId: org.id,
+      workspaceId: org.id,
       name: 'Product Manager',
       description: 'Owns product roadmap and feature prioritization',
     },
@@ -82,7 +82,7 @@ async function seedGoldenPath() {
     update: {},
     create: {
       id: 'golden-path-em-role',
-      orgId: org.id,
+      workspaceId: org.id,
       name: 'Engineering Manager',
       description: 'Owns technical decisions and engineering execution',
     },

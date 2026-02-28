@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
         prisma.personRoleAssignment
           .findMany({
             where: {
-              orgId: workspaceId,
+              workspaceId,
               personId: { in: userIds },
             },
             select: { personId: true, role: true, percent: true },

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const roles = await prisma.role.findMany({
       where: {
-        orgId: workspaceId,
+        workspaceId,
       },
       include: {
         responsibilities: {
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     // Create role with responsibilities
     const role = await prisma.role.create({
       data: {
-        orgId: workspaceId,
+        workspaceId,
         name: name.trim(),
         description: description?.trim() || null,
         responsibilities: {

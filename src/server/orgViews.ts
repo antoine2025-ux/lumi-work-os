@@ -37,10 +37,10 @@ export async function ensureDefaultOrgViews(orgId: string) {
 
   for (const v of defaults) {
     await prisma.savedOrgView.upsert({
-      where: { orgId_key: { orgId, key: v.key } },
+      where: { workspaceId_key: { workspaceId: orgId, key: v.key } },
       update: {},
       create: {
-        orgId,
+        workspaceId: orgId,
         key: v.key,
         title: v.title,
         description: v.description || null,

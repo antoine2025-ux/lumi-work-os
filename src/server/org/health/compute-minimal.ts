@@ -36,8 +36,8 @@ export async function computeMinimalOrgHealth(orgId: string) {
 
     const [teams, domains, systems] = await Promise.all([
       prisma.orgTeam.findMany({ where: { workspaceId: orgId }, select: { id: true }, take: 50000 }).catch(() => []),
-      prisma.domain.findMany({ where: { orgId }, select: { id: true }, take: 50000 }).catch(() => []),
-      prisma.systemEntity.findMany({ where: { orgId }, select: { id: true }, take: 50000 }).catch(() => []),
+      prisma.domain.findMany({ where: { workspaceId: orgId }, select: { id: true }, take: 50000 }).catch(() => []),
+      prisma.systemEntity.findMany({ where: { workspaceId: orgId }, select: { id: true }, take: 50000 }).catch(() => []),
     ])
 
     let unownedCount = 0

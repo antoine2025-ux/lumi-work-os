@@ -9,16 +9,16 @@ export async function ensureDefaultLandingViews(orgId: string) {
 
   for (const d of defaults) {
     await prisma.orgDefaultView.upsert({
-      where: { orgId_role: { orgId, role: d.role } },
+      where: { workspaceId_role: { workspaceId: orgId, role: d.role } },
       update: {},
-      create: { orgId, role: d.role, viewKey: d.viewKey },
+      create: { workspaceId: orgId, role: d.role, viewKey: d.viewKey },
     });
   }
 }
 
 export async function getDefaultViewForRole(orgId: string, role: string) {
   return prisma.orgDefaultView.findUnique({
-    where: { orgId_role: { orgId, role } },
+    where: { workspaceId_role: { workspaceId: orgId, role } },
   });
 }
 

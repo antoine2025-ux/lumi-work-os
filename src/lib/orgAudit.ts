@@ -35,7 +35,7 @@ type AuditMeta = Prisma.JsonValue;
  */
 export async function logOrgAudit(
   params: {
-    orgId: string;
+    workspaceId: string;
     action: OrgAuditAction;
     targetType?: OrgAuditTargetType;
     targetId?: string | null;
@@ -55,7 +55,7 @@ export async function logOrgAudit(
 
     await prisma.orgAuditLog.create({
       data: {
-        workspaceId: params.orgId,
+        workspaceId: params.workspaceId,
         userId: actorUserId, // Required field
         actorUserId: actorUserId, // Optional field for clarity
         entityType: params.targetType ?? "UNKNOWN", // Required field, use fallback

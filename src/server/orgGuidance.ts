@@ -12,13 +12,13 @@ type GuidanceItem = {
 export async function computeOrgGuidance(orgId: string) {
   // Pull unresolved issue counts
   const [missingManager, missingTeam, missingRole] = await Promise.all([
-    prisma.orgPersonIssue.count({ where: { orgId, type: "MISSING_MANAGER", resolvedAt: null } }),
-    prisma.orgPersonIssue.count({ where: { orgId, type: "MISSING_TEAM", resolvedAt: null } }),
-    prisma.orgPersonIssue.count({ where: { orgId, type: "MISSING_ROLE", resolvedAt: null } }),
+    prisma.orgPersonIssue.count({ where: { workspaceId: orgId, type: "MISSING_MANAGER", resolvedAt: null } }),
+    prisma.orgPersonIssue.count({ where: { workspaceId: orgId, type: "MISSING_TEAM", resolvedAt: null } }),
+    prisma.orgPersonIssue.count({ where: { workspaceId: orgId, type: "MISSING_ROLE", resolvedAt: null } }),
   ]);
 
   const openDuplicates = await prisma.orgDuplicateCandidate.count({
-    where: { orgId, status: "OPEN" },
+    where: { workspaceId: orgId, status: "OPEN" },
   });
 
   const items: GuidanceItem[] = [

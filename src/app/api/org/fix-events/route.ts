@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "orgId required" }, { status: 400 });
     }
 
-    const where: any = { orgId };
+    const where: any = { workspaceId: orgId };
     if (personId) {
       where.personId = personId;
     }
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
     try {
       event = await prisma.orgFixEvent.create({
         data: {
-          orgId,
+          workspaceId: orgId,
           personId: personId || null,
           fixType,
           beforeState,

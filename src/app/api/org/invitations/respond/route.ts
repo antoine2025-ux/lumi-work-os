@@ -36,9 +36,9 @@ export async function POST(req: NextRequest) {
     if (!orgId) return NextResponse.json({ ok: false, error: "Invalid invite" }, { status: 400 });
 
     await prisma.orgMembership.upsert({
-      where: { orgId_userId: { orgId, userId: user.userId } },
+      where: { workspaceId_userId: { workspaceId: orgId, userId: user.userId } },
       update: { role: invite.role || "VIEWER" },
-      create: { orgId, userId: user.userId, role: invite.role || "VIEWER" },
+      create: { workspaceId: orgId, userId: user.userId, role: invite.role || "VIEWER" },
     });
 
     await prisma.orgInvitation.update({ where: { id: invite.id }, data: { status: "ACCEPTED" } });

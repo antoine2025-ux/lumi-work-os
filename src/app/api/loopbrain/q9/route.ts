@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
     // Fetch roles with responsibilities
     const orgId = project.orgId || workspaceId;
     const roles = await prisma.role.findMany({
-      where: { orgId },
+      where: { workspaceId: orgId },
       include: {
         responsibilities: {
           select: {

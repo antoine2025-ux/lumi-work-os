@@ -28,7 +28,7 @@ export async function runPeopleIssuesSuggestionsForOrg(args: {
   const { orgId, workspaceId } = args;
 
   const rollout = await prisma.orgLoopBrainRollout.findUnique({
-    where: { orgId_scope: { orgId, scope: "people_issues" } },
+    where: { workspaceId_scope: { workspaceId: orgId, scope: "people_issues" } },
   });
 
   if (!rollout || !rollout.enabled) {
@@ -107,7 +107,7 @@ export async function runPeopleIssuesSuggestionsForOrg(args: {
 
   const run = await prisma.orgSuggestionRun.create({
     data: {
-      orgId,
+      workspaceId: orgId,
       scope: "people_issues",
       inputHash,
       output: preview as unknown as object,

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.auditLogEntry.create({
       data: {
-        orgId: auth.workspaceId,
+        workspaceId: auth.workspaceId,
         actorUserId: auth.user.userId,
         actorLabel: auth.user.name || auth.user.email || "Unknown user",
         action: "restore_person",

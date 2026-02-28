@@ -2190,7 +2190,7 @@ enum OrgRole {
 
 model SavedView {
   id             String   @id @default(cuid())
-  orgId          String
+  workspaceId    String
   userId         String? // null when system/shared
   name           String
   scope          String // e.g. "people"
@@ -2201,15 +2201,15 @@ model SavedView {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  @@index([orgId, scope])
-  @@index([orgId, userId])
-  @@index([orgId, pinned])
+  @@index([workspaceId, scope])
+  @@index([workspaceId, userId])
+  @@index([workspaceId, pinned])
   @@map("saved_views")
 }
 
 model OrgPersonIssue {
   id          String    @id @default(cuid())
-  orgId       String
+  workspaceId String
   personId    String
   type        String // e.g. "MISSING_MANAGER"
   firstSeenAt DateTime  @default(now())
@@ -2224,9 +2224,9 @@ model OrgPersonIssue {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([orgId, personId, type])
-  @@index([orgId, type, resolvedAt])
-  @@index([orgId, resolution])
+  @@unique([workspaceId, personId, type])
+  @@index([workspaceId, type, resolvedAt])
+  @@index([workspaceId, resolution])
   @@map("org_person_issues")
 }
 
@@ -2260,7 +2260,7 @@ model OrgIssueResolution {
 
 model OrgDuplicateCandidate {
   id         String   @id @default(cuid())
-  orgId      String
+  workspaceId String
   personAId  String
   personBId  String
   confidence Float
@@ -2270,14 +2270,14 @@ model OrgDuplicateCandidate {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  @@unique([orgId, personAId, personBId])
-  @@index([orgId, status, confidence])
+  @@unique([workspaceId, personAId, personBId])
+  @@index([workspaceId, status, confidence])
   @@map("org_duplicate_candidates")
 }
 
 model OrgPersonMergeLog {
   id                   String    @id @default(cuid())
-  orgId                String
+  workspaceId          String
   canonicalId          String
   mergedId             String
   snapshot             Json // copy of merged record before merge (for undo)
@@ -2287,37 +2287,37 @@ model OrgPersonMergeLog {
   actorUserId          String?
   actorLabel           String
 
-  @@unique([orgId, canonicalId, mergedId, undoneAt])
-  @@index([orgId, appliedAt])
+  @@unique([workspaceId, canonicalId, mergedId, undoneAt])
+  @@index([workspaceId, appliedAt])
   @@map("org_person_merge_logs")
 }
 
 model OrgSuggestionRun {
-  id        String   @id @default(cuid())
-  orgId     String
-  scope     String // e.g. "people_issues"
-  inputHash String
-  output    Json
-  engineId  String?
-  modelId   String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  workspaceId String
+  scope       String // e.g. "people_issues"
+  inputHash   String
+  output      Json
+  engineId    String?
+  modelId     String?
+  createdAt   DateTime @default(now())
 
-  @@index([orgId, scope, createdAt])
-  @@index([orgId, engineId, createdAt])
+  @@index([workspaceId, scope, createdAt])
+  @@index([workspaceId, engineId, createdAt])
   @@map("org_suggestion_runs")
 }
 
 model OrgLoopBrainConfig {
-  id        String   @id @default(cuid())
-  orgId     String
-  scope     String // "people_issues"
-  engineId  String // e.g. "heuristic-v1"
-  enabled   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  workspaceId String
+  scope       String // "people_issues"
+  engineId    String // e.g. "heuristic-v1"
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@unique([orgId, scope])
-  @@index([orgId, scope, enabled])
+  @@unique([workspaceId, scope])
+  @@index([workspaceId, scope, enabled])
   @@map("org_loop_brain_configs")
 }
 
@@ -2335,7 +2335,7 @@ model LoopBrainModel {
 
 model LoopBrainFeedback {
   id               String   @id @default(cuid())
-  orgId            String
+  workspaceId      String
   personId         String?
   suggestionRunId  String?
   modelId          String?
@@ -2346,13 +2346,13 @@ model LoopBrainFeedback {
   feedback         String? // free-text (optional)
   createdAt        DateTime @default(now())
 
-  @@index([orgId, scope, createdAt])
+  @@index([workspaceId, scope, createdAt])
   @@map("loop_brain_feedback")
 }
 
 model LoopBrainOutcome {
   id              String   @id @default(cuid())
-  orgId           String
+  workspaceId     String
   suggestionRunId String
   scope           String
   beforeMetrics   Json // e.g. { missingManagerCount: 14 }
@@ -2360,21 +2360,21 @@ model LoopBrainOutcome {
   improved        Boolean
   measuredAt      DateTime @default(now())
 
-  @@index([orgId, scope, measuredAt])
+  @@index([workspaceId, scope, measuredAt])
   @@map("loop_brain_outcomes")
 }
 
 model OrgLoopBrainRollout {
-  id        String   @id @default(cuid())
-  orgId     String
-  scope     String // "people_issues"
-  mode      String // "ALL" | "ADMIN_ONLY" | "MANAGERS_ONLY" | "TEAM"
-  teamName  String? // used when mode === "TEAM"
-  enabled   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  workspaceId String
+  scope       String // "people_issues"
+  mode        String // "ALL" | "ADMIN_ONLY" | "MANAGERS_ONLY" | "TEAM"
+  teamName    String? // used when mode === "TEAM"
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@unique([orgId, scope])
+  @@unique([workspaceId, scope])
   @@map("org_loop_brain_rollouts")
 }
 
@@ -2547,9 +2547,9 @@ model LoopbrainOpenLoop {
 }
 
 model OrgHealthSnapshot {
-  id         String   @id @default(cuid())
-  orgId      String
-  capturedAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  workspaceId String
+  capturedAt  DateTime @default(now())
 
   capacityScore    Float?
   ownershipScore   Float?
@@ -2560,13 +2560,13 @@ model OrgHealthSnapshot {
 
   createdAt DateTime @default(now())
 
-  @@index([orgId, capturedAt])
+  @@index([workspaceId, capturedAt])
   @@map("org_health_snapshots")
 }
 
 model OrgHealthSignal {
-  id    String @id @default(cuid())
-  orgId String
+  id          String @id @default(cuid())
+  workspaceId String
 
   // Stable identity for dedupe + lifecycle
   signalKey String
@@ -2593,10 +2593,10 @@ model OrgHealthSignal {
   resolvedAt  DateTime?
   dismissedAt DateTime?
 
-  @@index([orgId, type])
-  @@index([orgId, signalKey])
-  @@index([orgId, severity])
-  @@index([orgId, firstSeenAt])
+  @@index([workspaceId, type])
+  @@index([workspaceId, signalKey])
+  @@index([workspaceId, severity])
+  @@index([workspaceId, firstSeenAt])
   @@map("org_health_signals")
 }
 
@@ -2629,7 +2629,7 @@ enum OrgHealthSeverity {
 
 model OrgFixEvent {
   id          String   @id @default(cuid())
-  orgId       String
+  workspaceId String
   personId    String?
   fixType     String // e.g. ASSIGN_MANAGER, ASSIGN_TEAM, ASSIGN_ROLE
   beforeState Json
@@ -2637,13 +2637,13 @@ model OrgFixEvent {
   impactScore Int
   createdAt   DateTime @default(now())
 
-  @@index([orgId, createdAt])
+  @@index([workspaceId, createdAt])
   @@map("org_fix_events")
 }
 
 model SavedOrgView {
   id          String   @id @default(cuid())
-  orgId       String
+  workspaceId String
   key         String // e.g. "leadership_structure"
   title       String
   description String?
@@ -2652,39 +2652,39 @@ model SavedOrgView {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@unique([orgId, key])
-  @@index([orgId, persona])
+  @@unique([workspaceId, key])
+  @@index([workspaceId, persona])
   @@map("saved_org_views")
 }
 
 model OrgDefaultView {
-  id        String   @id @default(cuid())
-  orgId     String
-  role      String // EXECUTIVE | HR | MANAGER | MEMBER
-  viewKey   String // SavedOrgView.key
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  workspaceId String
+  role        String // EXECUTIVE | HR | MANAGER | MEMBER
+  viewKey     String // SavedOrgView.key
+  createdAt   DateTime @default(now())
 
-  @@unique([orgId, role])
+  @@unique([workspaceId, role])
   @@map("org_default_views")
 }
 
 model OrgHealthDigest {
-  id         String    @id @default(cuid())
-  orgId      String
-  cadence    String // WEEKLY
-  lastSentAt DateTime?
-  enabled    Boolean   @default(true)
-  recipients Json // array of { role, userId? }
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  workspaceId String
+  cadence     String // WEEKLY
+  lastSentAt  DateTime?
+  enabled     Boolean   @default(true)
+  recipients  Json // array of { role, userId? }
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  @@unique([orgId])
+  @@unique([workspaceId])
   @@map("org_health_digests")
 }
 
 model AuditLogEntry {
   id          String   @id @default(cuid())
-  orgId       String
+  workspaceId String
   actorUserId String?
   actorLabel  String // fallback display name if user not resolvable
   action      String
@@ -2692,24 +2692,24 @@ model AuditLogEntry {
   summary     String
   createdAt   DateTime @default(now())
 
-  org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  org Org @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@index([orgId, createdAt])
+  @@index([workspaceId, createdAt])
   @@map("audit_log_entries")
 }
 
 model OrgMembership {
-  id        String   @id @default(cuid())
-  orgId     String
-  userId    String
-  role      OrgRole  @default(VIEWER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        OrgRole  @default(VIEWER)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  org Org @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@unique([orgId, userId])
-  @@index([orgId, role])
+  @@unique([workspaceId, userId])
+  @@index([workspaceId, role])
   @@map("org_memberships")
 }
 
@@ -2799,16 +2799,16 @@ model ProjectAllocation {
 
 model Role {
   id          String   @id @default(cuid())
-  orgId       String
+  workspaceId String
   name        String // e.g. "Product Manager"
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  org              Org                  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  org              Org                  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   responsibilities RoleResponsibility[]
 
-  @@index([orgId])
+  @@index([workspaceId])
   @@map("roles")
 }
 
@@ -2832,9 +2832,9 @@ enum ResponsibilityScope {
 }
 
 model PersonCapacity {
-  id       String @id @default(cuid())
-  orgId    String
-  personId String
+  id          String @id @default(cuid())
+  workspaceId String
+  personId    String
 
   // 1.0 = full-time; 0.5 = half-time
   fte Float @default(1.0)
@@ -2848,15 +2848,15 @@ model PersonCapacity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([orgId, personId])
-  @@index([orgId, personId])
+  @@unique([workspaceId, personId])
+  @@index([workspaceId, personId])
   @@map("person_capacity")
 }
 
 model CapacityAllocation {
-  id       String @id @default(cuid())
-  orgId    String
-  personId String
+  id          String @id @default(cuid())
+  workspaceId String
+  personId    String
 
   // Optional targets — keep flexible for now
   teamId    String?
@@ -2873,9 +2873,9 @@ model CapacityAllocation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([orgId, personId])
-  @@index([orgId, teamId])
-  @@index([orgId, projectId])
+  @@index([workspaceId, personId])
+  @@index([workspaceId, teamId])
+  @@index([workspaceId, projectId])
   @@map("capacity_allocations")
 }
 
@@ -3006,9 +3006,9 @@ enum RoleCardSkillType {
 }
 
 model PersonRoleAssignment {
-  id       String @id @default(cuid())
-  orgId    String
-  personId String
+  id          String @id @default(cuid())
+  workspaceId String
+  personId    String
 
   // Flexible role labels for now (e.g., "Engineer", "PM", "Designer", "QA")
   role String
@@ -3019,9 +3019,9 @@ model PersonRoleAssignment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([orgId, personId, role])
-  @@index([orgId, personId])
-  @@index([orgId, role])
+  @@unique([workspaceId, personId, role])
+  @@index([workspaceId, personId])
+  @@index([workspaceId, role])
   @@map("person_role_assignments")
 }
 
@@ -3061,27 +3061,27 @@ model OwnerAssignment {
 
 model Domain {
   id          String  @id @default(cuid())
-  orgId       String
+  workspaceId String
   name        String
   description String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([orgId, name])
+  @@index([workspaceId, name])
   @@map("domains")
 }
 
 model SystemEntity {
   id          String  @id @default(cuid())
-  orgId       String
+  workspaceId String
   name        String
   description String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([orgId, name])
+  @@index([workspaceId, name])
   @@map("system_entities")
 }
 
@@ -3111,9 +3111,9 @@ model PersonManagerLink {
 }
 
 model ManagerProfile {
-  id       String @id @default(cuid())
-  orgId    String
-  personId String
+  id          String @id @default(cuid())
+  workspaceId String
+  personId    String
 
   // Optional: "people manager" flag (vs IC)
   isManager Boolean @default(true)
@@ -3121,29 +3121,29 @@ model ManagerProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([orgId, personId])
+  @@index([workspaceId, personId])
   @@map("manager_profiles")
 }
 
 model OrgRoleTaxonomy {
-  id        String   @id @default(cuid())
-  orgId     String
-  label     String
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  workspaceId String
+  label       String
+  createdAt   DateTime @default(now())
 
-  @@unique([orgId, label])
-  @@index([orgId])
+  @@unique([workspaceId, label])
+  @@index([workspaceId])
   @@map("org_role_taxonomy")
 }
 
 model OrgSkillTaxonomy {
-  id        String   @id @default(cuid())
-  orgId     String
-  label     String
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  workspaceId String
+  label       String
+  createdAt   DateTime @default(now())
 
-  @@unique([orgId, label])
-  @@index([orgId])
+  @@unique([workspaceId, label])
+  @@index([workspaceId])
   @@map("org_skill_taxonomy")
 }
 

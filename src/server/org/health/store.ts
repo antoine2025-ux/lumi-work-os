@@ -16,7 +16,7 @@ export async function storeOrgHealthSnapshot({ orgId, computed }: StoreInput) {
   // 1) Write snapshot
   const snapshot = await prisma.orgHealthSnapshot.create({
       data: {
-        orgId,
+        workspaceId: orgId,
         capturedAt: computed.snapshot.capturedAt,
         capacityScore: computed.snapshot.capacityScore ?? null,
         ownershipScore: computed.snapshot.ownershipScore ?? null,
@@ -38,7 +38,7 @@ export async function storeOrgHealthSnapshot({ orgId, computed }: StoreInput) {
 
   // 3) Load currently open signals (not resolved, not dismissed)
   const open = await prisma.orgHealthSignal.findMany({
-    where: { orgId, resolvedAt: null, dismissedAt: null },
+    where: { workspaceId: orgId, resolvedAt: null, dismissedAt: null },
     select: { id: true, signalKey: true },
   })
 
@@ -50,7 +50,7 @@ export async function storeOrgHealthSnapshot({ orgId, computed }: StoreInput) {
   if (toCreate.length) {
     await prisma.orgHealthSignal.createMany({
       data: toCreate.map((s) => ({
-        orgId,
+        workspaceId: orgId,
         signalKey: s.signalKey,
         type: s.type as OrgHealthSignalType,
         severity: s.severity as OrgHealthSeverity,
@@ -70,7 +70,7 @@ export async function storeOrgHealthSnapshot({ orgId, computed }: StoreInput) {
   const stale = open.filter((s) => !computedKeys.has(s.signalKey))
   if (stale.length) {
     await prisma.orgHealthSignal.updateMany({
-      where: { orgId, id: { in: stale.map((s) => s.id) } },
+      where: { workspaceId: orgId, id: { in: stale.map((s) => s.id) } },
       data: { resolvedAt: new Date() },
     })
   }
@@ -80,14 +80,14 @@ export async function storeOrgHealthSnapshot({ orgId, computed }: StoreInput) {
 
 export async function getLatestOrgHealth(orgId: string) {
   const snapshot = await prisma.orgHealthSnapshot.findFirst({
-    where: { orgId },
+    where: { workspaceId: orgId },
     orderBy: { capturedAt: "desc" },
   })
 
   if (!snapshot) return null
 
   const signals = await prisma.orgHealthSignal.findMany({
-    where: { orgId, resolvedAt: null, dismissedAt: null },
+    where: { workspaceId: orgId, resolvedAt: null, dismissedAt: null },
     orderBy: { createdAt: "desc" },
     take: 12,
   })
@@ -97,7 +97,7 @@ export async function getLatestOrgHealth(orgId: string) {
 
 export async function getOrgHealthHistory(orgId: string, take: number = 30) {
   const snapshots = await prisma.orgHealthSnapshot.findMany({
-    where: { orgId },
+    where: { workspaceId: orgId },
     orderBy: { capturedAt: "desc" },
     take,
   })
@@ -107,7 +107,7 @@ export async function getOrgHealthHistory(orgId: string, take: number = 30) {
 
 export async function getOpenOrgHealthSignals(orgId: string, take: number = 50) {
   const signals = await prisma.orgHealthSignal.findMany({
-    where: { orgId, resolvedAt: null, dismissedAt: null },
+    where: { workspaceId: orgId, resolvedAt: null, dismissedAt: null },
     orderBy: { createdAt: "desc" },
     take,
   })
@@ -117,7 +117,7 @@ export async function getOpenOrgHealthSignals(orgId: string, take: number = 50) 
 
 export async function getLatestOrgHealthSnapshot(orgId: string) {
   const snapshot = await prisma.orgHealthSnapshot.findFirst({
-    where: { orgId },
+    where: { workspaceId: orgId },
     orderBy: { capturedAt: "desc" },
   })
 
@@ -126,7 +126,7 @@ export async function getLatestOrgHealthSnapshot(orgId: string) {
 
 export async function getPreviousOrgHealthSnapshot(orgId: string) {
   const snapshots = await prisma.orgHealthSnapshot.findMany({
-    where: { orgId },
+    where: { workspaceId: orgId },
     orderBy: { capturedAt: "desc" },
     take: 2,
   })

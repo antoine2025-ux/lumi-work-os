@@ -12,7 +12,7 @@ export async function measureOrgOutcomes(args: {
 
   await prisma.loopBrainOutcome.create({
     data: {
-      orgId: args.orgId,
+      workspaceId: args.orgId,
       scope: args.scope,
       suggestionRunId: args.suggestionRunId,
       beforeMetrics: args.before as Prisma.InputJsonValue,

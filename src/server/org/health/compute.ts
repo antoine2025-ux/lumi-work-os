@@ -91,13 +91,13 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
   // If capacity primitives exist, compute "available capacity" signal from real data.
   try {
     const profiles = await prisma.personCapacity.findMany({
-      where: { orgId },
+      where: { workspaceId: orgId },
       select: { fte: true, shrinkagePct: true, personId: true },
       take: 2000,
     }).catch(() => null) as PersonCapacityRow[] | null
 
     const allocations = await prisma.capacityAllocation.findMany({
-      where: { orgId },
+      where: { workspaceId: orgId },
       select: { personId: true, percent: true, teamId: true, endsAt: true, startsAt: true },
       take: 20000,
     }).catch(() => null) as CapacityAllocationRow[] | null

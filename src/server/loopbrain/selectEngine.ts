@@ -3,7 +3,7 @@ import { getEngineById, getFallbackEngineForScope } from "./registry";
 
 export async function selectEngineForOrg(args: { orgId: string; scope: string }) {
   const cfg = await prisma.orgLoopBrainConfig.findUnique({
-    where: { orgId_scope: { orgId: args.orgId, scope: args.scope } },
+    where: { workspaceId_scope: { workspaceId: args.orgId, scope: args.scope } },
   });
 
   if (cfg && cfg.enabled) {

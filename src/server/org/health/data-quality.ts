@@ -65,7 +65,7 @@ export async function getDataQualityDeepDive(orgId: string) {
   const overAllocated: Array<{ personId: string; label: string; demandPct: number }> = []
   try {
     const allocs = await prisma.capacityAllocation.findMany({
-      where: { orgId },
+      where: { workspaceId: orgId },
       select: { personId: true, percent: true },
       take: 200000,
     })
