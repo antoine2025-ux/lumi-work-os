@@ -84,6 +84,7 @@ import { formatWorkloadEnvelope, formatTeamWorkloadEnvelope } from './reasoning/
 import { buildCalendarAvailabilitySnapshot, buildTeamAvailabilitySnapshot } from './reasoning/calendarAvailability'
 import { formatCalendarAvailabilityEnvelope, formatTeamAvailabilityEnvelope } from './reasoning/calendarAvailabilityAnswer'
 import { generateOnboardingBriefing } from './scenarios/onboarding-briefing'
+import { loadGmailThreads, formatGmailThreadsForPrompt } from './context-sources/gmail'
 import { extractEntityContext } from './reasoning/entityLinksAnswer'
 import { getCachedEntityGraph } from './entity-graph'
 import type { ProjectHealthSnapshotV0 } from './contract/projectHealth.v0'
@@ -1106,14 +1107,21 @@ async function handleDashboardMode(
   
   // Build prompt (include Slack availability)
   let prompt = buildDashboardPrompt(req, contextSummary, slackAvailable)
-  
-  // Open Loops: fetch and inject into prompt
-  const openLoops = await fetchOpenLoops(req.workspaceId, req.userId)
+
+  // Open Loops + Gmail threads: fetch in parallel, inject into prompt
+  const [openLoops, gmailThreads] = await Promise.all([
+    fetchOpenLoops(req.workspaceId, req.userId),
+    loadGmailThreads(req.userId, req.workspaceId),
+  ])
   const openLoopsSection = formatOpenLoopsForPrompt(openLoops)
   if (openLoopsSection) {
     prompt = prompt + "\n\n" + openLoopsSection
   }
-  
+  const gmailSection = formatGmailThreadsForPrompt(gmailThreads)
+  if (gmailSection) {
+    prompt = prompt + "\n\n" + gmailSection
+  }
+
   // Personalization: combine user context block + style instructions
   const dashUserProfile = await getProfile(req.workspaceId, req.userId)
   const dashStyleBlock = buildStyleInstructions(dashUserProfile)
