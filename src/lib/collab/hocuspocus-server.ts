@@ -4,33 +4,59 @@ import { prosemirrorJSONToYDoc, yDocToProsemirrorJSON } from 'y-prosemirror'
 import { prismaUnscoped } from '@/lib/db'
 import { getWikiEditorSchema } from './wiki-schema-server'
 import type { JSONContent } from '@tiptap/core'
+import type { Schema } from '@tiptap/pm/model'
 
-const FRAGMENT_NAME = 'default' // TipTap Collaboration uses 'default'
+const FRAGMENT_NAME = 'default' // TipTap Collaboration extension reads from 'default'
 
-// #region agent log
-const DBG_LOG = (loc: string, msg: string, data: Record<string, unknown>, hyp: string) => {
-  fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bc54f1' },
-    body: JSON.stringify({
-      sessionId: 'bc54f1',
-      location: loc,
-      message: msg,
-      data,
-      hypothesisId: hyp,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {})
+/**
+ * Recursively strip nodes and marks that the schema doesn't recognise.
+ * prosemirrorJSONToYDoc throws on unknown types; this keeps the rest of
+ * the document intact instead of losing everything.
+ */
+function filterContentJson(json: JSONContent, schema: Schema): JSONContent {
+  const filtered: JSONContent = { ...json }
+
+  if (filtered.marks) {
+    const before = filtered.marks.length
+    filtered.marks = filtered.marks.filter(mark => mark.type in schema.marks)
+    if (filtered.marks.length < before) {
+      console.warn(
+        '[Hocuspocus] Stripped unknown marks:',
+        json.marks?.filter(m => !(m.type in schema.marks)).map(m => m.type),
+      )
+    }
+    if (filtered.marks.length === 0) delete filtered.marks
+  }
+
+  if (filtered.content) {
+    const unknownNodes = filtered.content.filter(n => n.type && !(n.type in schema.nodes))
+    if (unknownNodes.length > 0) {
+      console.warn(
+        '[Hocuspocus] Stripped unknown nodes:',
+        unknownNodes.map(n => n.type),
+      )
+    }
+    filtered.content = filtered.content
+      .filter(node => node.type && node.type in schema.nodes)
+      .map(node => filterContentJson(node, schema))
+  }
+
+  return filtered
 }
-// #endregion
+
+/** Collect every node type used in a JSONContent tree. */
+function collectNodeTypes(json: JSONContent, out: Set<string> = new Set()): Set<string> {
+  if (json.type) out.add(json.type)
+  if (json.content) json.content.forEach(child => collectNodeTypes(child, out))
+  return out
+}
 
 /**
  * Creates and returns a Hocuspocus collaboration server instance.
  * Used for real-time wiki page editing via Yjs.
  *
  * - onLoadDocument: Loads content from DB when first client connects
- * - onStoreDocument: Saves content to DB when last client disconnects
- * - Phase 4: Add proper auth in onAuthenticate
+ * - onStoreDocument: Saves content to DB when clients disconnect / debounce fires
  */
 export function createCollabServer(): InstanceType<typeof Server> {
   const server = new Server({
@@ -38,6 +64,7 @@ export function createCollabServer(): InstanceType<typeof Server> {
     port: 1234,
 
     async onAuthenticate(data) {
+      // Phase 4: replace with real token validation
       return {
         user: {
           id: data.token ?? 'anonymous',
@@ -48,17 +75,10 @@ export function createCollabServer(): InstanceType<typeof Server> {
 
     async onLoadDocument(data) {
       const documentName = data.documentName ?? ''
-      // #region agent log
-      DBG_LOG('hocuspocus-server.ts:onLoadDocument:entry', 'onLoadDocument called', {
-        documentName,
-        startsWithWiki: documentName.startsWith('wiki-'),
-      }, 'H1')
-      // #endregion
-      console.log('[Hocuspocus] onLoadDocument called for:', documentName)
+      console.log('[Hocuspocus] onLoadDocument:', documentName)
 
       if (!documentName.startsWith('wiki-')) return
       const pageId = documentName.replace('wiki-', '')
-      console.log('[Hocuspocus] Loading page:', pageId)
       if (!pageId) return
 
       try {
@@ -66,88 +86,51 @@ export function createCollabServer(): InstanceType<typeof Server> {
           where: { id: pageId },
           select: { contentJson: true, contentFormat: true, id: true },
         })
-        // #region agent log
-        DBG_LOG('hocuspocus-server.ts:onLoadDocument:dbResult', 'DB query result', {
-          found: !!page,
-          contentFormat: page?.contentFormat,
-          hasContentJson: !!page?.contentJson,
-          contentJsonContentLen: (page?.contentJson as { content?: unknown[] })?.content?.length ?? null,
-          passesCheck: !!(
-            page?.contentFormat === 'JSON' &&
-            page?.contentJson &&
-            (page.contentJson as { content?: unknown[] })?.content &&
-            Array.isArray((page.contentJson as { content?: unknown[] }).content) &&
-            (page.contentJson as { content?: unknown[] }).content!.length > 0
-          ),
-        }, 'H2-H3')
-        // #endregion
+
         console.log('[Hocuspocus] DB result:', {
           found: !!page,
           format: page?.contentFormat,
           hasContentJson: !!page?.contentJson,
-          contentJsonType: typeof page?.contentJson,
-          contentJsonKeys: page?.contentJson ? Object.keys(page.contentJson as Record<string, unknown>) : null,
         })
 
         const contentJson = page?.contentJson as JSONContent | null | undefined
-        if (!page?.contentJson) {
+        if (!contentJson) {
           console.log('[Hocuspocus] No contentJson, returning empty doc')
           return data.document
         }
 
-        console.log('[Hocuspocus] contentJson sample:', JSON.stringify(contentJson).slice(0, 200))
-        console.log('[Hocuspocus] Attempting prosemirrorJSONToYDoc conversion...')
-
         if (
           page?.contentFormat === 'JSON' &&
-          contentJson &&
           contentJson.content &&
           Array.isArray(contentJson.content) &&
           contentJson.content.length > 0
         ) {
           const schema = getWikiEditorSchema()
+
+          const contentNodeTypes = collectNodeTypes(contentJson)
+          const schemaNodeTypes = new Set(Object.keys(schema.nodes))
+          const missing = [...contentNodeTypes].filter(t => !schemaNodeTypes.has(t))
+          console.log('[Hocuspocus] Schema nodes:', [...schemaNodeTypes].sort().join(', '))
+          console.log('[Hocuspocus] Content nodes:', [...contentNodeTypes].sort().join(', '))
+          if (missing.length > 0) {
+            console.warn('[Hocuspocus] Nodes in content but NOT in schema:', missing)
+          }
+
+          const safeJson = filterContentJson(contentJson, schema)
+
           try {
-            // #region agent log
-            DBG_LOG('hocuspocus-server.ts:onLoadDocument:preConvert', 'Attempting prosemirrorJSONToYDoc', {
-              contentSample: JSON.stringify(contentJson).slice(0, 150),
-              fragmentName: FRAGMENT_NAME,
-            }, 'H4')
-            // #endregion
-            const ydocInit = prosemirrorJSONToYDoc(schema, contentJson, FRAGMENT_NAME)
+            const ydocInit = prosemirrorJSONToYDoc(schema, safeJson, FRAGMENT_NAME)
             const update = Y.encodeStateAsUpdate(ydocInit)
-            console.log('[Hocuspocus] Conversion succeeded. Ydoc state size:', update.length)
-            // #region agent log
-            DBG_LOG('hocuspocus-server.ts:onLoadDocument:postConvert', 'Conversion succeeded', {
-              updateLen: update.length,
-              fragmentName: FRAGMENT_NAME,
-            }, 'H4')
-            // #endregion
             Y.applyUpdate(data.document, update)
-            console.log('[Hocuspocus] Applied update to document. Final doc size:', Y.encodeStateAsUpdate(data.document).length)
-            // #region agent log
-            DBG_LOG('hocuspocus-server.ts:onLoadDocument:postApply', 'Applied update to document', {
-              finalDocUpdateLen: Y.encodeStateAsUpdate(data.document).length,
-            }, 'H5')
-            // #endregion
+            console.log('[Hocuspocus] Loaded into Yjs doc, update size:', update.length)
           } catch (conversionErr) {
-            // #region agent log
-            DBG_LOG('hocuspocus-server.ts:onLoadDocument:convertError', 'prosemirrorJSONToYDoc threw', {
-              error: String(conversionErr),
-              errorName: (conversionErr as Error)?.name,
-            }, 'H4')
-            // #endregion
             console.error('[Hocuspocus] JSON → Yjs conversion FAILED:', conversionErr)
-            console.error('[Hocuspocus] This is likely a schema mismatch between wiki-schema.ts and the actual editor extensions')
+            console.error('[Hocuspocus] contentJson sample:', JSON.stringify(safeJson).slice(0, 300))
           }
         }
+
         return data.document
       } catch (dbErr) {
-        // #region agent log
-        DBG_LOG('hocuspocus-server.ts:onLoadDocument:catch', 'onLoadDocument DB/catch failed', {
-          error: String(dbErr),
-          errorName: (dbErr as Error)?.name,
-        }, 'H2')
-        // #endregion
         console.error('[Hocuspocus] DB load FAILED:', dbErr)
         return data.document
       }
@@ -155,12 +138,7 @@ export function createCollabServer(): InstanceType<typeof Server> {
 
     async onStoreDocument(data) {
       const documentName = data.documentName ?? ''
-      // #region agent log
-      DBG_LOG('hocuspocus-server.ts:onStoreDocument:entry', 'onStoreDocument called', {
-        documentName,
-      }, 'H1')
-      // #endregion
-      console.log('[Hocuspocus] onStoreDocument called for:', documentName)
+      console.log('[Hocuspocus] onStoreDocument:', documentName)
 
       if (!documentName.startsWith('wiki-')) return
       const pageId = documentName.replace('wiki-', '')
@@ -172,7 +150,7 @@ export function createCollabServer(): InstanceType<typeof Server> {
           select: { contentFormat: true },
         })
         if (page?.contentFormat !== 'JSON') {
-          console.log('[Hocuspocus] onStoreDocument: page is not JSON format, skipping')
+          console.log('[Hocuspocus] Page is not JSON format, skipping store')
           return
         }
 
@@ -187,24 +165,12 @@ export function createCollabServer(): InstanceType<typeof Server> {
             updatedAt: new Date(),
           },
         })
-        // #region agent log
-        DBG_LOG('hocuspocus-server.ts:onStoreDocument:done', 'Saved to DB', {
+
+        console.log('[Hocuspocus] Stored to DB:', {
           pageId,
-          jsonContentLen: json?.content?.length ?? 0,
-        }, 'H1')
-        // #endregion
-        console.log('[Hocuspocus] onStoreDocument: saved to DB', {
-          pageId,
-          contentLen: (json as { content?: unknown[] })?.content?.length ?? 0,
-          contentSample: contentString.slice(0, 100),
+          contentNodes: (json as { content?: unknown[] })?.content?.length ?? 0,
         })
       } catch (err) {
-        // #region agent log
-        DBG_LOG('hocuspocus-server.ts:onStoreDocument:catch', 'onStoreDocument failed', {
-          error: String(err),
-          pageId,
-        }, 'H2')
-        // #endregion
         console.error('[Hocuspocus] onStoreDocument FAILED:', err)
       }
     },

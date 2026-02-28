@@ -1,7 +1,11 @@
 /**
  * Server-side ProseMirror schema for Hocuspocus.
- * Uses CodeBlock (not CodeBlockLowlight) to avoid Node/tsx module resolution issues.
- * Must match node types from the editor for JSON conversion to work.
+ *
+ * Uses server-safe extension stubs (no React / "use client" deps) so the
+ * schema can be constructed inside a plain Node process (start-collab-server.ts).
+ *
+ * Uses CodeBlock (not CodeBlockLowlight) to avoid lowlight module resolution issues.
+ * Must match node types from the client editor for JSON ↔ Yjs conversion to work.
  */
 import { getSchema } from '@tiptap/core'
 import type { Schema } from '@tiptap/pm/model'
@@ -14,9 +18,9 @@ import CodeBlock from '@tiptap/extension-code-block'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
-import { Embed } from '@/components/wiki/tiptap/extensions/embed'
 import { SlashCommand } from '@/components/wiki/tiptap/extensions/slash-command'
-import { createMentionExtension } from '@/components/wiki/tiptap/extensions/mention-suggestion'
+import { EmbedServer } from './extensions/embed-server'
+import { MentionServer } from './extensions/mention-server'
 
 const serverExtensions = [
   StarterKit.configure({
@@ -49,9 +53,9 @@ const serverExtensions = [
   TableRow,
   TableHeader,
   TableCell,
-  Embed,
+  EmbedServer,
   SlashCommand,
-  createMentionExtension(),
+  MentionServer,
 ]
 
 let cachedSchema: Schema | null = null
