@@ -113,8 +113,66 @@ export async function syncOrgContextBundleToContextStore(): Promise<{
     ...people,
   ];
 
+  // perf: eliminated N+1 — batch fetch existing items then createMany/updateMany
+  // (was: findFirst + update/create per entity, ~2 queries × N entities)
+  const contextIds = allObjects.map((obj) => deriveContextIdFromContextObject(obj));
+  const types = [...new Set(allObjects.map((obj) => obj.type))];
+
+  const existing = await prisma.contextItem.findMany({
+    where: {
+      workspaceId,
+      contextId: { in: contextIds },
+      type: { in: types },
+    },
+    select: { id: true, contextId: true, type: true },
+  });
+
+  const existingMap = new Map(
+    existing.map((e) => [`${e.contextId}:${e.type}`, e.id])
+  );
+
+  const toCreate: Array<{
+    workspaceId: string;
+    contextId: string;
+    type: string;
+    title: string;
+    summary: string | undefined;
+    data: ContextObject;
+  }> = [];
+  const toUpdate: Array<{
+    id: string;
+    title: string;
+    summary: string | undefined;
+    data: ContextObject;
+  }> = [];
+
   for (const obj of allObjects) {
-    await upsertContextItemForOrgObject(workspaceId, obj);
+    const contextId = deriveContextIdFromContextObject(obj);
+    const existingId = existingMap.get(`${contextId}:${obj.type}`);
+    if (existingId) {
+      toUpdate.push({ id: existingId, title: obj.title, summary: obj.summary, data: obj });
+    } else {
+      toCreate.push({ workspaceId, contextId, type: obj.type, title: obj.title, summary: obj.summary, data: obj });
+    }
+  }
+
+  if (toCreate.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await prisma.contextItem.createMany({ data: toCreate as any[] });
+  }
+
+  // Run updates in batches of 50 to avoid oversized transactions
+  const UPDATE_BATCH_SIZE = 50;
+  for (let i = 0; i < toUpdate.length; i += UPDATE_BATCH_SIZE) {
+    const batch = toUpdate.slice(i, i + UPDATE_BATCH_SIZE);
+    await prisma.$transaction(
+      batch.map(({ id, title, summary, data }) =>
+        prisma.contextItem.update({
+          where: { id },
+          data: { title, summary, data: data as Parameters<typeof prisma.contextItem.update>[0]['data']['data'] },
+        })
+      )
+    );
   }
 
   return {

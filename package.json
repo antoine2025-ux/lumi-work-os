@@ -119,7 +119,6 @@
     "@types/node-cron": "^3.0.11",
     "@types/redis": "^4.0.10",
     "@types/socket.io-client": "^1.4.36",
-    "@uiw/react-md-editor": "^4.0.8",
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
     "ajv": "^8.12.0",
