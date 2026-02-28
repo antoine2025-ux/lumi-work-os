@@ -9,6 +9,9 @@ import { ContextObject, ContextType } from './context-types'
 import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from './agent/types'
 import type { OrgQuestionContext } from './org-question-types'
+import type { ExtractedTask, MeetingTaskExtractionResult } from './scenarios/meeting-task-extraction'
+
+export type { ExtractedTask, MeetingTaskExtractionResult }
 
 /**
  * Loopbrain operating modes
@@ -69,6 +72,8 @@ export interface LoopbrainRequest {
   pendingClarification?: ClarificationContext
   /** Pending advisory context from previous turn (advisory→execution transition) */
   pendingAdvisory?: AdvisoryContext
+  /** Confirmed extracted tasks from MeetingTaskReview awaiting server-side creation */
+  pendingMeetingExtraction?: { tasks: ExtractedTask[] }
   /** Optional request ID (passed from API route for tracing) */
   requestId?: string
 }
@@ -192,6 +197,8 @@ export interface LoopbrainResponse {
   advisoryContext?: AdvisoryContext
   /** Awareness observations and proactive suggestions from the planner */
   insights?: string[]
+  /** Structured extraction result from meeting notes (for MeetingTaskReview UI) */
+  meetingExtraction?: MeetingTaskExtractionResult
   /** Optional metadata (model, tokens, etc.) */
   metadata?: {
     model?: string

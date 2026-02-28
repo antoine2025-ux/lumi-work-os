@@ -30,6 +30,7 @@ export type LoopbrainIntent =
   | 'project_health'
   | 'workload_analysis'
   | 'calendar_availability'
+  | 'extract_tasks'
   | 'unknown'
 
 /**
@@ -201,6 +202,21 @@ export function detectIntentFromKeywords(
   let confidence = 0.5
   let intent: LoopbrainIntent = 'unknown'
   
+  // ----- Meeting task extraction (checked first — highest specificity) -----
+
+  const extractTasksKeywords = [
+    'extract tasks', 'action items', 'meeting tasks', 'tasks from notes',
+    'what came out of the meeting', 'create tasks from', 'pull out tasks',
+    'tasks from this meeting', 'standup tasks', 'meeting action items',
+    'extract action items', 'get tasks from', 'pull tasks from',
+  ]
+  if (extractTasksKeywords.some((kw) => queryLower.includes(kw))) {
+    intent = 'extract_tasks'
+    confidence = 0.92
+    reasons.push('Detected task extraction keywords')
+    return { intent, confidence, reasons }
+  }
+
   // ----- Task-specific intents (checked first so they win over generic status_update) -----
 
   // Task status: user asking about their personal task progress

@@ -88,6 +88,8 @@ import { getCachedEntityGraph } from './entity-graph'
 import type { ProjectHealthSnapshotV0 } from './contract/projectHealth.v0'
 import type { WorkloadAnalysisSnapshotV0, TeamWorkloadSnapshotV0 } from './contract/workloadAnalysis.v0'
 import type { CalendarAvailabilitySnapshotV0, TeamAvailabilitySnapshotV0 } from './contract/calendarAvailability.v0'
+import { extractTasksFromMeetingNotes, truncateAtSentenceBoundary } from './scenarios/meeting-task-extraction'
+import { createExtractedTasks } from './scenarios/create-extracted-tasks'
 
 /**
  * Default LLM model for Loopbrain
@@ -171,6 +173,25 @@ export async function runLoopbrainQuery(
   const lowerTrimmed = req.query.toLowerCase().trim()
   if (req.pendingPlan && confirmTokens.has(lowerTrimmed)) {
     return await handlePlanExecution(req, req.pendingPlan)
+  }
+
+  // 1.6 Meeting task extraction — confirmation of user-reviewed task list (server-side bulk creation)
+  if (req.pendingMeetingExtraction) {
+    return await handleMeetingConfirmationMode(req, userCtx)
+  }
+
+  // 1.7 Meeting task extraction — initial extraction intent (intercept before ACTION branch)
+  {
+    const qLower = req.query.toLowerCase()
+    const extractTasksKeywords = [
+      'extract tasks', 'action items', 'meeting tasks', 'tasks from notes',
+      'what came out of the meeting', 'create tasks from', 'pull out tasks',
+      'tasks from this meeting', 'standup tasks', 'meeting action items',
+      'extract action items', 'get tasks from', 'pull tasks from',
+    ]
+    if (extractTasksKeywords.some((kw) => qLower.includes(kw))) {
+      return await handleMeetingExtractionMode(req, userCtx)
+    }
   }
 
   // 1.5a Check if this message is approving an advisory suggestion → convert to action
@@ -2884,6 +2905,164 @@ function formatContextObject(ctx: LoopbrainContextObject): string {
 /**
  * Call LLM via existing AI provider
  */
+// ---------------------------------------------------------------------------
+// Meeting Task Extraction modes
+// ---------------------------------------------------------------------------
+
+/**
+ * Load meeting notes content and extract action items via LLM.
+ * Returns a LoopbrainResponse with `meetingExtraction` populated for the
+ * MeetingTaskReview UI to render.
+ */
+async function handleMeetingExtractionMode(
+  req: LoopbrainRequest,
+  _userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('Meeting task extraction mode started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    pageId: req.pageId,
+  })
+
+  let content = ''
+
+  if (req.pageId) {
+    // Load page content via context engine
+    try {
+      const pageCtx = await contextEngine.getPageContext(req.pageId, req.workspaceId)
+      content = pageCtx?.content ?? ''
+    } catch (err) {
+      logger.warn('Failed to load page content for meeting extraction', { pageId: req.pageId, err })
+    }
+  }
+
+  if (!content) {
+    // Fall back to extracting notes from the query itself
+    const marker = 'extract action items from these meeting notes:'
+    const idx = req.query.toLowerCase().indexOf(marker)
+    content = idx >= 0 ? req.query.slice(idx + marker.length).trim() : req.query
+  }
+
+  const truncated = truncateAtSentenceBoundary(content, 8000)
+
+  const emptyResponse = (): LoopbrainResponse => ({
+    mode: req.mode,
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer: 'No meeting notes content was found to extract tasks from. Please provide the notes text or navigate to the meeting notes page.',
+    suggestions: [],
+    meetingExtraction: {
+      tasks: [],
+      meetingSummary: '',
+      attendeesDetected: [],
+      confidence: 'low',
+    },
+  })
+
+  if (!truncated.trim()) {
+    return emptyResponse()
+  }
+
+  try {
+    const result = await extractTasksFromMeetingNotes(truncated, req.workspaceId, req.userId, {
+      projectId: req.projectId,
+      wikiPageId: req.pageId,
+    })
+
+    const taskCount = result.tasks.length
+    const answer =
+      taskCount > 0
+        ? `Found ${taskCount} action item${taskCount !== 1 ? 's' : ''} in the meeting notes. Review and confirm below to create tasks.`
+        : 'No action items were found in these meeting notes. Try adding clearer task language like "John will…" or "Action: …"'
+
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer,
+      suggestions: [],
+      meetingExtraction: result,
+    }
+  } catch (error) {
+    logger.error('Meeting task extraction failed', { workspaceId: req.workspaceId, error })
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer: 'Failed to extract tasks from the meeting notes. Please try again.',
+      suggestions: [],
+    }
+  }
+}
+
+/**
+ * Receive user-confirmed extracted tasks and create them in the database.
+ * Called when the client sends `pendingMeetingExtraction` (after MeetingTaskReview).
+ */
+async function handleMeetingConfirmationMode(
+  req: LoopbrainRequest,
+  _userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  const tasks = req.pendingMeetingExtraction?.tasks ?? []
+
+  logger.info('Meeting task confirmation mode started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    taskCount: tasks.length,
+  })
+
+  if (tasks.length === 0) {
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer: 'No tasks were provided for creation.',
+      suggestions: [],
+    }
+  }
+
+  try {
+    const { created, failed } = await createExtractedTasks(tasks, req.workspaceId, req.userId, {
+      wikiPageId: req.pageId,
+    })
+
+    const answer =
+      `Created ${created} task${created !== 1 ? 's' : ''}` +
+      (failed > 0
+        ? `, ${failed} could not be created (missing project link).`
+        : '.')
+
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer,
+      suggestions: [],
+    }
+  } catch (error) {
+    logger.error('Meeting task creation failed', { workspaceId: req.workspaceId, error })
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer: 'Failed to create tasks. Please try again.',
+      suggestions: [],
+    }
+  }
+}
+
 export async function callLoopbrainLLM(
   prompt: string,
   systemPrompt?: string,

@@ -31,9 +31,10 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { callLoopbrainAssistant } from "@/lib/loopbrain/client"
 import { useLoopbrainAssistant } from "./assistant-context"
-import type { LoopbrainResponse, LoopbrainMode } from "@/lib/loopbrain/orchestrator-types"
+import type { LoopbrainResponse, LoopbrainMode, MeetingTaskExtractionResult } from "@/lib/loopbrain/orchestrator-types"
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from "@/lib/loopbrain/agent/types"
 import { PlanConfirmation } from "./plan-confirmation"
+import { MeetingTaskReview } from "./MeetingTaskReview"
 import { ClarifyingQuestions } from "./clarifying-questions"
 import { ExecutionProgress } from "./execution-progress"
 import { AdvisorySuggestion } from "./advisory-suggestion"
@@ -114,6 +115,8 @@ export function LoopbrainAssistantPanel({
   const [plannerInsights, setPlannerInsights] = useState<string[]>([])
   const [advisoryContext, setAdvisoryContext] = useState<AdvisoryContext | null>(null)
   const [advisoryResponse, setAdvisoryResponse] = useState<AdvisoryResponse | null>(null)
+  const [meetingExtraction, setMeetingExtraction] = useState<MeetingTaskExtractionResult | null>(null)
+  const [isCreatingMeetingTasks, setIsCreatingMeetingTasks] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -168,6 +171,8 @@ export function LoopbrainAssistantPanel({
     setPlannerInsights([])
     setAdvisoryContext(null)
     setAdvisoryResponse(null)
+    setMeetingExtraction(null)
+    setIsCreatingMeetingTasks(false)
     if (isOpen && !isMinimized) {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
@@ -487,6 +492,11 @@ export function LoopbrainAssistantPanel({
       setAdvisoryContext(result.advisoryContext ?? null)
       setAdvisoryResponse(result.advisory ?? null)
       setPlannerInsights(result.insights ?? [])
+
+      // Meeting task extraction — show review UI
+      if (result.meetingExtraction) {
+        setMeetingExtraction(result.meetingExtraction)
+      }
 
       // Extract preamble from the answer if there are clarifying questions
       if (result.pendingClarification && result.clarifyingQuestions) {
@@ -978,6 +988,46 @@ export function LoopbrainAssistantPanel({
                                     onCancel={handlePlanCancel}
                                     isExecuting={isExecutingPlan}
                                     insights={plannerInsights.length > 0 ? plannerInsights : undefined}
+                                  />
+                                )}
+
+                                {/* Meeting Task Review */}
+                                {meetingExtraction && (
+                                  <MeetingTaskReview
+                                    extraction={meetingExtraction}
+                                    isCreating={isCreatingMeetingTasks}
+                                    onCancel={() => setMeetingExtraction(null)}
+                                    onConfirm={async (selectedTasks) => {
+                                      setIsCreatingMeetingTasks(true)
+                                      try {
+                                        const result = await callLoopbrainAssistant({
+                                          mode,
+                                          query: 'Confirm task creation',
+                                          pageId: anchors.pageId,
+                                          projectId: anchors.projectId,
+                                          pendingMeetingExtraction: { tasks: selectedTasks },
+                                        })
+                                        const successMsg: Message = {
+                                          id: (Date.now() + 1).toString(),
+                                          role: 'assistant',
+                                          content: result.answer || 'Tasks created.',
+                                          timestamp: new Date(),
+                                        }
+                                        addMessage(successMsg)
+                                      } catch (err) {
+                                        console.error('Meeting task creation failed', err)
+                                        const errMsg: Message = {
+                                          id: (Date.now() + 1).toString(),
+                                          role: 'assistant',
+                                          content: 'Failed to create tasks. Please try again.',
+                                          timestamp: new Date(),
+                                        }
+                                        addMessage(errMsg)
+                                      } finally {
+                                        setMeetingExtraction(null)
+                                        setIsCreatingMeetingTasks(false)
+                                      }
+                                    }}
                                   />
                                 )}
 
