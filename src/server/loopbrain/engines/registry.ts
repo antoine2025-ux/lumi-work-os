@@ -14,6 +14,11 @@
  */
 
 import { runPeopleIssuesSuggestionsForOrg } from "../runPeopleIssuesSuggestions";
+import {
+  scanProjectHealth,
+  persistProjectHealthAlerts,
+  createCriticalAlertNotifications,
+} from "@/lib/loopbrain/scenarios/project-health-scanner";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -98,5 +103,36 @@ registerProactiveEngine({
     }
 
     return { ok: false, error: "error" in result ? result.error : "Unknown error" };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Project Health Scanner engine
+// Writes to ProactiveInsight (Loopbrain intelligence layer) + Notification.
+// This intentionally deviates from the "OrgSuggestionRun only" safety note
+// above — ProactiveInsight is the correct storage model for this engine.
+// ---------------------------------------------------------------------------
+
+registerProactiveEngine({
+  key: "project_health",
+  label: "Project Health Scanner",
+  run: async ({ workspaceId }) => {
+    const alerts = await scanProjectHealth(workspaceId);
+    const { created, updated, resolved } = await persistProjectHealthAlerts(
+      workspaceId,
+      alerts
+    );
+
+    const newCritical = created.filter((a) => a.severity === "critical");
+    if (newCritical.length > 0) {
+      await createCriticalAlertNotifications(workspaceId, newCritical);
+    }
+
+    return {
+      ok: true,
+      suggestionRunId: `project_health_${Date.now()}`,
+      suggestionCount: created.length + updated,
+      engineId: "project_health",
+    };
   },
 });

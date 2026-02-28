@@ -76,17 +76,21 @@ import type { AgentPlan, AgentContext, MessageIntent } from './agent/types'
 import { buildPlannerContext, formatContextForPrompt } from './agent/context-builder'
 import { getUserTaskContext } from './context/getUserTaskContext'
 import { isGoalQuestion, handleGoalQuery } from './goals/goal-queries'
+import { resolveUserContext, defaultUserContext, formatUserContextBlock, type LoopbrainUserContext } from './user-context'
 import { buildProjectHealthSnapshot } from './reasoning/projectHealth'
 import { buildWorkloadAnalysis, buildTeamWorkloadSnapshot } from './workload-analysis'
 import { formatProjectHealthEnvelope } from './reasoning/projectHealthAnswer'
 import { formatWorkloadEnvelope, formatTeamWorkloadEnvelope } from './reasoning/workloadAnswer'
 import { buildCalendarAvailabilitySnapshot, buildTeamAvailabilitySnapshot } from './reasoning/calendarAvailability'
 import { formatCalendarAvailabilityEnvelope, formatTeamAvailabilityEnvelope } from './reasoning/calendarAvailabilityAnswer'
+import { generateOnboardingBriefing } from './scenarios/onboarding-briefing'
 import { extractEntityContext } from './reasoning/entityLinksAnswer'
 import { getCachedEntityGraph } from './entity-graph'
 import type { ProjectHealthSnapshotV0 } from './contract/projectHealth.v0'
 import type { WorkloadAnalysisSnapshotV0, TeamWorkloadSnapshotV0 } from './contract/workloadAnalysis.v0'
 import type { CalendarAvailabilitySnapshotV0, TeamAvailabilitySnapshotV0 } from './contract/calendarAvailability.v0'
+import { extractTasksFromMeetingNotes, truncateAtSentenceBoundary } from './scenarios/meeting-task-extraction'
+import { createExtractedTasks } from './scenarios/create-extracted-tasks'
 
 /**
  * Default LLM model for Loopbrain
@@ -160,12 +164,35 @@ export async function runLoopbrainQuery(
     })
   }
 
+  // Resolve user context (who is asking) — used to personalise all mode handlers
+  const userCtx = await resolveUserContext(req.userId, req.workspaceId)
+    .catch(() => defaultUserContext(req.userId))
+
   // ---- Agentic execution pre-check (Phase 2) ----
   // 1. Check if this message is a confirmation of a previously proposed plan
   const confirmTokens = new Set(['yes', 'y', 'go', 'proceed', 'do it', 'confirm', 'go ahead', 'ok'])
   const lowerTrimmed = req.query.toLowerCase().trim()
   if (req.pendingPlan && confirmTokens.has(lowerTrimmed)) {
     return await handlePlanExecution(req, req.pendingPlan)
+  }
+
+  // 1.6 Meeting task extraction — confirmation of user-reviewed task list (server-side bulk creation)
+  if (req.pendingMeetingExtraction) {
+    return await handleMeetingConfirmationMode(req, userCtx)
+  }
+
+  // 1.7 Meeting task extraction — initial extraction intent (intercept before ACTION branch)
+  {
+    const qLower = req.query.toLowerCase()
+    const extractTasksKeywords = [
+      'extract tasks', 'action items', 'meeting tasks', 'tasks from notes',
+      'what came out of the meeting', 'create tasks from', 'pull out tasks',
+      'tasks from this meeting', 'standup tasks', 'meeting action items',
+      'extract action items', 'get tasks from', 'pull tasks from',
+    ]
+    if (extractTasksKeywords.some((kw) => qLower.includes(kw))) {
+      return await handleMeetingExtractionMode(req, userCtx)
+    }
   }
 
   // 1.5a Check if this message is approving an advisory suggestion → convert to action
@@ -276,7 +303,7 @@ export async function runLoopbrainQuery(
 
   // Check for goal-related queries
   if (intent === 'goal_progress' || intent === 'goal_risk' || intent === 'goal_status' || intent === 'goal_recommendation' || isGoalQuestion(req.query)) {
-    return await handleGoalMode(req)
+    return await handleGoalMode(req, userCtx)
   }
 
   // Check for project health queries
@@ -294,18 +321,23 @@ export async function runLoopbrainQuery(
     return await handleCalendarAvailabilityMode(req)
   }
 
+  // Check for onboarding briefing queries
+  if (intent === 'onboarding_briefing' || req.mode === 'onboarding_briefing') {
+    return await handleOnboardingBriefingMode(req, userCtx)
+  }
+
   try {
     // Route to mode-specific handler
     let result: LoopbrainResponse
     switch (req.mode) {
       case 'spaces':
-        result = await handleSpacesMode(req, { intent, isTaskIntent })
+        result = await handleSpacesMode(req, { intent, isTaskIntent }, userCtx)
         break
       case 'org':
-        result = await handleOrgMode(req)
+        result = await handleOrgMode(req, userCtx)
         break
       case 'dashboard':
-        result = await handleDashboardMode(req)
+        result = await handleDashboardMode(req, userCtx)
         break
       default:
         throw new Error(`Unsupported Loopbrain mode: ${req.mode}`)
@@ -344,6 +376,7 @@ export async function runLoopbrainQuery(
 async function handleSpacesMode(
   req: LoopbrainRequest,
   intentMeta?: { intent: LoopbrainIntent; isTaskIntent: boolean },
+  userCtx?: LoopbrainUserContext,
 ): Promise<LoopbrainResponse> {
   const intent = intentMeta?.intent ?? 'unknown'
   const isTaskIntent = intentMeta?.isTaskIntent ?? false
@@ -412,6 +445,15 @@ async function handleSpacesMode(
       limit: 50 // Fetch more to get good coverage of projects and tasks
     })
     contextSummary.structuredContext = structuredContext
+
+    // Prioritise the user's own projects first in the structured context list
+    if (userCtx && userCtx.activeProjectIds.length > 0) {
+      contextSummary.structuredContext = contextSummary.structuredContext.sort((a, b) => {
+        const aMatch = a.type === 'project' && userCtx.activeProjectIds.includes(a.id)
+        const bMatch = b.type === 'project' && userCtx.activeProjectIds.includes(b.id)
+        return (bMatch ? 1 : 0) - (aMatch ? 1 : 0)
+      })
+    }
   } catch (error) {
     logger.error('Error fetching structured ContextObjects for Spaces mode', {
       workspaceId: req.workspaceId,
@@ -562,10 +604,12 @@ async function handleSpacesMode(
     prompt = prompt + "\n\n" + openLoopsSection
   }
   
-  // Personalization: load user profile and build style instructions
+  // Personalization: combine user context block + style instructions
   const userProfile = await getProfile(req.workspaceId, req.userId)
   const styleBlock = buildStyleInstructions(userProfile)
-  const spacesSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: styleBlock })
+  const userCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+  const combinedStyleAndContext = [userCtxBlock, styleBlock].filter(Boolean).join('\n\n')
+  const spacesSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: combinedStyleAndContext })
   
   // Call LLM
   const llmResponse = await callLoopbrainLLM(prompt, spacesSystemPrompt)
@@ -602,7 +646,10 @@ async function handleSpacesMode(
         completion: llmResponse.usage.completionTokens,
         total: llmResponse.usage.totalTokens
       } : undefined,
-      retrievedCount: contextSummary.retrievedItems?.length || 0
+      retrievedCount: contextSummary.retrievedItems?.length || 0,
+      userContextResolved: !!userCtx,
+      userRole: userCtx?.role,
+      userTeam: userCtx?.teamName ?? undefined,
     }
   }
 }
@@ -658,7 +705,8 @@ function shouldQuerySlackForQuestion(question: string, slackChannelHints: string
  * Focus: Teams, Roles, Hierarchy
  */
 async function handleOrgMode(
-  req: LoopbrainRequest
+  req: LoopbrainRequest,
+  userCtx?: LoopbrainUserContext,
 ): Promise<LoopbrainResponse> {
   // Check if Slack is available
   const slackAvailable = await isSlackAvailable(req.workspaceId)
@@ -886,10 +934,12 @@ async function handleOrgMode(
     systemPrompt = ORG_SYSTEM_PROMPT
   }
   
-  // Personalization: inject user style preferences into system prompt
+  // Personalization: combine user context block + style instructions
   const orgUserProfile = await getProfile(req.workspaceId, req.userId)
   const orgStyleBlock = buildStyleInstructions(orgUserProfile)
-  systemPrompt = buildPersonalizedSystemPrompt({ basePrompt: systemPrompt, styleInstructions: orgStyleBlock })
+  const orgUserCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+  const orgCombined = [orgUserCtxBlock, orgStyleBlock].filter(Boolean).join('\n\n')
+  systemPrompt = buildPersonalizedSystemPrompt({ basePrompt: systemPrompt, styleInstructions: orgCombined })
   
   // Call LLM with appropriate system prompt
   // Use Org-specific config if in org mode
@@ -985,6 +1035,9 @@ async function handleOrgMode(
         total: llmResponse.usage.totalTokens
       } : undefined,
       retrievedCount: contextSummary.retrievedItems?.length || 0,
+      userContextResolved: !!userCtx,
+      userRole: userCtx?.role,
+      userTeam: userCtx?.teamName ?? undefined,
       // Include routing metadata for debugging
       routing: {
         wantsOrg,
@@ -1006,7 +1059,8 @@ async function handleOrgMode(
  * Focus: Workspace overview, Activity
  */
 async function handleDashboardMode(
-  req: LoopbrainRequest
+  req: LoopbrainRequest,
+  userCtx?: LoopbrainUserContext,
 ): Promise<LoopbrainResponse> {
   // Check if Slack is available
   const slackAvailable = await isSlackAvailable(req.workspaceId)
@@ -1060,10 +1114,12 @@ async function handleDashboardMode(
     prompt = prompt + "\n\n" + openLoopsSection
   }
   
-  // Personalization: load user profile and build style instructions
+  // Personalization: combine user context block + style instructions
   const dashUserProfile = await getProfile(req.workspaceId, req.userId)
   const dashStyleBlock = buildStyleInstructions(dashUserProfile)
-  const dashboardSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: dashStyleBlock })
+  const dashUserCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+  const dashCombined = [dashUserCtxBlock, dashStyleBlock].filter(Boolean).join('\n\n')
+  const dashboardSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: dashCombined })
   
   // Call LLM
   const llmResponse = await callLoopbrainLLM(prompt, dashboardSystemPrompt)
@@ -1100,7 +1156,10 @@ async function handleDashboardMode(
         completion: llmResponse.usage.completionTokens,
         total: llmResponse.usage.totalTokens
       } : undefined,
-      retrievedCount: contextSummary.retrievedItems?.length || 0
+      retrievedCount: contextSummary.retrievedItems?.length || 0,
+      userContextResolved: !!userCtx,
+      userRole: userCtx?.role,
+      userTeam: userCtx?.teamName ?? undefined,
     }
   }
 }
@@ -2852,6 +2911,223 @@ function formatContextObject(ctx: LoopbrainContextObject): string {
 /**
  * Call LLM via existing AI provider
  */
+// ---------------------------------------------------------------------------
+// Onboarding Briefing mode
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a personalized onboarding briefing for the current user.
+ * Wraps generateOnboardingBriefing and returns a LoopbrainResponse with
+ * the `onboardingBriefing` field populated.
+ */
+async function handleOnboardingBriefingMode(
+  req: LoopbrainRequest,
+  userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('[onboarding-briefing] Mode handler started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    projectId: req.projectId,
+  })
+
+  // Extract project ID hint from query (e.g. "brief me on [project name]")
+  // req.projectId takes precedence if the UI anchored it
+  const briefing = await generateOnboardingBriefing(req.userId, req.workspaceId, {
+    projectId: req.projectId,
+  })
+
+  const answer = [
+    briefing.greeting,
+    '',
+    briefing.roleSummary,
+    '',
+    briefing.sections.map((s) => `**${s.title}**\n${s.content}`).join('\n\n'),
+  ].join('\n')
+
+  return {
+    mode: 'onboarding_briefing',
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer,
+    suggestions: [
+      { label: 'Brief me on a specific project', action: 'onboarding_briefing', payload: { scope: 'project' } },
+      { label: 'Show my tasks', action: 'navigate', payload: { url: '/my-tasks' } },
+    ],
+    onboardingBriefing: briefing,
+    metadata: {
+      routing: {
+        contextType: 'onboarding_briefing',
+        confidence: briefing.confidence === 'high' ? 0.9 : briefing.confidence === 'medium' ? 0.7 : 0.5,
+        itemCount: briefing.sections.length,
+        usedFallback: false,
+      },
+      userContextResolved: true,
+      userRole: userCtx.role,
+      userTeam: userCtx.teamName ?? undefined,
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Meeting Task Extraction modes
+// ---------------------------------------------------------------------------
+
+/**
+ * Load meeting notes content and extract action items via LLM.
+ * Returns a LoopbrainResponse with `meetingExtraction` populated for the
+ * MeetingTaskReview UI to render.
+ */
+async function handleMeetingExtractionMode(
+  req: LoopbrainRequest,
+  _userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('Meeting task extraction mode started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    pageId: req.pageId,
+  })
+
+  let content = ''
+
+  if (req.pageId) {
+    // Load page content via context engine
+    try {
+      const pageCtx = await contextEngine.getPageContext(req.pageId, req.workspaceId)
+      content = pageCtx?.content ?? ''
+    } catch (err) {
+      logger.warn('Failed to load page content for meeting extraction', { pageId: req.pageId, err })
+    }
+  }
+
+  if (!content) {
+    // Fall back to extracting notes from the query itself
+    const marker = 'extract action items from these meeting notes:'
+    const idx = req.query.toLowerCase().indexOf(marker)
+    content = idx >= 0 ? req.query.slice(idx + marker.length).trim() : req.query
+  }
+
+  const truncated = truncateAtSentenceBoundary(content, 8000)
+
+  const emptyResponse = (): LoopbrainResponse => ({
+    mode: req.mode,
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer: 'No meeting notes content was found to extract tasks from. Please provide the notes text or navigate to the meeting notes page.',
+    suggestions: [],
+    meetingExtraction: {
+      tasks: [],
+      meetingSummary: '',
+      attendeesDetected: [],
+      confidence: 'low',
+    },
+  })
+
+  if (!truncated.trim()) {
+    return emptyResponse()
+  }
+
+  try {
+    const result = await extractTasksFromMeetingNotes(truncated, req.workspaceId, req.userId, {
+      projectId: req.projectId,
+      wikiPageId: req.pageId,
+    })
+
+    const taskCount = result.tasks.length
+    const answer =
+      taskCount > 0
+        ? `Found ${taskCount} action item${taskCount !== 1 ? 's' : ''} in the meeting notes. Review and confirm below to create tasks.`
+        : 'No action items were found in these meeting notes. Try adding clearer task language like "John will…" or "Action: …"'
+
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer,
+      suggestions: [],
+      meetingExtraction: result,
+    }
+  } catch (error) {
+    logger.error('Meeting task extraction failed', { workspaceId: req.workspaceId, error })
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer: 'Failed to extract tasks from the meeting notes. Please try again.',
+      suggestions: [],
+    }
+  }
+}
+
+/**
+ * Receive user-confirmed extracted tasks and create them in the database.
+ * Called when the client sends `pendingMeetingExtraction` (after MeetingTaskReview).
+ */
+async function handleMeetingConfirmationMode(
+  req: LoopbrainRequest,
+  _userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  const tasks = req.pendingMeetingExtraction?.tasks ?? []
+
+  logger.info('Meeting task confirmation mode started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    taskCount: tasks.length,
+  })
+
+  if (tasks.length === 0) {
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer: 'No tasks were provided for creation.',
+      suggestions: [],
+    }
+  }
+
+  try {
+    const { created, failed } = await createExtractedTasks(tasks, req.workspaceId, req.userId, {
+      wikiPageId: req.pageId,
+    })
+
+    const answer =
+      `Created ${created} task${created !== 1 ? 's' : ''}` +
+      (failed > 0
+        ? `, ${failed} could not be created (missing project link).`
+        : '.')
+
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer,
+      suggestions: [],
+    }
+  } catch (error) {
+    logger.error('Meeting task creation failed', { workspaceId: req.workspaceId, error })
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer: 'Failed to create tasks. Please try again.',
+      suggestions: [],
+    }
+  }
+}
+
 export async function callLoopbrainLLM(
   prompt: string,
   systemPrompt?: string,
@@ -3672,7 +3948,10 @@ function buildDashboardSuggestions(slackAvailable: boolean = false): LoopbrainSu
 /**
  * Handle goal-related queries
  */
-async function handleGoalMode(req: LoopbrainRequest): Promise<LoopbrainResponse> {
+async function handleGoalMode(
+  req: LoopbrainRequest,
+  userCtx?: LoopbrainUserContext,
+): Promise<LoopbrainResponse> {
   try {
     // Get structured goal data from query handlers
     const goalData = await handleGoalQuery(req.query, req.workspaceId)
@@ -3683,8 +3962,11 @@ async function handleGoalMode(req: LoopbrainRequest): Promise<LoopbrainResponse>
       ContextType.GOAL
     )
     
+    // Build user context prefix for system prompt
+    const goalUserCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+
     // Build prompt with goal data
-    const systemPrompt = `You are Loopbrain, an AI assistant with deep knowledge of organizational goals and OKRs.
+    const systemPrompt = `${goalUserCtxBlock ? goalUserCtxBlock + '\n\n' : ''}You are Loopbrain, an AI assistant with deep knowledge of organizational goals and OKRs.
 
 Current workspace goals data:
 ${JSON.stringify(goalData, null, 2)}
@@ -3721,6 +4003,9 @@ Based on the goal data provided, answer the user's question with specific insigh
       metadata: {
         model: llmResponse.model,
         retrievedCount: goalContexts.length,
+        userContextResolved: !!userCtx,
+        userRole: userCtx?.role,
+        userTeam: userCtx?.teamName ?? undefined,
       },
     }
   } catch (error) {

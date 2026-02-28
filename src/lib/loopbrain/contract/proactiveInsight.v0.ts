@@ -102,6 +102,7 @@ export const INSIGHT_CATEGORY_V0 = [
   "SKILL_GAP",
   "PROCESS",
   "COMMUNICATION",
+  "ONBOARDING",
 ] as const;
 
 export type InsightCategoryV0 = (typeof INSIGHT_CATEGORY_V0)[number];
@@ -488,6 +489,7 @@ export const INSIGHT_TTL_DEFAULTS_V0: Record<InsightCategoryV0, number> = {
   SKILL_GAP: 86400, // 24 hours
   PROCESS: 86400, // 24 hours
   COMMUNICATION: 86400, // 24 hours
+  ONBOARDING: 86400 * 30, // 30 days
 };
 
 // =============================================================================

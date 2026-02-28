@@ -23,6 +23,7 @@ import {
 import { useTheme } from "@/components/theme-provider"
 import { OrgSetupBanner } from "@/components/onboarding/org-setup-banner"
 import { LoopbrainWelcomeCard } from "@/components/dashboard/loopbrain-welcome-card"
+import { OnboardingBriefingCard } from "@/components/dashboard/onboarding-briefing-card"
 
 // Lazy load heavy components
 const MeetingsCard = dynamic(() => import("@/components/dashboard/meetings-card").then(mod => ({ default: mod.MeetingsCard })), {
@@ -54,6 +55,11 @@ const QuickActions = dynamic(() => import("@/components/dashboard/quick-actions"
   loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />,
   ssr: false
 })
+
+const ProjectHealthAlerts = dynamic(
+  () => import("@/components/dashboard/project-health-alerts").then(mod => ({ default: mod.ProjectHealthAlerts })),
+  { loading: () => <div className="h-10 bg-muted animate-pulse rounded-lg" />, ssr: false }
+)
 
 const MyTasksWidget = dynamic(() => import("@/components/dashboard/my-tasks-widget").then(mod => ({ default: mod.MyTasksWidget })), {
   loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />,
@@ -198,6 +204,12 @@ export default function DashboardClient({
         {/* Onboarding Banner */}
         <OrgSetupBanner workspaceSlug={workspaceSlug} />
 
+        {/* Onboarding briefing card — shown for 30 days after workspace onboarding */}
+        <OnboardingBriefingCard
+          userId={user.userId}
+          className="mb-4"
+        />
+
         {/* Loopbrain first-visit welcome */}
         <LoopbrainWelcomeCard
           companyType={companyType}
@@ -206,7 +218,15 @@ export default function DashboardClient({
           className="mb-6"
         />
 
-
+        {/* Project Health Alerts — proactive risk surface */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Project Health
+            </h2>
+          </div>
+          <ProjectHealthAlerts />
+        </div>
 
         {/* Dashboard Grid - 3x3 Layout */}
         <div className="dashboard-grid">

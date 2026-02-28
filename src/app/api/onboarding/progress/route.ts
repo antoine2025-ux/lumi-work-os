@@ -14,6 +14,7 @@ import { syncDepartmentContexts } from '@/lib/context/org/syncDepartmentContexts
 import { syncTeamContexts } from '@/lib/context/org/syncTeamContexts'
 import { syncPersonContexts } from '@/lib/context/org/syncPersonContexts'
 import { syncRoleContexts } from '@/lib/context/org/syncRoleContexts'
+import { generateOnboardingBriefing } from '@/lib/loopbrain/scenarios/onboarding-briefing'
 import { logger } from '@/lib/logger'
 
 // ---------------------------------------------------------------------------
@@ -389,6 +390,15 @@ export async function POST(request: NextRequest) {
       ]).catch((err) => {
         logger.warn('[onboarding] Loopbrain context sync failed', {
           workspaceId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      })
+
+      // Fire-and-forget: pre-generate onboarding briefing so it's ready on first dashboard load
+      generateOnboardingBriefing(auth.user.userId, workspaceId).catch((err) => {
+        logger.warn('[onboarding] Briefing pre-generation failed', {
+          workspaceId,
+          userId: auth.user.userId,
           error: err instanceof Error ? err.message : String(err),
         })
       })

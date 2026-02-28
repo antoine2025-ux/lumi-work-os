@@ -9,6 +9,11 @@ import { ContextObject, ContextType } from './context-types'
 import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from './agent/types'
 import type { OrgQuestionContext } from './org-question-types'
+import type { ExtractedTask, MeetingTaskExtractionResult } from './scenarios/meeting-task-extraction'
+import type { OnboardingBriefing } from './scenarios/onboarding-briefing'
+
+export type { ExtractedTask, MeetingTaskExtractionResult }
+export type { OnboardingBriefing }
 
 /**
  * Loopbrain operating modes
@@ -16,8 +21,9 @@ import type { OrgQuestionContext } from './org-question-types'
  * - spaces: Workspace/Spaces mode - focuses on projects, pages, tasks
  * - org: Organization mode - focuses on teams, roles, hierarchy
  * - dashboard: Dashboard mode - focuses on workspace overview and activity
+ * - onboarding_briefing: Generates a personalized briefing for new workspace members
  */
-export type LoopbrainMode = 'spaces' | 'org' | 'dashboard' | 'goals'
+export type LoopbrainMode = 'spaces' | 'org' | 'dashboard' | 'goals' | 'onboarding_briefing'
 
 /**
  * Loopbrain request parameters
@@ -69,6 +75,8 @@ export interface LoopbrainRequest {
   pendingClarification?: ClarificationContext
   /** Pending advisory context from previous turn (advisory→execution transition) */
   pendingAdvisory?: AdvisoryContext
+  /** Confirmed extracted tasks from MeetingTaskReview awaiting server-side creation */
+  pendingMeetingExtraction?: { tasks: ExtractedTask[] }
   /** Optional request ID (passed from API route for tracing) */
   requestId?: string
 }
@@ -192,6 +200,10 @@ export interface LoopbrainResponse {
   advisoryContext?: AdvisoryContext
   /** Awareness observations and proactive suggestions from the planner */
   insights?: string[]
+  /** Structured extraction result from meeting notes (for MeetingTaskReview UI) */
+  meetingExtraction?: MeetingTaskExtractionResult
+  /** Personalized onboarding briefing (for OnboardingBriefing UI) */
+  onboardingBriefing?: OnboardingBriefing
   /** Optional metadata (model, tokens, etc.) */
   metadata?: {
     model?: string
@@ -211,6 +223,10 @@ export interface LoopbrainResponse {
       inOrgMode?: boolean
       requestedMode?: string
     }
+    /** User context resolution debug fields */
+    userContextResolved?: boolean
+    userRole?: string
+    userTeam?: string
   }
 }
 

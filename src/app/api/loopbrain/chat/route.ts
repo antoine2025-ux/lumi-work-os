@@ -13,6 +13,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { runLoopbrainQuery } from '@/lib/loopbrain/orchestrator'
 import { LoopbrainMode, LoopbrainRequest } from '@/lib/loopbrain/orchestrator-types'
 import type { AgentPlan, ClarificationContext, AdvisoryContext } from '@/lib/loopbrain/agent/types'
+import type { ExtractedTask } from '@/lib/loopbrain/orchestrator-types'
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
 import { isOrgLoopbrainEnabled } from '@/lib/loopbrain/orgGate'
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
       conversationContext?: string
       pendingClarification?: ClarificationContext
       pendingAdvisory?: AdvisoryContext
+      pendingMeetingExtraction?: { tasks: ExtractedTask[] }
     }
 
     try {
@@ -178,6 +180,7 @@ export async function POST(request: NextRequest) {
       conversationContext: body.conversationContext, // Clarification follow-ups: prior turns for context
       pendingClarification: body.pendingClarification, // Clarification answer routing
       pendingAdvisory: body.pendingAdvisory, // Advisory→execution transition
+      pendingMeetingExtraction: body.pendingMeetingExtraction, // Meeting task bulk creation
     } as any
 
     // Pass requestId to orchestrator for logging

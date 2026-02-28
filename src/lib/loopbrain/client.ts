@@ -7,7 +7,8 @@
 
 import type {
   LoopbrainResponse,
-  LoopbrainMode
+  LoopbrainMode,
+  ExtractedTask,
 } from './orchestrator-types'
 import type { AgentPlan, ClarificationContext, AdvisoryContext } from './agent/types'
 import { getProjectSlackHints } from '@/lib/client-state/project-slack-hints'
@@ -46,6 +47,8 @@ export interface LoopbrainAssistantParams {
   pendingClarification?: ClarificationContext
   /** Pending advisory context from previous turn (advisory→execution transition) */
   pendingAdvisory?: AdvisoryContext
+  /** Confirmed extracted tasks from MeetingTaskReview for server-side bulk creation */
+  pendingMeetingExtraction?: { tasks: ExtractedTask[] }
 }
 
 /**
@@ -64,6 +67,8 @@ export interface SpacesAssistantParams {
   useSemanticSearch?: boolean
   /** Maximum number of context items to retrieve (default: 10) */
   maxContextItems?: number
+  /** Confirmed extracted tasks from MeetingTaskReview for server-side bulk creation */
+  pendingMeetingExtraction?: { tasks: ExtractedTask[] }
 }
 
 /**
@@ -136,6 +141,7 @@ export async function callLoopbrainAssistant(
     ...(params.conversationContext && { conversationContext: params.conversationContext }),
     ...(params.pendingClarification && { pendingClarification: params.pendingClarification }),
     ...(params.pendingAdvisory && { pendingAdvisory: params.pendingAdvisory }),
+    ...(params.pendingMeetingExtraction && { pendingMeetingExtraction: params.pendingMeetingExtraction }),
   }
 
   try {
@@ -206,5 +212,18 @@ export async function callSpacesLoopbrainAssistant(
     mode: 'spaces',
     ...params
   })
+}
+
+/**
+ * Call Loopbrain assistant in Org mode
+ * 
+ * @param params - Loopbrain assistant parameters (without mode)
+ * @returns Loopbrain response with answer, context, and suggestions
+ * @throws Error if API call fails or returns non-2xx status
+ */
+export async function callOrgLoopbrainAssistant(
+  params: Omit<LoopbrainAssistantParams, 'mode'>
+): Promise<LoopbrainResponse> {
+  return callLoopbrainAssistant({ mode: 'org', ...params })
 }
 
