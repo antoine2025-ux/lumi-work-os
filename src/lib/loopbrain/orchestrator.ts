@@ -76,6 +76,7 @@ import type { AgentPlan, AgentContext, MessageIntent } from './agent/types'
 import { buildPlannerContext, formatContextForPrompt } from './agent/context-builder'
 import { getUserTaskContext } from './context/getUserTaskContext'
 import { isGoalQuestion, handleGoalQuery } from './goals/goal-queries'
+import { resolveUserContext, defaultUserContext, formatUserContextBlock, type LoopbrainUserContext } from './user-context'
 import { buildProjectHealthSnapshot } from './reasoning/projectHealth'
 import { buildWorkloadAnalysis, buildTeamWorkloadSnapshot } from './workload-analysis'
 import { formatProjectHealthEnvelope } from './reasoning/projectHealthAnswer'
@@ -159,6 +160,10 @@ export async function runLoopbrainQuery(
       error: err instanceof Error ? err.message : String(err),
     })
   }
+
+  // Resolve user context (who is asking) — used to personalise all mode handlers
+  const userCtx = await resolveUserContext(req.userId, req.workspaceId)
+    .catch(() => defaultUserContext(req.userId))
 
   // ---- Agentic execution pre-check (Phase 2) ----
   // 1. Check if this message is a confirmation of a previously proposed plan
@@ -276,7 +281,7 @@ export async function runLoopbrainQuery(
 
   // Check for goal-related queries
   if (intent === 'goal_progress' || intent === 'goal_risk' || intent === 'goal_status' || intent === 'goal_recommendation' || isGoalQuestion(req.query)) {
-    return await handleGoalMode(req)
+    return await handleGoalMode(req, userCtx)
   }
 
   // Check for project health queries
@@ -299,13 +304,13 @@ export async function runLoopbrainQuery(
     let result: LoopbrainResponse
     switch (req.mode) {
       case 'spaces':
-        result = await handleSpacesMode(req, { intent, isTaskIntent })
+        result = await handleSpacesMode(req, { intent, isTaskIntent }, userCtx)
         break
       case 'org':
-        result = await handleOrgMode(req)
+        result = await handleOrgMode(req, userCtx)
         break
       case 'dashboard':
-        result = await handleDashboardMode(req)
+        result = await handleDashboardMode(req, userCtx)
         break
       default:
         throw new Error(`Unsupported Loopbrain mode: ${req.mode}`)
@@ -344,6 +349,7 @@ export async function runLoopbrainQuery(
 async function handleSpacesMode(
   req: LoopbrainRequest,
   intentMeta?: { intent: LoopbrainIntent; isTaskIntent: boolean },
+  userCtx?: LoopbrainUserContext,
 ): Promise<LoopbrainResponse> {
   const intent = intentMeta?.intent ?? 'unknown'
   const isTaskIntent = intentMeta?.isTaskIntent ?? false
@@ -412,6 +418,15 @@ async function handleSpacesMode(
       limit: 50 // Fetch more to get good coverage of projects and tasks
     })
     contextSummary.structuredContext = structuredContext
+
+    // Prioritise the user's own projects first in the structured context list
+    if (userCtx && userCtx.activeProjectIds.length > 0) {
+      contextSummary.structuredContext = contextSummary.structuredContext.sort((a, b) => {
+        const aMatch = a.type === 'project' && userCtx.activeProjectIds.includes(a.id)
+        const bMatch = b.type === 'project' && userCtx.activeProjectIds.includes(b.id)
+        return (bMatch ? 1 : 0) - (aMatch ? 1 : 0)
+      })
+    }
   } catch (error) {
     logger.error('Error fetching structured ContextObjects for Spaces mode', {
       workspaceId: req.workspaceId,
@@ -562,10 +577,12 @@ async function handleSpacesMode(
     prompt = prompt + "\n\n" + openLoopsSection
   }
   
-  // Personalization: load user profile and build style instructions
+  // Personalization: combine user context block + style instructions
   const userProfile = await getProfile(req.workspaceId, req.userId)
   const styleBlock = buildStyleInstructions(userProfile)
-  const spacesSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: styleBlock })
+  const userCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+  const combinedStyleAndContext = [userCtxBlock, styleBlock].filter(Boolean).join('\n\n')
+  const spacesSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: combinedStyleAndContext })
   
   // Call LLM
   const llmResponse = await callLoopbrainLLM(prompt, spacesSystemPrompt)
@@ -602,7 +619,10 @@ async function handleSpacesMode(
         completion: llmResponse.usage.completionTokens,
         total: llmResponse.usage.totalTokens
       } : undefined,
-      retrievedCount: contextSummary.retrievedItems?.length || 0
+      retrievedCount: contextSummary.retrievedItems?.length || 0,
+      userContextResolved: !!userCtx,
+      userRole: userCtx?.role,
+      userTeam: userCtx?.teamName ?? undefined,
     }
   }
 }
@@ -658,7 +678,8 @@ function shouldQuerySlackForQuestion(question: string, slackChannelHints: string
  * Focus: Teams, Roles, Hierarchy
  */
 async function handleOrgMode(
-  req: LoopbrainRequest
+  req: LoopbrainRequest,
+  userCtx?: LoopbrainUserContext,
 ): Promise<LoopbrainResponse> {
   // Check if Slack is available
   const slackAvailable = await isSlackAvailable(req.workspaceId)
@@ -886,10 +907,12 @@ async function handleOrgMode(
     systemPrompt = ORG_SYSTEM_PROMPT
   }
   
-  // Personalization: inject user style preferences into system prompt
+  // Personalization: combine user context block + style instructions
   const orgUserProfile = await getProfile(req.workspaceId, req.userId)
   const orgStyleBlock = buildStyleInstructions(orgUserProfile)
-  systemPrompt = buildPersonalizedSystemPrompt({ basePrompt: systemPrompt, styleInstructions: orgStyleBlock })
+  const orgUserCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+  const orgCombined = [orgUserCtxBlock, orgStyleBlock].filter(Boolean).join('\n\n')
+  systemPrompt = buildPersonalizedSystemPrompt({ basePrompt: systemPrompt, styleInstructions: orgCombined })
   
   // Call LLM with appropriate system prompt
   // Use Org-specific config if in org mode
@@ -985,6 +1008,9 @@ async function handleOrgMode(
         total: llmResponse.usage.totalTokens
       } : undefined,
       retrievedCount: contextSummary.retrievedItems?.length || 0,
+      userContextResolved: !!userCtx,
+      userRole: userCtx?.role,
+      userTeam: userCtx?.teamName ?? undefined,
       // Include routing metadata for debugging
       routing: {
         wantsOrg,
@@ -1006,7 +1032,8 @@ async function handleOrgMode(
  * Focus: Workspace overview, Activity
  */
 async function handleDashboardMode(
-  req: LoopbrainRequest
+  req: LoopbrainRequest,
+  userCtx?: LoopbrainUserContext,
 ): Promise<LoopbrainResponse> {
   // Check if Slack is available
   const slackAvailable = await isSlackAvailable(req.workspaceId)
@@ -1060,10 +1087,12 @@ async function handleDashboardMode(
     prompt = prompt + "\n\n" + openLoopsSection
   }
   
-  // Personalization: load user profile and build style instructions
+  // Personalization: combine user context block + style instructions
   const dashUserProfile = await getProfile(req.workspaceId, req.userId)
   const dashStyleBlock = buildStyleInstructions(dashUserProfile)
-  const dashboardSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: dashStyleBlock })
+  const dashUserCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+  const dashCombined = [dashUserCtxBlock, dashStyleBlock].filter(Boolean).join('\n\n')
+  const dashboardSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: dashCombined })
   
   // Call LLM
   const llmResponse = await callLoopbrainLLM(prompt, dashboardSystemPrompt)
@@ -1100,7 +1129,10 @@ async function handleDashboardMode(
         completion: llmResponse.usage.completionTokens,
         total: llmResponse.usage.totalTokens
       } : undefined,
-      retrievedCount: contextSummary.retrievedItems?.length || 0
+      retrievedCount: contextSummary.retrievedItems?.length || 0,
+      userContextResolved: !!userCtx,
+      userRole: userCtx?.role,
+      userTeam: userCtx?.teamName ?? undefined,
     }
   }
 }
@@ -3672,7 +3704,10 @@ function buildDashboardSuggestions(slackAvailable: boolean = false): LoopbrainSu
 /**
  * Handle goal-related queries
  */
-async function handleGoalMode(req: LoopbrainRequest): Promise<LoopbrainResponse> {
+async function handleGoalMode(
+  req: LoopbrainRequest,
+  userCtx?: LoopbrainUserContext,
+): Promise<LoopbrainResponse> {
   try {
     // Get structured goal data from query handlers
     const goalData = await handleGoalQuery(req.query, req.workspaceId)
@@ -3683,8 +3718,11 @@ async function handleGoalMode(req: LoopbrainRequest): Promise<LoopbrainResponse>
       ContextType.GOAL
     )
     
+    // Build user context prefix for system prompt
+    const goalUserCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+
     // Build prompt with goal data
-    const systemPrompt = `You are Loopbrain, an AI assistant with deep knowledge of organizational goals and OKRs.
+    const systemPrompt = `${goalUserCtxBlock ? goalUserCtxBlock + '\n\n' : ''}You are Loopbrain, an AI assistant with deep knowledge of organizational goals and OKRs.
 
 Current workspace goals data:
 ${JSON.stringify(goalData, null, 2)}
@@ -3721,6 +3759,9 @@ Based on the goal data provided, answer the user's question with specific insigh
       metadata: {
         model: llmResponse.model,
         retrievedCount: goalContexts.length,
+        userContextResolved: !!userCtx,
+        userRole: userCtx?.role,
+        userTeam: userCtx?.teamName ?? undefined,
       },
     }
   } catch (error) {

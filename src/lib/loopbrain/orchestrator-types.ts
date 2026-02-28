@@ -211,6 +211,10 @@ export interface LoopbrainResponse {
       inOrgMode?: boolean
       requestedMode?: string
     }
+    /** User context resolution debug fields */
+    userContextResolved?: boolean
+    userRole?: string
+    userTeam?: string
   }
 }
 
