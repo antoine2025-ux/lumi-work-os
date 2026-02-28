@@ -87,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
       await logOrgAudit(
         {
-          orgId: workspaceId,
+          workspaceId,
           action: "MEMBER_CUSTOM_ROLE_UPDATED",
           targetType: "MEMBER",
           targetId: memberId,
@@ -154,7 +154,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     await logOrgAudit(
       {
-        orgId: workspaceId,
+        workspaceId,
         action: "MEMBER_CUSTOM_ROLE_UPDATED",
         targetType: "MEMBER",
         targetId: memberId,

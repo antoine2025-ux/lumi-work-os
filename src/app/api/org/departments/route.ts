@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     // Audit log
     await logOrgAudit(
       {
-        orgId: workspaceId,
+        workspaceId,
         action: "DEPARTMENT_CREATED",
         targetType: "DEPARTMENT",
         targetId: department.id,
