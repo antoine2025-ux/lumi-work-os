@@ -2,16 +2,20 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { 
-  Plus, 
-  FileText,
+import {
+  Plus,
   Loader2,
   Target,
-  Shield
+  Shield,
+  Folder,
+  FolderOpen,
+  ChevronDown,
+  ChevronRight,
+  FileText,
 } from "lucide-react"
+import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { useUserStatusContext } from "@/providers/user-status-provider"
-import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
 interface WorkspacePageProps {
@@ -20,49 +24,49 @@ interface WorkspacePageProps {
   }>
 }
 
-interface WorkspaceItem {
+interface ChildPage {
   id: string
   title: string
-  type: 'page' | 'project'
+  slug: string
+  order: number
   updatedAt: string
-  url: string
-  icon: React.ReactNode
-  color?: string
 }
 
-interface WikiPage {
-  id: string;
-  title: string;
-  updatedAt: string;
-  slug: string;
+interface WikiPageWithHierarchy {
+  id: string
+  title: string
+  slug: string
+  updatedAt: string
+  parentId: string | null
+  workspace_type: string | null
+  children: ChildPage[]
+  _count: { children: number }
 }
 
 interface WikiProject {
-  id: string;
-  name: string;
-  updatedAt?: string;
-  createdAt?: string;
-  color?: string;
+  id: string
+  name: string
+  updatedAt?: string
+  createdAt?: string
+  color?: string
 }
 
 interface WikiWorkspace {
-  name: string;
-  description?: string;
+  name: string
+  description?: string
 }
 
 export default function WorkspacePage({ params }: WorkspacePageProps) {
   const router = useRouter()
   const pathname = usePathname()
-  // Use centralized UserStatusContext - no separate API call needed
   const userStatus = useUserStatusContext()
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [workspace, setWorkspace] = useState<WikiWorkspace | null>(null)
-  const [workspacePages, setWorkspacePages] = useState<WikiPage[]>([])
+  const [workspacePages, setWorkspacePages] = useState<WikiPageWithHierarchy[]>([])
   const [projects, setProjects] = useState<WikiProject[]>([])
-  const [workspaceItems, setWorkspaceItems] = useState<WorkspaceItem[]>([])
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
 
-  // Use CSS variables for consistent theming
   const colors = {
     primary: 'var(--primary)',
     primaryLight: 'var(--accent)',
@@ -95,37 +99,27 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
     try {
       setIsLoading(true)
 
-      // Load all data in parallel for better performance
-      // Pass workspace_type to filter pages server-side
       const [workspacesResponse, pagesResponse, projectsResponse] = await Promise.all([
         fetch('/api/wiki/workspaces'),
-        fetch(`/api/wiki/recent-pages?limit=100&workspace_type=${encodeURIComponent(resolvedParams.id)}`),
+        fetch('/api/wiki/pages?limit=50'),
         fetch(`/api/projects?workspaceId=${userStatus.workspaceId}`)
       ])
 
-      // Process workspace response
       if (workspacesResponse.ok) {
         const workspacesData = await workspacesResponse.json()
         const foundWorkspace = workspacesData.find((w: { id?: string }) => w.id === resolvedParams.id)
         setWorkspace(foundWorkspace as WikiWorkspace ?? null)
       }
 
-      // Process pages response
-      // Pages are already filtered server-side by workspace_type
       if (pagesResponse.ok) {
-        const pages = await pagesResponse.json()
-        
-        if (Array.isArray(pages)) {
-          // Double-check filtering (defensive programming)
-          const filtered = (pages as Array<WikiPage & { workspace_type?: string }>).filter((page) => {
-            return page.workspace_type === resolvedParams.id
-          })
-
+        const result = await pagesResponse.json()
+        const allPages = (result.data || result) as WikiPageWithHierarchy[]
+        if (Array.isArray(allPages)) {
+          const filtered = allPages.filter(p => p.workspace_type === resolvedParams.id)
           setWorkspacePages(filtered)
         }
       }
 
-      // Process projects response
       if (projectsResponse.ok) {
         const projectsData = await projectsResponse.json()
         const projectsList = Array.isArray(projectsData) ? projectsData : (projectsData.data || projectsData.projects || [])
@@ -144,31 +138,21 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
     }
   }, [resolvedParams?.id, loadWorkspacePages])
 
-  // Refresh when navigating back to this page
   useEffect(() => {
     if (pathname && pathname.includes(`/wiki/workspace/${resolvedParams?.id}`) && resolvedParams?.id) {
       loadWorkspacePages()
     }
   }, [pathname, resolvedParams?.id, loadWorkspacePages])
 
-  // Listen for page creation/update events to refresh the list
   useEffect(() => {
     const handlePageRefresh = () => {
-      // Multiple refresh attempts to ensure we catch the update
-      setTimeout(() => {
-        loadWorkspacePages()
-      }, 500)
-      setTimeout(() => {
-        loadWorkspacePages()
-      }, 1500)
+      setTimeout(() => { loadWorkspacePages() }, 500)
+      setTimeout(() => { loadWorkspacePages() }, 1500)
     }
 
-    // Listen for workspace pages refreshed event (fired when a page is created)
     window.addEventListener('workspacePagesRefreshed', handlePageRefresh)
-    // Also listen for page deleted event
     window.addEventListener('pageDeleted', handlePageRefresh)
 
-    // Refresh when component becomes visible (user navigates back)
     const handleVisibilityChange = () => {
       if (!document.hidden && pathname && pathname.includes(`/wiki/workspace/${resolvedParams?.id}`) && resolvedParams?.id) {
         loadWorkspacePages()
@@ -191,87 +175,30 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
     const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
     const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
 
-    if (diffInMinutes < 1) {
-      return 'Just now'
-    } else if (diffInMinutes < 60) {
-      return `${diffInMinutes}m ago`
-    } else if (diffInHours < 24) {
-      return `${diffInHours}h ago`
-    } else if (diffInDays === 1) {
-      return '1d ago'
-    } else if (diffInDays < 7) {
-      return `${diffInDays}d ago`
-    } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    }
+    if (diffInMinutes < 1) return 'Just now'
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
+    if (diffInHours < 24) return `${diffInHours}h ago`
+    if (diffInDays === 1) return '1d ago'
+    if (diffInDays < 7) return `${diffInDays}d ago`
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
-
-  const getIcon = (type: 'page' | 'project', color?: string) => {
-    if (type === 'project') {
-      return (
-        <div 
-          className="w-8 h-8 rounded-lg flex items-center justify-center dark:bg-indigo-900/30"
-          style={{ backgroundColor: color ? `${color}20` : undefined }}
-        >
-          <Target 
-            className="h-4 w-4" 
-            style={{ color: color || undefined }}
-          />
-        </div>
-      )
-    }
-    return (
-      <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-        <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-      </div>
-    )
-  }
-
-  // Combine pages and projects into workspace items
-  useEffect(() => {
-    const items: WorkspaceItem[] = []
-
-    // Add workspace pages
-    workspacePages.forEach(page => {
-      items.push({
-        id: page.id,
-        title: page.title,
-        type: 'page',
-        updatedAt: page.updatedAt,
-        url: `/wiki/${page.slug}`,
-        icon: getIcon('page'),
-        color: undefined
-      })
-    })
-
-    // Add projects
-    projects.forEach(project => {
-      items.push({
-        id: project.id,
-        title: project.name,
-        type: 'project',
-        updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
-        url: `/projects/${project.id}`,
-        icon: getIcon('project', project.color),
-        color: project.color
-      })
-    })
-
-    // Sort by updatedAt descending
-    items.sort((a, b) => {
-      const dateA = new Date(a.updatedAt).getTime()
-      const dateB = new Date(b.updatedAt).getTime()
-      return dateB - dateA
-    })
-
-    setWorkspaceItems(items)
-  }, [workspacePages, projects])
 
   const handleCreatePage = () => {
     const win = window as unknown as { triggerCreatePageWithWorkspace?: (ws: string) => void }
     if (typeof window !== 'undefined' && win.triggerCreatePageWithWorkspace && resolvedParams?.id) {
       win.triggerCreatePageWithWorkspace(resolvedParams.id)
     }
+  }
+
+  const handleCreateInSection = (sectionId: string) => {
+    const win = window as unknown as { triggerCreatePageInSection?: (ws: string, s: string) => void }
+    if (win.triggerCreatePageInSection && resolvedParams?.id) {
+      win.triggerCreatePageInSection(resolvedParams.id, sectionId)
+    }
+  }
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }))
   }
 
   if (isLoading) {
@@ -297,10 +224,14 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
     )
   }
 
+  const sections = workspacePages.filter(p => p.parentId === null && p._count.children > 0)
+  const unsectioned = workspacePages.filter(p => p.parentId === null && p._count.children === 0)
+  const isEmpty = workspacePages.length === 0 && projects.length === 0
+
   return (
     <>
       <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
-        {/* Zen-style Header */}
+        {/* Header */}
         <div className="px-16 py-8 space-y-4">
           <div className="flex items-center space-x-3">
             <h1 className="text-4xl font-light" style={{ color: colors.text }}>{workspace.name}</h1>
@@ -310,7 +241,7 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
           </p>
         </div>
 
-        {/* Stats Overview - Zen Style */}
+        {/* Stats Overview */}
         <div className="px-16 mb-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="text-center">
@@ -322,8 +253,8 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
               <div className="text-sm" style={{ color: colors.textSecondary }}>Projects</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-light mb-2" style={{ color: colors.primary }}>{workspaceItems.length}</div>
-              <div className="text-sm" style={{ color: colors.textSecondary }}>Total Items</div>
+              <div className="text-3xl font-light mb-2" style={{ color: colors.primary }}>{sections.length}</div>
+              <div className="text-sm" style={{ color: colors.textSecondary }}>Sections</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-light mb-2" style={{ color: colors.text }}>Custom</div>
@@ -334,9 +265,8 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
 
         {/* Content Area */}
         <div className="px-16">
-          {workspaceItems.length === 0 ? (
+          {isEmpty ? (
             <div className="space-y-8">
-              {/* Empty State */}
               <div className="space-y-6 text-center">
                 <div className="flex justify-center">
                   <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center">
@@ -350,11 +280,9 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
                   </p>
                 </div>
               </div>
-
-              {/* Single CTA */}
               <div className="flex justify-center pt-4">
-                <Button 
-                  size="lg" 
+                <Button
+                  size="lg"
                   className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3"
                   onClick={handleCreatePage}
                 >
@@ -365,41 +293,138 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
             </div>
           ) : (
             <div className="space-y-8">
-              {/* Workspace Items */}
-              <div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {workspaceItems.map((item) => (
-                    <Card
-                      key={item.id}
-                      className={cn(
-                        "cursor-pointer transition-all duration-200",
-                        "hover:shadow-lg hover:border-primary/50",
-                        "group"
-                      )}
-                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                      onClick={() => router.push(item.url)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3 mb-4">
-                          {item.icon}
+              {/* Section folder cards */}
+              {sections.length > 0 && (
+                <div className="space-y-3">
+                  {sections.map(section => {
+                    const isExpanded = !!expandedSections[section.id]
+                    return (
+                      <div
+                        key={section.id}
+                        className="border rounded-lg overflow-hidden"
+                        style={{ borderColor: colors.border, backgroundColor: colors.surface }}
+                      >
+                        <div className="flex items-center gap-2 px-4 py-3">
+                          <button
+                            onClick={() => toggleSection(section.id)}
+                            className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                          >
+                            {isExpanded
+                              ? <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            }
+                            {isExpanded
+                              ? <FolderOpen className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                              : <Folder className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                            }
+                            <Link
+                              href={`/wiki/${section.slug}`}
+                              className="font-medium truncate hover:text-primary transition-colors"
+                              style={{ color: colors.text }}
+                              onClick={e => e.stopPropagation()}
+                            >
+                              {section.title}
+                            </Link>
+                          </button>
+                          <span className="text-xs flex-shrink-0" style={{ color: colors.textSecondary }}>
+                            {section._count.children} page{section._count.children !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        {isExpanded && (
+                          <div className="border-t" style={{ borderColor: colors.border }}>
+                            {section.children.map(child => (
+                              <Link
+                                key={child.id}
+                                href={`/wiki/${child.slug}`}
+                                className={cn(
+                                  "flex items-center gap-3 px-8 py-2.5 hover:bg-muted/50 transition-colors",
+                                  "text-sm"
+                                )}
+                                style={{ color: colors.text }}
+                              >
+                                <FileText className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                <span className="flex-1 truncate">{child.title}</span>
+                                <span className="text-xs flex-shrink-0" style={{ color: colors.textSecondary }}>
+                                  {formatTimeAgo(child.updatedAt)}
+                                </span>
+                              </Link>
+                            ))}
+                            <div className="px-8 py-2 border-t" style={{ borderColor: colors.border }}>
+                              <button
+                                onClick={() => handleCreateInSection(section.id)}
+                                className="flex items-center gap-2 text-xs hover:text-primary transition-colors"
+                                style={{ color: colors.textSecondary }}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                Add page to this section
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Projects grid */}
+              {projects.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium mb-3" style={{ color: colors.textSecondary }}>Projects</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {projects.map(project => (
+                      <div
+                        key={project.id}
+                        className="border rounded-lg p-4 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all"
+                        style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                        onClick={() => router.push(`/projects/${project.id}`)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center"
+                            style={{ backgroundColor: project.color ? `${project.color}20` : undefined }}
+                          >
+                            <Target className="h-4 w-4" style={{ color: project.color || undefined }} />
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-medium truncate mb-1 group-hover:text-primary transition-colors" style={{ color: colors.text }}>
-                              {item.title}
-                            </h3>
+                            <h3 className="font-medium truncate" style={{ color: colors.text }}>{project.name}</h3>
                             <p className="text-xs" style={{ color: colors.textSecondary }}>
-                              {formatTimeAgo(item.updatedAt)}
+                              {formatTimeAgo(project.updatedAt || project.createdAt || new Date().toISOString())}
                             </p>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Unsectioned pages */}
+              {unsectioned.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium mb-3" style={{ color: colors.textSecondary }}>Pages</h3>
+                  <div className="space-y-1">
+                    {unsectioned.map(page => (
+                      <Link
+                        key={page.id}
+                        href={`/wiki/${page.slug}`}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors"
+                        style={{ color: colors.text }}
+                      >
+                        <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="flex-1 truncate text-sm">{page.title}</span>
+                        <span className="text-xs flex-shrink-0" style={{ color: colors.textSecondary }}>
+                          {formatTimeAgo(page.updatedAt)}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Create New Page */}
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full"
                 style={{ borderColor: colors.border }}
                 onClick={handleCreatePage}
@@ -414,4 +439,3 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
     </>
   )
 }
-

@@ -6,12 +6,15 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { 
-  Search, 
-  Plus, 
-  FileText, 
+import {
+  Search,
+  Plus,
+  FileText,
   BookOpen,
   Sparkles,
+  ChevronRight,
+  ChevronDown,
+  FolderOpen,
 } from "lucide-react"
 
 interface WikiNavigationProps {
@@ -29,6 +32,9 @@ interface WikiPage {
   createdBy?: {
     name: string
   }
+  parentId: string | null
+  children: { id: string; title: string; slug: string; order: number; updatedAt: string }[]
+  _count: { children: number }
 }
 
 export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps) {
@@ -36,7 +42,11 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
   const [wikiPages, setWikiPages] = useState<WikiPage[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
   const router = useRouter()
+
+  const toggleSection = (id: string) =>
+    setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }))
 
   // Fetch wiki pages from API
   useEffect(() => {
@@ -199,30 +209,111 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
 
             {/* Pages List */}
             <div className="space-y-1">
-              {filteredPages.map((page) => (
-                <Link
-                  key={page.id}
-                  href={`/wiki/${page.slug}`}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group",
-                    currentPath === `/wiki/${page.slug}` 
-                      ? "bg-primary/20 text-primary" 
-                      : "text-foreground hover:bg-muted"
-                  )}
-                >
-                  <div className="w-6 h-6 bg-muted rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <FileText className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{page.title}</div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                      <span className="capitalize">{page.category}</span>
-                      <span>•</span>
-                      <span>{formatDate(page.updatedAt)}</span>
+              {searchQuery ? (
+                filteredPages.map((page) => (
+                  <Link
+                    key={page.id}
+                    href={`/wiki/${page.slug}`}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group",
+                      currentPath === `/wiki/${page.slug}`
+                        ? "bg-primary/20 text-primary"
+                        : "text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <div className="w-6 h-6 bg-muted rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <FileText className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
-                  </div>
-                </Link>
-              ))}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{page.title}</div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                        <span className="capitalize">{page.category}</span>
+                        <span>•</span>
+                        <span>{formatDate(page.updatedAt)}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <>
+                  {wikiPages
+                    .filter(p => !p.parentId && p._count?.children > 0)
+                    .map(section => {
+                      const isExpanded = !!expandedSections[section.id]
+                      return (
+                        <div key={section.id}>
+                          <div className={cn(
+                            "flex items-center gap-1 px-3 py-2 rounded-lg text-sm transition-colors",
+                            currentPath === `/wiki/${section.slug}`
+                              ? "bg-primary/20 text-primary"
+                              : "text-foreground hover:bg-muted"
+                          )}>
+                            <button
+                              onClick={() => toggleSection(section.id)}
+                              className="flex-shrink-0"
+                              aria-label={isExpanded ? "Collapse section" : "Expand section"}
+                            >
+                              {isExpanded
+                                ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              }
+                            </button>
+                            <FolderOpen className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                            <Link
+                              href={`/wiki/${section.slug}`}
+                              className="flex-1 font-medium truncate"
+                            >
+                              {section.title}
+                            </Link>
+                          </div>
+                          {isExpanded && section.children.map(child => (
+                            <Link
+                              key={child.id}
+                              href={`/wiki/${child.slug}`}
+                              className={cn(
+                                "flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-lg text-sm transition-colors",
+                                currentPath === `/wiki/${child.slug}`
+                                  ? "bg-primary/20 text-primary"
+                                  : "text-foreground hover:bg-muted"
+                              )}
+                            >
+                              <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate">{child.title}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      )
+                    })
+                  }
+                  {wikiPages
+                    .filter(p => !p.parentId && !p._count?.children)
+                    .map(page => (
+                      <Link
+                        key={page.id}
+                        href={`/wiki/${page.slug}`}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group",
+                          currentPath === `/wiki/${page.slug}`
+                            ? "bg-primary/20 text-primary"
+                            : "text-foreground hover:bg-muted"
+                        )}
+                      >
+                        <div className="w-6 h-6 bg-muted rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                          <FileText className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{page.title}</div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                            <span className="capitalize">{page.category}</span>
+                            <span>•</span>
+                            <span>{formatDate(page.updatedAt)}</span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))
+                  }
+                </>
+              )}
             </div>
 
             {/* Empty State */}

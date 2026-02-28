@@ -138,6 +138,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
   const [showTemplateDialog, setShowTemplateDialog] = useState(false)
   const [showSaveAsTemplateDialog, setShowSaveAsTemplateDialog] = useState(false)
   const [selectedWorkspaceForPage, setSelectedWorkspaceForPage] = useState<string | null>(null)
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
   const [activeEditorPage, setActiveEditorPage] = useState<ActiveEditorPage | null>(null)
   const pathname = usePathname() || ''
   const { toast } = useToast()
@@ -328,17 +329,35 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
   // Expose global trigger functions
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const win = window as Window & { triggerCreatePage?: () => void; triggerCreatePageWithWorkspace?: (workspaceId: string) => void }
+      const win = window as Window & {
+        triggerCreatePage?: () => void
+        triggerCreatePageWithWorkspace?: (workspaceId: string) => void
+        triggerCreatePageInSection?: (wsId: string, sectionId: string) => void
+      }
       win.triggerCreatePage = () => {
         setShowWorkspaceSelectDialog(true)
       }
       win.triggerCreatePageWithWorkspace = createPageWithWorkspace
+      win.triggerCreatePageInSection = (wsId: string, sectionId: string) => {
+        setSelectedWorkspaceForPage(wsId)
+        setSelectedSectionId(sectionId)
+        setShowWorkspaceSelectDialog(false)
+        setIsCreatingPage(true)
+        setNewPageTitle("")
+        setNewPageCategory("general")
+        setError(null)
+      }
     }
     return () => {
       if (typeof window !== 'undefined') {
-        const win = window as Window & { triggerCreatePage?: () => void; triggerCreatePageWithWorkspace?: (workspaceId: string) => void }
+        const win = window as Window & {
+          triggerCreatePage?: () => void
+          triggerCreatePageWithWorkspace?: (workspaceId: string) => void
+          triggerCreatePageInSection?: (wsId: string, sectionId: string) => void
+        }
         delete win.triggerCreatePage
         delete win.triggerCreatePageWithWorkspace
+        delete win.triggerCreatePageInSection
       }
     }
   }, [createPageWithWorkspace])
@@ -353,6 +372,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
     setNewPageTitle("")
     setNewPageCategory("general")
     setSelectedWorkspaceForPage(null)
+    setSelectedSectionId(null)
     setActiveEditorPage(null)
     setError(null)
   }
@@ -395,6 +415,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
         category: template.category,
         permissionLevel: isPersonal ? 'personal' : 'team',
         workspace_type: workspaceType,
+        parentId: selectedSectionId ?? undefined,
       })
       setIsCreatingPage(false)
       setNewPageTitle(template.name)
@@ -585,13 +606,15 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
         tags: [],
         category: newPageCategory,
         permissionLevel: isPersonalPage ? 'personal' : 'team',
-        workspace_type: workspaceType
+        workspace_type: workspaceType,
+        parentId: selectedSectionId ?? undefined,
       })
 
-      
+
       setIsCreatingPage(false)
       setNewPageTitle("")
       setNewPageCategory("general")
+      setSelectedSectionId(null)
       
       // Refresh recent pages
       const recentResponse = await fetch('/api/wiki/recent-pages')
@@ -1055,6 +1078,21 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
                     placeholder="Give your doc a title"
                   />
                 </div>
+
+                {/* Section indicator */}
+                {isCreatingPage && selectedSectionId && (
+                  <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+                    <Folder className="h-3.5 w-3.5" />
+                    <span>Adding to section</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSectionId(null)}
+                      className="text-xs underline hover:text-foreground"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
 
                 {/* Content Editor - No Border */}
                 <div className="min-h-[400px]">
