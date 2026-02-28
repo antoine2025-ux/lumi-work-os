@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { RichTextEditor } from "@/components/wiki/rich-text-editor"
@@ -10,9 +10,8 @@ import { WikiPageBody } from "@/components/wiki/wiki-page-body"
 import { useUserStatusContext } from '@/providers/user-status-provider'
 import { JSONContent, Editor } from '@tiptap/core'
 import { 
+  Check,
   Edit3,
-  Save,
-  X,
   Share2,
   MessageSquare,
   Settings,
@@ -27,6 +26,7 @@ import {
   Brain
 } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
@@ -42,6 +42,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { TemplateSelector } from "@/components/wiki/TemplateSelector"
+import { SaveAsTemplateDialog } from "@/components/wiki/SaveAsTemplateDialog"
+import { EMPTY_TIPTAP_DOC } from "@/lib/wiki/constants"
+import { useToast } from "@/components/ui/use-toast"
+
+interface LinkedProject {
+  id: string
+  name: string
+}
 
 interface WikiPageData {
   id: string
@@ -58,6 +67,7 @@ interface WikiPageData {
   is_featured?: boolean
   workspace_type?: string
   permissionLevel?: string
+  linkedProjects?: LinkedProject[]
 }
 
 interface AuthorOrgInfo {
@@ -89,7 +99,13 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false)
+  const [showSaveAsTemplateDialog, setShowSaveAsTemplateDialog] = useState(false)
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false)
+  const { toast } = useToast()
   const editorRef = useRef<(Editor & { saveNow?: () => Promise<void> }) | null>(null)
+  /** Ref to preserve editor content when fetch completes; prevents overwrite with stale data */
+  const syncedContentRef = useRef<JSONContent | null>(null)
   // Check URL params for AI assistant state on mount
   const initialAIOpen = searchParams?.get('ai') === 'open'
   const [isAISidebarOpen, setIsAISidebarOpen] = useState(initialAIOpen)
@@ -490,32 +506,44 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
     await handleSave(contentJson)
   }
 
-  const handleCancel = async () => {
-    // For JSON pages, save before closing to ensure no data loss
-    if (pageData?.contentFormat === 'JSON' && editorRef.current?.saveNow) {
+  const toggleEdit = useCallback(async () => {
+    if (isEditing) {
+      if (pageData?.contentFormat === 'JSON' && editorRef.current) {
+        const json = editorRef.current.getJSON()
+        const html = editorRef.current.getHTML?.()
+        syncedContentRef.current = json
+        setPageData(prev =>
+          prev ? { ...prev, contentJson: json, content: html ?? prev.content } : prev
+        )
+      }
+      if (pageData?.contentFormat === 'JSON' && editorRef.current?.saveNow) {
+        try {
+          await editorRef.current.saveNow()
+        } catch (e) {
+          console.error('Failed to save before closing:', e)
+        }
+      } else if (pageData?.contentFormat === 'HTML') {
+        await handleSave()
+      }
+      setIsEditing(false)
       try {
-        // Save latest content before closing
-        await editorRef.current.saveNow()
-      } catch (error) {
-        console.error('Failed to save before closing:', error)
-        // Continue with close anyway - autosave may have already saved
+        const res = await fetch(`/api/wiki/pages/${pageData?.id || resolvedSlug}`)
+        if (res.ok) {
+          const updated = await res.json()
+          setPageData(prev =>
+            syncedContentRef.current && prev?.contentFormat === 'JSON'
+              ? { ...updated, contentJson: syncedContentRef.current }
+              : updated
+          )
+        }
+      } catch (e) {
+        console.error('Failed to refresh page data after Done:', e)
       }
+      syncedContentRef.current = null
+    } else {
+      setIsEditing(true)
     }
-    
-    setIsEditing(false)
-    
-    // Refresh page data to get latest saved state without full page reload
-    try {
-      const response = await fetch(`/api/wiki/pages/${pageData?.id || resolvedSlug}`)
-      if (response.ok) {
-        const updatedPage = await response.json()
-        setPageData(updatedPage)
-      }
-    } catch (error) {
-      console.error('Failed to refresh page data after cancel:', error)
-      // If refresh fails, the page will still exit edit mode with current data
-    }
-  }
+  }, [isEditing, pageData, resolvedSlug])
 
   const handleUpgradePage = async () => {
     if (!pageData || pageData.contentFormat !== 'HTML') {
@@ -636,82 +664,37 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
           ? "right-[400px]" // Slide left when AI chat is open in sidebar mode (384px width + 16px gap)
           : "right-8" // Default position
       )}>
-        {isEditing ? (
-          <>
-            <Button 
-              onClick={async () => {
-                if (pageData.contentFormat === 'JSON') {
-                  // Always use editor's saveNow function (reads latest from editor)
-                  if (editorRef.current?.saveNow) {
-                    try {
-                      await editorRef.current.saveNow()
-                      // Update pageData after successful save to keep state in sync
-                      const reloadResponse = await fetch(`/api/wiki/pages/${pageData.id}`)
-                      if (reloadResponse.ok) {
-                        const updatedPage = await reloadResponse.json()
-                        setPageData(updatedPage)
-                      }
-                    } catch (error) {
-                      console.error('Save failed:', error)
-                      // Error state is handled by WikiEditorShell
-                    }
-                  } else {
-                    console.error('Editor ref not available - cannot save')
-                    alert('Editor not ready. Please wait a moment and try again.')
-                  }
-                } else {
-                  // HTML page - use existing handleSave
-                  handleSave()
-                }
-              }}
-              disabled={isSaving}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10 rounded-full flex items-center justify-center p-0"
-              title={isSaving ? 'Saving...' : 'Save'}
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-            </Button>
-            <Button 
-              onClick={handleCancel}
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
-              title="Cancel"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button 
-              onClick={() => setIsEditing(true)}
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
-              title="Edit"
-            >
-              <Edit3 className="h-4 w-4" />
-            </Button>
-            {pageData?.contentFormat === 'HTML' && (
-              <Button
-                onClick={() => setShowUpgradeDialog(true)}
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
-                title="Upgrade to new editor"
-                disabled={isUpgrading}
-              >
-                {isUpgrading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileText className="h-4 w-4" />
-                )}
-              </Button>
+        <Button
+          onClick={toggleEdit}
+          variant={isEditing ? "default" : "ghost"}
+          size="sm"
+          className={cn(
+            "w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm",
+            isEditing && "bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600"
+          )}
+          title={isEditing ? "Done" : "Edit"}
+        >
+          {isEditing ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <Edit3 className="h-4 w-4" />
+          )}
+        </Button>
+        {!isEditing && pageData?.contentFormat === 'HTML' && (
+          <Button
+            onClick={() => setShowUpgradeDialog(true)}
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
+            title="Upgrade to new editor"
+            disabled={isUpgrading}
+          >
+            {isUpgrading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4" />
             )}
-          </>
+          </Button>
         )}
         <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Share">
           <Share2 className="h-4 w-4" />
@@ -752,6 +735,20 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       {/* Main Editor Area - Clean Document */}
       <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen overflow-x-hidden w-full min-w-0">
         <div className="max-w-4xl mx-auto w-full min-w-0">
+          {pageData?.linkedProjects && pageData.linkedProjects.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {pageData.linkedProjects.map((project) => (
+                <Link
+                  key={project.id}
+                  href={`/projects/${project.id}`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Part of {project.name}
+                </Link>
+              ))}
+            </div>
+          )}
           {isEditing ? (
             <>
               {/* Page Info */}
@@ -803,6 +800,9 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                   onSave={handleAutosave}
                   placeholder="Click here to start writing"
                   className="min-h-[400px] border-none shadow-none bg-transparent"
+                  pageId={pageData.id}
+                  userId={userStatus?.user?.id}
+                  userName={userStatus?.user?.name ?? undefined}
                   onEditorReady={(editor: Editor) => {
                     // Store editor ref for saveNow access
                     editorRef.current = editor as Editor & { saveNow?: () => Promise<void> }
@@ -827,9 +827,21 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                 )}
                 {/* Action Suggestions - Only show when editing */}
                 <div className="flex items-center gap-3 sm:gap-6 text-sm text-muted-foreground mt-8 flex-wrap overflow-x-auto w-full">
-                  <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplateDialog(true)}
+                    className="flex items-center gap-2 hover:text-foreground whitespace-nowrap"
+                  >
                     <Settings className="h-4 w-4 flex-shrink-0" />
                     Use a template
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveAsTemplateDialog(true)}
+                    className="flex items-center gap-2 hover:text-foreground whitespace-nowrap"
+                  >
+                    <FileText className="h-4 w-4 flex-shrink-0" />
+                    Save as template
                   </button>
                   <button className="flex items-center gap-2 hover:text-foreground whitespace-nowrap">
                     <Download className="h-4 w-4 flex-shrink-0" />
@@ -851,6 +863,75 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
           )}
         </div>
       </div>
+
+      {/* Save as Template dialog */}
+      <SaveAsTemplateDialog
+        open={showSaveAsTemplateDialog}
+        onOpenChange={setShowSaveAsTemplateDialog}
+        defaultName={pageData?.title ?? "Untitled"}
+        isSaving={isSavingTemplate}
+        onSave={async (values) => {
+          setIsSavingTemplate(true)
+          try {
+            const editor = editorRef.current as (Editor & { getJSON?: () => JSONContent }) | null
+            const content =
+              pageData?.contentFormat === "JSON"
+                ? (editor?.getJSON?.() ?? pageData.contentJson ?? EMPTY_TIPTAP_DOC)
+                : EMPTY_TIPTAP_DOC
+            const res = await fetch("/api/wiki/templates", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: values.name,
+                description: values.description,
+                category: values.category,
+                content,
+              }),
+            })
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}))
+              throw new Error(data.error ?? "Failed to save template")
+            }
+            toast({
+              title: "Template saved",
+              description: "Your template has been saved successfully",
+            })
+          } finally {
+            setIsSavingTemplate(false)
+          }
+        }}
+      />
+
+      {/* Use a template dialog */}
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-light text-2xl">Use a template</DialogTitle>
+            <DialogDescription className="text-base font-light">
+              Replace your content with a template
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 min-h-0 py-2">
+            <TemplateSelector
+              onSelect={(template) => {
+                setShowTemplateDialog(false)
+                const editor = editorRef.current as (Editor & { commands?: { setContent: (c: JSONContent) => void } }) | null
+                if (editor?.commands?.setContent) {
+                  editor.commands.setContent(template?.content ?? EMPTY_TIPTAP_DOC)
+                }
+                if (template && pageData) {
+                  setPageData({ ...pageData, contentJson: template.content as JSONContent })
+                }
+              }}
+              onCancel={() => setShowTemplateDialog(false)}
+              workspaces={[]}
+              selectedWorkspaceId={null}
+              onWorkspaceChange={() => {}}
+              hideWorkspaceSelector
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Upgrade Dialog */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>

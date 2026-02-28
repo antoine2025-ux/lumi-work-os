@@ -13,6 +13,7 @@ import { requireNonEmptyString } from "@/server/org/validate";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { createDepartment } from "@/server/org/structure/write";
 import { prisma } from "@/lib/db";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 import { handleApiError } from "@/lib/api-errors"
 
 export async function POST(request: NextRequest) {
@@ -75,10 +76,19 @@ export async function POST(request: NextRequest) {
         entity: { type: "department", id: dept.id },
         payload: { name },
       });
-    } catch (contextError: any) {
-      // Log but don't fail - context emission is non-blocking
-      console.warn("[POST /api/org/structure/departments/create] Failed to emit context object (non-blocking):", contextError?.message);
+    } catch (contextError: unknown) {
+      const err = contextError as { message?: string };
+      console.warn("[POST /api/org/structure/departments/create] Failed to emit context object (non-blocking):", err?.message);
     }
+
+    logOrgAudit({
+      workspaceId,
+      entityType: "DEPARTMENT",
+      entityId: dept.id,
+      entityName: dept.name,
+      action: "CREATED",
+      actorId: userId,
+    }).catch((e) => console.error("[POST /api/org/structure/departments/create] Audit log error (non-fatal):", e));
 
     return NextResponse.json(dept, { status: 201 });
   } catch (error) {

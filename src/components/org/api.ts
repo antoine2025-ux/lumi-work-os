@@ -35,6 +35,7 @@ export type OrgPeopleListDTO = {
 
 export type OrgPersonDTO = {
   id: string;
+  userId: string;
   fullName: string;
   email: string | null;
   title: string | null;

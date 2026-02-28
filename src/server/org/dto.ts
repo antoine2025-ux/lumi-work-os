@@ -11,6 +11,7 @@ export type OrgAvailabilityStatus =
 
 export type OrgPersonDTO = {
   id: string;
+  userId: string;
   fullName: string;
   email: string | null;
   title: string | null;
@@ -26,7 +27,7 @@ export type OrgPersonDTO = {
 export type OrgPeopleListDTO = {
   people: Array<Pick<
     OrgPersonDTO,
-    "id" | "fullName" | "email" | "title" | "department" | "team" | "manager" | "availabilityStatus" | "availabilityUpdatedAt" | "availabilityStale"
+    "id" | "userId" | "fullName" | "email" | "title" | "department" | "team" | "manager" | "availabilityStatus" | "availabilityUpdatedAt" | "availabilityStale"
   >>;
 };
 

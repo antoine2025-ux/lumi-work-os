@@ -52,7 +52,9 @@ const EpicsView = dynamic(() => import("@/components/projects/epics-view").then(
 const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mod => ({ default: mod.WikiLayout })), { ssr: false })
 const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
 const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
+const ProjectOrgStatus = dynamic(() => import("@/components/projects/project-org-status").then(mod => ({ default: mod.ProjectOrgStatus })), { ssr: false })
 const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
+const TaskTableView = dynamic(() => import("@/components/projects/TaskTableView").then(mod => ({ default: mod.TaskTableView })), { ssr: false })
 
 interface Project {
   id: string
@@ -186,7 +188,7 @@ export default function ProjectDetailPage() {
   const [isTaskListFullscreen, setIsTaskListFullscreen] = useState(false)
   const [_taskViewMode, _setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
   const [currentView, setCurrentView] = useState<ViewMode>('board')
-  const [headerView, setHeaderView] = useState<'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'>('board')
+  const [headerView, setHeaderView] = useState<'board' | 'epics' | 'tasks' | 'table' | 'calendar' | 'timeline' | 'files' | 'health'>('board')
   const [showCelebration, setShowCelebration] = useState(false)
   const [wasCompleted, setWasCompleted] = useState(false)
   const [filteredTasks, setFilteredTasks] = useState<KanbanTask[]>([])
@@ -671,6 +673,7 @@ export default function ProjectDetailPage() {
               if (view === 'board') setCurrentView('board')
               else if (view === 'calendar') setCurrentView('calendar')
               else if (view === 'tasks') setCurrentView('list')
+              else if (view === 'table') setCurrentView('list')
               // TODO: Handle epics, timeline, files views
             }}
             onEdit={() => {
@@ -837,6 +840,10 @@ export default function ProjectDetailPage() {
                   onCreateEpic={handleCreateEpic}
                 />
               </div>
+            ) : headerView === 'health' ? (
+              <div className="px-6 pt-3 pb-6">
+                <ProjectOrgStatus members={project?.members ?? []} />
+              </div>
             ) : (
               <Card className="bg-background border-0 shadow-none rounded-none">
                 <CardContent className="p-0">
@@ -870,6 +877,14 @@ export default function ProjectDetailPage() {
                       onToggleFullscreen={() => setIsTaskListFullscreen(true)}
                     />
                   )}
+
+                  {headerView === 'table' && (
+                    <TaskTableView
+                      projectId={projectId}
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                      onTasksUpdated={loadProject}
+                    />
+                  )}
                   
                   {headerView === 'calendar' && (
                     <CalendarView 
@@ -887,9 +902,10 @@ export default function ProjectDetailPage() {
                   
                   {headerView === 'files' && project && currentWorkspace && (
                     <div className="px-6 pt-3 pb-6">
-                      <ProjectDocumentationSection 
-                        projectId={project.id} 
-                        workspaceId={project.workspaceId || currentWorkspace.id} 
+                      <ProjectDocumentationSection
+                        projectId={project.id}
+                        projectName={project.name}
+                        workspaceId={project.workspaceId || currentWorkspace.id}
                       />
                     </div>
                   )}

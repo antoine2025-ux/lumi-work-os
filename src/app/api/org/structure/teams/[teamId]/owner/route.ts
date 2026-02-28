@@ -13,6 +13,8 @@ import { prisma } from "@/lib/db";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { optionalString } from "@/server/org/validate";
 import { setTeamOwner } from "@/server/org/structure/write";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 import { deriveOwnershipIssuesForEntity } from "@/lib/org/deriveIssues";
 import { getOrgOwnership } from "@/server/org/ownership/read";
 import {
@@ -60,8 +62,11 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ teamId:
     const body = await request.json();
     const ownerPersonId = optionalString(body.ownerPersonId);
 
-    // Step 5: Compute issues BEFORE mutation
-    const issuesBefore = await deriveOwnershipIssuesForEntity(workspaceId, "TEAM", teamId, workspaceSlug);
+    // Step 5: Compute issues BEFORE mutation + fetch before for audit
+    const [issuesBefore, beforeTeam] = await Promise.all([
+      deriveOwnershipIssuesForEntity(workspaceId, "TEAM", teamId, workspaceSlug),
+      prisma.orgTeam.findUnique({ where: { id: teamId }, select: { name: true, ownerPersonId: true } }),
+    ]);
 
     // Step 6: Update team owner (with workspaceId validation)
     const updated = await setTeamOwner({ teamId, ownerPersonId, workspaceId });
@@ -91,8 +96,28 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ teamId:
         entity: { type: "team", id: updated.id },
         payload: { ownerPersonId },
       });
-    } catch (contextError: any) {
-      console.warn("[PUT /api/org/structure/teams/[teamId]/owner] Failed to emit context object (non-blocking):", contextError?.message);
+    } catch (contextError: unknown) {
+      const err = contextError as { message?: string };
+      console.warn("[PUT /api/org/structure/teams/[teamId]/owner] Failed to emit context object (non-blocking):", err?.message);
+    }
+
+    const changes = beforeTeam
+      ? computeChanges(
+          { ownerPersonId: beforeTeam.ownerPersonId ?? null },
+          { ownerPersonId: updated.ownerPersonId ?? null },
+          ["ownerPersonId"]
+        )
+      : null;
+    if (changes) {
+      logOrgAudit({
+        workspaceId,
+        entityType: "TEAM",
+        entityId: teamId,
+        entityName: beforeTeam?.name ?? updated.id,
+        action: "UPDATED",
+        actorId: userId,
+        changes,
+      }).catch((e) => console.error("[PUT /api/org/structure/teams/[teamId]/owner] Audit log error (non-fatal):", e));
     }
 
     // Step 12: Return canonical MutationResult

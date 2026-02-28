@@ -11,6 +11,7 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { getOrgPerson } from "@/server/org/people/read";
 import { prisma } from "@/lib/db";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 import { handleApiError } from "@/lib/api-errors"
 
 export async function GET(
@@ -136,6 +137,20 @@ export async function DELETE(
     }
 
     const userIdFromPosition = positionResult[0].userId;
+
+    // Step 4b: Log audit before delete (fire-and-forget)
+    const userName =
+      userIdFromPosition
+        ? await prisma.user.findUnique({ where: { id: userIdFromPosition }, select: { name: true } }).then((u) => u?.name)
+        : null;
+    logOrgAudit({
+      workspaceId,
+      entityType: "PERSON",
+      entityId: personId,
+      entityName: userName ?? undefined,
+      action: "DELETED",
+      actorId: userId,
+    }).catch((e) => console.error("[DELETE /api/org/people/[personId]] Audit log error (non-fatal):", e));
 
     // Step 5: Hard delete related records and the OrgPosition using raw SQL
     // This avoids Prisma trying to access non-existent fields like roleDescription

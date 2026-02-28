@@ -160,6 +160,23 @@ app.prepare().then(() => {
   io = createSocketServer(httpServer)
   setSocketServer(io)
 
+  // Start Hocuspocus collaboration server (port 1234)
+  try {
+    const { createCollabServer } = require('./src/lib/collab/hocuspocus-server')
+    const collabServer = createCollabServer()
+    collabServer.listen().then(() => {
+      console.log('> Hocuspocus collab server running on port 1234')
+    }).catch((err) => {
+      console.error('[Hocuspocus] Failed to start:', err)
+    })
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[Hocuspocus] Skipping (run npm run dev:collab for collab with next dev)')
+    } else {
+      console.error('[Hocuspocus] Failed to load:', err)
+    }
+  }
+
   // Start server
   httpServer.listen(port, (err) => {
     if (err) throw err

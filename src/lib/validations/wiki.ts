@@ -49,3 +49,26 @@ export const WikiWorkspaceCreateSchema = z.object({
   visibility: z.enum(['PERSONAL', 'PRIVATE', 'PUBLIC']).optional(),
   memberIds: z.array(z.string()).optional(),
 })
+
+/** POST /api/wiki/upload - file validation constants */
+export const WIKI_UPLOAD_ALLOWED_MIME = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'application/pdf',
+] as const
+
+export const WIKI_UPLOAD_MAX_SIZE = 10 * 1024 * 1024 // 10MB
+
+/** POST /api/wiki/templates */
+export const WikiTemplateCreateSchema = z.object({
+  name: nonEmptyString.max(255),
+  description: z.string().trim().max(500).optional(),
+  icon: z.string().max(50).optional(),
+  category: z
+    .enum(['meetings', 'engineering', 'product', 'operations', 'general', 'custom'])
+    .optional(),
+  content: z.record(z.string(), z.unknown()), // ProseMirror JSON
+})

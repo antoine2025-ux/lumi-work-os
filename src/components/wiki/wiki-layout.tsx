@@ -41,6 +41,11 @@ import { useUserStatusContext } from '@/providers/user-status-provider'
 import { useWorkspace } from '@/lib/workspace-context'
 import { CreateSpaceDialog } from '@/components/spaces/create-space-dialog'
 import { useRecentPages } from '@/hooks/use-wiki-pages'
+import { TemplateSelector } from '@/components/wiki/TemplateSelector'
+import { SaveAsTemplateDialog } from '@/components/wiki/SaveAsTemplateDialog'
+import { EMPTY_TIPTAP_DOC } from '@/lib/wiki/constants'
+import type { WikiTemplate } from '@/lib/wiki/templates'
+import { useToast } from '@/components/ui/use-toast'
 
 interface WikiLayoutProps {
   children: React.ReactNode
@@ -103,7 +108,8 @@ interface Project {
 export function WikiLayout({ children, currentPage: _currentPage, workspaceId: propWorkspaceId }: WikiLayoutProps) {
   const router = useRouter()
   // Use centralized UserStatusContext as fallback if no prop provided
-  const { workspaceId: contextWorkspaceId } = useUserStatusContext()
+  const userStatus = useUserStatusContext()
+  const { workspaceId: contextWorkspaceId } = userStatus
   const { currentWorkspace: _currentWorkspace } = useWorkspace()
   const [_searchQuery, _setSearchQuery] = useState("")
   const [workspaceId, setWorkspaceId] = useState<string>(propWorkspaceId || contextWorkspaceId || '')
@@ -129,9 +135,12 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
   const [newWorkspaceDescription, setNewWorkspaceDescription] = useState('')
   const [isSavingWorkspace, setIsSavingWorkspace] = useState(false)
   const [showWorkspaceSelectDialog, setShowWorkspaceSelectDialog] = useState(false)
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false)
+  const [showSaveAsTemplateDialog, setShowSaveAsTemplateDialog] = useState(false)
   const [selectedWorkspaceForPage, setSelectedWorkspaceForPage] = useState<string | null>(null)
   const [activeEditorPage, setActiveEditorPage] = useState<ActiveEditorPage | null>(null)
   const pathname = usePathname() || ''
+  const { toast } = useToast()
   const { data: _sidebarRecentPages, isLoading: _isLoadingSidebarRecent } = useRecentPages(5)
   const editorRef = useRef<Editor | null>(null)
   const latestContentRef = useRef<JSONContent | null>(null)
@@ -301,26 +310,20 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
     setIsPersonalPage(isPersonal)
   }, [pathname])
 
-  const handleWorkspaceSelected = useCallback((workspaceId: string) => {
-    setSelectedWorkspaceForPage(workspaceId)
+  const handleWorkspaceSelected = useCallback((wsId: string) => {
+    setSelectedWorkspaceForPage(wsId)
     setShowWorkspaceSelectDialog(false)
-    
-    // Now open the page creation dialog
     setIsCreatingPage(true)
     setNewPageTitle("")
     setNewPageCategory("general")
     setError(null)
   }, [])
 
-  // Memoize handleCreatePage to prevent unnecessary re-creations
-  const _memoizedHandleCreatePage = useCallback(() => {
+  // Function to create page with a specific workspace - shows template selector with workspace pre-selected
+  const createPageWithWorkspace = useCallback((wsId: string) => {
+    setSelectedWorkspaceForPage(wsId)
     setShowWorkspaceSelectDialog(true)
   }, [])
-
-  // Function to create page with a specific workspace
-  const createPageWithWorkspace = useCallback((workspaceId: string) => {
-    handleWorkspaceSelected(workspaceId)
-  }, [handleWorkspaceSelected])
 
   // Expose global trigger functions
   useEffect(() => {
@@ -353,6 +356,79 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
     setActiveEditorPage(null)
     setError(null)
   }
+
+  const resolveWorkspaceType = useCallback((wsId: string | null) => {
+    if (!wsId) return 'team'
+    if (wsId === 'personal-space') return 'personal'
+    if (wsId === 'team-workspace') return 'team'
+    const ws = workspaces.find(w => w.id === wsId)
+    if (ws?.type === 'personal') return 'personal'
+    if (ws?.type === 'team') return 'team'
+    if (ws?.id) return ws.id
+    return 'team'
+  }, [workspaces])
+
+  const handleTemplateSelect = useCallback(async (template: WikiTemplate | null) => {
+    const wsId = selectedWorkspaceForPage
+    if (!wsId) {
+      setError('Please select a workspace first')
+      return
+    }
+    setShowWorkspaceSelectDialog(false)
+    setError(null)
+
+    if (!template || template.id === 'blank') {
+      handleWorkspaceSelected(wsId)
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      const workspaceType = resolveWorkspaceType(wsId)
+      const isPersonal = workspaceType === 'personal'
+      const { createWikiPage } = await import('@/lib/wiki/create-page')
+      const newPage = await createWikiPage({
+        workspaceId,
+        title: template.name,
+        contentJson: template.content,
+        tags: [],
+        category: template.category,
+        permissionLevel: isPersonal ? 'personal' : 'team',
+        workspace_type: workspaceType,
+      })
+      setIsCreatingPage(false)
+      setNewPageTitle(template.name)
+      setNewPageCategory(template.category)
+      setActiveEditorPage({
+        id: newPage.id,
+        slug: newPage.slug,
+        title: newPage.title,
+        contentJson: newPage.contentJson ?? template.content,
+        contentFormat: 'JSON',
+        excerpt: newPage.excerpt ?? null,
+        tags: newPage.tags ?? [],
+        category: newPage.category ?? template.category,
+        isPublished: newPage.isPublished ?? true,
+        updatedAt: newPage.updatedAt ?? new Date().toISOString(),
+        workspace_type: newPage.workspace_type,
+        permissionLevel: newPage.permissionLevel ?? workspaceType,
+      })
+      justSavedInPlaceRef.current = true
+      window.history.replaceState(null, '', `/wiki/${newPage.slug}?edit=true`)
+      window.dispatchEvent(new CustomEvent('workspacePagesRefreshed'))
+      window.dispatchEvent(new CustomEvent('pageCreated'))
+      const recentResponse = await fetch('/api/wiki/recent-pages')
+      if (recentResponse.ok) {
+        const recentData = await recentResponse.json()
+        setRecentPages(recentData)
+      }
+    } catch (err) {
+      console.error('Error creating page from template:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create page')
+    } finally {
+      setIsSaving(false)
+    }
+  }, [selectedWorkspaceForPage, workspaceId, resolveWorkspaceType, handleWorkspaceSelected])
 
   const handleCloseLayoutEditor = () => {
     const slug = activeEditorPage?.slug
@@ -992,6 +1068,9 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
                         }}
                     placeholder="Click here to start writing"
                     className="min-h-[400px] border-none shadow-none bg-transparent"
+                    pageId={activeEditorPage?.id}
+                    userId={userStatus?.user?.id}
+                    userName={userStatus?.user?.name ?? undefined}
                     onEditorReady={(editor) => {
                       editorRef.current = editor
                       latestContentRef.current = editor.getJSON()
@@ -1001,9 +1080,21 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
 
                 {/* Action Suggestions - Only show when editing */}
                 <div className="flex items-center gap-3 sm:gap-6 text-sm text-gray-500 mt-8 flex-wrap overflow-x-auto w-full">
-                  <button className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplateDialog(true)}
+                    className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap"
+                  >
                     <Grid3X3 className="h-4 w-4 flex-shrink-0" />
                     <span>Use a template</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveAsTemplateDialog(true)}
+                    className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap"
+                  >
+                    <FileText className="h-4 w-4 flex-shrink-0" />
+                    <span>Save as template</span>
                   </button>
                   <button className="flex items-center gap-2 hover:text-gray-700 whitespace-nowrap">
                     <Upload className="h-4 w-4 flex-shrink-0" />
@@ -1123,66 +1214,86 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
       </div>
     </div>
 
-    {/* Workspace Selection Dialog for New Page */}
+    {/* Template + Workspace Selection Dialog for New Page */}
     <Dialog open={showWorkspaceSelectDialog} onOpenChange={setShowWorkspaceSelectDialog}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-light text-2xl">Select Workspace</DialogTitle>
+          <DialogTitle className="font-light text-2xl">Create new page</DialogTitle>
           <DialogDescription className="text-base font-light">
-            Choose which workspace this page should be created in
+            Choose a workspace and template to get started
           </DialogDescription>
         </DialogHeader>
-        
-        <div className="py-4">
-          <Input
-            placeholder="Search workspaces..."
-            className="mb-4"
-            onChange={(e) => {
-              const _searchValue = e.target.value.toLowerCase()
-              // We could add search filtering here if needed
-            }}
+        <div className="overflow-y-auto flex-1 min-h-0 py-2">
+          <TemplateSelector
+            onSelect={handleTemplateSelect}
+            onCancel={() => setShowWorkspaceSelectDialog(false)}
+            workspaces={workspaces}
+            selectedWorkspaceId={selectedWorkspaceForPage}
+            onWorkspaceChange={setSelectedWorkspaceForPage}
           />
-          
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {workspaces.map((workspace) => {
-              const getIcon = () => {
-                if (workspace.type === 'personal') {
-                  return <FileText className="h-5 w-5 text-indigo-600" />
-                } else if (workspace.type === 'team') {
-                  return <Users className="h-5 w-5 text-blue-600" />
-                } else {
-                  return <Globe className="h-5 w-5 text-blue-600" />
-                }
-              }
-
-              return (
-                <button
-                  key={workspace.id}
-                  onClick={() => {
-                    handleWorkspaceSelected(workspace.id)
-                  }}
-                  className="w-full flex items-center gap-3 p-4 border rounded-lg hover:bg-accent hover:border-blue-300 transition-colors text-left"
-                >
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    {getIcon()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-light text-foreground">{workspace.name}</div>
-                    {workspace.description && (
-                      <div className="text-sm text-muted-foreground font-light">{workspace.description}</div>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
         </div>
+      </DialogContent>
+    </Dialog>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowWorkspaceSelectDialog(false)} className="font-light">
-            Cancel
-          </Button>
-        </DialogFooter>
+    {/* Save as Template */}
+    <SaveAsTemplateDialog
+      open={showSaveAsTemplateDialog}
+      onOpenChange={setShowSaveAsTemplateDialog}
+      defaultName={newPageTitle || 'Untitled'}
+      isSaving={isSaving}
+      onSave={async (values) => {
+        const content =
+          editorRef.current?.getJSON?.() ?? latestContentRef.current ?? EMPTY_TIPTAP_DOC
+        const res = await fetch('/api/wiki/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: values.name,
+            description: values.description,
+            category: values.category,
+            content,
+          }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error ?? 'Failed to save template')
+        }
+        toast({ title: 'Template saved', description: 'Your template has been saved successfully' })
+      }}
+    />
+
+    {/* Use a template (insert into current editor) */}
+    <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="font-light text-2xl">Use a template</DialogTitle>
+          <DialogDescription className="text-base font-light">
+            Replace your content with a template
+          </DialogDescription>
+        </DialogHeader>
+        <div className="overflow-y-auto flex-1 min-h-0 py-2">
+          <TemplateSelector
+            onSelect={(template) => {
+              setShowTemplateDialog(false)
+              if (template) {
+                editorRef.current?.commands?.setContent(template.content)
+                latestContentRef.current = template.content
+                if (!activeEditorPage && template.id !== 'blank') {
+                  setNewPageTitle(template.name)
+                  setNewPageCategory(template.category)
+                }
+              } else {
+                editorRef.current?.commands?.setContent(EMPTY_TIPTAP_DOC)
+                latestContentRef.current = EMPTY_TIPTAP_DOC
+              }
+            }}
+            onCancel={() => setShowTemplateDialog(false)}
+            workspaces={workspaces}
+            selectedWorkspaceId={selectedWorkspaceForPage}
+            onWorkspaceChange={setSelectedWorkspaceForPage}
+            hideWorkspaceSelector
+          />
+        </div>
       </DialogContent>
     </Dialog>
 

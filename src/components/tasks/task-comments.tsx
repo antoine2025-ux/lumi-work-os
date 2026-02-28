@@ -17,7 +17,7 @@ interface User {
 interface Comment {
   id: string
   content: string
-  mentions?: string
+  mentions?: string[]
   createdAt: string
   user: User
 }
@@ -36,6 +36,8 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
   const [showMentions, setShowMentions] = useState(false)
   const [mentionQuery, setMentionQuery] = useState('')
   const [cursorPosition, setCursorPosition] = useState(0)
+  const [selectedMentionIds, setSelectedMentionIds] = useState<string[]>([])
+  const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -94,6 +96,12 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
     setShowMentions(false)
   }
 
+  useEffect(() => {
+    if (showMentions) {
+      setMentionSelectedIndex(0)
+    }
+  }, [showMentions, mentionQuery])
+
   const handleMentionSelect = (user: User) => {
     const textBeforeCursor = newComment.substring(0, cursorPosition)
     const lastAtIndex = textBeforeCursor.lastIndexOf('@')
@@ -105,6 +113,9 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
       textAfterCursor
     
     setNewComment(newText)
+    setSelectedMentionIds((prev) =>
+      prev.includes(user.id) ? prev : [...prev, user.id]
+    )
     setShowMentions(false)
     setMentionQuery('')
     
@@ -118,30 +129,11 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
     }, 0)
   }
 
-  const extractMentions = (content: string): string[] => {
-    const mentionRegex = /@(\w+)/g
-    const mentions: string[] = []
-    let match
-    
-    while ((match = mentionRegex.exec(content)) !== null) {
-      const mentionedName = match[1]
-      const user = projectMembers.find(member => 
-        member.name.toLowerCase().replace(/\s+/g, '') === mentionedName.toLowerCase()
-      )
-      if (user) {
-        mentions.push(user.id)
-      }
-    }
-    
-    return mentions
-  }
-
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return
 
     try {
       setIsSubmitting(true)
-      const mentions = extractMentions(newComment)
       
       const response = await fetch(`/api/tasks/${taskId}/comments`, {
         method: 'POST',
@@ -150,7 +142,7 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
         },
         body: JSON.stringify({
           content: newComment.trim(),
-          mentions
+          mentions: selectedMentionIds,
         }),
       })
 
@@ -158,6 +150,7 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
         const newCommentData = await response.json()
         setComments(prev => [...prev, newCommentData])
         setNewComment('')
+        setSelectedMentionIds([])
         setShowMentions(false)
       } else {
         console.error('Failed to create comment:', response.status, response.statusText)
@@ -170,11 +163,38 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showMentions && filteredMembers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setMentionSelectedIndex((i) =>
+          i < filteredMembers.length - 1 ? i + 1 : 0
+        )
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setMentionSelectedIndex((i) =>
+          i > 0 ? i - 1 : filteredMembers.length - 1
+        )
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        const member = filteredMembers[mentionSelectedIndex]
+        if (member) {
+          handleMentionSelect(member)
+        }
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowMentions(false)
+        return
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmitComment()
-    } else if (e.key === 'Escape') {
-      setShowMentions(false)
     }
   }
 
@@ -188,9 +208,11 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
     })
   }
 
-  const filteredMembers = projectMembers.filter(member =>
-    member.name.toLowerCase().includes(mentionQuery.toLowerCase())
-  )
+  const filteredMembers = projectMembers
+    .filter((member) =>
+      member.name.toLowerCase().includes(mentionQuery.toLowerCase())
+    )
+    .slice(0, 8)
 
   if (isLoading) {
     return (
@@ -235,9 +257,9 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
                       }}
                     />
                     
-                    {comment.mentions && (
+                    {comment.mentions && comment.mentions.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
-                        {JSON.parse(comment.mentions).map((mentionId: string) => {
+                        {comment.mentions.map((mentionId: string) => {
                           const user = projectMembers.find(m => m.id === mentionId)
                           return user ? (
                             <Badge key={mentionId} variant="outline" className="text-xs">
@@ -271,11 +293,13 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
           {showMentions && (
             <div className="absolute bottom-full left-0 right-0 mb-2 bg-popover border border-border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
               {filteredMembers.length > 0 ? (
-                filteredMembers.map((member) => (
+                filteredMembers.map((member, index) => (
                   <button
                     key={member.id}
                     onClick={() => handleMentionSelect(member)}
-                    className="w-full px-3 py-2 text-left hover:bg-muted flex items-center space-x-2"
+                    className={`w-full px-3 py-2 text-left hover:bg-muted flex items-center space-x-2 ${
+                      index === mentionSelectedIndex ? 'bg-muted' : ''
+                    }`}
                   >
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-xs">

@@ -305,6 +305,7 @@ export async function POST(request: NextRequest) {
       assigneeIds = [],
       wikiPageId,
       dailySummaryEnabled = false,
+      templateData,
     } = validatedData
 
     // Extract watcher IDs from the request body
@@ -411,6 +412,42 @@ export async function POST(request: NextRequest) {
             workspaceId: auth.workspaceId,
           },
         })
+      }
+
+      // Apply template data (epics + tasks) if provided
+      if (templateData?.taskGroups && templateData.taskGroups.length > 0) {
+        const createdById = auth.user.userId
+        for (let order = 0; order < templateData.taskGroups.length; order++) {
+          const taskGroup = templateData.taskGroups[order]
+          const epic = await tx.epic.create({
+            data: {
+              workspaceId: auth.workspaceId,
+              projectId: createdProject.id,
+              title: taskGroup.name,
+              description: null,
+              color: null,
+              order,
+            },
+          })
+          for (let taskOrder = 0; taskOrder < taskGroup.tasks.length; taskOrder++) {
+            const taskTemplate = taskGroup.tasks[taskOrder]
+            await tx.task.create({
+              data: {
+                projectId: createdProject.id,
+                workspaceId: auth.workspaceId,
+                epicId: epic.id,
+                title: taskTemplate.title,
+                description: taskTemplate.description ?? '',
+                status: 'TODO',
+                priority: (taskTemplate.priority ?? 'MEDIUM') as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
+                tags: [],
+                createdById,
+                assigneeId: effectiveOwnerId,
+                order: taskOrder,
+              },
+            })
+          }
+        }
       }
 
       // Reload project with all members

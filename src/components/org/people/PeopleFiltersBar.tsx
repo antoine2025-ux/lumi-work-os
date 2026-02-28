@@ -65,7 +65,8 @@ export function PeopleFiltersBar({
     { value: "all", label: "All" },
     { value: "leaders", label: "Leaders" },
     { value: "unassigned", label: "Unassigned" },
-    // Note: "new" and "recentlyChanged" can be added when data is available
+    { value: "new", label: "New" },
+    { value: "recentlyChanged", label: "Recently Changed" },
   ];
 
   // Use shared chip styles with slight size adjustment for filter bar

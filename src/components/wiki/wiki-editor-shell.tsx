@@ -6,6 +6,9 @@ import { AutosaveStatus, type SaveStatus } from './autosave-status'
 import { debounce } from '@/lib/utils'
 import { JSONContent } from '@tiptap/core'
 import { Editor } from '@tiptap/core'
+import { useCollabProvider } from '@/hooks/use-collab-provider'
+import { CollabPresence } from '@/components/wiki/CollabPresence'
+import { cn } from '@/lib/utils'
 
 interface WikiEditorShellProps {
   initialContent: JSONContent | null
@@ -13,6 +16,11 @@ interface WikiEditorShellProps {
   placeholder?: string
   className?: string
   onEditorReady?: (editor: Editor) => void
+  pageId?: string
+  /** When set with pageId, enables real-time collaboration */
+  userId?: string
+  /** User display name for collaboration cursor */
+  userName?: string
 }
 
 /**
@@ -24,8 +32,18 @@ export function WikiEditorShell({
   onSave,
   placeholder,
   className,
-  onEditorReady
+  onEditorReady,
+  pageId,
+  userId,
+  userName,
 }: WikiEditorShellProps) {
+  const isCollabEnabled = !!(pageId && userId)
+  const { provider: collabProvider, isConnected } = useCollabProvider(
+    isCollabEnabled && pageId ? pageId : '',
+    userId,
+    isCollabEnabled ? initialContent : undefined,
+    userName
+  )
   const [content, setContent] = useState<JSONContent | null>(initialContent)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
@@ -238,17 +256,53 @@ export function WikiEditorShell({
     }
   }, [saveNow, onEditorReady])
 
+  // When collab is enabled but provider not ready, show brief loading
+  if (isCollabEnabled && !collabProvider) {
+    return (
+      <div className={cn(className, 'min-h-[200px] flex items-center justify-center')}>
+        <div className="text-sm text-muted-foreground">Connecting to collaboration...</div>
+      </div>
+    )
+  }
+
   return (
     <div className={className}>
       <TipTapEditor
-        content={content}
+        content={isCollabEnabled ? null : content}
         onChange={handleContentChange}
         placeholder={placeholder}
         editable={true}
         onEditorReady={handleEditorReady}
+        pageId={pageId}
+        collabProvider={collabProvider}
+        collabUserName={userName}
+        collabUserId={userId}
       />
-      <div className="mt-2 flex justify-end">
-        <AutosaveStatus status={saveStatus} lastSaved={lastSaved} />
+      <div className="mt-2 flex items-center justify-between">
+        {isCollabEnabled && (
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  'h-2 w-2 rounded-full',
+                  isConnected ? 'bg-green-500' : 'bg-amber-500 animate-pulse'
+                )}
+                title={isConnected ? 'Connected' : 'Connecting...'}
+              />
+              {isConnected ? 'Connected' : 'Connecting...'}
+            </div>
+            {collabProvider && (
+              <CollabPresence
+                provider={collabProvider}
+                currentUserId={userId}
+                currentUserName={userName}
+              />
+            )}
+          </div>
+        )}
+        <div className={isCollabEnabled ? '' : 'ml-auto'}>
+          <AutosaveStatus status={saveStatus} lastSaved={lastSaved} />
+        </div>
       </div>
     </div>
   )

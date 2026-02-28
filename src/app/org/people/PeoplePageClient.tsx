@@ -40,6 +40,7 @@ import { useCapacityPeople } from "@/hooks/useCapacityPeople";
 import { CapacitySummaryCard } from "@/components/org/capacity/CapacitySummaryCard";
 import { InviteUserDialog } from "@/components/org/invite-user-dialog";
 import { useUserStatusContext } from "@/providers/user-status-provider";
+import { useToast } from "@/components/ui/use-toast";
 import type { OrgPerson } from "@/types/org";
 import type { ViewMode } from "@/components/org/people/PeopleViewToggle";
 
@@ -128,7 +129,12 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
     type: "team",
     isOpen: false,
   });
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
   
+  // Recently changed person IDs (from audit log) — used when quickChip === "recentlyChanged"
+  const [recentlyChangedIds, setRecentlyChangedIds] = useState<Set<string> | null>(null);
+
   // Ref for scrolling to top
   const resultsRef = useRef<HTMLDivElement>(null);
   
@@ -149,6 +155,33 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
       setSearchInput(q);
     }
   }, [searchParams]);
+
+  // Fetch recently changed person IDs when "Recently Changed" filter is active
+  useEffect(() => {
+    if (filters.quickChip !== "recentlyChanged") {
+      setRecentlyChangedIds(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/org/audit-log?entityType=PERSON&limit=50")
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled || !json.ok) return;
+        const ids = new Set<string>(
+          (json.entries as Array<{ entityId: string }>).map((e) => e.entityId)
+        );
+        setRecentlyChangedIds(ids);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("[PeoplePage] Failed to fetch recently changed:", err);
+          setRecentlyChangedIds(new Set());
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.quickChip]);
 
   // Update URL with new filters
   const updateFiltersURL = useCallback((newFilters: Partial<PeopleFilters>) => {
@@ -382,7 +415,11 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
           break;
         }
         case "recentlyChanged":
-          // TODO: T2.5 — requires OrgAuditLog change history tracking
+          if (recentlyChangedIds) {
+            result = result.filter((p) => recentlyChangedIds.has(p.id));
+          } else {
+            result = []; // Loading or no data
+          }
           break;
       }
     }
@@ -447,7 +484,7 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
     }
 
     return result;
-  }, [shortlistFilteredPeople, deferredSearch, filters.quickChip, filters.leadersOnly, filters.unassignedOnly, filters.sort, filters.direction]);
+  }, [shortlistFilteredPeople, deferredSearch, filters.quickChip, filters.leadersOnly, filters.unassignedOnly, filters.sort, filters.direction, recentlyChangedIds]);
 
   // Handle search input change (immediate, no debounce for responsive typing)
   // useDeferredValue handles the deferral automatically
@@ -502,6 +539,30 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
       updateFiltersURL({ [key]: undefined });
     });
   }, [updateFiltersURL]);
+
+  const handleExport = useCallback(async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const response = await fetch("/api/org/people/export", { credentials: "include" });
+      if (!response.ok) {
+        toast({ variant: "destructive", title: "Export failed", description: "Could not download people export." });
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `people-export-${new Date().toISOString().split("T")[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ description: "Export downloaded" });
+    } catch {
+      toast({ variant: "destructive", title: "Export failed", description: "Could not download people export." });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, toast]);
 
   // Saved views handler
   const handleViewSelect = useCallback((viewFilters: PeopleFilters) => {
@@ -614,9 +675,8 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
               onAssignTeam={() => setBulkAssignModal({ type: "team", isOpen: true })}
               onAssignDepartment={() => setBulkAssignModal({ type: "department", isOpen: true })}
               onAssignManager={() => setBulkAssignModal({ type: "manager", isOpen: true })}
-              onExport={() => {
-                // Export not yet implemented
-              }}
+              onExport={handleExport}
+              isExporting={isExporting}
             />
           </div>
         }
@@ -629,7 +689,19 @@ export function PeoplePageClient({ orgId, initialPeople }: PeoplePageClientProps
           visibleCount={displayPeople.length}
           totalCount={basePeople.length}
           filters={filters}
-          activeView={filters.quickChip === "all" ? undefined : filters.quickChip === "leaders" ? "Leaders" : filters.quickChip === "unassigned" ? "Unassigned" : undefined}
+          activeView={
+            filters.quickChip === "all"
+              ? undefined
+              : filters.quickChip === "leaders"
+                ? "Leaders"
+                : filters.quickChip === "unassigned"
+                  ? "Unassigned"
+                  : filters.quickChip === "new"
+                    ? "New"
+                    : filters.quickChip === "recentlyChanged"
+                      ? "Recently Changed"
+                      : undefined
+          }
           activeShortlistName={activeShortlistId ? getShortlist(activeShortlistId)?.name : undefined}
           searchQuery={deferredSearch}
         />

@@ -85,6 +85,7 @@ model User {
   wikiPagePermissions   WikiPagePermission[]
   wiki_page_views       wiki_page_views[]
   wikiPages             WikiPage[]
+  wikiTemplates         WikiTemplate[]
   wikiVersions          WikiVersion[]
   wiki_workspaces       wiki_workspaces[]
   wikiWorkspaceMembers  WikiWorkspaceMember[]
@@ -192,6 +193,7 @@ model Workspace {
   tasks                          Task[]
   wikiChunks                     WikiChunk[]
   wikiPages                      WikiPage[]
+  wikiTemplates                  WikiTemplate[]
   wiki_workspaces                wiki_workspaces[]
   workflowInstances              WorkflowInstance[]
   workflows                      Workflow[]
@@ -595,6 +597,25 @@ model WikiPage {
   @@map("wiki_pages")
 }
 
+model WikiTemplate {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?
+  icon        String?
+  category    String   @default("custom")
+  content     Json     // ProseMirror JSON content
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("wiki_templates")
+}
+
 model WikiFavorite {
   id           String    @id @default(cuid()) @db.VarChar(50)
   page_id      String    @db.VarChar(50)
@@ -615,17 +636,18 @@ model WikiFavorite {
 
 model WikiAttachment {
   id          String    @id @default(cuid())
-  pageId      String
+  pageId      String?
   workspaceId String
   fileName    String
   fileSize    Int
   fileType    String
-  fileUrl     String
+  fileUrl     String    @db.Text
   createdAt   DateTime  @default(now())
-  page        WikiPage  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  page        WikiPage? @relation(fields: [pageId], references: [id], onDelete: Cascade)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+  @@index([pageId])
   @@map("wiki_attachments")
 }
 

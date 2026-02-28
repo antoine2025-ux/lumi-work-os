@@ -3,6 +3,7 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import styles from './tiptap-editor.module.css'
 import StarterKit from '@tiptap/starter-kit'
+import Image from '@tiptap/extension-image'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -12,9 +13,15 @@ import TaskItem from '@tiptap/extension-task-item'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import { lowlight } from 'lowlight'
 import { JSONContent, Editor } from '@tiptap/core'
-import { useEffect, useMemo } from 'react'
+import Collaboration from '@tiptap/extension-collaboration'
+import CollaborationCaret from '@tiptap/extension-collaboration-caret'
+import type { HocuspocusProvider } from '@hocuspocus/provider'
+import { getUserColor } from '@/lib/collab/user-colors'
+import { useEffect, useMemo, useRef, useCallback, useState } from 'react'
+import { ImagePlus, Code2 } from 'lucide-react'
 import { Embed } from './tiptap/extensions/embed'
 import { SlashCommand } from './tiptap/extensions/slash-command'
+import { createMentionExtension } from './tiptap/extensions/mention-suggestion'
 import { useSlashCommand } from './tiptap/use-slash-command'
 import { SlashCommandMenu } from './tiptap/slash-command-menu'
 import { TableToolbar } from './tiptap/table-toolbar'
@@ -23,6 +30,23 @@ import { BlockGutter } from './tiptap/blocks/block-gutter'
 import { useKeyboardShortcuts } from './tiptap/hooks/use-keyboard-shortcuts'
 import { getActiveBlock } from './tiptap/ui/block-targeting'
 import { extractTextFromProseMirror } from '@/lib/wiki/text-extract'
+import { parseEmbedUrl, isEmbeddableUrl } from '@/lib/wiki/embed-utils'
+import { EmbedDialog } from './tiptap/EmbedDialog'
+import { PasteEmbedPrompt } from './tiptap/PasteEmbedPrompt'
+import { uploadWikiFile } from './tiptap/hooks/use-wiki-upload'
+import { useToast } from '@/components/ui/use-toast'
+import { Button } from '@/components/ui/button'
+
+const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+const PDF_MIME = 'application/pdf'
+
+function isImageFile(file: File): boolean {
+  return IMAGE_MIMES.includes(file.type)
+}
+
+function isPdfFile(file: File): boolean {
+  return file.type === PDF_MIME
+}
 
 interface TipTapEditorProps {
   content: JSONContent | null
@@ -31,6 +55,13 @@ interface TipTapEditorProps {
   editable?: boolean
   className?: string
   onEditorReady?: (editor: Editor) => void
+  pageId?: string
+  /** When set, enables real-time collaboration; content comes from Yjs */
+  collabProvider?: HocuspocusProvider | null
+  /** User name for collaboration cursor (when collabProvider is set) */
+  collabUserName?: string
+  /** User id for collaboration cursor color (when collabProvider is set) */
+  collabUserId?: string
 }
 
 /**
@@ -43,8 +74,29 @@ export function TipTapEditor({
   placeholder = "Type '/' for commands...",
   editable = true,
   className = "",
-  onEditorReady
+  onEditorReady,
+  pageId,
+  collabProvider,
+  collabUserName = 'User',
+  collabUserId = 'anonymous',
 }: TipTapEditorProps) {
+  const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [embedDialogOpen, setEmbedDialogOpen] = useState(false)
+  const [embedDialogProvider, setEmbedDialogProvider] = useState<
+    'youtube' | 'figma' | 'loom' | undefined
+  >(undefined)
+  const [pendingPaste, setPendingPaste] = useState<{
+    url: string
+    position: { top: number; left: number }
+  } | null>(null)
+  const setPendingPasteRef = useRef(setPendingPaste)
+  useEffect(() => {
+    setPendingPasteRef.current = setPendingPaste
+  }, [])
+
+  const isCollab = !!collabProvider
+
   const extensions = useMemo(
     () => [
       StarterKit.configure({
@@ -52,6 +104,8 @@ export function TipTapEditor({
         codeBlock: false,
         link: false,
         underline: false,
+        // Collaboration provides its own undo/redo
+        ...(isCollab ? { undoRedo: false as const } : {}),
       }),
       Underline,
       Link.configure({
@@ -59,6 +113,10 @@ export function TipTapEditor({
         HTMLAttributes: {
           class: 'text-blue-600 underline cursor-pointer',
         },
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: false,
       }),
       Placeholder.configure({
         placeholder,
@@ -78,25 +136,131 @@ export function TipTapEditor({
       TableCell,
       Embed,
       SlashCommand,
+      createMentionExtension(),
+      ...(isCollab && collabProvider
+        ? [
+            Collaboration.configure({
+              document: collabProvider.document,
+            }),
+            CollaborationCaret.configure({
+              provider: collabProvider,
+              user: {
+                id: collabUserId,
+                name: collabUserName,
+                color: getUserColor(collabUserId),
+              },
+            }),
+          ]
+        : []),
     ],
-    [placeholder]
+    [placeholder, isCollab, collabProvider, collabUserName, collabUserId]
+  )
+
+  const editorRefForHandlers = useRef<Editor | null>(null)
+
+  const processFiles = useCallback(
+    async (files: File[], editorInstance: Editor) => {
+      const imageFiles = files.filter(isImageFile)
+      const pdfFiles = files.filter(isPdfFile)
+      const toProcess = [...imageFiles, ...pdfFiles]
+      if (toProcess.length === 0) return
+
+      for (const file of toProcess) {
+        try {
+          const result = await uploadWikiFile(file, pageId)
+          if (isImageFile(file)) {
+            editorInstance
+              .chain()
+              .focus()
+              .setImage({ src: result.url, alt: result.filename })
+              .run()
+          } else if (isPdfFile(file)) {
+            editorInstance
+              .chain()
+              .focus()
+              .insertContent({
+                type: 'paragraph',
+                content: [
+                  {
+                    type: 'text',
+                    marks: [{ type: 'link', attrs: { href: result.url } }],
+                    text: result.filename,
+                  },
+                ],
+              })
+              .run()
+          }
+        } catch (err) {
+          toast({
+            title: 'Upload failed',
+            description: err instanceof Error ? err.message : 'Could not upload file',
+            variant: 'destructive',
+          })
+        }
+      }
+    },
+    [pageId, toast]
   )
 
   const editor = useEditor({
     immediatelyRender: false, // Prevent SSR hydration mismatches
     extensions,
-    content: content || {
-      type: 'doc',
-      content: [{ type: 'paragraph' }],
-    },
+    content: isCollab
+      ? undefined // Content comes from Yjs
+      : content || {
+          type: 'doc',
+          content: [{ type: 'paragraph' }],
+        },
     editable,
     editorProps: {
       attributes: {
         class: `prose prose-slate max-w-none focus:outline-none min-h-[200px] p-4 ${className}`,
       },
-      // Let TipTap handle paste automatically (preserves formatting from external sources)
-      handlePaste: (_view, _event) => {
-        // TipTap will handle HTML paste automatically
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items
+        if (items) {
+          const files: File[] = []
+          for (let i = 0; i < items.length; i++) {
+            const file = items[i]?.getAsFile()
+            if (file && (isImageFile(file) || isPdfFile(file))) {
+              files.push(file)
+            }
+          }
+          if (files.length > 0) {
+            event.preventDefault()
+            const ed = editorRefForHandlers.current
+            if (ed) processFiles(files, ed)
+            return true
+          }
+        }
+        const text = event.clipboardData?.getData('text/plain')
+        if (text && isEmbeddableUrl(text)) {
+          event.preventDefault()
+          const pos = view.state.selection.from
+          const coords = view.coordsAtPos(pos)
+          setPendingPasteRef.current?.({
+            url: text.trim(),
+            position: {
+              top: coords.bottom + window.scrollY + 4,
+              left: coords.left + window.scrollX,
+            },
+          })
+          return true
+        }
+        return false
+      },
+      handleDrop: (view, event) => {
+        const files = event.dataTransfer?.files
+        if (!files || files.length === 0) return false
+        const fileList: File[] = Array.from(files).filter(
+          (f) => isImageFile(f) || isPdfFile(f)
+        )
+        if (fileList.length > 0) {
+          event.preventDefault()
+          const ed = editorRefForHandlers.current
+          if (ed) processFiles(fileList, ed)
+          return true
+        }
         return false
       },
     },
@@ -104,6 +268,10 @@ export function TipTapEditor({
       onChange(editor.getJSON())
     },
   })
+
+  useEffect(() => {
+    editorRefForHandlers.current = editor
+  }, [editor])
 
   // Slash command menu hook
   const slashCommand = useSlashCommand(editor)
@@ -122,8 +290,9 @@ export function TipTapEditor({
   }, [editor, onEditorReady])
 
   // Update editor content when prop changes (but not during editing)
+  // Skip when collab is active — content comes from Yjs
   useEffect(() => {
-    if (!editor || !content) return
+    if (!editor || !content || isCollab) return
     
     const currentJSON = editor.getJSON()
     // Only update if content actually changed (avoid infinite loops)
@@ -137,7 +306,86 @@ export function TipTapEditor({
       }
       editor.commands.setContent(content)
     }
-  }, [content, editor])
+  }, [content, editor, isCollab])
+
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files
+      if (!files || files.length === 0 || !editor) return
+      const fileList = Array.from(files).filter(
+        (f) => isImageFile(f) || isPdfFile(f)
+      )
+      if (fileList.length > 0) {
+        await processFiles(fileList, editor)
+      }
+      e.target.value = ''
+    },
+    [editor, processFiles]
+  )
+
+  const triggerFileInput = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
+  useEffect(() => {
+    const handler = () => triggerFileInput()
+    window.addEventListener('wiki:trigger-image-upload', handler)
+    return () => window.removeEventListener('wiki:trigger-image-upload', handler)
+  }, [triggerFileInput])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ provider?: 'youtube' | 'figma' | 'loom' }>)
+        .detail
+      setEmbedDialogProvider(detail?.provider)
+      setEmbedDialogOpen(true)
+    }
+    window.addEventListener('wiki:open-embed-dialog', handler)
+    return () => window.removeEventListener('wiki:open-embed-dialog', handler)
+  }, [])
+
+  const handlePasteEmbed = useCallback(() => {
+    if (!editor || !pendingPaste) return
+    const result = parseEmbedUrl(pendingPaste.url)
+    if (result) {
+      editor
+        .chain()
+        .focus()
+        .setEmbed({
+          src: result.src,
+          embedUrl: result.embedUrl,
+          provider: result.provider,
+          title: result.title,
+        })
+        .run()
+    }
+    setPendingPaste(null)
+  }, [editor, pendingPaste])
+
+  const handlePasteKeepAsLink = useCallback(() => {
+    if (!editor || !pendingPaste) return
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: pendingPaste.url,
+            marks: [{ type: 'link', attrs: { href: pendingPaste.url } }],
+          },
+        ],
+      })
+      .run()
+    setPendingPaste(null)
+  }, [editor, pendingPaste])
+
+  const handlePasteDismiss = useCallback(() => {
+    if (!editor || !pendingPaste) return
+    editor.chain().focus().insertContent(pendingPaste.url).run()
+    setPendingPaste(null)
+  }, [editor, pendingPaste])
 
   if (!editor) {
     return (
@@ -163,6 +411,40 @@ export function TipTapEditor({
 
   return (
     <div className={styles.editor}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.pdf"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+      {editable && (
+        <div className="flex items-center gap-1 mb-2 px-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={triggerFileInput}
+            title="Upload image or PDF"
+          >
+            <ImagePlus className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => {
+              setEmbedDialogProvider(undefined)
+              setEmbedDialogOpen(true)
+            }}
+            title="Embed (YouTube, Figma, Loom...)"
+          >
+            <Code2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
       <EditorContent editor={editor} />
       {editor && editable && (
         <>
@@ -180,6 +462,21 @@ export function TipTapEditor({
         />
       )}
       {editor && <TableToolbar editor={editor} />}
+      <EmbedDialog
+        open={embedDialogOpen}
+        onClose={() => setEmbedDialogOpen(false)}
+        editor={editor}
+        initialProvider={embedDialogProvider}
+      />
+      {pendingPaste && (
+        <PasteEmbedPrompt
+          url={pendingPaste.url}
+          position={pendingPaste.position}
+          onEmbed={handlePasteEmbed}
+          onKeepAsLink={handlePasteKeepAsLink}
+          onDismiss={handlePasteDismiss}
+        />
+      )}
     </div>
   )
 }

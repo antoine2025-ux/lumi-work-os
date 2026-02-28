@@ -272,6 +272,7 @@ export async function listOrgPeople(workspaceId?: string, _includeArchived: bool
       const topSkills = skillsMap.get(userId) || [];
       return {
         id: p.id,
+        userId,
         fullName: p.user!.name || p.user!.email || "Unknown",
         email: p.user!.email,
         title: p.title,
@@ -487,6 +488,7 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
         const availabilityUpdatedAt = availability?.updatedAt ? availability.updatedAt : null;
         return {
           id: effectivePosition.id,
+          userId,
           fullName: effectivePosition.user!.name || effectivePosition.user!.email || "Unknown",
           email: effectivePosition.user!.email,
           title: effectivePosition.title,
@@ -629,6 +631,7 @@ export async function getOrgPerson(personId: string, workspaceId?: string): Prom
   const availabilityUpdatedAt = availability?.updatedAt ? availability.updatedAt : null;
   return {
     id: position.id,
+    userId,
     fullName: position.user.name || position.user.email || "Unknown",
     email: position.user.email,
     title: position.title,
