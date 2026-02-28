@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { RichTextEditor } from "@/components/wiki/rich-text-editor"
@@ -10,9 +10,8 @@ import { WikiPageBody } from "@/components/wiki/wiki-page-body"
 import { useUserStatusContext } from '@/providers/user-status-provider'
 import { JSONContent, Editor } from '@tiptap/core'
 import { 
+  Check,
   Edit3,
-  Save,
-  X,
   Share2,
   MessageSquare,
   Settings,
@@ -105,6 +104,8 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
   const [isSavingTemplate, setIsSavingTemplate] = useState(false)
   const { toast } = useToast()
   const editorRef = useRef<(Editor & { saveNow?: () => Promise<void> }) | null>(null)
+  /** Ref to preserve editor content when fetch completes; prevents overwrite with stale data */
+  const syncedContentRef = useRef<JSONContent | null>(null)
   // Check URL params for AI assistant state on mount
   const initialAIOpen = searchParams?.get('ai') === 'open'
   const [isAISidebarOpen, setIsAISidebarOpen] = useState(initialAIOpen)
@@ -505,32 +506,44 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
     await handleSave(contentJson)
   }
 
-  const handleCancel = async () => {
-    // For JSON pages, save before closing to ensure no data loss
-    if (pageData?.contentFormat === 'JSON' && editorRef.current?.saveNow) {
+  const toggleEdit = useCallback(async () => {
+    if (isEditing) {
+      if (pageData?.contentFormat === 'JSON' && editorRef.current) {
+        const json = editorRef.current.getJSON()
+        const html = editorRef.current.getHTML?.()
+        syncedContentRef.current = json
+        setPageData(prev =>
+          prev ? { ...prev, contentJson: json, content: html ?? prev.content } : prev
+        )
+      }
+      if (pageData?.contentFormat === 'JSON' && editorRef.current?.saveNow) {
+        try {
+          await editorRef.current.saveNow()
+        } catch (e) {
+          console.error('Failed to save before closing:', e)
+        }
+      } else if (pageData?.contentFormat === 'HTML') {
+        await handleSave()
+      }
+      setIsEditing(false)
       try {
-        // Save latest content before closing
-        await editorRef.current.saveNow()
-      } catch (error) {
-        console.error('Failed to save before closing:', error)
-        // Continue with close anyway - autosave may have already saved
+        const res = await fetch(`/api/wiki/pages/${pageData?.id || resolvedSlug}`)
+        if (res.ok) {
+          const updated = await res.json()
+          setPageData(prev =>
+            syncedContentRef.current && prev?.contentFormat === 'JSON'
+              ? { ...updated, contentJson: syncedContentRef.current }
+              : updated
+          )
+        }
+      } catch (e) {
+        console.error('Failed to refresh page data after Done:', e)
       }
+      syncedContentRef.current = null
+    } else {
+      setIsEditing(true)
     }
-    
-    setIsEditing(false)
-    
-    // Refresh page data to get latest saved state without full page reload
-    try {
-      const response = await fetch(`/api/wiki/pages/${pageData?.id || resolvedSlug}`)
-      if (response.ok) {
-        const updatedPage = await response.json()
-        setPageData(updatedPage)
-      }
-    } catch (error) {
-      console.error('Failed to refresh page data after cancel:', error)
-      // If refresh fails, the page will still exit edit mode with current data
-    }
-  }
+  }, [isEditing, pageData, resolvedSlug])
 
   const handleUpgradePage = async () => {
     if (!pageData || pageData.contentFormat !== 'HTML') {
@@ -651,82 +664,37 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
           ? "right-[400px]" // Slide left when AI chat is open in sidebar mode (384px width + 16px gap)
           : "right-8" // Default position
       )}>
-        {isEditing ? (
-          <>
-            <Button 
-              onClick={async () => {
-                if (pageData.contentFormat === 'JSON') {
-                  // Always use editor's saveNow function (reads latest from editor)
-                  if (editorRef.current?.saveNow) {
-                    try {
-                      await editorRef.current.saveNow()
-                      // Update pageData after successful save to keep state in sync
-                      const reloadResponse = await fetch(`/api/wiki/pages/${pageData.id}`)
-                      if (reloadResponse.ok) {
-                        const updatedPage = await reloadResponse.json()
-                        setPageData(updatedPage)
-                      }
-                    } catch (error) {
-                      console.error('Save failed:', error)
-                      // Error state is handled by WikiEditorShell
-                    }
-                  } else {
-                    console.error('Editor ref not available - cannot save')
-                    alert('Editor not ready. Please wait a moment and try again.')
-                  }
-                } else {
-                  // HTML page - use existing handleSave
-                  handleSave()
-                }
-              }}
-              disabled={isSaving}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10 rounded-full flex items-center justify-center p-0"
-              title={isSaving ? 'Saving...' : 'Save'}
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-            </Button>
-            <Button 
-              onClick={handleCancel}
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
-              title="Cancel"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button 
-              onClick={() => setIsEditing(true)}
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
-              title="Edit"
-            >
-              <Edit3 className="h-4 w-4" />
-            </Button>
-            {pageData?.contentFormat === 'HTML' && (
-              <Button
-                onClick={() => setShowUpgradeDialog(true)}
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
-                title="Upgrade to new editor"
-                disabled={isUpgrading}
-              >
-                {isUpgrading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileText className="h-4 w-4" />
-                )}
-              </Button>
+        <Button
+          onClick={toggleEdit}
+          variant={isEditing ? "default" : "ghost"}
+          size="sm"
+          className={cn(
+            "w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm",
+            isEditing && "bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600"
+          )}
+          title={isEditing ? "Done" : "Edit"}
+        >
+          {isEditing ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <Edit3 className="h-4 w-4" />
+          )}
+        </Button>
+        {!isEditing && pageData?.contentFormat === 'HTML' && (
+          <Button
+            onClick={() => setShowUpgradeDialog(true)}
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
+            title="Upgrade to new editor"
+            disabled={isUpgrading}
+          >
+            {isUpgrading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4" />
             )}
-          </>
+          </Button>
         )}
         <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Share">
           <Share2 className="h-4 w-4" />

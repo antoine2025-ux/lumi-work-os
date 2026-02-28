@@ -132,3 +132,29 @@
   font-weight: 500;
 }
 
+/* Collaboration cursor (TipTap v3 CollaborationCaret) */
+.editor :global(.collaboration-carets__caret) {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 2px solid;
+  border-right: none;
+  word-break: normal;
+  pointer-events: none;
+}
+
+.editor :global(.collaboration-carets__label) {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 1px 6px;
+  border-radius: 4px 4px 4px 0;
+  color: white;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+

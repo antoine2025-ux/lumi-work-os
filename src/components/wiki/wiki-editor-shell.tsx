@@ -7,6 +7,7 @@ import { debounce } from '@/lib/utils'
 import { JSONContent } from '@tiptap/core'
 import { Editor } from '@tiptap/core'
 import { useCollabProvider } from '@/hooks/use-collab-provider'
+import { CollabPresence } from '@/components/wiki/CollabPresence'
 import { cn } from '@/lib/utils'
 
 interface WikiEditorShellProps {
@@ -40,7 +41,8 @@ export function WikiEditorShell({
   const { provider: collabProvider, isConnected } = useCollabProvider(
     isCollabEnabled && pageId ? pageId : '',
     userId,
-    isCollabEnabled ? initialContent : undefined
+    isCollabEnabled ? initialContent : undefined,
+    userName
   )
   const [content, setContent] = useState<JSONContent | null>(initialContent)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
@@ -278,15 +280,24 @@ export function WikiEditorShell({
       />
       <div className="mt-2 flex items-center justify-between">
         {isCollabEnabled && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span
-              className={cn(
-                'h-2 w-2 rounded-full',
-                isConnected ? 'bg-green-500' : 'bg-amber-500 animate-pulse'
-              )}
-              title={isConnected ? 'Connected' : 'Connecting...'}
-            />
-            {isConnected ? 'Connected' : 'Connecting...'}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  'h-2 w-2 rounded-full',
+                  isConnected ? 'bg-green-500' : 'bg-amber-500 animate-pulse'
+                )}
+                title={isConnected ? 'Connected' : 'Connecting...'}
+              />
+              {isConnected ? 'Connected' : 'Connecting...'}
+            </div>
+            {collabProvider && (
+              <CollabPresence
+                provider={collabProvider}
+                currentUserId={userId}
+                currentUserName={userName}
+              />
+            )}
           </div>
         )}
         <div className={isCollabEnabled ? '' : 'ml-auto'}>

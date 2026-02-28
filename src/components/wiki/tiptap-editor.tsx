@@ -16,6 +16,7 @@ import { JSONContent, Editor } from '@tiptap/core'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import type { HocuspocusProvider } from '@hocuspocus/provider'
+import { getUserColor } from '@/lib/collab/user-colors'
 import { useEffect, useMemo, useRef, useCallback, useState } from 'react'
 import { ImagePlus, Code2 } from 'lucide-react'
 import { Embed } from './tiptap/extensions/embed'
@@ -45,16 +46,6 @@ function isImageFile(file: File): boolean {
 
 function isPdfFile(file: File): boolean {
   return file.type === PDF_MIME
-}
-
-/** Generate a stable color from userId for collaboration cursor */
-function userColorFromId(userId: string): string {
-  let hash = 0
-  for (let i = 0; i < userId.length; i++) {
-    hash = userId.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const h = Math.abs(hash % 360)
-  return `hsl(${h}, 70%, 50%)`
 }
 
 interface TipTapEditorProps {
@@ -154,8 +145,9 @@ export function TipTapEditor({
             CollaborationCaret.configure({
               provider: collabProvider,
               user: {
+                id: collabUserId,
                 name: collabUserName,
-                color: userColorFromId(collabUserId),
+                color: getUserColor(collabUserId),
               },
             }),
           ]
