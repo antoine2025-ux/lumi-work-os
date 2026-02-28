@@ -166,6 +166,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@lhci/cli": "^0.14.0",
+    "@next/bundle-analyzer": "^16.1.6",
     "@playwright/test": "^1.57.0",
     "@types/node": "^20",
     "@types/pg": "^8.15.5",
