@@ -1,10 +1,25 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
+import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { RichTextEditor } from "@/components/wiki/rich-text-editor"
-import { WikiEditorShell } from "@/components/wiki/wiki-editor-shell"
+
+// Lazy-load: full TipTap + lowlight stack — only needed in edit mode, not read-only view
+const WikiEditorShell = dynamic(
+  () => import('@/components/wiki/wiki-editor-shell').then(m => ({ default: m.WikiEditorShell })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="animate-pulse space-y-3 p-6">
+        <div className="h-4 bg-muted rounded w-3/4" />
+        <div className="h-4 bg-muted rounded w-1/2" />
+        <div className="h-4 bg-muted rounded w-5/6" />
+      </div>
+    ),
+  }
+)
 import { useLoopbrainAnchors } from "@/components/loopbrain/assistant-context"
 import { WikiPageBody } from "@/components/wiki/wiki-page-body"
 import { useUserStatusContext } from '@/providers/user-status-provider'

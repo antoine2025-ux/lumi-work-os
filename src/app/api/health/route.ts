@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rate-limit'
+import { rateLimitExceeded } from '@/lib/rate-limit-response'
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const limit = await rateLimit(request, { windowMs: 60 * 1000, max: 60, identifier: 'health' })
+  if (!limit.success) return rateLimitExceeded(limit.resetAt)
   try {
     return NextResponse.json({
       success: true,

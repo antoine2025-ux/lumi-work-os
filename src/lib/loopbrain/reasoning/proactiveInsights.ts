@@ -597,6 +597,52 @@ export async function detectUpcoming1on1s(
 
     if (upcomingMeetings.length === 0) return insights;
 
+    // perf: eliminated N+1 — batch fetch all open action items for all upcoming meeting pairs (was: one query per meeting, up to 20)
+    // Uses @@index([workspaceId, scheduledAt]) and @@index([workspaceId, assigneeId, status]) added in index audit
+    const uniquePairs = Array.from(
+      new Map(
+        upcomingMeetings.map((m) => [
+          `${m.managerId}:${m.employeeId}`,
+          { managerId: m.managerId, employeeId: m.employeeId },
+        ])
+      ).values()
+    );
+
+    const allOverdueActions = await prisma.oneOnOneActionItem.findMany({
+      where: {
+        workspaceId,
+        status: "OPEN",
+        meeting: {
+          OR: uniquePairs.map((p) => ({
+            managerId: p.managerId,
+            employeeId: p.employeeId,
+          })),
+          scheduledAt: { lt: now },
+        },
+      },
+      select: {
+        id: true,
+        content: true,
+        assigneeId: true,
+        dueDate: true,
+        meeting: {
+          select: {
+            managerId: true,
+            employeeId: true,
+          },
+        },
+      },
+      take: 200,
+    });
+
+    // Group action items by managerId:employeeId key for O(1) lookup in the loop below
+    const actionsByPair = new Map<string, typeof allOverdueActions>();
+    for (const action of allOverdueActions) {
+      const key = `${action.meeting.managerId}:${action.meeting.employeeId}`;
+      if (!actionsByPair.has(key)) actionsByPair.set(key, []);
+      actionsByPair.get(key)!.push(action);
+    }
+
     // Check for overdue action items from past meetings in the same series
     for (const meeting of upcomingMeetings) {
       const otherPersonName =
@@ -604,29 +650,9 @@ export async function detectUpcoming1on1s(
           ? meeting.employee?.name ?? "team member"
           : meeting.manager?.name ?? "manager";
 
-      // Find open action items from previous meetings between same participants
-      const overdueActions = await prisma.oneOnOneActionItem.findMany({
-        where: {
-          workspaceId,
-          status: "OPEN",
-          meeting: {
-            OR: [
-              {
-                managerId: meeting.managerId,
-                employeeId: meeting.employeeId,
-              },
-            ],
-            scheduledAt: { lt: now },
-          },
-        },
-        select: {
-          id: true,
-          content: true,
-          assigneeId: true,
-          dueDate: true,
-        },
-        take: 10,
-      });
+      // Look up pre-loaded action items for this meeting pair (no additional query)
+      const pairKey = `${meeting.managerId}:${meeting.employeeId}`;
+      const overdueActions = (actionsByPair.get(pairKey) ?? []).slice(0, 10);
 
       if (overdueActions.length === 0) continue;
 

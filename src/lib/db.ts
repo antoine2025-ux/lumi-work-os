@@ -1,3 +1,4 @@
+import '@/lib/env' // validate environment variables on first DB access
 import { PrismaClient } from '@prisma/client'
 import { createScopedPrisma } from './prisma/scoped-prisma'
 

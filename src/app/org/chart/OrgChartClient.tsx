@@ -8,7 +8,20 @@ import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 import { OrgNoAccessState } from "@/components/org/OrgNoAccessState";
 import { OrgChartFilters, type OrgChartFilter } from "@/components/org/OrgChartFilters";
 import { OrgChartEmptyState } from "@/components/org/OrgChartEmptyState";
-import { OrgChartTreeView } from "@/components/org/OrgChartTreeView";
+import dynamic from "next/dynamic";
+
+// Lazy-load: react-d3-tree SVG renderer — only needed when tree view is active
+const OrgChartTreeView = dynamic(
+  () => import("@/components/org/OrgChartTreeView").then(m => ({ default: m.OrgChartTreeView })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    ),
+  }
+);
 import { getInitials } from "@/components/org/structure/utils";
 import type { OrgChartTree } from "@/lib/org/projections/buildOrgChartTree";
 

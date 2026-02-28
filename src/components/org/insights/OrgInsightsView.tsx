@@ -1,9 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { OrgInsightsSnapshot } from "@/lib/org/insights";
 import { OrgInsightsSummaryCards } from "./OrgInsightsSummaryCards";
-import { OrgInsightsChartsSection } from "./OrgInsightsChartsSection";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
+
+// Lazy-load: recharts (~7.7 MB source) only needed when charts scroll into view
+const OrgInsightsChartsSection = dynamic(
+  () => import("./OrgInsightsChartsSection").then(m => ({ default: m.OrgInsightsChartsSection })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="animate-pulse h-48 bg-muted rounded-lg" />
+    ),
+  }
+);
 
 type OrgInsightsViewProps = {
   insights: OrgInsightsSnapshot;
