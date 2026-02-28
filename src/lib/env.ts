@@ -81,6 +81,14 @@ const envSchema = z
     // ── Mailchimp (optional marketing) ───────────────────────────────────────
     MAILCHIMP_API_KEY: z.string().optional(),
     MAILCHIMP_LIST_ID: z.string().optional(),
+
+    // ── Sentry (optional — error monitoring) ─────────────────────────────────
+    // DSN is NEXT_PUBLIC_ so it reaches the browser bundle too
+    NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+    SENTRY_ORG: z.string().optional(),
+    SENTRY_PROJECT: z.string().optional(),
+    // Auth token used only at build time for source map uploads
+    SENTRY_AUTH_TOKEN: z.string().optional(),
   })
   .refine(
     (data) => !!(data.OPENAI_API_KEY || data.ANTHROPIC_API_KEY),
