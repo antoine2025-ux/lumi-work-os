@@ -750,12 +750,12 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       {/* Main Editor Area - Clean Document */}
       <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen overflow-x-hidden w-full min-w-0">
         <div className="max-w-4xl mx-auto w-full min-w-0">
-          {pageData?.linkedProjects && pageData.linkedProjects.length > 0 && (
+          {pageData?.linkedProjects && pageData.linkedProjects.length > 0 && authorOrgInfo && (
             <div className="mb-4 flex flex-wrap gap-2">
               {pageData.linkedProjects.map((project) => (
                 <Link
                   key={project.id}
-                  href={`/projects/${project.id}`}
+                  href={`/w/${authorOrgInfo.workspaceSlug}/projects/${project.id}`}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <FileText className="h-3.5 w-3.5" />

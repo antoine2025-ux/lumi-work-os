@@ -288,6 +288,7 @@ model Workspace {
   subtasks                    Subtask[]
   taskComments                TaskComment[]
   taskHistories               TaskHistory[]
+  taskWikiLinks               TaskWikiLink[]
   customFieldVals             CustomFieldVal[]
   // Project children
   projectMembers              ProjectMember[]
@@ -573,6 +574,7 @@ model WikiPage {
   spaceId              String?
   projects                Project[]
   projectDocumentation    ProjectDocumentation[]
+  taskLinks               TaskWikiLink[]
   wiki_ai_interactions wiki_ai_interactions[]
   attachments          WikiAttachment[]
   chunks               WikiChunk[]
@@ -1329,6 +1331,7 @@ model Task {
   subtasks          Subtask[]
   comments          TaskComment[]
   history           TaskHistory[]
+  wikiLinks         TaskWikiLink[]
   assignee          User?             @relation("TaskAssignee", fields: [assigneeId], references: [id])
   createdBy         User              @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
   epic              Epic?             @relation(fields: [epicId], references: [id])
@@ -1384,6 +1387,24 @@ model TaskComment {
   @@index([taskId, createdAt(sort: Desc)], map: "idx_task_comments_task_created")
   @@index([workspaceId])
   @@map("task_comments")
+}
+
+model TaskWikiLink {
+  id          String    @id @default(cuid())
+  taskId      String
+  wikiPageId  String
+  workspaceId String
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  wikiPage    WikiPage  @relation(fields: [wikiPageId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, wikiPageId])
+  @@index([taskId])
+  @@index([wikiPageId])
+  @@index([workspaceId])
+  @@map("task_wiki_links")
 }
 
 model ProjectMember {

@@ -8,10 +8,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, User, Calendar, Tag, X, Settings, MessageSquare, History, Plus } from "lucide-react"
+import { Loader2, User, Calendar, Tag, X, Settings, MessageSquare, History, Plus, FileText } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { TaskComments } from "./task-comments"
+import { TaskLinkedPages } from "./task-linked-pages"
 import { useUserStatusContext } from '@/providers/user-status-provider'
+import { useWorkspace } from '@/lib/workspace-context'
 
 interface User {
   id: string
@@ -122,6 +124,7 @@ export function TaskSidebar() {
   const router = useRouter()
   // Use centralized UserStatusContext - no separate API call needed
   const { workspaceId } = useUserStatusContext()
+  const { currentWorkspace } = useWorkspace()
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingTask, setIsLoadingTask] = useState(false)
   const [task, setTask] = useState<Task | null>(null)
@@ -145,7 +148,7 @@ export function TaskSidebar() {
   const [newTag, setNewTag] = useState('')
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [subtaskErrors, setSubtaskErrors] = useState<Record<string, string>>({})
-  const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'history'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'linked-pages' | 'history'>('details')
 
   // Load task when sidebar opens
   useEffect(() => {
@@ -545,6 +548,19 @@ export function TaskSidebar() {
                 <div className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4" />
                   Comments
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('linked-pages')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'linked-pages'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Linked Pages
                 </div>
               </button>
               <button
@@ -1040,6 +1056,16 @@ export function TaskSidebar() {
                 {activeTab === 'comments' && task && (
                   <div className="pt-4">
                     <TaskComments taskId={task.id} projectId={task.project.id} />
+                  </div>
+                )}
+
+                {activeTab === 'linked-pages' && task && currentWorkspace && (
+                  <div className="pt-4">
+                    <TaskLinkedPages
+                      taskId={task.id}
+                      projectId={task.project.id}
+                      workspaceSlug={currentWorkspace.slug}
+                    />
                   </div>
                 )}
 

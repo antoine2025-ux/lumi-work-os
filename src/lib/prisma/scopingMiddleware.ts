@@ -41,6 +41,7 @@ export const WORKSPACE_SCOPED_MODELS = [
   'Subtask',
   'TaskComment',
   'TaskHistory',
+  'TaskWikiLink',
   'CustomFieldVal',
   // Project children
   'ProjectMember',

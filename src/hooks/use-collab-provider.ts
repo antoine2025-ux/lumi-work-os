@@ -11,16 +11,6 @@ import { getUserColor } from '@/lib/collab/user-colors'
 
 const COLLAB_URL = process.env.NEXT_PUBLIC_COLLAB_URL || 'ws://localhost:1234'
 
-// #region agent log
-const DBG_CLIENT = (loc: string, msg: string, data: Record<string, unknown>, hyp: string) => {
-  fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bc54f1' },
-    body: JSON.stringify({ sessionId: 'bc54f1', location: loc, message: msg, data, hypothesisId: hyp, timestamp: Date.now() }),
-  }).catch(() => {})
-}
-// #endregion
-
 /**
  * Check if Ydoc has meaningful content in the default fragment.
  * TipTap Collaboration uses field 'default'.
@@ -70,14 +60,6 @@ export function useCollabProvider(
 
       const ydoc = p.document
       const empty = isYdocEmpty(ydoc)
-      // #region agent log
-      DBG_CLIENT('use-collab-provider.ts:handleSynced', 'Client synced', {
-        pageId,
-        ydocEmpty: empty,
-        hasInitialContent: !!(initialContent && initialContent.content?.length),
-        willInjectFallback: empty && !!(initialContent && initialContent.content?.length) && !injectedRef.current,
-      }, 'H5')
-      // #endregion
 
       // Fallback: inject initialContent only when Ydoc is empty after sync
       // (e.g. server load failed, or page is new). Primary path is Hocuspocus onLoadDocument.
@@ -92,9 +74,6 @@ export function useCollabProvider(
         const ydocInit = prosemirrorJSONToYDoc(schema, initialContent, 'default')
         const update = encodeStateAsUpdate(ydocInit)
         applyUpdate(ydoc, update)
-        // #region agent log
-        DBG_CLIENT('use-collab-provider.ts:handleSynced:injected', 'Fallback injection done', { pageId }, 'H5')
-        // #endregion
       } catch (err) {
         console.error('[Collab] Failed to inject fallback initial content:', err)
         injectedRef.current = false
@@ -125,9 +104,6 @@ export function useCollabProvider(
         const ydocInit = prosemirrorJSONToYDoc(schema, initialContent, 'default')
         const update = encodeStateAsUpdate(ydocInit)
         applyUpdate(ydoc, update)
-        // #region agent log
-        DBG_CLIENT('use-collab-provider.ts:timeoutFallback', 'Timeout fallback injected (server likely unreachable)', { pageId }, 'H5')
-        // #endregion
       } catch (err) {
         console.error('[Collab] Timeout fallback injection failed:', err)
         injectedRef.current = false
