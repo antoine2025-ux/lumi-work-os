@@ -55,6 +55,11 @@ const QuickActions = dynamic(() => import("@/components/dashboard/quick-actions"
   ssr: false
 })
 
+const ProjectHealthAlerts = dynamic(
+  () => import("@/components/dashboard/project-health-alerts").then(mod => ({ default: mod.ProjectHealthAlerts })),
+  { loading: () => <div className="h-10 bg-muted animate-pulse rounded-lg" />, ssr: false }
+)
+
 const MyTasksWidget = dynamic(() => import("@/components/dashboard/my-tasks-widget").then(mod => ({ default: mod.MyTasksWidget })), {
   loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />,
   ssr: false
@@ -206,7 +211,15 @@ export default function DashboardClient({
           className="mb-6"
         />
 
-
+        {/* Project Health Alerts — proactive risk surface */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Project Health
+            </h2>
+          </div>
+          <ProjectHealthAlerts />
+        </div>
 
         {/* Dashboard Grid - 3x3 Layout */}
         <div className="dashboard-grid">

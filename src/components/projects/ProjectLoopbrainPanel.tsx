@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { Sparkles, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, Clock } from "lucide-react"
+import { Sparkles, ChevronDown, ChevronUp, AlertTriangle, AlertCircle, Info, CheckCircle2, Clock } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -216,26 +216,99 @@ export function ProjectLoopbrainPanel({ projectId, projectName, workspaceId: _wo
               </div>
             )}
 
-            {/* Proactive insights */}
-            {!insightsLoading && insights.length > 0 && (
-              <div className="space-y-1">
-                {insights.map((insight) => (
-                  <div
-                    key={insight.id}
-                    className={cn(
-                      "rounded-md px-2.5 py-1.5 text-xs",
-                      insight.priority === "CRITICAL" || insight.priority === "HIGH"
-                        ? "bg-yellow-50 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300"
-                        : "bg-muted/60 text-muted-foreground"
-                    )}
-                  >
-                    <span className="font-medium">{insight.title}</span>
-                    {" — "}
-                    {insight.description}
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Health Alerts — project-health-scanner results */}
+            {!insightsLoading && (() => {
+              const healthAlerts = insights.filter((i) => {
+                const meta = i.metadata as Record<string, unknown> | undefined
+                return typeof meta?.alertType === "string"
+              })
+              if (healthAlerts.length === 0) return null
+              return (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Health Alerts
+                  </p>
+                  {healthAlerts.map((insight) => {
+                    const meta = insight.metadata as Record<string, string> | undefined
+                    const suggestedAction = meta?.suggestedAction ?? insight.recommendations?.[0]?.action
+                    const isCritical = insight.priority === "CRITICAL"
+                    const isHigh = insight.priority === "HIGH"
+                    const Icon = isCritical ? AlertTriangle : isHigh ? AlertCircle : Info
+                    return (
+                      <div
+                        key={insight.id}
+                        className={cn(
+                          "rounded-md border-l-2 px-2.5 py-2 text-xs",
+                          isCritical
+                            ? "border-l-red-500 bg-red-50 dark:bg-red-950/30"
+                            : isHigh
+                            ? "border-l-amber-500 bg-amber-50 dark:bg-amber-950/30"
+                            : "border-l-blue-400 bg-blue-50 dark:bg-blue-950/30"
+                        )}
+                      >
+                        <div className="flex items-start gap-1.5">
+                          <Icon
+                            className={cn(
+                              "mt-0.5 h-3 w-3 shrink-0",
+                              isCritical
+                                ? "text-red-500"
+                                : isHigh
+                                ? "text-amber-500"
+                                : "text-blue-400"
+                            )}
+                          />
+                          <div className="min-w-0">
+                            <p className={cn(
+                              "font-medium leading-tight",
+                              isCritical
+                                ? "text-red-800 dark:text-red-300"
+                                : isHigh
+                                ? "text-amber-800 dark:text-amber-300"
+                                : "text-blue-800 dark:text-blue-300"
+                            )}>
+                              {insight.title}
+                            </p>
+                            {suggestedAction && (
+                              <p className="mt-0.5 text-muted-foreground line-clamp-2">
+                                {suggestedAction}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+
+            {/* General proactive insights (non-health-scanner) */}
+            {!insightsLoading && (() => {
+              const general = insights.filter((i) => {
+                const meta = i.metadata as Record<string, unknown> | undefined
+                return typeof meta?.alertType !== "string"
+              })
+              if (general.length === 0) return null
+              return (
+                <div className="space-y-1">
+                  {general.map((insight) => (
+                    <div
+                      key={insight.id}
+                      className={cn(
+                        "rounded-md px-2.5 py-1.5 text-xs",
+                        insight.priority === "CRITICAL" || insight.priority === "HIGH"
+                          ? "bg-yellow-50 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300"
+                          : "bg-muted/60 text-muted-foreground"
+                      )}
+                    >
+                      <span className="font-medium">{insight.title}</span>
+                      {" — "}
+                      {insight.description}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
 
             {/* Quick-ask buttons */}
             {!activeQuery && (

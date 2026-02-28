@@ -29,6 +29,8 @@ import type {
   AffectedEntityV0,
 } from "../contract/proactiveInsight.v0";
 import { INSIGHT_TTL_DEFAULTS_V0 } from "../contract/proactiveInsight.v0";
+import { scanProjectHealth } from "../scenarios/project-health-scanner";
+import type { ProjectHealthAlertSeverity } from "../scenarios/project-health-scanner";
 
 // =============================================================================
 // Public API
@@ -821,124 +823,75 @@ export async function detectStaleWikiPages(
 // =============================================================================
 
 /**
- * Detect projects with health issues:
- * - Stalled projects (no updates in 7+ days)
- * - Projects with very low completion rates
- * - Projects where >30% of tasks are blocked
+ * Detect project health alerts by delegating to the project health scanner.
+ * The scanner computes 6 risk types: velocity drop, dependency blocks,
+ * allocation conflicts, deadline risk, ownership gaps, and stale projects.
+ *
+ * @see src/lib/loopbrain/scenarios/project-health-scanner.ts
  */
 export async function detectProjectHealthAlerts(
   workspaceId: string
 ): Promise<ProactiveInsightV0[]> {
-  const insights: ProactiveInsightV0[] = [];
-  const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
   try {
-    const projects = await prisma.project.findMany({
-      where: {
-        workspaceId,
-        status: { notIn: ["COMPLETED", "CANCELLED"] },
-      },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        updatedAt: true,
-        tasks: {
-          select: {
-            id: true,
-            status: true,
-            updatedAt: true,
+    const alerts = await scanProjectHealth(workspaceId);
+
+    return alerts.map((alert) =>
+      createInsight({
+        trigger:
+          alert.severity === "critical"
+            ? "THRESHOLD_BREACH"
+            : "PATTERN_DETECTED",
+        category: "PROJECT",
+        priority: alertSeverityToInsightPriority(alert.severity),
+        title: alert.title,
+        description: alert.description,
+        confidence: 0.87,
+        recommendations: [
+          rec(
+            alert.suggestedAction,
+            "REVIEW",
+            `/projects/${alert.projectId}`,
+            0.85
+          ),
+        ],
+        evidence: Object.entries(alert.evidence).map(([k, v]) => ({
+          path: `project.health.${k}`,
+          value: v,
+        })),
+        affectedEntities: [
+          {
+            entityType: "PROJECT" as const,
+            entityId: alert.projectId,
+            label: alert.projectName,
+            impact: alert.title,
           },
+        ],
+        ttlCategory: "PROJECT",
+        metadata: {
+          alertType: alert.alertType,
+          suggestedAction: alert.suggestedAction,
         },
-      },
-    });
-
-    for (const project of projects) {
-      const totalTasks = project.tasks.length;
-      if (totalTasks < 3) continue; // Skip very small projects
-
-      const doneTasks = project.tasks.filter((t) => t.status === "DONE").length;
-      const blockedTasks = project.tasks.filter(
-        (t) => t.status === "BLOCKED"
-      ).length;
-      const completionRate = doneTasks / totalTasks;
-      const blockedRate = blockedTasks / totalTasks;
-
-      const hasRecentActivity = project.tasks.some(
-        (t) => t.updatedAt > sevenDaysAgo
-      );
-      const isStalled = !hasRecentActivity && project.updatedAt < sevenDaysAgo;
-
-      const issues: string[] = [];
-      if (isStalled) issues.push("no activity in 7+ days");
-      if (blockedRate > 0.3) issues.push(`${Math.round(blockedRate * 100)}% tasks blocked`);
-      if (completionRate < 0.1 && totalTasks >= 10)
-        issues.push(`only ${Math.round(completionRate * 100)}% completed`);
-
-      if (issues.length === 0) continue;
-
-      const priority: InsightPriorityV0 =
-        issues.length >= 2
-          ? "HIGH"
-          : blockedRate > 0.3
-            ? "HIGH"
-            : isStalled
-              ? "MEDIUM"
-              : "LOW";
-
-      insights.push(
-        createInsight({
-          trigger: isStalled ? "PATTERN_DETECTED" : "THRESHOLD_BREACH",
-          category: "PROJECT",
-          priority,
-          title: `${project.name}: ${issues.join(", ")}`,
-          description: `Project "${project.name}" has ${totalTasks} tasks (${doneTasks} done, ${blockedTasks} blocked). Issues: ${issues.join("; ")}.`,
-          confidence: 0.82,
-          recommendations: [
-            rec(
-              `Review ${project.name} health`,
-              "REVIEW",
-              `/projects/${project.id}`,
-              0.85
-            ),
-            ...(blockedTasks > 0
-              ? [
-                  rec(
-                    "Resolve blocked tasks",
-                    "ESCALATE",
-                    `/projects/${project.id}?filter=blocked`,
-                    0.8
-                  ),
-                ]
-              : []),
-          ],
-          evidence: [
-            { path: "project.totalTasks", value: totalTasks },
-            { path: "project.completionRate", value: completionRate },
-            { path: "project.blockedRate", value: blockedRate },
-            { path: "project.isStalled", value: isStalled },
-          ],
-          affectedEntities: [
-            {
-              entityType: "PROJECT" as const,
-              entityId: project.id,
-              label: project.name,
-              impact: issues.join(", "),
-            },
-          ],
-          ttlCategory: "PROJECT",
-        })
-      );
-    }
-
-    return insights;
+      })
+    );
   } catch (error) {
     logger.error("[ProactiveInsights] Project health alert failed", {
       workspaceId,
       error,
     });
     return [];
+  }
+}
+
+function alertSeverityToInsightPriority(
+  severity: ProjectHealthAlertSeverity
+): InsightPriorityV0 {
+  switch (severity) {
+    case "critical":
+      return "CRITICAL";
+    case "warning":
+      return "HIGH";
+    case "info":
+      return "MEDIUM";
   }
 }
 
