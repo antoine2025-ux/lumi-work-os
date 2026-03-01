@@ -121,10 +121,10 @@ export function PersonProfileDrawer({
 
     switch (type) {
       case "reports":
-        // TODO: When managerId is available, filter by managerId
+        // TODO [BACKLOG]: Filter direct reports using person.managerId (data now available)
         break;
       case "peers":
-        // TODO: When managerId is available, filter by same managerId
+        // TODO [BACKLOG]: Filter peers sharing the same managerId (data now available)
         break;
       case "teammates":
         if (person.teamId) {

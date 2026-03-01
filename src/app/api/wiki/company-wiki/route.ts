@@ -4,7 +4,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import {
   getCompanyWikiPages,
-  getCompanyWikiFolders,
+  getCompanyWikiFoldersWithChildren,
   getCompanyWikiSpace,
 } from '@/lib/spaces/queries'
 import { handleApiError } from '@/lib/api-errors'
@@ -27,8 +27,8 @@ export async function GET(request: NextRequest) {
 
     const [companyWikiSpace, folders, recentPages] = await Promise.all([
       getCompanyWikiSpace(auth.workspaceId, auth.user.userId),
-      getCompanyWikiFolders(auth.workspaceId),
-      getCompanyWikiPages(auth.workspaceId, { limit: 20 }),
+      getCompanyWikiFoldersWithChildren(auth.workspaceId),
+      getCompanyWikiPages(auth.workspaceId, { limit: 10 }),
     ])
 
     return NextResponse.json({

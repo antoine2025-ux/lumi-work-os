@@ -916,7 +916,7 @@ export function LoopbrainAssistantPanel({
                                           key={idx}
                                           onClick={() => {
                                             console.log('Loopbrain suggestion clicked', suggestion)
-                                            // TODO: wire to action executor in a later step
+                                            // TODO [P1]: Wire to /api/loopbrain/actions endpoint (executor is implemented)
                                           }}
                                           className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                                         >

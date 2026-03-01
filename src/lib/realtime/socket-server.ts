@@ -246,7 +246,7 @@ export function createSocketServer(httpServer: NetServer): SocketServer {
     })
 
     // Phase 1: page room management (page:${pageId}) — for collaborative editing
-    // TODO: JWT handshake auth; path /api/socketio migration
+    // TODO [P0-SECURITY]: Add JWT handshake auth; migrate path to /api/socketio
     socket.on('join:page', (pageId: string) => {
       socket.join(`page:${pageId}`)
     })

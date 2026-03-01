@@ -41,10 +41,10 @@ export default async function WorkspaceOrgChartPage({ params }: PageProps) {
     );
   }
 
-  const chartData = await getOrgChartData(context.orgId);
+  const chartData = await getOrgChartData(context.workspaceId);
   
   // Build hierarchical tree for tree view
-  const chartTree = await buildOrgChartTree(context.orgId, {
+  const chartTree = await buildOrgChartTree(context.workspaceId, {
     includeVacant: true,
     maxDepth: 10,
   });
@@ -58,7 +58,7 @@ export default async function WorkspaceOrgChartPage({ params }: PageProps) {
       />
       <div className="px-10 pb-10">
         <OrgChartClient 
-          orgId={context.orgId} 
+          orgId={context.workspaceId} 
           chartData={chartData}
           chartTree={chartTree}
         />

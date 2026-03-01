@@ -84,7 +84,7 @@ export async function PUT(
     }
 
     // Step 7: Compute issues BEFORE mutation (scoped to person + direct reports)
-    // TODO: Enhance to derive actual issues for person and direct reports
+    // TODO [BACKLOG]: Derive actual issues for person and direct reports
     // For now, use empty array - maintains contract structure
     const issuesBefore: OrgIssueMetadata[] = [];
 
@@ -102,7 +102,7 @@ export async function PUT(
     });
 
     // Step 10: Compute issues AFTER mutation (same scoped set)
-    // TODO: Enhance to derive actual issues for person and direct reports
+    // TODO [BACKLOG]: Derive actual issues for person and direct reports
     const issuesAfter: OrgIssueMetadata[] = [];
 
     // Step 11: Build response metadata

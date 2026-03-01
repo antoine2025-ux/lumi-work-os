@@ -105,7 +105,7 @@ export {
 
 // Org IDs
 export {
-  orgId,
+  orgId, // orgId() helper function from orgIds.ts
   departmentId,
   teamId,
   roleId,

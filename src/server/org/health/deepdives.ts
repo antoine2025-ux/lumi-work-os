@@ -14,13 +14,12 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
 
-export async function getCapacityDeepDive(orgId: string) {
-  // In this codebase, orgId may be workspaceId, so we query by workspaceId.
+export async function getCapacityDeepDive(workspaceId: string) {
   const [peopleCount, teams] = await Promise.all([
     prisma.orgPosition
       .count({
         where: {
-          workspaceId: orgId,
+          workspaceId,
           isActive: true,
           userId: { not: null },
         },
@@ -29,7 +28,7 @@ export async function getCapacityDeepDive(orgId: string) {
     prisma.orgTeam
       .findMany({
         where: {
-          workspaceId: orgId,
+          workspaceId,
           isActive: true,
         },
         select: { id: true, name: true },
@@ -46,13 +45,13 @@ export async function getCapacityDeepDive(orgId: string) {
 
   try {
     const profiles = await prisma.personCapacity.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { personId: true, fte: true, shrinkagePct: true },
       take: 2000,
     }).catch(() => null)
 
     const allocations = await prisma.capacityAllocation.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { personId: true, percent: true },
       take: 20000,
     }).catch(() => null)
@@ -113,7 +112,7 @@ export async function getCapacityDeepDive(orgId: string) {
 
   // True team supply vs demand (if membership exists)
   try {
-    const team = await computeTeamCapacityMetrics({ orgId })
+    const team = await computeTeamCapacityMetrics({ workspaceId })
     if (team.hasMembership && team.metrics.length > 0) {
       capacityStats = capacityStats.length
         ? capacityStats
@@ -163,9 +162,9 @@ export async function getCapacityDeepDive(orgId: string) {
   }
 }
 
-export async function getOwnershipDeepDive(orgId: string) {
+export async function getOwnershipDeepDive(workspaceId: string) {
   try {
-    const unowned = await findUnownedEntities(orgId).catch((error) => {
+    const unowned = await findUnownedEntities(workspaceId).catch((error) => {
       console.error("[getOwnershipDeepDive] Error finding unowned entities:", error)
       return []
     })
@@ -205,8 +204,8 @@ export async function getOwnershipDeepDive(orgId: string) {
   }
 }
 
-export async function getManagementLoadDeepDive(orgId: string) {
-  const mgmt = await computeManagementLoad(orgId)
+export async function getManagementLoadDeepDive(workspaceId: string) {
+  const mgmt = await computeManagementLoad(workspaceId)
 
   const recs: string[] = []
   if (mgmt.missingManagerLinks > 0) recs.push("Assign managers for people missing manager links to clarify accountability and reduce operational load.")
@@ -231,12 +230,12 @@ export async function getManagementLoadDeepDive(orgId: string) {
   }
 }
 
-export async function getStructureDeepDive(orgId: string) {
-  const st = await computeStructureMetrics(orgId)
+export async function getStructureDeepDive(workspaceId: string) {
+  const st = await computeStructureMetrics(workspaceId)
 
   let lm = null as null | Awaited<ReturnType<typeof computeLayerMetrics>>
   try {
-    lm = await computeLayerMetrics(orgId)
+    lm = await computeLayerMetrics(workspaceId)
   } catch {
     lm = null
   }

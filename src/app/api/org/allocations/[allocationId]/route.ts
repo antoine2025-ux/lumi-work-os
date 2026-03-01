@@ -12,6 +12,8 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import type { AllocationContextType, AllocationSource } from "@prisma/client";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 
 const ALLOWED_CONTEXT_TYPES: AllocationContextType[] = ["TEAM", "PROJECT", "ROLE", "OTHER"];
 const ALLOWED_SOURCES: AllocationSource[] = ["MANUAL", "INTEGRATION"];
@@ -232,6 +234,24 @@ export async function PUT(
       },
     });
 
+    // Step 7: Log audit entry (fire-and-forget)
+    const changes = computeChanges(
+      existing,
+      updated,
+      ["allocationPercent", "contextType", "contextId", "contextLabel", "startDate", "endDate", "source"]
+    );
+    if (changes) {
+      logOrgAudit({
+        workspaceId,
+        entityType: "ALLOCATION",
+        entityId: updated.id,
+        entityName: `Allocation for ${updated.personId}`,
+        action: "UPDATED",
+        actorId: userId,
+        changes,
+      }).catch((e) => console.error("[PUT /api/org/allocations/[allocationId]] Audit error:", e));
+    }
+
     return NextResponse.json({
       ok: true,
       allocation: {
@@ -282,7 +302,13 @@ export async function DELETE(
     // Step 3: Set workspace context
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Delete allocation
+    // Step 4: Fetch allocation for audit logging
+    const existing = await prisma.workAllocation.findFirst({
+      where: { id: allocationId, workspaceId },
+      select: { id: true, personId: true },
+    });
+
+    // Step 5: Delete allocation
     const deleted = await prisma.workAllocation.deleteMany({
       where: {
         id: allocationId,
@@ -292,6 +318,18 @@ export async function DELETE(
 
     if (deleted.count === 0) {
       return NextResponse.json({ error: "Allocation not found" }, { status: 404 });
+    }
+
+    // Step 6: Log audit entry (fire-and-forget)
+    if (existing) {
+      logOrgAudit({
+        workspaceId,
+        entityType: "ALLOCATION",
+        entityId: allocationId,
+        entityName: `Allocation for ${existing.personId}`,
+        action: "DELETED",
+        actorId: userId,
+      }).catch((e) => console.error("[DELETE /api/org/allocations/[allocationId]] Audit error:", e));
     }
 
     return NextResponse.json({ ok: true });

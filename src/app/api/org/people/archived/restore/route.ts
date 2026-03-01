@@ -5,6 +5,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,6 +23,12 @@ export async function POST(req: NextRequest) {
 
     const body = (await req.json()) as { id: string };
 
+    // Get person name for audit log
+    const position = await prisma.orgPosition.findUnique({
+      where: { id: body.id },
+      select: { user: { select: { name: true } } },
+    });
+
     // Restore archived position
     const updated = await prisma.orgPosition.update({
       where: { id: body.id },
@@ -33,16 +40,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await prisma.auditLogEntry.create({
-      data: {
-        workspaceId: auth.workspaceId,
-        actorUserId: auth.user.userId,
-        actorLabel: auth.user.name || auth.user.email || "Unknown user",
-        action: "restore_person",
-        targetCount: 1,
-        summary: `Restored archived person ${body.id}`,
-      },
-    });
+    logOrgAudit({
+      workspaceId: auth.workspaceId,
+      entityType: "PERSON",
+      entityId: body.id,
+      entityName: position?.user?.name ?? undefined,
+      action: "RESTORED",
+      actorId: auth.user.userId,
+    }).catch((e) => console.error("[POST /api/org/people/archived/restore] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ ok: true, person: updated });
   } catch (error) {

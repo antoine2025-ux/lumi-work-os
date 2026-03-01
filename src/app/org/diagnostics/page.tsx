@@ -29,7 +29,7 @@ export default async function OrgDiagnosticsPage() {
     );
   }
 
-  const { orgId, userId, role } = context;
+  const { workspaceId, userId, role } = context;
 
   return (
     <div className="px-10 pt-8 pb-10">
@@ -51,9 +51,9 @@ export default async function OrgDiagnosticsPage() {
           </h2>
           <div className="space-y-2 text-[12px] text-slate-300">
             <div className="flex items-center gap-2">
-              <span className="text-slate-500 w-24">Org ID:</span>
+              <span className="text-slate-500 w-24">Workspace ID:</span>
               <code className="text-[11px] bg-slate-900 px-2 py-1 rounded">
-                {orgId}
+                {workspaceId}
               </code>
             </div>
             <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export default async function OrgDiagnosticsPage() {
   "event": "loader_timing" | "api_success" | "api_error" | ...,
   "loader"?: "getOrgPeople" | "getOrgStructureLists" | ...,
   "route"?: "/api/org/insights/overview" | ...,
-  "orgId"?: string,
+  "workspaceId"?: string,
   "userId"?: string,
   "durationMs"?: number,
   "meta"?: { ... }

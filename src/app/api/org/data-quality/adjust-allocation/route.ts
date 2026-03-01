@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     // Normalize allocations for person proportionally (v0)
     const rows = await prisma.capacityAllocation.findMany({
-      where: { orgId: workspaceId, personId } as any,
+      where: { orgId: workspaceId, personId } as any, // orgId is a Prisma field
       select: { id: true, percent: true } as any,
       take: 1000,
     })
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.orgHealthSignal.updateMany({
       where: {
-        orgId: workspaceId,
+        orgId: workspaceId, // orgId is a Prisma field
         type: "DATA_QUALITY" as any,
         resolvedAt: null,
         dismissedAt: null,

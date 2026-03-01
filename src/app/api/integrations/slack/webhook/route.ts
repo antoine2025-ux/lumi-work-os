@@ -2,6 +2,10 @@ import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { handleSlackLoopbrainMessage } from '@/lib/integrations/slack/interactive'
+import { sendSlackMessage } from '@/lib/integrations/slack-service'
+import { executeAgentPlan } from '@/lib/loopbrain/agent/executor'
+import { toolRegistry } from '@/lib/loopbrain/agent/tool-registry'
 
 /**
  * Slack Webhook Handler
@@ -104,23 +108,29 @@ export async function POST(request: NextRequest) {
  */
 async function handleEventCallback(body: any) {
   const event = body.event
+  const teamId = body.team_id ?? event.team ?? ''
   
   logger.info('[Slack Event]', { 
     type: event.type,
-    channelType: event.channel_type 
+    channelType: event.channel_type,
+    teamId,
   })
   
   switch (event.type) {
     case 'message':
-      // Handle direct messages to Loopbrain
       if (event.channel_type === 'im' && !event.bot_id) {
-        await handleDirectMessage(event)
+        // Fire-and-forget — Slack requires 200 within 3s
+        handleDirectMessage(event, teamId).catch((err) =>
+          logger.error('[Slack Interactive] DM processing failed', { error: err })
+        )
       }
       break
     
     case 'app_mention':
-      // Handle @Loopwell mentions
-      await handleMention(event)
+      // Fire-and-forget — Slack requires 200 within 3s
+      handleMention(event, teamId).catch((err) =>
+        logger.error('[Slack Interactive] Mention processing failed', { error: err })
+      )
       break
     
     default:
@@ -192,6 +202,10 @@ async function handleInteractiveAction(body: any) {
       await handleTimeOffApprovalAction(pendingAction, action, userId)
       break
     
+    case 'loopbrain_plan_approval':
+      await handleLoopbrainPlanAction(pendingAction, action)
+      break
+    
     default:
       logger.warn('[Slack Interactive] Unknown action type', { 
         type: pendingAction.type 
@@ -199,29 +213,105 @@ async function handleInteractiveAction(body: any) {
   }
 }
 
-/**
- * Handle direct messages to the bot
- * Placeholder for Week 3: Natural language processing
- */
-async function handleDirectMessage(event: any) {
-  logger.info('[Slack DM]', { 
-    user: event.user,
-    text: event.text?.substring(0, 100) 
+async function handleDirectMessage(event: any, teamId: string) {
+  await handleSlackLoopbrainMessage({
+    slackUserId: event.user,
+    slackTeamId: teamId,
+    channelId: event.channel,
+    text: event.text || '',
+    threadTs: event.thread_ts,
+    messageTs: event.ts,
+    isDM: true,
   })
-  // TODO: Implement natural language command processing
+}
+
+async function handleMention(event: any, teamId: string) {
+  await handleSlackLoopbrainMessage({
+    slackUserId: event.user,
+    slackTeamId: teamId,
+    channelId: event.channel,
+    text: event.text || '',
+    threadTs: event.thread_ts,
+    messageTs: event.ts,
+    isDM: false,
+  })
 }
 
 /**
- * Handle @mentions of the bot
- * Placeholder for Week 3: Loopbrain Q&A via Slack
+ * Handle Loopbrain plan approval/cancel button clicks
  */
-async function handleMention(event: any) {
-  logger.info('[Slack Mention]', { 
-    user: event.user,
-    channel: event.channel,
-    text: event.text?.substring(0, 100) 
-  })
-  // TODO: Implement mention-based Q&A
+async function handleLoopbrainPlanAction(
+  pendingAction: any,
+  action: any
+) {
+  const isApprove = action.action_id === 'loopbrain_plan_approve'
+  const channelId = pendingAction.slackChannelId
+  const messageTs = pendingAction.slackMessageTs
+  const workspaceId = pendingAction.workspaceId
+
+  if (!isApprove) {
+    // Cancel
+    await prisma.loopbrainPendingAction.update({
+      where: { id: pendingAction.id },
+      data: { status: 'CANCELLED', completedAt: new Date() },
+    })
+
+    if (channelId && workspaceId) {
+      await sendSlackMessage(workspaceId, {
+        channel: channelId,
+        text: 'Plan cancelled.',
+        threadTs: messageTs,
+      })
+    }
+    return
+  }
+
+  // Approve — execute the plan
+  try {
+    const contextData = pendingAction.contextData as Record<string, unknown> | null
+    const plan = contextData?.plan as Parameters<typeof executeAgentPlan>[0] | undefined
+
+    if (!plan) {
+      throw new Error('No plan data found in pending action')
+    }
+
+    const result = await executeAgentPlan(
+      plan,
+      { workspaceId, userId: pendingAction.createdBy, workspaceSlug: '' },
+      toolRegistry
+    )
+
+    await prisma.loopbrainPendingAction.update({
+      where: { id: pendingAction.id },
+      data: { status: 'COMPLETED', completedAt: new Date() },
+    })
+
+    const hasFailed = !!result.failed
+    const resultText = !hasFailed
+      ? `Done! ${result.results.map((r) => r.humanReadable).filter(Boolean).join('\n') || 'Plan executed successfully.'}`
+      : `Execution failed: ${result.failed?.error ?? 'Unknown error'}`
+
+    if (channelId && workspaceId) {
+      await sendSlackMessage(workspaceId, {
+        channel: channelId,
+        text: resultText.slice(0, 3000),
+        threadTs: messageTs,
+      })
+    }
+  } catch (err) {
+    logger.error('[Slack Interactive] Plan execution failed', {
+      pendingActionId: pendingAction.id,
+      error: err instanceof Error ? err.message : String(err),
+    })
+
+    if (channelId && workspaceId) {
+      await sendSlackMessage(workspaceId, {
+        channel: channelId,
+        text: `Plan execution failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        threadTs: messageTs,
+      })
+    }
+  }
 }
 
 /**

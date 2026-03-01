@@ -217,8 +217,8 @@ export function PersonProfile(props: { data: RawProfileData }) {
       <WorkCapabilities
         personKey={profile.person.personKey}
         skills={profile.skills}
-        domains={null} // TODO: wire up domains when available
-        systems={null} // TODO: wire up systems when available
+        domains={null} // TODO [BACKLOG]: Wire up decision domains from OrgDecisionDomain
+        systems={null} // TODO [BACKLOG]: Wire up systems from responsibility profiles
       />
 
       {/* D) Optional Metadata (collapsed by default) */}

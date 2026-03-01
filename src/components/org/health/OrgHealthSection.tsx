@@ -1,13 +1,13 @@
 import { OrgHealthCard } from "@/components/org/health/OrgHealthCard"
-import { requireActiveOrgId } from "@/server/org/context"
+import { requireActiveWorkspaceId } from "@/server/org/context"
 import { getLatestOrgHealth } from "@/server/org/health/store"
 import { refreshOrgHealth } from "@/server/org/health/refresh"
 
 async function getHealth() {
-  const orgId = await requireActiveOrgId()
+  const workspaceId = await requireActiveWorkspaceId()
   
   // Try to get latest persisted snapshot
-  const latest = await getLatestOrgHealth(orgId)
+  const latest = await getLatestOrgHealth(workspaceId)
   if (latest) {
     return {
       snapshot: {
@@ -29,7 +29,7 @@ async function getHealth() {
   }
 
   // No snapshot yet: compute + store first snapshot
-  const computed = await refreshOrgHealth(orgId)
+  const computed = await refreshOrgHealth(workspaceId)
   return {
     snapshot: {
       ...computed.snapshot,

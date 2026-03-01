@@ -29,7 +29,7 @@ export default async function MyDepartmentPage({ params }: PageProps) {
 
   const userPosition = await prisma.orgPosition.findFirst({
     where: {
-      workspaceId: context.orgId,
+      workspaceId: context.workspaceId,
       userId: context.userId,
       isActive: true,
       archivedAt: null,

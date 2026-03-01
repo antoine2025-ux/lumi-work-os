@@ -326,6 +326,41 @@ export async function getSlackUserInfo(
 }
 
 /**
+ * Get Slack user email by user ID.
+ * Requires `users:read.email` scope. Returns null if scope is missing or user not found.
+ */
+export async function getSlackUserEmail(
+  workspaceId: string,
+  slackUserId: string
+): Promise<string | null> {
+  const accessToken = await getValidAccessToken(workspaceId)
+
+  try {
+    const response = await fetch(`https://slack.com/api/users.info?user=${slackUserId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    })
+
+    const data = await response.json()
+
+    if (!data.ok || !data.user) {
+      return null
+    }
+
+    return data.user.profile?.email ?? null
+  } catch (error) {
+    logger.error('Failed to fetch Slack user email', {
+      workspaceId,
+      slackUserId,
+      error: error instanceof Error ? error.message : String(error)
+    })
+    return null
+  }
+}
+
+/**
  * Get messages from a Slack channel
  * 
  * @param workspaceId - Workspace ID

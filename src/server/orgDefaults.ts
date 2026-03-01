@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 
-export async function ensureDefaultLandingViews(orgId: string) {
+export async function ensureDefaultLandingViews(workspaceId: string) {
   const defaults = [
     { role: "EXECUTIVE", viewKey: "leadership_structure" },
     { role: "HR", viewKey: "new_hires_review" },
@@ -9,9 +9,9 @@ export async function ensureDefaultLandingViews(orgId: string) {
 
   for (const d of defaults) {
     await prisma.orgDefaultView.upsert({
-      where: { workspaceId_role: { workspaceId: orgId, role: d.role } },
+      where: { workspaceId_role: { workspaceId, role: d.role } },
       update: {},
-      create: { workspaceId: orgId, role: d.role, viewKey: d.viewKey },
+      create: { workspaceId, role: d.role, viewKey: d.viewKey },
     });
   }
 }

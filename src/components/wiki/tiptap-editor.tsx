@@ -126,10 +126,10 @@ export function TipTapEditor({
       }),
       TaskList,
       TaskItem.configure({
-        nested: false, // TODO: Enable nested task lists in future
+        nested: false, // TODO [BACKLOG]: Enable nested task lists
       }),
       Table.configure({
-        resizable: false, // TODO: Enable table resizing in future
+        resizable: false, // TODO [BACKLOG]: Enable table column resizing
       }),
       TableRow,
       TableHeader,

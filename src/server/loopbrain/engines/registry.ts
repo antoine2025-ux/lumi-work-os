@@ -49,7 +49,6 @@ export interface ProactiveEngine {
    */
   run: (args: {
     workspaceId: string;
-    orgId: string;
   }) => Promise<ProactiveEngineResult>;
 }
 
@@ -86,8 +85,8 @@ export function listProactiveEngines(): Array<{ key: string; label: string }> {
 registerProactiveEngine({
   key: "people_issues",
   label: "People Issues Detection",
-  run: async ({ workspaceId, orgId }) => {
-    const result = await runPeopleIssuesSuggestionsForOrg({ orgId, workspaceId });
+  run: async ({ workspaceId }) => {
+    const result = await runPeopleIssuesSuggestionsForOrg({ workspaceId });
 
     if (result.ok) {
       return {

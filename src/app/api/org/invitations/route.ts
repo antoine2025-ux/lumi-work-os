@@ -8,6 +8,7 @@ import { sendEmail } from "@/server/mailer";
 import crypto from "crypto";
 import { OrgInvitationSchema } from "@/lib/validations/org";
 import { handleApiError } from "@/lib/api-errors";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 
 function token() {
   return crypto.randomBytes(24).toString("hex");
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
     setWorkspaceContext(auth.workspaceId);
 
     const invites = await prisma.orgInvitation.findMany({
-      where: { orgId: auth.workspaceId },
+      where: { orgId: auth.workspaceId }, // orgId is a Prisma field
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     const created = await prisma.orgInvitation.create({
       data: {
-        orgId: auth.workspaceId,
+        orgId: auth.workspaceId, // orgId is a Prisma field
         email: body.email.toLowerCase().trim(),
         role: body.role,
         token: token(),
@@ -84,6 +85,16 @@ export async function POST(req: NextRequest) {
         </div>
       `,
     }).catch(() => null);
+
+    // Log audit entry (fire-and-forget)
+    logOrgAudit({
+      workspaceId: auth.workspaceId,
+      entityType: "INVITATION",
+      entityId: created.id,
+      entityName: created.email,
+      action: "CREATED",
+      actorId: auth.user.userId,
+    }).catch((e) => console.error("[POST /api/org/invitations] Audit error:", e));
 
     return NextResponse.json({ ok: true, invite: created, inviteLink: link, orgName });
   } catch (error) {

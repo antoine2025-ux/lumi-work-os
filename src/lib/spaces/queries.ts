@@ -140,15 +140,15 @@ export async function getCompanyWikiSpace(workspaceId: string, ownerId: string) 
   return getOrCreateCompanyWikiSpace(workspaceId, ownerId)
 }
 
-/** Get recent Company Wiki pages (sidebar and view). Only pages where spaceId = companyWikiSpaceId. */
+/** Recent activity feed for Company Wiki — all pages regardless of parentId, with parent section info. */
 export async function getCompanyWikiPages(
   workspaceId: string,
-  options?: { limit?: number; includeContent?: boolean },
+  options?: { limit?: number },
 ) {
   const spaceId = await getCompanyWikiSpaceId(workspaceId)
   if (!spaceId) return []
 
-  const limit = options?.limit ?? 15
+  const limit = options?.limit ?? 10
 
   return prisma.wikiPage.findMany({
     where: {
@@ -162,6 +162,8 @@ export async function getCompanyWikiPages(
       slug: true,
       excerpt: true,
       updatedAt: true,
+      parentId: true,
+      parent: { select: { id: true, title: true, slug: true } },
       createdBy: { select: { name: true } },
       _count: { select: { children: true } },
     },
@@ -183,6 +185,43 @@ export async function getCompanyWikiFolders(workspaceId: string) {
       isPublished: true,
     },
     include: {
+      _count: { select: { children: true } },
+    },
+    orderBy: { order: 'asc' },
+  })
+}
+
+/** Sections with eagerly-loaded children for the Company Wiki main view. */
+export async function getCompanyWikiFoldersWithChildren(workspaceId: string) {
+  const spaceId = await getCompanyWikiSpaceId(workspaceId)
+  if (!spaceId) return []
+
+  return prisma.wikiPage.findMany({
+    where: {
+      workspaceId,
+      spaceId,
+      parentId: null,
+      isPublished: true,
+    },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      excerpt: true,
+      order: true,
+      updatedAt: true,
+      children: {
+        where: { isPublished: true },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          excerpt: true,
+          updatedAt: true,
+          createdBy: { select: { name: true } },
+        },
+        orderBy: { order: 'asc' },
+      },
       _count: { select: { children: true } },
     },
     orderBy: { order: 'asc' },

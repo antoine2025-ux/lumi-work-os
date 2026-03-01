@@ -15,7 +15,7 @@ type ActivityItem = {
 
 /**
  * Derives activity from person data
- * TODO: When change history is available, use that
+ * TODO [BACKLOG]: Use OrgAuditLog change history when populated
  */
 function deriveActivity(person: OrgPerson): ActivityItem[] {
   const activities: ActivityItem[] = [];
@@ -29,7 +29,7 @@ function deriveActivity(person: OrgPerson): ActivityItem[] {
     });
   }
 
-  // TODO: Add more activities when change history is available
+  // TODO [BACKLOG]: Add role/team change activities from OrgAuditLog
   // - "Moved to Platform team"
   // - "Promoted to Senior Engineer"
   // etc.

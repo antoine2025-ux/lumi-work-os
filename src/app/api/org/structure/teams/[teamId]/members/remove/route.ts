@@ -13,6 +13,9 @@ import { requireNonEmptyString } from "@/server/org/validate";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { removeTeamMember } from "@/server/org/structure/write";
 import { handleApiError } from "@/lib/api-errors"
+import { logOrgAudit } from "@/lib/audit/org-audit"
+import { computeChanges } from "@/lib/audit/diff"
+import { prisma } from "@/lib/db"
 
 export async function POST(request: NextRequest, ctx: { params: Promise<{ teamId: string }> }) {
   try {
@@ -43,10 +46,36 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ teamId
     const body = await request.json();
     const personId = requireNonEmptyString(body.personId, "personId");
 
+    // Step 4a: Fetch person before update for audit logging
+    const personBefore = await prisma.orgPosition.findFirst({
+      where: { userId: personId, workspaceId, isActive: true },
+      select: { userId: true, title: true, teamId: true },
+    });
+
     // Step 5: Remove team member (with workspaceId validation)
     await removeTeamMember({ teamId, personId, workspaceId });
 
-    // Step 6: Emit Loopbrain context (persist + trigger indexing non-blocking)
+    // Step 6: Log audit entry (fire-and-forget) - entityType PERSON, track teamId null
+    if (personBefore && personBefore.teamId === teamId) {
+      const changes = computeChanges(
+        { teamId: personBefore.teamId },
+        { teamId: null },
+        ["teamId"]
+      );
+      if (changes) {
+        logOrgAudit({
+          workspaceId,
+          entityType: "PERSON",
+          entityId: personId,
+          entityName: personBefore.title || personId,
+          action: "UPDATED",
+          actorId: userId,
+          changes,
+        }).catch((e) => console.error("[POST /api/org/structure/teams/[teamId]/members/remove] Audit error:", e));
+      }
+    }
+
+    // Step 7: Emit Loopbrain context (persist + trigger indexing non-blocking)
     // Wrap in try-catch to handle cases where context_items table doesn't exist yet
     try {
       await emitOrgContextObject({

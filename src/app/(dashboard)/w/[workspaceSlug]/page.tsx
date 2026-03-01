@@ -9,7 +9,7 @@ import { useWorkspace } from "@/lib/workspace-context"
  * This is the main landing page for a workspace at /w/[workspaceSlug]
  * 
  * For now, this redirects to /home which has the full dashboard content.
- * TODO: Move dashboard content here or create a shared component.
+ * TODO [BACKLOG]: Move dashboard content here or create a shared component.
  */
 export default function WorkspaceDashboardPage() {
   const params = useParams()

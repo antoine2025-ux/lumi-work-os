@@ -10,6 +10,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 
 const ALLOWED_STATUSES = ["ACTIVE", "ON_LEAVE", "TERMINATED", "CONTRACTOR"] as const;
 type EmploymentStatus = typeof ALLOWED_STATUSES[number];
@@ -74,7 +76,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid employmentEndDate format" }, { status: 400 });
     }
 
-    // Step 5: Find the workspace member record for this person
+    // Step 5: Find the workspace member record for this person (fetch before state for audit)
     // personId here refers to OrgPosition.id, need to get the user and find their membership
     const position = await prisma.orgPosition.findFirst({
       where: {
@@ -84,12 +86,34 @@ export async function PATCH(
       },
       select: {
         userId: true,
+        user: { select: { name: true } },
       },
     });
 
     if (!position || !position.userId) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
+
+    // Get before state from workspace member
+    const memberBefore = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId: position.userId,
+        },
+      },
+      select: {
+        employmentStatus: true,
+        employmentStartDate: true,
+        employmentEndDate: true,
+      },
+    });
+
+    const before = {
+      employmentStatus: memberBefore?.employmentStatus ?? null,
+      employmentStartDate: memberBefore?.employmentStartDate?.toISOString() ?? null,
+      employmentEndDate: memberBefore?.employmentEndDate?.toISOString() ?? null,
+    };
 
     // Step 6: Update the workspace member
     const updateData: Record<string, unknown> = {};
@@ -118,6 +142,25 @@ export async function PATCH(
         employmentEndDate: true,
       },
     });
+
+    // Compute changes and log audit
+    const after = {
+      employmentStatus: updated.employmentStatus ?? null,
+      employmentStartDate: updated.employmentStartDate?.toISOString() ?? null,
+      employmentEndDate: updated.employmentEndDate?.toISOString() ?? null,
+    };
+    
+    const changes = computeChanges(before, after, ['employmentStatus', 'employmentStartDate', 'employmentEndDate']);
+    
+    logOrgAudit({
+      workspaceId,
+      entityType: "PERSON",
+      entityId: personId,
+      entityName: position.user?.name ?? undefined,
+      action: "UPDATED",
+      actorId: userId,
+      changes: changes ?? undefined,
+    }).catch((e) => console.error("[PATCH /api/org/people/[personId]/employment] Audit log error (non-fatal):", e));
 
     return NextResponse.json({
       ok: true,

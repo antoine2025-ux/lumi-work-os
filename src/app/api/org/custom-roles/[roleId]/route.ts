@@ -5,6 +5,8 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import type { OrgCapability } from "@/lib/org/capabilities";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 
 type Params = {
   params: Promise<{ roleId: string }>;
@@ -55,6 +57,24 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       data: updates,
     });
 
+    // Log audit entry (fire-and-forget)
+    const changes = computeChanges(
+      existing,
+      updated,
+      ["name", "description", "key", "capabilities"]
+    );
+    if (changes) {
+      logOrgAudit({
+        workspaceId,
+        entityType: "CUSTOM_ROLE",
+        entityId: updated.id,
+        entityName: updated.name,
+        action: "UPDATED",
+        actorId: user.userId,
+        changes,
+      }).catch((e) => console.error("[PATCH /api/org/custom-roles/[roleId]] Audit error:", e));
+    }
+
     return NextResponse.json({ role: updated }, { status: 200 });
   } catch (error) {
     return handleApiError(error, req);
@@ -101,6 +121,16 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     await prisma.orgCustomRole.delete({
       where: { id: roleId },
     });
+
+    // Log audit entry (fire-and-forget)
+    logOrgAudit({
+      workspaceId,
+      entityType: "CUSTOM_ROLE",
+      entityId: roleId,
+      entityName: existing.name,
+      action: "DELETED",
+      actorId: user.userId,
+    }).catch((e) => console.error("[DELETE /api/org/custom-roles/[roleId]] Audit error:", e));
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {

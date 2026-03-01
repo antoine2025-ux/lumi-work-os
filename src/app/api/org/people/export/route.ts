@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
           },
           select: { userId: true, joinedAt: true },
         }),
-        // PersonRoleAssignment uses orgId; in workspace-based org, orgId = workspaceId
+        // PersonRoleAssignment uses orgId field (Prisma field - will be migrated in schema migration)
         prisma.personRoleAssignment
           .findMany({
             where: {

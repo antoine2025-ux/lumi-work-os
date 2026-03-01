@@ -19,21 +19,21 @@ type TeamMetric = {
 }
 
 type Inputs = {
-  orgId: string
+  workspaceId: string
 }
 
-export async function computeTeamCapacityMetrics({ orgId }: Inputs): Promise<{
+export async function computeTeamCapacityMetrics({ workspaceId }: Inputs): Promise<{
   metrics: TeamMetric[]
   hasMembership: boolean
   hasCapacityData: boolean
 }> {
   const [teams, memberships] = await Promise.all([
     prisma.orgTeam.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { id: true, name: true },
       take: 2000,
     }).catch(() => []),
-    getTeamMemberships(orgId),
+    getTeamMemberships(workspaceId),
   ])
 
   const teamNameById = new Map<string, string>()
@@ -41,7 +41,7 @@ export async function computeTeamCapacityMetrics({ orgId }: Inputs): Promise<{
 
   // Capacity profiles (FTE + shrinkage)
   const profiles = await prisma.personCapacity.findMany({
-    where: { workspaceId: orgId },
+    where: { workspaceId },
     select: { personId: true, fte: true, shrinkagePct: true },
     take: 50000,
   }).catch(() => [])
@@ -51,7 +51,7 @@ export async function computeTeamCapacityMetrics({ orgId }: Inputs): Promise<{
   // Availability now
   const now = Date.now()
   const availability = await prisma.personAvailability.findMany({
-    where: { workspaceId: orgId },
+    where: { workspaceId },
     select: { personId: true, type: true, startDate: true, endDate: true },
     take: 50000,
   }).catch(() => [])
@@ -66,14 +66,14 @@ export async function computeTeamCapacityMetrics({ orgId }: Inputs): Promise<{
 
   // Allocations (team demand)
   const allocations = await prisma.capacityAllocation.findMany({
-    where: { workspaceId: orgId },
+    where: { workspaceId },
     select: { personId: true, teamId: true, percent: true, startsAt: true, endsAt: true },
     take: 200000,
   }).catch(() => [])
 
   // Role assignments (optional)
   const roles = await prisma.personRoleAssignment.findMany({
-    where: { workspaceId: orgId },
+    where: { workspaceId },
     select: { personId: true, role: true, percent: true },
     take: 200000,
   }).catch(() => [])

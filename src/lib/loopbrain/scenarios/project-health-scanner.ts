@@ -18,6 +18,7 @@
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { sendHealthAlertToSlack } from "@/lib/integrations/slack/notify";
 
 // =============================================================================
 // Configuration Constants (tunable thresholds)
@@ -671,6 +672,24 @@ export async function createCriticalAlertNotifications(
       workspaceId,
       alertCount: newCriticalAlerts.length,
     });
+
+    // Send critical alerts to Slack (if connected and enabled)
+    for (const alert of newCriticalAlerts) {
+      try {
+        await sendHealthAlertToSlack(workspaceId, {
+          projectName: alert.projectName,
+          severity: alert.severity,
+          title: alert.title,
+          details: alert.description,
+        });
+      } catch (slackErr) {
+        logger.warn("[ProjectHealthScanner] Slack alert failed", {
+          workspaceId,
+          projectId: alert.projectId,
+          error: slackErr instanceof Error ? slackErr.message : String(slackErr),
+        });
+      }
+    }
   } catch (error) {
     logger.error("[ProjectHealthScanner] Notification creation failed", {
       workspaceId,

@@ -9,6 +9,7 @@ import { handleApiError } from "@/lib/api-errors";
 import { getUnifiedAuth } from '@/lib/unified-auth';
 import { assertAccess } from '@/lib/auth/assertAccess';
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
+import { logOrgAudit } from '@/lib/audit/org-audit';
 
 export async function GET(req: NextRequest) {
   try {
@@ -64,6 +65,16 @@ export async function POST(req: NextRequest) {
         capabilities: capabilities ?? [],
       },
     });
+
+    // Log audit entry (fire-and-forget)
+    logOrgAudit({
+      workspaceId,
+      entityType: "CUSTOM_ROLE",
+      entityId: created.id,
+      entityName: created.name,
+      action: "CREATED",
+      actorId: auth.user.userId,
+    }).catch((e) => console.error("[POST /api/org/custom-roles] Audit error:", e));
 
     return NextResponse.json({ role: created }, { status: 201 });
   } catch (error) {

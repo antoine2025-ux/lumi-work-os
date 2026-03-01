@@ -4,13 +4,13 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
 
-export async function computeDataQualityScore(orgId: string): Promise<{
+export async function computeDataQualityScore(workspaceId: string): Promise<{
   score: number | null
   stale: number
   conflicts: number
   overallocation: number
 }> {
-  const dq = await getDataQualityDeepDive(orgId)
+  const dq = await getDataQualityDeepDive(workspaceId)
 
   const staleSec = dq.sections.find((s) => s.title.startsWith("Stale availability"))
   const confSec = dq.sections.find((s) => s.title.startsWith("Conflicting manager"))

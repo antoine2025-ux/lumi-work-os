@@ -52,7 +52,7 @@ export default async function SeriesDetailPage({ params }: Props) {
   const isParticipant =
     series.managerId === auth.user.userId ||
     series.employeeId === auth.user.userId
-  // TODO: also check admin role if needed
+  // TODO [BACKLOG]: Also check ADMIN role for access bypass
 
   if (!isParticipant) {
     notFound()

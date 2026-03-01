@@ -36,7 +36,7 @@ export default async function MyTeamPage({ params }: PageProps) {
     prisma.orgTeam.findMany({
       where: {
         leaderId: context.userId,
-        workspaceId: context.orgId,
+        workspaceId: context.workspaceId,
       },
       include: {
         department: true,
@@ -49,7 +49,7 @@ export default async function MyTeamPage({ params }: PageProps) {
     prisma.personManagerLink.findMany({
       where: {
         managerId: context.userId,
-        workspaceId: context.orgId,
+        workspaceId: context.workspaceId,
       },
     }),
   ]);
@@ -87,7 +87,7 @@ export default async function MyTeamPage({ params }: PageProps) {
     approvablePersonIds.length > 0
       ? await prisma.leaveRequest.findMany({
           where: {
-            workspaceId: context.orgId,
+            workspaceId: context.workspaceId,
             personId: { in: approvablePersonIds },
             status: "PENDING",
           },
@@ -131,7 +131,7 @@ export default async function MyTeamPage({ params }: PageProps) {
     const positions = await prisma.orgPosition.findMany({
       where: {
         userId: { in: reportPersonIds },
-        workspaceId: context.orgId,
+        workspaceId: context.workspaceId,
         isActive: true,
         archivedAt: null,
       },

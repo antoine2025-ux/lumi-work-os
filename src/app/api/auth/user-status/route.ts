@@ -256,7 +256,7 @@ export async function GET(request: NextRequest) {
         pendingInvite,
         user: session?.user ? {
           id: (session.user as { id?: string }).id || '',
-          //id: (session.user as any).id,  // TODO: check this row from Org commits
+
           name: session.user.name,
           email: session.user.email
         } : null

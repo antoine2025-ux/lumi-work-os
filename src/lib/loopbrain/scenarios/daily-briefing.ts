@@ -27,7 +27,8 @@ export type DailyBriefingSectionIcon =
   | "activity"
   | "calendar"
   | "alert-triangle"
-  | "lightbulb";
+  | "lightbulb"
+  | "message-circle";
 
 export interface DailyBriefingSection {
   title: string;
@@ -84,7 +85,9 @@ export async function generateDailyBriefing(
     data.tasksOverdue.length > 0 ||
     data.calendarEvents.length > 0 ||
     data.recentChanges.length > 0 ||
-    data.healthAlerts.length > 0;
+    data.healthAlerts.length > 0 ||
+    data.recentEmails.length > 0 ||
+    data.recentSlackHighlights.length > 0;
 
   if (!hasContent) {
     const briefing = buildAllClearBriefing(data.user.name);
@@ -218,8 +221,10 @@ Include sections in this order (omit a section if there's no data for it):
 1. "Your Tasks" (icon: check-circle) — tasks due today and overdue
 2. "What Changed" (icon: activity) — recent activity in your projects
 3. "Today's Meetings" (icon: calendar) — calendar events
-4. "Heads Up" (icon: alert-triangle) — health alerts and warnings
-5. "Insights" (icon: lightbulb) — proactive observations
+4. "Recent Emails" (icon: activity) — notable recent emails
+5. "Slack Highlights" (icon: message-circle) — active discussions in Slack channels
+6. "Heads Up" (icon: alert-triangle) — health alerts and warnings
+7. "Insights" (icon: lightbulb) — proactive observations
 
 Set href to "__PLACEHOLDER__" — URLs are injected programmatically.
 Focus on what the user needs to DO, not just what happened.`;
@@ -274,6 +279,28 @@ function buildDailyBriefingPrompt(data: BriefingData): string {
     lines.push(`## Health Alerts (${data.healthAlerts.length})`);
     for (const a of data.healthAlerts) {
       lines.push(`- [${a.severity}] ${a.title} — ${a.projectName}`);
+    }
+    lines.push(``);
+  }
+
+  if (data.recentEmails.length > 0) {
+    lines.push(`## Recent Emails (${data.recentEmails.length})`);
+    for (const e of data.recentEmails) {
+      const dateStr = new Date(e.date).toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      lines.push(`- From: ${e.from} | ${dateStr} — "${e.subject}"`);
+      if (e.snippet) lines.push(`  ${e.snippet.slice(0, 150)}`);
+    }
+    lines.push(``);
+  }
+
+  if (data.recentSlackHighlights.length > 0) {
+    lines.push(`## Slack Highlights (${data.recentSlackHighlights.length} active channels)`);
+    for (const h of data.recentSlackHighlights) {
+      lines.push(`- #${h.channelName}: ${h.messageCount} messages — ${h.activeUsers.join(", ")}`);
+      if (h.topicSummary) lines.push(`  Topics: ${h.topicSummary.slice(0, 200)}`);
     }
     lines.push(``);
   }

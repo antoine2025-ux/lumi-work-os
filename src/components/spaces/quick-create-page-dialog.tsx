@@ -27,6 +27,8 @@ interface QuickCreatePageDialogProps {
   onOpenChange: (open: boolean) => void
   spaceId: string
   spaceName: string
+  /** Pre-select a section when opening from within a section card. */
+  defaultSectionId?: string | null
   /** Called after the page is successfully created, before navigation. */
   onSuccess?: () => void
 }
@@ -36,6 +38,7 @@ export function QuickCreatePageDialog({
   onOpenChange,
   spaceId,
   spaceName,
+  defaultSectionId,
   onSuccess,
 }: QuickCreatePageDialogProps) {
   const router = useRouter()
@@ -56,21 +59,24 @@ export function QuickCreatePageDialog({
         const pages: (Section & { parentId: string | null })[] = result.data ?? result
         if (!Array.isArray(pages)) return
 
-        // Only show root pages that belong to the same space as where this page will be created.
         const rootPages = pages.filter(
           (p) => p.parentId === null && p.spaceId === spaceId
         )
         setSections(rootPages)
 
-        // Default to the current section if the URL slug matches one
-        const currentSlug = pathname?.split('/wiki/')?.[1]?.split('/')?.[0] ?? ''
-        const matched = rootPages.find((p) => p.slug === currentSlug)
-        setSelectedSectionId(matched ? matched.id : null)
+        // Use explicit default from caller, fall back to URL-based matching
+        if (defaultSectionId) {
+          setSelectedSectionId(defaultSectionId)
+        } else {
+          const currentSlug = pathname?.split('/wiki/')?.[1]?.split('/')?.[0] ?? ''
+          const matched = rootPages.find((p) => p.slug === currentSlug)
+          setSelectedSectionId(matched ? matched.id : null)
+        }
       })
       .catch(() => {
         // Silently ignore — section picker is optional
       })
-  }, [open, pathname, spaceId])
+  }, [open, pathname, spaceId, defaultSectionId])
 
   const handleCreate = async () => {
     if (!pageTitle.trim()) return

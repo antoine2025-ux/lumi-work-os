@@ -68,7 +68,7 @@ export function CompareModal({
 
   // Derive manager names
   const managerMap = new Map<string, OrgPerson>();
-  // TODO: When managerId is available, build manager map
+  // TODO [BACKLOG]: Build manager map using person.managerId (data now available via OrgPosition.parentId)
 
   return (
     <>

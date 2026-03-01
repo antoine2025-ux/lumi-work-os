@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const wsRole = auth.user.roles?.[0] ?? "VIEWER";
     const orgRole: "OWNER" | "ADMIN" | "MEMBER" =
       wsRole === "OWNER" ? "OWNER" : wsRole === "ADMIN" ? "ADMIN" : "MEMBER";
-    const context = { orgId: workspaceId, userId: auth.user.userId, role: orgRole };
+    const context = { workspaceId, userId: auth.user.userId, role: orgRole };
 
     // Reuse existing insights loader (already cached with TTL)
     const snapshot = await getOrgInsightsSnapshot(workspaceId, context, {

@@ -31,7 +31,7 @@ export default async function AdminHealthPage({ params }: PageProps) {
   try {
     await assertAccess({
       userId: context.userId,
-      workspaceId: context.orgId,
+      workspaceId: context.workspaceId,
       scope: "workspace",
       requireRole: ["OWNER", "ADMIN"],
     });
@@ -41,11 +41,11 @@ export default async function AdminHealthPage({ params }: PageProps) {
 
   const [peopleCount, departmentsCount, teamsCount, roleCardsCount] = await Promise.all([
     prisma.workspaceMember.count({
-      where: { workspaceId: context.orgId },
+      where: { workspaceId: context.workspaceId },
     }),
-    prisma.orgDepartment.count({ where: { workspaceId: context.orgId } }),
-    prisma.orgTeam.count({ where: { workspaceId: context.orgId } }),
-    prisma.roleCard.count({ where: { workspaceId: context.orgId } }),
+    prisma.orgDepartment.count({ where: { workspaceId: context.workspaceId } }),
+    prisma.orgTeam.count({ where: { workspaceId: context.workspaceId } }),
+    prisma.roleCard.count({ where: { workspaceId: context.workspaceId } }),
   ]);
 
   const issues: { type: string; severity: "high" | "medium" | "low" }[] = [];

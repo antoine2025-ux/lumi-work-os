@@ -10,6 +10,9 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resolveUserContext, type LoopbrainUserContext } from "@/lib/loopbrain/user-context";
 import { loadCalendarEvents, type CalendarEvent } from "@/lib/loopbrain/context-sources/calendar";
+import { loadGmailThreads } from "@/lib/loopbrain/context-sources/gmail";
+import { loadSlackContextFromStore, type SlackStoredMessage } from "@/lib/loopbrain/context-sources/slack";
+import { isSlackAvailable } from "@/lib/loopbrain/slack-helper";
 
 // =============================================================================
 // Public Types
@@ -52,6 +55,20 @@ export interface BriefingInsight {
   severity: string;
 }
 
+export interface BriefingEmailItem {
+  subject: string;
+  from: string;
+  date: string;
+  snippet: string;
+}
+
+export interface BriefingSlackHighlight {
+  channelName: string;
+  topicSummary: string;
+  messageCount: number;
+  activeUsers: string[];
+}
+
 export interface BriefingData {
   user: LoopbrainUserContext;
   tasksToday: BriefingTaskItem[];
@@ -60,6 +77,8 @@ export interface BriefingData {
   calendarEvents: BriefingCalendarEvent[];
   healthAlerts: BriefingHealthAlert[];
   activeInsights: BriefingInsight[];
+  recentEmails: BriefingEmailItem[];
+  recentSlackHighlights: BriefingSlackHighlight[];
 }
 
 // =============================================================================
@@ -77,7 +96,7 @@ export async function gatherBriefingData(
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-  const [tasksToday, tasksOverdue, recentActivity, calendarRaw, healthAlerts, activeInsights] =
+  const [tasksToday, tasksOverdue, recentActivity, calendarRaw, healthAlerts, activeInsights, recentEmails, recentSlackHighlights] =
     await Promise.all([
       loadTasksDueToday(workspaceId, userId, todayStart, todayEnd),
       loadOverdueTasks(workspaceId, userId, todayStart),
@@ -85,6 +104,8 @@ export async function gatherBriefingData(
       loadCalendarEventsForBriefing(userId, workspaceId, todayStart, todayEnd),
       loadHealthAlerts(workspaceId, userCtx.activeProjectIds),
       loadActiveInsights(workspaceId),
+      loadRecentEmailsForBriefing(userId, workspaceId),
+      loadSlackHighlightsForBriefing(workspaceId),
     ]);
 
   return {
@@ -95,6 +116,8 @@ export async function gatherBriefingData(
     calendarEvents: calendarRaw,
     healthAlerts,
     activeInsights,
+    recentEmails,
+    recentSlackHighlights,
   };
 }
 
@@ -324,6 +347,70 @@ async function loadActiveInsights(
     }));
   } catch (err) {
     logger.warn("[briefing-data] Failed to load active insights", { err });
+    return [];
+  }
+}
+
+async function loadRecentEmailsForBriefing(
+  userId: string,
+  workspaceId: string
+): Promise<BriefingEmailItem[]> {
+  try {
+    const threads = await loadGmailThreads(userId, workspaceId, {
+      maxResults: 5,
+      query: "newer_than:1d -category:promotions -category:social -in:spam -in:trash",
+    });
+
+    return threads.map((t) => ({
+      subject: t.subject,
+      from: t.from,
+      date: t.date.toISOString(),
+      snippet: t.snippet || t.bodyPreview.slice(0, 200),
+    }));
+  } catch (err) {
+    logger.warn("[briefing-data] Failed to load recent emails", { err });
+    return [];
+  }
+}
+
+async function loadSlackHighlightsForBriefing(
+  workspaceId: string
+): Promise<BriefingSlackHighlight[]> {
+  try {
+    const available = await isSlackAvailable(workspaceId);
+    if (!available) return [];
+
+    const messages: SlackStoredMessage[] = await loadSlackContextFromStore(workspaceId, 100);
+    if (messages.length === 0) return [];
+
+    // Group by channel and compute highlights
+    const byChannel = new Map<string, SlackStoredMessage[]>();
+    for (const msg of messages) {
+      const key = msg.channelName || msg.channelId;
+      if (!byChannel.has(key)) byChannel.set(key, []);
+      byChannel.get(key)!.push(msg);
+    }
+
+    const highlights: BriefingSlackHighlight[] = [];
+    for (const [channelName, channelMsgs] of byChannel) {
+      const activeUsers = [...new Set(channelMsgs.map((m) => m.userName))];
+      const recentTexts = channelMsgs.slice(0, 5).map((m) => m.text.slice(0, 100));
+      const topicSummary = recentTexts.join(" | ").slice(0, 300);
+
+      highlights.push({
+        channelName,
+        topicSummary,
+        messageCount: channelMsgs.length,
+        activeUsers: activeUsers.slice(0, 5),
+      });
+    }
+
+    // Sort by message count descending, return top 5
+    return highlights
+      .sort((a, b) => b.messageCount - a.messageCount)
+      .slice(0, 5);
+  } catch (err) {
+    logger.warn("[briefing-data] Failed to load Slack highlights", { err });
     return [];
   }
 }

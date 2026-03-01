@@ -20,10 +20,10 @@ export class OrgAuthError extends Error {
  * - Returns the resolved OrgPermissionLevel for further checks.
  */
 export async function assertOrgAccess(
-  orgId: string,
+  workspaceId: string,
   request?: NextRequest
 ): Promise<OrgPermissionLevel> {
-  if (!orgId) {
+  if (!workspaceId) {
     throw new OrgAuthError(
       "FORBIDDEN",
       "Missing organization id for access check.",
@@ -31,7 +31,7 @@ export async function assertOrgAccess(
     );
   }
 
-  const result = await resolveOrgPermissionForCurrentUser(orgId, request);
+  const result = await resolveOrgPermissionForCurrentUser(workspaceId, request);
 
   if (!result) {
     // Either unauthenticated or not a member of this org.
@@ -53,11 +53,11 @@ export async function assertOrgAccess(
  * Throws OrgAuthError("FORBIDDEN") when the capability is not allowed.
  */
 export async function assertOrgCapability(
-  orgId: string,
+  workspaceId: string,
   capability: OrgPermissionCapabilityKey,
   request?: NextRequest
 ): Promise<OrgPermissionLevel> {
-  const role = await assertOrgAccess(orgId, request);
+  const role = await assertOrgAccess(workspaceId, request);
 
   const allowed = canRole(role, capability);
   if (!allowed) {

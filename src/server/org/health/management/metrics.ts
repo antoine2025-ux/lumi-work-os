@@ -12,7 +12,7 @@ export type ManagerLoadMetric = {
   risk: "OK" | "WATCH" | "HIGH"
 }
 
-export async function computeManagementLoad(orgId: string): Promise<{
+export async function computeManagementLoad(workspaceId: string): Promise<{
   score: number | null
   missingManagerLinks: number
   managerMetrics: ManagerLoadMetric[]
@@ -21,12 +21,12 @@ export async function computeManagementLoad(orgId: string): Promise<{
 
   // Pull people count if available
   const peopleCount = await prisma.orgPosition.count({
-    where: { workspaceId: orgId, isActive: true, userId: { not: null } },
+    where: { workspaceId, isActive: true, userId: { not: null } },
   }).catch(() => null)
   const p = typeof peopleCount === "number" ? peopleCount : 0
 
   const links = await prisma.personManagerLink.findMany({
-    where: { workspaceId: orgId },
+    where: { workspaceId },
     select: { personId: true, managerId: true, startsAt: true, endsAt: true },
     take: 200000,
   })
@@ -56,7 +56,7 @@ export async function computeManagementLoad(orgId: string): Promise<{
   let missingManagerLinks = 0
   try {
     const positions = await prisma.orgPosition.findMany({
-      where: { workspaceId: orgId, isActive: true, userId: { not: null } },
+      where: { workspaceId, isActive: true, userId: { not: null } },
       select: { userId: true },
       take: 50000,
     })
@@ -71,7 +71,7 @@ export async function computeManagementLoad(orgId: string): Promise<{
   }
 
   // Get people identity map for real labels
-  const peopleMap = await getPeopleIdentityMap(orgId)
+  const peopleMap = await getPeopleIdentityMap(workspaceId)
 
   // Build manager metrics
   const managers = Array.from(reportsByManager.entries()).map(([managerId, set]) => {

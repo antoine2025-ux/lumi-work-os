@@ -4,6 +4,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,26 +30,63 @@ export async function POST(req: NextRequest) {
 
     if (body.decision === "DECLINE") {
       await prisma.orgInvitation.update({ where: { id: invite.id }, data: { status: "DECLINED" } });
+      
+      // Log audit entry (fire-and-forget)
+      const changes = computeChanges(
+        { status: invite.status },
+        { status: "DECLINED" },
+        ["status"]
+      );
+      if (changes && workspaceId) {
+        logOrgAudit({
+          workspaceId,
+          entityType: "INVITATION",
+          entityId: invite.id,
+          entityName: invite.email,
+          action: "UPDATED",
+          actorId: user.userId,
+          changes,
+        }).catch((e) => console.error("[POST /api/org/invitations/respond] Audit error:", e));
+      }
+      
       return NextResponse.json({ ok: true, status: "DECLINED" });
     }
 
     // ACCEPT: create membership
-    const orgId = invite.orgId || invite.workspaceId;
-    if (!orgId) return NextResponse.json({ ok: false, error: "Invalid invite" }, { status: 400 });
+    const inviteWorkspaceId = invite.orgId || invite.workspaceId; // Reading Prisma field invite.orgId
+    if (!inviteWorkspaceId) return NextResponse.json({ ok: false, error: "Invalid invite" }, { status: 400 });
 
     await prisma.orgMembership.upsert({
-      where: { workspaceId_userId: { workspaceId: orgId, userId: user.userId } },
+      where: { workspaceId_userId: { workspaceId: inviteWorkspaceId, userId: user.userId } },
       update: { role: invite.role || "VIEWER" },
-      create: { workspaceId: orgId, userId: user.userId, role: invite.role || "VIEWER" },
+      create: { workspaceId: inviteWorkspaceId, userId: user.userId, role: invite.role || "VIEWER" },
     });
 
     await prisma.orgInvitation.update({ where: { id: invite.id }, data: { status: "ACCEPTED" } });
 
-    const org = await prisma.org.findUnique({ where: { id: orgId }, select: { name: true } });
+    // Log audit entry (fire-and-forget)
+    const changes = computeChanges(
+      { status: invite.status },
+      { status: "ACCEPTED" },
+      ["status"]
+    );
+    if (changes) {
+      logOrgAudit({
+        workspaceId: inviteWorkspaceId,
+        entityType: "INVITATION",
+        entityId: invite.id,
+        entityName: invite.email,
+        action: "UPDATED",
+        actorId: user.userId,
+        changes,
+      }).catch((e) => console.error("[POST /api/org/invitations/respond] Audit error:", e));
+    }
+
+    const org = await prisma.org.findUnique({ where: { id: inviteWorkspaceId }, select: { name: true } });
     return NextResponse.json({
       ok: true,
       status: "ACCEPTED",
-      orgId,
+      workspaceId: inviteWorkspaceId,
       orgName: org?.name || "Organization",
       role: invite.role || "VIEWER",
     });

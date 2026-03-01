@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 
-export async function ensureDefaultOrgViews(orgId: string) {
+export async function ensureDefaultOrgViews(workspaceId: string) {
   const defaults = [
     {
       key: "leadership_structure",
@@ -37,10 +37,10 @@ export async function ensureDefaultOrgViews(orgId: string) {
 
   for (const v of defaults) {
     await prisma.savedOrgView.upsert({
-      where: { workspaceId_key: { workspaceId: orgId, key: v.key } },
+      where: { workspaceId_key: { workspaceId, key: v.key } },
       update: {},
       create: {
-        workspaceId: orgId,
+        workspaceId,
         key: v.key,
         title: v.title,
         description: v.description || null,

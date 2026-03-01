@@ -10,11 +10,11 @@ import { prisma } from "@/lib/db"
  *
  * We try multiple candidates and return a normalized list.
  */
-export async function getTeamMemberships(orgId: string): Promise<Array<{ teamId: string; personId: string }>> {
+export async function getTeamMemberships(workspaceId: string): Promise<Array<{ teamId: string; personId: string }>> {
   // Get team memberships from OrgPosition (teamId + userId)
   try {
     const positions = await prisma.orgPosition.findMany({
-      where: { workspaceId: orgId, teamId: { not: null }, userId: { not: null }, isActive: true },
+      where: { workspaceId, teamId: { not: null }, userId: { not: null }, isActive: true },
       select: { teamId: true, userId: true },
       take: 50000,
     })

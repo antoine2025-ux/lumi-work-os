@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     // Resolve matching OWNERSHIP signals for those entities only
     await prisma.orgHealthSignal.updateMany({
       where: {
-        orgId: workspaceId,
+        orgId: workspaceId, // orgId is a Prisma field - will be migrated in schema migration
         type: "OWNERSHIP" as any,
         resolvedAt: null,
         dismissedAt: null,

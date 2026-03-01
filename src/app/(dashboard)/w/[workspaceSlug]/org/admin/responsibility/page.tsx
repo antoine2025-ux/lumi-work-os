@@ -29,7 +29,7 @@ export default async function ResponsibilityPage({ params }: PageProps) {
   try {
     await assertAccess({
       userId: context.userId,
-      workspaceId: context.orgId,
+      workspaceId: context.workspaceId,
       scope: "workspace",
       requireRole: ["OWNER", "ADMIN"],
     });

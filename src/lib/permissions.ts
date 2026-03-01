@@ -74,7 +74,7 @@ export function calculateOrgPermissions(context: PermissionContext): OrgPermissi
     canViewFullOrg: true,   // Everyone can view the org chart
     
     // Manager permissions (future enhancement)
-    canEditTeamRoles: false, // TODO: Implement manager-level permissions
+    canEditTeamRoles: false, // TODO [BACKLOG]: Implement manager-level permissions via assertManagerOrAdmin
   }
 }
 

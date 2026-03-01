@@ -16,7 +16,10 @@ export type OrgAuditEntityType =
   | "POSITION"
   | "MANAGER_LINK"
   | "INVITATION"
-  | "CAPACITY";
+  | "CAPACITY"
+  | "CUSTOM_ROLE"
+  | "CAPACITY_CONTRACT"
+  | "ALLOCATION";
 
 export type OrgAuditAction =
   | "CREATED"
@@ -79,6 +82,56 @@ export async function logOrgAudit(entry: OrgAuditEntry): Promise<void> {
     });
   } catch (error) {
     console.error("[logOrgAudit] Failed to write audit log (non-fatal):", error);
+    // Never throw - audit logging must not break primary flows
+  }
+}
+
+/**
+ * Log multiple org audit entries in a single batch operation.
+ * Use this for bulk operations (people/bulk, import/apply) to avoid 50+ individual writes.
+ * Fire-and-forget: errors are logged but never thrown.
+ */
+export async function logOrgAuditBatch(entries: OrgAuditEntry[]): Promise<void> {
+  if (entries.length === 0) return;
+
+  try {
+    const data = entries.map((entry) => {
+      const { changes, metadata, entityName, ...rest } = entry;
+
+      // Flatten changes to oldValues/newValues format
+      let oldValues: Prisma.InputJsonValue | undefined;
+      let newValues: Prisma.InputJsonValue | undefined;
+      if (changes && Object.keys(changes).length > 0) {
+        oldValues = Object.fromEntries(
+          Object.entries(changes).map(([k, v]) => [k, v.from])
+        ) as Prisma.InputJsonValue;
+        newValues = Object.fromEntries(
+          Object.entries(changes).map(([k, v]) => [k, v.to])
+        ) as Prisma.InputJsonValue;
+      }
+
+      const meta: Record<string, unknown> = { ...metadata };
+      if (entityName) {
+        meta.entityName = entityName;
+      }
+
+      return {
+        workspaceId: rest.workspaceId,
+        userId: rest.actorId,
+        actorUserId: rest.actorId,
+        action: rest.action,
+        entityType: rest.entityType,
+        entityId: rest.entityId,
+        oldValues: oldValues ?? Prisma.JsonNull,
+        newValues: newValues ?? Prisma.JsonNull,
+        metadata: Object.keys(meta).length > 0 ? (meta as Prisma.InputJsonValue) : Prisma.JsonNull,
+        event: null,
+      };
+    });
+
+    await prisma.orgAuditLog.createMany({ data });
+  } catch (error) {
+    console.error(`[logOrgAuditBatch] Failed to write ${entries.length} audit logs (non-fatal):`, error);
     // Never throw - audit logging must not break primary flows
   }
 }

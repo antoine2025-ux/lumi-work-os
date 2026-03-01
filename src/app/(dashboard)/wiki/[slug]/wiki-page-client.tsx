@@ -5,6 +5,10 @@ import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { RichTextEditor } from "@/components/wiki/rich-text-editor"
+import type { HocuspocusProvider } from '@hocuspocus/provider'
+import { CollabPresence } from '@/components/wiki/CollabPresence'
+import { usePresenceIdle } from '@/hooks/use-presence-idle'
+import { useCollabProvider } from '@/hooks/use-collab-provider'
 
 // Lazy-load: full TipTap + lowlight stack — only needed in edit mode, not read-only view
 const WikiEditorShell = dynamic(
@@ -125,6 +129,21 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
   const initialAIOpen = searchParams?.get('ai') === 'open'
   const [isAISidebarOpen, setIsAISidebarOpen] = useState(initialAIOpen)
   const [aiDisplayMode, setAiDisplayMode] = useState<'floating' | 'sidebar'>('floating')
+  const [isEditorFocused, setIsEditorFocused] = useState(false)
+
+  // Initialize collab provider for presence (works in both viewing and editing modes)
+  const { provider: collabProvider } = useCollabProvider(
+    pageData?.id ?? '',
+    userStatus?.user?.id,
+    null, // No initial content injection needed for presence-only
+    userStatus?.user?.name ?? undefined
+  )
+
+  // Track presence idle state
+  usePresenceIdle({
+    provider: collabProvider,
+    isEditorFocused,
+  })
 
   // Register page context for Loopbrain (layout provides the launcher)
   useLoopbrainAnchors(pageData?.id ? { pageId: pageData.id } : {})
@@ -799,12 +818,23 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
 
               {/* Title - Like Slite */}
               <div className="mb-8">
-                <Input
-                  value={pageData.title}
-                  onChange={(e) => setPageData({...pageData, title: e.target.value})}
-                  className="text-4xl font-bold border-none p-0 h-auto focus:ring-0 focus:outline-none focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder-muted-foreground bg-transparent text-foreground"
-                  placeholder="Give your doc a title"
-                />
+                <div className="flex items-center gap-3 mb-2">
+                  <Input
+                    value={pageData.title}
+                    onChange={(e) => setPageData({...pageData, title: e.target.value})}
+                    className="text-4xl font-bold border-none p-0 h-auto focus:ring-0 focus:outline-none focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder-muted-foreground bg-transparent text-foreground flex-1"
+                    placeholder="Give your doc a title"
+                  />
+                  {collabProvider && pageData.contentFormat === 'JSON' && (
+                    <CollabPresence
+                      provider={collabProvider}
+                      currentUserId={userStatus?.user?.id}
+                      currentUserName={userStatus?.user?.name ?? undefined}
+                      showAvatars={true}
+                      showViewingBadge={true}
+                    />
+                  )}
+                </div>
               </div>
 
               {/* Content Editor - No Border */}
@@ -829,6 +859,10 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                         editorRef.current = editor as Editor & { saveNow?: () => Promise<void> }
                       }, 100) // Slightly longer delay to ensure proper initialization
                     }
+
+                    // Track editor focus for presence state
+                    editor.on('focus', () => setIsEditorFocused(true))
+                    editor.on('blur', () => setIsEditorFocused(false))
                   }}
                 />
               ) : (
@@ -874,7 +908,26 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
               </div>
             </>
           ) : (
-            <WikiPageBody page={pageData} showOpenButton={false} />
+            <>
+              {/* Viewing Mode - Show title with presence */}
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-4">
+                  <h1 className="text-4xl font-bold text-foreground flex-1">
+                    {pageData.title}
+                  </h1>
+                  {collabProvider && pageData.contentFormat === 'JSON' && (
+                    <CollabPresence
+                      provider={collabProvider}
+                      currentUserId={userStatus?.user?.id}
+                      currentUserName={userStatus?.user?.name ?? undefined}
+                      showAvatars={true}
+                      showViewingBadge={true}
+                    />
+                  )}
+                </div>
+              </div>
+              <WikiPageBody page={pageData} showOpenButton={false} />
+            </>
           )}
         </div>
       </div>

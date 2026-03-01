@@ -13,8 +13,6 @@ import type { BaseContextObject } from "../types";
 export interface OrgContextData {
   org: {
     workspaceId: string;
-    // Optional explicit org id if you ever add a dedicated Org model.
-    orgId?: string | null;
     name: string;
     slug: string;
     description?: string | null;

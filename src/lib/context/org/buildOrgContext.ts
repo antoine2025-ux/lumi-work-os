@@ -53,7 +53,6 @@ export function buildOrgContext(input: OrgContextInput): OrgContextObject {
   const data: OrgContextData = {
     org: {
       workspaceId,
-      orgId: null,
       name: workspaceName,
       slug: workspaceSlug,
       description: workspaceDescription,

@@ -34,7 +34,7 @@ async function evaluateHasAnyDepartments(): Promise<{
 export async function evaluateOrgQaQuestionsForWorkspace(
   _workspaceId: string,
 ): Promise<OrgQaQuestionWithStatus[]> {
-  // TODO: use workspaceId to scope OrgDepartment queries
+  // TODO [P1]: Use workspaceId to scope OrgDepartment queries (currently relies on scoping middleware)
   const hasDept = await evaluateHasAnyDepartments();
 
   return ORG_QA_QUESTIONS.map((q) => {

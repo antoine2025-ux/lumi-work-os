@@ -19,6 +19,9 @@ import { google } from "googleapis";
 import { callLoopbrainLLM } from "@/lib/loopbrain/orchestrator";
 import { createNotification } from "@/lib/notifications/create";
 import { loadCalendarEvents } from "@/lib/loopbrain/context-sources/calendar";
+import { loadGmailThreads, type GmailThreadSummary } from "@/lib/loopbrain/context-sources/gmail";
+import { searchSlackMessages } from "@/lib/loopbrain/context-sources/slack-search";
+import { isSlackAvailable } from "@/lib/loopbrain/slack-helper";
 
 // =============================================================================
 // Public Types
@@ -45,6 +48,12 @@ export interface MeetingPrepDoc {
   href: string;
 }
 
+export interface MeetingPrepSlackContext {
+  channelName: string;
+  messageCount: number;
+  summary: string;
+}
+
 export interface MeetingPrepBrief {
   meetingTitle: string;
   meetingTime: string;
@@ -52,6 +61,7 @@ export interface MeetingPrepBrief {
   projectContext?: MeetingPrepProjectContext;
   suggestedTopics: string[];
   recentDocs: MeetingPrepDoc[];
+  slackContext?: MeetingPrepSlackContext[];
   generatedAt: string;
 }
 
@@ -121,12 +131,49 @@ export async function generateMeetingPrep(
     attendees.filter((a) => a.personId).map((a) => a.personId!)
   );
 
+  // ── 6b. Fetch recent emails from/to attendees ──────────────────────────
+  const attendeeEmails = await loadAttendeeEmailContext(
+    userId,
+    workspaceId,
+    event.attendeeEmails
+  );
+
+  // ── 6c. Fetch Slack context related to meeting topic ──────────────────
+  let slackContext: MeetingPrepSlackContext[] = [];
+  try {
+    const slackAvailable = await isSlackAvailable(workspaceId);
+    if (slackAvailable) {
+      const searchQuery = event.title;
+      const slackResult = await searchSlackMessages(workspaceId, searchQuery, 10);
+      if (slackResult.messages.length > 0) {
+        const byChannel = new Map<string, typeof slackResult.messages>();
+        for (const msg of slackResult.messages) {
+          if (!byChannel.has(msg.channelName)) byChannel.set(msg.channelName, []);
+          byChannel.get(msg.channelName)!.push(msg);
+        }
+        for (const [channelName, msgs] of byChannel) {
+          slackContext.push({
+            channelName,
+            messageCount: msgs.length,
+            summary: msgs.slice(0, 3).map((m) => `${m.userName}: ${m.text.slice(0, 100)}`).join(' | '),
+          });
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn("[meeting-prep] Failed to load Slack context", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   // ── 7. Call LLM ───────────────────────────────────────────────────────────
   const prompt = buildMeetingPrepPrompt(
     event,
     attendeesWithActivity,
     projectContext,
-    recentDocs
+    recentDocs,
+    attendeeEmails,
+    slackContext
   );
 
   let brief: MeetingPrepBrief;
@@ -135,14 +182,16 @@ export async function generateMeetingPrep(
       maxTokens: 2000,
       timeoutMs: 15000,
     });
-    brief = parseMeetingPrepResponse(llmResult.content, event, attendeesWithActivity, projectContext, recentDocs);
+    const parsed = parseMeetingPrepResponse(llmResult.content, event, attendeesWithActivity, projectContext, recentDocs);
+    brief = slackContext.length > 0 ? { ...parsed, slackContext } : parsed;
   } catch (err) {
     logger.warn("[meeting-prep] LLM call failed, using fallback", {
       userId,
       eventId,
       error: err instanceof Error ? err.message : String(err),
     });
-    brief = buildFallbackBrief(event, attendeesWithActivity, projectContext, recentDocs);
+    const fallback = buildFallbackBrief(event, attendeesWithActivity, projectContext, recentDocs);
+    brief = slackContext.length > 0 ? { ...fallback, slackContext } : fallback;
   }
 
   // ── 8. Persist ────────────────────────────────────────────────────────────
@@ -587,6 +636,38 @@ async function loadRecentDocsByAttendees(
 }
 
 // =============================================================================
+// Attendee Email Context
+// =============================================================================
+
+async function loadAttendeeEmailContext(
+  userId: string,
+  workspaceId: string,
+  attendeeEmails: string[]
+): Promise<GmailThreadSummary[]> {
+  if (attendeeEmails.length === 0) return [];
+
+  try {
+    const names = attendeeEmails
+      .map((e) => e.split("@")[0])
+      .filter(Boolean)
+      .slice(0, 5);
+    if (names.length === 0) return [];
+
+    const query = `newer_than:7d (${names.map((n) => `from:${n} OR to:${n}`).join(" OR ")})`;
+    const threads = await loadGmailThreads(userId, workspaceId, {
+      query,
+      maxResults: 10,
+      includeBodyPreview: false,
+    });
+
+    return threads;
+  } catch (err) {
+    logger.warn("[meeting-prep] Failed to load attendee email context", { err });
+    return [];
+  }
+}
+
+// =============================================================================
 // LLM Prompt
 // =============================================================================
 
@@ -613,7 +694,9 @@ function buildMeetingPrepPrompt(
   event: RichCalendarEvent,
   attendees: MeetingPrepAttendee[],
   projectContext: MeetingPrepProjectContext | null,
-  recentDocs: MeetingPrepDoc[]
+  recentDocs: MeetingPrepDoc[],
+  attendeeEmails: GmailThreadSummary[] = [],
+  slackContext: MeetingPrepSlackContext[] = []
 ): string {
   const lines: string[] = [];
 
@@ -657,6 +740,27 @@ function buildMeetingPrepPrompt(
     lines.push(`## Recent Docs by Attendees`);
     for (const d of recentDocs) {
       lines.push(`- "${d.title}" edited by ${d.editedBy}`);
+    }
+    lines.push(``);
+  }
+
+  if (attendeeEmails.length > 0) {
+    lines.push(`## Recent Emails with Attendees (last 7 days)`);
+    for (const e of attendeeEmails.slice(0, 5)) {
+      const dateStr = e.date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+      lines.push(`- From: ${e.from} | ${dateStr} — "${e.subject}"`);
+      if (e.snippet) lines.push(`  ${e.snippet.slice(0, 150)}`);
+    }
+    lines.push(``);
+  }
+
+  if (slackContext.length > 0) {
+    lines.push(`## Related Slack Discussions`);
+    for (const s of slackContext) {
+      lines.push(`- #${s.channelName} (${s.messageCount} messages): ${s.summary.slice(0, 200)}`);
     }
     lines.push(``);
   }

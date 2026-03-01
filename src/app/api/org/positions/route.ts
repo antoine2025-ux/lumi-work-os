@@ -12,6 +12,7 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import { OrgPositionCreateSchema } from "@/lib/validations/org";
 import { prisma } from "@/lib/db";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -90,6 +91,15 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true, title: true, level: true },
     });
+
+    logOrgAudit({
+      workspaceId,
+      entityType: "POSITION",
+      entityId: position.id,
+      entityName: position.title ?? undefined,
+      action: "CREATED",
+      actorId: userId,
+    }).catch((e) => console.error("[POST /api/org/positions] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ id: position.id, title: position.title, level: position.level }, { status: 201 });
   } catch (error) {

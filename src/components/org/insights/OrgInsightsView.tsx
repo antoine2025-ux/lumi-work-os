@@ -51,7 +51,7 @@ export function OrgInsightsView({ insights }: OrgInsightsViewProps) {
 
       {/* Charts section - now receives snapshot directly */}
       <OrgInsightsChartsSection
-        orgId={insights.orgId}
+        workspaceId={insights.workspaceId}
         snapshot={insights}
         departmentOptions={departmentOptions}
       />

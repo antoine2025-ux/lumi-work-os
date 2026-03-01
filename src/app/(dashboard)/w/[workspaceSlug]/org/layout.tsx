@@ -89,12 +89,12 @@ export default async function WorkspaceOrgLayout({
   // Validate that the workspace slug matches the user's current workspace
   try {
     const workspace = await prisma.workspace.findUnique({
-      where: { id: context.orgId },
+      where: { id: context.workspaceId },
       select: { id: true, slug: true },
     });
 
     if (!workspace) {
-      console.error("[WorkspaceOrgLayout] Workspace not found for orgId:", context.orgId);
+      console.error("[WorkspaceOrgLayout] Workspace not found for orgId:", context.workspaceId);
       notFound();
     }
 
@@ -115,7 +115,7 @@ export default async function WorkspaceOrgLayout({
 
   // Ensure org context is synced for Loopbrain (non-blocking)
   // This runs in the background and doesn't block rendering
-  ensureOrgContextSynced(context.orgId).catch(err => {
+  ensureOrgContextSynced(context.workspaceId).catch(err => {
     console.error('[WorkspaceOrgLayout] Failed to ensure org context synced:', err)
   })
 

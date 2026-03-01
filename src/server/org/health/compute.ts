@@ -11,7 +11,7 @@ import { getFreshnessSummary } from "@/server/org/health/freshness"
 import { PHASE_C_VERSION } from "@/server/org/health/phaseC"
 
 type ComputeInput = {
-  orgId: string
+  workspaceId: string
 }
 
 type PersonCapacityRow = { personId: string; fte: number; shrinkagePct: number }
@@ -54,10 +54,8 @@ export type ComputedHealth = {
  * - Uses minimal existing data; falls back when models/relations differ across branches.
  * - Replace logic in later steps with real capacity, ownership, and structure analysis.
  */
-export async function computeOrgHealth({ orgId }: ComputeInput): Promise<ComputedHealth> {
+export async function computeOrgHealth({ workspaceId }: ComputeInput): Promise<ComputedHealth> {
   // Best-effort queries: keep them defensive so this compiles across evolving schema.
-  // In this codebase, orgId may be workspaceId, so we query by workspaceId.
-  // If your repo already has strong typed Org/People models, tighten these in later steps.
 
   const signals: ComputedHealth["signals"] = []
 
@@ -65,7 +63,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
     prisma.orgPosition
       .count({
         where: {
-          workspaceId: orgId,
+          workspaceId,
           isActive: true,
           userId: { not: null },
         },
@@ -74,7 +72,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
     prisma.orgTeam
       .count({
         where: {
-          workspaceId: orgId,
+          workspaceId,
           isActive: true,
         },
       })
@@ -91,13 +89,13 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
   // If capacity primitives exist, compute "available capacity" signal from real data.
   try {
     const profiles = await prisma.personCapacity.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { fte: true, shrinkagePct: true, personId: true },
       take: 2000,
     }).catch(() => null) as PersonCapacityRow[] | null
 
     const allocations = await prisma.capacityAllocation.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { personId: true, percent: true, teamId: true, endsAt: true, startsAt: true },
       take: 20000,
     }).catch(() => null) as CapacityAllocationRow[] | null
@@ -141,7 +139,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
       const availabilityByPerson = new Map<string, string>()
       try {
         const av = await prisma.personAvailability.findMany({
-          where: { workspaceId: orgId },
+          where: { workspaceId },
           select: { personId: true, type: true, startDate: true, endDate: true },
           take: 5000,
         }).catch(() => null) as PersonAvailabilityTypeRow[] | null
@@ -202,7 +200,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
 
       // If we can compute true team supply vs demand, prefer that for team signals.
       try {
-        const team = await computeTeamCapacityMetrics({ orgId })
+        const team = await computeTeamCapacityMetrics({ workspaceId })
         if (team.hasMembership && team.metrics.length > 0) {
           const worst = team.metrics.slice(0, 5)
 
@@ -267,7 +265,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
       // Only use this if we didn't already generate team signals from true metrics.
       if (signals.filter((s) => s.type === "CAPACITY" && s.contextType === "TEAM").length === 0 && allocByTeam.size > 0) {
         const teams = await prisma.orgTeam.findMany({
-          where: { workspaceId: orgId },
+          where: { workspaceId },
           select: { id: true, name: true },
           take: 200,
         }).catch(() => [] as OrgTeamNameRow[])
@@ -305,7 +303,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
   let ownershipScore = t > 0 ? Math.max(20, Math.min(92, 40 + t * 6)) : 18
 
   try {
-    const coverage = await computeOwnershipCoverageScore(orgId)
+    const coverage = await computeOwnershipCoverageScore(workspaceId)
     if (typeof coverage === "number") ownershipScore = coverage
   } catch {
     // keep heuristic
@@ -319,7 +317,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
       : Math.max(20, Math.min(90, Math.round(55 + (Math.min(6, ratio) - 3) * 8)))
 
   try {
-    const st = await computeStructureMetrics(orgId)
+    const st = await computeStructureMetrics(workspaceId)
     if (typeof st.score === "number") balanceScore = st.score
 
     if (st.orphanTeams > 0) {
@@ -354,7 +352,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
 
     // Advanced layer-based signals
     try {
-      const lm = await computeLayerMetrics(orgId)
+      const lm = await computeLayerMetrics(workspaceId)
 
       // Layer bloat: very deep org chains
       if (lm.peopleCount > 0 && lm.maxDepth >= 7) {
@@ -429,7 +427,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
 
   // Ownership signals: unowned entities
   try {
-    const unowned = await findUnownedEntities(orgId)
+    const unowned = await findUnownedEntities(workspaceId)
     const score = typeof ownershipScore === "number" ? ownershipScore : null
     if (unowned.length > 0) {
       const top = unowned.slice(0, 5)
@@ -475,7 +473,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
 
   // Management Load: compute real score + signals
   try {
-    const mgmt = await computeManagementLoad(orgId)
+    const mgmt = await computeManagementLoad(workspaceId)
     managementScore = mgmt.score
 
     if (typeof mgmt.score === "number") {
@@ -536,7 +534,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
 
   // Data completeness signal (premium honesty)
   try {
-    const comp = await computeOrgHealthCompleteness(orgId)
+    const comp = await computeOrgHealthCompleteness(workspaceId)
     if (comp.overallScore < 55) {
       signals.push({
         type: "STRUCTURE",
@@ -552,7 +550,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
 
   // Data Quality signals
   try {
-    const dq = await getDataQualityDeepDive(orgId)
+    const dq = await getDataQualityDeepDive(workspaceId)
 
     // Stale availability signals: one per person (top 10)
     const staleSec = dq.sections.find((s) => s.title.startsWith("Stale availability"))
@@ -604,7 +602,7 @@ export async function computeOrgHealth({ orgId }: ComputeInput): Promise<Compute
 
   // Weekly freshness check
   try {
-    const freshness = await getFreshnessSummary(orgId)
+    const freshness = await getFreshnessSummary(workspaceId)
 
     if (freshness.needsAttention) {
       signals.push({

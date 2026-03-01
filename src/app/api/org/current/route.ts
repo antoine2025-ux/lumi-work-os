@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       ok: true,
       data: {
         org: org ? { id: org.id, name: org.id } : null, // Temporary: use id as name
-        currentMemberRole: null, // TODO: Implement role checking
+        currentMemberRole: null, // TODO [P1]: Implement role checking — client relies on this for UI gating
       },
     });
   } catch (error) {

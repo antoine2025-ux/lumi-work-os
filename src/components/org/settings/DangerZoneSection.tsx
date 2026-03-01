@@ -86,7 +86,7 @@ export function DangerZoneSection({ orgId }: DangerZoneSectionProps) {
             </div>
           )}
           <div className="mt-3 rounded-lg border border-dashed border-red-900/70 bg-red-950/60 px-3 py-2 text-[11px] text-red-100">
-            TODO: embed the existing ownership transfer flow from the L7 danger-zone implementation.
+            TODO [BACKLOG]: Embed the existing ownership transfer flow from the L7 danger-zone implementation.
           </div>
         </div>
 

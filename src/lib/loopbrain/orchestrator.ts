@@ -87,6 +87,8 @@ import { generateOnboardingBriefing } from './scenarios/onboarding-briefing'
 import { generateDailyBriefing } from './scenarios/daily-briefing'
 import { generateMeetingPrep, generateNextMeetingPrep, findEventByTitle } from './scenarios/meeting-prep'
 import { loadGmailThreads, formatGmailThreadsForPrompt } from './context-sources/gmail'
+import { searchGmailForContext } from './context-sources/gmail-search'
+import { searchSlackMessages } from './context-sources/slack-search'
 import { extractEntityContext } from './reasoning/entityLinksAnswer'
 import { getCachedEntityGraph } from './entity-graph'
 import type { ProjectHealthSnapshotV0 } from './contract/projectHealth.v0'
@@ -337,6 +339,16 @@ export async function runLoopbrainQuery(
   // Check for meeting prep queries
   if (intent === 'meeting_prep' || req.mode === 'meeting_prep') {
     return await handleMeetingPrepMode(req, userCtx)
+  }
+
+  // Check for email search queries
+  if (intent === 'email_search' || req.mode === 'email_search') {
+    return await handleEmailSearchMode(req, userCtx)
+  }
+
+  // Check for Slack search queries
+  if (intent === 'slack_search' || req.mode === 'slack_search') {
+    return await handleSlackSearchMode(req, userCtx)
   }
 
   try {
@@ -610,11 +622,18 @@ async function handleSpacesMode(
   // Build prompt (include Slack availability)
   let prompt = buildSpacesPrompt(req, contextSummary, slackAvailable)
   
-  // Open Loops: fetch and inject into prompt
-  const openLoops = await fetchOpenLoops(req.workspaceId, req.userId)
+  // Open Loops + Gmail threads: fetch in parallel, inject into prompt
+  const [openLoops, spacesGmailThreads] = await Promise.all([
+    fetchOpenLoops(req.workspaceId, req.userId),
+    loadGmailThreads(req.userId, req.workspaceId),
+  ])
   const openLoopsSection = formatOpenLoopsForPrompt(openLoops)
   if (openLoopsSection) {
     prompt = prompt + "\n\n" + openLoopsSection
+  }
+  const spacesGmailSection = formatGmailThreadsForPrompt(spacesGmailThreads)
+  if (spacesGmailSection) {
+    prompt = prompt + "\n\n" + spacesGmailSection
   }
   
   // Personalization: combine user context block + style instructions
@@ -1242,7 +1261,7 @@ async function loadSpacesContextForRequest(
     }
 
     // Inline-load epics directly via Prisma (temporary fix to unblock Loopbrain)
-    // TODO: Refactor back to getProjectEpicsContext once verified working
+    // TODO [BACKLOG]: Refactor back to getProjectEpicsContext once verified working
     try {
       const epics = await prisma.epic.findMany({
         where: { projectId: req.projectId },
@@ -1459,7 +1478,7 @@ async function loadOrgContextForRequest(
   if (orgQuestion?.type === "org.health") {
     // For health-focused queries, use org object as primary but mark as health focus
     if (orgQuestion.orgId && byId[orgQuestion.orgId]) {
-      primary = byId[orgQuestion.orgId]
+      primary = byId[orgQuestion.orgId] // orgId here is the Loopbrain entity ID
     } else if (orgSlice.root) {
       const rootObj = orgSlice.all.find(obj => obj.id === orgSlice.root?.id)
       if (rootObj) {
@@ -3164,6 +3183,247 @@ async function handleMeetingPrepMode(
         contextType: 'meeting_prep',
         confidence: 0.85,
         itemCount: brief.attendees.length,
+        usedFallback: false,
+      },
+      userContextResolved: true,
+      userRole: userCtx.role,
+      userTeam: userCtx.teamName ?? undefined,
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Email Search mode
+// ---------------------------------------------------------------------------
+
+async function handleEmailSearchMode(
+  req: LoopbrainRequest,
+  userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('[email-search] Mode handler started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+  })
+
+  const searchResult = await searchGmailForContext(
+    req.userId,
+    req.workspaceId,
+    req.query
+  )
+
+  if (searchResult.threads.length === 0) {
+    return {
+      mode: 'email_search',
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer:
+        "I couldn't find any emails matching that query. Try different keywords, a specific sender name, or check your Gmail directly.",
+      suggestions: [
+        { label: 'Search again', action: 'email_search', payload: {} },
+        { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+      ],
+      metadata: {
+        routing: {
+          contextType: 'email_search',
+          confidence: 0.5,
+          itemCount: 0,
+          usedFallback: true,
+        },
+        userContextResolved: true,
+        userRole: userCtx.role,
+        userTeam: userCtx.teamName ?? undefined,
+      },
+    }
+  }
+
+  const prompt = [
+    'The user is asking about their email. Use the email search results below to answer their question.',
+    'Be specific — cite sender names, dates, and subject lines. If the answer is ambiguous, summarize the most relevant threads.',
+    `Searched Gmail for: "${searchResult.searchQuery}"`,
+    '',
+    searchResult.contextText,
+    '',
+    `User question: ${req.query}`,
+  ].join('\n')
+
+  const profile = await getProfile(req.workspaceId, req.userId)
+  const styleBlock = buildStyleInstructions(profile)
+  const userCtxBlock = formatUserContextBlock(userCtx)
+  const combined = [userCtxBlock, styleBlock].filter(Boolean).join('\n\n')
+  const systemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: combined })
+
+  const llmResponse = await callLoopbrainLLM(prompt, systemPrompt)
+
+  const dateRange = searchResult.threads.length > 0
+    ? (() => {
+        const dates = searchResult.threads.map((t) => t.date)
+        const earliest = new Date(Math.min(...dates.map((d) => d.getTime())))
+        const latest = new Date(Math.max(...dates.map((d) => d.getTime())))
+        const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        return `${fmt(earliest)} – ${fmt(latest)}`
+      })()
+    : ''
+
+  const attribution = dateRange
+    ? `\n\n---\n*Based on ${searchResult.threads.length} email${searchResult.threads.length === 1 ? '' : 's'} from ${dateRange}*`
+    : ''
+
+  return {
+    mode: 'email_search',
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer: llmResponse.content + attribution,
+    suggestions: [
+      { label: 'Search more emails', action: 'email_search', payload: {} },
+      { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+    ],
+    metadata: {
+      model: llmResponse.model,
+      tokens: llmResponse.usage
+        ? {
+            prompt: llmResponse.usage.promptTokens,
+            completion: llmResponse.usage.completionTokens,
+            total: llmResponse.usage.totalTokens,
+          }
+        : undefined,
+      retrievedCount: searchResult.threads.length,
+      routing: {
+        contextType: 'email_search',
+        confidence: 0.9,
+        itemCount: searchResult.threads.length,
+        usedFallback: false,
+      },
+      userContextResolved: true,
+      userRole: userCtx.role,
+      userTeam: userCtx.teamName ?? undefined,
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Slack Search mode
+// ---------------------------------------------------------------------------
+
+async function handleSlackSearchMode(
+  req: LoopbrainRequest,
+  userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('[slack-search] Mode handler started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+  })
+
+  const slackAvailable = await isSlackAvailable(req.workspaceId)
+  if (!slackAvailable) {
+    return {
+      mode: 'slack_search',
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer:
+        "Slack isn't connected to this workspace yet. An admin can connect it in Settings → Integrations.",
+      suggestions: [
+        { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+      ],
+      metadata: {
+        routing: {
+          contextType: 'slack_search',
+          confidence: 0.5,
+          itemCount: 0,
+          usedFallback: true,
+        },
+        userContextResolved: true,
+        userRole: userCtx.role,
+        userTeam: userCtx.teamName ?? undefined,
+      },
+    }
+  }
+
+  const searchResult = await searchSlackMessages(req.workspaceId, req.query)
+
+  if (searchResult.messages.length === 0) {
+    const channelNote = searchResult.targetChannel
+      ? ` in #${searchResult.targetChannel}`
+      : ''
+    return {
+      mode: 'slack_search',
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer:
+        `I couldn't find any Slack messages matching that query${channelNote}. Try different keywords or check Slack directly.`,
+      suggestions: [
+        { label: 'Search again', action: 'slack_search', payload: {} },
+        { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+      ],
+      metadata: {
+        routing: {
+          contextType: 'slack_search',
+          confidence: 0.5,
+          itemCount: 0,
+          usedFallback: true,
+        },
+        userContextResolved: true,
+        userRole: userCtx.role,
+        userTeam: userCtx.teamName ?? undefined,
+      },
+    }
+  }
+
+  const prompt = [
+    'The user is asking about Slack conversations. Use the Slack messages below to answer their question.',
+    'Be specific — cite usernames, channel names, dates, and quote relevant messages. Summarize the key discussion points.',
+    searchResult.targetChannel
+      ? `Searched channel: #${searchResult.targetChannel}`
+      : 'Searched across connected Slack channels',
+    '',
+    searchResult.contextText,
+    '',
+    `User question: ${req.query}`,
+  ].join('\n')
+
+  const profile = await getProfile(req.workspaceId, req.userId)
+  const styleBlock = buildStyleInstructions(profile)
+  const userCtxBlock = formatUserContextBlock(userCtx)
+  const combined = [userCtxBlock, styleBlock].filter(Boolean).join('\n\n')
+  const systemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: combined })
+
+  const llmResponse = await callLoopbrainLLM(prompt, systemPrompt)
+
+  const channelNames = [...new Set(searchResult.messages.map((m) => `#${m.channelName}`))]
+  const attribution = `\n\n---\n*Based on ${searchResult.messages.length} message${searchResult.messages.length === 1 ? '' : 's'} from ${channelNames.join(', ')}*`
+
+  return {
+    mode: 'slack_search',
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer: llmResponse.content + attribution,
+    suggestions: [
+      { label: 'Search more in Slack', action: 'slack_search', payload: {} },
+      { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+    ],
+    metadata: {
+      model: llmResponse.model,
+      tokens: llmResponse.usage
+        ? {
+            prompt: llmResponse.usage.promptTokens,
+            completion: llmResponse.usage.completionTokens,
+            total: llmResponse.usage.totalTokens,
+          }
+        : undefined,
+      retrievedCount: searchResult.messages.length,
+      routing: {
+        contextType: 'slack_search',
+        confidence: 0.9,
+        itemCount: searchResult.messages.length,
         usedFallback: false,
       },
       userContextResolved: true,

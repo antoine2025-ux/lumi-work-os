@@ -1,13 +1,13 @@
 import { prisma } from "@/lib/db"
 
-export async function getFreshnessSummary(orgId: string) {
+export async function getFreshnessSummary(workspaceId: string) {
   const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000
 
   let staleAvailability = 0
 
   try {
     const rows = await prisma.personAvailability.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { updatedAt: true, createdAt: true },
       take: 50000,
     })

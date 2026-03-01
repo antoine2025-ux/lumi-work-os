@@ -14,12 +14,12 @@ export async function getActiveOrgContext(request?: NextRequest) {
     const userId = (session?.user as { id?: string } | null | undefined)?.id;
     const activeOrgId = (session as { activeOrgId?: string } | null | undefined)?.activeOrgId;
 
-    if (!userId) return { userId: null, orgId: null, orgName: null, role: "VIEWER" as const };
+    if (!userId) return { userId: null, workspaceId: null, orgName: null, role: "VIEWER" as const };
 
     // Ensure prisma is initialized
     if (!prisma) {
       console.error("[getActiveOrgContext] Prisma client is undefined");
-      return { userId, orgId: null, orgName: null, role: "VIEWER" as const };
+      return { userId, workspaceId: null, orgName: null, role: "VIEWER" as const };
     }
 
     // Try to get org from OrgMembership first (new system)
@@ -40,7 +40,7 @@ export async function getActiveOrgContext(request?: NextRequest) {
         if (membership) {
           return {
             userId,
-            orgId: membership.org.id,
+            workspaceId: membership.org.id,
             orgName: membership.org.name,
             role: membership.role as string,
           };

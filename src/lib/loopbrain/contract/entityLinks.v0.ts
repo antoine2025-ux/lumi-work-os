@@ -330,10 +330,10 @@ export function getIncomingLinks(
 }
 
 // =============================================================================
-// TODO: Validation
+// TODO [BACKLOG]: Validation
 // =============================================================================
 
-// TODO: Add JSON Schema validation similar to validateAnswerEnvelope.ts
+// TODO [BACKLOG]: Add JSON Schema validation similar to validateAnswerEnvelope.ts
 // - Validate schemaVersion is "v0"
 // - Validate all node IDs are unique
 // - Validate all link source/target IDs exist in nodes

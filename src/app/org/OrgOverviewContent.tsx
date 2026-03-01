@@ -27,12 +27,12 @@ async function OverviewDataLoader({ context }: OrgOverviewContentProps) {
   const startTime = process.env.NODE_ENV !== "production" ? Date.now() : 0;
   
   const [stats, insights, setupStatus, summary] = await Promise.allSettled([
-    getOrgOverviewStats(context.orgId, context.userId).catch((error) => {
+    getOrgOverviewStats(context.workspaceId, context.userId).catch((error) => {
       console.error("[OverviewDataLoader] Error loading stats:", error);
       return null; // Return null instead of throwing
     }),
     canViewInsights
-      ? getOrgInsights(context.orgId, context, {
+      ? getOrgInsights(context.workspaceId, context, {
           period: "month",
           periods: 3,
         }).catch((error) => {
@@ -40,11 +40,11 @@ async function OverviewDataLoader({ context }: OrgOverviewContentProps) {
           return null;
         })
       : Promise.resolve(null),
-    getOrgSetupStatus(context.orgId).catch((error) => {
+    getOrgSetupStatus(context.workspaceId).catch((error) => {
       console.error("[OverviewDataLoader] Error loading setup status:", error);
       return null; // Return null instead of throwing
     }),
-    getOrgOverviewSummary(context.orgId).catch((error) => {
+    getOrgOverviewSummary(context.workspaceId).catch((error) => {
       console.error("[OverviewDataLoader] Error loading summary:", error);
       return null; // Return null instead of throwing
     }),
@@ -72,7 +72,7 @@ async function OverviewDataLoader({ context }: OrgOverviewContentProps) {
       <div className="px-10 pb-10">
         {/* Health summary with derived signals - always show */}
         <div className="mt-4">
-          <OrgHealthSummary orgId={context.orgId} />
+          <OrgHealthSummary orgId={context.workspaceId} />
         </div>
 
         {/* Primary CTA: Complete setup (only if incomplete) */}
@@ -120,7 +120,7 @@ async function OverviewDataLoader({ context }: OrgOverviewContentProps) {
       {/* Stats and insights (if available) - keep but make it clear it's secondary */}
       {statsData && (
         <OrgOverviewClient
-          org={{ id: context.orgId, name: "Organization" }}
+          org={{ id: context.workspaceId, name: "Organization" }}
           stats={statsData}
           statsError={statsError}
           insightsSnapshot={insightsData}

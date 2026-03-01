@@ -34,6 +34,8 @@ export type LoopbrainIntent =
   | 'onboarding_briefing'
   | 'daily_briefing'
   | 'meeting_prep'
+  | 'email_search'
+  | 'slack_search'
   | 'unknown'
 
 /**
@@ -205,6 +207,47 @@ export function detectIntentFromKeywords(
   let confidence = 0.5
   let intent: LoopbrainIntent = 'unknown'
   
+  // ----- Email search (checked early — high specificity) -----
+
+  const emailSearchKeywords = [
+    'email about', 'email from', 'email thread about', 'email regarding',
+    'find the email', 'find email', 'look up the email', 'look up email',
+    'check my email', 'check my inbox', 'check my gmail',
+    'search my email', 'search my inbox', 'search my gmail',
+    'what did', // partial — combined with "email" below
+  ]
+  const emailSearchRegex = /\bwhat did\s+\S+\s+email\b/i
+  if (
+    emailSearchKeywords.some((kw) => kw !== 'what did' && queryLower.includes(kw)) ||
+    emailSearchRegex.test(queryLower) ||
+    (queryLower.includes('gmail') && !queryLower.includes('connect'))
+  ) {
+    intent = 'email_search'
+    confidence = 0.90
+    reasons.push('Detected email search keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Slack search (checked after email — high specificity) -----
+
+  const slackSearchKeywords = [
+    'in slack', 'on slack', 'posted in slack', 'from slack',
+    'slack channel', 'slack thread', 'slack message',
+    "what's happening in #", "what's the team discussing",
+    'check slack', 'look in slack', 'search slack',
+  ]
+  const channelMentionRegex = /#[\w-]+/
+  if (
+    slackSearchKeywords.some((kw) => queryLower.includes(kw)) ||
+    (queryLower.includes('slack') && !queryLower.includes('connect')) ||
+    (channelMentionRegex.test(queryLower) && queryLower.includes('slack'))
+  ) {
+    intent = 'slack_search'
+    confidence = 0.90
+    reasons.push('Detected Slack search keywords')
+    return { intent, confidence, reasons }
+  }
+
   // ----- Meeting task extraction (checked first — highest specificity) -----
 
   const extractTasksKeywords = [
@@ -459,6 +502,16 @@ function selectModeFromIntent(
   let mode: LoopbrainMode | undefined
   
   switch (intent) {
+    case 'email_search':
+      mode = 'email_search'
+      reasons.push('Email search has its own dedicated mode')
+      break
+
+    case 'slack_search':
+      mode = 'slack_search'
+      reasons.push('Slack search has its own dedicated mode')
+      break
+
     case 'onboarding_briefing':
       mode = 'onboarding_briefing'
       reasons.push('Onboarding briefing has its own dedicated mode')

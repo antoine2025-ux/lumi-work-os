@@ -11,7 +11,7 @@ type DepartmentOption = {
 };
 
 type Props = {
-  orgId: string;
+  workspaceId: string;
   snapshot: OrgInsightsSnapshot;
   departmentOptions: DepartmentOption[];
 };
@@ -20,7 +20,7 @@ type Props = {
  * Charts section component that receives insights data as props.
  * No longer fetches data itself - data comes from parent component.
  */
-export function OrgInsightsChartsSection({ snapshot, departmentOptions }: Props) {
+export function OrgInsightsChartsSection({ workspaceId, snapshot, departmentOptions }: Props) {
   const [selectedDeptId, setSelectedDeptId] = useState<string | "ALL">("ALL");
 
   // Only show dropdown if 2+ departments exist

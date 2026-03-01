@@ -17,7 +17,7 @@ function countManagers(_people: OrgPerson[]): number {
   // If people have managerId field, managers are those whose IDs are referenced by others
   // For now, we'll need to check if there's a managerId or directReports field
   // Since the current OrgPerson type doesn't have these, we'll return 0 for now
-  // TODO: Update when managerId/directReports data is available
+  // TODO [BACKLOG]: Use person.managerId to count managers (data now available)
   return 0;
 }
 
@@ -52,7 +52,7 @@ function countNewJoiners(people: OrgPerson[], days: number = 30, now: Date = new
  */
 function countRecentChanges(people: OrgPerson[], _days: number = 30, _now: Date = new Date()): number | null {
   // Since change history is not available in current data structure, return null
-  // TODO: Update when change history data is available
+  // TODO [BACKLOG]: Implement when OrgAuditLog change history is populated
   return null;
 }
 

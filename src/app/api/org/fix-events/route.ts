@@ -11,7 +11,6 @@ import { handleApiError } from "@/lib/api-errors"
  * Fetch fix events for an organization.
  * 
  * Query params:
- * - orgId: Organization ID (required)
  * - personId: Filter by person ID (optional)
  * - limit: Number of events to return (default: 10)
  * - sortBy: Sort by "impact" or "date" (default: "date")
@@ -33,16 +32,11 @@ export async function GET(request: NextRequest) {
     const workspaceId = auth.workspaceId;
     const { searchParams } = new URL(request.url);
     
-    const orgId = searchParams.get("orgId") || workspaceId;
     const personId = searchParams.get("personId");
     const limit = parseInt(searchParams.get("limit") || "10", 10);
     const sortBy = searchParams.get("sortBy") || "date";
 
-    if (!orgId) {
-      return NextResponse.json({ ok: false, error: "orgId required" }, { status: 400 });
-    }
-
-    const where: any = { workspaceId: orgId };
+    const where: any = { workspaceId };
     if (personId) {
       where.personId = personId;
     }
@@ -80,7 +74,7 @@ export async function GET(request: NextRequest) {
           // Try to get person name from OrgPosition
           const position = await prisma.orgPosition.findFirst({
             where: {
-              workspaceId: orgId,
+              workspaceId,
               userId: event.personId,
             },
             include: {

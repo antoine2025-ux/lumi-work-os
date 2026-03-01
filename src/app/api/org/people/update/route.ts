@@ -6,6 +6,8 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import { OrgPersonPatchSchema } from "@/lib/validations/org";
 import { revalidateTag } from "next/cache";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,18 +28,30 @@ export async function POST(req: NextRequest) {
 
     const patch = body.patch;
 
-    // Find the user's position in this workspace
+    // Find the user's position in this workspace (fetch before state for audit)
     const position = await prisma.orgPosition.findFirst({
       where: {
         workspaceId,
         userId: body.id,
         isActive: true,
       },
+      select: {
+        id: true,
+        userId: true,
+        parentId: true,
+        teamId: true,
+        user: { select: { name: true } },
+      },
     });
 
     if (!position) {
       return NextResponse.json({ error: "Position not found for this user" }, { status: 404 });
     }
+
+    const before = {
+      managerId: position.parentId,
+      teamId: position.teamId,
+    };
 
     const updateData: { parentId?: string | null; teamId?: string | null } = {};
 
@@ -92,16 +106,23 @@ export async function POST(req: NextRequest) {
       data: updateData,
     });
 
-    await prisma.auditLogEntry.create({
-      data: {
-        workspaceId: auth.workspaceId,
-        actorUserId: auth.user.userId,
-        actorLabel: auth.user.name || auth.user.email || "Unknown user",
-        action: "update_person",
-        targetCount: 1,
-        summary: `Updated person (${body.id})`,
-      },
-    });
+    // Compute changes and log audit
+    const after = {
+      managerId: updateData.parentId !== undefined ? updateData.parentId : before.managerId,
+      teamId: updateData.teamId !== undefined ? updateData.teamId : before.teamId,
+    };
+    
+    const changes = computeChanges(before, after, ['managerId', 'teamId']);
+    
+    logOrgAudit({
+      workspaceId: auth.workspaceId,
+      entityType: "PERSON",
+      entityId: position.id,
+      entityName: position.user?.name ?? undefined,
+      action: "UPDATED",
+      actorId: auth.user.userId,
+      changes: changes ?? undefined,
+    }).catch((e) => console.error("[POST /api/org/people/update] Audit log error (non-fatal):", e));
 
     revalidateTag(`org:${auth.workspaceId}:people`);
     revalidateTag(`org:${auth.workspaceId}:audit`);

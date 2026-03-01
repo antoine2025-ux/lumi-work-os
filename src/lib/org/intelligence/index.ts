@@ -4,7 +4,7 @@
  * Phase 5: Central exports for org intelligence computation and integration
  * Phase S: Canonical resolver layer for deterministic signals
  *
- * TODO (Post Phase S Rollout):
+ * TODO [BACKLOG] (Post Phase S Rollout):
  * After Phase S is fully deployed and consumers migrated:
  * 1. Update all imports to use "./snapshotTypes" directly
  * 2. Remove backward-compat re-exports below
@@ -71,7 +71,7 @@ import {
 } from "./snapshotTypes";
 
 // ============================================================================
-// Backward-compat re-exports (TODO: remove after Phase S rollout)
+// Backward-compat re-exports (TODO [BACKLOG]: remove after Phase S rollout)
 // New code should import from "./snapshotTypes" directly
 // ============================================================================
 

@@ -125,17 +125,15 @@ export async function POST(request: NextRequest) {
   // Run engine for each workspace
   const results: Array<{
     workspaceId: string;
-    orgId: string;
   } & ProactiveEngineResult> = [];
 
   for (const workspaceId of unique) {
     try {
-      const result = await engine.run({ workspaceId, orgId: workspaceId });
-      results.push({ workspaceId, orgId: workspaceId, ...result });
+      const result = await engine.run({ workspaceId });
+      results.push({ workspaceId, ...result });
     } catch (err) {
       results.push({
         workspaceId,
-        orgId: workspaceId,
         ok: false,
         error: err instanceof Error ? err.message : "Unknown error",
       });

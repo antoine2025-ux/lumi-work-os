@@ -199,7 +199,7 @@ export function DetailsGrid({ person }: DetailsGridProps) {
           />
         )}
 
-        {/* Manager - TODO: When managerId is available */}
+        {/* Manager — TODO [BACKLOG]: Wire using person.managerId (data now available) */}
         {/* {person.managerId && manager ? (
           <DetailItem
             icon={<UserCheck className="h-3.5 w-3.5" />}

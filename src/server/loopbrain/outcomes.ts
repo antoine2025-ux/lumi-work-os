@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 
 export async function measureOrgOutcomes(args: {
-  orgId: string;
+  workspaceId: string;
   scope: string;
   before: Record<string, unknown>;
   after: Record<string, unknown>;
@@ -12,7 +12,7 @@ export async function measureOrgOutcomes(args: {
 
   await prisma.loopBrainOutcome.create({
     data: {
-      workspaceId: args.orgId,
+      workspaceId: args.workspaceId,
       scope: args.scope,
       suggestionRunId: args.suggestionRunId,
       beforeMetrics: args.before as Prisma.InputJsonValue,

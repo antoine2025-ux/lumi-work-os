@@ -12,6 +12,7 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { handleApiError } from "@/lib/api-errors"
+import { logOrgAudit } from "@/lib/audit/org-audit"
 
 export async function DELETE(
   request: NextRequest,
@@ -107,6 +108,16 @@ export async function DELETE(
         },
       });
     });
+
+    // Step 6: Log audit entry (fire-and-forget)
+    logOrgAudit({
+      workspaceId,
+      entityType: "DEPARTMENT",
+      entityId: departmentId,
+      entityName: department.name,
+      action: "DELETED",
+      actorId: userId,
+    }).catch((e) => console.error("[DELETE /api/org/structure/departments/[departmentId]] Audit error:", e));
 
     console.log(`[DELETE /api/org/structure/departments/[departmentId]] Deleted department ${departmentId} by user ${userId}`);
 

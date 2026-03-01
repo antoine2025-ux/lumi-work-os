@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -14,6 +14,7 @@ import {
   Sparkles,
   ChevronRight,
   ChevronDown,
+  Folder,
   FolderOpen,
 } from "lucide-react"
 
@@ -48,7 +49,6 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
   const toggleSection = (id: string) =>
     setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }))
 
-  // Fetch wiki pages from API
   useEffect(() => {
     const fetchPages = async () => {
       try {
@@ -74,28 +74,30 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
     fetchPages()
   }, [workspaceId])
 
-  const createNavigationStructure = () => {
-    const homePage = {
-      id: "home",
-      title: "Knowledge Base",
-      type: "page" as const,
-      href: "/wiki",
-      isStarred: true
+  // Auto-expand the section that contains the currently active page
+  const rootSections = useMemo(
+    () => wikiPages.filter(p => !p.parentId),
+    [wikiPages],
+  )
+
+  useEffect(() => {
+    if (!currentPath || rootSections.length === 0) return
+    const currentSlug = currentPath.replace('/wiki/', '')
+
+    for (const section of rootSections) {
+      // Active page is a child of this section
+      const hasActiveChild = section.children?.some(c => c.slug === currentSlug)
+      // Active page IS this section
+      const isSectionActive = section.slug === currentSlug
+      if (hasActiveChild || isSectionActive) {
+        setExpandedSections(prev => {
+          if (prev[section.id]) return prev
+          return { ...prev, [section.id]: true }
+        })
+        break
+      }
     }
-
-    // Show all pages individually for now (simpler approach)
-    const allPages = Array.isArray(wikiPages) ? wikiPages.map(page => ({
-      id: page.id,
-      title: page.title,
-      type: "page" as const,
-      href: `/wiki/${page.slug}`,
-      category: page.category,
-      updatedAt: page.updatedAt,
-      author: page.createdBy?.name || 'Unknown'
-    })) : []
-
-    return [homePage, ...allPages]
-  }
+  }, [currentPath, rootSections])
 
   const handleNewPage = () => {
     if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).triggerCreatePage) {
@@ -125,8 +127,6 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
 
   // Get unique categories
   const categories = Array.from(new Set(wikiPages.map(page => page.category)))
-
-  const _navigationItems = createNavigationStructure()
 
   return (
     <div className="w-80 bg-card border-r border-border h-full flex flex-col">
@@ -235,38 +235,48 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
                   </Link>
                 ))
               ) : (
-                <>
-                  {wikiPages
-                    .filter(p => !p.parentId && p._count?.children > 0)
-                    .map(section => {
-                      const isExpanded = !!expandedSections[section.id]
-                      return (
-                        <div key={section.id}>
-                          <div className={cn(
-                            "flex items-center gap-1 px-3 py-2 rounded-lg text-sm transition-colors",
-                            currentPath === `/wiki/${section.slug}`
-                              ? "bg-primary/20 text-primary"
-                              : "text-foreground hover:bg-muted"
-                          )}>
-                            <button
-                              onClick={() => toggleSection(section.id)}
-                              className="flex-shrink-0"
-                              aria-label={isExpanded ? "Collapse section" : "Expand section"}
-                            >
-                              {isExpanded
-                                ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                                : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                              }
-                            </button>
-                            <FolderOpen className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-                            <Link
-                              href={`/wiki/${section.slug}`}
-                              className="flex-1 font-medium truncate"
-                            >
-                              {section.title}
-                            </Link>
-                          </div>
-                          {isExpanded && section.children.map(child => (
+                rootSections.map(section => {
+                  const isExpanded = !!expandedSections[section.id]
+                  const childCount = section._count?.children ?? 0
+                  const FolderIcon = isExpanded ? FolderOpen : Folder
+                  return (
+                    <div key={section.id}>
+                      <div className={cn(
+                        "flex items-center gap-1 px-3 py-2 rounded-lg text-sm transition-colors",
+                        currentPath === `/wiki/${section.slug}`
+                          ? "bg-primary/20 text-primary"
+                          : "text-foreground hover:bg-muted"
+                      )}>
+                        <button
+                          onClick={() => toggleSection(section.id)}
+                          className="flex-shrink-0"
+                          aria-label={isExpanded ? "Collapse section" : "Expand section"}
+                        >
+                          {isExpanded
+                            ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                            : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                          }
+                        </button>
+                        <FolderIcon className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                        <Link
+                          href={`/wiki/${section.slug}`}
+                          className="flex-1 font-medium truncate"
+                        >
+                          {section.title}
+                        </Link>
+                        {childCount > 0 && (
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {childCount}
+                          </span>
+                        )}
+                      </div>
+                      {isExpanded && (
+                        childCount === 0 ? (
+                          <p className="pl-8 pr-3 py-1.5 text-xs text-muted-foreground italic">
+                            Empty section
+                          </p>
+                        ) : (
+                          section.children.map(child => (
                             <Link
                               key={child.id}
                               href={`/wiki/${child.slug}`}
@@ -280,39 +290,12 @@ export function WikiNavigation({ currentPath, workspaceId }: WikiNavigationProps
                               <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                               <span className="truncate">{child.title}</span>
                             </Link>
-                          ))}
-                        </div>
-                      )
-                    })
-                  }
-                  {wikiPages
-                    .filter(p => !p.parentId && !p._count?.children)
-                    .map(page => (
-                      <Link
-                        key={page.id}
-                        href={`/wiki/${page.slug}`}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group",
-                          currentPath === `/wiki/${page.slug}`
-                            ? "bg-primary/20 text-primary"
-                            : "text-foreground hover:bg-muted"
-                        )}
-                      >
-                        <div className="w-6 h-6 bg-muted rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                          <FileText className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{page.title}</div>
-                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                            <span className="capitalize">{page.category}</span>
-                            <span>•</span>
-                            <span>{formatDate(page.updatedAt)}</span>
-                          </div>
-                        </div>
-                      </Link>
-                    ))
-                  }
-                </>
+                          ))
+                        )
+                      )}
+                    </div>
+                  )
+                })
               )}
             </div>
 

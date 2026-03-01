@@ -1,5 +1,5 @@
 export type LoopBrainContext = {
-  orgId: string;
+  workspaceId: string;
   scope: string;
 };
 

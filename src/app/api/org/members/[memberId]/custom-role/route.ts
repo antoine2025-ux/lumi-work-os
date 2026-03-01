@@ -34,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const workspaceId = auth.workspaceId;
 
     // Load membership and ensure it belongs to this org
-    // ADAPT: Using WorkspaceMember model (workspaceId = orgId)
+    // Using WorkspaceMember model
     const membership = await prisma.workspaceMember.findUnique({
       where: { id: memberId },
       include: {

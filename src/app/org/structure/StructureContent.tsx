@@ -18,7 +18,7 @@ type StructureContentProps = {
 async function StructureDataLoader({ context }: StructureContentProps) {
   const startTime = process.env.NODE_ENV !== "production" ? Date.now() : 0;
   
-  const structure = await getOrgStructureLists(context.orgId, context.userId).catch((error) => {
+  const structure = await getOrgStructureLists(context.workspaceId, context.userId).catch((error) => {
     console.error("[StructurePage] Failed to load structure:", error);
     return { teams: [], departments: [], roles: [] };
   });
@@ -27,7 +27,7 @@ async function StructureDataLoader({ context }: StructureContentProps) {
   let topDepartmentsInsights: Array<{ name: string; headcount: number }> | null = null;
   if (hasOrgCapability(context.role, "org:insights:view")) {
     try {
-      const snapshot = await getOrgInsightsSnapshot(context.orgId, context, {
+      const snapshot = await getOrgInsightsSnapshot(context.workspaceId, context, {
         period: "month",
         periods: 3,
       });
@@ -59,7 +59,7 @@ async function StructureDataLoader({ context }: StructureContentProps) {
 
   return (
     <StructurePageClient
-      orgId={context.orgId}
+      orgId={context.workspaceId}
       role={context.role}
       initialTeams={structure.teams}
       initialDepartments={structure.departments}

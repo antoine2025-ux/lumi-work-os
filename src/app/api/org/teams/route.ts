@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
-import { logOrgAudit } from "@/lib/orgAudit";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 import { OrgTeamCreateSchema } from "@/lib/validations/org";
 import { handleApiError } from "@/lib/api-errors";
 
@@ -128,20 +128,18 @@ export async function POST(req: NextRequest) {
     });
 
     // Audit log
-    await logOrgAudit(
-      {
-        workspaceId,
-        action: "TEAM_CREATED",
-        targetType: "TEAM",
-        targetId: team.id,
-        meta: {
-          name: team.name,
-          departmentId: team.departmentId,
-          description: team.description,
-        },
+    logOrgAudit({
+      workspaceId,
+      entityType: "TEAM",
+      entityId: team.id,
+      entityName: team.name,
+      action: "CREATED",
+      actorId: auth.user.userId,
+      metadata: {
+        departmentId: team.departmentId,
+        description: team.description,
       },
-      req
-    );
+    }).catch((e) => console.error("[POST /api/org/teams] Audit log error (non-fatal):", e));
 
     return NextResponse.json({
       ok: true,

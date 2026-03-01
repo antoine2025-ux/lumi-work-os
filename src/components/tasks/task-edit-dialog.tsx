@@ -1,7 +1,6 @@
 "use client"
 
-// TODO: TaskEditDialog is deprecated in favor of TaskSidebar.
-// Remove after all usages are migrated.
+// TODO [P1]: TaskEditDialog is deprecated — migrate callers to TaskSidebar, then delete this file.
 
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"

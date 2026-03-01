@@ -674,7 +674,7 @@ export default function ProjectDetailPage() {
               else if (view === 'calendar') setCurrentView('calendar')
               else if (view === 'tasks') setCurrentView('list')
               else if (view === 'table') setCurrentView('list')
-              // TODO: Handle epics, timeline, files views
+
             }}
             onEdit={() => {
               setIsEditDialogOpen(true)

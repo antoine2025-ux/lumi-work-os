@@ -28,8 +28,9 @@ export type { MeetingPrepBrief }
  * - onboarding_briefing: Generates a personalized briefing for new workspace members
  * - daily_briefing: Generates a personalized daily briefing with tasks, changes, meetings
  * - meeting_prep: Generates a context package for an upcoming meeting
+ * - email_search: On-demand Gmail search for email-related queries
  */
-export type LoopbrainMode = 'spaces' | 'org' | 'dashboard' | 'goals' | 'onboarding_briefing' | 'daily_briefing' | 'meeting_prep'
+export type LoopbrainMode = 'spaces' | 'org' | 'dashboard' | 'goals' | 'onboarding_briefing' | 'daily_briefing' | 'meeting_prep' | 'email_search' | 'slack_search'
 
 /**
  * Loopbrain request parameters

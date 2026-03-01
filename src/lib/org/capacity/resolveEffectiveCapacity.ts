@@ -107,7 +107,7 @@ export function computeEffectiveCapacity(
   const confidenceExplanation: string[] = [];
   let completenessScore = 1.0;
   let consistencyScore = 1.0;
-  const freshnessScore = 1.0; // TODO: Implement staleness check
+  const freshnessScore = 1.0; // TODO [P1]: Implement staleness check based on contract effectiveFrom/lastUpdated
 
   // Step 1: Resolve capacity contract
   const contractResolution = resolveContractForWindow(input.capacityContracts, timeWindow);

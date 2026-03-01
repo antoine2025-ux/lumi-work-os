@@ -51,7 +51,7 @@ export default async function WorkspaceOrgPage({ params }: PageProps) {
   const isTeamLead = !!(await prisma.orgTeam.findFirst({
     where: {
       leaderId: context.userId,
-      workspaceId: context.orgId,
+      workspaceId: context.workspaceId,
     },
   }));
 

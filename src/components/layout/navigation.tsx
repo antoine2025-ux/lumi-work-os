@@ -158,7 +158,7 @@ export function Navigation() {
       ),
       ...featureNavigationItems.filter(item => {
         if (!userRole || !item.roles.includes(userRole)) return false
-        // TODO: Check feature flags when implemented
+        // TODO [BACKLOG]: Check FeatureFlag model when feature flag system is implemented
         return true
       }),
       ...adminNavigationItems.filter(item => 

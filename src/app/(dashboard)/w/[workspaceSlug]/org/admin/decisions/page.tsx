@@ -27,7 +27,7 @@ export default async function AdminDecisionsPage({ params }: PageProps) {
   try {
     await assertAccess({
       userId: context.userId,
-      workspaceId: context.orgId,
+      workspaceId: context.workspaceId,
       scope: "workspace",
       requireRole: ["OWNER", "ADMIN"],
     });

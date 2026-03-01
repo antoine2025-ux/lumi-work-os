@@ -7,13 +7,13 @@ type UnownedEntity = {
   entityLabel: string
 }
 
-export async function findUnownedEntities(orgId: string): Promise<UnownedEntity[]> {
+export async function findUnownedEntities(workspaceId: string): Promise<UnownedEntity[]> {
   // Fetch owner assignments with error handling.
-  // OwnerAssignment uses workspaceId (orgId param is the workspace identifier).
+  // OwnerAssignment uses workspaceId.
   let assignments: Array<{ entityType: string; entityId: string }> = []
   try {
     assignments = await prisma.ownerAssignment.findMany({
-      where: { workspaceId: orgId, isPrimary: true },
+      where: { workspaceId, isPrimary: true },
       select: { entityType: true, entityId: true },
       take: 50000,
     })
@@ -38,19 +38,19 @@ export async function findUnownedEntities(orgId: string): Promise<UnownedEntity[
 
   const [teams, domains, systems] = await Promise.all([
     prisma.orgTeam.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { id: true, name: true },
       take: 5000,
     }).catch(() => []),
 
     prisma.domain.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { id: true, name: true },
       take: 5000,
     }).catch(() => []),
 
     prisma.systemEntity.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { id: true, name: true },
       take: 5000,
     }).catch(() => []),

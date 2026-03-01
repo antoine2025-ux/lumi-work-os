@@ -98,11 +98,11 @@ function deriveMetrics(people: OrgPerson[]): PeopleMetrics {
 
   // Departments with no leader (if we had leader data)
   const departmentsWithNoLeader: string[] = [];
-  // TODO: Implement when leader data is available
+  // TODO [BACKLOG]: Derive from OrgDepartment owner or OrgPosition hierarchy
 
   // Teams with zero members
   const teamsWithZeroMembers: string[] = [];
-  // TODO: Implement when we can cross-reference with all teams
+  // TODO [BACKLOG]: Cross-reference OrgTeam list with people team assignments
 
   // People missing data
   const peopleMissingData = {
@@ -113,7 +113,7 @@ function deriveMetrics(people: OrgPerson[]): PeopleMetrics {
 
   // Managers with large span of control (> 10 direct reports)
   const managersWithLargeSpan: Array<{ managerId: string; managerName: string; count: number }> = [];
-  // TODO: Implement when managerId/directReports data is available
+  // TODO [BACKLOG]: Compute span of control using person.managerId (data now available)
 
   return {
     total,
@@ -150,7 +150,7 @@ export function PeopleInsightsPanel({
         onFiltersChange({ quickChip: "leaders", leadersOnly: true });
         break;
       case "new-joiners":
-        // TODO: When new joiners filter is available
+        // TODO [BACKLOG]: Filter by joinedAt to show new joiners
         break;
       case "largest-departments":
         // Sort by department headcount (would need custom sort)

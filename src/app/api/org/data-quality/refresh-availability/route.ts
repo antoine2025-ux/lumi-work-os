@@ -27,13 +27,13 @@ export async function POST(req: NextRequest) {
     const status = (body.status ?? "AVAILABLE").toUpperCase() as any
     const reason = body.reason ? String(body.reason) : null
 
-    // Upsert availability for selected people (requires @@unique([orgId, personId]) from Step 24)
+    // Upsert availability for selected people
     await prisma.$transaction(
       ids.map((personId) =>
         prisma.personAvailability.upsert({
-          where: { orgId_personId: { orgId: workspaceId, personId } } as any,
+          where: { orgId_personId: { orgId: workspaceId, personId } } as any, // orgId is a Prisma field
           update: { status, reason } as any,
-          create: { orgId: workspaceId, personId, status, reason } as any,
+          create: { orgId: workspaceId, personId, status, reason } as any, // orgId is a Prisma field
         })
       ) as any
     )

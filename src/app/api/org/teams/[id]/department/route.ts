@@ -4,6 +4,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 
 type RouteParams = {
   params: Promise<{
@@ -223,17 +225,23 @@ export async function PATCH(
       },
     });
 
-    // Log audit event (only critical fields: departmentId)
-    const { logOrgMutation } = await import("@/server/org/audit/write");
-    await logOrgMutation({
-      workspaceId,
-      actorUserId: userId,
-      action: "TEAM_MOVED",
-      entityType: "TEAM",
-      entityId: updatedTeam.id,
-      before: { departmentId: previousDepartmentId },
-      after: { departmentId: updatedTeam.departmentId },
-    });
+    // Log audit event (fire-and-forget)
+    const changes = computeChanges(
+      { departmentId: previousDepartmentId },
+      { departmentId: updatedTeam.departmentId },
+      ["departmentId"]
+    );
+    if (changes) {
+      logOrgAudit({
+        workspaceId,
+        entityType: "TEAM",
+        entityId: updatedTeam.id,
+        entityName: updatedTeam.name,
+        action: "UPDATED",
+        actorId: userId,
+        changes,
+      }).catch((e) => console.error("[PATCH /api/org/teams/[id]/department] Audit error:", e));
+    }
 
     return NextResponse.json({
       ok: true,

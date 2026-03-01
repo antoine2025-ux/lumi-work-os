@@ -11,6 +11,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 
 export async function GET(
   request: NextRequest,
@@ -184,6 +186,24 @@ export async function PUT(
       },
     });
 
+    // Step 7: Log audit entry (fire-and-forget)
+    const changes = computeChanges(
+      existing,
+      updated,
+      ["weeklyCapacityHours", "effectiveFrom", "effectiveTo"]
+    );
+    if (changes) {
+      logOrgAudit({
+        workspaceId,
+        entityType: "CAPACITY_CONTRACT",
+        entityId: updated.id,
+        entityName: `Contract for ${updated.personId}`,
+        action: "UPDATED",
+        actorId: userId,
+        changes,
+      }).catch((e) => console.error("[PUT /api/org/capacity/contract/[contractId]] Audit error:", e));
+    }
+
     return NextResponse.json({
       ok: true,
       contract: {
@@ -230,7 +250,13 @@ export async function DELETE(
     // Step 3: Set workspace context
     setWorkspaceContext(workspaceId);
 
-    // Step 4: Delete contract
+    // Step 4: Fetch contract for audit logging
+    const existing = await prisma.capacityContract.findFirst({
+      where: { id: contractId, workspaceId },
+      select: { id: true, personId: true },
+    });
+
+    // Step 5: Delete contract
     const deleted = await prisma.capacityContract.deleteMany({
       where: {
         id: contractId,
@@ -240,6 +266,18 @@ export async function DELETE(
 
     if (deleted.count === 0) {
       return NextResponse.json({ error: "Contract not found" }, { status: 404 });
+    }
+
+    // Step 6: Log audit entry (fire-and-forget)
+    if (existing) {
+      logOrgAudit({
+        workspaceId,
+        entityType: "CAPACITY_CONTRACT",
+        entityId: contractId,
+        entityName: `Contract for ${existing.personId}`,
+        action: "DELETED",
+        actorId: userId,
+      }).catch((e) => console.error("[DELETE /api/org/capacity/contract/[contractId]] Audit error:", e));
     }
 
     return NextResponse.json({ ok: true });

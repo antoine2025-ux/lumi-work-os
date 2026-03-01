@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { requireActiveOrgId } from "@/server/org/context"
+import { requireActiveWorkspaceId } from "@/server/org/context"
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { logOrgAudit } from '@/lib/audit/org-audit'
 
 type Body = {
   personId: string
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] })
     setWorkspaceContext(auth.workspaceId)
 
-    const workspaceId = await requireActiveOrgId(req)
+    const workspaceId = await requireActiveWorkspaceId(req)
     const body = (await req.json()) as Body
 
     if (!body?.personId || !body?.managerId) {
@@ -40,13 +41,23 @@ export async function POST(req: NextRequest) {
 
     if (!p1 || !p2) return NextResponse.json({ error: "Person not found" }, { status: 404 })
 
-    await prisma.personManagerLink.create({
+    const created = await prisma.personManagerLink.create({
       data: {
         workspaceId,
         personId: body.personId,
         managerId: body.managerId,
       },
     })
+
+    // Log audit entry (fire-and-forget)
+    logOrgAudit({
+      workspaceId,
+      entityType: "MANAGER_LINK",
+      entityId: created.id,
+      entityName: `${body.personId} → ${body.managerId}`,
+      action: "CREATED",
+      actorId: auth.user.userId,
+    }).catch((e) => console.error("[POST /api/org/management/link] Audit error:", e))
 
     // Resolve specific "People missing manager links" signal (precise)
     await prisma.orgHealthSignal.updateMany({

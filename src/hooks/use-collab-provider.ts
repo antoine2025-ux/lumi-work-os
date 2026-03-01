@@ -53,6 +53,8 @@ export function useCollabProvider(
         name: userName ?? 'Anonymous',
         color: getUserColor(userId ?? 'anonymous'),
       })
+      // Initialize presence state to 'viewing'
+      p.awareness.setLocalStateField('status', 'viewing')
     }
 
     const handleSynced = () => {

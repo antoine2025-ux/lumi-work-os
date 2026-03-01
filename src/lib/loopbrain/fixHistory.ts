@@ -17,7 +17,7 @@ export type PersonStateFields = {
 };
 
 export type FixEventInput = {
-  orgId: string;
+  workspaceId: string;
   personId?: string;
   fixType: string; // e.g. "ASSIGN_MANAGER", "ASSIGN_TEAM", "ASSIGN_ROLE"
   beforeState: PersonStateFields;

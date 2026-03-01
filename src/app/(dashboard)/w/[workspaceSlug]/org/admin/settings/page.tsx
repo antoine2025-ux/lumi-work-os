@@ -51,7 +51,7 @@ export default async function AdminSettingsPage({ params }: PageProps) {
   const [membersData, invitationsData, customRolesData] = await Promise.allSettled([
     canSeeMembers
       ? prisma.workspaceMember.findMany({
-          where: { workspaceId: context.orgId },
+          where: { workspaceId: context.workspaceId },
           include: {
             user: {
               select: { id: true, name: true, email: true },
@@ -63,12 +63,12 @@ export default async function AdminSettingsPage({ params }: PageProps) {
         }).catch(() => [])
       : Promise.resolve([]),
     canManageInvites
-      ? getOrgInvitationsForWorkspace(context.orgId).catch(() => [])
+      ? getOrgInvitationsForWorkspace(context.workspaceId).catch(() => [])
       : Promise.resolve([]),
     (async () => {
       try {
         return await prisma.orgCustomRole.findMany({
-          where: { workspaceId: context.orgId },
+          where: { workspaceId: context.workspaceId },
           select: { id: true, name: true },
         });
       } catch {
@@ -94,7 +94,7 @@ export default async function AdminSettingsPage({ params }: PageProps) {
       />
       <div className="px-10 pb-10">
         <OrgSettingsClient
-          orgId={context.orgId}
+          orgId={context.workspaceId}
           role={context.role}
           canSeeMembers={canSeeMembers}
           canManageInvites={canManageInvites}

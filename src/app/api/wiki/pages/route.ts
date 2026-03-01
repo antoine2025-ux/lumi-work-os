@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const pagination = parsePaginationParams(searchParams)
-    // TODO Sprint 4+: add ?spaceId= filter once pages are migrated to space-based nav
+    // TODO [BACKLOG]: Add ?spaceId= filter once pages are migrated to space-based nav
     
     // OPTIMIZED: Check cache first (non-blocking with timeout)
     // SECURITY: Cache key includes userId because personal page visibility is per-user

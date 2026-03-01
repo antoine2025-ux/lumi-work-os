@@ -22,13 +22,12 @@ export type RunPeopleIssuesResult =
  * For cron, check rollout in the API route and only call when enabled.
  */
 export async function runPeopleIssuesSuggestionsForOrg(args: {
-  orgId: string;
   workspaceId: string;
 }): Promise<RunPeopleIssuesResult> {
-  const { orgId, workspaceId } = args;
+  const { workspaceId } = args;
 
   const rollout = await prisma.orgLoopBrainRollout.findUnique({
-    where: { workspaceId_scope: { workspaceId: orgId, scope: "people_issues" } },
+    where: { workspaceId_scope: { workspaceId, scope: "people_issues" } },
   });
 
   if (!rollout || !rollout.enabled) {
@@ -70,9 +69,9 @@ export async function runPeopleIssuesSuggestionsForOrg(args: {
     managerName: pos.parent?.user?.name ?? null,
   }));
 
-  const { engine, engineId } = await selectEngineForOrg({ orgId, scope: "people_issues" });
+  const { engine, engineId } = await selectEngineForOrg({ workspaceId, scope: "people_issues" });
   const suggestions = await engine.run({
-    context: { orgId, scope: "people_issues" },
+    context: { workspaceId, scope: "people_issues" },
     people,
     allPeople: people,
   });
@@ -103,11 +102,11 @@ export async function runPeopleIssuesSuggestionsForOrg(args: {
     };
   });
 
-  const inputHash = crypto.createHash("sha256").update(JSON.stringify({ orgId, workspaceId, count: people.length })).digest("hex");
+  const inputHash = crypto.createHash("sha256").update(JSON.stringify({ workspaceId, count: people.length })).digest("hex");
 
   const run = await prisma.orgSuggestionRun.create({
     data: {
-      workspaceId: orgId,
+      workspaceId, // Prisma field orgId will be migrated separately
       scope: "people_issues",
       inputHash,
       output: preview as unknown as object,

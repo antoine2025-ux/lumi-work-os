@@ -503,10 +503,10 @@ export function isMeetingOverloaded(
 }
 
 // =============================================================================
-// TODO: Validation
+// TODO [BACKLOG]: Validation
 // =============================================================================
 
-// TODO: Add JSON Schema validation similar to validateAnswerEnvelope.ts
+// TODO [BACKLOG]: Add JSON Schema validation similar to validateAnswerEnvelope.ts
 // - Validate schemaVersion is "v0"
 // - Validate timezone is valid IANA timezone
 // - Validate dayOfWeek is 0–6

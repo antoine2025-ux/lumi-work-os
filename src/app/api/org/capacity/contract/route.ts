@@ -24,6 +24,7 @@ import {
   type MutationResult,
 } from "@/lib/org/mutations/types";
 import { computeIssueResolution } from "@/lib/org/mutations/utils";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 6: Compute issues BEFORE mutation (scoped to person)
-    // TODO: Enhance to derive actual capacity issues for the person
+    // TODO [BACKLOG]: Derive actual capacity issues for this person
     const issuesBefore: OrgIssueMetadata[] = [];
 
     // Step 7: Create the contract
@@ -167,7 +168,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Step 8: Compute issues AFTER mutation (same scoped set)
-    // TODO: Enhance to derive actual capacity issues for the person
+    // TODO [BACKLOG]: Derive actual capacity issues for this person
     const issuesAfter: OrgIssueMetadata[] = [];
 
     // Step 9: Build response metadata
@@ -180,7 +181,17 @@ export async function POST(request: NextRequest) {
       responseMeta.mutationId
     );
 
-    // Step 11: Compute updated effective capacity for the person
+    // Step 11: Log audit entry (fire-and-forget)
+    logOrgAudit({
+      workspaceId,
+      entityType: "CAPACITY_CONTRACT",
+      entityId: created.id,
+      entityName: `Contract for ${position.userId}`,
+      action: "CREATED",
+      actorId: userId,
+    }).catch((e) => console.error("[POST /api/org/capacity/contract] Audit error:", e));
+
+    // Step 12: Compute updated effective capacity for the person
     const window = {
       start: effectiveFrom,
       end: effectiveTo ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -191,7 +202,7 @@ export async function POST(request: NextRequest) {
       window
     );
 
-    // Step 12: Return canonical MutationResult
+    // Step 13: Return canonical MutationResult
     const contractData = {
       id: created.id,
       personId: created.personId,

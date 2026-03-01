@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
-import { requireActiveOrgId } from "@/server/org/context"
+import { requireActiveWorkspaceId } from "@/server/org/context"
 import { normalizeRole, normalizeSkill } from "@/server/org/taxonomy/normalize"
 import { assertWriteAllowed } from "@/server/org/writes/guard"
 import { getUnifiedAuth } from '@/lib/unified-auth'
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] })
     setWorkspaceContext(auth.workspaceId)
 
-    const orgId = await requireActiveOrgId()
+    const workspaceId = await requireActiveWorkspaceId()
     assertWriteAllowed("taxonomy.upsert")
     const body = (await req.json()) as Body
     const kind = String(body.kind ?? "").toUpperCase()
@@ -29,14 +29,14 @@ export async function POST(req: NextRequest) {
     if (!cleaned.length) return NextResponse.json({ ok: true })
 
     if (kind === "ROLE") {
-      await prisma.orgRoleTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId, label })) as any, skipDuplicates: true } as any)
+      await prisma.orgRoleTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId: workspaceId, label })) as any, skipDuplicates: true } as any)
       revalidateTag("org:taxonomy")
       revalidateTag("org:contracts")
       return NextResponse.json({ ok: true })
     }
 
     if (kind === "SKILL") {
-      await prisma.orgSkillTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId, label })) as any, skipDuplicates: true } as any)
+      await prisma.orgSkillTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId: workspaceId, label })) as any, skipDuplicates: true } as any)
       revalidateTag("org:taxonomy")
       revalidateTag("org:contracts")
       return NextResponse.json({ ok: true })

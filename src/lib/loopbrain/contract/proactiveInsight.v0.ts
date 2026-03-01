@@ -614,10 +614,10 @@ export function calculateBatchFreshness(
 }
 
 // =============================================================================
-// TODO: Validation
+// TODO [BACKLOG]: Validation
 // =============================================================================
 
-// TODO: Add JSON Schema validation similar to validateAnswerEnvelope.ts
+// TODO [BACKLOG]: Add JSON Schema validation similar to validateAnswerEnvelope.ts
 // - Validate schemaVersion is "v0"
 // - Validate all timestamps are ISO 8601 format
 // - Validate confidence is 0.0–1.0

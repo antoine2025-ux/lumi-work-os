@@ -41,7 +41,7 @@ export default async function MyProfilePage({ params }: PageProps) {
     }),
     prisma.orgPosition.findMany({
       where: {
-        workspaceId: context.orgId,
+        workspaceId: context.workspaceId,
         userId: context.userId,
         isActive: true,
         archivedAt: null,
@@ -56,25 +56,25 @@ export default async function MyProfilePage({ params }: PageProps) {
     }),
     prisma.capacityContract.findFirst({
       where: {
-        workspaceId: context.orgId,
+        workspaceId: context.workspaceId,
         personId: context.userId,
       },
       orderBy: { effectiveFrom: "desc" },
     }),
     prisma.workspaceOnboardingState.findUnique({
-      where: { workspaceId: context.orgId },
+      where: { workspaceId: context.workspaceId },
     }),
-      getUserWorkload(context.userId, context.orgId),
-      getUserTimeOff(context.userId, context.orgId),
+      getUserWorkload(context.userId, context.workspaceId),
+      getUserTimeOff(context.userId, context.workspaceId),
     prisma.workspaceMember.findFirst({
-      where: { userId: context.userId, workspaceId: context.orgId },
+      where: { userId: context.userId, workspaceId: context.workspaceId },
       select: { role: true },
     }),
     prisma.personManagerLink.findMany({
-      where: { managerId: context.userId, workspaceId: context.orgId },
+      where: { managerId: context.userId, workspaceId: context.workspaceId },
     }),
     prisma.orgTeam.findMany({
-      where: { leaderId: context.userId, workspaceId: context.orgId },
+      where: { leaderId: context.userId, workspaceId: context.workspaceId },
       include: {
         positions: {
           where: { isActive: true, archivedAt: null },
@@ -113,7 +113,7 @@ export default async function MyProfilePage({ params }: PageProps) {
   const pendingLeaveRequests = showPendingApprovals
     ? await prisma.leaveRequest.findMany({
         where: {
-          workspaceId: context.orgId,
+          workspaceId: context.workspaceId,
           ...(approvablePersonIds ? { personId: { in: approvablePersonIds } } : {}),
           status: "PENDING",
         },
@@ -138,13 +138,13 @@ export default async function MyProfilePage({ params }: PageProps) {
 
   const [wikiPages, wikiPageCount] = await Promise.all([
     prisma.wikiPage.findMany({
-      where: { workspaceId: context.orgId, createdById: context.userId },
+      where: { workspaceId: context.workspaceId, createdById: context.userId },
       orderBy: { updatedAt: "desc" },
       take: 5,
       select: { id: true, title: true, slug: true, updatedAt: true, view_count: true },
     }),
     prisma.wikiPage.count({
-      where: { workspaceId: context.orgId, createdById: context.userId },
+      where: { workspaceId: context.workspaceId, createdById: context.userId },
     }),
   ]);
 
@@ -167,7 +167,7 @@ export default async function MyProfilePage({ params }: PageProps) {
           <EmploymentDetailsSection
             positionId={primaryPosition?.id}
             userId={context.userId}
-            workspaceId={context.orgId}
+            workspaceId={context.workspaceId}
             startDate={primaryPosition?.startDate}
             employmentType={primaryPosition?.employmentType}
             location={primaryPosition?.location}

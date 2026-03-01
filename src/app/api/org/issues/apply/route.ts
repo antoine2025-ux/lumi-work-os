@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     // Capture baseline health snapshot before applying changes
     const beforeSnapshot = await prisma.orgHealthSnapshot.findFirst({
-      where: { orgId: workspaceId },
+      where: { orgId: workspaceId }, // orgId is a Prisma field
       orderBy: { createdAt: "desc" },
     });
 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
       await tx.auditLogEntry.create({
         data: {
-          orgId: workspaceId,
+          orgId: workspaceId, // orgId is a Prisma field
           actorUserId: auth.user.userId,
           actorLabel: auth.user.userId,
           action: "apply_issue_suggestions",
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       const afterSnapshot = await measureOrgHealth(workspaceId);
       await prisma.loopBrainOutcome.create({
         data: {
-          orgId: workspaceId,
+          orgId: workspaceId, // orgId is a Prisma field
           scope: "people_issues",
           suggestionRunId: body.suggestionRunId,
           beforeMetrics: beforeSnapshot?.metrics || {},

@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
             id: project.id,
             name: project.name,
             description: project.description,
-            orgId: project.orgId || project.workspaceId,
+            workspaceId: project.orgId || project.workspaceId,
             accountability: null,
           };
         }
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
           id: project.id,
           name: project.name,
           description: project.description,
-          orgId: project.orgId || project.workspaceId,
+          workspaceId: project.orgId || project.workspaceId,
           accountability: {
             ownerPersonId,
             ownerPerson,

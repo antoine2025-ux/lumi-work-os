@@ -21,6 +21,8 @@ import {
 } from "@/lib/org/mutations/types";
 import { computeIssueResolution } from "@/lib/org/mutations/utils";
 import { handleApiError } from "@/lib/api-errors"
+import { logOrgAudit } from "@/lib/audit/org-audit"
+import { computeChanges } from "@/lib/audit/diff"
 
 export async function PUT(request: NextRequest, ctx: { params: Promise<{ departmentId: string }> }) {
   try {
@@ -58,7 +60,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
     const body = await request.json();
     const ownerPersonId = optionalString(body.ownerPersonId);
 
-    // Step 5: Validate department exists in workspace
+    // Step 5: Validate department exists in workspace and fetch current owner
     const department = await prisma.orgDepartment.findFirst({
       where: { 
         id: departmentId,
@@ -78,6 +80,19 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
         { status: 404 }
       );
     }
+
+    // Fetch current owner assignment for audit logging
+    const currentOwner = await prisma.$queryRawUnsafe<Array<{ ownerPersonId: string }>>(
+      `SELECT "ownerPersonId" FROM owner_assignments
+       WHERE "workspaceId" = $1::text
+         AND "entityType"::text = $2::text
+         AND "entityId" = $3::text
+       LIMIT 1`,
+      workspaceId,
+      'DEPARTMENT',
+      departmentId
+    ).catch(() => []);
+    const beforeOwnerPersonId = currentOwner[0]?.ownerPersonId ?? null;
 
     // Step 6: Resolve ownerPersonId to userId if needed (can be positionId or userId)
     let userIdToAssign: string | null = ownerPersonId;
@@ -198,7 +213,25 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
     // Step 12: Get updated ownership coverage
     const ownershipData = await getOrgOwnership(workspaceId);
 
-    // Step 13: Emit Loopbrain context (non-blocking)
+    // Step 13: Log audit entry (fire-and-forget)
+    const changes = computeChanges(
+      { ownerPersonId: beforeOwnerPersonId },
+      { ownerPersonId: userIdToAssign },
+      ["ownerPersonId"]
+    );
+    if (changes) {
+      logOrgAudit({
+        workspaceId,
+        entityType: "DEPARTMENT",
+        entityId: departmentId,
+        entityName: department.name,
+        action: "UPDATED",
+        actorId: userId,
+        changes,
+      }).catch((e) => console.error("[PUT /api/org/structure/departments/[departmentId]/owner] Audit error:", e));
+    }
+
+    // Step 14: Emit Loopbrain context (non-blocking)
     try {
       await emitOrgContextObject({
         workspaceId,
@@ -211,7 +244,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
       console.warn("[PUT /api/org/structure/departments/[departmentId]/owner] Failed to emit context object (non-blocking):", contextError?.message);
     }
 
-    // Step 14: Return canonical MutationResult
+    // Step 15: Return canonical MutationResult
     const response: MutationResult<{ id: string; ownerPersonId: string | null }, OwnershipPatch> = {
       ok: true,
       data: { id: departmentId, ownerPersonId: userIdToAssign },

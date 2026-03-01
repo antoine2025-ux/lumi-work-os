@@ -97,7 +97,7 @@ export function inferRelationshipType(
   _personAId: string,
   _personBId: string
 ): RelationshipType {
-  // TODO: Implement org structure lookup
+  // TODO [P1]: Implement org structure lookup via OrgPosition.parentId
   // For now, default to COLLABORATOR
   return "COLLABORATOR";
 }

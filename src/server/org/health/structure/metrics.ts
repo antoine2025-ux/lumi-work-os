@@ -13,13 +13,13 @@ export type StructureMetric = {
   notes: string[]
 }
 
-export async function computeStructureMetrics(orgId: string): Promise<StructureMetric> {
+export async function computeStructureMetrics(workspaceId: string): Promise<StructureMetric> {
   const [peopleCount, teamCount] = await Promise.all([
     prisma.orgPosition.count({
-      where: { workspaceId: orgId, isActive: true, userId: { not: null } },
+      where: { workspaceId, isActive: true, userId: { not: null } },
     }).catch(() => null),
     prisma.orgTeam.count({
-      where: { workspaceId: orgId, isActive: true },
+      where: { workspaceId, isActive: true },
     }).catch(() => null),
   ])
 
@@ -36,7 +36,7 @@ export async function computeStructureMetrics(orgId: string): Promise<StructureM
       // Try OrgPosition with teamId (primary source)
       async () => {
         const positions = await prisma.orgPosition.findMany({
-          where: { workspaceId: orgId, isActive: true, teamId: { not: null } },
+          where: { workspaceId, isActive: true, teamId: { not: null } },
           select: { teamId: true },
           take: 200000,
         }).catch(() => [])
@@ -61,7 +61,7 @@ export async function computeStructureMetrics(orgId: string): Promise<StructureM
       }
 
       const teams = await prisma.orgTeam.findMany({
-        where: { workspaceId: orgId, isActive: true },
+        where: { workspaceId, isActive: true },
         select: { id: true },
         take: 50000,
       }).catch(() => [])

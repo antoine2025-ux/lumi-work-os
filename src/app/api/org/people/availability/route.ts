@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url)
     const take = Math.max(1, Math.min(50, Number(url.searchParams.get("take") ?? 20)))
 
-    // In this codebase, orgId is workspaceId, and people are Users with OrgPositions
+    // People are Users with OrgPositions
     const positions = await prisma.orgPosition.findMany({
       where: { workspaceId, isActive: true, userId: { not: null } } as any,
       select: { userId: true } as any,

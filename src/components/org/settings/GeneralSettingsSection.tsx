@@ -21,7 +21,7 @@ export function GeneralSettingsSection({ orgId, permissions }: GeneralSettingsSe
     );
   }
 
-  // TODO (L9+): embed the real org settings forms here using orgId.
+  // TODO [BACKLOG]: Embed the real org settings forms here using workspaceId (was orgId).
   return (
     <section className="space-y-4">
       <div className="rounded-2xl border border-[#111827] bg-[#020617] p-4 shadow-sm">
@@ -43,7 +43,7 @@ export function GeneralSettingsSection({ orgId, permissions }: GeneralSettingsSe
             <div className="text-[11px] font-medium text-slate-400">Organization name</div>
             <div className="mt-1 text-slate-100">Loopwell</div>
             <div className="mt-2 rounded-lg border border-dashed border-[#1f2937] px-3 py-2 text-[11px] text-slate-500">
-              TODO: embed existing org name update form / settings from L7/L8.
+              TODO [BACKLOG]: Embed existing org name update form / settings from L7/L8.
             </div>
           </div>
 

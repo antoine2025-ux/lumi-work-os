@@ -54,8 +54,8 @@ export async function POST(req: NextRequest) {
     const people = positions.map(toPersonShape);
     const allPeople = allPositions.map(toPersonShape);
 
-    const { engine, engineId } = await selectEngineForOrg({ orgId: workspaceId, scope: "people_issues" });
-    const suggestions = await engine.run({ context: { orgId: workspaceId, scope: "people_issues" }, people, allPeople });
+    const { engine, engineId } = await selectEngineForOrg({ workspaceId, scope: "people_issues" });
+    const suggestions = await engine.run({ context: { workspaceId, scope: "people_issues" }, people, allPeople });
 
     const preview = people.map((p) => {
       const s = suggestions.find((x) => x.personId === p.id);
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const inputHash = hash({ orgId: workspaceId, ids });
+    const inputHash = hash({ workspaceId, ids });
     const suggestionRun = await prisma.orgSuggestionRun.create({
       data: {
         workspaceId,

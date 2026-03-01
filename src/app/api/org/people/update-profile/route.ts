@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
-import { requireActiveOrgId } from "@/server/org/context"
+import { requireActiveWorkspaceId } from "@/server/org/context"
 import { normalizeRole, normalizeSkill } from "@/server/org/taxonomy/normalize"
 import { assertWriteAllowed } from "@/server/org/writes/guard"
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { logOrgAudit } from '@/lib/audit/org-audit'
+import { computeChanges } from '@/lib/audit/diff'
 
 type Body = {
   id: string
@@ -26,11 +28,36 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] })
     setWorkspaceContext(auth.workspaceId)
 
-    const workspaceId = await requireActiveOrgId()
+    const workspaceId = await requireActiveWorkspaceId()
     assertWriteAllowed("people.updateProfile")
     const body = (await req.json()) as Body
     const personId = String(body.id ?? "")
     if (!personId) return NextResponse.json({ error: "id required" }, { status: 400 })
+
+    // Fetch before state for audit diff
+    const position = await prisma.orgPosition.findUnique({
+      where: { id: personId },
+      select: { 
+        userId: true, 
+        title: true,
+        user: { select: { name: true } }
+      },
+    })
+    
+    if (!position) {
+      return NextResponse.json({ error: "Person not found" }, { status: 404 })
+    }
+
+    const beforeAvailability = await prisma.personAvailabilityHealth.findUnique({
+      where: { workspaceId_personId: { workspaceId, personId } } as any,
+      select: { status: true, reason: true }
+    }).catch(() => null)
+
+    const before = {
+      name: position.user?.name ?? null,
+      title: position.title ?? null,
+      availabilityStatus: beforeAvailability?.status ?? null,
+    }
 
     // Update OrgPosition (title) and User (name)
     const updates = []
@@ -44,19 +71,13 @@ export async function POST(req: NextRequest) {
       )
     }
     
-    if (body.name) {
-      const position = await prisma.orgPosition.findUnique({
-        where: { id: personId },
-        select: { userId: true },
-      })
-      if (position?.userId) {
-        updates.push(
-          prisma.user.update({
-            where: { id: position.userId },
-            data: { name: String(body.name) },
-          })
-        )
-      }
+    if (body.name && position.userId) {
+      updates.push(
+        prisma.user.update({
+          where: { id: position.userId },
+          data: { name: String(body.name) },
+        })
+      )
     }
     
     if (updates.length > 0) {
@@ -122,6 +143,36 @@ export async function POST(req: NextRequest) {
     revalidateTag("org:people")
     revalidateTag("org:setup")
     revalidateTag("org:contracts")
+
+    // Log audit entry with diff tracking
+    const after = {
+      name: body.name ?? before.name,
+      title: body.title !== undefined ? body.title : before.title,
+      availabilityStatus: body.availability?.status ?? before.availabilityStatus,
+    }
+    
+    const changes = computeChanges(before, after, ['name', 'title', 'availabilityStatus'])
+    const metadata: Record<string, unknown> = {}
+    
+    if (Array.isArray(body.skills)) {
+      metadata.skillsUpdated = true
+      metadata.skillCount = body.skills.length
+    }
+    if (Array.isArray(body.roles)) {
+      metadata.rolesUpdated = true
+      metadata.roleCount = body.roles.length
+    }
+
+    logOrgAudit({
+      workspaceId,
+      entityType: "PERSON",
+      entityId: personId,
+      entityName: after.name ?? undefined,
+      action: "UPDATED",
+      actorId: auth.user.userId,
+      changes: changes ?? undefined,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+    }).catch((e) => console.error("[POST /api/org/people/update-profile] Audit log error (non-fatal):", e))
 
     return NextResponse.json({ ok: true })
   } catch {

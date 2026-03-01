@@ -856,7 +856,7 @@ export default function ProjectDetailPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            // TODO: Implement load all tasks functionality
+                            // TODO [BACKLOG]: Implement load all tasks with pagination
                           }}
                         >
                           Load All Tasks

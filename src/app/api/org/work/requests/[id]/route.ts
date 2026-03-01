@@ -281,7 +281,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       : getDefaultIssueWindow();
 
     // Step 7: Compute issues BEFORE mutation (scoped to work request)
-    // TODO: Enhance to derive actual work request issues
+    // TODO [BACKLOG]: Derive actual work request issues
     const issuesBefore: OrgIssueMetadata[] = [];
 
     // Step 8: Update work request
@@ -300,7 +300,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     ]);
 
     // Step 10: Compute issues AFTER mutation (same scoped set)
-    // TODO: Enhance to derive actual work request issues
+    // TODO [BACKLOG]: Derive actual work request issues
     const issuesAfter: OrgIssueMetadata[] = [];
 
     // Step 11: Build response metadata

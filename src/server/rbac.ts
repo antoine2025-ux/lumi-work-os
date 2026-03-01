@@ -5,11 +5,11 @@ import { NextRequest } from "next/server";
 
 export async function getOrgContext(request?: NextRequest) {
   const user = await getSessionUser();
-  if (!user) return { user: null, orgId: null, orgName: null, role: "VIEWER" as const, canEdit: false, canAdmin: false };
+  if (!user) return { user: null, workspaceId: null, orgName: null, role: "VIEWER" as const, canEdit: false, canAdmin: false };
 
   // Pass the request to getActiveOrgContext so it can fall back to workspace-based orgs
   const ctx = await getActiveOrgContext(request);
-  const orgId = ctx.orgId;
+  const workspaceId = ctx.orgId;
   const orgName = ctx.orgName;
   const role = (ctx.role ?? "VIEWER") as string;
 
@@ -17,12 +17,11 @@ export async function getOrgContext(request?: NextRequest) {
   const canAdmin = role === "ADMIN";
 
   // Set workspace context for Prisma scoping middleware
-  // orgId is the workspaceId in workspace-based org resolution
-  if (orgId) {
-    setWorkspaceContext(orgId);
+  if (workspaceId) {
+    setWorkspaceContext(workspaceId);
   }
 
-  return { user, orgId, orgName, role, canEdit, canAdmin };
+  return { user, workspaceId, orgName, role, canEdit, canAdmin };
 }
 
 export function requireEdit(canEdit: boolean) {

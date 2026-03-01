@@ -25,7 +25,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ v
       return NextResponse.json({ ok: false, error: "Failed to get organization context" }, { status: 500 });
     }
 
-    if (!ctx.orgId) {
+    if (!ctx.workspaceId) {
       return NextResponse.json({ ok: false, error: "No organization membership" }, { status: 403 });
     }
     if (!ctx.canEdit) {

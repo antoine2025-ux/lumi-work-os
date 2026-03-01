@@ -66,10 +66,10 @@ export async function getDepartmentsWithTeams() {
   
   // Get workspace context for batch resolvers
   const context = await getOrgPermissionContext();
-  if (!context?.orgId) {
+  if (!context?.workspaceId) {
     return [];
   }
-  const workspaceId = context.orgId;
+  const workspaceId = context.workspaceId;
   
   const departments = await prisma.orgDepartment.findMany({
     where: { isActive: true },
@@ -161,10 +161,10 @@ export async function getUnassignedTeams() {
   
   // Get workspace context (same pattern as getDepartmentsWithTeams)
   const context = await getOrgPermissionContext();
-  if (!context?.orgId) {
+  if (!context?.workspaceId) {
     return [];
   }
-  const workspaceId = context.orgId;
+  const workspaceId = context.workspaceId;
   
   // Find teams with null departmentId (unassigned teams)
   // Note: This requires departmentId to be nullable in the schema
@@ -426,7 +426,7 @@ export async function getPeopleForOrgPicker(): Promise<PersonForPicker[]> {
     return [];
   }
 
-  const workspaceId = context.orgId;
+  const workspaceId = context.workspaceId;
 
   if (!prisma) {
     return [];
@@ -497,7 +497,7 @@ export async function getDepartmentsForPicker(): Promise<DepartmentForPicker[]> 
       return [];
     }
 
-    const workspaceId = context.orgId;
+    const workspaceId = context.workspaceId;
 
     if (!prisma) {
       console.warn("[getDepartmentsForPicker] Prisma client not available");

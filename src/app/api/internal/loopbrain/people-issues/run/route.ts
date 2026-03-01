@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
 
   const results: Array<{
     workspaceId: string;
-    orgId: string;
     ok: boolean;
     skipped?: boolean;
     reason?: string;
@@ -65,12 +64,11 @@ export async function POST(request: NextRequest) {
   }> = [];
 
   for (const workspaceId of unique) {
-    const result = await runPeopleIssuesSuggestionsForOrg({ orgId: workspaceId, workspaceId });
+    const result = await runPeopleIssuesSuggestionsForOrg({ workspaceId });
 
     if (result.ok) {
       results.push({
         workspaceId,
-        orgId: workspaceId,
         ok: true,
         suggestionRunId: result.suggestionRunId,
         suggestionCount: result.suggestionCount,
@@ -79,7 +77,6 @@ export async function POST(request: NextRequest) {
     } else if (!result.ok && 'skipped' in result) {
       results.push({
         workspaceId,
-        orgId: workspaceId,
         ok: false,
         skipped: true,
         reason: result.reason,
@@ -87,7 +84,6 @@ export async function POST(request: NextRequest) {
     } else if (!result.ok) {
       results.push({
         workspaceId,
-        orgId: workspaceId,
         ok: false,
         error: result.error,
       });

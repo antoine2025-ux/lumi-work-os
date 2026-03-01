@@ -1311,7 +1311,7 @@ export function deriveCapacityIssues(
         totalAllocatedHours: capacity.allocatedHours,
         contractWeeklyHours: capacity.contractedHours,
         thresholdPercent: thresholds.overallocationThreshold,
-        allocations: [], // TODO: Populate from allocation data if available
+        allocations: [], // TODO [BACKLOG]: Populate from WorkAllocation data
       };
 
       issues.push({
@@ -1385,7 +1385,7 @@ export function deriveCapacityIssues(
           ownerPersonId: ownership.ownerPersonId,
           windowStart,
           windowEnd,
-          limitingEvent: null, // TODO: Populate from availability data
+          limitingEvent: null, // TODO [BACKLOG]: Populate from PersonAvailability data
         };
 
         issues.push({

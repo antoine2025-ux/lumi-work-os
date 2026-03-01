@@ -6,6 +6,8 @@ import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 import { getProfilePermissions } from "@/lib/org/permissions/profile-permissions";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 
 const schema = z.object({
   startDate: z.string().nullable().optional(),
@@ -43,6 +45,15 @@ export async function PUT(
         id,
         workspaceId,
       },
+      select: {
+        id: true,
+        userId: true,
+        startDate: true,
+        employmentType: true,
+        location: true,
+        timezone: true,
+        title: true,
+      },
     });
 
     if (!position) {
@@ -51,6 +62,13 @@ export async function PUT(
         { status: 404 },
       );
     }
+
+    const before = {
+      startDate: position.startDate?.toISOString() ?? null,
+      employmentType: position.employmentType,
+      location: position.location,
+      timezone: position.timezone,
+    };
 
     if (!position.userId) {
       return NextResponse.json(
@@ -113,6 +131,26 @@ export async function PUT(
       where: { id },
       data: updates,
     });
+
+    // Compute changes and log audit
+    const after = {
+      startDate: updated.startDate?.toISOString() ?? null,
+      employmentType: updated.employmentType,
+      location: updated.location,
+      timezone: updated.timezone,
+    };
+    
+    const changes = computeChanges(before, after, ['startDate', 'employmentType', 'location', 'timezone']);
+    
+    logOrgAudit({
+      workspaceId,
+      entityType: "POSITION",
+      entityId: updated.id,
+      entityName: position.title ?? undefined,
+      action: "UPDATED",
+      actorId: auth.user.userId,
+      changes: changes ?? undefined,
+    }).catch((e) => console.error("[PUT /api/org/positions/[id]/employment] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ position: updated });
   } catch (error) {

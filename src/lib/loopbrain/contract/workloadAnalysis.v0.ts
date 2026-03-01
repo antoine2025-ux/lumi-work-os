@@ -668,10 +668,10 @@ export function getCriticalSignals(
 }
 
 // =============================================================================
-// TODO: Validation
+// TODO [BACKLOG]: Validation
 // =============================================================================
 
-// TODO: Add JSON Schema validation similar to validateAnswerEnvelope.ts
+// TODO [BACKLOG]: Add JSON Schema validation similar to validateAnswerEnvelope.ts
 // - Validate schemaVersion is "v0"
 // - Validate all percentages are 0.0–1.0 (or allow >1.0 for overallocation)
 // - Validate task counts are non-negative

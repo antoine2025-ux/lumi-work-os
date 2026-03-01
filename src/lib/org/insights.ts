@@ -2,9 +2,9 @@ import { prisma } from "@/lib/db";
 import { hasOrgCapability } from "@/lib/org/capabilities";
 import type { OrgPermissionContext } from "@/lib/org/permissions.server";
 
-// TODO: Adjust these types to your real schema as needed.
+// TODO [BACKLOG]: Align these types with the OrgSemanticSnapshotV0 contract.
 export type OrgInsightsSnapshot = {
-  orgId: string;
+  workspaceId: string;
   generatedAt: string; // ISO string
   summary: {
     totalPeople: number;
@@ -64,7 +64,7 @@ export function assertCanViewInsights(ctx: OrgPermissionContext | null) {
  * - RoleCard: roles (workspaceId, roleName) - linked via OrgPosition.positionId
  */
 export async function getOrgInsightsSnapshot(
-  orgId: string,
+  workspaceId: string,
   ctx: OrgPermissionContext | null,
   opts: OrgInsightsOptions = {}
 ): Promise<OrgInsightsSnapshot> {
@@ -82,7 +82,7 @@ export async function getOrgInsightsSnapshot(
     await Promise.allSettled([
       // WorkspaceMember: basic org membership
       prisma.workspaceMember.findMany({
-        where: { workspaceId: orgId },
+        where: { workspaceId },
         select: {
           id: true,
           workspaceId: true,
@@ -97,7 +97,7 @@ export async function getOrgInsightsSnapshot(
         try {
           // Construct query object explicitly to ensure Prisma can validate it
           const whereClause = {
-            workspaceId: orgId,
+            workspaceId,
             isActive: true,
           };
           const selectClause = {
@@ -123,7 +123,7 @@ export async function getOrgInsightsSnapshot(
       })(),
       // OrgTeam: teams with department relationships
       prisma.orgTeam.findMany({
-        where: { workspaceId: orgId, isActive: true },
+        where: { workspaceId, isActive: true },
         select: {
           id: true,
           name: true,
@@ -132,7 +132,7 @@ export async function getOrgInsightsSnapshot(
       }),
       // OrgDepartment: departments
       prisma.orgDepartment.findMany({
-        where: { workspaceId: orgId, isActive: true },
+        where: { workspaceId, isActive: true },
         select: {
           id: true,
           name: true,
@@ -144,7 +144,7 @@ export async function getOrgInsightsSnapshot(
       (async () => {
         try {
           return await (prisma as unknown as { roleCard: { findMany: (args: { where: { workspaceId: string }; select: { id: true; roleName: true; positionId: true } }) => Promise<Array<{ id: string; roleName: string; positionId: string | null }>> } }).roleCard.findMany({
-            where: { workspaceId: orgId },
+            where: { workspaceId },
             select: {
               id: true,
               roleName: true,
@@ -324,7 +324,7 @@ export async function getOrgInsightsSnapshot(
   });
 
   return {
-    orgId,
+    workspaceId,
     generatedAt: new Date().toISOString(),
     summary: {
       totalPeople,

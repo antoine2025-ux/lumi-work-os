@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 
 export type OrgMembershipRecord = {
   id: string;
-  orgId: string;
+  workspaceId: string;
   userId: string;
   role: string;
   customRole?: {
@@ -23,12 +23,12 @@ export type OrgRecord = {
  * Look up the user's org + membership.
  *
  * ADAPT THIS TO YOUR SCHEMA:
- * - Uses `Workspace` and `WorkspaceMember` models (workspaceId = orgId).
- * - If you store "current org" in session/cookie, pass its id as `currentOrgId`.
+ * - Uses `Workspace` and `WorkspaceMember` models.
+ * - If you store "current workspace" in session/cookie, pass its id as `currentWorkspaceId`.
  */
 export async function getOrgAndMembershipForUser(
   userId: string,
-  currentOrgId?: string | null
+  currentWorkspaceId?: string | null
 ): Promise<{ org: OrgRecord; membership: OrgMembershipRecord } | null> {
   if (!userId) return null;
 
@@ -36,10 +36,10 @@ export async function getOrgAndMembershipForUser(
 
   try {
 
-  // If we have an explicit orgId, prefer that.
-  if (currentOrgId) {
+  // If we have an explicit workspaceId, prefer that.
+  if (currentWorkspaceId) {
     const workspace = await prisma.workspace.findUnique({
-      where: { id: currentOrgId },
+      where: { id: currentWorkspaceId },
       select: {
         id: true,
         name: true,
@@ -56,7 +56,7 @@ export async function getOrgAndMembershipForUser(
       membership = await prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {
-            workspaceId: currentOrgId,
+            workspaceId: currentWorkspaceId,
             userId,
           },
         },
@@ -77,7 +77,7 @@ export async function getOrgAndMembershipForUser(
         membership = await prisma.workspaceMember.findUnique({
           where: {
             workspaceId_userId: {
-              workspaceId: currentOrgId,
+              workspaceId: currentWorkspaceId,
               userId,
             },
           },
@@ -105,7 +105,7 @@ export async function getOrgAndMembershipForUser(
         },
         membership: {
           id: `owner-${workspace.id}-${userId}`,
-          orgId: workspace.id,
+          workspaceId: workspace.id,
           userId,
           role: "OWNER",
         },
@@ -125,7 +125,7 @@ export async function getOrgAndMembershipForUser(
       },
       membership: {
         id: membership.id,
-        orgId: membership.workspaceId,
+        workspaceId: membership.workspaceId,
         userId: membership.userId,
         role,
         customRole: null, // customRole relation may not exist in database
@@ -203,7 +203,7 @@ export async function getOrgAndMembershipForUser(
         },
         membership: {
           id: `owner-${ownedWorkspace.id}-${userId}`,
-          orgId: ownedWorkspace.id,
+          workspaceId: ownedWorkspace.id,
           userId,
           role: "OWNER",
         },
@@ -225,7 +225,7 @@ export async function getOrgAndMembershipForUser(
       },
       membership: {
         id: membership.id,
-        orgId: membership.workspaceId,
+        workspaceId: membership.workspaceId,
         userId: membership.userId,
         role,
         customRole: null, // customRole relation may not exist in database

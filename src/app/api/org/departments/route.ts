@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // TODO: adjust model/field names as needed.
+    // TODO [BACKLOG]: Adjust model/field names if schema changes.
     const department = await prisma.orgDepartment.create({
       data: {
         workspaceId,

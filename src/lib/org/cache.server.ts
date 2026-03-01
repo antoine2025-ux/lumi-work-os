@@ -89,10 +89,10 @@ export function withTTLCache<T extends (...args: any[]) => Promise<unknown>>(
  * Cache key generators for consistent key naming.
  */
 export const cacheKeys = {
-  orgOverviewStats: (orgId: string) => `org:stats:${orgId}`,
-  orgPeople: (orgId: string, filters?: string) => `org:people:${orgId}:${filters || 'default'}`,
-  orgStructure: (orgId: string) => `org:structure:${orgId}`,
-  orgPermissionContext: (userId: string, orgId: string) => `org:perms:${userId}:${orgId}`,
-  orgInsights: (orgId: string, options?: string) => `org:insights:${orgId}:${options || 'default'}`,
+  orgOverviewStats: (workspaceId: string) => `org:stats:${workspaceId}`,
+  orgPeople: (workspaceId: string, filters?: string) => `org:people:${workspaceId}:${filters || 'default'}`,
+  orgStructure: (workspaceId: string) => `org:structure:${workspaceId}`,
+  orgPermissionContext: (userId: string, workspaceId: string) => `org:perms:${userId}:${workspaceId}`,
+  orgInsights: (workspaceId: string, options?: string) => `org:insights:${workspaceId}:${options || 'default'}`,
 };
 
