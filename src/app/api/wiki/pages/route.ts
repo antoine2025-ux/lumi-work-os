@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
           excerpt: true,
           permissionLevel: true,
           workspace_type: true,
-          // NOTE: spaceId removed - field does not exist on WikiPage model
+          spaceId: true,
           category: true,
           tags: true,
           updatedAt: true,

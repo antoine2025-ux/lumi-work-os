@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import {
   Globe,
@@ -45,6 +45,7 @@ async function fetchCompanyWiki(): Promise<CompanyWikiData> {
 
 export function CompanyWikiView() {
   const [createPageOpen, setCreatePageOpen] = useState(false)
+  const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery({
     queryKey: ["wiki", "company-wiki"],
@@ -162,6 +163,7 @@ export function CompanyWikiView() {
         onOpenChange={setCreatePageOpen}
         spaceId={companyWikiSpaceId}
         spaceName="Company Wiki"
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["wiki", "company-wiki"] })}
       />
     </div>
   )

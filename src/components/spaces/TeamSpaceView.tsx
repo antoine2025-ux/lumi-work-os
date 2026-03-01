@@ -374,6 +374,7 @@ export function TeamSpaceView({ spaceId }: TeamSpaceViewProps) {
         onOpenChange={setCreatePageOpen}
         spaceId={space.id}
         spaceName={space.name}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["spaces", spaceId] })}
       />
 
       <CreateFolderDialog

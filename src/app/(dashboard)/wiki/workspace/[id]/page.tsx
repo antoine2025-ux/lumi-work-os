@@ -327,7 +327,7 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
                             </Link>
                           </button>
                           <span className="text-xs flex-shrink-0" style={{ color: colors.textSecondary }}>
-                            {section._count.children} page{section._count.children !== 1 ? 's' : ''}
+                            {section.children.length} page{section.children.length !== 1 ? 's' : ''}
                           </span>
                         </div>
                         {isExpanded && (

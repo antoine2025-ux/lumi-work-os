@@ -1,18 +1,34 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Loader2, FileText } from 'lucide-react'
+
+interface Section {
+  id: string
+  title: string
+  slug: string
+  spaceId: string | null
+}
 
 interface QuickCreatePageDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   spaceId: string
   spaceName: string
+  /** Called after the page is successfully created, before navigation. */
+  onSuccess?: () => void
 }
 
 export function QuickCreatePageDialog({
@@ -20,11 +36,41 @@ export function QuickCreatePageDialog({
   onOpenChange,
   spaceId,
   spaceName,
+  onSuccess,
 }: QuickCreatePageDialogProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const [pageTitle, setPageTitle] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [sections, setSections] = useState<Section[]>([])
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    fetch('/api/wiki/pages?limit=50')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((result) => {
+        if (!result) return
+        const pages: (Section & { parentId: string | null })[] = result.data ?? result
+        if (!Array.isArray(pages)) return
+
+        // Only show root pages that belong to the same space as where this page will be created.
+        const rootPages = pages.filter(
+          (p) => p.parentId === null && p.spaceId === spaceId
+        )
+        setSections(rootPages)
+
+        // Default to the current section if the URL slug matches one
+        const currentSlug = pathname?.split('/wiki/')?.[1]?.split('/')?.[0] ?? ''
+        const matched = rootPages.find((p) => p.slug === currentSlug)
+        setSelectedSectionId(matched ? matched.id : null)
+      })
+      .catch(() => {
+        // Silently ignore — section picker is optional
+      })
+  }, [open, pathname, spaceId])
 
   const handleCreate = async () => {
     if (!pageTitle.trim()) return
@@ -33,14 +79,17 @@ export function QuickCreatePageDialog({
     setError('')
 
     try {
+      const body: Record<string, unknown> = {
+        title: pageTitle.trim(),
+        spaceId,
+        content: '',
+      }
+      if (selectedSectionId && selectedSectionId !== '__none__') body.parentId = selectedSectionId
+
       const res = await fetch('/api/wiki/pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: pageTitle.trim(),
-          spaceId,
-          content: '',
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!res.ok) {
@@ -49,6 +98,8 @@ export function QuickCreatePageDialog({
       }
 
       const page = await res.json()
+      onSuccess?.()
+      window.dispatchEvent(new CustomEvent('workspacePagesRefreshed'))
       onOpenChange(false)
       setPageTitle('')
       router.push(`/wiki/${page.slug}`)
@@ -93,6 +144,28 @@ export function QuickCreatePageDialog({
               autoFocus
             />
           </div>
+
+          {sections.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="sectionPicker">Section (optional)</Label>
+              <Select
+                value={selectedSectionId ?? '__none__'}
+                onValueChange={(v) => setSelectedSectionId(v === '__none__' ? null : v)}
+              >
+                <SelectTrigger id="sectionPicker">
+                  <SelectValue placeholder="No section — top level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No section — top level</SelectItem>
+                  {sections.map((section) => (
+                    <SelectItem key={section.id} value={section.id}>
+                      {section.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
