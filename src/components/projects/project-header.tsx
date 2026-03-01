@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, Activity } from "lucide-react"
+import { Edit, Trash2, Activity, Copy } from "lucide-react"
 import { ProjectSpaceBadge } from "./project-space-badge"
 
 interface ProjectHeaderProps {
@@ -46,6 +46,7 @@ interface ProjectHeaderProps {
   channelHints?: string[]
   onEdit?: () => void
   onDelete?: () => void
+  onDuplicate?: () => void
 }
 
 export function ProjectHeader({
@@ -56,7 +57,8 @@ export function ProjectHeader({
   onViewChange,
   channelHints = [],
   onEdit,
-  onDelete
+  onDelete,
+  onDuplicate
 }: ProjectHeaderProps) {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
 
@@ -307,6 +309,17 @@ export function ProjectHeader({
               >
                 <Edit className="mr-2 h-4 w-4" />
                 Edit Project
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onDuplicate?.()
+                }}
+                className="cursor-pointer"
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Duplicate Project
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

@@ -19,6 +19,7 @@ import { useWorkspace } from "@/lib/workspace-context"
 import dynamic from "next/dynamic"
 import { useTheme } from "@/components/theme-provider"
 import { useProjectSlackHints, setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
+import { useToast } from "@/components/ui/use-toast"
 
 // Keep essential imports at top for faster initial render
 import ReactMarkdown from "react-markdown"
@@ -246,6 +247,9 @@ export default function ProjectDetailPage() {
   const [newEpicDescription, setNewEpicDescription] = useState('')
   const [newEpicColor, setNewEpicColor] = useState('#3B82F6')
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
+  const [isDuplicating, setIsDuplicating] = useState(false)
+
+  const { toast } = useToast()
 
   // Use theme-based colors
   const colors = {
@@ -344,6 +348,57 @@ export default function ProjectDetailPage() {
     } catch (error) {
       console.error('Error deleting project:', error)
       alert('An error occurred while deleting the project')
+    }
+  }
+
+  const handleDuplicateProject = async () => {
+    if (!project) return
+    
+    const confirmed = window.confirm(
+      `Duplicate "${project.name}"? This will create a copy with the same structure but no assignments or history.`
+    )
+    
+    if (!confirmed) return
+
+    try {
+      setIsDuplicating(true)
+      
+      const response = await fetch(`/api/projects/${project.id}/duplicate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      })
+
+      if (response.ok) {
+        const newProject = await response.json()
+        
+        toast({
+          title: 'Project duplicated',
+          description: `Created "${newProject.name}"`,
+          variant: 'default'
+        })
+        
+        // Navigate to new project
+        router.push(workspaceSlug ? `/w/${workspaceSlug}/projects/${newProject.id}` : `/projects/${newProject.id}`)
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        toast({
+          title: 'Failed to duplicate project',
+          description: errorData.error || 'An error occurred',
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      console.error('Error duplicating project:', error)
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsDuplicating(false)
     }
   }
 
@@ -562,6 +617,7 @@ export default function ProjectDetailPage() {
               setIsEditDialogOpen(true)
             }}
             onDelete={handleDeleteProject}
+            onDuplicate={handleDuplicateProject}
           />
           
         </>
