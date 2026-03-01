@@ -30,15 +30,15 @@ export async function POST(req: NextRequest) {
 
     if (kind === "ROLE") {
       await prisma.orgRoleTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId: workspaceId, label })) as any, skipDuplicates: true } as any)
-      revalidateTag("org:taxonomy")
-      revalidateTag("org:contracts")
+      revalidateTag("org:taxonomy", "default")
+      revalidateTag("org:contracts", "default")
       return NextResponse.json({ ok: true })
     }
 
     if (kind === "SKILL") {
       await prisma.orgSkillTaxonomy.createMany({ data: cleaned.map((label) => ({ orgId: workspaceId, label })) as any, skipDuplicates: true } as any)
-      revalidateTag("org:taxonomy")
-      revalidateTag("org:contracts")
+      revalidateTag("org:taxonomy", "default")
+      revalidateTag("org:contracts", "default")
       return NextResponse.json({ ok: true })
     }
 

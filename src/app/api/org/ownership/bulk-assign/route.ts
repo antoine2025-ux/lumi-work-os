@@ -66,9 +66,9 @@ export async function POST(req: NextRequest) {
       data: { resolvedAt: new Date() },
     })
 
-    revalidateTag("org:ownership")
-    revalidateTag("org:health")
-    revalidateTag("org:contracts")
+    revalidateTag("org:ownership", "default")
+    revalidateTag("org:health", "default")
+    revalidateTag("org:contracts", "default")
 
     return NextResponse.json({ ok: true, count: entityIds.length })
   } catch (error) {

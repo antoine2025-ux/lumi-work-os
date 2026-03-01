@@ -19,9 +19,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   // Performance optimizations
   experimental: {
     optimizePackageImports: [

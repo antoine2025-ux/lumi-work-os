@@ -91,8 +91,8 @@ export async function POST(req: NextRequest) {
       await measureOrgHealth(workspaceId).catch(() => null);
     }
 
-    revalidateTag(`org:${workspaceId}:people`);
-    revalidateTag(`org:${workspaceId}:audit`);
+    revalidateTag(`org:${workspaceId}:people`, "default");
+    revalidateTag(`org:${workspaceId}:audit`, "default");
 
     return NextResponse.json({ ok: true, applied: actions.length });
   } catch {

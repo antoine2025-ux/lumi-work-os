@@ -124,8 +124,8 @@ export async function POST(req: NextRequest) {
       changes: changes ?? undefined,
     }).catch((e) => console.error("[POST /api/org/people/update] Audit log error (non-fatal):", e));
 
-    revalidateTag(`org:${auth.workspaceId}:people`);
-    revalidateTag(`org:${auth.workspaceId}:audit`);
+    revalidateTag(`org:${auth.workspaceId}:people`, "default");
+    revalidateTag(`org:${auth.workspaceId}:audit`, "default");
 
     return NextResponse.json({ ok: true, position: updated });
   } catch (error) {

@@ -140,9 +140,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Invalidate cache after updates
-    revalidateTag("org:people")
-    revalidateTag("org:setup")
-    revalidateTag("org:contracts")
+    revalidateTag("org:people", "default")
+    revalidateTag("org:setup", "default")
+    revalidateTag("org:contracts", "default")
 
     // Log audit entry with diff tracking
     const after = {
