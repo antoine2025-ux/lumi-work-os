@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +44,7 @@ export function QuickCreatePageDialog({
 }: QuickCreatePageDialogProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const queryClient = useQueryClient()
   const [pageTitle, setPageTitle] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -104,11 +106,12 @@ export function QuickCreatePageDialog({
       }
 
       const page = await res.json()
+      queryClient.invalidateQueries({ queryKey: ['sidebar-pages'] })
       onSuccess?.()
       window.dispatchEvent(new CustomEvent('workspacePagesRefreshed'))
       onOpenChange(false)
       setPageTitle('')
-      router.push(`/wiki/${page.slug}`)
+      router.push(`/wiki/${page.slug}?edit=true`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create page')
     } finally {

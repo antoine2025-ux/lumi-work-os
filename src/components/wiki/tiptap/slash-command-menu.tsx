@@ -23,6 +23,7 @@ import {
   FileText,
   Table,
   Image,
+  Upload,
   Youtube,
   Figma,
   Video
@@ -51,6 +52,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   FileText,
   Table,
   Image,
+  Upload,
   Youtube,
   Figma,
   Video,

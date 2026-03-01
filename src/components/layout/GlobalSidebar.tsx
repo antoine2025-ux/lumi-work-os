@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { usePathname, useParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -21,8 +21,13 @@ import { Input } from "@/components/ui/input"
 import { CreateSpaceDialog } from "@/components/spaces/create-space-dialog"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useWorkspace } from "@/lib/workspace-context"
+import { useUserStatusContext } from "@/providers/user-status-provider"
 import { useCompanyWikiPages } from "@/hooks/use-wiki-pages"
+import { useSidebarPages } from "@/hooks/use-sidebar-pages"
+import { useActivePageStore } from "@/lib/stores/use-active-page-store"
 import type { SpaceCardData } from "@/components/spaces/space-card"
+
+const STORAGE_KEY_PREFIX = "sidebar-expanded"
 
 async function fetchSpaces(): Promise<{ spaces: SpaceCardData[] }> {
   const res = await fetch("/api/spaces")
@@ -35,23 +40,184 @@ function useInvalidateSpaces() {
   return () => qc.invalidateQueries({ queryKey: ["spaces"] })
 }
 
+function TeamSpaceItem({
+  space,
+  baseHref,
+  currentSpaceId,
+  isExpanded,
+  onToggle,
+  pathname,
+  getPageTitle,
+}: {
+  space: SpaceCardData & { children?: { id: string; name: string; slug: string | null }[] }
+  baseHref: string
+  currentSpaceId: string | null
+  isExpanded: boolean
+  onToggle: () => void
+  pathname: string | null
+  getPageTitle: (page: { id: string; title: string }) => string
+}) {
+  const children = space.children ?? []
+  const hasChildren = children.length > 0
+  const hasExpand = hasChildren || true
+  const { data: spacePages = [] } = useSidebarPages(isExpanded ? space.id : null, 20)
+  const isActive = currentSpaceId === space.id
+
+  return (
+    <div>
+      <div className="flex items-center">
+        {hasExpand ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="p-0.5 -ml-0.5 rounded hover:bg-muted/80 flex-shrink-0"
+            aria-label={isExpanded ? "Collapse" : "Expand"}
+          >
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )}
+          </button>
+        ) : (
+          <span className="w-5 flex-shrink-0" />
+        )}
+        <Link
+          href={`${baseHref}/spaces/${space.id}`}
+          className={cn(
+            "flex-1 flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left transition-colors min-w-0",
+            isActive
+              ? "bg-muted font-medium border-l-2 border-amber-500 -ml-[2px] pl-[10px]"
+              : "hover:bg-muted/50"
+          )}
+        >
+          <Folder className="w-4 h-4 flex-shrink-0" />
+          <span className="truncate">{space.name}</span>
+        </Link>
+      </div>
+      {isExpanded && (
+        <div className="ml-6 mt-1 space-y-1">
+          {hasChildren &&
+            children.map((child) => {
+              const isChildActive = currentSpaceId === child.id
+              return (
+                <Link
+                  key={child.id}
+                  href={`${baseHref}/spaces/${child.id}`}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground",
+                    isChildActive && "text-amber-500 font-medium"
+                  )}
+                >
+                  <Folder className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{child.name}</span>
+                </Link>
+              )
+            })}
+          {spacePages.map((page) => (
+            <Link
+              key={page.id}
+              href={`/wiki/${page.slug}`}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground pl-6",
+                pathname?.includes(`/wiki/${page.slug}`) && "text-amber-500 font-medium bg-muted/50"
+              )}
+            >
+              <FileText className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{getPageTitle(page)}</span>
+            </Link>
+          ))}
+          {!hasChildren && spacePages.length === 0 && (
+            <p className="text-xs text-muted-foreground py-1 pl-2">No pages yet</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function loadExpandedFromStorage(workspaceId: string | null): { sections: Record<string, boolean>; spaces: Record<string, boolean> } {
+  if (typeof window === "undefined" || !workspaceId) return { sections: {}, spaces: {} }
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}-${workspaceId}`)
+    if (!raw) return { sections: {}, spaces: {} }
+    const parsed = JSON.parse(raw) as { sections?: Record<string, boolean>; spaces?: Record<string, boolean> }
+    return {
+      sections: parsed.sections ?? {},
+      spaces: parsed.spaces ?? {},
+    }
+  } catch {
+    return { sections: {}, spaces: {} }
+  }
+}
+
+function saveExpandedToStorage(workspaceId: string | null, sections: Record<string, boolean>, spaces: Record<string, boolean>) {
+  if (typeof window === "undefined" || !workspaceId) return
+  try {
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}-${workspaceId}`, JSON.stringify({ sections, spaces }))
+  } catch {
+    // ignore
+  }
+}
+
 export function GlobalSidebar() {
   const pathname = usePathname()
   const params = useParams()
   const workspaceSlug = params?.workspaceSlug as string | undefined
   const { currentWorkspace } = useWorkspace()
+  const { workspaceId } = useUserStatusContext()
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false)
   const invalidateSpaces = useInvalidateSpaces()
+  const clearActivePage = useActivePageStore((s) => s.clearActivePage)
+  const { activePageId, activePageTitle } = useActivePageStore()
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    personal: false,
     "company-wiki": false,
     templates: false,
   })
   const [expandedSpaces, setExpandedSpaces] = useState<Record<string, boolean>>({})
 
-  const toggleSpaceExpand = (spaceId: string) => {
+  // Hydrate expand state from localStorage when workspaceId is available
+  useEffect(() => {
+    if (!workspaceId) return
+    const { sections, spaces } = loadExpandedFromStorage(workspaceId)
+    setExpandedSections((prev) => ({
+      ...prev,
+      personal: sections.personal ?? prev.personal,
+      "company-wiki": sections["company-wiki"] ?? prev["company-wiki"],
+      templates: sections.templates ?? prev.templates,
+    }))
+    setExpandedSpaces((prev) => ({ ...prev, ...spaces }))
+  }, [workspaceId])
+
+  // Persist expand state to localStorage
+  useEffect(() => {
+    saveExpandedToStorage(workspaceId ?? null, expandedSections, expandedSpaces)
+  }, [workspaceId, expandedSections, expandedSpaces])
+
+  // Auto-expand on navigation and clear active page when leaving wiki
+  useEffect(() => {
+    if (!pathname) return
+    if (!pathname.includes("/wiki")) {
+      clearActivePage()
+    }
+    if (pathname.endsWith("/spaces/home")) {
+      setExpandedSections((s) => ({ ...s, personal: true }))
+    } else if (pathname.includes("/wiki")) {
+      setExpandedSections((s) => ({ ...s, "company-wiki": true }))
+    } else {
+      const spaceIdMatch = pathname.match(/\/spaces\/([^/]+)/)
+      const spaceId = spaceIdMatch && spaceIdMatch[1] !== "home" ? spaceIdMatch[1] : null
+      if (spaceId) {
+        setExpandedSpaces((s) => ({ ...s, [spaceId]: true }))
+      }
+    }
+  }, [pathname, clearActivePage])
+
+  const toggleSpaceExpand = useCallback((spaceId: string) => {
     setExpandedSpaces((prev) => ({ ...prev, [spaceId]: !prev[spaceId] }))
-  }
+  }, [])
 
   const slug = workspaceSlug ?? currentWorkspace?.slug
   const baseHref = slug ? `/w/${slug}` : ""
@@ -59,12 +225,14 @@ export function GlobalSidebar() {
   const { data, isLoading } = useQuery({
     queryKey: ["spaces"],
     queryFn: fetchSpaces,
-    staleTime: 30_000,
+    staleTime: 5 * 60 * 1000,
   })
 
   const { data: companyWikiPages = [] } = useCompanyWikiPages(15)
-
   const spaces = data?.spaces ?? []
+  const personalSpace = spaces.find((s: SpaceCardData) => s.isPersonal) ?? null
+  const { data: personalPages = [] } = useSidebarPages(personalSpace?.id ?? null, 20)
+
   const teamSpaces = spaces.filter(
     (s) =>
       !s.isPersonal &&
@@ -73,9 +241,9 @@ export function GlobalSidebar() {
       (s as { slug?: string | null }).slug !== "company-wiki"
   )
 
-  const toggleSection = (key: string) => {
+  const toggleSection = useCallback((key: string) => {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
+  }, [])
 
   const isPersonalActive = pathname?.endsWith("/spaces/home") ?? false
   const spaceIdMatch = pathname?.match(/\/spaces\/([^/]+)/)
@@ -83,6 +251,12 @@ export function GlobalSidebar() {
     spaceIdMatch && spaceIdMatch[1] !== "home" ? spaceIdMatch[1] : null
   const isWikiActive = pathname?.includes("/wiki")
   const isMyTasksActive = pathname?.includes("/my-tasks") ?? false
+
+  const getPageTitle = useCallback(
+    (page: { id: string; title: string }) =>
+      page.id === activePageId ? activePageTitle : page.title,
+    [activePageId, activePageTitle]
+  )
 
   return (
     <>
@@ -109,18 +283,53 @@ export function GlobalSidebar() {
               <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
                 MY SPACE
               </h3>
-              <Link
-                href={`${baseHref}/spaces/home`}
-                className={cn(
-                  "flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm transition-colors",
-                  isPersonalActive
-                    ? "bg-muted font-medium border-l-2 border-amber-500 -ml-[2px] pl-[10px]"
-                    : "hover:bg-muted/50"
-                )}
-              >
-                <User className="w-4 h-4" />
-                Personal
-              </Link>
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() => toggleSection("personal")}
+                  className="p-0.5 -ml-0.5 rounded hover:bg-muted/80 flex-shrink-0"
+                  aria-label={expandedSections.personal ? "Collapse" : "Expand"}
+                >
+                  {expandedSections.personal ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                </button>
+                <Link
+                  href={`${baseHref}/spaces/home`}
+                  className={cn(
+                    "flex-1 flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors min-w-0",
+                    isPersonalActive
+                      ? "bg-muted font-medium border-l-2 border-amber-500 -ml-[2px] pl-[10px]"
+                      : "hover:bg-muted/50"
+                  )}
+                >
+                  <User className="w-4 h-4" />
+                  Personal
+                </Link>
+              </div>
+              {expandedSections.personal && (
+                <div className="ml-6 mt-1 space-y-1">
+                  {personalPages.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-1 pl-2">No pages yet</p>
+                  ) : (
+                    personalPages.map((page) => (
+                      <Link
+                        key={page.id}
+                        href={`/wiki/${page.slug}`}
+                        className={cn(
+                          "flex items-center gap-2 px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground pl-6",
+                          pathname?.includes(`/wiki/${page.slug}`) && "text-amber-500 font-medium bg-muted/50"
+                        )}
+                      >
+                        <FileText className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{getPageTitle(page)}</span>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             {/* TEAM SPACES */}
@@ -129,68 +338,18 @@ export function GlobalSidebar() {
                 TEAM SPACES
               </h3>
               <div className="space-y-1">
-                {teamSpaces.map((space) => {
-                  const isActive = currentSpaceId === space.id
-                  const children = (space as { children?: { id: string; name: string; slug: string | null }[] })
-                    .children ?? []
-                  const hasChildren = children.length > 0
-                  const isExpanded = expandedSpaces[space.id] ?? false
-
-                  return (
-                    <div key={space.id}>
-                      <div className="flex items-center">
-                        {hasChildren ? (
-                          <button
-                            type="button"
-                            onClick={() => toggleSpaceExpand(space.id)}
-                            className="p-0.5 -ml-0.5 rounded hover:bg-muted/80 flex-shrink-0"
-                            aria-label={isExpanded ? "Collapse" : "Expand"}
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="w-4 h-4" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4" />
-                            )}
-                          </button>
-                        ) : (
-                          <span className="w-5 flex-shrink-0" />
-                        )}
-                        <Link
-                          href={`${baseHref}/spaces/${space.id}`}
-                          className={cn(
-                            "flex-1 flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left transition-colors min-w-0",
-                            isActive
-                              ? "bg-muted font-medium border-l-2 border-amber-500 -ml-[2px] pl-[10px]"
-                              : "hover:bg-muted/50"
-                          )}
-                        >
-                          <Folder className="w-4 h-4 flex-shrink-0" />
-                          <span className="truncate">{space.name}</span>
-                        </Link>
-                      </div>
-                      {isExpanded && hasChildren && (
-                        <div className="ml-6 mt-1 space-y-1">
-                          {children.map((child) => {
-                            const isChildActive = currentSpaceId === child.id
-                            return (
-                              <Link
-                                key={child.id}
-                                href={`${baseHref}/spaces/${child.id}`}
-                                className={cn(
-                                  "flex items-center gap-2 px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground",
-                                  isChildActive && "text-amber-500 font-medium"
-                                )}
-                              >
-                                <Folder className="w-3 h-3 flex-shrink-0" />
-                                <span className="truncate">{child.name}</span>
-                              </Link>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                {teamSpaces.map((space) => (
+                  <TeamSpaceItem
+                    key={space.id}
+                    space={space}
+                    baseHref={baseHref}
+                    currentSpaceId={currentSpaceId}
+                    isExpanded={expandedSpaces[space.id] ?? false}
+                    onToggle={() => toggleSpaceExpand(space.id)}
+                    pathname={pathname}
+                    getPageTitle={getPageTitle}
+                  />
+                ))}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -239,23 +398,25 @@ export function GlobalSidebar() {
                       <span className="truncate">Company Wiki</span>
                     </Link>
                   </div>
-                  {expandedSections["company-wiki"] &&
-                    companyWikiPages.length > 0 && (
+                  {expandedSections["company-wiki"] && (
                     <div className="ml-6 mt-1 space-y-1">
-                      {companyWikiPages.map((page: { id: string; title: string; slug: string }) => (
-                        <Link
-                          key={page.id}
-                          href={`/wiki/${page.slug}`}
-                          className={cn(
-                            "flex items-center gap-2 px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground",
-                            pathname?.includes(`/wiki/${page.slug}`) &&
-                              "text-amber-500 font-medium"
-                          )}
-                        >
-                          <FileText className="w-3 h-3" />
-                          <span className="truncate">{page.title}</span>
-                        </Link>
-                      ))}
+                      {companyWikiPages.length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-1 pl-2">No pages yet</p>
+                      ) : (
+                        companyWikiPages.map((page: { id: string; title: string; slug: string }) => (
+                          <Link
+                            key={page.id}
+                            href={`/wiki/${page.slug}`}
+                            className={cn(
+                              "flex items-center gap-2 px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground pl-6",
+                              pathname?.includes(`/wiki/${page.slug}`) && "text-amber-500 font-medium bg-muted/50"
+                            )}
+                          >
+                            <FileText className="w-3 h-3" />
+                            <span className="truncate">{getPageTitle(page)}</span>
+                          </Link>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>

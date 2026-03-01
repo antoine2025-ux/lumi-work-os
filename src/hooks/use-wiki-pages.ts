@@ -54,12 +54,12 @@ export function useWikiPagePrefetch() {
   }
 }
 
-/** Fetches Company Wiki pages only (spaceId = companyWikiSpaceId). Use for sidebar. */
+/** Fetches Company Wiki pages only (spaceId = companyWikiSpaceId). Use for sidebar. Query key aligns with sidebar-pages for prefix invalidation. */
 export function useCompanyWikiPages(limit: number = 15) {
   const { workspaceId } = useUserStatusContext()
 
   return useQuery({
-    queryKey: ['wiki-pages', 'company-wiki', workspaceId, limit],
+    queryKey: ['sidebar-pages', 'company-wiki'],
     queryFn: async () => {
       const params = new URLSearchParams({ limit: limit.toString(), scope: 'company-wiki' })
       const response = await fetch(`/api/wiki/recent-pages?${params}`)
@@ -67,7 +67,7 @@ export function useCompanyWikiPages(limit: number = 15) {
       return response.json() as Promise<WikiPage[]>
     },
     enabled: !!workspaceId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 30_000,
   })
 }
 

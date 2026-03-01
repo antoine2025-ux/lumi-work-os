@@ -15,7 +15,6 @@ import {
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ProjectCard } from "./ProjectCard"
-import { QuickCreatePageDialog } from "./quick-create-page-dialog"
 import { CreateFolderDialog } from "./create-folder-dialog"
 import { formatDistanceToNow } from "date-fns"
 import type { SpaceCardData } from "./space-card"
@@ -58,7 +57,7 @@ export function TeamSpaceView({ spaceId }: TeamSpaceViewProps) {
   const router = useRouter()
   const workspaceSlug = params.workspaceSlug as string
   const queryClient = useQueryClient()
-  const [createPageOpen, setCreatePageOpen] = useState(false)
+  const [isCreatingPage, setIsCreatingPage] = useState(false)
   const [createFolderOpen, setCreateFolderOpen] = useState(false)
 
   const baseHref = workspaceSlug ? `/w/${workspaceSlug}` : ""
@@ -168,8 +167,35 @@ export function TeamSpaceView({ spaceId }: TeamSpaceViewProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCreatePageOpen(true)}
+            onClick={async () => {
+              if (isCreatingPage) return
+              setIsCreatingPage(true)
+              try {
+                const res = await fetch("/api/wiki/pages", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ title: "Untitled", spaceId: space.id }),
+                })
+                if (!res.ok) {
+                  const data = await res.json().catch(() => ({}))
+                  throw new Error(data.error ?? "Failed to create page")
+                }
+                const page = await res.json()
+                queryClient.invalidateQueries({ queryKey: ["sidebar-pages"] })
+                window.dispatchEvent(new CustomEvent("workspacePagesRefreshed"))
+                queryClient.invalidateQueries({ queryKey: ["spaces", spaceId] })
+                router.push(`/wiki/${page.slug}?edit=true`)
+              } catch {
+                setIsCreatingPage(false)
+              }
+            }}
+            disabled={isCreatingPage}
           >
+            {isCreatingPage ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4 mr-1.5" />
+            )}
             New Page
           </Button>
           <Button
@@ -368,14 +394,6 @@ export function TeamSpaceView({ spaceId }: TeamSpaceViewProps) {
           </Card>
         </section>
       )}
-
-      <QuickCreatePageDialog
-        open={createPageOpen}
-        onOpenChange={setCreatePageOpen}
-        spaceId={space.id}
-        spaceName={space.name}
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["spaces", spaceId] })}
-      />
 
       <CreateFolderDialog
         open={createFolderOpen}

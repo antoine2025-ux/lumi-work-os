@@ -138,25 +138,35 @@ export function DashboardLayoutClient({
     return null;
   }
 
+  const isOrgRoute = pathname?.includes("/org") ?? false;
+  const isWorkspaceSettingsRoute =
+    pathname?.includes("/settings") === true &&
+    pathname?.includes("/projects/") !== true;
+  const showSpacesSidebar = !isOrgRoute && !isWorkspaceSettingsRoute;
+
   return (
     <LoopbrainAssistantProvider>
       <div className="flex h-screen flex-col bg-[#020617]">
         <Header onMenuToggle={() => setMobileMenuOpen(true)} />
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          <aside className="hidden lg:flex">
-            <GlobalSidebar />
-          </aside>
+          {showSpacesSidebar && (
+            <aside className="hidden lg:flex">
+              <GlobalSidebar />
+            </aside>
+          )}
           <main className="flex flex-1 flex-col min-h-0 overflow-y-auto">
             {children}
           </main>
         </div>
       </div>
       
-      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="w-64 p-0">
-          <GlobalSidebar />
-        </SheetContent>
-      </Sheet>
+      {showSpacesSidebar && (
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetContent side="left" className="w-64 p-0">
+            <GlobalSidebar />
+          </SheetContent>
+        </Sheet>
+      )}
       
       <TaskSidebar />
       <LoopbrainAssistantLauncher mode={loopbrainMode} />

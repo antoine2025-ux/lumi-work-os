@@ -1,23 +1,48 @@
 "use client"
 
+import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
+import { useSession, signOut } from "next-auth/react"
 import { useWorkspace } from "@/lib/workspace-context"
 import { NavTab } from "@/components/navigation/NavTab"
 import { Clock } from "@/components/navigation/Clock"
 import { NotificationCenter } from "@/components/notifications/NotificationCenter"
-import { Search, Menu } from "lucide-react"
+import { Search, Menu, User, Settings, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface HeaderProps {
   onMenuToggle?: () => void
 }
 
+function getInitials(name: string | null | undefined, email: string | null | undefined): string {
+  if (name) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase().slice(0, 2)
+    }
+    return name.slice(0, 2).toUpperCase()
+  }
+  if (email) return email.slice(0, 2).toUpperCase()
+  return "U"
+}
+
 export function Header({ onMenuToggle }: HeaderProps = {}) {
   const pathname = usePathname()
   const router = useRouter()
+  const { data: session } = useSession()
   const { currentWorkspace } = useWorkspace()
+
+  const profileHref = currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/org/profile` : "/org/profile"
+  const settingsHref = currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/settings` : "/settings"
 
   // Prefetch common routes on mount for instant navigation
   useEffect(() => {
@@ -52,7 +77,7 @@ export function Header({ onMenuToggle }: HeaderProps = {}) {
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b border-border/50 sticky top-0 z-50 bg-card">
       <div className="flex items-center gap-4">
-        {onMenuToggle && (
+        {onMenuToggle && !pathname?.includes("/org") && (
           <Button
             variant="ghost"
             size="icon"
@@ -94,6 +119,44 @@ export function Header({ onMenuToggle }: HeaderProps = {}) {
         </button>
         <NotificationCenter />
         <Clock />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative h-8 w-8 rounded-full"
+              aria-label="User menu"
+            >
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={session?.user?.image ?? undefined} alt={session?.user?.name ?? ""} />
+                <AvatarFallback className="bg-muted text-xs">
+                  {getInitials(session?.user?.name, session?.user?.email ?? undefined)}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem asChild>
+              <Link href={profileHref} className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                My Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={settingsHref} className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={() => signOut({ callbackUrl: "/login" })}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )

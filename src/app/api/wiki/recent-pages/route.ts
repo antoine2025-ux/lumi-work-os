@@ -7,6 +7,7 @@ import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import { handleApiError } from '@/lib/api-errors'
 import { canAccessWikiWorkspace } from '@/lib/wiki/permissions'
 import { getCompanyWikiPages } from '@/lib/spaces/queries'
+import { canAccessSpace } from '@/lib/spaces'
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
     const scope = searchParams.get('scope') // 'company-wiki' = only company wiki pages
+    const spaceId = searchParams.get('spaceId') // Filter by space for sidebar (personal, team)
     const workspaceType = searchParams.get('workspace_type') // Filter by workspace_type if provided (legacy)
 
     // scope=company-wiki: ONLY pages where spaceId = companyWikiSpaceId (fixes sidebar bug)
@@ -41,6 +43,51 @@ export async function GET(request: NextRequest) {
       const response = NextResponse.json(formatted)
       response.headers.set('Cache-Control', 'private, s-maxage=120, stale-while-revalidate=240')
       return response
+    }
+
+    // spaceId: pages for a specific space (sidebar: personal, team). Verify access first.
+    if (spaceId) {
+      const hasAccess = await canAccessSpace(auth.user.userId, spaceId)
+      if (!hasAccess) {
+        const emptyRes = NextResponse.json([])
+        emptyRes.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120')
+        return emptyRes
+      }
+      const space = await prisma.space.findUnique({
+        where: { id: spaceId },
+        select: { isPersonal: true, ownerId: true },
+      })
+      const whereSpace: { workspaceId: string; isPublished: boolean; spaceId: string; createdById?: string } = {
+        workspaceId: auth.workspaceId,
+        isPublished: true,
+        spaceId,
+      }
+      if (space?.isPersonal && space.ownerId === auth.user.userId) {
+        whereSpace.createdById = auth.user.userId
+      }
+      const spacePages = await prisma.wikiPage.findMany({
+        where: whereSpace,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          excerpt: true,
+          updatedAt: true,
+          createdBy: { select: { name: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: Math.min(limit, 100),
+      })
+      const formattedSpace = spacePages.map((p) => ({
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        updatedAt: p.updatedAt,
+        author: p.createdBy?.name ?? 'Unknown',
+      }))
+      const spaceRes = NextResponse.json(formattedSpace)
+      spaceRes.headers.set('Cache-Control', 'private, s-maxage=120, stale-while-revalidate=240')
+      return spaceRes
     }
 
     // Generate cache key — include userId so personal page results aren't shared across users

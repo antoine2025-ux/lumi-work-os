@@ -254,6 +254,19 @@ export function getSlashCommandItems(): SlashCommandItem[] {
       },
     },
     {
+      id: 'upload-document',
+      title: 'Upload document',
+      description: 'Upload image or PDF file',
+      icon: 'Upload',
+      keywords: ['upload', 'document', 'file', 'attach'],
+      run: ({ editor, range }) => {
+        if (range) {
+          editor.chain().focus().deleteRange(range).run()
+        }
+        window.dispatchEvent(new CustomEvent('wiki:trigger-image-upload'))
+      },
+    },
+    {
       id: 'embed',
       title: 'Embed',
       description: 'Embed a URL (YouTube, Figma, Loom...)',

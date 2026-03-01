@@ -320,10 +320,15 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
     setError(null)
   }, [])
 
-  // Function to create page with a specific workspace - shows template selector with workspace pre-selected
+  // Function to create page with a specific workspace - skip dialog and go straight to blank editor
   const createPageWithWorkspace = useCallback((wsId: string) => {
     setSelectedWorkspaceForPage(wsId)
-    setShowWorkspaceSelectDialog(true)
+    setSelectedSectionId(null)
+    setShowWorkspaceSelectDialog(false)
+    setIsCreatingPage(true)
+    setNewPageTitle("")
+    setNewPageCategory("general")
+    setError(null)
   }, [])
 
   // Expose global trigger functions

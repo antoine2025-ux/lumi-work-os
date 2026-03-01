@@ -18,7 +18,11 @@ export async function getMyProjects(userId: string, workspaceId: string) {
         { tasks: { some: { assigneeId: userId } } },
       ],
     },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      updatedAt: true,
       space: { select: { id: true, name: true } },
       tasks: {
         where: { assigneeId: userId },
@@ -37,7 +41,11 @@ export async function getMyRecentPages(userId: string, workspaceId: string) {
       workspaceId,
       createdById: userId,
     },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      updatedAt: true,
       space: { select: { id: true, name: true } },
     },
     orderBy: { updatedAt: 'desc' },
@@ -54,6 +62,12 @@ export async function getMyPersonalNotes(userId: string, workspaceId: string) {
         { space: { isPersonal: true, ownerId: userId } },
         { permissionLevel: 'personal', createdById: userId },
       ],
+    },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      updatedAt: true,
     },
     orderBy: { updatedAt: 'desc' },
     take: 5,
@@ -72,7 +86,11 @@ export async function getMyDueTasks(userId: string, workspaceId: string) {
       status: { not: 'DONE' },
       dueDate: { lte: nextWeek },
     },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      priority: true,
+      dueDate: true,
       project: { select: { id: true, name: true } },
     },
     orderBy: { dueDate: 'asc' },
@@ -84,7 +102,11 @@ export async function getMyDueTasks(userId: string, workspaceId: string) {
 export async function getTeamProjects(spaceId: string) {
   return prisma.project.findMany({
     where: { spaceId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      updatedAt: true,
       tasks: { select: { id: true, status: true } },
       members: { select: { id: true } },
     },
@@ -111,7 +133,10 @@ export async function getTeamCollaborations(spaceId: string, workspaceId: string
         { tasks: { some: { assigneeId: { in: memberIds } } } },
       ],
     },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      updatedAt: true,
       space: { select: { id: true, name: true } },
       members: {
         where: { userId: { in: memberIds } },
@@ -126,7 +151,11 @@ export async function getTeamCollaborations(spaceId: string, workspaceId: string
 export async function getTeamDocs(spaceId: string) {
   return prisma.wikiPage.findMany({
     where: { spaceId },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      updatedAt: true,
       createdBy: { select: { id: true, name: true } },
       _count: { select: { children: true } },
     },
@@ -184,7 +213,11 @@ export async function getCompanyWikiFolders(workspaceId: string) {
       parentId: null,
       isPublished: true,
     },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      order: true,
       _count: { select: { children: true } },
     },
     orderBy: { order: 'asc' },

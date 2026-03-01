@@ -18,7 +18,6 @@ import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import type { HocuspocusProvider } from '@hocuspocus/provider'
 import { getUserColor } from '@/lib/collab/user-colors'
 import { useEffect, useMemo, useRef, useCallback, useState } from 'react'
-import { ImagePlus, Code2 } from 'lucide-react'
 import { Embed } from './tiptap/extensions/embed'
 import { SlashCommand } from './tiptap/extensions/slash-command'
 import { createMentionExtension } from './tiptap/extensions/mention-suggestion'
@@ -35,7 +34,6 @@ import { EmbedDialog } from './tiptap/EmbedDialog'
 import { PasteEmbedPrompt } from './tiptap/PasteEmbedPrompt'
 import { uploadWikiFile } from './tiptap/hooks/use-wiki-upload'
 import { useToast } from '@/components/ui/use-toast'
-import { Button } from '@/components/ui/button'
 
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
 const PDF_MIME = 'application/pdf'
@@ -418,33 +416,6 @@ export function TipTapEditor({
         className="hidden"
         onChange={handleFileSelect}
       />
-      {editable && (
-        <div className="flex items-center gap-1 mb-2 px-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={triggerFileInput}
-            title="Upload image or PDF"
-          >
-            <ImagePlus className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => {
-              setEmbedDialogProvider(undefined)
-              setEmbedDialogOpen(true)
-            }}
-            title="Embed (YouTube, Figma, Loom...)"
-          >
-            <Code2 className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
       <EditorContent editor={editor} />
       {editor && editable && (
         <>

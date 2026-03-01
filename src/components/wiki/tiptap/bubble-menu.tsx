@@ -10,9 +10,9 @@
 import { BubbleMenu as TipTapBubbleMenu } from '@tiptap/react/menus'
 import { Editor } from '@tiptap/core'
 import { Button } from '@/components/ui/button'
+import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu'
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -28,6 +28,27 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { turnIntoBlock } from './commands/block-commands'
+
+/** Dropdown content without portal - keeps positioning relative to BubbleMenu */
+const BubbleMenuDropdownContent = ({
+  className,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>) => (
+  <DropdownMenuPrimitive.Content
+    sideOffset={4}
+    side="bottom"
+    align="start"
+    className={cn(
+      'z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+      'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+      'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+      'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2',
+      'data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+      className
+    )}
+    {...props}
+  />
+)
 
 interface BubbleMenuProps {
   editor: Editor | null
@@ -156,7 +177,7 @@ export function BubbleMenu({ editor, onEscape }: BubbleMenuProps) {
         <Code className="h-4 w-4" />
       </Button>
       <div className="h-6 w-px bg-border mx-1" />
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -170,7 +191,7 @@ export function BubbleMenu({ editor, onEscape }: BubbleMenuProps) {
             <LinkIcon className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <BubbleMenuDropdownContent>
           {editor.isActive('link') ? (
             <>
               <DropdownMenuItem onClick={handleLinkClick}>
@@ -185,10 +206,10 @@ export function BubbleMenu({ editor, onEscape }: BubbleMenuProps) {
               Add link
             </DropdownMenuItem>
           )}
-        </DropdownMenuContent>
+        </BubbleMenuDropdownContent>
       </DropdownMenu>
       <div className="h-6 w-px bg-border mx-1" />
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -199,7 +220,7 @@ export function BubbleMenu({ editor, onEscape }: BubbleMenuProps) {
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <BubbleMenuDropdownContent>
           <DropdownMenuItem onClick={() => handleTurnInto('paragraph')}>
             Paragraph
           </DropdownMenuItem>
@@ -215,7 +236,7 @@ export function BubbleMenu({ editor, onEscape }: BubbleMenuProps) {
           <DropdownMenuItem onClick={() => handleTurnInto('blockquote')}>
             Quote
           </DropdownMenuItem>
-        </DropdownMenuContent>
+        </BubbleMenuDropdownContent>
       </DropdownMenu>
     </TipTapBubbleMenu>
   )

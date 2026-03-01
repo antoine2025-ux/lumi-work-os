@@ -47,8 +47,8 @@ export function EmailWidget({ className }: EmailWidgetProps) {
       const json = await res.json()
       return { connected: json.connected, messages: (json.messages ?? []) as EmailMessage[] }
     },
-    staleTime: 60000,
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 
   const connected = data?.connected ?? false

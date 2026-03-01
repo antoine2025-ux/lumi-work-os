@@ -46,6 +46,8 @@ import {
 } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { useQueryClient } from "@tanstack/react-query"
+import { useActivePageStore } from "@/lib/stores/use-active-page-store"
 import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
@@ -102,9 +104,11 @@ interface WikiPageClientProps {
 }
 
 export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
-  // Use centralized UserStatusContext - no separate API call needed
   const userStatus = useUserStatusContext()
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const setActivePage = useActivePageStore((s) => s.setActivePage)
+  const setActivePageTitle = useActivePageStore((s) => s.setActivePageTitle)
   const [resolvedSlug, setResolvedSlug] = useState<string | null>(null)
   const searchParams = useSearchParams()
   const [isEditing, setIsEditing] = useState(searchParams?.get('edit') === 'true')
@@ -219,7 +223,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
         throw new Error(errorData.error || 'Failed to delete page')
       }
 
-      // Trigger custom event to refresh sidebar
+      queryClient.invalidateQueries({ queryKey: ['sidebar-pages'] })
       window.dispatchEvent(new CustomEvent('pageDeleted'))
       window.dispatchEvent(new CustomEvent('favoritesChanged'))
       
@@ -260,6 +264,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
           const page = await response.json()
           setPageData(page)
           setIsStarred(page.is_featured || false)
+          setActivePage(page.id, page.title)
           loadRelatedPages(page)
           
           // Check if there's a pending page draft to stream
@@ -820,10 +825,14 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
               <div className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
                   <Input
-                    value={pageData.title}
-                    onChange={(e) => setPageData({...pageData, title: e.target.value})}
+                    value={pageData.title === "Untitled" ? "" : pageData.title}
+                    onChange={(e) => {
+                      const title = e.target.value.trim() || "Untitled"
+                      setPageData({ ...pageData, title })
+                      setActivePageTitle(title)
+                    }}
                     className="text-4xl font-bold border-none p-0 h-auto focus:ring-0 focus:outline-none focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder-muted-foreground bg-transparent text-foreground flex-1"
-                    placeholder="Give your doc a title"
+                    placeholder="Untitled"
                   />
                   {collabProvider && pageData.contentFormat === 'JSON' && (
                     <CollabPresence
@@ -909,7 +918,36 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
             </>
           ) : (
             <>
-              {/* Viewing Mode - Show title with presence */}
+              {/* Viewing Mode - Same layout as edit: metadata first, then title, then content */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="text-sm text-muted-foreground">
+                    Last updated {formatDate(pageData.updatedAt)}
+                  </div>
+                  {authorOrgInfo && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span className="text-muted-foreground/50">·</span>
+                      {authorOrgInfo.image ? (
+                        <img
+                          src={authorOrgInfo.image}
+                          alt={authorOrgInfo.name ?? "Author"}
+                          className="h-5 w-5 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="h-5 w-5 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-medium text-slate-300">
+                          {authorInitials}
+                        </span>
+                      )}
+                      <span>
+                        {authorOrgInfo.name ?? "Unknown"}
+                        {authorOrgInfo.orgTitle && (
+                          <span className="text-muted-foreground/60"> · {authorOrgInfo.orgTitle}</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="mb-8">
                 <div className="flex items-center gap-3 mb-4">
                   <h1 className="text-4xl font-bold text-foreground flex-1">
@@ -926,7 +964,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                   )}
                 </div>
               </div>
-              <WikiPageBody page={pageData} showOpenButton={false} />
+              <WikiPageBody page={pageData} showOpenButton={false} showTitle={false} showMetadata={false} />
             </>
           )}
         </div>

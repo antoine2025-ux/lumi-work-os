@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import {
@@ -14,7 +15,6 @@ import {
   ChevronDown,
   FolderPlus,
 } from "lucide-react"
-import { QuickCreatePageDialog } from "./quick-create-page-dialog"
 import { CreateSectionDialog } from "./CreateSectionDialog"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
@@ -67,11 +67,11 @@ async function fetchCompanyWiki(): Promise<CompanyWikiData> {
 }
 
 export function CompanyWikiView() {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
-  const [createPageOpen, setCreatePageOpen] = useState(false)
-  const [createSectionOpen, setCreateSectionOpen] = useState(false)
-  const [createPageSectionId, setCreatePageSectionId] = useState<string | null>(null)
+  const router = useRouter()
   const queryClient = useQueryClient()
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
+  const [isCreatingPage, setIsCreatingPage] = useState(false)
+  const [createSectionOpen, setCreateSectionOpen] = useState(false)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["wiki", "company-wiki"],
@@ -93,15 +93,36 @@ export function CompanyWikiView() {
     })
   }, [])
 
-  const openCreatePageInSection = useCallback((sectionId: string) => {
-    setCreatePageSectionId(sectionId)
-    setCreatePageOpen(true)
-  }, [])
-
-  const openCreatePageTopLevel = useCallback(() => {
-    setCreatePageSectionId(null)
-    setCreatePageOpen(true)
-  }, [])
+  const createPageDirectly = useCallback(
+    async (spaceId: string, parentId?: string) => {
+      if (!spaceId || isCreatingPage) return
+      setIsCreatingPage(true)
+      try {
+        const body: Record<string, unknown> = {
+          title: "Untitled",
+          spaceId,
+        }
+        if (parentId) body.parentId = parentId
+        const res = await fetch("/api/wiki/pages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error ?? "Failed to create page")
+        }
+        const page = await res.json()
+        queryClient.invalidateQueries({ queryKey: ["sidebar-pages"] })
+        window.dispatchEvent(new CustomEvent("workspacePagesRefreshed"))
+        queryClient.invalidateQueries({ queryKey: ["wiki", "company-wiki"] })
+        router.push(`/wiki/${page.slug}?edit=true`)
+      } catch {
+        setIsCreatingPage(false)
+      }
+    },
+    [isCreatingPage, queryClient, router]
+  )
 
   if (isLoading) {
     return (
@@ -152,9 +173,14 @@ export function CompanyWikiView() {
           <Button
             variant="outline"
             size="sm"
-            onClick={openCreatePageTopLevel}
+            onClick={() => createPageDirectly(companyWikiSpaceId)}
+            disabled={isCreatingPage || !companyWikiSpaceId}
           >
-            <Plus className="w-4 h-4 mr-1.5" />
+            {isCreatingPage ? (
+              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4 mr-1.5" />
+            )}
             New Page
           </Button>
         </div>
@@ -235,8 +261,9 @@ export function CompanyWikiView() {
                       className="flex-shrink-0 text-muted-foreground hover:text-foreground"
                       onClick={(e) => {
                         e.stopPropagation()
-                        openCreatePageInSection(folder.id)
+                        createPageDirectly(companyWikiSpaceId, folder.id)
                       }}
+                      disabled={isCreatingPage}
                     >
                       <Plus className="w-4 h-4 mr-1" />
                       <span className="hidden sm:inline">Add Page</span>
@@ -254,7 +281,8 @@ export function CompanyWikiView() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openCreatePageInSection(folder.id)}
+                            onClick={() => createPageDirectly(companyWikiSpaceId, folder.id)}
+                            disabled={isCreatingPage}
                           >
                             <Plus className="w-4 h-4 mr-1.5" />
                             Add a page
@@ -311,7 +339,7 @@ export function CompanyWikiView() {
               description="Create your first wiki page to share knowledge with your team."
               action={{
                 label: "Create Page",
-                onClick: openCreatePageTopLevel,
+                onClick: () => createPageDirectly(companyWikiSpaceId),
               }}
             />
           ) : (
@@ -345,15 +373,6 @@ export function CompanyWikiView() {
           )}
         </div>
       </section>
-
-      <QuickCreatePageDialog
-        open={createPageOpen}
-        onOpenChange={setCreatePageOpen}
-        spaceId={companyWikiSpaceId}
-        spaceName="Company Wiki"
-        defaultSectionId={createPageSectionId}
-        onSuccess={invalidate}
-      />
 
       <CreateSectionDialog
         open={createSectionOpen}

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import {
   User,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { CreatePageDialog } from "./create-page-dialog"
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog"
 import { cn } from "@/lib/utils"
@@ -47,9 +48,11 @@ function formatDueDate(dueStr: string | null | undefined): string {
 export function PersonalSpaceView() {
   const params = useParams()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { currentWorkspace } = useWorkspace()
   const workspaceSlug = (params?.workspaceSlug as string | undefined) ?? currentWorkspace?.slug
   const [isCreatePageOpen, setIsCreatePageOpen] = useState(false)
+  const [isCreatingPage, setIsCreatingPage] = useState(false)
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
 
   const baseHref = workspaceSlug ? `/w/${workspaceSlug}` : ""
@@ -61,6 +64,8 @@ export function PersonalSpaceView() {
         if (!r.ok) throw new Error("Failed to load projects")
         return r.json()
       }),
+    staleTime: 60_000,
+    gcTime: 5 * 60 * 1000,
   })
 
   const { data: recentPages, isLoading: pagesLoading } = useQuery({
@@ -70,6 +75,8 @@ export function PersonalSpaceView() {
         if (!r.ok) throw new Error("Failed to load recent pages")
         return r.json()
       }),
+    staleTime: 60_000,
+    gcTime: 5 * 60 * 1000,
   })
 
   const { data: personalNotes, isLoading: notesLoading } = useQuery({
@@ -79,6 +86,8 @@ export function PersonalSpaceView() {
         if (!r.ok) throw new Error("Failed to load notes")
         return r.json()
       }),
+    staleTime: 60_000,
+    gcTime: 5 * 60 * 1000,
   })
 
   const { data: dueTasks, isLoading: tasksLoading } = useQuery({
@@ -88,12 +97,48 @@ export function PersonalSpaceView() {
         if (!r.ok) throw new Error("Failed to load due tasks")
         return r.json()
       }),
+    staleTime: 60_000,
+    gcTime: 5 * 60 * 1000,
   })
 
-  const isLoading =
-    projectsLoading || pagesLoading || notesLoading || tasksLoading
+  const { data: spacesData } = useQuery({
+    queryKey: ["spaces", "list"],
+    queryFn: () =>
+      fetch("/api/spaces").then((r) => {
+        if (!r.ok) throw new Error("Failed to load spaces")
+        return r.json()
+      }),
+    staleTime: 60_000,
+    gcTime: 5 * 60 * 1000,
+  })
 
-  if (!workspaceSlug || isLoading) {
+  const personalSpace = (spacesData?.spaces as Array<{ id: string; name: string; isPersonal?: boolean }> | undefined)?.find(
+    (s) => s.isPersonal
+  )
+
+  const createPageDirectly = async () => {
+    if (!personalSpace || isCreatingPage) return
+    setIsCreatingPage(true)
+    try {
+      const res = await fetch("/api/wiki/pages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "Untitled", spaceId: personalSpace.id }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? "Failed to create page")
+      }
+      const page = await res.json()
+      queryClient.invalidateQueries({ queryKey: ["sidebar-pages"] })
+      window.dispatchEvent(new CustomEvent("workspacePagesRefreshed"))
+      router.push(`/wiki/${page.slug}?edit=true`)
+    } catch {
+      setIsCreatingPage(false)
+    }
+  }
+
+  if (!workspaceSlug) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -116,9 +161,14 @@ export function PersonalSpaceView() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsCreatePageOpen(true)}
+            onClick={() => (personalSpace ? createPageDirectly() : setIsCreatePageOpen(true))}
+            disabled={personalSpace ? isCreatingPage : false}
           >
-            <FileText className="w-4 h-4 mr-1.5" />
+            {personalSpace && isCreatingPage ? (
+              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+            ) : (
+              <FileText className="w-4 h-4 mr-1.5" />
+            )}
             New Page
           </Button>
           <Button
@@ -132,11 +182,13 @@ export function PersonalSpaceView() {
         </div>
       </div>
 
-      <CreatePageDialog
-        open={isCreatePageOpen}
-        onOpenChange={setIsCreatePageOpen}
-        workspaceSlug={workspaceSlug}
-      />
+      {personalSpace ? null : (
+        <CreatePageDialog
+          open={isCreatePageOpen}
+          onOpenChange={setIsCreatePageOpen}
+          workspaceSlug={workspaceSlug}
+        />
+      )}
 
       <CreateProjectDialog
         open={isCreateProjectOpen}
@@ -153,27 +205,34 @@ export function PersonalSpaceView() {
           Working On
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(myProjects ?? []).map((project: { id: string; name: string; space?: { name: string }; tasks?: unknown[]; updatedAt: string }) => (
-            <Link
-              key={project.id}
-              href={`${baseHref}/projects/${project.id}`}
-              className="block p-4 bg-card rounded-lg border hover:border-amber-500/50 transition-colors"
-            >
-              <h3 className="font-medium mb-1">{project.name}</h3>
-              <p className="text-sm text-amber-500 mb-2">
-                {project.space?.name ?? "Unassigned"}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {Array.isArray(project.tasks) ? project.tasks.length : 0} tasks
-                assigned
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                Updated {safeFormatDistance(project.updatedAt)}
-              </p>
-            </Link>
-          ))}
-          {(myProjects ?? []).length === 0 && (
+          {projectsLoading ? (
+            <>
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-32 rounded-lg" />
+              ))}
+            </>
+          ) : (myProjects ?? []).length === 0 ? (
             <p className="text-muted-foreground col-span-3">No active projects</p>
+          ) : (
+            (myProjects ?? []).map((project: { id: string; name: string; space?: { name: string }; tasks?: unknown[]; updatedAt: string }) => (
+              <Link
+                key={project.id}
+                href={`${baseHref}/projects/${project.id}`}
+                className="block p-4 bg-card rounded-lg border hover:border-amber-500/50 transition-colors"
+              >
+                <h3 className="font-medium mb-1">{project.name}</h3>
+                <p className="text-sm text-amber-500 mb-2">
+                  {project.space?.name ?? "Unassigned"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {Array.isArray(project.tasks) ? project.tasks.length : 0} tasks
+                  assigned
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Updated {safeFormatDistance(project.updatedAt)}
+                </p>
+              </Link>
+            ))
           )}
         </div>
       </section>
@@ -185,35 +244,46 @@ export function PersonalSpaceView() {
           Recent Activity
         </h2>
         <div className="space-y-1">
-          {(recentPages ?? []).map(
-            (page: {
-              id: string;
-              title: string;
-              slug: string;
-              space?: { name: string };
-              updatedAt: string;
-            }) => (
-              <Link
-                key={page.id}
-                href={`/wiki/${page.slug}`}
-                className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <FileText className="w-4 h-4 text-muted-foreground" />
-                  <span>{page.title}</span>
+          {pagesLoading ? (
+            <>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 py-2 px-3">
+                  <Skeleton className="h-4 w-4 rounded" />
+                  <Skeleton className="h-4 flex-1 max-w-[200px]" />
+                  <Skeleton className="h-4 w-16" />
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="text-amber-500">
-                    {page.space?.name ?? "Personal"}
-                  </span>
-                  <span>·</span>
-                  <span>{safeFormatDistance(page.updatedAt)}</span>
-                </div>
-              </Link>
-            )
-          )}
-          {(recentPages ?? []).length === 0 && (
+              ))}
+            </>
+          ) : (recentPages ?? []).length === 0 ? (
             <p className="text-muted-foreground px-3">No recent activity</p>
+          ) : (
+            (recentPages ?? []).map(
+              (page: {
+                id: string;
+                title: string;
+                slug: string;
+                space?: { name: string };
+                updatedAt: string;
+              }) => (
+                <Link
+                  key={page.id}
+                  href={`/wiki/${page.slug}`}
+                  className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-4 h-4 text-muted-foreground" />
+                    <span>{page.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="text-amber-500">
+                      {page.space?.name ?? "Personal"}
+                    </span>
+                    <span>·</span>
+                    <span>{safeFormatDistance(page.updatedAt)}</span>
+                  </div>
+                </Link>
+              )
+            )
           )}
         </div>
       </section>
@@ -225,30 +295,47 @@ export function PersonalSpaceView() {
           Personal Notes
         </h2>
         <div className="space-y-1">
-          {(personalNotes ?? []).map(
-            (note: { id: string; title: string; slug: string; updatedAt: string }) => (
-              <Link
-                key={note.id}
-                href={`/wiki/${note.slug}`}
-                className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <StickyNote className="w-4 h-4 text-muted-foreground" />
-                  <span>{note.title}</span>
+          {notesLoading ? (
+            <>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 py-2 px-3">
+                  <Skeleton className="h-4 w-4 rounded" />
+                  <Skeleton className="h-4 flex-1 max-w-[200px]" />
+                  <Skeleton className="h-4 w-16" />
                 </div>
-                <span className="text-sm text-muted-foreground">
-                  {safeFormatDistance(note.updatedAt)}
-                </span>
-              </Link>
+              ))}
+            </>
+          ) : (
+            (personalNotes ?? []).map(
+              (note: { id: string; title: string; slug: string; updatedAt: string }) => (
+                <Link
+                  key={note.id}
+                  href={`/wiki/${note.slug}`}
+                  className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <StickyNote className="w-4 h-4 text-muted-foreground" />
+                    <span>{note.title}</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {safeFormatDistance(note.updatedAt)}
+                  </span>
+                </Link>
+              )
             )
           )}
           <Button
             variant="ghost"
             size="sm"
             className="flex items-center gap-3 py-2 px-3 text-muted-foreground hover:text-foreground w-full justify-start"
-            onClick={() => setIsCreatePageOpen(true)}
+            onClick={() => (personalSpace ? createPageDirectly() : setIsCreatePageOpen(true))}
+            disabled={personalSpace ? isCreatingPage : false}
           >
-            <Plus className="w-4 h-4" />
+            {personalSpace && isCreatingPage ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
             Add note
           </Button>
         </div>
@@ -261,36 +348,47 @@ export function PersonalSpaceView() {
           Due Soon
         </h2>
         <div className="space-y-2">
-          {(dueTasks ?? []).map(
-            (task: {
-              id: string;
-              title: string;
-              priority?: string;
-              dueDate: string | null;
-              project?: { id: string; name: string };
-            }) => (
-              <Link
-                key={task.id}
-                href={`${baseHref}/projects/${task.project?.id ?? "#"}`}
-                className="flex items-center gap-3 py-2 px-3 rounded hover:bg-muted transition-colors"
-              >
-                <span
-                  className={cn(
-                    "w-2 h-2 rounded-full flex-shrink-0",
-                    task.priority === "HIGH" && "bg-red-500",
-                    task.priority === "MEDIUM" && "bg-amber-500",
-                    (task.priority === "LOW" || !task.priority) && "bg-green-500"
-                  )}
-                />
-                <span className="flex-1 min-w-0 truncate">{task.title}</span>
-                <span className="text-sm text-muted-foreground flex-shrink-0">
-                  {formatDueDate(task.dueDate)}
-                </span>
-              </Link>
-            )
-          )}
-          {(dueTasks ?? []).length === 0 && (
+          {tasksLoading ? (
+            <>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 py-2 px-3">
+                  <Skeleton className="h-2 w-2 rounded-full flex-shrink-0" />
+                  <Skeleton className="h-4 flex-1 max-w-[180px]" />
+                  <Skeleton className="h-4 w-14" />
+                </div>
+              ))}
+            </>
+          ) : (dueTasks ?? []).length === 0 ? (
             <p className="text-muted-foreground px-3">No tasks due soon</p>
+          ) : (
+            (dueTasks ?? []).map(
+              (task: {
+                id: string;
+                title: string;
+                priority?: string;
+                dueDate: string | null;
+                project?: { id: string; name: string };
+              }) => (
+                <Link
+                  key={task.id}
+                  href={`${baseHref}/projects/${task.project?.id ?? "#"}`}
+                  className="flex items-center gap-3 py-2 px-3 rounded hover:bg-muted transition-colors"
+                >
+                  <span
+                    className={cn(
+                      "w-2 h-2 rounded-full flex-shrink-0",
+                      task.priority === "HIGH" && "bg-red-500",
+                      task.priority === "MEDIUM" && "bg-amber-500",
+                      (task.priority === "LOW" || !task.priority) && "bg-green-500"
+                    )}
+                  />
+                  <span className="flex-1 min-w-0 truncate">{task.title}</span>
+                  <span className="text-sm text-muted-foreground flex-shrink-0">
+                    {formatDueDate(task.dueDate)}
+                  </span>
+                </Link>
+              )
+            )
           )}
         </div>
       </section>
