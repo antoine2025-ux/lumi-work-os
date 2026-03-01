@@ -84,6 +84,8 @@ import { formatWorkloadEnvelope, formatTeamWorkloadEnvelope } from './reasoning/
 import { buildCalendarAvailabilitySnapshot, buildTeamAvailabilitySnapshot } from './reasoning/calendarAvailability'
 import { formatCalendarAvailabilityEnvelope, formatTeamAvailabilityEnvelope } from './reasoning/calendarAvailabilityAnswer'
 import { generateOnboardingBriefing } from './scenarios/onboarding-briefing'
+import { generateDailyBriefing } from './scenarios/daily-briefing'
+import { generateMeetingPrep, generateNextMeetingPrep, findEventByTitle } from './scenarios/meeting-prep'
 import { loadGmailThreads, formatGmailThreadsForPrompt } from './context-sources/gmail'
 import { extractEntityContext } from './reasoning/entityLinksAnswer'
 import { getCachedEntityGraph } from './entity-graph'
@@ -325,6 +327,16 @@ export async function runLoopbrainQuery(
   // Check for onboarding briefing queries
   if (intent === 'onboarding_briefing' || req.mode === 'onboarding_briefing') {
     return await handleOnboardingBriefingMode(req, userCtx)
+  }
+
+  // Check for daily briefing queries
+  if (intent === 'daily_briefing' || req.mode === 'daily_briefing') {
+    return await handleDailyBriefingMode(req, userCtx)
+  }
+
+  // Check for meeting prep queries
+  if (intent === 'meeting_prep' || req.mode === 'meeting_prep') {
+    return await handleMeetingPrepMode(req, userCtx)
   }
 
   try {
@@ -2969,6 +2981,189 @@ async function handleOnboardingBriefingMode(
         contextType: 'onboarding_briefing',
         confidence: briefing.confidence === 'high' ? 0.9 : briefing.confidence === 'medium' ? 0.7 : 0.5,
         itemCount: briefing.sections.length,
+        usedFallback: false,
+      },
+      userContextResolved: true,
+      userRole: userCtx.role,
+      userTeam: userCtx.teamName ?? undefined,
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Daily Briefing mode
+// ---------------------------------------------------------------------------
+
+async function handleDailyBriefingMode(
+  req: LoopbrainRequest,
+  userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('[daily-briefing] Mode handler started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+  })
+
+  const briefing = await generateDailyBriefing(req.userId, req.workspaceId)
+
+  const answer = [
+    briefing.greeting,
+    '',
+    ...briefing.sections.map((s) => `**${s.title}**\n${s.content}`),
+    '',
+    briefing.keyActions.length > 0
+      ? '**Key Actions**\n' + briefing.keyActions.map((a) => `- ${a.title}`).join('\n')
+      : '',
+  ].filter(Boolean).join('\n\n')
+
+  return {
+    mode: 'daily_briefing',
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer,
+    suggestions: [
+      { label: 'Show my tasks', action: 'navigate', payload: { url: '/my-tasks' } },
+      { label: 'Prep me for my next meeting', action: 'meeting_prep', payload: {} },
+      { label: 'Show project health', action: 'project_health', payload: {} },
+    ],
+    dailyBriefing: briefing,
+    metadata: {
+      routing: {
+        contextType: 'daily_briefing',
+        confidence: briefing.confidence === 'high' ? 0.9 : briefing.confidence === 'medium' ? 0.7 : 0.5,
+        itemCount: briefing.sections.length,
+        usedFallback: false,
+      },
+      userContextResolved: true,
+      userRole: userCtx.role,
+      userTeam: userCtx.teamName ?? undefined,
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Meeting Prep mode
+// ---------------------------------------------------------------------------
+
+const MEETING_TITLE_PREFIXES = [
+  'prep me for ',
+  'prepare me for ',
+  'what should i know before ',
+  'prepare for ',
+]
+
+function extractMeetingTitleFromQuery(query: string): string | null {
+  const lower = query.toLowerCase().trim()
+  for (const prefix of MEETING_TITLE_PREFIXES) {
+    if (lower.startsWith(prefix)) {
+      const remainder = query.slice(prefix.length).trim()
+      if (remainder.length > 0 && !['my next meeting', 'the next meeting', 'next meeting'].includes(remainder.toLowerCase())) {
+        return remainder
+      }
+    }
+  }
+  return null
+}
+
+async function handleMeetingPrepMode(
+  req: LoopbrainRequest,
+  userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('[meeting-prep] Mode handler started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    eventId: req.eventId,
+  })
+
+  let brief: Awaited<ReturnType<typeof generateMeetingPrep>>
+
+  if (req.eventId) {
+    // Path 1: Explicit eventId
+    brief = await generateMeetingPrep(req.userId, req.workspaceId, req.eventId)
+  } else {
+    // Try Path 2: Title match from query
+    const titleFragment = extractMeetingTitleFromQuery(req.query)
+    if (titleFragment) {
+      const matchedEventId = await findEventByTitle(req.userId, req.workspaceId, titleFragment)
+      if (matchedEventId) {
+        brief = await generateMeetingPrep(req.userId, req.workspaceId, matchedEventId)
+      } else {
+        return {
+          mode: 'meeting_prep',
+          workspaceId: req.workspaceId,
+          userId: req.userId,
+          query: req.query,
+          context: {},
+          answer: `I couldn't find a meeting matching "${titleFragment}" on your calendar today. Try "prep me for my next meeting" to prepare for whatever's coming up next.`,
+          suggestions: [
+            { label: 'Prep me for my next meeting', action: 'meeting_prep', payload: {} },
+            { label: 'Show my calendar', action: 'navigate', payload: { url: '/calendar' } },
+          ],
+          metadata: {
+            routing: {
+              contextType: 'meeting_prep',
+              confidence: 0.5,
+              itemCount: 0,
+              usedFallback: true,
+            },
+            userContextResolved: true,
+            userRole: userCtx.role,
+            userTeam: userCtx.teamName ?? undefined,
+          },
+        }
+      }
+    } else {
+      // Path 3: Next meeting
+      brief = await generateNextMeetingPrep(req.userId, req.workspaceId)
+    }
+  }
+
+  const attendeeLines = brief.attendees.length > 0
+    ? brief.attendees.map((a) => {
+        const parts = [a.name]
+        if (a.role) parts.push(`(${a.role})`)
+        if (a.recentActivity) parts.push(`— ${a.recentActivity}`)
+        return `- ${parts.join(' ')}`
+      }).join('\n')
+    : 'No attendee information available.'
+
+  const answer = [
+    `**${brief.meetingTitle}**`,
+    brief.meetingTime ? `*${brief.meetingTime}*` : '',
+    '',
+    '**Attendees**',
+    attendeeLines,
+    '',
+    brief.projectContext ? `**Project: ${brief.projectContext.projectName}**\nStatus: ${brief.projectContext.healthStatus}` : '',
+    brief.projectContext?.blockers.length ? `Blockers: ${brief.projectContext.blockers.join(', ')}` : '',
+    '',
+    brief.suggestedTopics.length > 0
+      ? '**Suggested Topics**\n' + brief.suggestedTopics.map((t) => `- ${t}`).join('\n')
+      : '',
+    '',
+    brief.recentDocs.length > 0
+      ? '**Recent Docs**\n' + brief.recentDocs.map((d) => `- [${d.title}](${d.href}) — ${d.editedBy}`).join('\n')
+      : '',
+  ].filter(Boolean).join('\n')
+
+  return {
+    mode: 'meeting_prep',
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer,
+    suggestions: [
+      { label: 'Show my calendar', action: 'navigate', payload: { url: '/calendar' } },
+      { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+    ],
+    meetingPrep: brief,
+    metadata: {
+      routing: {
+        contextType: 'meeting_prep',
+        confidence: 0.85,
+        itemCount: brief.attendees.length,
         usedFallback: false,
       },
       userContextResolved: true,

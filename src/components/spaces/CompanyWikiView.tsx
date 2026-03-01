@@ -13,6 +13,9 @@ import {
 import { QuickCreatePageDialog } from "./quick-create-page-dialog"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
+import { ErrorState } from "@/components/ui/error-state"
+import { WikiPageSkeleton } from "@/components/ui/skeletons"
+import { EmptyState } from "@/components/ui/empty-state"
 
 interface WikiFolder {
   id: string
@@ -47,7 +50,7 @@ export function CompanyWikiView() {
   const [createPageOpen, setCreatePageOpen] = useState(false)
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["wiki", "company-wiki"],
     queryFn: fetchCompanyWiki,
     staleTime: 60_000,
@@ -55,8 +58,20 @@ export function CompanyWikiView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex-1 p-6">
+        <WikiPageSkeleton />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 p-6">
+        <ErrorState
+          title="Failed to load company wiki"
+          description="There was an error loading the wiki. Please try again."
+          onRetry={() => queryClient.invalidateQueries({ queryKey: ["wiki", "company-wiki"] })}
+        />
       </div>
     )
   }
@@ -125,7 +140,15 @@ export function CompanyWikiView() {
         </h2>
         <div className="space-y-1">
           {recentPages.length === 0 ? (
-            <p className="text-muted-foreground py-4">No pages yet.</p>
+            <EmptyState
+              icon={<FileText className="h-12 w-12" />}
+              title="Start documenting"
+              description="Create your first wiki page to share knowledge with your team."
+              action={{
+                label: "Create Page",
+                onClick: () => setCreatePageOpen(true),
+              }}
+            />
           ) : (
             recentPages.map((page) => (
               <Link

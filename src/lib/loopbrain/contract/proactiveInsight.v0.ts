@@ -103,6 +103,8 @@ export const INSIGHT_CATEGORY_V0 = [
   "PROCESS",
   "COMMUNICATION",
   "ONBOARDING",
+  "DAILY_BRIEFING",
+  "MEETING_PREP",
 ] as const;
 
 export type InsightCategoryV0 = (typeof INSIGHT_CATEGORY_V0)[number];
@@ -490,6 +492,8 @@ export const INSIGHT_TTL_DEFAULTS_V0: Record<InsightCategoryV0, number> = {
   PROCESS: 86400, // 24 hours
   COMMUNICATION: 86400, // 24 hours
   ONBOARDING: 86400 * 30, // 30 days
+  DAILY_BRIEFING: 86400, // 24 hours
+  MEETING_PREP: 86400, // 24 hours
 };
 
 // =============================================================================

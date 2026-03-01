@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { MigrationModal } from "@/components/migrations/migration-modal"
 import { WorkspaceMembers } from "@/components/settings/workspace-members"
+import { NotificationSettings } from "@/components/settings/notification-settings"
 import { useUserStatusContext } from '@/providers/user-status-provider'
 import { 
   Settings, 
@@ -716,43 +717,7 @@ export default function SettingsPage() {
       {/* Notifications Settings */}
       {activeTab === "notifications" && (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Notifications</CardTitle>
-              <CardDescription>
-                Choose what email notifications you want to receive
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">New Wiki Pages</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Get notified when new wiki pages are created
-                  </p>
-                </div>
-                <Button variant="outline" size="sm">Enabled</Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Onboarding Updates</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Receive updates on onboarding progress
-                  </p>
-                </div>
-                <Button variant="outline" size="sm">Enabled</Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Workflow Notifications</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Get notified about workflow status changes
-                  </p>
-                </div>
-                <Button variant="outline" size="sm">Enabled</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <NotificationSettings />
         </div>
       )}
 

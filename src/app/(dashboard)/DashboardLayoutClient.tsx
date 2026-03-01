@@ -9,6 +9,7 @@ import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-con
 import { TaskSidebar } from "@/components/tasks/task-sidebar";
 import { GlobalSidebar } from "@/components/layout/GlobalSidebar";
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { LoopbrainMode } from "@/lib/loopbrain/orchestrator-types";
 // PHASE C2: Removed redirect-handler import - middleware handles redirects
 
@@ -26,6 +27,7 @@ export function DashboardLayoutClient({
   const _router = useRouter();
   const pathname = usePathname();
   const [isFirstTime, setIsFirstTime] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Derive Loopbrain mode from pathname for context-aware assistance
   const loopbrainMode: LoopbrainMode = pathname?.includes("/spaces")
@@ -139,14 +141,23 @@ export function DashboardLayoutClient({
   return (
     <LoopbrainAssistantProvider>
       <div className="flex h-screen flex-col bg-[#020617]">
-        <Header />
+        <Header onMenuToggle={() => setMobileMenuOpen(true)} />
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          <GlobalSidebar />
+          <aside className="hidden lg:flex">
+            <GlobalSidebar />
+          </aside>
           <main className="flex flex-1 flex-col min-h-0 overflow-y-auto">
             {children}
           </main>
         </div>
       </div>
+      
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="w-64 p-0">
+          <GlobalSidebar />
+        </SheetContent>
+      </Sheet>
+      
       <TaskSidebar />
       <LoopbrainAssistantLauncher mode={loopbrainMode} />
     </LoopbrainAssistantProvider>

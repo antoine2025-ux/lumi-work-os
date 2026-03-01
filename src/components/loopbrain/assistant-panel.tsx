@@ -31,11 +31,12 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { callLoopbrainAssistant } from "@/lib/loopbrain/client"
 import { useLoopbrainAssistant } from "./assistant-context"
-import type { LoopbrainResponse, LoopbrainMode, MeetingTaskExtractionResult, OnboardingBriefing } from "@/lib/loopbrain/orchestrator-types"
+import type { LoopbrainResponse, LoopbrainMode, MeetingTaskExtractionResult, OnboardingBriefing, DailyBriefing, MeetingPrepBrief as MeetingPrepBriefType } from "@/lib/loopbrain/orchestrator-types"
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from "@/lib/loopbrain/agent/types"
 import { PlanConfirmation } from "./plan-confirmation"
 import { MeetingTaskReview } from "./MeetingTaskReview"
 import { OnboardingBriefing as OnboardingBriefingView } from "./OnboardingBriefing"
+import { MeetingPrepBrief as MeetingPrepBriefView } from "./MeetingPrepBrief"
 import { ClarifyingQuestions } from "./clarifying-questions"
 import { ExecutionProgress } from "./execution-progress"
 import { AdvisorySuggestion } from "./advisory-suggestion"
@@ -118,6 +119,8 @@ export function LoopbrainAssistantPanel({
   const [advisoryResponse, setAdvisoryResponse] = useState<AdvisoryResponse | null>(null)
   const [meetingExtraction, setMeetingExtraction] = useState<MeetingTaskExtractionResult | null>(null)
   const [onboardingBriefing, setOnboardingBriefing] = useState<OnboardingBriefing | null>(null)
+  const [dailyBriefing, setDailyBriefing] = useState<DailyBriefing | null>(null)
+  const [meetingPrepBrief, setMeetingPrepBrief] = useState<MeetingPrepBriefType | null>(null)
   const [isCreatingMeetingTasks, setIsCreatingMeetingTasks] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -503,6 +506,16 @@ export function LoopbrainAssistantPanel({
       // Onboarding briefing — show inline briefing card
       if (result.onboardingBriefing) {
         setOnboardingBriefing(result.onboardingBriefing)
+      }
+
+      // Daily briefing — show inline briefing
+      if (result.dailyBriefing) {
+        setDailyBriefing(result.dailyBriefing)
+      }
+
+      // Meeting prep — show inline prep brief
+      if (result.meetingPrep) {
+        setMeetingPrepBrief(result.meetingPrep)
       }
 
       // Extract preamble from the answer if there are clarifying questions
@@ -1043,6 +1056,40 @@ export function LoopbrainAssistantPanel({
                                   <OnboardingBriefingView
                                     briefing={onboardingBriefing}
                                     onDismiss={() => setOnboardingBriefing(null)}
+                                    className="mt-2"
+                                  />
+                                )}
+
+                                {/* Daily Briefing */}
+                                {dailyBriefing && (
+                                  <div className="mt-2 space-y-2">
+                                    {dailyBriefing.sections.map((section, idx) => (
+                                      <div key={idx} className="rounded-md border border-border/60 p-3">
+                                        <h4 className="text-sm font-semibold mb-1">{section.title}</h4>
+                                        <p className="text-sm text-muted-foreground whitespace-pre-line">{section.content}</p>
+                                        {section.items && section.items.length > 0 && (
+                                          <ul className="mt-1.5 space-y-0.5">
+                                            {section.items.map((item, i) => (
+                                              <li key={i} className="text-xs text-muted-foreground">
+                                                {item.href ? (
+                                                  <a href={item.href} className="text-primary hover:underline">{item.text}</a>
+                                                ) : (
+                                                  item.text
+                                                )}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Meeting Prep Brief */}
+                                {meetingPrepBrief && (
+                                  <MeetingPrepBriefView
+                                    brief={meetingPrepBrief}
+                                    onDismiss={() => setMeetingPrepBrief(null)}
                                     className="mt-2"
                                   />
                                 )}

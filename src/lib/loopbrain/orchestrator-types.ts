@@ -11,9 +11,13 @@ import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryConte
 import type { OrgQuestionContext } from './org-question-types'
 import type { ExtractedTask, MeetingTaskExtractionResult } from './scenarios/meeting-task-extraction'
 import type { OnboardingBriefing } from './scenarios/onboarding-briefing'
+import type { DailyBriefing } from './scenarios/daily-briefing'
+import type { MeetingPrepBrief } from './scenarios/meeting-prep'
 
 export type { ExtractedTask, MeetingTaskExtractionResult }
 export type { OnboardingBriefing }
+export type { DailyBriefing }
+export type { MeetingPrepBrief }
 
 /**
  * Loopbrain operating modes
@@ -22,8 +26,10 @@ export type { OnboardingBriefing }
  * - org: Organization mode - focuses on teams, roles, hierarchy
  * - dashboard: Dashboard mode - focuses on workspace overview and activity
  * - onboarding_briefing: Generates a personalized briefing for new workspace members
+ * - daily_briefing: Generates a personalized daily briefing with tasks, changes, meetings
+ * - meeting_prep: Generates a context package for an upcoming meeting
  */
-export type LoopbrainMode = 'spaces' | 'org' | 'dashboard' | 'goals' | 'onboarding_briefing'
+export type LoopbrainMode = 'spaces' | 'org' | 'dashboard' | 'goals' | 'onboarding_briefing' | 'daily_briefing' | 'meeting_prep'
 
 /**
  * Loopbrain request parameters
@@ -77,6 +83,8 @@ export interface LoopbrainRequest {
   pendingAdvisory?: AdvisoryContext
   /** Confirmed extracted tasks from MeetingTaskReview awaiting server-side creation */
   pendingMeetingExtraction?: { tasks: ExtractedTask[] }
+  /** Calendar event ID for meeting prep targeting */
+  eventId?: string
   /** Optional request ID (passed from API route for tracing) */
   requestId?: string
 }
@@ -204,6 +212,10 @@ export interface LoopbrainResponse {
   meetingExtraction?: MeetingTaskExtractionResult
   /** Personalized onboarding briefing (for OnboardingBriefing UI) */
   onboardingBriefing?: OnboardingBriefing
+  /** Personalized daily briefing (for DailyBriefingCard UI) */
+  dailyBriefing?: DailyBriefing
+  /** Meeting prep brief (for MeetingPrepBrief UI) */
+  meetingPrep?: MeetingPrepBrief
   /** Optional metadata (model, tokens, etc.) */
   metadata?: {
     model?: string

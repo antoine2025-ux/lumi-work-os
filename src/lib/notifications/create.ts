@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import type { Notification } from '@prisma/client'
+import { shouldNotify } from './should-notify'
 
 export async function createNotification(params: {
   workspaceId: string
@@ -11,7 +12,17 @@ export async function createNotification(params: {
   entityType?: string
   entityId?: string
   url?: string
-}): Promise<Notification> {
+}): Promise<Notification | null> {
+  const allowed = await shouldNotify(
+    params.recipientId,
+    params.workspaceId,
+    params.type
+  )
+
+  if (!allowed) {
+    return null
+  }
+
   return prisma.notification.create({
     data: {
       workspaceId: params.workspaceId,

@@ -42,7 +42,7 @@ interface BuildOptions {
   includeConflicts?: boolean;
 }
 
-interface CalendarEvent {
+export interface CalendarEvent {
   id: string;
   title: string;
   startTime: Date;
@@ -231,7 +231,7 @@ export async function buildCalendarAvailability(
  * Load calendar events for a person from Google Calendar.
  * Returns [] gracefully if the user has no Google account connected or the API fails.
  */
-async function loadCalendarEvents(
+export async function loadCalendarEvents(
   _workspaceId: string,
   personId: string,
   startDate: Date,

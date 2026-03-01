@@ -32,6 +32,8 @@ export type LoopbrainIntent =
   | 'calendar_availability'
   | 'extract_tasks'
   | 'onboarding_briefing'
+  | 'daily_briefing'
+  | 'meeting_prep'
   | 'unknown'
 
 /**
@@ -218,18 +220,43 @@ export function detectIntentFromKeywords(
     return { intent, confidence, reasons }
   }
 
-  // ----- Onboarding briefing (high specificity — checked before generic intents) -----
+  // ----- Daily briefing (checked before onboarding — generic "brief me" routes here) -----
+
+  const dailyBriefingKeywords = [
+    'brief me', 'briefing', 'daily briefing', "what's happening",
+    'what needs my attention', 'morning update', 'catch me up',
+    'what did i miss', 'what should i know', 'what do i need to know',
+  ]
+  if (dailyBriefingKeywords.some((kw) => queryLower.includes(kw))) {
+    intent = 'daily_briefing'
+    confidence = 0.93
+    reasons.push('Detected daily briefing keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Meeting prep -----
+
+  const meetingPrepKeywords = [
+    'prep me', 'meeting prep', 'prepare for meeting', 'prepare me for',
+    'what should i know before', 'upcoming meeting', 'next meeting',
+  ]
+  if (meetingPrepKeywords.some((kw) => queryLower.includes(kw))) {
+    intent = 'meeting_prep'
+    confidence = 0.93
+    reasons.push('Detected meeting prep keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Onboarding briefing (narrowed — only explicitly onboarding-scoped phrases) -----
 
   const onboardingKeywords = [
-    'brief me', 'briefing', 'get me up to speed', 'what should i know',
-    'new here', 'just joined', 'orientation', 'onboard me', 'onboarding',
-    'catch me up', 'help me get started', 'what do i need to know',
-    'introduce me', 'my orientation',
+    'get me up to speed', 'new here', 'just joined', 'orientation',
+    'onboard me', 'onboarding', 'introduce me', 'my orientation',
   ]
   if (onboardingKeywords.some((kw) => queryLower.includes(kw))) {
     intent = 'onboarding_briefing'
     confidence = 0.93
-    reasons.push('Detected onboarding/briefing keywords')
+    reasons.push('Detected onboarding keywords')
     return { intent, confidence, reasons }
   }
 
@@ -435,6 +462,16 @@ function selectModeFromIntent(
     case 'onboarding_briefing':
       mode = 'onboarding_briefing'
       reasons.push('Onboarding briefing has its own dedicated mode')
+      break
+
+    case 'daily_briefing':
+      mode = 'daily_briefing'
+      reasons.push('Daily briefing has its own dedicated mode')
+      break
+
+    case 'meeting_prep':
+      mode = 'meeting_prep'
+      reasons.push('Meeting prep has its own dedicated mode')
       break
 
     case 'task_status':

@@ -12,3 +12,13 @@ export const NotificationQuerySchema = z.object({
 export const NotificationIdParamSchema = z.object({
   id: z.string().uuid(),
 })
+
+export const NotificationPreferenceUpdateSchema = z.object({
+  notificationType: z.string().min(1),
+  enabled: z.boolean(),
+})
+
+export const NotificationPreferenceListSchema = z.object({
+  userId: z.string().uuid().optional(),
+  workspaceId: z.string().uuid().optional(),
+})

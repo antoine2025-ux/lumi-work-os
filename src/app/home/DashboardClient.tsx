@@ -24,6 +24,8 @@ import { useTheme } from "@/components/theme-provider"
 import { OrgSetupBanner } from "@/components/onboarding/org-setup-banner"
 import { LoopbrainWelcomeCard } from "@/components/dashboard/loopbrain-welcome-card"
 import { OnboardingBriefingCard } from "@/components/dashboard/onboarding-briefing-card"
+import { DailyBriefingCard } from "@/components/dashboard/daily-briefing-card"
+import { ErrorBoundary } from "@/components/ui/error-boundary"
 
 // Lazy load heavy components
 const MeetingsCard = dynamic(() => import("@/components/dashboard/meetings-card").then(mod => ({ default: mod.MeetingsCard })), {
@@ -198,11 +200,18 @@ export default function DashboardClient({
   const taskCompletionPct = taskSummary.total > 0 ? Math.round((taskSummary.done / taskSummary.total) * 100) : 0
 
   return (
-    <div className="flex min-h-screen bg-background" data-testid="dashboard-container">
-      <main className="flex-1">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+    <ErrorBoundary>
+      <div className="flex min-h-screen bg-background" data-testid="dashboard-container">
+        <main className="flex-1">
+          <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Onboarding Banner */}
         <OrgSetupBanner workspaceSlug={workspaceSlug} />
+
+        {/* Daily briefing card — shown once per day */}
+        <DailyBriefingCard
+          userId={user.userId}
+          className="mb-4"
+        />
 
         {/* Onboarding briefing card — shown for 30 days after workspace onboarding */}
         <OnboardingBriefingCard
@@ -229,19 +238,31 @@ export default function DashboardClient({
         </div>
 
         {/* Dashboard Grid - 3x3 Layout */}
-        <div className="dashboard-grid">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Row 1: Calendar - Email - Recent Activity */}
-          <MeetingsCard />
-          <EmailWidget />
-          <NotificationsWidget />
+          <div className="min-h-0 min-w-0">
+            <MeetingsCard />
+          </div>
+          <div className="min-h-0 min-w-0">
+            <EmailWidget />
+          </div>
+          <div className="min-h-0 min-w-0">
+            <NotificationsWidget />
+          </div>
 
           {/* Row 2: My Tasks - To-do - Projects */}
-          <MyTasksWidget />
-          <TodaysTodosCard />
-          <ProjectsCard projects={projects} workspaceSlug={workspaceSlug} />
+          <div className="min-h-0 min-w-0">
+            <MyTasksWidget />
+          </div>
+          <div className="min-h-0 min-w-0">
+            <TodaysTodosCard />
+          </div>
+          <div className="min-h-0 min-w-0">
+            <ProjectsCard projects={projects} workspaceSlug={workspaceSlug} />
+          </div>
 
           {/* Row 3: Quick Actions (full width) */}
-          <div className="col-span-3 min-h-0">
+          <div className="md:col-span-2 lg:col-span-3 min-h-0">
             <QuickActions workspaceSlug={workspaceSlug} />
           </div>
         </div>
@@ -249,22 +270,6 @@ export default function DashboardClient({
       </main>
 
       <style jsx global>{`
-        .dashboard-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          grid-template-rows: repeat(3, 320px);
-          gap: 1.5rem;
-        }
-
-        .dashboard-grid > * {
-          min-height: 0;
-          min-width: 0;
-        }
-
-        .dashboard-grid.compressed {
-          max-width: calc(100vw - 320px - 3rem);
-        }
-
         .widget-card {
           border-radius: 0.5rem;
           border: 1px solid hsl(var(--border));
@@ -313,6 +318,7 @@ export default function DashboardClient({
           gap: 0.5rem;
         }
       `}</style>
-    </div>
+      </div>
+    </ErrorBoundary>
   )
 }

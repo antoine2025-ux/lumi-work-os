@@ -641,8 +641,20 @@ export async function createCriticalAlertNotifications(
 
       if (recipientIds.size === 0) continue;
 
+      // Filter recipients by notification preferences
+      const { shouldNotify } = await import('@/lib/notifications/should-notify');
+      const allowedRecipients = [];
+      for (const recipientId of recipientIds) {
+        const allowed = await shouldNotify(recipientId, workspaceId, 'PROJECT_HEALTH_CRITICAL');
+        if (allowed) {
+          allowedRecipients.push(recipientId);
+        }
+      }
+
+      if (allowedRecipients.length === 0) continue;
+
       await prisma.notification.createMany({
-        data: [...recipientIds].map((recipientId) => ({
+        data: allowedRecipients.map((recipientId) => ({
           workspaceId,
           recipientId,
           type: "PROJECT_HEALTH_CRITICAL",

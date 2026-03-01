@@ -271,6 +271,7 @@ export async function POST(request: NextRequest) {
     if (step === 3) {
       const createdDepartments: Array<{ id: string; name: string }> = []
       const createdTeams: Array<{ id: string; name: string }> = []
+      const createdPositions: Array<{ id: string; title: string }> = []
 
       if (!data.skipped) {
         // Create departments
@@ -281,8 +282,7 @@ export async function POST(request: NextRequest) {
                 data: {
                   workspaceId,
                   name: dept.name,
-                  // Preserve lead name from onboarding for later assignment
-                  description: dept.leadName ? `Department lead: ${dept.leadName}` : null,
+                  description: null, // Lead name now stored in OrgPosition, not plain text
                 },
               })
               createdDepartments.push({ id: created.id, name: created.name })
@@ -315,6 +315,69 @@ export async function POST(request: NextRequest) {
             }
           }
         }
+
+        // Create lead positions for departments with leadName
+        if (data.departments && data.departments.length > 0) {
+          for (const dept of data.departments) {
+            if (!dept.leadName) continue
+
+            try {
+              // Find the created department
+              const createdDept = await prisma.orgDepartment.findFirst({
+                where: { workspaceId, name: dept.name },
+                select: { id: true, name: true },
+              })
+
+              if (!createdDept) continue
+
+              // Find or create a team for this department
+              let teamId: string | null = null
+
+              // First, check if any teams were created for this department
+              const existingTeam = await prisma.orgTeam.findFirst({
+                where: { workspaceId, departmentId: createdDept.id },
+                select: { id: true },
+              })
+
+              if (existingTeam) {
+                teamId = existingTeam.id
+              } else {
+                // No teams exist — create a default team using department name
+                const defaultTeam = await prisma.orgTeam.create({
+                  data: {
+                    workspaceId,
+                    name: createdDept.name,
+                    departmentId: createdDept.id,
+                  },
+                })
+                teamId = defaultTeam.id
+                createdTeams.push({ id: defaultTeam.id, name: defaultTeam.name })
+              }
+
+              // Create the lead position
+              const position = await prisma.orgPosition.create({
+                data: {
+                  workspaceId,
+                  title: `Head of ${createdDept.name}`,
+                  userId: null, // Placeholder — to be assigned later
+                  teamId,
+                  level: 5, // High level to ensure recognition as department lead
+                  roleDescription: dept.leadName, // Store lead name for future matching
+                },
+              })
+
+              createdPositions.push({ id: position.id, title: position.title ?? '' })
+            } catch (error) {
+              // Log but don't fail the entire onboarding step
+              logger.warn('[onboarding] Failed to create lead position', {
+                workspaceId,
+                departmentName: dept.name,
+                leadName: dept.leadName,
+                error: error instanceof Error ? error.message : String(error),
+              })
+            }
+          }
+        }
       }
 
       await prisma.onboardingProgress.update({
@@ -332,6 +395,7 @@ export async function POST(request: NextRequest) {
         nextStep: 4,
         createdDepartments,
         createdTeams,
+        createdPositions,
       })
     }
 

@@ -6,10 +6,15 @@ import { useWorkspace } from "@/lib/workspace-context"
 import { NavTab } from "@/components/navigation/NavTab"
 import { Clock } from "@/components/navigation/Clock"
 import { NotificationCenter } from "@/components/notifications/NotificationCenter"
-import { Search } from "lucide-react"
+import { Search, Menu } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
-export function Header() {
+interface HeaderProps {
+  onMenuToggle?: () => void
+}
+
+export function Header({ onMenuToggle }: HeaderProps = {}) {
   const pathname = usePathname()
   const router = useRouter()
   const { currentWorkspace } = useWorkspace()
@@ -46,17 +51,30 @@ export function Header() {
 
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b border-border/50 sticky top-0 z-50 bg-card">
-      <nav className="flex items-center gap-6">
-        <NavTab href={dashboardHref} active={isDashboardActive}>
-          Dashboard
-        </NavTab>
-        <NavTab href={spacesHref} active={isSpacesActive}>
-          Spaces
-        </NavTab>
-        <NavTab href={orgHref} active={isOrgActive}>
-          Org
-        </NavTab>
-      </nav>
+      <div className="flex items-center gap-4">
+        {onMenuToggle && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={onMenuToggle}
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
+        <nav className="flex items-center gap-6">
+          <NavTab href={dashboardHref} active={isDashboardActive}>
+            Dashboard
+          </NavTab>
+          <NavTab href={spacesHref} active={isSpacesActive}>
+            Spaces
+          </NavTab>
+          <NavTab href={orgHref} active={isOrgActive}>
+            Org
+          </NavTab>
+        </nav>
+      </div>
 
       <div className="flex items-center gap-4">
         <button

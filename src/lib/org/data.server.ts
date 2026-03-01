@@ -735,7 +735,12 @@ export const getOrgChartData = cache(async (orgId: string): Promise<{
         include: {
           positions: {
             where: { isActive: true },
-            include: {
+            select: {
+              id: true,
+              title: true,
+              level: true,
+              createdAt: true,
+              updatedAt: true,
               user: {
                 select: {
                   id: true,
@@ -791,13 +796,14 @@ export const getOrgChartData = cache(async (orgId: string): Promise<{
   return {
     departments: departments.map((dept) => {
       // Find department lead: highest-level position across all teams
+      // Include vacant positions for high-level roles (level >= 5) to show department leads
       const allPositions = dept.teams.flatMap((team) =>
         team.positions
-          .filter((pos) => pos.user !== null)
+          .filter((pos) => pos.user !== null || pos.level >= 5)
           .map((pos) => ({
             level: pos.level,
-            userName: pos.user!.name,
-            userId: pos.user!.id,
+            userName: pos.user?.name ?? pos.title ?? 'Vacant',
+            userId: pos.user?.id ?? null,
             parentUserName: pos.parent?.user?.name ?? null,
           }))
       );

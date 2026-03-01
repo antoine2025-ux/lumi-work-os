@@ -24,6 +24,8 @@ import { useWorkspace } from "@/lib/workspace-context"
 import { motion, AnimatePresence } from "framer-motion"
 import { WikiLayout } from "@/components/wiki/wiki-layout"
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog"
+import { ErrorState } from "@/components/ui/error-state"
+import { ProjectListSkeleton } from "@/components/ui/page-skeletons"
 
 interface Project {
   id: string
@@ -145,7 +147,7 @@ export default function ProjectsDashboard() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
   const queryClient = useQueryClient()
-  const { data: projectsData, isLoading } = useProjects(currentWorkspace?.id)
+  const { data: projectsData, isLoading, error } = useProjects(currentWorkspace?.id)
   const projects = (projectsData as Project[] | undefined) ?? []
 
   const _setViewMode = (mode: ViewMode) => {
@@ -258,12 +260,26 @@ export default function ProjectsDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" style={{ color: typeof window !== 'undefined' ? colors.primary : '#6366f1' }} />
-          <p style={{ color: typeof window !== 'undefined' ? colors.textSecondary : '#94a3b8' }}>Loading dashboard...</p>
+      <WikiLayout>
+        <div className="min-h-screen bg-slate-950 px-16 py-8">
+          <ProjectListSkeleton />
         </div>
-      </div>
+      </WikiLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <WikiLayout>
+        <div className="min-h-screen bg-slate-950">
+          <ErrorState
+            title="Failed to load projects"
+            description="There was an error loading your projects. Please try again."
+            onRetry={() => window.location.reload()}
+            fullPage
+          />
+        </div>
+      </WikiLayout>
     )
   }
 
