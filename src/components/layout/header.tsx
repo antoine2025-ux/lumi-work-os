@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useParams, useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { useWorkspace } from "@/lib/workspace-context"
@@ -38,32 +38,32 @@ function getInitials(name: string | null | undefined, email: string | null | und
 export function Header({ onMenuToggle }: HeaderProps = {}) {
   const pathname = usePathname()
   const router = useRouter()
+  const params = useParams()
   const { data: session } = useSession()
   const { currentWorkspace } = useWorkspace()
 
-  const profileHref = currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/org/profile` : "/org/profile"
-  const settingsHref = currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/settings` : "/settings"
+  const slug = (params?.workspaceSlug as string) ?? currentWorkspace?.slug ?? null
+  const profileHref = slug ? `/w/${slug}/org/profile` : "/org/profile"
+  const settingsHref = slug ? `/w/${slug}/settings` : "/settings"
 
   // Prefetch common routes on mount for instant navigation
   useEffect(() => {
-    if (currentWorkspace?.slug) {
+    if (slug) {
       const commonRoutes = [
-        `/w/${currentWorkspace.slug}`,
-        `/w/${currentWorkspace.slug}/spaces/home`,
-        `/w/${currentWorkspace.slug}/org`,
+        `/w/${slug}`,
+        `/w/${slug}/spaces/home`,
+        `/w/${slug}/org`,
       ]
       commonRoutes.forEach((route) => {
         router.prefetch(route)
       })
     }
-  }, [router, currentWorkspace])
+  }, [router, slug])
 
-  const slugRoot = currentWorkspace?.slug ? `/w/${currentWorkspace.slug}` : "/home"
-  const dashboardHref = currentWorkspace?.slug ? `/w/${currentWorkspace.slug}` : "/home"
-  const spacesHref = currentWorkspace?.slug
-    ? `/w/${currentWorkspace.slug}/spaces/home`
-    : "/spaces/home"
-  const orgHref = currentWorkspace?.slug ? `/w/${currentWorkspace.slug}/org` : "/org"
+  const slugRoot = slug ? `/w/${slug}` : "/home"
+  const dashboardHref = slug ? `/w/${slug}` : "/home"
+  const spacesHref = slug ? `/w/${slug}/spaces/home` : "/spaces/home"
+  const orgHref = slug ? `/w/${slug}/org` : "/org"
 
   const isDashboardActive =
     pathname === slugRoot || pathname === "/home" || pathname === "/"
