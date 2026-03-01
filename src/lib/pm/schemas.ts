@@ -97,6 +97,10 @@ export const ProjectUpdateSchema = z.object({
   }
 )
 
+export const ProjectDuplicateSchema = z.object({
+  name: z.string().min(1, 'Project name is required').max(255, 'Project name too long').optional()
+})
+
 // Task schemas
 // Note: workspaceId is not included in the schema because it is always derived from
 // the authenticated session (auth.workspaceId) on the server for security.
