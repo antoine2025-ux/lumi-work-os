@@ -102,6 +102,9 @@ export async function GET(
 
     const resolvedParams = await params
     const pageIdOrSlug = decodeURIComponent(resolvedParams.id)
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc9fac'},body:JSON.stringify({sessionId:'dc9fac',location:'api/wiki/pages/[id]/route.ts:GET',message:'wiki page GET',data:{pageIdOrSlug,workspaceId:auth.workspaceId},timestamp:Date.now(),hypothesisId:'H2-H4'})}).catch(()=>{});
+    // #endregion
 
     // RLS defense-in-depth: set app.user_id so RLS policies pass
     // (Prisma service role bypasses RLS, but this guards against config changes)
@@ -134,6 +137,9 @@ export async function GET(
     })
 
     if (!page) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc9fac'},body:JSON.stringify({sessionId:'dc9fac',location:'api/wiki/pages/[id]/route.ts:404',message:'wiki 404 db_not_found',data:{pageIdOrSlug,workspaceId:auth.workspaceId,reason:'db_not_found'},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
       return NextResponse.json({
         error: 'Page not found'
       }, { status: 404 })
@@ -145,6 +151,9 @@ export async function GET(
     // Personal pages - only creator
     if (pageWorkspaceType === 'personal' || pageWorkspaceType?.startsWith('personal-space-')) {
       if (page.createdById !== auth.user.userId) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc9fac'},body:JSON.stringify({sessionId:'dc9fac',location:'api/wiki/pages/[id]/route.ts:404',message:'wiki 404 personal_forbidden',data:{pageIdOrSlug,workspaceId:auth.workspaceId,reason:'personal_forbidden',createdById:page.createdById},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
         return NextResponse.json({ error: 'Page not found' }, { status: 404 })
       }
     }
@@ -153,6 +162,9 @@ export async function GET(
     if (pageWorkspaceType?.startsWith('wiki-')) {
       const hasAccess = await canAccessWikiWorkspace(auth.user.userId, pageWorkspaceType)
       if (!hasAccess) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc9fac'},body:JSON.stringify({sessionId:'dc9fac',location:'api/wiki/pages/[id]/route.ts:404',message:'wiki 404 wiki_workspace_forbidden',data:{pageIdOrSlug,workspaceId:auth.workspaceId,reason:'wiki_workspace_forbidden',pageWorkspaceType},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
         return NextResponse.json({ error: 'Page not found' }, { status: 404 })
       }
     }

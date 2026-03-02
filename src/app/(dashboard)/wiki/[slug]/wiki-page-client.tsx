@@ -257,7 +257,11 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       try {
         setIsLoading(true)
         setLoadError(null)
-        const response = await fetch(`/api/wiki/pages/${encodeURIComponent(resolvedSlug)}`, {
+        // #region agent log
+        const fetchUrl = `/api/wiki/pages/${encodeURIComponent(resolvedSlug)}`
+        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc9fac'},body:JSON.stringify({sessionId:'dc9fac',location:'wiki-page-client.tsx:loadPage',message:'wiki loadPage fetch',data:{pathname:typeof window!=='undefined'?window.location.pathname:null,resolvedSlug,fetchUrl},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
+        // #endregion
+        const response = await fetch(fetchUrl, {
           cache: 'no-store',
         })
         if (response.ok) {
@@ -325,6 +329,9 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
             // If JSON parsing fails, use status text
             errorData = { error: response.statusText || 'Unknown error' }
           }
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc9fac'},body:JSON.stringify({sessionId:'dc9fac',location:'wiki-page-client.tsx:328',message:'wiki 404 client',data:{pathname:typeof window!=='undefined'?window.location.pathname:null,resolvedSlug,status:response.status,errorData},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
+          // #endregion
           console.error('Failed to load page:', response.status, response.statusText, errorData)
           const rawError = errorData?.error
           const errorMessage =

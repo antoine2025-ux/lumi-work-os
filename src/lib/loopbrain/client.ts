@@ -10,6 +10,14 @@ import type {
   LoopbrainMode,
   ExtractedTask,
 } from './orchestrator-types'
+
+/**
+ * Extended response type that includes agent-loop fields not present on the
+ * base orchestrator response (e.g. conversationId from the session store).
+ */
+export type LoopbrainClientResponse = LoopbrainResponse & {
+  conversationId?: string
+}
 import type { AgentPlan, ClarificationContext, AdvisoryContext } from './agent/types'
 import { getProjectSlackHints } from '@/lib/client-state/project-slack-hints'
 
@@ -49,6 +57,8 @@ export interface LoopbrainAssistantParams {
   pendingAdvisory?: AdvisoryContext
   /** Confirmed extracted tasks from MeetingTaskReview for server-side bulk creation */
   pendingMeetingExtraction?: { tasks: ExtractedTask[] }
+  /** Agent-loop conversation ID — sent back on follow-up turns to resume history */
+  conversationId?: string
 }
 
 /**
@@ -80,7 +90,7 @@ export interface SpacesAssistantParams {
  */
 export async function callLoopbrainAssistant(
   params: LoopbrainAssistantParams
-): Promise<LoopbrainResponse> {
+): Promise<LoopbrainClientResponse> {
   const {
     mode,
     query,
@@ -142,6 +152,7 @@ export async function callLoopbrainAssistant(
     ...(params.pendingClarification && { pendingClarification: params.pendingClarification }),
     ...(params.pendingAdvisory && { pendingAdvisory: params.pendingAdvisory }),
     ...(params.pendingMeetingExtraction && { pendingMeetingExtraction: params.pendingMeetingExtraction }),
+    ...(params.conversationId && { conversationId: params.conversationId }),
   }
 
   try {
@@ -181,8 +192,8 @@ export async function callLoopbrainAssistant(
     // Parse and validate response
     const data = await response.json()
 
-    // Type assertion - backend should return LoopbrainResponse
-    return data as LoopbrainResponse
+    // Type assertion - backend should return LoopbrainResponse (agent loop may add conversationId)
+    return data as LoopbrainClientResponse
   } catch (error) {
     // Re-throw with user-friendly message
     if (error instanceof Error) {
@@ -207,7 +218,7 @@ export async function callLoopbrainAssistant(
  */
 export async function callSpacesLoopbrainAssistant(
   params: SpacesAssistantParams
-): Promise<LoopbrainResponse> {
+): Promise<LoopbrainClientResponse> {
   return callLoopbrainAssistant({
     mode: 'spaces',
     ...params
@@ -223,7 +234,7 @@ export async function callSpacesLoopbrainAssistant(
  */
 export async function callOrgLoopbrainAssistant(
   params: Omit<LoopbrainAssistantParams, 'mode'>
-): Promise<LoopbrainResponse> {
+): Promise<LoopbrainClientResponse> {
   return callLoopbrainAssistant({ mode: 'org', ...params })
 }
 

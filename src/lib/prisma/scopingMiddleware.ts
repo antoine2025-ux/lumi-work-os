@@ -130,6 +130,7 @@ export const WORKSPACE_SCOPED_MODELS = [
   // LOW - UI preferences, minor features, utilities
   'LoopbrainChatFeedback',
   'LoopbrainOpenLoop',
+  'LoopbrainSession',
   'OrgIssueResolution',
   'OrgPersonProfileOverride',
   'OrgSavedView',

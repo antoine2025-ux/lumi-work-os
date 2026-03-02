@@ -231,6 +231,18 @@ export async function buildCalendarAvailability(
  * Load calendar events for a person from Google Calendar.
  * Returns [] gracefully if the user has no Google account connected or the API fails.
  */
+function getOAuthRedirectBaseUrl(): string {
+  if (process.env.NODE_ENV === 'development') {
+    if (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL.includes('localhost')) {
+      return process.env.NEXTAUTH_URL
+    }
+    return 'http://localhost:3000'
+  }
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return 'http://localhost:3000'
+}
+
 export async function loadCalendarEvents(
   _workspaceId: string,
   personId: string,
@@ -247,16 +259,37 @@ export async function loadCalendarEvents(
       select: { access_token: true, refresh_token: true, expires_at: true },
     });
 
-    if (!account?.access_token) return [];
+    if (!account?.refresh_token) return [];
 
+    const baseUrl = getOAuthRedirectBaseUrl()
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
+      `${baseUrl}/api/auth/callback/google`
     );
     oauth2Client.setCredentials({
-      access_token: account.access_token,
-      refresh_token: account.refresh_token ?? undefined,
+      access_token: account.access_token ?? undefined,
+      refresh_token: account.refresh_token,
       expiry_date: account.expires_at ? account.expires_at * 1000 : undefined,
+    });
+
+    // Persist refreshed tokens so create helper and future reads use fresh tokens
+    oauth2Client.on('tokens', (tokens) => {
+      if (tokens.access_token) {
+        prismaUnscoped.account
+          .updateMany({
+            where: { userId: personId, provider: 'google' },
+            data: {
+              access_token: tokens.access_token,
+              expires_at: tokens.expiry_date
+                ? Math.floor(tokens.expiry_date / 1000)
+                : undefined,
+            },
+          })
+          .catch((err: unknown) => {
+            logger.warn('[CalendarContext] Failed to persist refreshed token', { personId, err })
+          })
+      }
     });
 
     const cal = google.calendar({ version: "v3", auth: oauth2Client });

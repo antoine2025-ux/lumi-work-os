@@ -36,7 +36,7 @@ import {
   inferOrgQuestionTypeFromRequest,
   type OrgQuestionContext,
 } from './org-question-types'
-import { prisma } from '@/lib/db'
+import { prisma, prismaUnscoped } from '@/lib/db'
 import { buildEpicContext, type EpicWithRelations } from './context-sources/pm/epics'
 import { searchSimilarContextItems } from './embedding-service'
 import { generateAIResponse } from '@/lib/ai/providers'
@@ -69,6 +69,7 @@ import { deriveOpenLoops } from './world/openLoops/deriveOpenLoops'
 import { fetchOpenLoops } from './world/openLoops/fetchOpenLoops'
 import { formatOpenLoopsForPrompt } from './world/openLoops/formatOpenLoopsForPrompt'
 import { detectIntentFromKeywords, classifyMessageIntent, type LoopbrainIntent } from './intent-router'
+import { ACTION_VERBS } from './intent-router'
 import { toolRegistry } from './agent/tool-registry'
 import { generatePlan, formatPlanForUser, formatClarifyForUser, formatAdvisoryForUser } from './agent/planner'
 import { executeAgentPlan } from './agent/executor'
@@ -86,7 +87,16 @@ import { formatCalendarAvailabilityEnvelope, formatTeamAvailabilityEnvelope } fr
 import { generateOnboardingBriefing } from './scenarios/onboarding-briefing'
 import { generateDailyBriefing } from './scenarios/daily-briefing'
 import { generateMeetingPrep, generateNextMeetingPrep, findEventByTitle } from './scenarios/meeting-prep'
-import { loadGmailThreads, formatGmailThreadsForPrompt } from './context-sources/gmail'
+import {
+  loadGmailThreads,
+  formatGmailThreadsForPrompt,
+  formatGmailThreadsForPlannerContext,
+  isGmailConnected,
+} from './context-sources/gmail'
+import { loadCalendarEvents } from './context-sources/calendar'
+import { getTodayWindow, getTomorrowWindow } from '@/lib/datetime'
+import { addDays, startOfWeek } from 'date-fns'
+import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import { searchGmailForContext } from './context-sources/gmail-search'
 import { searchSlackMessages } from './context-sources/slack-search'
 import { extractEntityContext } from './reasoning/entityLinksAnswer'
@@ -261,6 +271,47 @@ export async function runLoopbrainQuery(
     })
   }
 
+  // 1.8 Email search — route queries asking ABOUT emails to handleEmailSearchMode
+  // (These load Gmail and answer directly. Don't send to planner which would ask for clarification.)
+  const { intent, isTaskIntent } = classifyQueryIntent(req.query)
+  if (intent === 'email_search' || req.mode === 'email_search') {
+    return await handleEmailSearchMode(req, userCtx)
+  }
+
+  // 1.9 Affirmative follow-up to action suggestions — route to agent before intent classification
+  const AFFIRMATIVE_PATTERNS = /^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|please do|yes please|proceed|go for it|sounds good|let's do it|make it happen|yes,?\s*please\s*do)/i
+  if (AFFIRMATIVE_PATTERNS.test(req.query.trim()) && req.conversationContext?.trim()) {
+    const lines = req.conversationContext.split('\n').filter(Boolean)
+    const lastAssistant = [...lines].reverse().find((l) => l.toLowerCase().startsWith('assistant:'))
+    const previousContent = lastAssistant ? lastAssistant.replace(/^assistant:\s*/i, '').trim() : ''
+    const suggestedActions =
+      previousContent &&
+      (/schedule/i.test(previousContent) ||
+        /would you like me to/i.test(previousContent) ||
+        /want me to/i.test(previousContent) ||
+        /\bI can\b/i.test(previousContent) ||
+        /set up/i.test(previousContent) ||
+        /\bcreate\b/i.test(previousContent) ||
+        /here's what/i.test(previousContent) ||
+        /actionable items/i.test(previousContent))
+    if (suggestedActions) {
+      // Extract numbered or bulleted action items only (avoid stuffing full narrative + email summary)
+      const actionLines = previousContent
+        .split('\n')
+        .filter((l) => /^\d+[\.\)]\s/.test(l.trim()) || /^[-•]\s/.test(l.trim()))
+        .join('\n')
+      const synthesizedQuery = actionLines
+        ? `User confirmed. Execute these actions:\n${actionLines}`
+        : `User confirmed. Execute the actions suggested in this conversation:\n${previousContent.slice(0, 1500)}`
+      logger.info('Affirmative follow-up, routing to action mode', {
+        workspaceId: req.workspaceId,
+        originalQuery: req.query,
+        hasActionLines: !!actionLines,
+      })
+      return await handleActionMode({ ...req, query: synthesizedQuery }, 'ACTION')
+    }
+  }
+
   // 2. Classify ACTION vs QUESTION
   const messageIntent = classifyMessageIntent(req.query)
   logger.debug('Message intent classified', {
@@ -273,9 +324,6 @@ export async function runLoopbrainQuery(
     return await handleActionMode(req, messageIntent)
   }
   // else: QUESTION — fall through to existing flow below
-
-  // Classify intent (lightweight, rule-based — no LLM)
-  const { intent, isTaskIntent } = classifyQueryIntent(req.query)
   logger.debug('Intent classified', {
     workspaceId: req.workspaceId,
     intent,
@@ -339,11 +387,6 @@ export async function runLoopbrainQuery(
   // Check for meeting prep queries
   if (intent === 'meeting_prep' || req.mode === 'meeting_prep') {
     return await handleMeetingPrepMode(req, userCtx)
-  }
-
-  // Check for email search queries
-  if (intent === 'email_search' || req.mode === 'email_search') {
-    return await handleEmailSearchMode(req, userCtx)
   }
 
   // Check for Slack search queries
@@ -3196,6 +3239,27 @@ async function handleMeetingPrepMode(
 // Email Search mode
 // ---------------------------------------------------------------------------
 
+/** Format recent Gmail threads for the email search LLM prompt (fallback when targeted search returns 0). */
+function formatRecentThreadsForEmailPrompt(
+  threads: Awaited<ReturnType<typeof loadGmailThreads>>
+): string {
+  if (threads.length === 0) return ''
+  const lines = threads.map((t) => {
+    const dateStr = t.date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+    const preview = (t.bodyPreview || t.snippet).slice(0, 400)
+    return (
+      `From: ${t.from} (${dateStr}) — "${t.subject}"\n` +
+      `To: ${t.to.slice(0, 3).join(', ')}${t.to.length > 3 ? ', ...' : ''}\n` +
+      `Preview: "${preview}"\n`
+    )
+  })
+  return `[Recent email threads]\n\n${lines.join('\n')}`.trim()
+}
+
 async function handleEmailSearchMode(
   req: LoopbrainRequest,
   userCtx: LoopbrainUserContext
@@ -3205,13 +3269,9 @@ async function handleEmailSearchMode(
     userId: req.userId,
   })
 
-  const searchResult = await searchGmailForContext(
-    req.userId,
-    req.workspaceId,
-    req.query
-  )
-
-  if (searchResult.threads.length === 0) {
+  // Check Gmail connection first — return helpful message if not connected
+  const gmailConnected = await isGmailConnected(req.userId, req.workspaceId)
+  if (!gmailConnected) {
     return {
       mode: 'email_search',
       workspaceId: req.workspaceId,
@@ -3219,15 +3279,14 @@ async function handleEmailSearchMode(
       query: req.query,
       context: {},
       answer:
-        "I couldn't find any emails matching that query. Try different keywords, a specific sender name, or check your Gmail directly.",
+        "Gmail isn't connected yet. Connect it in Settings → Integrations to let me read your emails.",
       suggestions: [
-        { label: 'Search again', action: 'email_search', payload: {} },
         { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
       ],
       metadata: {
         routing: {
           contextType: 'email_search',
-          confidence: 0.5,
+          confidence: 0,
           itemCount: 0,
           usedFallback: true,
         },
@@ -3238,12 +3297,75 @@ async function handleEmailSearchMode(
     }
   }
 
+  const searchResult = await searchGmailForContext(
+    req.userId,
+    req.workspaceId,
+    req.query
+  )
+
+  // When targeted search returns 0, fall back to recent threads (broader fetch)
+  // — Gmail search can be restrictive (e.g. from:Name may not match display names)
+  let threads = searchResult.threads
+  let contextText = searchResult.contextText
+  let searchQuery = searchResult.searchQuery
+  let usedFallbackThreads = false
+
+  if (threads.length === 0) {
+    const recentThreads = await loadGmailThreads(req.userId, req.workspaceId, {
+      maxResults: 10,
+      includeBodyPreview: true,
+    })
+    if (recentThreads.length > 0) {
+      threads = recentThreads
+      usedFallbackThreads = true
+      contextText = formatRecentThreadsForEmailPrompt(recentThreads)
+      searchQuery = '(last 7 days)'
+    } else {
+      return {
+        mode: 'email_search',
+        workspaceId: req.workspaceId,
+        userId: req.userId,
+        query: req.query,
+        context: {},
+        answer: 'No recent emails found.',
+        suggestions: [
+          { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+        ],
+        metadata: {
+          routing: {
+            contextType: 'email_search',
+            confidence: 0.5,
+            itemCount: 0,
+            usedFallback: true,
+          },
+          userContextResolved: true,
+          userRole: userCtx.role,
+          userTeam: userCtx.teamName ?? undefined,
+        },
+      }
+    }
+  }
+
   const prompt = [
-    'The user is asking about their email. Use the email search results below to answer their question.',
-    'Be specific — cite sender names, dates, and subject lines. If the answer is ambiguous, summarize the most relevant threads.',
-    `Searched Gmail for: "${searchResult.searchQuery}"`,
+    'The user is asking about their email. Use the email context below to answer their question.',
+    'Be specific — cite sender names, dates, and subject lines. If the query mentions a person (e.g. "Wytze"), find emails from or to that person in the list.',
+    'If the answer is ambiguous, summarize the most relevant threads.',
     '',
-    searchResult.contextText,
+    'PROACTIVE ACTION DETECTION:',
+    'After your summary, analyze the emails for actionable items. Look for:',
+    '- SCHEDULING: "Can you schedule...", "Let\'s meet...", "Put X on the calendar", time/date mentions with meeting requests',
+    '- REPLY NEEDED: Direct questions, requests for confirmation, action items directed at the user',
+    '- TASK CREATION: "Can you do X", "Please handle Y", deadlines, deliverables mentioned',
+    '',
+    'If you find actionable items (prioritize the top 3-5 most important — do not overwhelm):',
+    'Append a natural follow-up: describe what you can do in specific terms. Example: "Wytze is asking you to schedule lunch tomorrow at 1pm and plan your work blocks. Want me to set that up? I\'d create a lunch event at 1pm and schedule six 50-minute focused work blocks with breaks. Just say \'do it\' or \'yes\' to proceed."',
+    '',
+    'Be conversational — do NOT say "I detected 3 actionable items." Say something like "I noticed Sarah needs a reply on the budget by Friday" or "John is asking to meet next Tuesday at 2pm."',
+    'If no actionable items, just provide the summary without suggesting actions.',
+    '',
+    `Email context (${searchQuery}):`,
+    '',
+    contextText,
     '',
     `User question: ${req.query}`,
   ].join('\n')
@@ -3256,9 +3378,9 @@ async function handleEmailSearchMode(
 
   const llmResponse = await callLoopbrainLLM(prompt, systemPrompt)
 
-  const dateRange = searchResult.threads.length > 0
+  const dateRange = threads.length > 0
     ? (() => {
-        const dates = searchResult.threads.map((t) => t.date)
+        const dates = threads.map((t) => t.date)
         const earliest = new Date(Math.min(...dates.map((d) => d.getTime())))
         const latest = new Date(Math.max(...dates.map((d) => d.getTime())))
         const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -3267,7 +3389,7 @@ async function handleEmailSearchMode(
     : ''
 
   const attribution = dateRange
-    ? `\n\n---\n*Based on ${searchResult.threads.length} email${searchResult.threads.length === 1 ? '' : 's'} from ${dateRange}*`
+    ? `\n\n---\n*Based on ${threads.length} email${threads.length === 1 ? '' : 's'} from ${dateRange}*`
     : ''
 
   return {
@@ -3290,12 +3412,12 @@ async function handleEmailSearchMode(
             total: llmResponse.usage.totalTokens,
           }
         : undefined,
-      retrievedCount: searchResult.threads.length,
+      retrievedCount: threads.length,
       routing: {
         contextType: 'email_search',
-        confidence: 0.9,
-        itemCount: searchResult.threads.length,
-        usedFallback: false,
+        confidence: usedFallbackThreads ? 0.7 : 0.9,
+        itemCount: threads.length,
+        usedFallback: usedFallbackThreads,
       },
       userContextResolved: true,
       userRole: userCtx.role,
@@ -5022,7 +5144,132 @@ async function handleActionMode(
 
   // Build workspace context snapshot for the planner
   const plannerCtx = await buildPlannerContext(req.workspaceId)
-  const contextSnippet = formatContextForPrompt(plannerCtx)
+  let contextSnippet = formatContextForPrompt(plannerCtx)
+
+  // Inject Gmail context when query is about emails — reply/send OR read/ask (what was X's email about, etc.)
+  const queryLower = req.query.toLowerCase().trim()
+  const isShortAffirmative = /^(yes|yeah|yep|do it|go ahead|sounds good|proceed|sure|ok|okay|please do|go for it|do that|confirmed)$/i.test(queryLower)
+  const suggestsEmail =
+    queryLower.includes('reply') ||
+    queryLower.includes('respond') ||
+    (queryLower.includes('email') && (queryLower.includes('send') || queryLower.includes('to'))) ||
+    // Asking about emails: what/which/when + email, or email about/from, inbox, last email, message from
+    queryLower.includes('email about') ||
+    queryLower.includes('email from') ||
+    queryLower.includes('last email') ||
+    queryLower.includes('recent email') ||
+    queryLower.includes('message from') ||
+    (queryLower.includes('inbox') && !queryLower.includes('slack')) ||
+    ((queryLower.startsWith('what') || queryLower.startsWith('which') || queryLower.includes(' about')) &&
+      (queryLower.includes('email') || queryLower.includes('gmail')))
+  const suggestsEmailFromContext =
+    isShortAffirmative && !!req.conversationContext && req.conversationContext.toLowerCase().includes('email')
+  if (suggestsEmail || suggestsEmailFromContext) {
+    const gmailThreads = await loadGmailThreads(req.userId, req.workspaceId, {
+      maxResults: 8,
+    })
+    const gmailSection = formatGmailThreadsForPlannerContext(gmailThreads, 8)
+    if (gmailSection) {
+      contextSnippet = contextSnippet + gmailSection
+    }
+  }
+
+  // Inject calendar context (date, timezone, existing events) when query suggests scheduling
+  const CALENDAR_KEYWORDS = [
+    'schedule', 'book', 'plan my', 'add to calendar', 'put on calendar',
+    'create event', 'create meeting', 'block time', 'block my',
+    'meeting', 'event', 'appointment', 'call', 'standup', 'sync', '1:1',
+  ]
+  const TIME_REFS = ['tomorrow', 'next monday', 'this afternoon', 'next week']
+  const suggestsCalendar =
+    CALENDAR_KEYWORDS.some((kw) => queryLower.includes(kw)) ||
+    (TIME_REFS.some((kw) => queryLower.includes(kw)) &&
+      ACTION_VERBS.some((v) => queryLower.includes(v)))
+  const suggestsCalendarFromContext =
+    isShortAffirmative && !!req.conversationContext && 
+    (req.conversationContext.toLowerCase().includes('schedule') ||
+      req.conversationContext.toLowerCase().includes('calendar') ||
+      req.conversationContext.toLowerCase().includes('lunch') ||
+      req.conversationContext.toLowerCase().includes('meeting'))
+
+  if (suggestsCalendar || suggestsCalendarFromContext) {
+    const user = await prismaUnscoped.user.findUnique({
+      where: { id: req.userId },
+      select: { timezone: true },
+    })
+    const userTz = user?.timezone || 'Europe/Tallinn'
+
+    const now = new Date()
+    const tomorrow = new Date(now)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const todayStr = now.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    const tomorrowStr = tomorrow.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    })
+
+    let rangeStart: Date
+    let rangeEnd: Date
+    if (queryLower.includes('tomorrow')) {
+      const { start, end } = getTomorrowWindow(userTz)
+      rangeStart = start
+      rangeEnd = end
+    } else if (queryLower.includes('next monday')) {
+      const zonedNow = toZonedTime(now, userTz)
+      const thisMonday = startOfWeek(zonedNow, { weekStartsOn: 1 })
+      const nextMonday =
+        zonedNow > thisMonday ? addDays(thisMonday, 7) : thisMonday
+      const nextMondayUtc = fromZonedTime(nextMonday, userTz)
+      const nextMondayEnd = addDays(nextMondayUtc, 1)
+      rangeStart = nextMondayUtc
+      rangeEnd = nextMondayEnd
+    } else if (queryLower.includes('this afternoon')) {
+      const { start, end } = getTodayWindow(userTz)
+      const zonedStart = toZonedTime(start, userTz)
+      zonedStart.setHours(12, 0, 0, 0)
+      rangeStart = fromZonedTime(zonedStart, userTz)
+      rangeEnd = end
+    } else if (queryLower.includes('next week')) {
+      const zonedNow = toZonedTime(now, userTz)
+      const thisMonday = startOfWeek(zonedNow, { weekStartsOn: 1 })
+      const nextMonday = addDays(thisMonday, 7)
+      const nextFriday = addDays(nextMonday, 4)
+      rangeStart = fromZonedTime(nextMonday, userTz)
+      rangeEnd = fromZonedTime(addDays(nextFriday, 1), userTz)
+    } else {
+      const { start: todayStart } = getTodayWindow(userTz)
+      const { end: tomorrowEnd } = getTomorrowWindow(userTz)
+      rangeStart = todayStart
+      rangeEnd = tomorrowEnd
+    }
+
+    const events = await loadCalendarEvents(req.workspaceId, req.userId, rangeStart, rangeEnd)
+    const eventsLine =
+      events.length > 0
+        ? events
+            .map(
+              (e) =>
+                `${e.startTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}-${e.endTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} ${e.title}`
+            )
+            .join(', ')
+        : 'No existing events'
+
+    const calendarSection = [
+      '',
+      '--- Calendar context ---',
+      `Current date: ${todayStr}`,
+      `Tomorrow: ${tomorrowStr}`,
+      `User timezone: ${userTz}`,
+      `Existing calendar events for target date(s): ${eventsLine}`,
+    ].join('\n')
+    contextSnippet = contextSnippet + calendarSection
+  }
 
   const plannerResult = await generatePlan({
     message: req.query,

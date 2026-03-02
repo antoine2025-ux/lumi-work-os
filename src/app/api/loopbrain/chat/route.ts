@@ -10,10 +10,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { prisma } from '@/lib/db'
 import { runLoopbrainQuery } from '@/lib/loopbrain/orchestrator'
 import { LoopbrainMode, LoopbrainRequest } from '@/lib/loopbrain/orchestrator-types'
 import type { AgentPlan, ClarificationContext, AdvisoryContext } from '@/lib/loopbrain/agent/types'
 import type { ExtractedTask } from '@/lib/loopbrain/orchestrator-types'
+import { runAgentLoop } from '@/lib/loopbrain/agent-loop'
 import { logger } from '@/lib/logger'
 import { buildLogContextFromRequest } from '@/lib/request-context'
 import { isOrgLoopbrainEnabled } from '@/lib/loopbrain/orgGate'
@@ -56,6 +59,9 @@ export async function POST(request: NextRequest) {
       requireRole: ['MEMBER']
     })
 
+    // Workspace scoping for Prisma queries
+    setWorkspaceContext(auth.workspaceId)
+
     // Multi-tenant safety: Always use workspaceId from auth, ignore any from client
     const workspaceId = auth.workspaceId
     const userId = auth.user.userId
@@ -82,6 +88,7 @@ export async function POST(request: NextRequest) {
       pendingClarification?: ClarificationContext
       pendingAdvisory?: AdvisoryContext
       pendingMeetingExtraction?: { tasks: ExtractedTask[] }
+      conversationId?: string  // Agent loop: client-generated UUID, persisted across turns
     }
 
     try {
@@ -157,6 +164,82 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Feature flag: route through new agent loop when LOOPBRAIN_AGENT_LOOP=true
+    if (process.env.LOOPBRAIN_AGENT_LOOP === 'true') {
+      try {
+        const conversationId = body.conversationId || crypto.randomUUID()
+
+        // Resolve workspace name for system prompt (one lightweight query)
+        const workspace = await prisma.workspace.findUnique({
+          where: { id: workspaceId },
+          select: { name: true },
+        })
+
+        // Derive highest role from auth (roles array contains the workspace role)
+        const rawRole = auth.user.roles[0] ?? 'MEMBER'
+        const userRole = (['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] as const).includes(
+          rawRole as 'VIEWER' | 'MEMBER' | 'ADMIN' | 'OWNER'
+        )
+          ? (rawRole as 'VIEWER' | 'MEMBER' | 'ADMIN' | 'OWNER')
+          : ('MEMBER' as const)
+
+        const agentResult = await runAgentLoop({
+          workspaceId,
+          userId,
+          conversationId,
+          userMessage: body.query.trim(),
+          userRole,
+          userContext: {
+            name: auth.user.name || auth.user.email,
+            email: auth.user.email,
+            timezone: 'UTC',
+            workspaceName: workspace?.name ?? workspaceId,
+          },
+        })
+
+        const durationMs = Date.now() - startTime
+        logger.info('Loopbrain agent loop completed', {
+          ...baseContext,
+          conversationId,
+          toolCallsMade: agentResult.toolCallsMade.length,
+          hasPendingPlan: !!agentResult.pendingPlan,
+          durationMs,
+        })
+
+        // Transform session-store PendingPlan → AgentPlan shape expected by the UI
+        const rawPlan = agentResult.pendingPlan ?? null
+        const pendingPlan: AgentPlan | null = rawPlan
+          ? {
+              reasoning: rawPlan.originalAssistantMessage,
+              requiresConfirmation: true,
+              steps: rawPlan.toolCalls.map((tc, i) => ({
+                stepNumber: i + 1,
+                toolName: tc.name,
+                parameters: tc.arguments,
+                description: buildStepDescription(tc.name, tc.arguments),
+              })),
+            }
+          : null
+
+        return NextResponse.json({
+          answer: agentResult.response,
+          conversationId: agentResult.conversationId,
+          pendingPlan,
+          toolCallsMade: agentResult.toolCallsMade,
+          // Backward-compatible with old orchestrator response shape
+          context: {
+            retrievedItems: [],
+          },
+          confidence: 'high',
+          intent: 'agent',
+        })
+      } catch (agentError) {
+        const message = agentError instanceof Error ? agentError.message : 'Agent loop failed'
+        console.error('[Loopbrain agent loop error]', agentError)
+        return NextResponse.json({ error: message }, { status: 500 })
+      }
+    }
+
     // Build LoopbrainRequest (workspaceId and userId from auth, never from client)
     const loopbrainRequest: LoopbrainRequest = {
       workspaceId, // Always from auth
@@ -213,4 +296,50 @@ export async function POST(request: NextRequest) {
   }
 }
 
-
+/**
+ * Derive a human-readable step description from a tool call's name and arguments.
+ * Used when transforming the session-store PendingPlan into the AgentPlan UI shape.
+ */
+function buildStepDescription(name: string, args: Record<string, unknown>): string {
+  switch (name) {
+    case 'createCalendarEvent': {
+      const title = (args.title ?? args.summary ?? 'event') as string
+      const start = (args.startTime ?? args.startDateTime ?? '') as string
+      return start ? `Create "${title}" starting ${start}` : `Create calendar event: ${title}`
+    }
+    case 'sendEmail':
+      return `Send email to ${args.to ?? 'recipient'}: ${args.subject ?? ''}`
+    case 'replyToEmail':
+      return `Reply to email thread${args.subject ? `: ${args.subject}` : ''}`
+    case 'createTask':
+      return `Create task: ${args.title ?? ''}`
+    case 'assignTask':
+      return `Assign task to ${args.assigneeId ?? 'assignee'}`
+    case 'updateTaskStatus':
+      return `Update task status to ${args.status ?? ''}`
+    case 'createWikiPage':
+      return `Create wiki page: ${args.title ?? ''}`
+    case 'createGoal':
+      return `Create goal: ${args.title ?? ''}`
+    case 'createEpic':
+      return `Create epic: ${args.title ?? ''}`
+    case 'createProject':
+      return `Create project: ${args.name ?? args.title ?? ''}`
+    case 'updateProject':
+      return `Update project ${args.projectId ?? ''}`
+    case 'addPersonToProject':
+      return `Add person to project ${args.projectId ?? ''}`
+    case 'linkProjectToGoal':
+      return `Link project to goal`
+    case 'createTodo':
+      return `Create todo: ${args.title ?? args.text ?? ''}`
+    case 'createPerson':
+      return `Create person: ${args.name ?? ''}`
+    case 'assignManager':
+      return `Assign manager to person`
+    case 'createTimeOff':
+      return `Create time-off request: ${args.startDate ?? ''} – ${args.endDate ?? ''}`
+    default:
+      return name
+  }
+}

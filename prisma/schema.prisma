@@ -336,6 +336,8 @@ model Workspace {
   decisionEscalationSteps     DecisionEscalationStep[]
   // Capacity planning
   projectAllocations          ProjectAllocation[]
+  // Loopbrain conversation sessions
+  loopbrainSessions           LoopbrainSession[]
 
   @@map("workspaces")
 }
@@ -2585,6 +2587,27 @@ model LoopbrainOpenLoop {
   @@unique([workspaceId, userId, entityType, entityId])
   @@index([workspaceId, userId, status])
   @@map("loopbrain_open_loops")
+}
+
+model LoopbrainSession {
+  id                   String    @id @default(uuid())
+  workspaceId          String
+  userId               String
+  conversationId       String    @unique
+  messages             Json      @default("[]")
+  pendingPlan          Json?
+  pendingPlanExpiresAt DateTime?
+  metadata             Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([conversationId])
+  @@index([workspaceId, userId])
+  @@map("loopbrain_sessions")
 }
 
 model OrgHealthSnapshot {

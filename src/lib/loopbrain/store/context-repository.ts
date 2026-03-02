@@ -57,42 +57,27 @@ export async function saveContextItem(
   // Serialize entire ContextObject to JSON for Prisma JSON field
   const data = context as unknown as Prisma.InputJsonValue
 
-  // Find existing context item by contextId + type + workspaceId (composite lookup)
-  const existing = await prisma.contextItem.findFirst({
-    where: {
+  // Upsert to avoid P2002 race when two concurrent saves target the same context
+  return await prisma.contextItem.upsert({
+    where: { id: context.id },
+    update: {
+      title,
+      summary: null, // Will be populated by summary repository
+      data,
+      updatedAt: new Date()
+    },
+    create: {
+      id: context.id,
       contextId: context.id,
+      workspaceId: context.workspaceId,
       type: context.type,
-      workspaceId: context.workspaceId
+      title,
+      summary: null,
+      data,
+      updatedAt: new Date(),
+      createdAt: new Date()
     }
-  })
-
-  if (existing) {
-    // Update existing
-    return await prisma.contextItem.update({
-      where: { id: existing.id },
-      data: {
-        title,
-        summary: null, // Will be populated by summary repository
-        data,
-        updatedAt: new Date()
-      }
-    }) as ContextItemRecord
-  } else {
-    // Create new
-    return await prisma.contextItem.create({
-      data: {
-        id: context.id,
-        contextId: context.id,
-        workspaceId: context.workspaceId,
-        type: context.type,
-        title,
-        summary: null,
-        data,
-        updatedAt: new Date(),
-        createdAt: new Date()
-      }
-    }) as ContextItemRecord
-  }
+  }) as ContextItemRecord
 }
 
 /**

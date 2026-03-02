@@ -41,6 +41,7 @@ import { ClarifyingQuestions } from "./clarifying-questions"
 import { ExecutionProgress } from "./execution-progress"
 import { AdvisorySuggestion } from "./advisory-suggestion"
 import { OrgRoutingBadge } from "@/components/debug/OrgRoutingBadge"
+import { useWorkspace } from "@/lib/workspace-context"
 
 interface Message {
   id: string
@@ -84,6 +85,7 @@ export function LoopbrainAssistantPanel({
 }: LoopbrainAssistantPanelProps) {
   // Use context for persistent state
   const { state, setIsOpen, setIsMinimized, addMessage, clearMessages, pendingQuery, setPendingQuery } = useLoopbrainAssistant()
+  const { currentWorkspace } = useWorkspace()
 
   // Use controlled open if provided, otherwise use internal state
   const [internalOpen, setInternalOpen] = useState(defaultOpen)
@@ -122,8 +124,11 @@ export function LoopbrainAssistantPanel({
   const [dailyBriefing, setDailyBriefing] = useState<DailyBriefing | null>(null)
   const [meetingPrepBrief, setMeetingPrepBrief] = useState<MeetingPrepBriefType | null>(null)
   const [isCreatingMeetingTasks, setIsCreatingMeetingTasks] = useState(false)
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // Track previous workspace to detect workspace switches (undefined = not yet initialized)
+  const prevWorkspaceIdRef = useRef<string | null | undefined>(undefined)
 
   // Send feedback to the API and track locally
   const handleFeedback = async (messageId: string, rating: "up" | "down", signal?: "too_long" | "too_short") => {
@@ -178,10 +183,26 @@ export function LoopbrainAssistantPanel({
     setAdvisoryResponse(null)
     setMeetingExtraction(null)
     setIsCreatingMeetingTasks(false)
+    setConversationId(null)
     if (isOpen && !isMinimized) {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }
+
+  // Reset conversation when the user switches workspaces so stale cross-workspace
+  // messages are never visible. We skip the initial render (undefined sentinel).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const wsId = currentWorkspace?.id ?? null
+    if (prevWorkspaceIdRef.current === undefined) {
+      prevWorkspaceIdRef.current = wsId
+      return
+    }
+    if (prevWorkspaceIdRef.current !== wsId) {
+      prevWorkspaceIdRef.current = wsId
+      handleNewChat()
+    }
+  }, [currentWorkspace?.id])
 
   const handlePlanConfirm = async () => {
     if (!pendingPlan || isExecutingPlan) return
@@ -204,6 +225,7 @@ export function LoopbrainAssistantPanel({
         teamId: anchors.teamId,
         personId: anchors.personId,
         pendingPlan: planToExecute,
+        ...(conversationId && { conversationId }),
       })
 
       setLastLoopbrainResponse(result)
@@ -486,10 +508,12 @@ export function LoopbrainAssistantPanel({
         ...(convContext && { conversationContext: convContext }),
         ...(activeClarification && { pendingClarification: activeClarification }),
         ...(activeAdvisory && { pendingAdvisory: activeAdvisory }),
+        ...(conversationId && { conversationId }),
       })
 
       // Store response for suggestions/retrieved items
       setLastLoopbrainResponse(result)
+      if (result.conversationId) setConversationId(result.conversationId)
       setPendingPlan(result.pendingPlan ?? null)
       setPendingClarification(result.pendingClarification ?? false)
       setClarifyingQuestions(result.clarifyingQuestions ?? null)

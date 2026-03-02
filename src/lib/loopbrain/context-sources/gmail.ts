@@ -179,6 +179,32 @@ function splitHeaderList(raw: string): string[] {
 }
 
 // =============================================================================
+// Connection check
+// =============================================================================
+
+/**
+ * Check if Gmail is connected for the user in the workspace.
+ * Does not make API calls — only checks integration and tokens.
+ */
+export async function isGmailConnected(
+  userId: string,
+  workspaceId: string
+): Promise<boolean> {
+  try {
+    const integration = await prismaUnscoped.integration.findFirst({
+      where: { workspaceId, type: IntegrationType.GMAIL },
+      select: { config: true },
+    });
+    if (!integration) return false;
+    const config = integration.config as GmailIntegrationConfig;
+    const userTokens = config?.users?.[userId];
+    return !!(userTokens?.accessToken ?? userTokens?.refreshToken);
+  } catch {
+    return false;
+  }
+}
+
+// =============================================================================
 // Main loader
 // =============================================================================
 
@@ -560,6 +586,30 @@ export function formatGmailThreadsForPrompt(
   });
 
   return `## Recent emails (last 7 days):\n${lines.join("\n")}`;
+}
+
+/**
+ * Format Gmail threads for planner context (lightweight).
+ * Includes threadId, messageId, subject, from, date, one-line snippet.
+ * Used when the user intent suggests email reply/send — max 8 threads to avoid token blow-up.
+ */
+export function formatGmailThreadsForPlannerContext(
+  threads: GmailThreadSummary[],
+  maxThreads = 8
+): string {
+  if (threads.length === 0) return "";
+
+  const limited = threads.slice(0, maxThreads);
+  const lines = limited.map((t) => {
+    const dateStr = t.date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+    const snippet = (t.snippet || t.bodyPreview || "").slice(0, 80).replace(/\n/g, " ");
+    return `- threadId: ${t.threadId} | messageId: ${t.id} | Subject: ${t.subject} | From: ${t.from} | ${dateStr} | ${snippet}`;
+  });
+
+  return `\n## Recent email threads (use threadId and messageId for replyToEmail):\n${lines.join("\n")}`;
 }
 
 /**

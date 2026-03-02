@@ -12,6 +12,8 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { sendGmail } from '@/lib/integrations/gmail-send'
+import { createCalendarEvent } from '@/lib/integrations/calendar-events'
 import { logger } from '@/lib/logger'
 import type { LoopbrainTool, AgentContext, ToolResult } from './types'
 
@@ -184,6 +186,34 @@ const ListProjectsSchema = z.object({
 const ListPeopleSchema = z.object({
   search: z.string().optional(),
   limit: z.number().int().min(1).max(100).optional().default(50),
+})
+
+const SendEmailSchema = z.object({
+  to: z.string().email(),
+  subject: z.string().min(1),
+  body: z.string().min(1),
+})
+
+const ReplyToEmailSchema = z.object({
+  to: z.string().email(),
+  subject: z.string().min(1),
+  body: z.string().min(1),
+  replyToThreadId: z.string().min(1),
+  replyToMessageId: z.string().min(1),
+})
+
+const CreateCalendarEventSchema = z.object({
+  summary: z.string().min(1),
+  startDateTime: z.string(),
+  endDateTime: z.string(),
+  description: z.string().optional(),
+  attendees: z.array(z.string().email()).optional(),
+  location: z.string().optional(),
+  timeZone: z.string().optional(),
+})
+
+const CreateMultipleCalendarEventsSchema = z.object({
+  events: z.array(CreateCalendarEventSchema).min(1).max(20),
 })
 
 // ---------------------------------------------------------------------------
@@ -576,6 +606,164 @@ const addSubtaskTool: LoopbrainTool = {
   },
 }
 
+const sendEmailTool: LoopbrainTool = {
+  name: 'sendEmail',
+  description: 'Send a new email to someone. Use listPeople or workspace context to resolve names like "Sarah" to email addresses.',
+  category: 'email',
+  parameters: SendEmailSchema,
+  requiresConfirmation: true,
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = SendEmailSchema.parse(params)
+    scope(context)
+    const result = await sendGmail({
+      userId: context.userId,
+      workspaceId: context.workspaceId,
+      to: p.to,
+      subject: p.subject,
+      body: p.body,
+    })
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error ?? 'Send failed',
+        humanReadable: result.userMessage ?? 'Failed to send email',
+      }
+    }
+    return {
+      success: true,
+      data: { messageId: result.messageId, threadId: result.threadId },
+      humanReadable: `Email sent to ${p.to}`,
+    }
+  },
+}
+
+const replyToEmailTool: LoopbrainTool = {
+  name: 'replyToEmail',
+  description: 'Reply to an existing email thread. Requires threadId and messageId from recent emails context.',
+  category: 'email',
+  parameters: ReplyToEmailSchema,
+  requiresConfirmation: true,
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = ReplyToEmailSchema.parse(params)
+    scope(context)
+    const result = await sendGmail({
+      userId: context.userId,
+      workspaceId: context.workspaceId,
+      to: p.to,
+      subject: p.subject,
+      body: p.body,
+      replyToThreadId: p.replyToThreadId,
+      replyToMessageId: p.replyToMessageId,
+    })
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error ?? 'Send failed',
+        humanReadable: result.userMessage ?? 'Failed to send reply',
+      }
+    }
+    return {
+      success: true,
+      data: { messageId: result.messageId, threadId: result.threadId },
+      humanReadable: `Reply sent to ${p.to}`,
+    }
+  },
+}
+
+const createCalendarEventTool: LoopbrainTool = {
+  name: 'createCalendarEvent',
+  description:
+    'Create a single Google Calendar event. Use listPeople or workspace context to resolve attendee names to emails.',
+  category: 'calendar',
+  parameters: CreateCalendarEventSchema,
+  requiresConfirmation: true,
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = CreateCalendarEventSchema.parse(params)
+    scope(context)
+    const result = await createCalendarEvent({
+      userId: context.userId,
+      workspaceId: context.workspaceId,
+      summary: p.summary,
+      startDateTime: p.startDateTime,
+      endDateTime: p.endDateTime,
+      description: p.description,
+      attendees: p.attendees,
+      location: p.location,
+      timeZone: p.timeZone,
+    })
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error ?? 'Create failed',
+        humanReadable: result.userMessage ?? 'Failed to create calendar event',
+      }
+    }
+    return {
+      success: true,
+      data: { eventId: result.eventId, htmlLink: result.htmlLink },
+      humanReadable: `Created calendar event "${p.summary}"${result.htmlLink ? ` — [View in Calendar](${result.htmlLink})` : ''}`,
+    }
+  },
+}
+
+const createMultipleCalendarEventsTool: LoopbrainTool = {
+  name: 'createMultipleCalendarEvents',
+  description:
+    'Create multiple Google Calendar events in one step (e.g. work blocks + breaks). Use for batch scheduling like "plan my work blocks for tomorrow". Max 20 events.',
+  category: 'calendar',
+  parameters: CreateMultipleCalendarEventsSchema,
+  requiresConfirmation: true,
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = CreateMultipleCalendarEventsSchema.parse(params)
+    scope(context)
+    const results: Array<{
+      success: boolean
+      eventId?: string
+      htmlLink?: string
+      summary?: string
+      error?: string
+    }> = []
+
+    for (const event of p.events) {
+      const result = await createCalendarEvent({
+        userId: context.userId,
+        workspaceId: context.workspaceId,
+        summary: event.summary,
+        startDateTime: event.startDateTime,
+        endDateTime: event.endDateTime,
+        description: event.description,
+        attendees: event.attendees,
+        location: event.location,
+        timeZone: event.timeZone,
+      })
+      results.push({
+        success: result.success,
+        eventId: result.eventId,
+        htmlLink: result.htmlLink,
+        summary: event.summary,
+        error: result.userMessage ?? result.error,
+      })
+    }
+
+    const successCount = results.filter((r) => r.success).length
+    const failCount = results.filter((r) => !r.success).length
+
+    let summaryMsg: string
+    if (failCount === 0) {
+      summaryMsg = `Created ${successCount} event(s).`
+    } else {
+      const firstError = results.find((r) => !r.success)?.error ?? 'Unknown error'
+      summaryMsg = `${successCount}/${p.events.length} events created. ${failCount} failed: ${firstError}`
+    }
+
+    return {
+      success: true, // Don't fail the whole step — user sees partial success in summary
+      data: { results, summary: summaryMsg },
+      humanReadable: summaryMsg,
+    }
+  },
+}
+
 // ---------------------------------------------------------------------------
 // READ tools — used by the planner to resolve references
 // ---------------------------------------------------------------------------
@@ -678,6 +866,10 @@ const ALL_TOOLS: LoopbrainTool[] = [
   updateProjectTool,
   linkProjectToGoalTool,
   addSubtaskTool,
+  sendEmailTool,
+  replyToEmailTool,
+  createCalendarEventTool,
+  createMultipleCalendarEventsTool,
   listProjectsTool,
   listPeopleTool,
 ]

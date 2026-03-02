@@ -211,6 +211,7 @@ export function detectIntentFromKeywords(
 
   const emailSearchKeywords = [
     'email about', 'email from', 'email thread about', 'email regarding',
+    'last email', 'recent email', 'latest email',
     'find the email', 'find email', 'look up the email', 'look up email',
     'check my email', 'check my inbox', 'check my gmail',
     'search my email', 'search my inbox', 'search my gmail',
@@ -707,11 +708,16 @@ function detectClarificationNeeds(
 // Action vs Question classification (Phase 2 — no LLM, keyword-based)
 // ---------------------------------------------------------------------------
 
-const ACTION_VERBS = [
+/** Exported for calendar context injection in orchestrator */
+export const ACTION_VERBS = [
   'create', 'make', 'add', 'set up', 'setup', 'build', 'start',
-  'schedule', 'assign', 'move', 'change', 'update', 'remove',
+  'schedule', 'book', 'plan my', 'add to calendar', 'put on calendar',
+  'create event', 'create meeting', 'block time', 'block my',
+  'assign', 'move', 'change', 'update', 'remove',
   'delete', 'archive', 'write a wiki', 'draft a doc', 'draft a page',
   'new project', 'new task', 'new goal', 'new page', 'new todo',
+  'send email', 'send a message', 'email', 'reply to', 'respond to',
+  'reply', 'write back to',
 ]
 
 const QUESTION_ANCHORS = [
@@ -741,6 +747,11 @@ const ADVISORY_SIGNALS = [
  */
 export function classifyMessageIntent(message: string): MessageIntent {
   const lower = message.toLowerCase().trim()
+
+  // Short affirmatives route to ACTION so user can confirm suggested plans
+  // ^ anchor prevents false matches (e.g. "don't do it" does not match)
+  const AFFIRMATIVE_REGEX = /^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|please do|yes,?\s*please\s*do|proceed|go for it|sounds good|let's do it|do that|confirmed)\s*$/i
+  if (AFFIRMATIVE_REGEX.test(lower)) return 'ACTION'
 
   const hasAdvisory = ADVISORY_SIGNALS.some((s) => lower.includes(s))
   const hasAction = ACTION_VERBS.some((v) => lower.includes(v))

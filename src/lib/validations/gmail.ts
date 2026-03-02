@@ -6,6 +6,7 @@ export const GmailSendSchema = z.object({
   body: z.string(),
   replyToMessageId: z.string().optional(),
   replyToThreadId: z.string().optional(),
+  references: z.string().optional(),
 })
 
 export const GmailArchiveSchema = z.object({

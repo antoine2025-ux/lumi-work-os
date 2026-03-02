@@ -19,6 +19,7 @@ export type ToolCategory =
   | 'goal'
   | 'calendar'
   | 'todo'
+  | 'email'
 
 export interface LoopbrainTool {
   name: string
