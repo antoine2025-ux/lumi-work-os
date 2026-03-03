@@ -12,6 +12,7 @@ export interface EnsureOrgPositionParams {
   workspaceId: string
   userId: string
   title?: string
+  teamId?: string
 }
 
 /**
@@ -23,7 +24,7 @@ export async function ensureOrgPositionForUser(
   prismaOrTx: PrismaLike,
   params: EnsureOrgPositionParams
 ): Promise<void> {
-  const { workspaceId, userId, title = 'Team Member' } = params
+  const { workspaceId, userId, title = 'Team Member', teamId } = params
 
   try {
     const existing = await prismaOrTx.orgPosition.findFirst({
@@ -40,6 +41,7 @@ export async function ensureOrgPositionForUser(
         workspaceId,
         userId,
         title,
+        teamId,
       },
     })
   } catch (error) {

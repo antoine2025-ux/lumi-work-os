@@ -27,9 +27,26 @@ export type UpsertOrgPersonInput = {
 /**
  * Create a new person by creating/updating User and OrgPosition.
  * If userId is provided, links to existing User. Otherwise creates new User.
+ * If teamId is not provided, assigns to workspace's default team ("Executive Team").
  */
 export async function createOrgPerson(input: UpsertOrgPersonInput) {
   let userId = input.userId;
+  let teamId = input.teamId;
+
+  // If no teamId provided, assign to workspace's default team
+  if (!teamId && input.workspaceId) {
+    const defaultTeam = await prisma.orgTeam.findFirst({
+      where: {
+        workspaceId: input.workspaceId,
+        name: 'Executive Team',
+      },
+      select: { id: true },
+    });
+    
+    if (defaultTeam) {
+      teamId = defaultTeam.id;
+    }
+  }
 
   // If no userId provided, create a new User
   if (!userId) {
@@ -122,7 +139,7 @@ export async function createOrgPerson(input: UpsertOrgPersonInput) {
         workspaceId: input.workspaceId,
         userId,
         title: input.title,
-        teamId: input.teamId,
+        teamId: teamId,
         parentId: input.managerId || null,
         isActive: true,
       },
@@ -145,7 +162,7 @@ export async function createOrgPerson(input: UpsertOrgPersonInput) {
         input.workspaceId,
         userId,
         titleValue,
-        input.teamId ?? null,
+        teamId ?? null,
         input.managerId ?? null
       );
       

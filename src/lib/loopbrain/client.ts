@@ -21,6 +21,16 @@ export type LoopbrainClientResponse = LoopbrainResponse & {
 import type { AgentPlan, ClarificationContext, AdvisoryContext } from './agent/types'
 import { getProjectSlackHints } from '@/lib/client-state/project-slack-hints'
 
+export interface ExecutionStreamEvent {
+  type: 'progress' | 'complete' | 'error'
+  stepIndex?: number
+  status?: 'executing' | 'success' | 'error'
+  description?: string
+  error?: string
+  result?: unknown
+  summary?: string
+}
+
 /**
  * Parameters for Loopbrain assistant call (generic, supports all modes)
  */
@@ -206,6 +216,91 @@ export async function callLoopbrainAssistant(
       throw new Error('Loopbrain couldn\'t answer right now. Please try again.')
     }
     throw new Error('Loopbrain couldn\'t answer right now. Please try again.')
+  }
+}
+
+/**
+ * Execute a pending plan via streaming API.
+ * Streams progress events as each step completes.
+ */
+export async function executeLoopbrainPlanStream(
+  params: { conversationId: string },
+  callbacks: {
+    onProgress: (event: ExecutionStreamEvent) => void
+    onComplete: (summary: string) => void
+    onError: (error: string) => void
+  }
+): Promise<void> {
+  const res = await fetch('/api/loopbrain/execute-stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conversationId: params.conversationId }),
+  })
+
+  if (!res.ok) {
+    let msg = 'Execution failed'
+    try {
+      const data = await res.json()
+      if (data?.error) msg = data.error
+    } catch {
+      // ignore
+    }
+    callbacks.onError(msg)
+    throw new Error(msg)
+  }
+
+  const reader = res.body?.getReader()
+  if (!reader) {
+    callbacks.onError('No response body')
+    throw new Error('No response body')
+  }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n\n')
+      buffer = lines.pop() ?? ''
+      for (const chunk of lines) {
+        const dataMatch = chunk.match(/^data:\s*(.+)$/m)
+        if (!dataMatch) continue
+        try {
+          const event = JSON.parse(dataMatch[1].trim()) as ExecutionStreamEvent
+          callbacks.onProgress(event)
+          if (event.type === 'complete' && event.summary) {
+            callbacks.onComplete(event.summary)
+          }
+          if (event.type === 'error' && event.error) {
+            callbacks.onError(event.error)
+          }
+        } catch (_e) {
+          // skip malformed events
+        }
+      }
+    }
+    if (buffer) {
+      const dataMatch = buffer.match(/^data:\s*(.+)$/m)
+      if (dataMatch) {
+        try {
+          const event = JSON.parse(dataMatch[1].trim()) as ExecutionStreamEvent
+          callbacks.onProgress(event)
+          if (event.type === 'complete' && event.summary) {
+            callbacks.onComplete(event.summary)
+          }
+          if (event.type === 'error' && event.error) {
+            callbacks.onError(event.error)
+          }
+        } catch {
+          // skip
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
   }
 }
 

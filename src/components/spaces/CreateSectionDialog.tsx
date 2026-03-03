@@ -40,6 +40,7 @@ export function CreateSectionDialog({
           title: title.trim(),
           spaceId,
           content: description.trim() || '',
+          isSection: true,
         }),
       })
 

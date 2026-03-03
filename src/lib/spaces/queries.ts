@@ -211,6 +211,7 @@ export async function getCompanyWikiFolders(workspaceId: string) {
       workspaceId,
       spaceId,
       parentId: null,
+      isSection: true,
       isPublished: true,
     },
     select: {
@@ -234,6 +235,7 @@ export async function getCompanyWikiFoldersWithChildren(workspaceId: string) {
       workspaceId,
       spaceId,
       parentId: null,
+      isSection: true,
       isPublished: true,
     },
     select: {
@@ -244,7 +246,10 @@ export async function getCompanyWikiFoldersWithChildren(workspaceId: string) {
       order: true,
       updatedAt: true,
       children: {
-        where: { isPublished: true },
+        where: { 
+          isPublished: true,
+          isSection: false,
+        },
         select: {
           id: true,
           title: true,

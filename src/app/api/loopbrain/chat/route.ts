@@ -22,6 +22,7 @@ import { buildLogContextFromRequest } from '@/lib/request-context'
 import { isOrgLoopbrainEnabled } from '@/lib/loopbrain/orgGate'
 import { ensureOrgContextSyncedSync } from '@/lib/loopbrain/ensureOrgContextSynced'
 import { handleApiError } from '@/lib/api-errors'
+import { formatActionForUser } from '@/lib/loopbrain/format-action'
 
 /**
  * POST /api/loopbrain/chat
@@ -164,8 +165,63 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Feature flag: route through new agent loop when LOOPBRAIN_AGENT_LOOP=true
-    if (process.env.LOOPBRAIN_AGENT_LOOP === 'true') {
+    // Route: agent loop is the default. Set LOOPBRAIN_LEGACY=true to use the old orchestrator.
+    if (process.env.LOOPBRAIN_LEGACY === 'true') {
+      console.log('[Loopbrain] Using LEGACY orchestrator')
+
+      // Build LoopbrainRequest (workspaceId and userId from auth, never from client)
+      const loopbrainRequest: LoopbrainRequest = {
+        workspaceId, // Always from auth
+        userId, // Always from auth
+        mode: finalMode,
+        query: body.query.trim(),
+        projectId: body.projectId,
+        pageId: body.pageId,
+        taskId: body.taskId,
+        epicId: body.epicId,
+        roleId: body.roleId,
+        teamId: body.teamId,
+        personId: body.personId,
+        useSemanticSearch: body.useSemanticSearch !== false, // Default to true
+        maxContextItems: body.maxContextItems ? Math.min(Math.max(1, body.maxContextItems), 50) : 10,
+        sendToSlack: body.sendToSlack === true, // Only true if explicitly set
+        slackChannel: body.slackChannel,
+        clientMetadata: body.clientMetadata,
+        slackChannelHints: body.slackChannelHints, // From project edit (sent in request body, not persisted)
+        pendingPlan: body.pendingPlan, // Agentic execution: plan from previous turn for confirmation
+        conversationContext: body.conversationContext, // Clarification follow-ups: prior turns for context
+        pendingClarification: body.pendingClarification, // Clarification answer routing
+        pendingAdvisory: body.pendingAdvisory, // Advisory→execution transition
+        pendingMeetingExtraction: body.pendingMeetingExtraction, // Meeting task bulk creation
+      } as any
+
+      // Pass requestId to orchestrator for logging
+      ;(loopbrainRequest as any).requestId = baseContext.requestId
+
+      // Run Loopbrain query
+      const result = await runLoopbrainQuery(loopbrainRequest)
+
+      // Log completion
+      const durationMs = Date.now() - startTime
+      logger.info('Loopbrain chat completed', {
+        ...baseContext,
+        mode: finalMode,
+        queryLength: body.query.length,
+        durationMs,
+      })
+
+      // Log slow requests
+      if (durationMs > 1000) {
+        logger.warn('Slow request /api/loopbrain/chat', {
+          ...baseContext,
+          durationMs,
+        })
+      }
+
+      // Return response
+      return NextResponse.json(result)
+    } else {
+      console.log('[Loopbrain] Using agent loop')
       try {
         const conversationId = body.conversationId || crypto.randomUUID()
 
@@ -221,8 +277,14 @@ export async function POST(request: NextRequest) {
             }
           : null
 
+        // Substitute raw JSON confirmation with friendly message when plan requires confirmation
+        const answer =
+          pendingPlan != null
+            ? "I've prepared an execution plan. Review the steps below and click Proceed when ready."
+            : agentResult.response
+
         return NextResponse.json({
-          answer: agentResult.response,
+          answer,
           conversationId: agentResult.conversationId,
           pendingPlan,
           toolCallsMade: agentResult.toolCallsMade,
@@ -239,58 +301,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: message }, { status: 500 })
       }
     }
-
-    // Build LoopbrainRequest (workspaceId and userId from auth, never from client)
-    const loopbrainRequest: LoopbrainRequest = {
-      workspaceId, // Always from auth
-      userId, // Always from auth
-      mode: finalMode,
-      query: body.query.trim(),
-      projectId: body.projectId,
-      pageId: body.pageId,
-      taskId: body.taskId,
-      epicId: body.epicId,
-      roleId: body.roleId,
-      teamId: body.teamId,
-      personId: body.personId,
-      useSemanticSearch: body.useSemanticSearch !== false, // Default to true
-      maxContextItems: body.maxContextItems ? Math.min(Math.max(1, body.maxContextItems), 50) : 10,
-      sendToSlack: body.sendToSlack === true, // Only true if explicitly set
-      slackChannel: body.slackChannel,
-      clientMetadata: body.clientMetadata,
-      slackChannelHints: body.slackChannelHints, // From project edit (sent in request body, not persisted)
-      pendingPlan: body.pendingPlan, // Agentic execution: plan from previous turn for confirmation
-      conversationContext: body.conversationContext, // Clarification follow-ups: prior turns for context
-      pendingClarification: body.pendingClarification, // Clarification answer routing
-      pendingAdvisory: body.pendingAdvisory, // Advisory→execution transition
-      pendingMeetingExtraction: body.pendingMeetingExtraction, // Meeting task bulk creation
-    } as any
-
-    // Pass requestId to orchestrator for logging
-    ;(loopbrainRequest as any).requestId = baseContext.requestId
-
-    // Run Loopbrain query
-    const result = await runLoopbrainQuery(loopbrainRequest)
-
-    // Log completion
-    const durationMs = Date.now() - startTime
-    logger.info('Loopbrain chat completed', {
-      ...baseContext,
-      mode: finalMode,
-      queryLength: body.query.length,
-      durationMs,
-    })
-
-    // Log slow requests
-    if (durationMs > 1000) {
-      logger.warn('Slow request /api/loopbrain/chat', {
-        ...baseContext,
-        durationMs,
-      })
-    }
-
-    // Return response
-    return NextResponse.json(result)
   } catch (error) {
     return handleApiError(error, request)
   }
@@ -301,45 +311,5 @@ export async function POST(request: NextRequest) {
  * Used when transforming the session-store PendingPlan into the AgentPlan UI shape.
  */
 function buildStepDescription(name: string, args: Record<string, unknown>): string {
-  switch (name) {
-    case 'createCalendarEvent': {
-      const title = (args.title ?? args.summary ?? 'event') as string
-      const start = (args.startTime ?? args.startDateTime ?? '') as string
-      return start ? `Create "${title}" starting ${start}` : `Create calendar event: ${title}`
-    }
-    case 'sendEmail':
-      return `Send email to ${args.to ?? 'recipient'}: ${args.subject ?? ''}`
-    case 'replyToEmail':
-      return `Reply to email thread${args.subject ? `: ${args.subject}` : ''}`
-    case 'createTask':
-      return `Create task: ${args.title ?? ''}`
-    case 'assignTask':
-      return `Assign task to ${args.assigneeId ?? 'assignee'}`
-    case 'updateTaskStatus':
-      return `Update task status to ${args.status ?? ''}`
-    case 'createWikiPage':
-      return `Create wiki page: ${args.title ?? ''}`
-    case 'createGoal':
-      return `Create goal: ${args.title ?? ''}`
-    case 'createEpic':
-      return `Create epic: ${args.title ?? ''}`
-    case 'createProject':
-      return `Create project: ${args.name ?? args.title ?? ''}`
-    case 'updateProject':
-      return `Update project ${args.projectId ?? ''}`
-    case 'addPersonToProject':
-      return `Add person to project ${args.projectId ?? ''}`
-    case 'linkProjectToGoal':
-      return `Link project to goal`
-    case 'createTodo':
-      return `Create todo: ${args.title ?? args.text ?? ''}`
-    case 'createPerson':
-      return `Create person: ${args.name ?? ''}`
-    case 'assignManager':
-      return `Assign manager to person`
-    case 'createTimeOff':
-      return `Create time-off request: ${args.startDate ?? ''} – ${args.endDate ?? ''}`
-    default:
-      return name
-  }
+  return formatActionForUser(name, args ?? {})
 }

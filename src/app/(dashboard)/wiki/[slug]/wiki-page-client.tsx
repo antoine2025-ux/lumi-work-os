@@ -834,9 +834,21 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
                   <Input
                     value={pageData.title === "Untitled" ? "" : pageData.title}
                     onChange={(e) => {
-                      const title = e.target.value.trim() || "Untitled"
+                      const title = e.target.value || "Untitled"
                       setPageData({ ...pageData, title })
                       setActivePageTitle(title)
+                    }}
+                    onBlur={(e) => {
+                      // Trim only when user leaves the field
+                      const trimmed = e.target.value.trim() || "Untitled"
+                      if (trimmed !== pageData.title) {
+                        setPageData({ ...pageData, title: trimmed })
+                        setActivePageTitle(trimmed)
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Prevent any global keyboard shortcuts from interfering with typing
+                      e.stopPropagation()
                     }}
                     className="text-4xl font-bold border-none p-0 h-auto focus:ring-0 focus:outline-none focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder-muted-foreground bg-transparent text-foreground flex-1"
                     placeholder="Untitled"

@@ -6,6 +6,7 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import { logOrgAudit } from "@/lib/audit/org-audit";
 import { computeChanges } from "@/lib/audit/diff";
+import { acceptOrgInvitationByToken } from "@/server/data/acceptOrgInvitation";
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,44 +53,51 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, status: "DECLINED" });
     }
 
-    // ACCEPT: create membership
-    const inviteWorkspaceId = invite.orgId || invite.workspaceId; // Reading Prisma field invite.orgId
-    if (!inviteWorkspaceId) return NextResponse.json({ ok: false, error: "Invalid invite" }, { status: 400 });
-
-    await prisma.orgMembership.upsert({
-      where: { workspaceId_userId: { workspaceId: inviteWorkspaceId, userId: user.userId } },
-      update: { role: invite.role || "VIEWER" },
-      create: { workspaceId: inviteWorkspaceId, userId: user.userId, role: invite.role || "VIEWER" },
-    });
-
-    await prisma.orgInvitation.update({ where: { id: invite.id }, data: { status: "ACCEPTED" } });
-
-    // Log audit entry (fire-and-forget)
-    const changes = computeChanges(
-      { status: invite.status },
-      { status: "ACCEPTED" },
-      ["status"]
-    );
-    if (changes) {
-      logOrgAudit({
-        workspaceId: inviteWorkspaceId,
-        entityType: "INVITATION",
-        entityId: invite.id,
-        entityName: invite.email,
-        action: "UPDATED",
-        actorId: user.userId,
-        changes,
-      }).catch((e) => console.error("[POST /api/org/invitations/respond] Audit error:", e));
+    // ACCEPT: use correct acceptance function
+    try {
+      const result = await acceptOrgInvitationByToken(body.token, user.userId);
+      
+      // Ensure the created position has a teamId
+      const position = await prisma.orgPosition.findFirst({
+        where: { 
+          workspaceId: result.workspace.id, 
+          userId: user.userId 
+        },
+      });
+      
+      if (position && !position.teamId) {
+        // Assign to default team
+        const defaultTeam = await prisma.orgTeam.findFirst({
+          where: { 
+            workspaceId: result.workspace.id,
+            name: 'Executive Team'
+          },
+        });
+        
+        if (defaultTeam) {
+          await prisma.orgPosition.update({
+            where: { id: position.id },
+            data: { teamId: defaultTeam.id },
+          });
+        }
+      }
+      
+      return NextResponse.json({
+        ok: true,
+        status: "ACCEPTED",
+        workspaceId: result.workspace.id,
+        orgName: result.workspace.name || "Organization",
+        role: "MEMBER",
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        return NextResponse.json({ 
+          ok: false, 
+          error: error.message 
+        }, { status: 400 });
+      }
+      throw error;
     }
-
-    const org = await prisma.org.findUnique({ where: { id: inviteWorkspaceId }, select: { name: true } });
-    return NextResponse.json({
-      ok: true,
-      status: "ACCEPTED",
-      workspaceId: inviteWorkspaceId,
-      orgName: org?.name || "Organization",
-      role: invite.role || "VIEWER",
-    });
   } catch (error) {
     return handleApiError(error, req);
   }

@@ -76,6 +76,8 @@ export async function acceptOrgInvitationByToken(
       await ensureOrgPositionForUser(prisma, {
         workspaceId: invitation.workspaceId,
         userId,
+        title: invitation.title || undefined,
+        teamId: invitation.teamId || undefined,
       });
       return {
         workspace: invitation.workspace,
@@ -148,6 +150,8 @@ export async function acceptOrgInvitationByToken(
     await ensureOrgPositionForUser(tx, {
       workspaceId: invitation.workspaceId!,
       userId,
+      title: invitation.title || undefined,
+      teamId: invitation.teamId || undefined,
     });
 
     await tx.orgInvitation.update({

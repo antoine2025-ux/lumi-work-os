@@ -26,6 +26,7 @@ import { PrismaContextEngine } from './context-engine'
 import { buildWorkloadAnalysis } from './workload-analysis'
 import { toolRegistry } from './agent/tool-registry'
 import { executeAction } from './actions/executor'
+import { formatActionForUser } from './format-action'
 import type { AgentContext } from './agent/types'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy-key' })
@@ -52,6 +53,16 @@ export interface AgentLoopResult {
   toolCallsMade: ToolCallRecord[]
   pendingPlan?: PendingPlan
   conversationId: string
+}
+
+export interface ExecutionProgressEvent {
+  type: 'progress' | 'complete' | 'error'
+  stepIndex?: number
+  status?: 'executing' | 'success' | 'error'
+  description?: string
+  error?: string
+  result?: unknown
+  summary?: string
 }
 
 export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopResult> {
@@ -343,6 +354,102 @@ async function executePendingPlan(
     response: finalResponse.content,
     toolCallsMade: session.pendingPlan.toolCalls,
     conversationId: params.conversationId,
+  }
+}
+
+/**
+ * Execute a pending plan with progress callbacks for streaming UI.
+ * Stops on first error without persisting. Only persists when all steps succeed.
+ */
+export async function executePlanWithProgress(
+  session: { id: string; conversationId: string; messages: LoopbrainMessage[]; pendingPlan: PendingPlan },
+  params: AgentLoopParams,
+  onEvent: (event: ExecutionProgressEvent) => void | Promise<void>
+): Promise<{
+  success: boolean
+  response?: string
+  failedStepIndex?: number
+  error?: string
+}> {
+  const { conversationId } = params
+  const toolCalls = session.pendingPlan.toolCalls
+  const results: LoopbrainMessage[] = []
+
+  for (let i = 0; i < toolCalls.length; i++) {
+    const toolCall = toolCalls[i]
+    const description = formatActionForUser(toolCall.name, toolCall.arguments)
+
+    await onEvent({
+      type: 'progress',
+      stepIndex: i,
+      status: 'executing',
+      description,
+    })
+
+    const result = await executeWriteTool(toolCall, params.workspaceId, params.userId)
+    const isError = typeof result === 'object' && result !== null && 'error' in result
+
+    if (isError) {
+      const errorMsg = (result as { error?: string }).error ?? 'Unknown error'
+      await onEvent({
+        type: 'progress',
+        stepIndex: i,
+        status: 'error',
+        description,
+        error: errorMsg,
+      })
+      await onEvent({ type: 'error', stepIndex: i, error: errorMsg })
+      return { success: false, failedStepIndex: i, error: errorMsg }
+    }
+
+    results.push({
+      role: 'tool',
+      content: JSON.stringify(result),
+      toolResults: [{ toolCallId: toolCall.id, name: toolCall.name, result }],
+      timestamp: new Date().toISOString(),
+    })
+    await onEvent({
+      type: 'progress',
+      stepIndex: i,
+      status: 'success',
+      description,
+      result,
+    })
+  }
+
+  // All succeeded — persist to session
+  await appendMessage(conversationId, {
+    role: 'user',
+    content: params.userMessage,
+    timestamp: new Date().toISOString(),
+  })
+  await appendMessage(conversationId, {
+    role: 'assistant',
+    content: '',
+    toolCalls: toolCalls.map((tc) => ({ id: tc.id, name: tc.name, arguments: tc.arguments })),
+    timestamp: new Date().toISOString(),
+  })
+  await appendMessages(conversationId, results)
+  await clearPendingPlan(conversationId)
+
+  const updatedSession = await loadSession(
+    params.workspaceId,
+    params.userId,
+    conversationId
+  )
+  const messages = formatMessagesForLLM(updatedSession.messages)
+  const systemPrompt = buildSystemPrompt(params.userContext)
+  const finalResponse = await callLLMWithTools(systemPrompt, messages, [])
+  await appendMessage(conversationId, {
+    role: 'assistant',
+    content: finalResponse.content,
+    timestamp: new Date().toISOString(),
+  })
+
+  await onEvent({ type: 'complete', summary: finalResponse.content })
+  return {
+    success: true,
+    response: finalResponse.content,
   }
 }
 

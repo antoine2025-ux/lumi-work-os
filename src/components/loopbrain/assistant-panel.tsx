@@ -29,7 +29,7 @@ import {
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { callLoopbrainAssistant } from "@/lib/loopbrain/client"
+import { callLoopbrainAssistant, executeLoopbrainPlanStream } from "@/lib/loopbrain/client"
 import { useLoopbrainAssistant } from "./assistant-context"
 import type { LoopbrainResponse, LoopbrainMode, MeetingTaskExtractionResult, OnboardingBriefing, DailyBriefing, MeetingPrepBrief as MeetingPrepBriefType } from "@/lib/loopbrain/orchestrator-types"
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from "@/lib/loopbrain/agent/types"
@@ -38,7 +38,7 @@ import { MeetingTaskReview } from "./MeetingTaskReview"
 import { OnboardingBriefing as OnboardingBriefingView } from "./OnboardingBriefing"
 import { MeetingPrepBrief as MeetingPrepBriefView } from "./MeetingPrepBrief"
 import { ClarifyingQuestions } from "./clarifying-questions"
-import { ExecutionProgress } from "./execution-progress"
+import { ExecutionProgress, type StepProgressState } from "./execution-progress"
 import { AdvisorySuggestion } from "./advisory-suggestion"
 import { OrgRoutingBadge } from "@/components/debug/OrgRoutingBadge"
 import { useWorkspace } from "@/lib/workspace-context"
@@ -112,6 +112,8 @@ export function LoopbrainAssistantPanel({
   const [isExecutingPlan, setIsExecutingPlan] = useState(false)
   const [executingPlan, setExecutingPlan] = useState<AgentPlan | null>(null)
   const [executionResult, setExecutionResult] = useState<string | null>(null)
+  const [stepProgress, setStepProgress] = useState<StepProgressState[]>([])
+  const [executionError, setExecutionError] = useState<string | null>(null)
   const [pendingClarification, setPendingClarification] = useState(false)
   const [clarifyingQuestions, setClarifyingQuestions] = useState<ClarifyingQuestion[] | null>(null)
   const [clarifyPreamble, setClarifyPreamble] = useState<string>('')
@@ -125,6 +127,7 @@ export function LoopbrainAssistantPanel({
   const [meetingPrepBrief, setMeetingPrepBrief] = useState<MeetingPrepBriefType | null>(null)
   const [isCreatingMeetingTasks, setIsCreatingMeetingTasks] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [loadingStatusLabel, setLoadingStatusLabel] = useState<string>('Analyzing request...')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   // Track previous workspace to detect workspace switches (undefined = not yet initialized)
@@ -174,6 +177,8 @@ export function LoopbrainAssistantPanel({
     setIsExecutingPlan(false)
     setExecutingPlan(null)
     setExecutionResult(null)
+    setStepProgress([])
+    setExecutionError(null)
     setPendingClarification(false)
     setClarifyingQuestions(null)
     setClarifyPreamble('')
@@ -204,44 +209,85 @@ export function LoopbrainAssistantPanel({
     }
   }, [currentWorkspace?.id])
 
-  const handlePlanConfirm = async () => {
-    if (!pendingPlan || isExecutingPlan) return
+  const handlePlanConfirm = async (planOverride?: AgentPlan | null) => {
+    const planToUse = planOverride ?? pendingPlan
+    if (!planToUse || isExecutingPlan) return
 
-    // Immediately show progress UI with animated steps
-    const planToExecute = pendingPlan
+    const planToExecute = planToUse
     setExecutingPlan(planToExecute)
     setExecutionResult(null)
+    setExecutionError(null)
+    setStepProgress(
+      planToExecute.steps.map((s) => ({
+        description: s.description,
+        status: 'pending' as const,
+      }))
+    )
     setIsExecutingPlan(true)
     setPendingPlan(null)
 
-    try {
-      const result = await callLoopbrainAssistant({
-        mode,
-        query: "yes",
-        pageId: anchors.pageId,
-        projectId: anchors.projectId,
-        taskId: anchors.taskId,
-        roleId: anchors.roleId,
-        teamId: anchors.teamId,
-        personId: anchors.personId,
-        pendingPlan: planToExecute,
-        ...(conversationId && { conversationId }),
-      })
+    const convId = conversationId ?? crypto.randomUUID()
+    if (!conversationId) setConversationId(convId)
 
-      setLastLoopbrainResponse(result)
-      setExecutionResult(result.answer || 'Done.')
-      setPendingPlan(result.pendingPlan ?? null)
+    try {
+      await executeLoopbrainPlanStream(
+        { conversationId: convId },
+        {
+          onProgress: (event) => {
+            if (
+              event.type === 'progress' &&
+              typeof event.stepIndex === 'number' &&
+              event.stepIndex >= 0
+            ) {
+              const idx = event.stepIndex
+              setStepProgress((prev) => {
+                const next = [...prev]
+                if (event.description) {
+                  next[idx] = {
+                    description: event.description,
+                    status: event.status ?? 'pending',
+                    error: event.error,
+                  }
+                }
+                return next
+              })
+            }
+          },
+          onComplete: (summary) => {
+            setExecutionResult(summary)
+            setExecutionError(null)
+          },
+          onError: (err) => {
+            setExecutionError(err)
+          },
+        }
+      )
     } catch (error) {
       console.error('Error executing plan:', error)
-      setExecutionResult(
-        error instanceof Error ? `\u2717 ${error.message}` : '\u2717 Plan execution failed. Please try again.'
-      )
+      const msg =
+        error instanceof Error ? error.message : 'Plan execution failed. Please try again.'
+      setExecutionError(msg)
     } finally {
       setIsExecutingPlan(false)
       setClarificationContext(null)
       setAdvisoryContext(null)
       setAdvisoryResponse(null)
     }
+  }
+
+  const handleExecutionRetry = () => {
+    if (!executingPlan) return
+    setExecutionError(null)
+    setStepProgress([])
+    setExecutionResult(null)
+    handlePlanConfirm(executingPlan)
+  }
+
+  const handleExecutionCancel = () => {
+    setExecutionError(null)
+    setStepProgress([])
+    setExecutingPlan(null)
+    setExecutionResult(null)
   }
 
   const handlePlanCancel = () => {
@@ -416,6 +462,17 @@ export function LoopbrainAssistantPanel({
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
+
+  // Progressive loading status: "Analyzing request..." → "Building execution plan..." (after 750ms)
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingStatusLabel('Analyzing request...')
+      return
+    }
+    setLoadingStatusLabel('Analyzing request...')
+    const t = setTimeout(() => setLoadingStatusLabel('Building execution plan...'), 750)
+    return () => clearTimeout(t)
+  }, [isLoading])
 
   useEffect(() => {
     if (isOpen && messages.length > 0) {
@@ -1124,6 +1181,12 @@ export function LoopbrainAssistantPanel({
                                     plan={executingPlan}
                                     isExecuting={isExecutingPlan}
                                     executionResult={executionResult ?? undefined}
+                                    stepProgress={
+                                      stepProgress.length > 0 ? stepProgress : undefined
+                                    }
+                                    executionError={executionError ?? undefined}
+                                    onRetry={handleExecutionRetry}
+                                    onCancel={handleExecutionCancel}
                                   />
                                 )}
                               </>
@@ -1139,8 +1202,8 @@ export function LoopbrainAssistantPanel({
                   <div className="flex justify-start">
                     <div className="bg-muted rounded-lg px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm text-muted-foreground">Analyzing intent...</span>
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">{loadingStatusLabel}</span>
                       </div>
                     </div>
                   </div>

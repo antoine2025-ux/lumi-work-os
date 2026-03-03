@@ -112,6 +112,12 @@ export default function TopBarActions({ colors, onNewTask, onFilterChange }: Top
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in an input/textarea/contenteditable
+      const target = e.target as HTMLElement
+      const isTyping = target.tagName === 'INPUT' || 
+                      target.tagName === 'TEXTAREA' || 
+                      target.isContentEditable
+      
       if (e.metaKey || e.ctrlKey) {
         switch (e.key) {
           case 'k':
@@ -125,7 +131,8 @@ export default function TopBarActions({ colors, onNewTask, onFilterChange }: Top
         }
       }
       
-      if (e.key === 'f' && !e.metaKey && !e.ctrlKey) {
+      // Only trigger 'f' shortcut if not typing
+      if (e.key === 'f' && !e.metaKey && !e.ctrlKey && !isTyping) {
         e.preventDefault()
         setFilterOpen(true)
       }

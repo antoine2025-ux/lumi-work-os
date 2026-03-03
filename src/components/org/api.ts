@@ -386,6 +386,24 @@ export const OrgApi = {
       body: JSON.stringify(payload),
     }),
 
+  createInvitation: (payload: {
+    email: string;
+    workspaceId: string;
+    fullName?: string;
+    title?: string;
+    departmentId?: string;
+    teamId?: string;
+    managerId?: string;
+    role?: "ADMIN" | "MEMBER" | "VIEWER";
+  }) =>
+    api<{ invitation: { id: string; token: string; email: string } }>(
+      "/api/org/invitations/create",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    ),
+
   updatePerson: (
     personId: string,
     payload: {

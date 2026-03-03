@@ -572,6 +572,7 @@ model WikiPage {
   is_featured          Boolean?               @default(false)
   workspace_type       String?                @default("team") @db.VarChar(50)
   type                 WikiPageType?         // TEAM_DOC | COMPANY_WIKI | PERSONAL_NOTE | PROJECT_DOC
+  isSection            Boolean                @default(false)
   last_viewed_at       DateTime?              @db.Timestamp(6)
   ai_analysis          Json?
   quality_score        Decimal?               @db.Decimal(3, 2)
@@ -2190,6 +2191,12 @@ model OrgInvitation {
   createdAt   DateTime   @default(now())
   acceptedAt  DateTime?
   expiresAt   DateTime?
+  
+  // Organizational placement (applied on acceptance)
+  title        String?
+  departmentId String?
+  teamId       String?
+  managerId    String? // Person.id of the manager
 
   @@unique([workspaceId, email])
   @@index([workspaceId])

@@ -117,14 +117,47 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        // Update admin's OrgPosition title
+        // Ensure default organizational structure exists
+        let defaultDepartment = await prisma.orgDepartment.findFirst({
+          where: { workspaceId, name: 'Leadership' },
+        })
+
+        if (!defaultDepartment) {
+          defaultDepartment = await prisma.orgDepartment.create({
+            data: {
+              workspaceId,
+              name: 'Leadership',
+              isActive: true,
+            },
+          })
+        }
+
+        let defaultTeam = await prisma.orgTeam.findFirst({
+          where: { workspaceId, name: 'Executive Team', departmentId: defaultDepartment.id },
+        })
+
+        if (!defaultTeam) {
+          defaultTeam = await prisma.orgTeam.create({
+            data: {
+              workspaceId,
+              departmentId: defaultDepartment.id,
+              name: 'Executive Team',
+              isActive: true,
+            },
+          })
+        }
+
+        // Update admin's OrgPosition title and ensure it's linked to a team
         const position = await prisma.orgPosition.findFirst({
           where: { userId: session.user.id, workspaceId },
         })
         if (position) {
           await prisma.orgPosition.update({
             where: { id: position.id },
-            data: { title: data.adminTitle },
+            data: { 
+              title: data.adminTitle,
+              teamId: position.teamId ?? defaultTeam.id,
+            },
           })
         }
 
@@ -165,12 +198,31 @@ export async function POST(request: NextRequest) {
           data: { companySize: data.companySize },
         })
 
+        // Create default organizational structure so admin appears in org chart
+        const defaultDepartment = await prisma.orgDepartment.create({
+          data: {
+            workspaceId,
+            name: 'Leadership',
+            isActive: true,
+          },
+        })
+
+        const defaultTeam = await prisma.orgTeam.create({
+          data: {
+            workspaceId,
+            departmentId: defaultDepartment.id,
+            name: 'Executive Team',
+            isActive: true,
+          },
+        })
+
         // createUserWorkspace doesn't create an OrgPosition — create one with
         // the admin's title so they appear in the org directory
         await ensureOrgPositionForUser(prisma, {
           workspaceId,
           userId: session.user.id,
           title: data.adminTitle,
+          teamId: defaultTeam.id,
         })
       }
 

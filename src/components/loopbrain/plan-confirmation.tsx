@@ -26,6 +26,7 @@ const TOOL_LABELS: Record<string, string> = {
   createWikiPage: "wiki",
   createGoal: "goal",
   addPersonToProject: "project",
+  assignToProject: "project",
   updateTaskStatus: "task",
   updateProject: "project",
   linkProjectToGoal: "link",
@@ -34,6 +35,9 @@ const TOOL_LABELS: Record<string, string> = {
   replyToEmail: "reply",
   createCalendarEvent: "calendar",
   createMultipleCalendarEvents: "calendar",
+  createPerson: "person",
+  assignManager: "person",
+  createTimeOff: "time",
   listProjects: "read",
   listPeople: "read",
 }
@@ -125,7 +129,7 @@ export function PlanConfirmation({
           ) : (
             <>
               <Play className="h-3 w-3" />
-              Proceed
+              Approve & Execute
             </>
           )}
         </button>

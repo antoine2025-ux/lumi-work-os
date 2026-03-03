@@ -18,6 +18,7 @@ export const WikiPageCreateSchema = z.object({
   workspace_type: z.string().optional(),
   spaceId: z.string().optional(),
   type: z.enum(['TEAM_DOC', 'COMPANY_WIKI', 'PERSONAL_NOTE', 'PROJECT_DOC']).optional(),
+  isSection: z.boolean().optional(),
 })
 
 /** PUT /api/wiki/pages/[id] */
@@ -31,6 +32,7 @@ export const WikiPageUpdateSchema = z.object({
   category: z.string().optional(),
   isPublished: z.boolean().optional(),
   permissionLevel: z.string().optional(),
+  isSection: z.boolean().optional(),
 })
 
 /** POST /api/wiki/workspaces */

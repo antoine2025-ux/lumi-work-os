@@ -78,7 +78,7 @@ export async function getAccessibleSpaces(
       ],
     },
     include: {
-      _count: { select: { projects: true, wikiPages: true, children: true } },
+      _count: { select: { projects: true, wikiPages: true, children: true, members: true } },
       owner: { select: { id: true, name: true, image: true } },
       children: {
         select: { id: true, name: true, slug: true },

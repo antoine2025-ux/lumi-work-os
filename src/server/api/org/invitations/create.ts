@@ -21,6 +21,10 @@ function normalizeEmail(raw: unknown): string | null {
 type Body = {
   workspaceId?: string;
   email?: string;
+  title?: string;
+  departmentId?: string;
+  teamId?: string;
+  managerId?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -115,6 +119,10 @@ export async function POST(req: NextRequest) {
         status: "PENDING",
         invitedById: auth.user.userId,
         expiresAt,
+        title: body.title,
+        departmentId: body.departmentId,
+        teamId: body.teamId,
+        managerId: body.managerId,
       },
     });
 

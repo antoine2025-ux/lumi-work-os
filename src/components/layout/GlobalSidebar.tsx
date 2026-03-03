@@ -334,9 +334,15 @@ export function GlobalSidebar() {
 
             {/* TEAM SPACES */}
             <div>
-              <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+              <Link
+                href={`${baseHref}/spaces/team`}
+                className={cn(
+                  "block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider hover:text-foreground transition-colors",
+                  pathname?.endsWith("/spaces/team") && "text-foreground font-semibold"
+                )}
+              >
                 TEAM SPACES
-              </h3>
+              </Link>
               <div className="space-y-1">
                 {teamSpaces.map((space) => (
                   <TeamSpaceItem

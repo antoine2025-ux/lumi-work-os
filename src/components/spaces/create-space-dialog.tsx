@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Globe, Lock, Loader2 } from "lucide-react"
+import { Globe, Lock, Loader2, AlignLeft, Palette } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -12,15 +12,8 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 
 interface CreateSpaceDialogProps {
   open: boolean
@@ -44,6 +37,7 @@ export function CreateSpaceDialog({ open, onClose, onCreated }: CreateSpaceDialo
   const [description, setDescription] = useState("")
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC")
   const [color, setColor] = useState("#3b82f6")
+  const [expandedOption, setExpandedOption] = useState<'description' | 'visibility' | 'color' | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -52,6 +46,7 @@ export function CreateSpaceDialog({ open, onClose, onCreated }: CreateSpaceDialo
     setDescription("")
     setVisibility("PUBLIC")
     setColor("#3b82f6")
+    setExpandedOption(null)
     setError(null)
   }
 
@@ -76,7 +71,6 @@ export function CreateSpaceDialog({ open, onClose, onCreated }: CreateSpaceDialo
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        // handleApiError returns { error: { code, message } }; fall back to flat { error: string }
         const msg =
           typeof data.error === 'string'
             ? data.error
@@ -105,80 +99,136 @@ export function CreateSpaceDialog({ open, onClose, onCreated }: CreateSpaceDialo
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          {/* Name */}
-          <div className="space-y-1.5">
-            <Label htmlFor="space-name">Name *</Label>
-            <Input
-              id="space-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Engineering, Design, Q1 Planning"
-              maxLength={100}
-              required
-              autoFocus
-            />
-          </div>
+          {/* Name Input */}
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Space name"
+            maxLength={100}
+            required
+            autoFocus
+          />
 
-          {/* Description */}
-          <div className="space-y-1.5">
-            <Label htmlFor="space-description">Description</Label>
-            <Textarea
-              id="space-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What is this space for?"
-              rows={2}
-              maxLength={500}
-            />
-          </div>
-
-          {/* Visibility */}
-          <div className="space-y-1.5">
-            <Label>Visibility</Label>
-            <Select
-              value={visibility}
-              onValueChange={(v) => setVisibility(v as "PUBLIC" | "PRIVATE")}
+          {/* Horizontal Pills Row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Description Pill */}
+            <button
+              type="button"
+              onClick={() => setExpandedOption(expandedOption === 'description' ? null : 'description')}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
+                expandedOption === 'description' ? "bg-accent" : "hover:bg-accent/50"
+              )}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PUBLIC">
-                  <span className="flex items-center gap-2">
-                    <Globe className="w-4 h-4" />
-                    Public — all workspace members
-                  </span>
-                </SelectItem>
-                <SelectItem value="PRIVATE">
-                  <span className="flex items-center gap-2">
-                    <Lock className="w-4 h-4" />
-                    Private — invited members only
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              <AlignLeft className="w-4 h-4" />
+              <span className="text-muted-foreground">Description</span>
+              <span className="text-foreground">
+                {description ? (description.length > 20 ? description.slice(0, 20) + '...' : description) : 'Not set'}
+              </span>
+            </button>
+
+            {/* Visibility Pill */}
+            <button
+              type="button"
+              onClick={() => setExpandedOption(expandedOption === 'visibility' ? null : 'visibility')}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
+                expandedOption === 'visibility' ? "bg-accent" : "hover:bg-accent/50"
+              )}
+            >
+              {visibility === 'PUBLIC' ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+              <span className="text-muted-foreground">Visibility</span>
+              <span className="text-foreground">{visibility === 'PUBLIC' ? 'Public' : 'Private'}</span>
+            </button>
+
+            {/* Colour Pill */}
+            <button
+              type="button"
+              onClick={() => setExpandedOption(expandedOption === 'color' ? null : 'color')}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm transition-colors",
+                expandedOption === 'color' ? "bg-accent" : "hover:bg-accent/50"
+              )}
+            >
+              <Palette className="w-4 h-4" />
+              <span className="text-muted-foreground">Colour</span>
+              <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: color }} />
+            </button>
           </div>
 
-          {/* Color */}
-          <div className="space-y-1.5">
-            <Label>Colour</Label>
-            <div className="flex gap-2 flex-wrap">
-              {COLOR_OPTIONS.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  title={c.label}
-                  onClick={() => setColor(c.value)}
-                  className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-1"
-                  style={{
-                    backgroundColor: c.value,
-                    borderColor: color === c.value ? c.value : "transparent",
-                    transform: color === c.value ? "scale(1.2)" : undefined,
-                  }}
-                />
-              ))}
+          {/* Expanded Options */}
+          {expandedOption === 'description' && (
+            <div className="pt-2">
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What is this space for?"
+                rows={3}
+                maxLength={500}
+                className="w-full"
+              />
             </div>
-          </div>
+          )}
+
+          {expandedOption === 'visibility' && (
+            <div className="pt-2 space-y-2">
+              <button
+                type="button"
+                onClick={() => setVisibility('PUBLIC')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-md border text-left transition-colors",
+                  visibility === 'PUBLIC' 
+                    ? "border-primary bg-accent" 
+                    : "border-border hover:bg-accent/50"
+                )}
+              >
+                <Globe className="w-4 h-4" />
+                <div>
+                  <div className="font-medium text-sm">Public</div>
+                  <div className="text-xs text-muted-foreground">All workspace members</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisibility('PRIVATE')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-md border text-left transition-colors",
+                  visibility === 'PRIVATE' 
+                    ? "border-primary bg-accent" 
+                    : "border-border hover:bg-accent/50"
+                )}
+              >
+                <Lock className="w-4 h-4" />
+                <div>
+                  <div className="font-medium text-sm">Private</div>
+                  <div className="text-xs text-muted-foreground">Invited members only</div>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {expandedOption === 'color' && (
+            <div className="pt-2">
+              <div className="grid grid-cols-4 gap-2">
+                {COLOR_OPTIONS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    title={c.label}
+                    onClick={() => setColor(c.value)}
+                    className={cn(
+                      "w-10 h-10 rounded-full border-2 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-1",
+                      color === c.value ? "scale-110 ring-2 ring-offset-1" : ""
+                    )}
+                    style={{
+                      backgroundColor: c.value,
+                      borderColor: color === c.value ? c.value : "transparent",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
