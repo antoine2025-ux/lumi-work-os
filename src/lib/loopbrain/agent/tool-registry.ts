@@ -16,6 +16,7 @@ import { sendGmail } from '@/lib/integrations/gmail-send'
 import { createCalendarEvent } from '@/lib/integrations/calendar-events'
 import { logger } from '@/lib/logger'
 import type { LoopbrainTool, AgentContext, ToolResult } from './types'
+import { getDefaultSpaceForUser } from '@/lib/spaces/get-default-space'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -149,6 +150,22 @@ const UpdateTaskStatusSchema = z.object({
   ),
 })
 
+const ListTasksByAssigneeSchema = z.object({
+  personId: z.string().describe('The person/user ID whose tasks to list'),
+  projectId: z.string().optional().describe('Optional project ID to scope the query'),
+  status: z.preprocess(
+    normalizeEnum,
+    z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'])
+  ).optional().describe('Optional status filter'),
+  limit: z.number().int().min(1).max(100).optional().default(50),
+})
+
+const BulkReassignTasksSchema = z.object({
+  taskIds: z.array(z.string()).min(1).optional().describe('Array of task IDs to reassign'),
+  tasks: z.array(z.object({ id: z.string() }).passthrough()).min(1).optional().describe('Array of task objects — use when passing $stepN.data.tasks directly; IDs are extracted automatically'),
+  newAssigneeId: z.string().describe('The person/user ID to reassign tasks to'),
+})
+
 const UpdateProjectSchema = z.object({
   projectId: z.string().min(1),
   name: z.string().min(1).max(200).optional(),
@@ -173,6 +190,11 @@ const AddSubtaskSchema = z.object({
   taskId: z.string().min(1),
   title: z.string().min(1).max(500),
   description: z.string().optional(),
+})
+
+const RemoveProjectMemberSchema = z.object({
+  projectId: z.string().describe('The project ID to remove the member from'),
+  personId: z.string().describe('The person/user ID to remove from the project'),
 })
 
 const ListProjectsSchema = z.object({
@@ -230,6 +252,16 @@ const createProjectTool: LoopbrainTool = {
     const p = CreateProjectSchema.parse(params)
     scope(context)
     try {
+      // Get default space for the user
+      const defaultSpaceId = await getDefaultSpaceForUser(context.userId, context.workspaceId)
+      if (!defaultSpaceId) {
+        return {
+          success: false,
+          error: 'No default space found. Please create a space first.',
+          humanReadable: 'Failed to create project: no default space found',
+        }
+      }
+
       const project = await prisma.project.create({
         data: {
           workspaceId: context.workspaceId,
@@ -238,6 +270,7 @@ const createProjectTool: LoopbrainTool = {
           status: p.status,
           priority: p.priority,
           createdById: context.userId,
+          spaceId: defaultSpaceId,
         },
       })
       return {
@@ -849,6 +882,162 @@ const listPeopleTool: LoopbrainTool = {
   },
 }
 
+const listTasksByAssigneeTool: LoopbrainTool = {
+  name: 'listTasksByAssignee',
+  description: 'List tasks assigned to a specific person, optionally filtered by project and status. Returns task IDs, titles, statuses, priorities, due dates, and project info.',
+  category: 'task',
+  parameters: ListTasksByAssigneeSchema,
+  requiresConfirmation: false,
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = ListTasksByAssigneeSchema.parse(params)
+    scope(context)
+    try {
+      const where: Record<string, unknown> = {
+        assigneeId: p.personId,
+        workspaceId: context.workspaceId,
+      }
+      if (p.projectId) where.projectId = p.projectId
+      if (p.status) where.status = p.status
+
+      const tasks = await prisma.task.findMany({
+        where,
+        include: {
+          project: { select: { id: true, name: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: p.limit,
+      })
+
+      const mapped = tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        dueDate: t.dueDate?.toISOString() ?? null,
+        projectId: t.project?.id ?? null,
+        projectName: t.project?.name ?? null,
+      }))
+
+      return {
+        success: true,
+        data: { tasks: mapped as unknown as Record<string, unknown>[], count: mapped.length },
+        humanReadable: `Found ${mapped.length} task(s) assigned to person ${p.personId}${p.projectId ? ` in project` : ''}`,
+      }
+    } catch (err) {
+      logger.error('listTasksByAssignee tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to list tasks by assignee' }
+    }
+  },
+}
+
+const bulkReassignTasksTool: LoopbrainTool = {
+  name: 'bulkReassignTasks',
+  description: 'Reassign multiple tasks to a new assignee in a single operation. Use after listTasksByAssignee to get the task IDs.',
+  category: 'task',
+  parameters: BulkReassignTasksSchema,
+  requiresConfirmation: true,
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = BulkReassignTasksSchema.parse(params)
+    // Accept either explicit taskIds or a full tasks array (e.g. passed from $stepN.data.tasks)
+    const ids = p.taskIds ?? p.tasks?.map(t => t.id) ?? []
+    if (ids.length === 0) {
+      return { success: false, error: 'No tasks provided', humanReadable: 'No tasks to reassign.' }
+    }
+    scope(context)
+    try {
+      // Verify new assignee exists in workspace
+      const assignee = await prisma.workspaceMember.findFirst({
+        where: { userId: p.newAssigneeId, workspaceId: context.workspaceId },
+        include: { user: { select: { id: true, name: true } } },
+      })
+      if (!assignee) {
+        return { success: false, error: 'Assignee not found in workspace', humanReadable: 'The target assignee is not a member of this workspace.' }
+      }
+
+      // Verify all tasks exist and belong to this workspace
+      const tasks = await prisma.task.findMany({
+        where: { id: { in: ids }, workspaceId: context.workspaceId },
+        select: { id: true, title: true, projectId: true },
+      })
+      if (tasks.length !== ids.length) {
+        const found = new Set(tasks.map(t => t.id))
+        const missing = ids.filter(id => !found.has(id))
+        return { success: false, error: `Tasks not found: ${missing.join(', ')}`, humanReadable: `${missing.length} task(s) not found in this workspace.` }
+      }
+
+      // Bulk update
+      const result = await prisma.task.updateMany({
+        where: { id: { in: ids }, workspaceId: context.workspaceId },
+        data: { assigneeId: p.newAssigneeId },
+      })
+
+      // TODO: re-index affected tasks after bulk reassign
+
+      return {
+        success: true,
+        data: { reassignedCount: result.count, assigneeId: p.newAssigneeId, assigneeName: assignee.user?.name ?? 'Unknown' },
+        humanReadable: `Reassigned ${result.count} task(s) to ${assignee.user?.name ?? p.newAssigneeId}`,
+      }
+    } catch (err) {
+      logger.error('bulkReassignTasks tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to reassign tasks' }
+    }
+  },
+}
+
+const removeProjectMemberTool: LoopbrainTool = {
+  name: 'removeProjectMember',
+  description: 'Remove a person from a project. This removes their project membership but does not delete their tasks — reassign tasks first if needed.',
+  category: 'project',
+  parameters: RemoveProjectMemberSchema,
+  requiresConfirmation: true,
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = RemoveProjectMemberSchema.parse(params)
+    scope(context)
+    try {
+      // Verify project exists in workspace
+      const project = await prisma.project.findFirst({
+        where: { id: p.projectId, workspaceId: context.workspaceId },
+        select: { id: true, name: true },
+      })
+      if (!project) {
+        return { success: false, error: 'Project not found', humanReadable: 'Project not found in this workspace.' }
+      }
+
+      // Try ProjectMember first (primary membership model)
+      const memberDeleteResult = await prisma.projectMember.deleteMany({
+        where: { projectId: p.projectId, userId: p.personId, workspaceId: context.workspaceId },
+      })
+
+      if (memberDeleteResult.count > 0) {
+        return {
+          success: true,
+          data: { projectId: p.projectId, projectName: project.name, removedPersonId: p.personId },
+          humanReadable: `Removed person from project "${project.name}"`,
+        }
+      }
+
+      // Try ProjectPersonLink as fallback
+      const linkDeleteResult = await prisma.projectPersonLink.deleteMany({
+        where: { projectId: p.projectId, userId: p.personId, workspaceId: context.workspaceId },
+      })
+
+      if (linkDeleteResult.count > 0) {
+        return {
+          success: true,
+          data: { projectId: p.projectId, projectName: project.name, removedPersonId: p.personId },
+          humanReadable: `Removed person from project "${project.name}"`,
+        }
+      }
+
+      return { success: false, error: 'Person is not a member of this project', humanReadable: `This person is not a member of "${project.name}".` }
+    } catch (err) {
+      logger.error('removeProjectMember tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to remove project member' }
+    }
+  },
+}
+
 // ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
@@ -872,6 +1061,9 @@ const ALL_TOOLS: LoopbrainTool[] = [
   createMultipleCalendarEventsTool,
   listProjectsTool,
   listPeopleTool,
+  listTasksByAssigneeTool,
+  bulkReassignTasksTool,
+  removeProjectMemberTool,
 ]
 
 export class ToolRegistry {

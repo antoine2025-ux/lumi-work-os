@@ -25,6 +25,7 @@ type Body = {
   departmentId?: string;
   teamId?: string;
   managerId?: string;
+  jobDescriptionId?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest) {
         departmentId: body.departmentId,
         teamId: body.teamId,
         managerId: body.managerId,
+        jobDescriptionId: body.jobDescriptionId ?? null,
       },
     });
 

@@ -20,6 +20,12 @@ export const OrgPersonCreateSchema = z.object({
   departmentId: z.string().optional(),
   teamId: z.string().optional(),
   managerId: z.string().optional(),
+  jobDescriptionId: z.string().optional(),
+  startDate: z.string().optional(),
+  employmentType: z.string().optional(),
+  location: z.string().optional(),
+  timezone: z.string().optional(),
+  autoCreateRoleCard: z.boolean().optional().default(true),
 })
 
 /** PUT /api/org/people/[personId]/update */
@@ -214,6 +220,10 @@ export const RoleCardCreateSchema = z.object({
   preferredSkills: z.array(z.string().trim()).default([]),
   keyMetrics: z.array(z.string().trim()).default([]),
   positionId: z.string().optional(),
+  // Manager-authored context fields (Phase 2)
+  roleInOrg: z.string().trim().max(500).optional(),
+  focusArea: z.string().trim().max(1000).optional(),
+  managerNotes: z.string().trim().max(2000).optional(),
 })
 
 /** PUT /api/org/role-templates/[id] */

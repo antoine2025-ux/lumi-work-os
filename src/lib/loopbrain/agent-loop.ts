@@ -1,22 +1,24 @@
-import OpenAI from 'openai'
 import {
   loadSession,
   appendMessage,
   appendMessages,
   storePendingPlan,
   clearPendingPlan,
-  formatMessagesForLLM,
+  formatMessagesForProvider,
   type LoopbrainMessage,
   type ToolCallRecord,
   type PendingPlan,
 } from './session-store'
-import { getOpenAIToolsForRole, isWriteTool } from './tool-schemas'
+import { getToolDefinitionsForRole, isWriteTool } from './tool-schemas'
+import { getProvider, type ToolCallChatMessage, type ToolDefinition, type ToolCallResponse } from '@/lib/ai/providers'
 import { prisma, prismaUnscoped } from '@/lib/db'
 import { IntegrationType } from '@prisma/client'
 import { isGmailConnected } from './context-sources/gmail'
 import { searchGmailForContext } from './context-sources/gmail-search'
 import { loadCalendarEvents } from './context-sources/calendar'
 import { createCalendarEvent } from '@/lib/integrations/calendar-events'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/server/authOptions'
 import { isSlackAvailable } from './slack-helper'
 import { searchSlackMessages } from './context-sources/slack-search'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
@@ -29,10 +31,8 @@ import { executeAction } from './actions/executor'
 import { formatActionForUser } from './format-action'
 import type { AgentContext } from './agent/types'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy-key' })
-
 const MAX_TOOL_ITERATIONS = 10
-const LOOPBRAIN_MODEL = process.env.LOOPBRAIN_MODEL || 'gpt-4-turbo'
+const LOOPBRAIN_MODEL = process.env.LOOPBRAIN_MODEL || 'claude-sonnet-4-6'
 
 export interface AgentLoopParams {
   workspaceId: string
@@ -93,7 +93,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
   // 4. Build system prompt and get role-filtered tools
   const systemPrompt = buildSystemPrompt(userContext)
-  const tools = getOpenAIToolsForRole(userRole)
+  const tools = getToolDefinitionsForRole(userRole)
 
   // 5. Agent loop
   const allToolCalls: ToolCallRecord[] = []
@@ -101,7 +101,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
   // Reload session messages (now includes the new user message)
   let currentSession = await loadSession(workspaceId, userId, conversationId)
-  let messages = formatMessagesForLLM(currentSession.messages)
+  let messages = formatMessagesForProvider(currentSession.messages)
 
   while (iterations < MAX_TOOL_ITERATIONS) {
     iterations++
@@ -219,7 +219,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
     // Reload messages for next iteration
     currentSession = await loadSession(workspaceId, userId, conversationId)
-    messages = formatMessagesForLLM(currentSession.messages)
+    messages = formatMessagesForProvider(currentSession.messages)
   }
 
   // Circuit breaker: max iterations reached
@@ -340,7 +340,7 @@ async function executePendingPlan(
     params.userId,
     params.conversationId
   )
-  const messages = formatMessagesForLLM(updatedSession.messages)
+  const messages = formatMessagesForProvider(updatedSession.messages)
   const systemPrompt = buildSystemPrompt(params.userContext)
 
   const finalResponse = await callLLMWithTools(systemPrompt, messages, [])
@@ -437,7 +437,7 @@ export async function executePlanWithProgress(
     params.userId,
     conversationId
   )
-  const messages = formatMessagesForLLM(updatedSession.messages)
+  const messages = formatMessagesForProvider(updatedSession.messages)
   const systemPrompt = buildSystemPrompt(params.userContext)
   const finalResponse = await callLLMWithTools(systemPrompt, messages, [])
   await appendMessage(conversationId, {
@@ -460,39 +460,49 @@ function buildConfirmationMessage(writeCalls: ToolCallRecord[]): string {
   return `I'd like to perform the following actions:\n\n${actions}\n\nShall I proceed?`
 }
 
-// LLM call with function calling support
 async function callLLMWithTools(
   systemPrompt: string,
-  messages: ReturnType<typeof formatMessagesForLLM>,
-  tools: ReturnType<typeof getOpenAIToolsForRole>
-): Promise<{
-  content: string
-  toolCalls?: Array<{ id: string; name: string; arguments: Record<string, unknown> }>
-}> {
-  const response = await openai.chat.completions.create({
+  messages: ToolCallChatMessage[],
+  tools: ToolDefinition[]
+): Promise<ToolCallResponse> {
+  const provider = getProvider(LOOPBRAIN_MODEL)
+  if (!provider.generateWithTools) {
+    throw new Error(`Provider ${provider.name} does not support tool calling`)
+  }
+
+  console.log('[Agent Loop] LLM request:', {
+    provider: provider.name,
     model: LOOPBRAIN_MODEL,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      ...(messages as unknown as OpenAI.ChatCompletionMessageParam[]),
-    ],
-    tools: tools.length > 0 ? (tools as OpenAI.ChatCompletionTool[]) : undefined,
-    temperature: 0.7,
-    max_tokens: 4000,
+    toolCount: tools.length,
+    messageCount: messages.length,
   })
 
-  const choice = response.choices[0]
-  const message = choice.message
+  try {
+    const response = await provider.generateWithTools({
+      model: LOOPBRAIN_MODEL,
+      systemPrompt,
+      messages,
+      tools,
+      temperature: 0.7,
+      maxTokens: 4000,
+    })
 
-  type RawToolCall = { id: string; function: { name: string; arguments: string } }
-  const rawToolCalls = message.tool_calls as unknown as RawToolCall[] | undefined
+    console.log('[Agent Loop] LLM response:', {
+      hasToolCalls: !!response.toolCalls?.length,
+      toolCallCount: response.toolCalls?.length ?? 0,
+      toolNames: response.toolCalls?.map((tc) => tc.name),
+    })
 
-  return {
-    content: message.content || '',
-    toolCalls: rawToolCalls?.map((tc) => ({
-      id: tc.id,
-      name: tc.function.name,
-      arguments: JSON.parse(tc.function.arguments) as Record<string, unknown>,
-    })),
+    return response
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error'
+    if (msg.includes('invalid model') || msg.includes('not found')) {
+      throw new Error(
+        `Model "${LOOPBRAIN_MODEL}" is not supported by provider ${provider.name}. ` +
+        `Check LOOPBRAIN_MODEL env var.`
+      )
+    }
+    throw error
   }
 }
 
@@ -543,28 +553,50 @@ async function executeReadTool(
           ? new Date(args.endDate)
           : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
-        type CalTokens = { accessToken?: string; refreshToken?: string | null }
-        const calIntegrations = await prismaUnscoped.integration.findMany({
-          where: { type: IntegrationType.GMAIL },
-          select: { config: true },
+        // Check if user has Google account with refresh token
+        const account = await prismaUnscoped.account.findFirst({
+          where: { userId, provider: 'google' },
+          select: { 
+            refresh_token: true,
+            scope: true,
+          },
         })
-        let calTokens: CalTokens | undefined
-        for (const integ of calIntegrations) {
-          const config = integ.config as { users?: Record<string, CalTokens> }
-          const tokens = config?.users?.[userId]
-          if (tokens?.accessToken || tokens?.refreshToken) {
-            calTokens = tokens
-            break
-          }
-        }
-        if (!calTokens?.accessToken && !calTokens?.refreshToken) {
-          return {
-            error:
-              'Google Calendar is not connected. Ask the user to sign in with Google or connect it in Settings > Integrations.',
+
+        let hasRefreshToken = !!account?.refresh_token
+
+        // If refresh_token is null in DB, try JWT session as fallback
+        if (!hasRefreshToken) {
+          try {
+            const session = await getServerSession(authOptions)
+            if (session?.refreshToken) {
+              console.log('[AgentLoop] refresh_token null in DB, found in JWT session')
+              hasRefreshToken = true
+            }
+          } catch (err) {
+            console.error('[AgentLoop] JWT session fallback failed:', err)
           }
         }
 
+        if (!hasRefreshToken) {
+          return {
+            error:
+              'Google Calendar is not connected. Please sign in with Google to access your calendar.',
+          }
+        }
+
+        // Check if account has calendar scope (scope is persisted in DB even when refresh_token is null)
+        const hasCalendarScope = account?.scope?.includes('calendar')
+        if (account && !hasCalendarScope) {
+          return {
+            error:
+              'Google Calendar access not granted. Please sign out and sign in again to grant calendar permissions.',
+          }
+        }
+
+        // loadCalendarEvents checks Account table and handles token refresh
         const events = await loadCalendarEvents(workspaceId, userId, start, end)
+
+        // Return events (limit to 20 for token efficiency)
         return {
           events: events.slice(0, 20).map((e) => ({
             id: e.id,
@@ -576,7 +608,9 @@ async function executeReadTool(
           })),
         }
       } catch (err) {
-        return { error: String(err) }
+        return {
+          error: `Calendar error: ${err instanceof Error ? err.message : String(err)}`,
+        }
       }
     }
 
@@ -956,6 +990,19 @@ async function executeReadTool(
       }
     }
 
+    case 'listTasksByAssignee': {
+      try {
+        const tool = toolRegistry.get('listTasksByAssignee')
+        if (!tool) return { error: 'listTasksByAssignee tool not found in registry' }
+        const result = await tool.execute(toolCall.arguments, { workspaceId, userId, workspaceSlug: '' })
+        return result.success
+          ? result.data ?? { message: result.humanReadable }
+          : { error: result.error ?? result.humanReadable }
+      } catch (err) {
+        return { error: String(err) }
+      }
+    }
+
     default:
       return { error: `Unknown tool: ${toolCall.name}` }
   }
@@ -1160,6 +1207,32 @@ async function executeWriteTool(
         return result.ok
           ? { id: result.result?.entityId, name, message: result.result?.message }
           : { error: result.error?.message }
+      } catch (err) {
+        return { error: String(err) }
+      }
+    }
+
+    case 'bulkReassignTasks': {
+      try {
+        const tool = toolRegistry.get('bulkReassignTasks')
+        if (!tool) return { error: 'bulkReassignTasks tool not found in registry' }
+        const result = await tool.execute(args, context)
+        return result.success
+          ? result.data ?? { message: result.humanReadable }
+          : { error: result.error ?? result.humanReadable }
+      } catch (err) {
+        return { error: String(err) }
+      }
+    }
+
+    case 'removeProjectMember': {
+      try {
+        const tool = toolRegistry.get('removeProjectMember')
+        if (!tool) return { error: 'removeProjectMember tool not found in registry' }
+        const result = await tool.execute(args, context)
+        return result.success
+          ? result.data ?? { message: result.humanReadable }
+          : { error: result.error ?? result.humanReadable }
       } catch (err) {
         return { error: String(err) }
       }

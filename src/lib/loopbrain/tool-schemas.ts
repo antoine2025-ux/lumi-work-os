@@ -176,6 +176,27 @@ export const READ_TOOLS: LoopbrainToolDef[] = [
     category: 'read',
     requiredRole: 'MEMBER',
   },
+  {
+    name: 'listTasksByAssignee',
+    description:
+      'List tasks assigned to a specific person, optionally filtered by project and status. Returns task IDs, titles, statuses, priorities, due dates, and project info.',
+    parameters: {
+      type: 'object',
+      properties: {
+        personId: { type: 'string', description: 'The person/user ID whose tasks to list' },
+        projectId: { type: 'string', description: 'Optional project ID to scope the query' },
+        status: {
+          type: 'string',
+          enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'],
+          description: 'Optional status filter',
+        },
+        limit: { type: 'number', description: 'Max results (default 50)' },
+      },
+      required: ['personId'],
+    },
+    category: 'read',
+    requiredRole: 'VIEWER',
+  },
 ]
 
 // WRITE TOOLS — confirmation gate intercepts these
@@ -338,6 +359,45 @@ export const WRITE_TOOLS: LoopbrainToolDef[] = [
     category: 'write',
     requiredRole: 'ADMIN',
   },
+  {
+    name: 'bulkReassignTasks',
+    description:
+      'Reassign multiple tasks to a new assignee. Accepts either an array of task IDs or an array of task objects (from listTasksByAssignee). Use after listTasksByAssignee to get the tasks.',
+    parameters: {
+      type: 'object',
+      properties: {
+        taskIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of task IDs to reassign',
+        },
+        tasks: {
+          type: 'array',
+          items: { type: 'object', properties: { id: { type: 'string' } } },
+          description: 'Array of task objects from listTasksByAssignee (IDs extracted automatically)',
+        },
+        newAssigneeId: { type: 'string', description: 'The person/user ID to reassign tasks to' },
+      },
+      required: ['newAssigneeId'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
+  {
+    name: 'removeProjectMember',
+    description:
+      'Remove a person from a project. Does not delete their tasks — reassign tasks first using bulkReassignTasks.',
+    parameters: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'The project ID' },
+        personId: { type: 'string', description: 'The person/user ID to remove' },
+      },
+      required: ['projectId', 'personId'],
+    },
+    category: 'write',
+    requiredRole: 'MEMBER',
+  },
 ]
 
 // All tools combined
@@ -382,6 +442,17 @@ export function getOpenAIToolsForRole(role: 'VIEWER' | 'MEMBER' | 'ADMIN' | 'OWN
       description: tool.description,
       parameters: tool.parameters,
     },
+  }))
+}
+
+// Get provider-agnostic tool definitions filtered by role
+export function getToolDefinitionsForRole(
+  role: 'VIEWER' | 'MEMBER' | 'ADMIN' | 'OWNER'
+): import('@/lib/ai/providers').ToolDefinition[] {
+  return getToolsForRole(role).map((t) => ({
+    name: t.name,
+    description: t.description,
+    parameters: t.parameters,
   }))
 }
 

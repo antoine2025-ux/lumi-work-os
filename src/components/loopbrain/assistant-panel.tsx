@@ -218,7 +218,7 @@ export function LoopbrainAssistantPanel({
     setExecutionResult(null)
     setExecutionError(null)
     setStepProgress(
-      planToExecute.steps.map((s) => ({
+      (planToExecute.steps ?? []).map((s) => ({
         description: s.description,
         status: 'pending' as const,
       }))

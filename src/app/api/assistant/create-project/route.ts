@@ -4,6 +4,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
+import { getDefaultSpaceForUser } from '@/lib/spaces/get-default-space'
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,6 +60,14 @@ export async function POST(request: NextRequest) {
       ownerId = auth.user.userId
     } = projectData
 
+    // Get default space for the user
+    const defaultSpaceId = await getDefaultSpaceForUser(auth.user.userId, auth.workspaceId)
+    if (!defaultSpaceId) {
+      return NextResponse.json({
+        error: 'No default space found. Please create a space first.'
+      }, { status: 400 })
+    }
+
     // Create the project
     const project = await prisma.project.create({
       data: {
@@ -72,7 +81,8 @@ export async function POST(request: NextRequest) {
         department,
         team,
         ownerId,
-        createdById: auth.user.userId
+        createdById: auth.user.userId,
+        spaceId: defaultSpaceId
       },
       include: {
         createdBy: {

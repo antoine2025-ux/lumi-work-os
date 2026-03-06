@@ -107,8 +107,8 @@ export function extractEntityLinks(
     if (!line.startsWith("\u2713")) continue // ✓ lines are successful steps
 
     // Match the line to a step based on order (successful steps appear in order)
-    const stepIndex = links.length // count of ✓ lines so far = index into plan.steps
-    const step = plan.steps[stepIndex]
+    const stepIndex = links.length
+    const step = (plan.steps ?? [])[stepIndex]
     if (!step) continue
 
     const link = parseResultLine(line, step.toolName, workspaceSlug)
@@ -165,6 +165,8 @@ export function ExecutionProgress({
   const workspaceSlug = (params?.workspaceSlug as string) ?? ""
   const [animatedStep, setAnimatedStep] = useState(0)
 
+  const steps = plan.steps ?? []
+
   // Timer-based fallback when no stepProgress (legacy/optimistic)
   useEffect(() => {
     if (!isExecuting || (stepProgress && stepProgress.length > 0)) return
@@ -172,7 +174,7 @@ export function ExecutionProgress({
     setAnimatedStep(0)
     const interval = setInterval(() => {
       setAnimatedStep((prev) => {
-        if (prev >= plan.steps.length - 1) {
+        if (prev >= steps.length - 1) {
           clearInterval(interval)
           return prev
         }
@@ -181,7 +183,7 @@ export function ExecutionProgress({
     }, STEP_ANIMATION_MS)
 
     return () => clearInterval(interval)
-  }, [isExecuting, plan.steps.length, stepProgress])
+  }, [isExecuting, steps.length, stepProgress])
 
   // Parse final results when execution completes
   const resultLines = executionResult ? executionResult.split("\n") : []
@@ -238,8 +240,8 @@ export function ExecutionProgress({
   const completionMessage =
     executionResult?.trim().split(/\n/)[0]?.trim() || "Done!"
   const singleCalendarStep =
-    plan.steps.length === 1 && plan.steps[0].toolName === "createCalendarEvent"
-  const calendarParams = singleCalendarStep ? plan.steps[0].parameters : null
+    steps.length === 1 && steps[0].toolName === "createCalendarEvent"
+  const calendarParams = singleCalendarStep ? steps[0].parameters : null
 
   const hasError = !!executionError
   const borderCls = hasError
@@ -272,7 +274,7 @@ export function ExecutionProgress({
 
       {/* Steps */}
       <div className="px-4 py-3 space-y-2">
-        {plan.steps.map((step, idx) => {
+        {steps.map((step, idx) => {
           const status = getStepStatus(idx)
           const link = getLinkForStep(idx)
           const stepError = getStepError(idx)

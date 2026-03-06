@@ -269,6 +269,21 @@ async function main() {
     },
   })
 
+  // Create default General space
+  const generalSpace = await prisma.space.upsert({
+    where: { id: 'sample-space-general' },
+    update: {},
+    create: {
+      id: 'sample-space-general',
+      workspaceId: workspace.id,
+      name: 'General',
+      description: 'Default space for workspace projects',
+      icon: '🏢',
+      color: '#6B7280',
+      ownerId: devUser.id,
+    },
+  })
+
   // Create sample project
   const project = await prisma.project.upsert({
     where: { id: 'sample-project-1' },
@@ -281,6 +296,7 @@ async function main() {
       status: 'ACTIVE',
       ownerId: devUser.id,
       createdById: devUser.id,
+      spaceId: generalSpace.id,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -297,6 +313,7 @@ async function main() {
     update: {},
     create: {
       projectId: project.id,
+      workspaceId: workspace.id,
       userId: devUser.id,
       role: 'OWNER',
     },
@@ -323,6 +340,14 @@ async function main() {
     const modulePath = join(__dirname, 'seed', 'loopbrain_fixtures.ts')
     const { seedLoopbrainFixtures } = await import(modulePath)
     await seedLoopbrainFixtures()
+  }
+
+  // Run Acme Analytics workspace seed if enabled
+  if (process.env.SEED_ACME === 'true') {
+    console.log('')
+    console.log('🌱 Running Acme Analytics workspace seed...')
+    const { seedAcmeWorkspace } = await import('./seed-data/acme-seed.js')
+    await seedAcmeWorkspace(prisma)
   }
 }
 

@@ -11,6 +11,8 @@ import { prisma, prismaUnscoped } from "@/lib/db";
 import { google } from "googleapis";
 import { logger } from "@/lib/logger";
 import { randomUUID } from "crypto";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/server/authOptions";
 import type {
   CalendarAvailabilitySnapshotV0,
   DayOfWeekV0,
@@ -249,17 +251,56 @@ export async function loadCalendarEvents(
   startDate: Date,
   endDate: Date
 ): Promise<CalendarEvent[]> {
+  console.log('[Calendar Debug] loadCalendarEvents called:', {
+    workspaceId: _workspaceId,
+    personId,
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+  })
+
   try {
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
       return [];
     }
 
-    const account = await prismaUnscoped.account.findFirst({
+    // First try Account table
+    let account = await prismaUnscoped.account.findFirst({
       where: { userId: personId, provider: "google" },
       select: { access_token: true, refresh_token: true, expires_at: true },
     });
 
-    if (!account?.refresh_token) return [];
+    console.log('[Calendar Debug] Account lookup result:', {
+      accountFound: !!account,
+      hasRefreshToken: !!account?.refresh_token,
+      hasAccessToken: !!account?.access_token,
+    })
+
+    // If refresh_token is null in DB, try JWT session as fallback
+    if (!account?.refresh_token) {
+      console.log('[Calendar] refresh_token null in DB, checking JWT session...')
+      
+      try {
+        const session = await getServerSession(authOptions)
+        
+        if (session?.refreshToken && session?.accessToken) {
+          console.log('[Calendar] Found tokens in JWT session (fallback)')
+          
+          // Use tokens from JWT session
+          account = {
+            access_token: session.accessToken as string,
+            refresh_token: session.refreshToken as string,
+            expires_at: session.expiresAt ? Math.floor(new Date(session.expiresAt as number).getTime() / 1000) : null,
+          }
+        }
+      } catch (err) {
+        console.error('[Calendar] JWT session fallback failed:', err)
+      }
+    }
+
+    if (!account?.refresh_token) {
+      console.log('[Calendar] No refresh_token available (DB or JWT)')
+      return []
+    }
 
     const baseUrl = getOAuthRedirectBaseUrl()
     const oauth2Client = new google.auth.OAuth2(
@@ -314,11 +355,24 @@ export async function loadCalendarEvents(
         status: e.status ?? "confirmed",
       });
     }
+    
+    logger.info("[CalendarContext] Successfully loaded calendar events", {
+      personId,
+      eventCount: items.length,
+      dateRange: `${startDate.toISOString()} to ${endDate.toISOString()}`,
+    });
+    
     return items;
   } catch (error) {
-    logger.warn("[CalendarContext] Failed to load Google Calendar events", {
+    // Log detailed error information for debugging
+    const errorDetails = error instanceof Error 
+      ? { message: error.message, stack: error.stack, name: error.name }
+      : { raw: String(error) };
+    
+    logger.error("[CalendarContext] Failed to load Google Calendar events", {
       personId,
-      error,
+      error: errorDetails,
+      dateRange: `${startDate.toISOString()} to ${endDate.toISOString()}`,
     });
     return [];
   }

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     // Step 4: Parse and validate request body (Zod)
-    const { fullName, email, title, departmentId, teamId, managerId } =
+    const { fullName, email, title, departmentId, teamId, managerId, jobDescriptionId, startDate, employmentType, location, timezone, autoCreateRoleCard } =
       OrgPersonCreateSchema.parse(await request.json());
 
     // Step 5: Create person (explicitly pass workspaceId for database truth compliance)
@@ -61,6 +61,13 @@ export async function POST(request: NextRequest) {
       departmentId: departmentId ?? null,
       teamId: teamId ?? null,
       managerId: managerId || null,
+      jobDescriptionId: jobDescriptionId ?? null,
+      startDate: startDate ?? null,
+      employmentType: employmentType ?? null,
+      location: location ?? null,
+      timezone: timezone ?? null,
+      autoCreateRoleCard,
+      actorUserId: userId,
     });
     console.log("[POST /api/org/people/create] Person created successfully:", created.id);
 

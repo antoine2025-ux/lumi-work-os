@@ -318,6 +318,13 @@ Step 1: { "stepNumber": 1, "toolName": "createProject", "parameters": { "name": 
 Step 2: { "stepNumber": 2, "toolName": "createEpic", "parameters": { "title": "Content Strategy", "projectId": "$step1.data.id", "description": "Content planning and execution for Q3 campaigns" }, "dependsOn": [1], "description": "Create Content Strategy epic" }
 Step 3: { "stepNumber": 3, "toolName": "createTask", "parameters": { "title": "Draft Q3 content calendar", "projectId": "$step1.data.id", "epicId": "$step2.data.id", "description": "Create a detailed content calendar covering July-September with channels, themes, and deadlines" }, "dependsOn": [1, 2], "description": "Create task: Draft Q3 content calendar" }
 
+Example — reassign all of a person's tasks on a project and remove them from the project:
+Step 1: { "stepNumber": 1, "toolName": "listTasksByAssignee", "parameters": { "personId": "<sophie_user_id>", "projectId": "<project_id>" }, "description": "Get Sophie's tasks on the project" }
+Step 2: { "stepNumber": 2, "toolName": "bulkReassignTasks", "parameters": { "tasks": "$step1.data.tasks", "newAssigneeId": "<daniel_user_id>" }, "dependsOn": [1], "description": "Reassign all found tasks to Daniel" }
+Step 3: { "stepNumber": 3, "toolName": "removeProjectMember", "parameters": { "projectId": "<project_id>", "personId": "<sophie_user_id>" }, "dependsOn": [2], "description": "Remove Sophie from the project" }
+
+Note: bulkReassignTasks accepts EITHER "taskIds" (array of ID strings) OR "tasks" (full array from listTasksByAssignee). Use "tasks": "$stepN.data.tasks" to pass the whole array — IDs are extracted automatically.
+
 Common dependency patterns:
 - projectId: "$stepN.data.id" (after createProject)
 - epicId: "$stepN.data.id" (after createEpic)
@@ -325,6 +332,7 @@ Common dependency patterns:
 - userId: "$stepN.data.people[0].userId" (after listPeople lookup)
 - to (email): "$stepN.data.people[0].email" or from workspace members — use for sendEmail/replyToEmail
 - goalId: use from workspace context directly when available
+- tasks (for bulkReassignTasks): "$stepN.data.tasks" (after listTasksByAssignee — passes full array, IDs extracted automatically)
 
 CRITICAL: Never leave a required parameter undefined or empty. If a parameter depends on a previous step's output, ALWAYS use the $stepN.data.FIELD reference and set dependsOn accordingly.
 
@@ -357,7 +365,10 @@ TOOL RETURN VALUES
 - createCalendarEvent returns: { eventId, htmlLink }
 - createMultipleCalendarEvents returns: { results: [{ success, eventId?, htmlLink?, summary?, error? }], summary?: "11/12 events created. 1 failed: ..." }
 - listProjects returns: { projects: [{ id, name, status, priority }] }
-- listPeople returns: { people: [{ userId, name, email, role }] } — use for resolving names like "Sarah" to email`
+- listPeople returns: { people: [{ userId, name, email, role }] } — use for resolving names like "Sarah" to email
+- listTasksByAssignee returns: { tasks: [{ id, title, status, priority, dueDate, projectId, projectName }], count }
+- bulkReassignTasks returns: { reassignedCount, assigneeId, assigneeName } — accepts taskIds (string[]) OR tasks (object array from listTasksByAssignee)
+- removeProjectMember returns: { projectId, projectName, removedPersonId }`
 }
 
 function buildPlannerUserPrompt(

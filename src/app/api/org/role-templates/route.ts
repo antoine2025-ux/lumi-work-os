@@ -108,6 +108,9 @@ export async function POST(request: NextRequest) {
         preferredSkills: body.preferredSkills,
         keyMetrics: body.keyMetrics,
         ...(body.positionId ? { positionId: body.positionId } : {}),
+        ...(body.roleInOrg !== undefined && { roleInOrg: body.roleInOrg }),
+        ...(body.focusArea !== undefined && { focusArea: body.focusArea }),
+        ...(body.managerNotes !== undefined && { managerNotes: body.managerNotes }),
       },
     });
 

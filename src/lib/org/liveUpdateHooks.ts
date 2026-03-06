@@ -21,6 +21,11 @@ async function loadRoleContextForPosition(
       id: positionId,
       workspaceId,
     },
+    include: {
+      jobDescription: {
+        select: { title: true, summary: true, level: true },
+      },
+    },
   });
   if (!position) return null;
 
@@ -56,6 +61,7 @@ async function loadRoleContextForPosition(
     team,
     department,
     parentPosition,
+    jobDescription: position.jobDescription ?? null,
   });
 
   return rc;
@@ -82,6 +88,11 @@ async function loadRoleContextForRoleCard(
   if (roleCard.positionId) {
     position = await prisma.orgPosition.findFirst({
       where: { id: roleCard.positionId, workspaceId },
+      include: {
+        jobDescription: {
+          select: { title: true, summary: true, level: true },
+        },
+      },
     });
 
     if (position?.teamId) {
@@ -110,6 +121,7 @@ async function loadRoleContextForRoleCard(
     team,
     department,
     parentPosition,
+    jobDescription: position?.jobDescription ?? null,
   });
 
   return rc;

@@ -26,13 +26,15 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { Loader2, X, Pencil, ChevronDown, Check as CheckIcon } from "lucide-react";
+import { Loader2, X, Pencil, ChevronDown, Check as CheckIcon, Briefcase } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useSession } from "next-auth/react";
 import { getPersonDisplayBadges } from "@/lib/org/personDisplay";
 import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
 import { PersonAvailabilityCard } from "./people/PersonAvailabilityCard";
 import { PersonSkillsCard } from "./people/PersonSkillsCard";
 import { isMutationSuccess, publishMutationResult } from "@/lib/org/mutations";
+import { RoleCardView } from "./role-card/RoleCardView";
 
 type PersonProfileClientProps = {
   personId: string;
@@ -51,6 +53,7 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
       setEditPanelOpen(true);
     }
   }, [initialFocusField]);
+  const { data: session } = useSession();
   const flagsQ = useOrgQuery(() => OrgApi.getFlags(), []);
   const personQ = useOrgQuery(() => OrgApi.getPerson(personId), [personId, personKey]);
   const structureQ = useOrgQuery(() => OrgApi.getStructure(), []);
@@ -316,6 +319,14 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
           </div>
         </CardContent>
       </Card>
+
+      {/* Role Card (job description, skills, current work) */}
+      <div className="mt-8">
+        <RoleCardView
+          personUserId={personId}
+          isOwnProfile={session?.user?.id === personId}
+        />
+      </div>
 
       {/* Edit Profile Panel */}
       {editPanelOpen && (
@@ -849,8 +860,318 @@ function EditProfilePanel({
 
           {/* Skills */}
           <PersonSkillsCard personId={personId} canEdit={canWrite} />
+
+          {/* Role Card (admin/owner only) */}
+          {canReporting && (
+            <RoleCardEditorSection
+              personId={personId}
+              onRefreshed={onPersonChanged}
+            />
+          )}
         </div>
       </div>
     </>
+  );
+}
+
+// ─── Role Card Editor Section ─────────────────────────────────────────────────
+
+function RoleCardEditorSection({ personId, onRefreshed }) {
+  const [cardData, setCardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const [createForm, setCreateForm] = useState({
+    roleName: "",
+    jobFamily: "",
+    level: "",
+    roleDescription: "",
+    roleInOrg: "",
+    focusArea: "",
+  });
+
+  const [editForm, setEditForm] = useState({
+    roleName: "",
+    roleDescription: "",
+    roleInOrg: "",
+    focusArea: "",
+    managerNotes: "",
+  });
+
+  const loadRoleCard = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/org/people/${personId}/role-card`);
+      if (!res.ok) return;
+      const json = await res.json();
+      setCardData(json);
+      if (json.roleCard) {
+        setEditForm({
+          roleName: json.roleCard.roleName || "",
+          roleDescription: json.roleCard.roleDescription || "",
+          roleInOrg: json.roleCard.roleInOrg || "",
+          focusArea: json.roleCard.focusArea || "",
+          managerNotes: json.roleCard.managerNotes || "",
+        });
+      }
+    } catch {
+      // silently ignore network errors
+    } finally {
+      setLoading(false);
+    }
+  }, [personId]);
+
+  useEffect(() => {
+    loadRoleCard();
+  }, [loadRoleCard]);
+
+  const handleCreate = async () => {
+    setError(null);
+    if (
+      !createForm.roleName.trim() ||
+      !createForm.jobFamily.trim() ||
+      !createForm.level.trim() ||
+      !createForm.roleDescription.trim()
+    ) {
+      setError("Role name, job family, level, and description are required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const body = {
+        roleName: createForm.roleName.trim(),
+        jobFamily: createForm.jobFamily.trim(),
+        level: createForm.level.trim(),
+        roleDescription: createForm.roleDescription.trim(),
+        ...(createForm.roleInOrg.trim() && { roleInOrg: createForm.roleInOrg.trim() }),
+        ...(createForm.focusArea.trim() && { focusArea: createForm.focusArea.trim() }),
+        ...(cardData?.person?.positionId && { positionId: cardData.person.positionId }),
+      };
+      const res = await fetch("/api/org/role-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Failed to create role card");
+      await loadRoleCard();
+      setShowCreate(false);
+      setCreateForm({ roleName: "", jobFamily: "", level: "", roleDescription: "", roleInOrg: "", focusArea: "" });
+      onRefreshed?.();
+    } catch (e) {
+      setError(e.message || "Failed to create role card");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!cardData?.roleCard?.id) return;
+    setError(null);
+    setSaving(true);
+    try {
+      const body = {
+        ...(editForm.roleName.trim() && { roleName: editForm.roleName.trim() }),
+        ...(editForm.roleDescription.trim() && { roleDescription: editForm.roleDescription.trim() }),
+        roleInOrg: editForm.roleInOrg.trim() || null,
+        focusArea: editForm.focusArea.trim() || null,
+        managerNotes: editForm.managerNotes.trim() || null,
+      };
+      const res = await fetch(`/api/org/role-templates/${cardData.roleCard.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Failed to update role card");
+      await loadRoleCard();
+      onRefreshed?.();
+    } catch (e) {
+      setError(e.message || "Failed to save role card");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="border-t border-white/10 pt-6 space-y-2">
+        <Label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Role Card</Label>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
+  const roleCard = cardData?.roleCard;
+
+  return (
+    <div className="border-t border-white/10 pt-6 space-y-3">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Role Card</Label>
+        {!roleCard && (
+          <button
+            type="button"
+            onClick={() => setShowCreate((v) => !v)}
+            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            {showCreate ? "Cancel" : "+ Create"}
+          </button>
+        )}
+      </div>
+
+      {error && <p className="text-xs text-red-400">{error}</p>}
+
+      {!roleCard && !showCreate && (
+        <p className="text-xs text-slate-500">
+          No role card assigned. Click &ldquo;+ Create&rdquo; to add one.
+        </p>
+      )}
+
+      {!roleCard && showCreate && (
+        <div className="space-y-3 rounded-lg border border-white/10 bg-slate-800/30 p-4">
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-400">Role Name *</Label>
+            <Input
+              value={createForm.roleName}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, roleName: e.target.value }))}
+              placeholder="e.g., Senior Engineer"
+              className="h-8 text-sm bg-slate-800/50 border-white/10 text-slate-100"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-400">Job Family *</Label>
+              <Input
+                value={createForm.jobFamily}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, jobFamily: e.target.value }))}
+                placeholder="Engineering"
+                className="h-8 text-sm bg-slate-800/50 border-white/10 text-slate-100"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-400">Level *</Label>
+              <Input
+                value={createForm.level}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, level: e.target.value }))}
+                placeholder="Senior"
+                className="h-8 text-sm bg-slate-800/50 border-white/10 text-slate-100"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-400">Description *</Label>
+            <textarea
+              value={createForm.roleDescription}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, roleDescription: e.target.value }))}
+              placeholder="Describe the role..."
+              rows={3}
+              className="w-full rounded-md border border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-400">Role in Org</Label>
+            <Input
+              value={createForm.roleInOrg}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, roleInOrg: e.target.value }))}
+              placeholder="What this person actually does..."
+              className="h-8 text-sm bg-slate-800/50 border-white/10 text-slate-100"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-400">Focus Area</Label>
+            <Input
+              value={createForm.focusArea}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, focusArea: e.target.value }))}
+              placeholder="Current focus area..."
+              className="h-8 text-sm bg-slate-800/50 border-white/10 text-slate-100"
+            />
+          </div>
+          <Button onClick={handleCreate} disabled={saving} size="sm" className="w-full">
+            {saving ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Role Card"
+            )}
+          </Button>
+        </div>
+      )}
+
+      {roleCard && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 rounded-md border border-white/10 bg-slate-800/30 px-3 py-2">
+            <Briefcase className="h-4 w-4 text-slate-400 shrink-0" />
+            <span className="text-sm text-slate-200 font-medium truncate">{roleCard.roleName}</span>
+            <span className="text-xs text-slate-500 ml-auto shrink-0">
+              {roleCard.jobFamily} · {roleCard.level}
+            </span>
+          </div>
+          <div className="space-y-3 rounded-lg border border-white/10 bg-slate-800/30 p-4">
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-400">Role Name</Label>
+              <Input
+                value={editForm.roleName}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, roleName: e.target.value }))}
+                className="h-8 text-sm bg-slate-800/50 border-white/10 text-slate-100"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-400">Description</Label>
+              <textarea
+                value={editForm.roleDescription}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, roleDescription: e.target.value }))}
+                rows={3}
+                className="w-full rounded-md border border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-400">Role in Org</Label>
+              <Input
+                value={editForm.roleInOrg}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, roleInOrg: e.target.value }))}
+                placeholder="What this person actually does..."
+                className="h-8 text-sm bg-slate-800/50 border-white/10 text-slate-100"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-400">Focus Area</Label>
+              <Input
+                value={editForm.focusArea}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, focusArea: e.target.value }))}
+                placeholder="Current focus area..."
+                className="h-8 text-sm bg-slate-800/50 border-white/10 text-slate-100"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-400">Manager Notes</Label>
+              <textarea
+                value={editForm.managerNotes}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, managerNotes: e.target.value }))}
+                placeholder="Notes visible to managers only..."
+                rows={3}
+                className="w-full rounded-md border border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              />
+            </div>
+            <Button onClick={handleSave} disabled={saving} size="sm" className="w-full">
+              {saving ? (
+                <>
+                  <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Role Card"
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

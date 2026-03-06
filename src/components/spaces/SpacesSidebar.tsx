@@ -14,6 +14,7 @@ import {
   CheckSquare,
   Star,
   MessageSquare,
+  FolderOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -58,6 +59,7 @@ export function SpacesSidebar({ currentSpaceId }: SpacesSidebarProps) {
   const baseHref = workspaceSlug ? `/w/${workspaceSlug}` : ""
 
   const isMyTasksActive = pathname?.includes("/my-tasks") ?? false
+  const isProjectsActive = pathname?.includes("/projects") ?? false
   const isAskActive = pathname?.includes("/ask") ?? false
 
   return (
@@ -177,6 +179,16 @@ export function SpacesSidebar({ currentSpaceId }: SpacesSidebarProps) {
                 >
                   <CheckSquare className="w-4 h-4" />
                   To-do List
+                </Link>
+                <Link
+                  href={`${baseHref}/projects`}
+                  className={cn(
+                    "flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm transition-colors",
+                    isProjectsActive ? "bg-muted font-medium" : "hover:bg-muted/50"
+                  )}
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  Projects
                 </Link>
                 <Link
                   href="#"

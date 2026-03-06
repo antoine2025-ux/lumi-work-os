@@ -31,6 +31,9 @@ export async function buildRoleContextsFromWorkspace(
         },
       },
       parent: true,
+      jobDescription: {
+        select: { id: true, title: true, summary: true, level: true },
+      },
     },
   });
 
@@ -48,6 +51,9 @@ export async function buildRoleContextsFromWorkspace(
             },
           },
           parent: true,
+          jobDescription: {
+            select: { id: true, title: true, summary: true, level: true },
+          },
         },
       },
     },
@@ -68,6 +74,7 @@ export async function buildRoleContextsFromWorkspace(
       team,
       department,
       parentPosition,
+      jobDescription: position.jobDescription ?? null,
     };
 
     const ctx = buildRoleContext(source);
@@ -114,6 +121,10 @@ export async function buildRoleContextsFromWorkspace(
           ...existing.keyMetrics,
           ...(roleCard.keyMetrics ?? []),
         ],
+        // Merge manager-authored context from RoleCard
+        roleInOrg: roleCard.roleInOrg ?? existing.roleInOrg,
+        focusArea: roleCard.focusArea ?? existing.focusArea,
+        managerNotes: roleCard.managerNotes ?? existing.managerNotes,
       };
     } else {
       // Build new context from RoleCard
@@ -124,6 +135,7 @@ export async function buildRoleContextsFromWorkspace(
         team,
         department,
         parentPosition,
+        jobDescription: position?.jobDescription ?? null,
       };
 
       const ctx = buildRoleContext(source);

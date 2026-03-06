@@ -194,6 +194,7 @@ model Workspace {
   projectTemplates               ProjectTemplate[]
   projects                       Project[]
   roleCards                      RoleCard[]
+  jobDescriptions                JobDescription[]
   taskTemplates                  TaskTemplate[]
   tasks                          Task[]
   wikiChunks                     WikiChunk[]
@@ -889,6 +890,31 @@ model OrgPersonProfileOverride {
   @@map("org_person_profile_overrides")
 }
 
+// Shared job description template — reusable across many OrgPositions
+model JobDescription {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  title            String                        // "Software Engineer", "Product Manager"
+  summary          String?                       // 2-3 sentence overview of the role
+  level            String?                       // "Junior", "Mid", "Senior", "Lead", "Principal"
+  jobFamily        String?                       // "Engineering", "Design", "Operations"
+  responsibilities String[] @default([])
+  requiredSkills   String[] @default([])
+  preferredSkills  String[] @default([])
+  keyMetrics       String[] @default([])
+
+  workspace        Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  positions        OrgPosition[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([workspaceId, title, level])
+  @@index([workspaceId])
+  @@index([workspaceId, jobFamily])
+  @@map("job_descriptions")
+}
+
 model RoleCard {
   id               String       @id @default(cuid())
   workspaceId      String
@@ -904,6 +930,9 @@ model RoleCard {
   preferredSkills  String[]     @default([]) // Legacy: string array (Phase 3 migrates to Skill entities)
   requiredSkills   String[]     @default([]) // Legacy: string array (Phase 3 migrates to Skill entities)
   responsibilities String[]     @default([])
+  roleInOrg        String?                   // "Epic Owner for Platform Migration"
+  focusArea        String?                   // "Leading auth migration + API redesign"
+  managerNotes     String?                   // Free text context from manager
   createdBy        User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
   position         OrgPosition? @relation(fields: [positionId], references: [id])
   workspace        Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -942,6 +971,7 @@ model OrgPosition {
   archivedById       String? // User ID of who archived this position
   archivedReason     String?
   mergedIntoId       String? // canonical position id when merged
+  jobDescriptionId   String? // optional link to shared JobDescription template
 
   // Phase 1: Intentional absence tracking for structural integrity
   // When true, LoopBrain will not flag missing team/manager as issues
@@ -954,12 +984,13 @@ model OrgPosition {
   location       String?
   timezone       String?
 
-  parent    OrgPosition?  @relation("OrgHierarchy", fields: [parentId], references: [id])
-  children  OrgPosition[] @relation("OrgHierarchy")
-  team      OrgTeam?      @relation(fields: [teamId], references: [id])
-  user      User?         @relation(fields: [userId], references: [id])
-  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  roleCard           RoleCard?
+  parent          OrgPosition?    @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children        OrgPosition[]   @relation("OrgHierarchy")
+  team            OrgTeam?        @relation(fields: [teamId], references: [id])
+  user            User?           @relation(fields: [userId], references: [id])
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  jobDescription  JobDescription? @relation(fields: [jobDescriptionId], references: [id])
+  roleCard        RoleCard?
   projectMembers     ProjectMember[]
   projectAssignees   ProjectAssignee[]
   projectPersonLinks ProjectPersonLink[]
@@ -972,6 +1003,7 @@ model OrgPosition {
   @@index([teamId])
   @@index([parentId])  // Fast reporting chain traversal
   @@index([level])
+  @@index([jobDescriptionId])
   // Entity Graph: Optimized for MEMBER_OF and REPORTS_TO link queries
   @@index([workspaceId, teamId, userId], map: "idx_org_positions_entity_graph")
   @@map("org_positions")
@@ -1237,14 +1269,14 @@ model Project {
   watchers            ProjectWatcher[]
   accountability      ProjectAccountability?
   allocations         ProjectAllocation[]
-  spaceId               String?
+  spaceId               String
   createdBy             User                   @relation(fields: [createdById], references: [id], onDelete: Cascade)
   owner                  User?                  @relation("ProjectOwner", fields: [ownerId], references: [id])
   wikiPage               WikiPage?              @relation(fields: [wikiPageId], references: [id])
   projectDocumentation   ProjectDocumentation[]
   workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   orgTeam                OrgTeam?               @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  space                  Space?                 @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  space                  Space                  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   tasks                  Task[]
   goalLinks              ProjectGoalLink[]
   personLinks            ProjectPersonLink[]
@@ -2193,10 +2225,11 @@ model OrgInvitation {
   expiresAt   DateTime?
   
   // Organizational placement (applied on acceptance)
-  title        String?
-  departmentId String?
-  teamId       String?
-  managerId    String? // Person.id of the manager
+  title            String?
+  departmentId     String?
+  teamId           String?
+  managerId        String? // Person.id of the manager
+  jobDescriptionId String? // Optional JD to link on acceptance
 
   @@unique([workspaceId, email])
   @@index([workspaceId])

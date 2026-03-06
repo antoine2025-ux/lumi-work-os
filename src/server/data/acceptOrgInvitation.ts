@@ -175,6 +175,49 @@ export async function acceptOrgInvitationByToken(
     });
   });
 
+  // Post-transaction: apply JD linking and auto-create RoleCard (best-effort).
+  if (invitation.jobDescriptionId && invitation.workspaceId) {
+    try {
+      const position = await prisma.orgPosition.findFirst({
+        where: { workspaceId: invitation.workspaceId, userId },
+        select: { id: true },
+      });
+      if (position) {
+        await prisma.orgPosition.update({
+          where: { id: position.id },
+          data: { jobDescriptionId: invitation.jobDescriptionId },
+        });
+        const jd = await prisma.jobDescription.findUnique({
+          where: { id: invitation.jobDescriptionId },
+        });
+        if (jd) {
+          const existingRoleCard = await prisma.roleCard.findFirst({
+            where: { positionId: position.id },
+          });
+          if (!existingRoleCard) {
+            await prisma.roleCard.create({
+              data: {
+                workspaceId: invitation.workspaceId,
+                positionId: position.id,
+                roleName: jd.title,
+                jobFamily: jd.jobFamily ?? '',
+                level: jd.level ?? '',
+                roleDescription: jd.summary ?? '',
+                responsibilities: jd.responsibilities,
+                requiredSkills: jd.requiredSkills,
+                preferredSkills: jd.preferredSkills,
+                keyMetrics: jd.keyMetrics,
+                createdById: userId,
+              },
+            });
+          }
+        }
+      }
+    } catch (jdError: unknown) {
+      console.warn('[acceptOrgInvitationByToken] JD linking failed (non-blocking):', jdError instanceof Error ? jdError.message : String(jdError));
+    }
+  }
+
   return {
     workspace: invitation.workspace,
     membershipCreated: true,

@@ -110,7 +110,7 @@ import { createExtractedTasks } from './scenarios/create-extracted-tasks'
 /**
  * Default LLM model for Loopbrain
  */
-const DEFAULT_LOOPBRAIN_MODEL = 'gpt-4-turbo'
+const DEFAULT_LOOPBRAIN_MODEL = 'claude-sonnet-4-6'
 
 /**
  * Dev-only: Track last Org debug snapshot for debugging routing decisions

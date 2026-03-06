@@ -83,6 +83,7 @@ export const WORKSPACE_SCOPED_MODELS = [
   'WorkflowAssignment',
   'RoleCardSkill',
   'RoleCard',
+  'JobDescription',
   'Skill',
   'PersonSkill',
   // CRITICAL - Core org/people/todo models

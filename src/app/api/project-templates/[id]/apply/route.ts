@@ -3,6 +3,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
+import { getDefaultSpaceForUser } from '@/lib/spaces/get-default-space'
 
 
 // POST /api/project-templates/[id]/apply - Apply a template to create a project
@@ -70,6 +71,14 @@ export async function POST(
     // Use authenticated user ID
     const createdById = auth.user.userId
 
+    // Get default space for the user
+    const defaultSpaceId = await getDefaultSpaceForUser(auth.user.userId, auth.workspaceId)
+    if (!defaultSpaceId) {
+      return NextResponse.json({
+        error: 'No default space found. Please create a space first.'
+      }, { status: 400 })
+    }
+
     // Create the project from template
     const project = await prisma.project.create({
       data: {
@@ -79,7 +88,8 @@ export async function POST(
         priority: 'MEDIUM',
         workspaceId: auth.workspaceId,
         createdById: createdById,
-        ownerId: createdById
+        ownerId: createdById,
+        spaceId: defaultSpaceId
       }
     })
 

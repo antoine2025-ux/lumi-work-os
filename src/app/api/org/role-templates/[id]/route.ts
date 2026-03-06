@@ -93,6 +93,9 @@ export async function PUT(
         ...(body.preferredSkills !== undefined && { preferredSkills: body.preferredSkills }),
         ...(body.keyMetrics !== undefined && { keyMetrics: body.keyMetrics }),
         ...(body.positionId !== undefined && { positionId: body.positionId }),
+        ...(body.roleInOrg !== undefined && { roleInOrg: body.roleInOrg }),
+        ...(body.focusArea !== undefined && { focusArea: body.focusArea }),
+        ...(body.managerNotes !== undefined && { managerNotes: body.managerNotes }),
       },
     });
 

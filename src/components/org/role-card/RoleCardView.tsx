@@ -3,9 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Star, CheckCircle, FolderOpen, ListTodo } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Briefcase, Star, CheckCircle, FolderOpen, ListTodo, FileText, Link2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { orgTokens } from "@/components/org/ui/tokens";
+import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
 import { SkillsEditor } from "./SkillsEditor";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -27,6 +35,18 @@ type PersonSkill = {
   verifiedAt: string | null;
 };
 
+type JobDescriptionData = {
+  id: string;
+  title: string;
+  summary: string | null;
+  level: string | null;
+  jobFamily: string | null;
+  responsibilities: string[];
+  requiredSkills: string[];
+  preferredSkills: string[];
+  keyMetrics: string[];
+};
+
 type RoleCardData = {
   id: string;
   roleName: string;
@@ -38,6 +58,9 @@ type RoleCardData = {
   preferredSkills: string[];
   keyMetrics: string[];
   skillRefs: SkillRef[];
+  roleInOrg: string | null;
+  focusArea: string | null;
+  managerNotes: string | null;
 };
 
 type RoleCardViewData = {
@@ -49,6 +72,7 @@ type RoleCardViewData = {
     requiredSkills: string[];
     preferredSkills: string[];
   };
+  jobDescription: JobDescriptionData | null;
   roleCard: RoleCardData | null;
   skills: PersonSkill[];
   currentWork: {
@@ -59,7 +83,16 @@ type RoleCardViewData = {
       fraction: number;
     }>;
     taskCounts: { todo: number; inProgress: number };
-  };
+  } | null;
+};
+
+// ─── JD list item (for selector) ─────────────────────────────────────────────
+
+type JDListItem = {
+  id: string;
+  title: string;
+  level: string | null;
+  jobFamily: string | null;
 };
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -85,6 +118,14 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Admin JD linking state
+  const { role } = useCurrentOrgRole();
+  const isAdmin = role === "ADMIN" || role === "OWNER";
+  const [jdList, setJdList] = useState<JDListItem[]>([]);
+  const [jdListLoading, setJdListLoading] = useState(false);
+  const [savingJd, setSavingJd] = useState(false);
+  const [jdError, setJdError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -106,6 +147,47 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Load JD list for admin selector
+  useEffect(() => {
+    if (!isAdmin) return;
+    setJdListLoading(true);
+    fetch("/api/org/job-descriptions")
+      .then((r) => r.json())
+      .then((d) => setJdList(d.jobDescriptions ?? []))
+      .catch(() => {})
+      .finally(() => setJdListLoading(false));
+  }, [isAdmin]);
+
+  const handleJdChange = useCallback(
+    async (value: string) => {
+      if (!data) return;
+      const jobDescriptionId = value === "__none__" ? null : value;
+      setSavingJd(true);
+      setJdError(null);
+      try {
+        const res = await fetch(
+          `/api/org/positions/${data.person.positionId}/job-description`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jobDescriptionId }),
+          }
+        );
+        const json = await res.json();
+        if (!res.ok) {
+          setJdError(json.error ?? "Failed to update");
+          return;
+        }
+        await load();
+      } catch {
+        setJdError("Failed to update");
+      } finally {
+        setSavingJd(false);
+      }
+    },
+    [data, load]
+  );
 
   if (loading) {
     return (
@@ -136,9 +218,112 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
   const requiredSkillRefs = template?.skillRefs.filter((s) => s.type === "REQUIRED") ?? [];
   const preferredSkillRefs = template?.skillRefs.filter((s) => s.type === "PREFERRED") ?? [];
 
+  const jd = data.jobDescription;
+
   return (
     <div className="space-y-4">
-      {/* Role Template Section */}
+      {/* Admin: JD linking selector */}
+      {isAdmin && (
+        <Card className="border-[#1e293b] bg-[#0B1220]">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-slate-500" />
+                <span className="text-xs text-slate-400 uppercase tracking-wide font-medium">
+                  Linked Job Description
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={jd?.id ?? "__none__"}
+                  onValueChange={handleJdChange}
+                  disabled={savingJd || jdListLoading || !data}
+                >
+                  <SelectTrigger className="h-7 text-xs w-52 border-slate-700 bg-transparent text-slate-300">
+                    <SelectValue placeholder="Not linked" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">
+                      <span className="text-slate-400 italic">Not linked</span>
+                    </SelectItem>
+                    {jdList.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.title}
+                        {(item.level || item.jobFamily) && (
+                          <span className="ml-1 text-slate-500 text-xs">
+                            · {[item.jobFamily, item.level].filter(Boolean).join(" ")}
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {savingJd && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
+              </div>
+            </div>
+            {jdError && (
+              <p className="mt-2 text-xs text-red-400">{jdError}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Job Description card — shared template linked to this position */}
+      {jd && (
+        <Card className="border-[#1e293b] bg-[#0B1220]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-slate-50">
+              <FileText className="h-5 w-5" />
+              Job Description
+              <Badge variant="outline" className="ml-auto text-xs border-slate-600 text-slate-400">
+                {[jd.jobFamily, jd.level].filter(Boolean).join(" · ")}
+              </Badge>
+            </CardTitle>
+            {jd.summary && (
+              <p className={cn(orgTokens.subtleText, "mt-1")}>{jd.summary}</p>
+            )}
+          </CardHeader>
+          {(jd.responsibilities.length > 0 || jd.requiredSkills.length > 0 || jd.preferredSkills.length > 0) && (
+            <CardContent className="space-y-4">
+              {jd.responsibilities.length > 0 && (
+                <div>
+                  <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Responsibilities</p>
+                  <ul className="space-y-1">
+                    {jd.responsibilities.map((r, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
+                        <CheckCircle className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
+                        {r}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {jd.requiredSkills.length > 0 && (
+                <div>
+                  <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Required</p>
+                  <div className="flex flex-wrap gap-2">
+                    {jd.requiredSkills.map((s, i) => (
+                      <Badge key={i} variant="outline" className="border-blue-800 text-blue-300 text-xs">{s}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {jd.preferredSkills.length > 0 && (
+                <div>
+                  <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Preferred</p>
+                  <div className="flex flex-wrap gap-2">
+                    {jd.preferredSkills.map((s, i) => (
+                      <Badge key={i} variant="outline" className="border-slate-600 text-slate-400 text-xs">{s}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+      )}
+
+      {/* Role Definition card — person-specific, manager-authored */}
       {(template || responsibilities.length > 0) && (
         <Card className="border-[#1e293b] bg-[#0B1220]">
           <CardHeader>
@@ -221,6 +406,26 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
                 </div>
               </div>
             )}
+
+            {/* Manager-authored context fields */}
+            {template?.roleInOrg && (
+              <div>
+                <p className={cn(orgTokens.title, "mb-1 text-slate-400 text-xs uppercase tracking-wide")}>Role in Org</p>
+                <p className="text-sm text-slate-300">{template.roleInOrg}</p>
+              </div>
+            )}
+            {template?.focusArea && (
+              <div>
+                <p className={cn(orgTokens.title, "mb-1 text-slate-400 text-xs uppercase tracking-wide")}>Focus Area</p>
+                <p className="text-sm text-slate-300">{template.focusArea}</p>
+              </div>
+            )}
+            {template?.managerNotes && (
+              <div>
+                <p className={cn(orgTokens.title, "mb-1 text-slate-400 text-xs uppercase tracking-wide")}>Manager Notes</p>
+                <p className="text-sm text-slate-400 italic">&ldquo;{template.managerNotes}&rdquo;</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -263,55 +468,55 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
         </CardContent>
       </Card>
 
-      {/* Current Work Section */}
-      <Card className="border-[#1e293b] bg-[#0B1220]">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-slate-50">
-            <FolderOpen className="h-5 w-5" />
-            Current Work
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Active projects */}
-          {data.currentWork.projects.length > 0 ? (
-            <div>
-              <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Active Projects</p>
-              <div className="space-y-1">
-                {data.currentWork.projects.map((p) => (
-                  <div
-                    key={p.allocationId}
-                    className="flex items-center justify-between text-sm text-slate-400"
-                  >
-                    <span>{p.projectName}</span>
-                    <Badge variant="outline" className="border-slate-700 text-slate-500 text-xs">
-                      {Math.round(p.fraction * 100)}%
-                    </Badge>
-                  </div>
-                ))}
+      {/* Current Work Section — only shown when viewer has access (self/manager/admin) */}
+      {data.currentWork && (
+        <Card className="border-[#1e293b] bg-[#0B1220]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-slate-50">
+              <FolderOpen className="h-5 w-5" />
+              Current Work
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {data.currentWork.projects.length > 0 ? (
+              <div>
+                <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Active Projects</p>
+                <div className="space-y-1">
+                  {data.currentWork.projects.map((p) => (
+                    <div
+                      key={p.allocationId}
+                      className="flex items-center justify-between text-sm text-slate-400"
+                    >
+                      <span>{p.projectName}</span>
+                      <Badge variant="outline" className="border-slate-700 text-slate-500 text-xs">
+                        {Math.round(p.fraction * 100)}%
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500">No active project allocations</p>
-          )}
+            ) : (
+              <p className="text-sm text-slate-500">No active project allocations</p>
+            )}
 
-          {/* Task counts */}
-          <div className="flex items-center gap-4 pt-1">
-            <ListTodo className="h-4 w-4 text-slate-500" />
-            <span className="text-sm text-slate-400">
-              <span className="font-medium text-slate-200">
-                {data.currentWork.taskCounts.inProgress}
-              </span>{" "}
-              in progress
-            </span>
-            <span className="text-sm text-slate-400">
-              <span className="font-medium text-slate-200">
-                {data.currentWork.taskCounts.todo}
-              </span>{" "}
-              to do
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex items-center gap-4 pt-1">
+              <ListTodo className="h-4 w-4 text-slate-500" />
+              <span className="text-sm text-slate-400">
+                <span className="font-medium text-slate-200">
+                  {data.currentWork.taskCounts.inProgress}
+                </span>{" "}
+                in progress
+              </span>
+              <span className="text-sm text-slate-400">
+                <span className="font-medium text-slate-200">
+                  {data.currentWork.taskCounts.todo}
+                </span>{" "}
+                to do
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

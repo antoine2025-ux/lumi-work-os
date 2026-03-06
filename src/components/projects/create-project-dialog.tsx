@@ -102,6 +102,7 @@ export function CreateProjectDialog({
   const [selectedSpaceId, setSelectedSpaceId] = useState<string>('')
   const [spaces, setSpaces] = useState<Space[]>([])
   const [loadingSpaces, setLoadingSpaces] = useState(false)
+  const [defaultSpaceId, setDefaultSpaceId] = useState<string | null>(null)
 
   // Owner and team members (assignees)
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>('')
@@ -152,17 +153,33 @@ export function CreateProjectDialog({
   const loadSpaces = useCallback(async () => {
     try {
       setLoadingSpaces(true)
-      const response = await fetch('/api/spaces')
-      if (response.ok) {
-        const data = await response.json()
-        setSpaces(data.spaces ?? [])
+      
+      // Load available spaces
+      const spacesResponse = await fetch('/api/spaces')
+      if (spacesResponse.ok) {
+        const spacesData = await spacesResponse.json()
+        setSpaces(spacesData.spaces ?? [])
+      }
+      
+      // Load default space suggestion
+      const defaultResponse = await fetch('/api/spaces/default')
+      if (defaultResponse.ok) {
+        const defaultData = await defaultResponse.json()
+        if (defaultData.defaultSpaceId) {
+          setDefaultSpaceId(defaultData.defaultSpaceId)
+          
+          // Pre-select the default space if no space is already selected
+          if (!selectedSpaceId && !initialSpaceId) {
+            setSelectedSpaceId(defaultData.defaultSpaceId)
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading spaces:', error)
     } finally {
       setLoadingSpaces(false)
     }
-  }, [])
+  }, [selectedSpaceId, initialSpaceId])
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -662,7 +679,14 @@ export function CreateProjectDialog({
                     <SelectItem value="_none" disabled>Select a space</SelectItem>
                     {spaces.map((space) => (
                       <SelectItem key={space.id} value={space.id}>
-                        {space.icon ? `${space.icon} ` : ''}{space.name}
+                        <div className="flex items-center justify-between w-full">
+                          <span>{space.icon ? `${space.icon} ` : ''}{space.name}</span>
+                          {space.id === defaultSpaceId && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              (suggested)
+                            </span>
+                          )}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>

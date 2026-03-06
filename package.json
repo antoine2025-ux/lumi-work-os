@@ -20,6 +20,8 @@
     "db:seed:loopwell": "node prisma/seed-loopwell-mock.js",
     "db:seed:loopwell:ws": "node prisma/seed-loopwell-mock.js",
     "db:seed:org": "tsx prisma/seed/org-seed.ts",
+    "db:seed:acme": "SEED_ACME=true tsx prisma/seed.ts",
+    "db:seed:acme:fresh": "SEED_ACME=true SEED_CLEAR_ACME=true tsx prisma/seed.ts",
     "start": "NODE_ENV=production tsx server.js",
     "start:e2e": "npm run build && next start -p 3000",
     "lint": "eslint",
@@ -30,6 +32,7 @@
     "backfill:spaces": "tsx scripts/backfill-canonical-spaces.ts",
     "fix:orphaned-projects": "tsx scripts/fix-orphaned-projects.ts",
     "migrate:backfill-org-positions": "tsx scripts/migrations/backfill-missing-org-positions.ts",
+    "migrate:project-spaces": "tsx src/scripts/migrate-project-spaces.ts",
     "audit:project-org-scope": "tsx scripts/audit-project-org-scope.ts",
     "diagnostic:project-org": "tsx scripts/diagnostic/check-project-org-links.ts",
     "diagnostic:workspace-org-sync": "tsx scripts/diagnostic/check-workspace-org-sync.ts",
@@ -70,6 +73,7 @@
     "org:mvp:help": "tsx scripts/org-cookie-print-help.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@auth/prisma-adapter": "^2.11.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
@@ -164,6 +168,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@faker-js/faker": "^10.3.0",
     "@lhci/cli": "^0.14.0",
     "@next/bundle-analyzer": "^16.1.6",
     "@playwright/test": "^1.57.0",

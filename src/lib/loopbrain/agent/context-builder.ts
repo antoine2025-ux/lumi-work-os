@@ -28,7 +28,7 @@ export interface PlannerContextProject {
 
 export interface PlannerContext {
   projects: PlannerContextProject[]
-  recentTasks: { id: string; title: string; status: string; projectName: string }[]
+  recentTasks: { id: string; title: string; status: string; projectName: string; assigneeId: string | null; assigneeName: string | null }[]
   members: { userId: string; name: string; email: string; role: string }[]
   goals: { id: string; title: string; status: string }[]
   epics: { id: string; title: string; projectName: string }[]
@@ -51,7 +51,7 @@ export const SCHEMA_HINTS = {
 // ---------------------------------------------------------------------------
 
 const MAX_PROJECTS = 25
-const MAX_TASKS = 20
+const MAX_TASKS = 40
 const MAX_MEMBERS = 30
 const MAX_GOALS = 15
 const MAX_EPICS = 15
@@ -88,6 +88,8 @@ export async function buildPlannerContext(
           id: true,
           title: true,
           status: true,
+          assigneeId: true,
+          assignee: { select: { name: true } },
           project: { select: { name: true } },
         },
         orderBy: { updatedAt: 'desc' },
@@ -163,6 +165,8 @@ export async function buildPlannerContext(
       title: t.title,
       status: String(t.status ?? 'TODO'),
       projectName: t.project.name,
+      assigneeId: t.assigneeId,
+      assigneeName: t.assignee?.name ?? null,
     })),
     members: members.map((m) => ({
       userId: m.userId,
@@ -223,7 +227,10 @@ export function formatContextForPrompt(ctx: PlannerContext): string {
   if (ctx.recentTasks.length > 0) {
     sections.push('### Recent tasks')
     for (const t of ctx.recentTasks) {
-      sections.push(`- "${t.title}" (id: ${t.id}, status: ${t.status}, project: ${t.projectName})`)
+      const assignee = t.assigneeName
+        ? `, assignee: ${t.assigneeName} (${t.assigneeId})`
+        : ', unassigned'
+      sections.push(`- "${t.title}" (id: ${t.id}, status: ${t.status}, project: ${t.projectName}${assignee})`)
     }
     sections.push('')
   }
