@@ -85,6 +85,11 @@ export const OrgPersonManagerSchema = z.object({
   managerId: z.string().nullable().optional(),
 })
 
+/** PUT /api/org/people/[personId]/title */
+export const OrgPersonTitleUpdateSchema = z.object({
+  title: z.string().trim().min(1, 'Title must be at least 1 character').max(100),
+})
+
 // --- Members ---
 
 /** POST /api/org/members */

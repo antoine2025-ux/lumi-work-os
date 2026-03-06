@@ -523,7 +523,8 @@ export async function detectUpcomingReviews(
             rec(
               "Complete pending reviews",
               "REVIEW",
-              "/org/performance",
+              // Performance module removed from MVP — re-enable in v1
+              undefined,
               0.9
             ),
             ...(daysUntilDue <= 3

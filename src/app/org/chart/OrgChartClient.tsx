@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { OrgDepartmentRow } from "@/components/org/OrgDepartmentRow";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
@@ -110,6 +110,8 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
   const isLoading = !chartData;
   const noAccess = false; // Permission checked server-side
   const router = useRouter();
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>() ?? {};
+  const base = workspaceSlug ? `/w/${workspaceSlug}/org` : "/org";
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<OrgChartFilter>("all");
   const [error, setError] = useState<Error | null>(null);
@@ -183,11 +185,11 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
 
   // Navigation handlers
   const handleOpenStructure = (deptId: string) => {
-    router.push(`/org/structure?department=${deptId}`);
+    router.push(`${base}/structure?department=${deptId}`);
   };
 
   const handleViewPeople = (deptId: string) => {
-    router.push(`/org/people?departmentId=${deptId}`);
+    router.push(`${base}/people?departmentId=${deptId}`);
   };
 
   const handleRefetch = () => {
@@ -207,7 +209,7 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
     <>
       <div>
         {/* Structure Integrity Banner */}
-        {validation && <IntegrityBanner validation={validation} />}
+        {validation && <IntegrityBanner validation={validation} base={base} />}
 
         {isLoading && (!chartData || departments.length === 0) ? (
           <div className="mt-6 space-y-4">
@@ -299,7 +301,7 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
                 title="No org chart yet"
                 description="We couldn't build an org chart because there's not enough structure. Add departments, teams, and people to see your organization laid out visually."
                 primaryActionLabel="Set up structure"
-                primaryActionHref="/org/structure"
+                primaryActionHref={`${base}/structure`}
               />
             )}
 
@@ -362,7 +364,7 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
                             setSelectedDept(null);
                           } else if (node.personId) {
                             // personName unavailable — fall back to navigation
-                            router.push(`/org/people/${node.personId}`);
+                            router.push(`${base}/people/${node.personId}`);
                           }
                         }}
                       />
@@ -389,7 +391,7 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
             title="No org chart yet"
             description="We couldn't build an org chart because there's not enough structure. Add departments, teams, and people to see your organization laid out visually."
             primaryActionLabel="Set up structure"
-            primaryActionHref="/org/structure"
+            primaryActionHref={`${base}/structure`}
           />
         )}
       </div>
@@ -399,8 +401,12 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
 
 // Remove unused imports if OrgPageHeader is no longer needed
 
-function IntegrityBanner(props: { validation: { totals?: { cycleMembers?: number; invalidManagerEdges?: number } } | null }) {
+function IntegrityBanner(props: {
+  validation: { totals?: { cycleMembers?: number; invalidManagerEdges?: number } } | null;
+  base: string;
+}) {
   const v = props.validation;
+  const base = props.base;
   const cycles = v?.totals?.cycleMembers || 0;
   const invalid = v?.totals?.invalidManagerEdges || 0;
 
@@ -422,7 +428,7 @@ function IntegrityBanner(props: { validation: { totals?: { cycleMembers?: number
         </div>
 
         <Link
-          href="/org/people?mode=fix&focus=validation"
+          href={`${base}/people?mode=fix&focus=validation`}
           className="inline-flex items-center justify-center rounded-xl bg-black px-3 py-2 text-sm text-white hover:opacity-90 dark:bg-white dark:text-black"
         >
           Repair in People →

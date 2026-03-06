@@ -10,12 +10,14 @@ type CancelInvitationButtonProps = {
   workspaceId: string;
   invitationId: string;
   email: string;
+  onSuccess?: () => void;
 };
 
 export function CancelInvitationButton({
   workspaceId,
   invitationId,
   email,
+  onSuccess,
 }: CancelInvitationButtonProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -45,6 +47,7 @@ export function CancelInvitationButton({
         description: `The invite for ${email} has been cancelled.`,
       });
 
+      onSuccess?.();
       router.refresh();
     } finally {
       setLoading(false);

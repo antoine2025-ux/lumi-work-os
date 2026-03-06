@@ -2214,6 +2214,7 @@ model OrgInvitation {
   org         Org?       @relation(fields: [orgId], references: [id], onDelete: Cascade)
   orgId       String?
   email       String
+  fullName    String?    // Intended name, shown in pending profile preview
   role        OrgRole?   @default(VIEWER)
   status      String     @default("PENDING") // PENDING | ACCEPTED | DECLINED | EXPIRED (using String for new org system)
   invitedBy   User?      @relation("InvitedBy", fields: [invitedById], references: [id])

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getAppBaseUrl } from "@/lib/appUrl";
 import { createErrorResponse, createSuccessResponse } from "@/server/api/responses";
 import { sendWorkspaceInvite } from "@/lib/email/send-invite";
+import { handleApiError } from "@/lib/api-errors";
 
 const INVITATION_EXPIRY_DAYS = 14;
 
@@ -21,6 +22,7 @@ function normalizeEmail(raw: unknown): string | null {
 type Body = {
   workspaceId?: string;
   email?: string;
+  fullName?: string;
   title?: string;
   departmentId?: string;
   teamId?: string;
@@ -117,6 +119,7 @@ export async function POST(req: NextRequest) {
       data: {
         workspaceId,
         email,
+        fullName: body.fullName?.trim() || null,
         status: "PENDING",
         invitedById: auth.user.userId,
         expiresAt,
@@ -158,11 +161,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err) {
-    console.error("[ORG_INVITATION_CREATE_ERROR]", err);
-    return createErrorResponse(
-      "INTERNAL_SERVER_ERROR",
-      "Something went wrong while creating the invitation."
-    );
+    return handleApiError(err, req);
   }
 }
 

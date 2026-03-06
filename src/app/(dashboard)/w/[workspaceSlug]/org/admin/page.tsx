@@ -48,11 +48,11 @@ export default async function AdminHealthPage({ params }: PageProps) {
     prisma.roleCard.count({ where: { workspaceId: context.workspaceId } }),
   ]);
 
-  const issues: { type: string; severity: "high" | "medium" | "low" }[] = [];
-  if (peopleCount === 0) issues.push({ type: "No active people", severity: "high" });
-  if (departmentsCount === 0) issues.push({ type: "No departments configured", severity: "high" });
-  if (teamsCount === 0) issues.push({ type: "No teams configured", severity: "medium" });
-  if (roleCardsCount === 0) issues.push({ type: "No role cards defined", severity: "low" });
+  const issues: { type: string; severity: "high" | "medium" | "low"; href: string }[] = [];
+  if (peopleCount === 0) issues.push({ type: "No active people", severity: "high", href: `/w/${workspaceSlug}/org/people` });
+  if (departmentsCount === 0) issues.push({ type: "No departments configured", severity: "high", href: `/w/${workspaceSlug}/org/management` });
+  if (teamsCount === 0) issues.push({ type: "No teams configured", severity: "medium", href: `/w/${workspaceSlug}/org/management` });
+  if (roleCardsCount === 0) issues.push({ type: "No role cards defined", severity: "low", href: `/w/${workspaceSlug}/org/positions` });
 
   return (
     <>
@@ -178,8 +178,8 @@ export default async function AdminHealthPage({ params }: PageProps) {
                         </p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="border-slate-600 text-slate-300">
-                      Fix
+                    <Button asChild variant="outline" size="sm" className="border-slate-600 text-slate-300">
+                      <Link href={issue.href}>Fix</Link>
                     </Button>
                   </div>
                 ))}

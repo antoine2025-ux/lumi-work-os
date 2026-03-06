@@ -2,12 +2,13 @@
  * My Profile — Personal workspace and settings
  */
 
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getOrgPermissionContext } from "@/lib/org/permissions.server";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Users, Briefcase } from "lucide-react";
+import { Users, Briefcase, GitBranch } from "lucide-react";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { BasicInfoSection } from "@/components/org/profile/basic-info-section";
 import { EmploymentDetailsSection } from "@/components/org/profile/employment-details-section";
@@ -78,7 +79,11 @@ export default async function MyProfilePage({ params }: PageProps) {
       include: {
         positions: {
           where: { isActive: true, archivedAt: null },
-          select: { userId: true },
+          select: {
+            userId: true,
+            title: true,
+            user: { select: { id: true, name: true, email: true } },
+          },
         },
       },
     }),
@@ -89,7 +94,76 @@ export default async function MyProfilePage({ params }: PageProps) {
     .map((p) => p.team!)
     .filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);
 
+  const ledTeamIds = new Set(ledTeams.map((t) => t.id));
   const primaryPosition = positions[0];
+
+  // Resolve manager (who I report to)
+  let manager: { name: string; userId: string; title: string | null } | null = null;
+  const managerPositionId = primaryPosition?.parentId;
+  if (managerPositionId) {
+    const managerPosition = await prisma.orgPosition.findUnique({
+      where: { id: managerPositionId },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+    if (managerPosition?.user) {
+      manager = {
+        name: managerPosition.user.name || managerPosition.user.email || "Unknown",
+        userId: managerPosition.user.id,
+        title: managerPosition.title,
+      };
+    }
+  }
+
+  // Build direct reports from ledTeams + managerLinks
+  const directReportsMap = new Map<
+    string,
+    { name: string; userId: string; title: string | null }
+  >();
+
+  for (const team of ledTeams) {
+    for (const pos of team.positions || []) {
+      if (pos.userId && pos.userId !== context.userId && pos.user) {
+        directReportsMap.set(pos.userId, {
+          name: pos.user.name || pos.user.email || "Unknown",
+          userId: pos.userId,
+          title: pos.title,
+        });
+      }
+    }
+  }
+
+  const managerLinkUserIds = managerLinks
+    .map((ml) => ml.personId)
+    .filter((id) => !directReportsMap.has(id));
+
+  if (managerLinkUserIds.length > 0) {
+    const [linkedUsers, linkedPositions] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: managerLinkUserIds } },
+        select: { id: true, name: true, email: true },
+      }),
+      prisma.orgPosition.findMany({
+        where: {
+          userId: { in: managerLinkUserIds },
+          workspaceId: context.workspaceId,
+          isActive: true,
+        },
+        select: { userId: true, title: true },
+      }),
+    ]);
+    const posMap = new Map(linkedPositions.map((p) => [p.userId, p.title]));
+    for (const u of linkedUsers) {
+      if (u.id) {
+        directReportsMap.set(u.id, {
+          name: u.name || u.email || "Unknown",
+          userId: u.id,
+          title: posMap.get(u.id) || null,
+        });
+      }
+    }
+  }
+
+  const directReports = Array.from(directReportsMap.values());
 
   const displayName = user?.name || onboardingState?.adminName || "User";
   const displayRole = primaryPosition?.title || onboardingState?.adminRole || "Team Member";
@@ -164,6 +238,68 @@ export default async function MyProfilePage({ params }: PageProps) {
             positionId={primaryPosition?.id}
           />
 
+          {/* Reporting Chain */}
+          <Card className="border-[#1e293b] bg-[#0B1220]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-slate-50">
+                <GitBranch className="h-5 w-5" />
+                Reporting Chain
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                  Reports to
+                </p>
+                {manager ? (
+                  <Link
+                    href={`/w/${workspaceSlug}/org/people/${manager.userId}`}
+                    className="flex items-center gap-3 rounded-lg border border-slate-700/50 p-3 hover:bg-slate-800/50 transition-colors"
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-sm font-medium text-slate-200">
+                      {manager.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-200">{manager.name}</p>
+                      {manager.title && (
+                        <p className="text-xs text-slate-400">{manager.title}</p>
+                      )}
+                    </div>
+                  </Link>
+                ) : (
+                  <p className="text-sm text-slate-500">No manager assigned</p>
+                )}
+              </div>
+
+              {directReports.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                    Direct reports ({directReports.length})
+                  </p>
+                  <div className="space-y-2">
+                    {directReports.map((report) => (
+                      <Link
+                        key={report.userId}
+                        href={`/w/${workspaceSlug}/org/people/${report.userId}`}
+                        className="flex items-center gap-3 rounded-lg border border-slate-700/50 p-3 hover:bg-slate-800/50 transition-colors"
+                      >
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs font-medium text-slate-200">
+                          {report.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-200">{report.name}</p>
+                          {report.title && (
+                            <p className="text-xs text-slate-400">{report.title}</p>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <EmploymentDetailsSection
             positionId={primaryPosition?.id}
             userId={context.userId}
@@ -224,8 +360,15 @@ export default async function MyProfilePage({ params }: PageProps) {
                           {team.department?.name ?? "—"} Department
                         </p>
                       </div>
-                      <Badge variant="outline" className="border-slate-600 text-slate-400">
-                        Member
+                      <Badge
+                        variant="outline"
+                        className={
+                          ledTeamIds.has(team.id)
+                            ? "border-blue-500/50 bg-blue-500/20 text-blue-300"
+                            : "border-slate-600 text-slate-400"
+                        }
+                      >
+                        {ledTeamIds.has(team.id) ? "Lead" : "Member"}
                       </Badge>
                     </div>
                   ))}
@@ -239,35 +382,29 @@ export default async function MyProfilePage({ params }: PageProps) {
           <Card className="border-[#1e293b] bg-[#0B1220]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-50">
-                <Calendar className="h-5 w-5" />
-                Capacity & Availability
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Weekly capacity</span>
-                  <span className="font-medium text-slate-200">
-                    {capacityContract?.weeklyCapacityHours ?? 40}h/week
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Current workload</span>
-                  <span className="font-medium text-slate-200">—</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-[#1e293b] bg-[#0B1220]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-50">
                 <Briefcase className="h-5 w-5" />
                 My Responsibilities
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-slate-500">No responsibilities defined yet</p>
+              {primaryPosition?.responsibilities &&
+              primaryPosition.responsibilities.length > 0 ? (
+                <ul className="space-y-2">
+                  {primaryPosition.responsibilities.map((resp, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                      <span>{resp}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-500">
+                  No responsibilities defined yet.{" "}
+                  {isAdmin
+                    ? "Add them via Positions & Roles."
+                    : "Ask your admin to add them."}
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

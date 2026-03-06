@@ -146,7 +146,12 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function AddPersonForm() {
+type AddPersonFormProps = {
+  /** Workspace ID for invite flow. Passed from server for reliable resolution. */
+  workspaceId?: string;
+};
+
+export function AddPersonForm({ workspaceId: propWorkspaceId }: AddPersonFormProps = {}) {
   const router = useRouter();
   const orgUrl = useOrgUrl();
   const flagsQ = useOrgQuery(() => OrgApi.getFlags(), []);
@@ -194,6 +199,27 @@ export function AddPersonForm() {
   const selectedDept = departments.find((d) => d.id === state.departmentId);
   const selectedTeam = allTeams.find((t) => t.id === state.teamId);
   const selectedManager = people.find((p) => p.id === state.managerId);
+
+  // Filter manager candidates by selected team → department → all (in that priority)
+  // Each person has nested `team: { id } | null` and `department: { id } | null`
+  const filteredManagers = useMemo(() => {
+    if (state.teamId) {
+      const inTeam = people.filter((p) => p.team?.id === state.teamId);
+      return inTeam.length > 0 ? inTeam : people;
+    }
+    if (state.departmentId) {
+      const inDept = people.filter((p) => p.department?.id === state.departmentId);
+      return inDept.length > 0 ? inDept : people;
+    }
+    return people;
+  }, [people, state.teamId, state.departmentId]);
+
+  // Reset manager if the selected one is no longer in the filtered list
+  useEffect(() => {
+    if (state.managerId && !filteredManagers.some((p) => p.id === state.managerId)) {
+      set("managerId", "");
+    }
+  }, [filteredManagers, state.managerId]);
 
   const step1Valid = !!state.jobDescriptionId || !!state.customTitle.trim();
   const step3Valid =
@@ -261,13 +287,17 @@ export function AddPersonForm() {
         }, 100);
       } else {
         // Invite path — use fetch directly so we can pass jobDescriptionId
-        const workspaceId = window.location.pathname.split("/")[2];
+        if (!propWorkspaceId) {
+          setError("Workspace context not available. Please refresh and try again.");
+          setSaving(false);
+          return;
+        }
         const res = await fetch("/api/org/invitations/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email,
-            workspaceId,
+            workspaceId: propWorkspaceId,
             fullName: name,
             ...(title && { title }),
             ...(state.departmentId && { departmentId: state.departmentId }),
@@ -277,8 +307,18 @@ export function AddPersonForm() {
             ...(state.jobDescriptionId && { jobDescriptionId: state.jobDescriptionId }),
           }),
         });
-        const data = (await res.json()) as { ok?: boolean; error?: string; message?: string };
-        if (!res.ok) throw new Error(data.error ?? data.message ?? "Failed to send invitation");
+        const data = (await res.json()) as {
+          ok?: boolean;
+          error?: { code?: string; message?: string } | string;
+          message?: string;
+        };
+        if (!res.ok) {
+          const msg =
+            typeof data.error === "object"
+              ? data.error?.message
+              : (data.error as string) ?? data.message ?? "Failed to send invitation";
+          throw new Error(msg ?? "Failed to send invitation");
+        }
 
         router.push(orgUrl.directory);
         router.refresh();
@@ -293,6 +333,12 @@ export function AddPersonForm() {
         setError("A pending invitation for this email already exists.");
       } else if (msg.includes("cannot invite yourself")) {
         setError("You cannot invite yourself.");
+      } else if (
+        msg.includes("permission") ||
+        msg.includes("Forbidden") ||
+        msg.includes("403")
+      ) {
+        setError("You don't have permission to invite members. Admin or Owner role is required.");
       } else if (msg.includes("409")) {
         setError("A person with this email already exists. Please use a different email.");
       } else {
@@ -477,7 +523,7 @@ export function AddPersonForm() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">No manager</SelectItem>
-                    {people.map((p) => (
+                    {filteredManagers.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.fullName}{p.title ? ` — ${p.title}` : ""}
                       </SelectItem>
@@ -740,7 +786,12 @@ export function AddPersonForm() {
                 </Button>
                 <Button
                   onClick={handleSubmit}
-                  disabled={saving || !step3Valid || !canWrite}
+                  disabled={
+                    saving ||
+                    !step3Valid ||
+                    !canWrite ||
+                    (state.addMethod === "invite" && !propWorkspaceId)
+                  }
                 >
                   {saving
                     ? state.addMethod === "direct" ? "Creating…" : "Sending…"

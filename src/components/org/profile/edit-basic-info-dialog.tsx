@@ -43,7 +43,9 @@ export function EditBasicInfoDialog({
 
     try {
       const name = formData.name.trim();
+      const title = formData.title.trim();
       if (!name) throw new Error("Name is required");
+      if (!title) throw new Error("Role / title is required");
 
       const [nameRes, titleRes] = await Promise.all([
         fetch(`/api/org/people/${positionId}/name`, {
@@ -56,7 +58,7 @@ export function EditBasicInfoDialog({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ title: formData.title.trim() }),
+          body: JSON.stringify({ title }),
         }),
       ]);
 
@@ -122,6 +124,7 @@ export function EditBasicInfoDialog({
                 setFormData((prev) => ({ ...prev, title: e.target.value }))
               }
               placeholder="e.g. Product Designer"
+              required
               disabled={loading}
             />
           </div>
