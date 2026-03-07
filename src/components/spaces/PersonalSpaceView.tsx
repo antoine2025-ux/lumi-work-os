@@ -82,15 +82,25 @@ export function PersonalSpaceView() {
     gcTime: 5 * 60 * 1000,
   })
 
-  const { data: personalNotes, isLoading: notesLoading } = useQuery({
+  const { data: personalNotes, isLoading: notesLoading, error: notesError } = useQuery({
     queryKey: ["personal-notes"],
-    queryFn: () =>
-      fetch("/api/personal-notes").then((r) => {
-        if (!r.ok) throw new Error("Failed to load notes")
+    queryFn: async () => {
+      try {
+        const r = await fetch("/api/personal-notes")
+        if (!r.ok) {
+          // If API fails (e.g., table doesn't exist yet), return empty array
+          console.warn("Personal notes API failed, returning empty array")
+          return []
+        }
         return r.json()
-      }),
+      } catch (error) {
+        console.error("Failed to load personal notes:", error)
+        return []
+      }
+    },
     staleTime: 60_000,
     gcTime: 5 * 60 * 1000,
+    retry: 1,
   })
 
   const { data: dueTasks, isLoading: tasksLoading } = useQuery({
