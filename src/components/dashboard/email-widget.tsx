@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { Card } from "@/components/ui/card"
 import { Mail, Expand, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { EmailModal } from "@/components/email/EmailModal"
@@ -74,13 +73,13 @@ export function EmailWidget({ className }: EmailWidgetProps) {
 
   return (
     <>
-      <Card className={cn('widget-card', className)}>
-        <div className="widget-header">
-          <div className="widget-header-start">
-            <Mail className="h-4 w-4 flex-shrink-0" aria-hidden />
-            <span className="widget-title">EMAIL</span>
+      <div className={cn('bg-card rounded-md border border-border flex flex-col h-full min-h-0', className)}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-muted-foreground" aria-hidden />
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Email</h3>
           </div>
-          <div className="widget-actions">
+          <div className="flex items-center gap-2">
             {connected && (
               <Button
                 variant="ghost"
@@ -104,7 +103,7 @@ export function EmailWidget({ className }: EmailWidgetProps) {
             </Button>
           </div>
         </div>
-        <div className="widget-content">
+        <div className="p-3 flex-1">
           {!connected ? (
             <div className="text-center py-8">
               <Mail className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
@@ -118,7 +117,7 @@ export function EmailWidget({ className }: EmailWidgetProps) {
               </Button>
             </div>
           ) : isLoading ? (
-            <div className="space-y-3 py-4">
+            <div className="space-y-2 py-3">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="flex gap-2 p-2 animate-pulse">
                   <div className="w-2 h-2 rounded-full bg-muted mt-1.5 flex-shrink-0" />
@@ -150,7 +149,7 @@ export function EmailWidget({ className }: EmailWidgetProps) {
                   type="button"
                   onClick={() => handleEmailClick(email)}
                   className={cn(
-                    'w-full text-left px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0',
+                    'w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0',
                     email.isUnread && 'bg-muted/30'
                   )}
                 >
@@ -190,7 +189,7 @@ export function EmailWidget({ className }: EmailWidgetProps) {
             </div>
           )}
         </div>
-      </Card>
+      </div>
 
       <EmailModal
         open={emailModalOpen}

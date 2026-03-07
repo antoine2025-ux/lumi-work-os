@@ -35,7 +35,7 @@ export function PersonIdentityCell({ person, className }: PersonIdentityCellProp
       {/* Avatar with proper initials */}
       <Avatar className="h-10 w-10 shrink-0 border border-white/10">
         <AvatarFallback 
-          className="text-slate-100 text-sm font-medium"
+          className="text-foreground text-sm font-medium"
           style={{ backgroundColor: avatarBgColor }}
         >
           {initials}
@@ -46,13 +46,13 @@ export function PersonIdentityCell({ person, className }: PersonIdentityCellProp
       <div className="flex min-w-0 flex-col gap-0.5">
         {/* Line 1: Full name (or email fallback) */}
         {primaryText && (
-          <div className="truncate text-[13px] font-semibold text-slate-100">
+          <div className="truncate text-[13px] font-semibold text-foreground">
             {primaryText}
           </div>
         )}
         {/* Line 2: Role (only if set) */}
         {person.role && (
-          <div className="truncate text-[12px] font-medium text-slate-400">
+          <div className="truncate text-[12px] font-medium text-muted-foreground">
             {person.role}
           </div>
         )}

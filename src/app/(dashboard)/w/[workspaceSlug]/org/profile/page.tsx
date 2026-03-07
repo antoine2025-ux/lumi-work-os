@@ -2,20 +2,20 @@
  * My Profile — Personal workspace and settings
  */
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getOrgPermissionContext } from "@/lib/org/permissions.server";
 import { prisma } from "@/lib/db";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Briefcase, GitBranch } from "lucide-react";
+import { Users, Briefcase } from "lucide-react";
 import { OrgPageHeader } from "@/components/org/OrgPageHeader";
 import { BasicInfoSection } from "@/components/org/profile/basic-info-section";
+import { ReportsToSection } from "@/components/org/profile/reports-to-section";
 import { EmploymentDetailsSection } from "@/components/org/profile/employment-details-section";
 import { CurrentWorkloadSection } from "@/components/org/profile/current-workload-section";
 import { TimeOffSectionWrapper } from "@/components/org/profile/time-off-section-wrapper";
 import { PendingActionsSection } from "@/components/org/my-team/pending-actions-section";
 import { WikiContributionsSection } from "@/components/org/profile/wiki-contributions-section";
+import { ProfileEditButton } from "@/components/org/profile/profile-edit-button";
 import { getUserWorkload } from "@/lib/org/profile/get-workload";
 import { getUserTimeOff } from "@/lib/org/profile/get-time-off";
 
@@ -223,192 +223,152 @@ export default async function MyProfilePage({ params }: PageProps) {
   ]);
 
   return (
-    <>
-      <OrgPageHeader
-        legacyBreadcrumb="ORG / MY PROFILE"
-        title="My Profile"
-        description="Your personal information and settings"
-      />
-      <div className="p-10 pb-10 max-w-4xl">
-        <div className="grid gap-6">
-          <BasicInfoSection
-            displayName={displayName}
-            displayRole={displayRole}
-            email={user?.email}
-            positionId={primaryPosition?.id}
-          />
+    <div className="w-full flex justify-center">
+      <div className="w-full max-w-4xl px-6 pb-8">
+        <OrgPageHeader
+          legacyBreadcrumb="ORG / MY PROFILE"
+          title="My Profile"
+          description="Your personal information and settings"
+          actions={
+            isAdmin && primaryPosition ? (
+              <ProfileEditButton
+                positionId={primaryPosition.id}
+                userId={context.userId}
+                workspaceId={context.workspaceId}
+                displayName={displayName}
+                displayRole={displayRole}
+                email={user?.email}
+                employmentData={{
+                  startDate: primaryPosition.startDate,
+                  employmentType: primaryPosition.employmentType,
+                  location: primaryPosition.location,
+                  timezone: primaryPosition.timezone,
+                }}
+              />
+            ) : undefined
+          }
+        />
+        <div className="grid gap-4 pt-2">
+          {/* Top row: Information | Reports to | Employment — fixed height, no expansion */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="h-[180px] min-w-0 overflow-hidden rounded-lg border border-border/50 bg-card/80 p-3 flex flex-col [&>*]:min-h-0">
+              <BasicInfoSection
+                displayName={displayName}
+                displayRole={displayRole}
+                email={user?.email}
+                location={primaryPosition?.location}
+                timezone={primaryPosition?.timezone}
+              />
+            </div>
+            <div className="h-[180px] min-w-0 overflow-y-auto overflow-x-hidden rounded-lg border border-border/50 bg-card/80 p-3 flex flex-col [&>*]:min-h-0">
+              <ReportsToSection
+                workspaceSlug={workspaceSlug}
+                manager={manager}
+                directReports={directReports}
+              />
+            </div>
+            <div className="h-[180px] min-w-0 overflow-hidden rounded-lg border border-border/50 bg-card/80 p-3 flex flex-col [&>*]:min-h-0">
+              <EmploymentDetailsSection
+                startDate={primaryPosition?.startDate}
+                employmentType={primaryPosition?.employmentType}
+              />
+            </div>
+          </div>
 
-          {/* Reporting Chain */}
-          <Card className="border-[#1e293b] bg-[#0B1220]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-50">
-                <GitBranch className="h-5 w-5" />
-                Reporting Chain
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                  Reports to
-                </p>
-                {manager ? (
-                  <Link
-                    href={`/w/${workspaceSlug}/org/people/${manager.userId}`}
-                    className="flex items-center gap-3 rounded-lg border border-slate-700/50 p-3 hover:bg-slate-800/50 transition-colors"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-sm font-medium text-slate-200">
-                      {manager.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-200">{manager.name}</p>
-                      {manager.title && (
-                        <p className="text-xs text-slate-400">{manager.title}</p>
-                      )}
-                    </div>
-                  </Link>
-                ) : (
-                  <p className="text-sm text-slate-500">No manager assigned</p>
-                )}
-              </div>
-
-              {directReports.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                    Direct reports ({directReports.length})
-                  </p>
-                  <div className="space-y-2">
-                    {directReports.map((report) => (
-                      <Link
-                        key={report.userId}
-                        href={`/w/${workspaceSlug}/org/people/${report.userId}`}
-                        className="flex items-center gap-3 rounded-lg border border-slate-700/50 p-3 hover:bg-slate-800/50 transition-colors"
-                      >
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs font-medium text-slate-200">
-                          {report.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-200">{report.name}</p>
-                          {report.title && (
-                            <p className="text-xs text-slate-400">{report.title}</p>
-                          )}
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <EmploymentDetailsSection
-            positionId={primaryPosition?.id}
-            userId={context.userId}
-            workspaceId={context.workspaceId}
-            startDate={primaryPosition?.startDate}
-            employmentType={primaryPosition?.employmentType}
-            location={primaryPosition?.location}
-            timezone={primaryPosition?.timezone}
-            canEdit={true}
-          />
-
-          <CurrentWorkloadSection
-            totalCapacity={workload.totalCapacity}
-            allocatedHours={workload.allocatedHours}
-            availableHours={workload.availableHours}
-            utilizationPct={workload.utilizationPct}
-            projects={workload.projects}
-            workspaceSlug={workspaceSlug}
-          />
-
-          {timeOff && (
-            <TimeOffSectionWrapper
-              timeOff={timeOff}
-              userId={context.userId}
-            />
-          )}
-
-          {showPendingApprovals && (
-            <PendingActionsSection
-              requests={requestsWithPerson}
+          {/* Current Workload | Wiki Contributions — side by side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CurrentWorkloadSection
+              totalCapacity={workload.totalCapacity}
+              allocatedHours={workload.allocatedHours}
+              availableHours={workload.availableHours}
+              utilizationPct={workload.utilizationPct}
+              projects={workload.projects}
               workspaceSlug={workspaceSlug}
             />
-          )}
+            <WikiContributionsSection
+              pages={wikiPages}
+              totalCount={wikiPageCount}
+            />
+          </div>
 
-          <WikiContributionsSection
-            pages={wikiPages}
-            totalCount={wikiPageCount}
-          />
+          {/* Time Off & Availability | Pending Actions — side by side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {timeOff && (
+              <TimeOffSectionWrapper
+                timeOff={timeOff}
+                userId={context.userId}
+              />
+            )}
+            {showPendingApprovals && (
+              <PendingActionsSection
+                requests={requestsWithPerson}
+                workspaceSlug={workspaceSlug}
+              />
+            )}
+          </div>
 
-          <Card className="border-[#1e293b] bg-[#0B1220]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-50">
-                <Users className="h-5 w-5" />
-                Team Membership
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {teams.length > 0 ? (
-                <div className="space-y-3">
-                  {teams.map((team) => (
-                    <div
-                      key={team.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-[#020617] border border-[#1e293b]"
-                    >
-                      <div>
-                        <p className="font-medium text-slate-200">{team.name}</p>
-                        <p className="text-sm text-slate-500">
-                          {team.department?.name ?? "—"} Department
-                        </p>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={
-                          ledTeamIds.has(team.id)
-                            ? "border-blue-500/50 bg-blue-500/20 text-blue-300"
-                            : "border-slate-600 text-slate-400"
-                        }
-                      >
-                        {ledTeamIds.has(team.id) ? "Lead" : "Member"}
-                      </Badge>
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Team Membership
+            </h3>
+            {teams.length > 0 ? (
+              <div className="space-y-2">
+                {teams.map((team) => (
+                  <div
+                    key={team.id}
+                    className="flex items-center justify-between py-2"
+                  >
+                    <div>
+                      <p className="font-medium text-foreground">{team.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {team.department?.name ?? "—"} Department
+                      </p>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">Not assigned to any teams yet</p>
-              )}
-            </CardContent>
-          </Card>
+                    <Badge
+                      variant="outline"
+                      className={
+                        ledTeamIds.has(team.id)
+                          ? "border-blue-500/50 bg-blue-500/20 text-blue-300"
+                          : "border-slate-600 text-muted-foreground"
+                      }
+                    >
+                      {ledTeamIds.has(team.id) ? "Lead" : "Member"}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Not assigned to any teams yet</p>
+            )}
+          </section>
 
-          <Card className="border-[#1e293b] bg-[#0B1220]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-50">
-                <Briefcase className="h-5 w-5" />
-                My Responsibilities
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {primaryPosition?.responsibilities &&
-              primaryPosition.responsibilities.length > 0 ? (
-                <ul className="space-y-2">
-                  {primaryPosition.responsibilities.map((resp, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
-                      <span>{resp}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-slate-500">
-                  No responsibilities defined yet.{" "}
-                  {isAdmin
-                    ? "Add them via Positions & Roles."
-                    : "Ask your admin to add them."}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Briefcase className="h-4 w-4" />
+              My Responsibilities
+            </h3>
+            {primaryPosition?.responsibilities &&
+            primaryPosition.responsibilities.length > 0 ? (
+              <ul className="space-y-2">
+                {primaryPosition.responsibilities.map((resp, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm">
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                    <span>{resp}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No responsibilities defined yet.{" "}
+                {isAdmin
+                  ? "Add them via Positions & Roles."
+                  : "Ask your admin to add them."}
+              </p>
+            )}
+          </section>
         </div>
       </div>
-    </>
+    </div>
   );
 }

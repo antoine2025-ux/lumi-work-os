@@ -1,7 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Briefcase, Clock } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +9,8 @@ interface Project {
   hoursAllocated: number;
   role: string;
 }
+
+const PROJECT_DOT_COLORS = ["bg-blue-500", "bg-emerald-500", "bg-amber-500"] as const;
 
 interface CurrentWorkloadSectionProps {
   totalCapacity: number;
@@ -39,101 +39,86 @@ export function CurrentWorkloadSection({
     workspaceSlug ? `/w/${workspaceSlug}/projects/${projectId}` : `/projects/${projectId}`;
 
   return (
-    <Card className="border-[#1e293b] bg-[#0B1220]">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2 text-slate-50">
-          <TrendingUp className="h-5 w-5" />
-          Current Workload
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-200">
-              Weekly Capacity
-            </span>
-            <span
-              className={cn(
-                "text-2xl font-bold",
-                getUtilizationColor(utilizationPct)
-              )}
-            >
-              {utilizationPct}%
-            </span>
-          </div>
+    <div className="rounded-lg border border-border/50 bg-card/80 p-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+        Current Workload
+      </h3>
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <span
+            className={cn(
+              "text-3xl font-bold text-foreground",
+              getUtilizationColor(utilizationPct)
+            )}
+          >
+            {utilizationPct}%
+          </span>
+          <span className="text-xs text-muted-foreground shrink-0 pt-1">
+            {allocatedHours}h / {totalCapacity}h weekly
+          </span>
+        </div>
 
-          <Progress
-            value={Math.min(utilizationPct, 100)}
-            className="h-3 bg-slate-800"
-          />
+        <Progress
+          value={Math.min(utilizationPct, 100)}
+          className="h-2 bg-slate-700/80 [&>div]:bg-blue-500"
+        />
 
-          <div className="flex items-center justify-between text-sm text-slate-400 gap-2 flex-wrap">
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3 shrink-0" />
-              {allocatedHours}h allocated
-            </span>
-            <span className="text-slate-500">•</span>
-            <span>{totalCapacity}h total</span>
-            <span className="text-slate-500">•</span>
-            <span
-              className={
-                availableHours < 0 ? "text-red-500 font-medium" : "text-slate-400"
-              }
-            >
-              {availableHours}h available
-            </span>
-          </div>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Allocated: {allocatedHours}h</span>
+          <span
+            className={
+              availableHours < 0 ? "text-red-500 font-medium" : "text-muted-foreground"
+            }
+          >
+            Available: {availableHours}h
+          </span>
         </div>
 
         {projects.length > 0 ? (
-          <div className="space-y-3">
-            <div className="text-sm font-medium flex items-center gap-2 text-slate-200">
-              <Briefcase className="h-4 w-4" />
-              Active Projects ({projects.length})
-            </div>
-            <div className="space-y-2">
-              {projects.map((project) => (
+          <div className="pt-2 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Active Projects
+            </p>
+            <div className="space-y-1.5">
+              {projects.map((project, i) => (
                 <Link
                   key={project.id}
                   href={projectHref(project.id)}
-                  className="block p-3 rounded-lg border border-[#1e293b] bg-[#020617] hover:bg-[#0f172a] transition-colors"
+                  className="flex items-center justify-between gap-2 py-1.5 rounded hover:bg-muted/30 transition-colors"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate text-slate-200">
-                        {project.name}
-                      </div>
-                      <div className="text-xs text-slate-500 mt-1">
-                        {project.hoursAllocated}h/week
-                      </div>
-                    </div>
-                    <Badge
-                      variant={project.role === "owner" ? "default" : "secondary"}
-                      className="shrink-0 border-slate-600 text-slate-400"
-                    >
-                      {project.role === "owner" ? "Owner" : "Member"}
-                    </Badge>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        "h-2 w-2 shrink-0 rounded-full",
+                        PROJECT_DOT_COLORS[i % PROJECT_DOT_COLORS.length]
+                      )}
+                    />
+                    <span className="text-sm font-medium truncate text-foreground">
+                      {project.name}
+                    </span>
                   </div>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {project.hoursAllocated}h/wk
+                  </span>
                 </Link>
               ))}
             </div>
           </div>
         ) : (
-          <div className="text-center py-6 text-sm text-slate-500">
-            <Briefcase className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <div className="text-center py-4 text-xs text-muted-foreground">
+            <Briefcase className="h-6 w-6 mx-auto mb-1.5 opacity-50" />
             <p>No active projects</p>
           </div>
         )}
 
         {utilizationPct > 100 && (
-          <div className="p-3 rounded-lg bg-red-950/50 border border-red-800/50">
-            <p className="text-sm text-red-200">
-              You are over capacity by {Math.round(utilizationPct - 100)}%.
-              Consider discussing workload with your manager.
+          <div className="p-2 rounded bg-red-950/40">
+            <p className="text-xs text-red-200">
+              Over capacity by {Math.round(utilizationPct - 100)}%
             </p>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

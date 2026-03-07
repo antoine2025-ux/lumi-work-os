@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { LocateFixed } from "lucide-react";
 import Link from "next/link";
 import { OrgDepartmentRow } from "@/components/org/OrgDepartmentRow";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
@@ -25,6 +27,19 @@ const OrgChartTreeView = dynamic(
 );
 import { getInitials } from "@/components/org/structure/utils";
 import type { OrgChartTree } from "@/lib/org/projections/buildOrgChartTree";
+
+// Lazy-load: Explorer view — custom progressive-disclosure tree
+const OrgChartExplorerView = dynamic(
+  () => import("@/components/org/OrgChartExplorerView").then(m => ({ default: m.OrgChartExplorerView })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    ),
+  }
+);
 
 // Lazy-load: Loopbrain panel — includes AI client calls
 const OrgChartLoopbrainPanel = dynamic(
@@ -56,7 +71,7 @@ type OrgChartClientProps = {
   validation?: { totals?: { cycleMembers?: number; invalidManagerEdges?: number } } | null;
 };
 
-type ViewMode = "flat" | "tree";
+type ViewMode = "flat" | "tree" | "explorer";
 
 type DepartmentRowData = {
   id: string;
@@ -112,6 +127,10 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
   const router = useRouter();
   const { workspaceSlug } = useParams<{ workspaceSlug: string }>() ?? {};
   const base = workspaceSlug ? `/w/${workspaceSlug}/org` : "/org";
+  const { data: session } = useSession();
+  const currentUserId = (session?.user as { id?: string })?.id ?? null;
+  const chartTreeViewRef = useRef<{ centerOnMe: () => void } | null>(null);
+  const explorerViewRef = useRef<{ resetToMe: () => void } | null>(null);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<OrgChartFilter>("all");
   const [error, setError] = useState<Error | null>(null);
@@ -125,7 +144,7 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
   // Load view preference from localStorage
   useEffect(() => {
     const savedView = localStorage.getItem("orgChartViewMode");
-    if (savedView === "tree" || savedView === "flat") {
+    if (savedView === "tree" || savedView === "flat" || savedView === "explorer") {
       setViewMode(savedView);
     }
   }, []);
@@ -244,32 +263,58 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
                 </div>
               )}
 
-              {/* Spacer for tree view */}
-              {viewMode === "tree" && <div className="flex-1" />}
+              {/* Spacer for non-list views */}
+              {viewMode !== "flat" && <div className="flex-1" />}
 
-              {/* View Toggle */}
-              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 p-1">
-                <button
-                  onClick={() => handleViewModeChange("flat")}
-                  className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                    viewMode === "flat"
-                      ? "bg-primary text-white"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  List View
-                </button>
-                <button
-                  onClick={() => handleViewModeChange("tree")}
-                  className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                    viewMode === "tree"
-                      ? "bg-primary text-white"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                  disabled={!chartTree}
-                >
-                  Tree View
-                </button>
+              {/* View Toggle + Find me */}
+              <div className="flex items-center gap-2">
+                <div className="rounded-full border border-white/10 bg-slate-900/60 p-1 flex items-center gap-0">
+                  <button
+                    onClick={() => handleViewModeChange("flat")}
+                    className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                      viewMode === "flat"
+                        ? "bg-primary text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    List
+                  </button>
+                  <button
+                    onClick={() => handleViewModeChange("explorer")}
+                    className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                      viewMode === "explorer"
+                        ? "bg-primary text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                    disabled={!chartTree}
+                  >
+                    Explorer
+                  </button>
+                  <button
+                    onClick={() => handleViewModeChange("tree")}
+                    className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                      viewMode === "tree"
+                        ? "bg-primary text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                    disabled={!chartTree}
+                  >
+                    Tree
+                  </button>
+                </div>
+                {(viewMode === "tree" || viewMode === "explorer") && chartTree && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (viewMode === "tree") chartTreeViewRef.current?.centerOnMe();
+                      if (viewMode === "explorer") explorerViewRef.current?.resetToMe();
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                    title="Find me"
+                  >
+                    <LocateFixed className="h-4 w-4" />
+                  </button>
+                )}
               </div>
 
               {/* Right: Filters (only in flat view) */}
@@ -351,19 +396,40 @@ export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation
                       ))
                     )}
                   </div>
+                ) : viewMode === "explorer" ? (
+                  <div className="mt-8">
+                    {chartTree ? (
+                      <OrgChartExplorerView
+                        ref={explorerViewRef}
+                        tree={chartTree}
+                        currentUserId={currentUserId}
+                        onNodeClick={(node) => {
+                          if (node.personId && node.personName) {
+                            setSelectedPerson({ id: node.personId, name: node.personName });
+                            setSelectedDept(null);
+                          } else if (node.personId) {
+                            router.push(`${base}/people/${node.personId}`);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-[500px] text-slate-400">
+                        Explorer view is not available
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="mt-8">
                     {chartTree ? (
                       <OrgChartTreeView
+                        ref={chartTreeViewRef}
                         tree={chartTree}
+                        currentUserId={currentUserId}
                         onNodeClick={(node) => {
                           if (node.personId && node.personName) {
-                            // Set person context for Loopbrain panel.
-                            // Use "View profile" link in the panel to navigate.
                             setSelectedPerson({ id: node.personId, name: node.personName });
                             setSelectedDept(null);
                           } else if (node.personId) {
-                            // personName unavailable — fall back to navigation
                             router.push(`${base}/people/${node.personId}`);
                           }
                         }}

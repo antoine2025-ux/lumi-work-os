@@ -991,10 +991,10 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
       )}>
         {showLayoutEditor ? (
           /* Minimalistic Page Editor */
-          <div className="h-full bg-background min-h-screen w-full min-w-0 relative">
+          <div className="group h-full bg-background min-h-screen w-full min-w-0 relative">
             {/* Floating Vertical Sidebar - Right Side */}
             <div className={cn(
-              "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-500 ease-in-out",
+              "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-300 ease-in-out opacity-0 group-hover:opacity-100",
               isAISidebarOpen && aiDisplayMode === 'floating' 
                 ? "right-[540px]" // Slide left when AI chat is open in floating mode (500px width + 40px gap)
                 : isAISidebarOpen && aiDisplayMode === 'sidebar'
@@ -1011,7 +1011,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
                   }
                 }}
                 disabled={isSaving || !newPageTitle.trim()}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10 rounded-full flex items-center justify-center p-0"
+                className="h-8 w-8 rounded-full flex items-center justify-center p-0 bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 title={isSaving ? 'Saving...' : 'Save'}
               >
                 {isSaving ? (
@@ -1023,34 +1023,34 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" 
+                className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" 
                 title={activeEditorPage ? 'Close' : 'Cancel'}
                 onClick={() => activeEditorPage ? handleCloseLayoutEditor() : handleCancelCreate()}
               >
                 <X className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Share">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="Share">
                 <Share2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Favorite">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="Favorite">
                 <Star className="h-4 w-4" />
               </Button>
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" 
+                className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" 
                 title="View"
                 onClick={() => activeEditorPage && handleCloseLayoutEditor()}
               >
                 <Eye className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Comments">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="Comments">
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="AI Assistant">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="AI Assistant">
                 <Brain className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="More options">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="More options">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </div>

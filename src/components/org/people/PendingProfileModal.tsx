@@ -49,8 +49,8 @@ function ProfileRow({
   if (value == null || value === "") return null;
   return (
     <div className="grid grid-cols-[100px_1fr] gap-3 py-2">
-      <span className="text-sm text-slate-500">{label}</span>
-      <span className="text-sm text-slate-200">{value}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm text-foreground">{value}</span>
     </div>
   );
 }
@@ -71,17 +71,17 @@ export function PendingProfileModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px] bg-slate-900 border-slate-700">
+      <DialogContent className="sm:max-w-[480px] bg-card border-border">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-500/10 border border-amber-500/20">
               <Mail className="h-6 w-6 text-amber-500" />
             </div>
             <div>
-              <DialogTitle className="text-slate-100">
+              <DialogTitle className="text-foreground">
                 Pending profile
               </DialogTitle>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Will apply when they accept the invitation
               </p>
             </div>
@@ -108,7 +108,7 @@ export function PendingProfileModal({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-700">
+        <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border">
           <CopyInviteLinkButton
             token={invitation.token ?? ""}
             inviteUrl={invitation.inviteUrl}

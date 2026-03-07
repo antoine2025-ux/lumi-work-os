@@ -30,20 +30,20 @@ export function OrgStructureTeamCard({
     return (
       <div
         className={cn(
-          "group flex h-full flex-col rounded-3xl border border-white/5 bg-slate-950/40 p-3.5 shadow-[0_0_40px_rgba(0,0,0,0.45)] transition-all duration-150 ease-out",
-          "hover:scale-[1.01] hover:shadow-[0_0_56px_rgba(0,0,0,0.7)] hover:-translate-y-[1px] hover:border-blue-500/10 hover:bg-slate-950/50",
+          "group flex h-full flex-col rounded-3xl border border-white/5 bg-background/40 p-3.5 shadow-[0_0_40px_rgba(0,0,0,0.45)] transition-all duration-150 ease-out",
+          "hover:scale-[1.01] hover:shadow-[0_0_56px_rgba(0,0,0,0.7)] hover:-translate-y-[1px] hover:border-blue-500/10 hover:bg-background/50",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
           className
         )}
       >
         {/* Header row: icon + team name */}
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900/80 border border-slate-700/50 flex-shrink-0">
-            <Users className="h-3.5 w-3.5 text-slate-300" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-card/80 border border-border/50 flex-shrink-0">
+            <Users className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
           <div className="flex-1 min-w-0">
             <div
-              className="text-sm font-semibold leading-snug text-slate-50 whitespace-normal break-normal"
+              className="text-sm font-semibold leading-snug text-foreground whitespace-normal break-normal"
               title={team.name}
             >
               {team.name}
@@ -53,7 +53,7 @@ export function OrgStructureTeamCard({
 
         {/* Meta row: "N people" pill */}
         <div className="mt-3 flex items-center">
-          <span className="inline-flex items-center rounded-full bg-slate-900/80 border border-slate-700/50 px-2.5 py-1 text-xs text-slate-300/80">
+          <span className="inline-flex items-center rounded-full bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-muted-foreground/80">
             {team.peopleCount} {team.peopleCount === 1 ? "person" : "people"}
           </span>
         </div>
@@ -82,7 +82,7 @@ export function OrgStructureTeamCard({
   return (
     <div
       className={cn(
-        "group flex flex-col justify-between rounded-2xl border border-slate-800/80 bg-slate-950/60 px-3.5 py-3 transition-all duration-150",
+        "group flex flex-col justify-between rounded-2xl border border-border/80 bg-background/60 px-3.5 py-3 transition-all duration-150",
         "hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(15,23,42,0.3)]",
         "hover:border-blue-500/60 hover:shadow-[0_0_32px_rgba(59,130,246,0.32)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70",
@@ -93,12 +93,12 @@ export function OrgStructureTeamCard({
       {/* Top row: Team name + People pill */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <span
-          className="text-base font-medium text-slate-50 truncate flex-1 min-w-0"
+          className="text-base font-medium text-foreground truncate flex-1 min-w-0"
           title={team.name}
         >
           {team.name}
         </span>
-        <span className="rounded-full bg-slate-900/80 px-2 py-0.5 text-xs text-slate-200 flex-shrink-0">
+        <span className="rounded-full bg-card/80 px-2 py-0.5 text-xs text-foreground flex-shrink-0">
           {team.peopleCount}
         </span>
       </div>
@@ -107,16 +107,16 @@ export function OrgStructureTeamCard({
       {team.lead && (
         <div className="flex items-center gap-2.5 mb-2.5">
           <Avatar className="h-8 w-8 flex-shrink-0">
-            <AvatarFallback className="bg-slate-800 flex items-center justify-center text-xs font-semibold text-slate-100">
+            <AvatarFallback className="bg-muted flex items-center justify-center text-xs font-semibold text-foreground">
               {team.lead.initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400/80">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/80">
               Lead
             </span>
             <span
-              className="text-sm text-slate-100 truncate"
+              className="text-sm text-foreground truncate"
               title={team.lead.name}
             >
               {team.lead.name}

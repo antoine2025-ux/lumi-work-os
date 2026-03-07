@@ -1,50 +1,50 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail } from "lucide-react";
-import { EditBasicInfoDialog } from "./edit-basic-info-dialog";
+import { Mail, MapPin } from "lucide-react";
 
 interface BasicInfoSectionProps {
   displayName: string;
   displayRole: string;
   email?: string | null;
-  positionId?: string;
+  location?: string | null;
+  timezone?: string | null;
 }
 
 export function BasicInfoSection({
   displayName,
   displayRole,
   email,
-  positionId,
+  location,
+  timezone,
 }: BasicInfoSectionProps) {
+  const locationDisplay = location || timezone
+    ? `${location || "Remote"}${timezone ? ` (${timezone})` : ""}`
+    : null;
+
   return (
-    <Card className="border-[#1e293b] bg-[#0B1220]">
-      <CardHeader>
-        <CardTitle>Basic Information</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-start gap-4">
-          <div className="h-16 w-16 rounded-full bg-[#243B7D] text-slate-100 flex items-center justify-center text-2xl font-bold flex-shrink-0">
-            {displayName.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1">
-            <h2 className="text-xl font-semibold text-slate-50">{displayName}</h2>
-            <p className="text-slate-400">{displayRole}</p>
-            {email && (
-              <div className="flex items-center gap-2 mt-2 text-sm text-slate-400">
-                <Mail className="h-4 w-4" />
-                {email}
-              </div>
-            )}
-          </div>
-          {positionId && (
-            <EditBasicInfoDialog
-              positionId={positionId}
-              initialName={displayName}
-              initialTitle={displayRole}
-              email={email}
-            />
+    <div className="space-y-1.5 min-w-0">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        Information
+      </p>
+      <div className="flex items-start gap-2 min-w-0">
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#243B7D] text-[10px] font-medium text-foreground">
+          {displayName.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1 overflow-hidden space-y-0.5">
+          <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+          <p className="text-xs text-muted-foreground truncate">{displayRole}</p>
+          {email && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+              <Mail className="h-3 w-3 shrink-0" />
+              <span className="truncate">{email}</span>
+            </div>
+          )}
+          {locationDisplay && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="truncate">{locationDisplay}</span>
+            </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

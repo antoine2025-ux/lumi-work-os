@@ -65,28 +65,28 @@ export function BulkAssignModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-900 border-white/10 text-slate-200 max-w-md">
+      <DialogContent className="bg-card border-white/10 text-foreground max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-slate-100">
+          <DialogTitle className="text-lg font-semibold text-foreground">
             {getTitle()}
           </DialogTitle>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Assign {selectedCount} {selectedCount === 1 ? "person" : "people"} to a {type === "manager" ? "manager" : type}.
           </p>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300">
+            <label className="text-sm font-medium text-muted-foreground">
               Select {type === "manager" ? "manager" : type}:
             </label>
             <select
               value={selectedId}
               onChange={(e) => setSelectedId(e.target.value)}
               className={cn(
-                "w-full rounded-lg border border-white/10 bg-slate-800/50",
+                "w-full rounded-lg border border-white/10 bg-muted/50",
                 "px-3 py-2",
-                "text-sm text-slate-200",
+                "text-sm text-foreground",
                 "focus:outline-none focus:ring-2 focus:ring-primary/60",
                 "transition-colors"
               )}
@@ -105,7 +105,7 @@ export function BulkAssignModal({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="text-slate-300 hover:text-slate-100"
+            className="text-muted-foreground hover:text-foreground"
           >
             Cancel
           </Button>

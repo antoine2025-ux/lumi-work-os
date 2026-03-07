@@ -62,20 +62,20 @@ export function PeopleFiltersDrawer({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-md bg-slate-900 border-white/10 text-slate-100"
+        className="max-w-md bg-card border-white/10 text-foreground"
         onInteractOutside={(_e) => {
           // Allow closing on outside click
         }}
       >
         <DialogHeader className="space-y-4 pb-4 border-b border-white/10">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-semibold text-slate-100">
+            <DialogTitle className="text-lg font-semibold text-foreground">
               Filters
             </DialogTitle>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
@@ -87,7 +87,7 @@ export function PeopleFiltersDrawer({
           {/* Active filters summary */}
           {hasActiveFilters && (
             <div className="space-y-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Active Filters
               </h3>
               <ActiveFiltersChips
@@ -102,13 +102,13 @@ export function PeopleFiltersDrawer({
 
           {/* Team filter */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-200">Team</label>
+            <label className="text-sm font-medium text-foreground">Team</label>
             <select
               value={filters.teamId || ""}
               onChange={(e) => handleFilterChange("teamId", e.target.value || undefined)}
               className={cn(
-                "w-full rounded-lg border border-slate-800/70 bg-slate-900/60",
-                "px-3 py-2 text-sm text-white/90",
+                "w-full rounded-lg border border-border/70 bg-card/60",
+                "px-3 py-2 text-sm text-foreground/90",
                 "focus:border-primary/70 focus:outline-none focus:ring-1 focus:ring-primary/60",
                 "transition-colors"
               )}
@@ -124,13 +124,13 @@ export function PeopleFiltersDrawer({
 
           {/* Department filter */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-200">Department</label>
+            <label className="text-sm font-medium text-foreground">Department</label>
             <select
               value={filters.departmentId || ""}
               onChange={(e) => handleFilterChange("departmentId", e.target.value || undefined)}
               className={cn(
-                "w-full rounded-lg border border-slate-800/70 bg-slate-900/60",
-                "px-3 py-2 text-sm text-white/90",
+                "w-full rounded-lg border border-border/70 bg-card/60",
+                "px-3 py-2 text-sm text-foreground/90",
                 "focus:border-primary/70 focus:outline-none focus:ring-1 focus:ring-primary/60",
                 "transition-colors"
               )}
@@ -146,13 +146,13 @@ export function PeopleFiltersDrawer({
 
           {/* Role filter */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-200">Role</label>
+            <label className="text-sm font-medium text-foreground">Role</label>
             <select
               value={filters.roleId || ""}
               onChange={(e) => handleFilterChange("roleId", e.target.value || undefined)}
               className={cn(
-                "w-full rounded-lg border border-slate-800/70 bg-slate-900/60",
-                "px-3 py-2 text-sm text-white/90",
+                "w-full rounded-lg border border-border/70 bg-card/60",
+                "px-3 py-2 text-sm text-foreground/90",
                 "focus:border-primary/70 focus:outline-none focus:ring-1 focus:ring-primary/60",
                 "transition-colors"
               )}
@@ -168,7 +168,7 @@ export function PeopleFiltersDrawer({
 
           {/* Sort */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-200">Sort by</label>
+            <label className="text-sm font-medium text-foreground">Sort by</label>
             <select
               value={`${filters.sort || "name"}-${filters.direction || "asc"}`}
               onChange={(e) => {
@@ -176,8 +176,8 @@ export function PeopleFiltersDrawer({
                 onFiltersChange({ sort: sort as PeopleFilters["sort"], direction: direction as PeopleFilters["direction"] });
               }}
               className={cn(
-                "w-full rounded-lg border border-slate-800/70 bg-slate-900/60",
-                "px-3 py-2 text-sm text-white/90",
+                "w-full rounded-lg border border-border/70 bg-card/60",
+                "px-3 py-2 text-sm text-foreground/90",
                 "focus:border-primary/70 focus:outline-none focus:ring-1 focus:ring-primary/60",
                 "transition-colors"
               )}
@@ -193,7 +193,7 @@ export function PeopleFiltersDrawer({
 
           {/* Status flags */}
           <div className="space-y-3">
-            <h3 className="text-sm font-medium text-slate-200">Status</h3>
+            <h3 className="text-sm font-medium text-foreground">Status</h3>
             
             {/* Leaders checkbox */}
             <label className="flex items-center gap-2 cursor-pointer">
@@ -201,9 +201,9 @@ export function PeopleFiltersDrawer({
                 type="checkbox"
                 checked={filters.leadersOnly || false}
                 onChange={(e) => handleFilterChange("leadersOnly", e.target.checked || undefined)}
-                className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary/60"
+                className="h-4 w-4 rounded border-border bg-muted text-primary focus:ring-primary/60"
               />
-              <span className="text-sm text-slate-300">Leaders only</span>
+              <span className="text-sm text-muted-foreground">Leaders only</span>
             </label>
 
             {/* Unassigned checkbox */}
@@ -212,9 +212,9 @@ export function PeopleFiltersDrawer({
                 type="checkbox"
                 checked={filters.unassignedOnly || false}
                 onChange={(e) => handleFilterChange("unassignedOnly", e.target.checked || undefined)}
-                className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary/60"
+                className="h-4 w-4 rounded border-border bg-muted text-primary focus:ring-primary/60"
               />
-              <span className="text-sm text-slate-300">Unassigned only</span>
+              <span className="text-sm text-muted-foreground">Unassigned only</span>
             </label>
 
             {/* Recently changed checkbox */}
@@ -223,9 +223,9 @@ export function PeopleFiltersDrawer({
                 type="checkbox"
                 checked={filters.recentlyChanged || false}
                 onChange={(e) => handleFilterChange("recentlyChanged", e.target.checked || undefined)}
-                className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary/60"
+                className="h-4 w-4 rounded border-border bg-muted text-primary focus:ring-primary/60"
               />
-              <span className="text-sm text-slate-300">Recently changed</span>
+              <span className="text-sm text-muted-foreground">Recently changed</span>
             </label>
           </div>
         </div>
@@ -236,7 +236,7 @@ export function PeopleFiltersDrawer({
             variant="ghost"
             onClick={handleClearAll}
             disabled={!hasActiveFilters}
-            className="text-sm text-slate-400 hover:text-slate-200"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
             Clear all
           </Button>

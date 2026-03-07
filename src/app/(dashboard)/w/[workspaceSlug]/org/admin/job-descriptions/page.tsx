@@ -178,10 +178,10 @@ function AssignPositionsDialog({
         <div className="py-2 space-y-2">
           {loadingPositions ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : positions.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-6">No positions found in workspace.</p>
+            <p className="text-sm text-muted-foreground text-center py-6">No positions found in workspace.</p>
           ) : (
             positions.map((pos) => {
               const linked = isEffectivelyLinked(pos.id);
@@ -198,19 +198,19 @@ function AssignPositionsDialog({
                   className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors ${
                     linked
                       ? "border-blue-700/60 bg-blue-900/20"
-                      : "border-[#1e293b] bg-[#0B1220] hover:border-slate-600"
+                      : "border-border bg-card hover:border-slate-600"
                   } ${changed ? "ring-1 ring-amber-500/40" : ""}`}
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-100 truncate">{label}</p>
-                    {sub && <p className="text-xs text-slate-500 truncate">{sub}</p>}
+                    <p className="text-sm font-medium text-foreground truncate">{label}</p>
+                    {sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>}
                   </div>
                   <Badge
                     variant="outline"
                     className={
                       linked
                         ? "border-blue-600 text-blue-300 text-xs shrink-0"
-                        : "border-slate-700 text-slate-500 text-xs shrink-0"
+                        : "border-border text-muted-foreground text-xs shrink-0"
                     }
                   >
                     {linked ? "Linked" : "Unlinked"}
@@ -550,11 +550,11 @@ export default function JobDescriptionsAdminPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-50 flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
             <FileText className="h-6 w-6" />
             Job Descriptions
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Shared templates that can be linked to multiple positions
           </p>
         </div>
@@ -574,15 +574,15 @@ export default function JobDescriptionsAdminPage() {
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 rounded-xl border border-[#1e293b] bg-[#0B1220] animate-pulse" />
+            <div key={i} className="h-20 rounded-xl border border-border bg-card animate-pulse" />
           ))}
         </div>
       ) : jds.length === 0 ? (
-        <Card className="border-[#1e293b] bg-[#0B1220]">
+        <Card className="border-border bg-card">
           <CardContent className="py-12 text-center">
             <FileText className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-400 font-medium">No job descriptions yet</p>
-            <p className="text-slate-500 text-sm mt-1">
+            <p className="text-muted-foreground font-medium">No job descriptions yet</p>
+            <p className="text-muted-foreground text-sm mt-1">
               Create one to link shared role expectations to positions.
             </p>
             <Button className="mt-4" onClick={openCreate}>
@@ -594,25 +594,25 @@ export default function JobDescriptionsAdminPage() {
       ) : (
         <div className="space-y-3">
           {jds.map((jd) => (
-            <Card key={jd.id} className="border-[#1e293b] bg-[#0B1220]">
+            <Card key={jd.id} className="border-border bg-card">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <CardTitle className="text-slate-50 text-base font-semibold truncate">
+                    <CardTitle className="text-foreground text-base font-semibold truncate">
                       {jd.title}
                     </CardTitle>
                     <div className="flex flex-wrap items-center gap-2 mt-1">
                       {jd.level && (
-                        <Badge variant="outline" className="text-xs border-slate-700 text-slate-400">
+                        <Badge variant="outline" className="text-xs border-border text-muted-foreground">
                           {jd.level}
                         </Badge>
                       )}
                       {jd.jobFamily && (
-                        <Badge variant="outline" className="text-xs border-slate-700 text-slate-400">
+                        <Badge variant="outline" className="text-xs border-border text-muted-foreground">
                           {jd.jobFamily}
                         </Badge>
                       )}
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-muted-foreground">
                         {jd.positionCount} position{jd.positionCount !== 1 ? "s" : ""} linked
                       </span>
                     </div>
@@ -621,7 +621,7 @@ export default function JobDescriptionsAdminPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-slate-400 hover:text-slate-200 gap-1.5"
+                      className="text-muted-foreground hover:text-foreground gap-1.5"
                       onClick={() => setAssigning(jd)}
                       title="Assign to positions"
                     >
@@ -631,7 +631,7 @@ export default function JobDescriptionsAdminPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-slate-400 hover:text-slate-200"
+                      className="text-muted-foreground hover:text-foreground"
                       onClick={() => openEdit(jd)}
                     >
                       <Pencil className="h-4 w-4" />
@@ -639,7 +639,7 @@ export default function JobDescriptionsAdminPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-slate-500 hover:text-red-400"
+                      className="text-muted-foreground hover:text-red-400"
                       onClick={() => handleDelete(jd)}
                       disabled={deleting === jd.id}
                     >
@@ -654,7 +654,7 @@ export default function JobDescriptionsAdminPage() {
               </CardHeader>
               {jd.summary && (
                 <CardContent className="pt-0">
-                  <p className="text-sm text-slate-400 line-clamp-2">{jd.summary}</p>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{jd.summary}</p>
                 </CardContent>
               )}
               {(jd.responsibilities.length > 0 || jd.requiredSkills.length > 0) && (
@@ -666,7 +666,7 @@ export default function JobDescriptionsAdminPage() {
                       </Badge>
                     ))}
                     {jd.requiredSkills.length > 5 && (
-                      <span className="text-xs text-slate-500">+{jd.requiredSkills.length - 5} more</span>
+                      <span className="text-xs text-muted-foreground">+{jd.requiredSkills.length - 5} more</span>
                     )}
                   </div>
                 </CardContent>

@@ -133,12 +133,12 @@ export function OrgIssueResolutionActions({
 
       {/* Confirmation dialog */}
       <Dialog open={!!pendingAction} onOpenChange={(open) => !open && setPendingAction(null)}>
-        <DialogContent className="bg-[#0a0f1a] border-slate-800">
+        <DialogContent className="bg-[#0a0f1a] border-border">
           <DialogHeader>
-            <DialogTitle className="text-slate-100">
+            <DialogTitle className="text-foreground">
               {pendingAction && getActionTitle(pendingAction)}
             </DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-muted-foreground">
               {pendingAction && getActionDescription(pendingAction)}
             </DialogDescription>
           </DialogHeader>
@@ -150,7 +150,7 @@ export function OrgIssueResolutionActions({
                 placeholder="Add a note (optional)"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="bg-slate-900 border-slate-700 text-slate-200 placeholder:text-slate-500 min-h-[80px]"
+                className="bg-card border-border text-foreground placeholder:text-muted-foreground min-h-[80px]"
               />
             </div>
           )}
@@ -165,7 +165,7 @@ export function OrgIssueResolutionActions({
             <Button
               variant="outline"
               onClick={() => setPendingAction(null)}
-              className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+              className="bg-transparent border-border text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               Cancel
             </Button>

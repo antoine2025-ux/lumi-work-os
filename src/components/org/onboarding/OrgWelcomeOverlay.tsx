@@ -21,18 +21,18 @@ export function OrgWelcomeOverlay({ shouldShow }: Props) {
       aria-label="Welcome to Org Center"
     >
       <div
-        className={`w-full max-w-md rounded-2xl border border-slate-800 bg-[#020617] p-6 text-[13px] text-slate-200 shadow-xl transition-all duration-150 ${
+        className={`w-full max-w-md rounded-2xl border border-border bg-background p-6 text-[13px] text-foreground shadow-xl transition-all duration-150 ${
           shouldShow && !dismissed ? "scale-100 opacity-100" : "scale-95 opacity-0"
         }`}
       >
-        <h2 className="text-[16px] font-semibold text-slate-50">
+        <h2 className="text-[16px] font-semibold text-foreground">
           Welcome to your Org Center
         </h2>
-        <p className="mt-2 text-[12px] text-slate-400">
+        <p className="mt-2 text-[12px] text-muted-foreground">
           This is your organization&apos;s command center. From here you can manage people, structure, roles, and insights.
         </p>
 
-        <ul className="mt-4 space-y-2 text-[12px] text-slate-300">
+        <ul className="mt-4 space-y-2 text-[12px] text-muted-foreground">
           <li>• Add or invite people to your workspace</li>
           <li>• Define teams, departments, and roles</li>
           <li>• Explore insights about your organization</li>
@@ -49,7 +49,7 @@ export function OrgWelcomeOverlay({ shouldShow }: Props) {
               setDismissed(true);
             }
           }}
-          className="focus-ring mt-5 w-full rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-blue-500"
+          className="focus-ring mt-5 w-full rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-blue-500"
           aria-label="Get started with Org Center"
         >
           Let&apos;s get started

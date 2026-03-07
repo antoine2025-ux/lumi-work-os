@@ -61,7 +61,7 @@ export function OrgChartTree({ data }: OrgChartTreeProps) {
 
   if (!data || data.length === 0) {
     return (
-      <div className="text-[13px] text-slate-400">
+      <div className="text-[13px] text-muted-foreground">
         No org chart data available yet.
       </div>
     );

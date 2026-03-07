@@ -76,8 +76,8 @@ export function OrgDepartmentRow(props: OrgDepartmentRowProps) {
       className={cn(
         "group relative flex w-full items-center justify-between",
         "rounded-3xl",
-        "bg-slate-900/80",
-        "hover:bg-slate-900/90",
+        "bg-card/80",
+        "hover:bg-card/90",
         "hover:-translate-y-[1px]",
         "transition-all",
         "border border-white/5",
@@ -97,7 +97,7 @@ export function OrgDepartmentRow(props: OrgDepartmentRowProps) {
             "h-16 w-16 rounded-2xl",
             "flex items-center justify-center",
             accentColorClass,
-            "text-white",
+            "text-foreground",
             "shadow-[0_18px_40px_rgba(0,0,0,0.6)]",
             "group-hover:shadow-[0_24px_64px_rgba(0,0,0,0.7)]",
             "group-hover:opacity-90",
@@ -118,7 +118,7 @@ export function OrgDepartmentRow(props: OrgDepartmentRowProps) {
           {/* Leader line */}
           {leaderName ? (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-foreground/70 min-w-0">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-800/80 text-[11px] font-medium text-foreground/80 flex-shrink-0">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted/80 text-[11px] font-medium text-foreground/80 flex-shrink-0">
                 {leaderInitials}
               </span>
               <span className="truncate max-w-[180px]">{leaderName}</span>
@@ -150,10 +150,10 @@ export function OrgDepartmentRow(props: OrgDepartmentRowProps) {
       {/* RIGHT CLUSTER */}
       <div className="ml-8 flex flex-shrink-0 items-center gap-3">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-slate-800/70 px-3 py-1 text-xs text-white/70">
+          <span className="rounded-full bg-muted/70 px-3 py-1 text-xs text-foreground/70">
             {teamsCount === 1 ? "1 team" : `${teamsCount} teams`}
           </span>
-          <span className="rounded-full bg-slate-800/70 px-3 py-1 text-xs text-white/70">
+          <span className="rounded-full bg-muted/70 px-3 py-1 text-xs text-foreground/70">
             {peopleCount === 1 ? "1 person" : `${peopleCount} people`}
           </span>
 
@@ -164,7 +164,7 @@ export function OrgDepartmentRow(props: OrgDepartmentRowProps) {
           )}
 
           {recentChangeSummary && (
-            <span className="rounded-full bg-slate-800/70 px-3 py-1 text-[11px] text-white/70">
+            <span className="rounded-full bg-muted/70 px-3 py-1 text-[11px] text-foreground/70">
               {recentChangeSummary}
             </span>
           )}
@@ -180,9 +180,9 @@ export function OrgDepartmentRow(props: OrgDepartmentRowProps) {
           type="button"
           onClick={handleViewPeople}
           className={cn(
-            "ml-2 text-xs font-medium text-white/60",
+            "ml-2 text-xs font-medium text-foreground/60",
             "underline-offset-2",
-            "hover:text-white/80 hover:underline",
+            "hover:text-foreground/80 hover:underline",
             "transition-all duration-200"
           )}
         >

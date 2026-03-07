@@ -179,7 +179,7 @@ export function SkillsEditor({ personUserId, initialSkills, onSkillsChanged }: S
               key={s.id}
               variant="outline"
               className={cn(
-                "border-slate-600 text-slate-300 text-xs flex items-center gap-1 pr-1",
+                "border-slate-600 text-muted-foreground text-xs flex items-center gap-1 pr-1",
                 removingId === s.id && "opacity-50"
               )}
             >
@@ -197,7 +197,7 @@ export function SkillsEditor({ personUserId, initialSkills, onSkillsChanged }: S
             </Badge>
           ))
         ) : (
-          <p className="text-sm text-slate-500">No skills added yet — type below to add one</p>
+          <p className="text-sm text-muted-foreground">No skills added yet — type below to add one</p>
         )}
       </div>
 
@@ -214,7 +214,7 @@ export function SkillsEditor({ personUserId, initialSkills, onSkillsChanged }: S
             placeholder="Add a skill (e.g. Python, SQL, Facilitation)…"
             className={cn(
               orgTokens.input,
-              "bg-[#020617] border-[#1e293b] text-slate-200 placeholder-slate-600 flex-1"
+              "bg-background border-border text-foreground placeholder-slate-600 flex-1"
             )}
             disabled={saving}
           />
@@ -224,7 +224,7 @@ export function SkillsEditor({ personUserId, initialSkills, onSkillsChanged }: S
             disabled={saving || !inputValue.trim()}
             className={cn(
               orgTokens.button,
-              "bg-[#020617] border-[#1e293b] text-slate-300 hover:bg-[#1e293b] flex items-center gap-1 shrink-0",
+              "bg-background border-border text-muted-foreground hover:bg-[#1e293b] flex items-center gap-1 shrink-0",
               (!inputValue.trim() || saving) && "opacity-50 cursor-not-allowed"
             )}
           >
@@ -241,18 +241,18 @@ export function SkillsEditor({ personUserId, initialSkills, onSkillsChanged }: S
         {showDropdown && suggestions.length > 0 && (
           <div
             ref={dropdownRef}
-            className="absolute z-20 top-full mt-1 w-full max-w-sm rounded-xl border border-[#1e293b] bg-[#0B1220] shadow-lg overflow-hidden"
+            className="absolute z-20 top-full mt-1 w-full max-w-sm rounded-xl border border-border bg-card shadow-lg overflow-hidden"
           >
             {suggestions.map((s) => (
               <button
                 key={s.id}
                 type="button"
-                className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-[#1e293b] flex items-center justify-between"
+                className="w-full text-left px-3 py-2 text-sm text-muted-foreground hover:bg-[#1e293b] flex items-center justify-between"
                 onClick={() => addSkill(s.name, s.id)}
               >
                 <span>{s.name}</span>
                 {s.category && (
-                  <span className="text-xs text-slate-500">{s.category}</span>
+                  <span className="text-xs text-muted-foreground">{s.category}</span>
                 )}
               </button>
             ))}

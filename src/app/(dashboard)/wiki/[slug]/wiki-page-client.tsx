@@ -26,6 +26,7 @@ const WikiEditorShell = dynamic(
 )
 import { useLoopbrainAnchors } from "@/components/loopbrain/assistant-context"
 import { WikiPageBody } from "@/components/wiki/wiki-page-body"
+import { WikiSectionView } from "@/components/wiki/WikiSectionView"
 import { useUserStatusContext } from '@/providers/user-status-provider'
 import { JSONContent, Editor } from '@tiptap/core'
 import { 
@@ -42,13 +43,14 @@ import {
   Star,
   Download,
   Eye,
-  Brain
+  Brain,
+  Plus,
 } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { useQueryClient } from "@tanstack/react-query"
 import { useActivePageStore } from "@/lib/stores/use-active-page-store"
-import { cn } from "@/lib/utils"
+import { cn, formatRelativeTime } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,6 +75,14 @@ interface LinkedProject {
   name: string
 }
 
+interface WikiPageChild {
+  id: string
+  title: string
+  slug: string
+  excerpt?: string | null
+  updatedAt: string
+}
+
 interface WikiPageData {
   id: string
   title: string
@@ -89,6 +99,9 @@ interface WikiPageData {
   workspace_type?: string
   permissionLevel?: string
   linkedProjects?: LinkedProject[]
+  isSection?: boolean
+  children?: WikiPageChild[]
+  spaceId?: string | null
 }
 
 interface AuthorOrgInfo {
@@ -699,11 +712,15 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
     )
   }
 
+  if (pageData.isSection === true) {
+    return <WikiSectionView page={pageData} />
+  }
+
   return (
-      <div className="h-full bg-background min-h-screen w-full min-w-0 relative">
+      <div className="group h-full bg-background min-h-screen w-full min-w-0 relative">
       {/* Floating Vertical Sidebar - Right Side */}
       <div className={cn(
-        "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-500 ease-in-out",
+        "fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 transition-all duration-300 ease-in-out opacity-0 group-hover:opacity-100",
         isAISidebarOpen && aiDisplayMode === 'floating' 
           ? "right-[540px]" // Slide left when AI chat is open in floating mode (500px width + 40px gap)
           : isAISidebarOpen && aiDisplayMode === 'sidebar'
@@ -715,8 +732,8 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
           variant={isEditing ? "default" : "ghost"}
           size="sm"
           className={cn(
-            "w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm",
-            isEditing && "bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600"
+            "h-8 w-8 rounded-full flex items-center justify-center p-0",
+            isEditing ? "bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600" : "text-muted-foreground hover:text-foreground"
           )}
           title={isEditing ? "Done" : "Edit"}
         >
@@ -731,7 +748,7 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
             onClick={() => setShowUpgradeDialog(true)}
             variant="ghost"
             size="sm"
-            className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm"
+            className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground"
             title="Upgrade to new editor"
             disabled={isUpgrading}
           >
@@ -742,30 +759,30 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
             )}
           </Button>
         )}
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Share">
+        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="Share">
           <Share2 className="h-4 w-4" />
         </Button>
         <Button 
           onClick={toggleFavorite}
           variant="ghost" 
           size="sm" 
-          className={`w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm ${isStarred ? 'text-yellow-500 hover:text-yellow-400' : 'text-muted-foreground hover:text-foreground'}`}
+          className={cn("h-8 w-8 rounded-full flex items-center justify-center p-0", isStarred ? "text-yellow-500 hover:text-yellow-400" : "text-muted-foreground hover:text-foreground")}
           title="Favorite"
         >
           <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} />
         </Button>
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="View">
+        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="View">
           <Eye className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="Comments">
+        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="Comments">
           <MessageSquare className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="AI Assistant">
+        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="AI Assistant">
           <Brain className="h-4 w-4" />
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground w-10 h-10 rounded-full flex items-center justify-center p-0 bg-card/80 backdrop-blur-sm border border-border shadow-sm" title="More options">
+            <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full flex items-center justify-center p-0 text-muted-foreground hover:text-foreground" title="More options">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>

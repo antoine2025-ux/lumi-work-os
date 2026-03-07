@@ -1,7 +1,6 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckSquare, ChevronRight, Loader2, Target } from "lucide-react"
@@ -63,15 +62,15 @@ export function MyTasksWidget({ className }: MyTasksWidgetProps) {
   })
 
   return (
-    <Card className={cn("widget-card", className)}>
-      <div className="widget-header">
-        <div className="widget-header-start">
-          <Target className="h-4 w-4 flex-shrink-0" aria-hidden />
+    <div className={cn("bg-card rounded-md border border-border flex flex-col h-full min-h-0", className)}>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-muted-foreground" aria-hidden />
           <Link href={`${baseHref}/my-tasks`} className="hover:opacity-80 transition-opacity">
-            <span className="widget-title cursor-pointer">MY TASKS</span>
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground cursor-pointer">My Tasks</h3>
           </Link>
         </div>
-        <div className="widget-actions">
+        <div className="flex items-center gap-2">
           {tasks.length > 0 && (
             <Badge variant="outline" className="text-xs">
               {tasks.length}
@@ -79,13 +78,13 @@ export function MyTasksWidget({ className }: MyTasksWidgetProps) {
           )}
         </div>
       </div>
-      <div className="widget-content space-y-2 max-h-[340px] overflow-y-auto dashboard-card-scroll">
+      <div className="p-3 flex-1 space-y-2 max-h-[340px] overflow-y-auto dashboard-card-scroll">
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {[...Array(4)].map((_, i) => (
               <div
                 key={i}
-                className="flex items-center space-x-3 p-3 rounded-lg animate-pulse"
+                className="flex items-center space-x-3 p-2 rounded-md animate-pulse"
               >
                 <div className="w-4 h-4 bg-muted rounded flex-shrink-0" />
                 <div className="flex-1 space-y-2 min-w-0">
@@ -112,7 +111,7 @@ export function MyTasksWidget({ className }: MyTasksWidgetProps) {
               <Link
                 key={task.id}
                 href={`${baseHref}/projects/${task.projectId}`}
-                className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 py-2 px-2 rounded-md hover:bg-muted transition-colors"
               >
                 <div
                   className={cn(
@@ -166,6 +165,6 @@ export function MyTasksWidget({ className }: MyTasksWidgetProps) {
           </>
         )}
       </div>
-    </Card>
+    </div>
   )
 }

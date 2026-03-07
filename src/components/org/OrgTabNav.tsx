@@ -24,7 +24,7 @@ export function OrgTabNav({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-xl border border-slate-800 bg-[#050816] p-1 text-[12px]",
+        "inline-flex items-center gap-0.5 rounded-xl border border-border bg-[#050816] p-1 text-[12px]",
         className
       )}
     >
@@ -40,7 +40,7 @@ export function OrgTabNav({
               "focus-ring flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-all duration-150",
               active
                 ? "bg-slate-100 text-slate-900 shadow-sm"
-                : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
             )}
           >
             <span>{tab.label}</span>
@@ -49,8 +49,8 @@ export function OrgTabNav({
                 className={cn(
                   "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
                   active
-                    ? "bg-slate-900 text-slate-100"
-                    : "bg-slate-800 text-slate-400"
+                    ? "bg-card text-foreground"
+                    : "bg-muted text-muted-foreground"
                 )}
               >
                 {tab.badge}

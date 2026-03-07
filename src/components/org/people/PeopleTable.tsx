@@ -104,9 +104,9 @@ export const PeopleTable = memo(function PeopleTable({
   const getSortIcon = (column: PeopleFilters["sort"]) => {
     if (sort !== column) return null;
     return direction === "asc" ? (
-      <ArrowUp className="h-3 w-3 inline-block ml-1 text-slate-400" />
+      <ArrowUp className="h-3 w-3 inline-block ml-1 text-muted-foreground" />
     ) : (
-      <ArrowDown className="h-3 w-3 inline-block ml-1 text-slate-400" />
+      <ArrowDown className="h-3 w-3 inline-block ml-1 text-muted-foreground" />
     );
   };
 
@@ -114,10 +114,10 @@ export const PeopleTable = memo(function PeopleTable({
     <div className="overflow-x-auto">
       <table className="min-w-full border-separate border-spacing-0">
         <thead>
-          <tr className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm border-b border-white/5">
+          <tr className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm border-b border-white/5">
             {onToggleSelection && (
               <th className="w-12 px-4 py-4 text-left">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {/* Selection column header */}
                 </div>
               </th>
@@ -172,9 +172,9 @@ export const PeopleTable = memo(function PeopleTable({
                 onKeyDown={handleRowKeyDown(person)}
                 className={cn(
                   "border-b border-white/5",
-                  "text-[13px] text-slate-200",
+                  "text-[13px] text-foreground",
                   "transition-all duration-150",
-                  isSelected ? "bg-primary/5" : "hover:bg-slate-800/50 group",
+                  isSelected ? "bg-primary/5" : "hover:bg-muted/50 group",
                   focusRingClass,
                   "cursor-pointer relative",
                   highlightedPersonId === person.id && "ring-2 ring-primary/60 bg-primary/5"
@@ -197,7 +197,7 @@ export const PeopleTable = memo(function PeopleTable({
                         "flex items-center justify-center",
                         "h-5 w-5 rounded border-2 transition-colors",
                         isSelected
-                          ? "bg-primary border-primary text-white"
+                          ? "bg-primary border-primary text-foreground"
                           : "border-white/20 hover:border-primary/50 text-transparent",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                       )}
@@ -217,7 +217,7 @@ export const PeopleTable = memo(function PeopleTable({
               <td className="px-6 py-3">
                 {person.email && (
                   <div
-                    className="truncate text-[13px] text-slate-400 max-w-[200px]"
+                    className="truncate text-[13px] text-muted-foreground max-w-[200px]"
                     title={person.email}
                   >
                     {person.email}
@@ -228,7 +228,7 @@ export const PeopleTable = memo(function PeopleTable({
               {/* Role column - secondary text */}
               <td className="px-6 py-3">
                 {person.role && (
-                  <span className="text-[13px] text-slate-400">{person.role}</span>
+                  <span className="text-[13px] text-muted-foreground">{person.role}</span>
                 )}
               </td>
 
@@ -237,7 +237,7 @@ export const PeopleTable = memo(function PeopleTable({
                 {person.team && (
                   <Link
                     href={`/org/directory?teamId=${person.teamId}`}
-                    className="text-[12px] text-slate-500 hover:text-slate-400 hover:underline transition-colors duration-150 truncate block max-w-[150px]"
+                    className="text-[12px] text-muted-foreground hover:text-muted-foreground hover:underline transition-colors duration-150 truncate block max-w-[150px]"
                     onClick={(e) => e.stopPropagation()}
                     title={person.team}
                   >
@@ -299,8 +299,8 @@ export const PeopleTable = memo(function PeopleTable({
                           className={cn(
                             "flex items-center justify-center",
                             "h-7 w-7 rounded",
-                            "text-slate-500 hover:text-slate-300",
-                            "hover:bg-slate-800/50",
+                            "text-muted-foreground hover:text-muted-foreground",
+                            "hover:bg-muted/50",
                             "transition-colors",
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                           )}
@@ -311,7 +311,7 @@ export const PeopleTable = memo(function PeopleTable({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         align="end"
-                        className="w-48 bg-slate-900 border-slate-700"
+                        className="w-48 bg-card border-border"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <DropdownMenuItem
@@ -327,7 +327,7 @@ export const PeopleTable = memo(function PeopleTable({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
-                  <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" />
+                  <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-muted-foreground transition-colors flex-shrink-0" />
                 </div>
               </td>
             </tr>

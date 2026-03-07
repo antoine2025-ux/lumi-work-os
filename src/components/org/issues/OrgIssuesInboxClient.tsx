@@ -365,14 +365,14 @@ export function OrgIssuesInboxClient() {
 
       {/* Post-fix return helper - auto-dismisses */}
       {showReturnHelper && (
-        <div className="text-xs text-slate-500 mb-2">
+        <div className="text-xs text-muted-foreground mb-2">
           Issue list updated based on recent changes.
         </div>
       )}
 
       {/* Resolved recently counter - session only */}
       {resolvedThisSession > 0 && (
-        <div className="text-xs text-slate-500 mb-2">
+        <div className="text-xs text-muted-foreground mb-2">
           {resolvedThisSession} issue{resolvedThisSession !== 1 ? "s" : ""} resolved recently
         </div>
       )}
@@ -429,7 +429,7 @@ export function OrgIssuesInboxClient() {
         displayIssues.length === 0 ? "opacity-40" : "opacity-80"
       )}>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[160px] h-7 text-xs bg-slate-900/50 border-slate-700">
+          <SelectTrigger className="w-[160px] h-7 text-xs bg-card/50 border-border">
             <SelectValue placeholder="Issue type" />
           </SelectTrigger>
           <SelectContent>
@@ -443,7 +443,7 @@ export function OrgIssuesInboxClient() {
         </Select>
 
         <Select value={entityTypeFilter} onValueChange={setEntityTypeFilter}>
-          <SelectTrigger className="w-[130px] h-7 text-xs bg-slate-900/50 border-slate-700">
+          <SelectTrigger className="w-[130px] h-7 text-xs bg-card/50 border-border">
             <SelectValue placeholder="Entity" />
           </SelectTrigger>
           <SelectContent>
@@ -455,7 +455,7 @@ export function OrgIssuesInboxClient() {
         </Select>
 
         <Select value={severityFilter} onValueChange={setSeverityFilter}>
-          <SelectTrigger className="w-[110px] h-7 text-xs bg-slate-900/50 border-slate-700">
+          <SelectTrigger className="w-[110px] h-7 text-xs bg-card/50 border-border">
             <SelectValue placeholder="Severity" />
           </SelectTrigger>
           <SelectContent>
@@ -477,7 +477,7 @@ export function OrgIssuesInboxClient() {
         <div className="space-y-2">
           {/* Guidance text when few issues */}
           {displayIssues.length > 0 && displayIssues.length <= 3 && (
-            <div className="text-xs text-slate-400 mb-2 px-1">
+            <div className="text-xs text-muted-foreground mb-2 px-1">
               These are the issues that need attention in your organization structure. Keeping these clean improves reporting accuracy.
             </div>
           )}
@@ -486,7 +486,7 @@ export function OrgIssuesInboxClient() {
             <Card
               key={issue.issueKey}
               className={cn(
-                "border-slate-800 hover:border-slate-700 transition-colors cursor-pointer",
+                "border-border hover:border-border transition-colors cursor-pointer",
                 selectedIssueKey === issue.issueKey && "border-blue-500/50 bg-blue-950/10"
               )}
               onClick={() => handleIssueClick(issue)}
@@ -502,16 +502,16 @@ export function OrgIssuesInboxClient() {
                       ) : (
                         <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
                       )}
-                      <span className="font-medium text-slate-200 truncate">
+                      <span className="font-medium text-foreground truncate">
                         {issue.entityName}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5 ml-6">
-                      <span className="text-[10px] text-slate-500 uppercase">
+                      <span className="text-[10px] text-muted-foreground uppercase">
                         {issue.entityType.toLowerCase()}
                       </span>
-                      <span className="text-[10px] text-slate-500">·</span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-muted-foreground">·</span>
+                      <span className="text-[10px] text-muted-foreground">
                         {getIssueTypeLabel(issue.type)}
                       </span>
                     </div>
@@ -519,11 +519,11 @@ export function OrgIssuesInboxClient() {
                   
                   {/* Middle Zone: Explanation + outcome hint */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-slate-400">
+                    <div className="text-sm text-muted-foreground">
                       {issue.explanation}
                     </div>
                     {getIssueOutcomeHint(issue.type) && (
-                      <div className="text-xs text-slate-500 mt-0.5">
+                      <div className="text-xs text-muted-foreground mt-0.5">
                         {getIssueOutcomeHint(issue.type)}
                       </div>
                     )}

@@ -25,8 +25,8 @@ export function PeopleViewToggle({
       className={cn(
         "inline-flex items-center",
         "rounded-full",
-        "bg-slate-900/40",
-        "border border-slate-800/70",
+        "bg-card/40",
+        "border border-border/70",
         "p-1",
         "transition-colors duration-150",
         className
@@ -43,7 +43,7 @@ export function PeopleViewToggle({
           "transition-colors",
           viewMode === "cards"
             ? "bg-primary/20 text-primary border border-primary/30"
-            : "text-slate-400 hover:text-slate-200"
+            : "text-muted-foreground hover:text-foreground"
         )}
         aria-label="Cards view"
       >
@@ -61,7 +61,7 @@ export function PeopleViewToggle({
           "transition-colors",
           viewMode === "table"
             ? "bg-primary/20 text-primary border border-primary/30"
-            : "text-slate-400 hover:text-slate-200"
+            : "text-muted-foreground hover:text-foreground"
         )}
         aria-label="Table view"
       >

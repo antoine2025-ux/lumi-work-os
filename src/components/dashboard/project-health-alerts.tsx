@@ -112,37 +112,24 @@ export function ProjectHealthAlerts({ className }: ProjectHealthAlertsProps) {
   const displayed = alerts.slice(0, 5)
   const hasMore = alerts.length > 5
 
-  if (loading) {
-    return (
-      <div className={cn("space-y-2", className)}>
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="h-14 rounded-lg bg-muted/60 animate-pulse border-l-4 border-l-muted"
-          />
-        ))}
-      </div>
-    )
-  }
-
-  if (alerts.length === 0) {
-    return (
-      <div
-        className={cn(
-          "flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 dark:border-green-800 dark:bg-green-950/30",
-          className
-        )}
-      >
-        <CheckCircle className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
-        <span className="text-sm text-green-700 dark:text-green-300">
-          All projects are healthy
-        </span>
-      </div>
-    )
-  }
-
-  return (
-    <div className={cn("space-y-2", className)}>
+  const content = loading ? (
+    <div className="space-y-2">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="h-14 rounded-md bg-muted/60 animate-pulse border-l-4 border-l-muted"
+        />
+      ))}
+    </div>
+  ) : alerts.length === 0 ? (
+    <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-4 py-3 dark:border-green-800 dark:bg-green-950/30">
+      <CheckCircle className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+      <span className="text-sm text-green-700 dark:text-green-300">
+        All projects are healthy
+      </span>
+    </div>
+  ) : (
+    <div className="space-y-2">
       {displayed.map((alert) => {
         const cfg = getPriorityConfig(alert.priority)
         const Icon = cfg.icon
@@ -152,7 +139,7 @@ export function ProjectHealthAlerts({ className }: ProjectHealthAlertsProps) {
             key={alert.id}
             href={`/projects/${alert.projectId}`}
             className={cn(
-              "group flex items-start gap-3 rounded-lg border border-border/60 border-l-4 bg-card px-3 py-2.5 transition-colors hover:bg-muted/40",
+              "group flex items-start gap-3 rounded-md border border-border/60 border-l-4 bg-card px-3 py-2.5 transition-colors hover:bg-muted/40",
               cfg.border
             )}
           >
@@ -194,6 +181,12 @@ export function ProjectHealthAlerts({ className }: ProjectHealthAlertsProps) {
           &nbsp;&rarr;
         </Link>
       )}
+    </div>
+  )
+
+  return (
+    <div className={cn("bg-card rounded-md border border-border p-4", className)}>
+      {content}
     </div>
   )
 }

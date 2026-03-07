@@ -538,7 +538,7 @@ export function UserProfileForm({
                     </SelectContent>
                   </Select>
                   {departments.length === 0 && !loadingPositions && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       No departments found. Please create departments first.
                     </p>
                   )}
@@ -566,26 +566,26 @@ export function UserProfileForm({
                     </SelectContent>
                   </Select>
                   {loadingPositions && (
-                    <p className="text-xs text-gray-500">Loading positions...</p>
+                    <p className="text-xs text-muted-foreground">Loading positions...</p>
                   )}
                   {selectedDepartmentId && filteredPositions.length === 0 && !loadingPositions && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       No positions found in this department. Create positions first.
                     </p>
                   )}
                   {!selectedDepartmentId && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       Please select a department first to see available positions.
                     </p>
                   )}
                 </div>
 
                 {selectedPosition?.roleCard && (
-                  <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                  <div className="mt-3 p-3 bg-gray-50 dark:bg-muted rounded-lg border">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h4 className="text-sm font-medium mb-1">Role Card: {selectedPosition.roleCard.roleName}</h4>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                        <p className="text-xs text-gray-600 dark:text-muted-foreground line-clamp-2">
                           {selectedPosition.roleCard.roleDescription}
                         </p>
                       </div>
@@ -593,7 +593,7 @@ export function UserProfileForm({
                   </div>
                 )}
                 {formData.positionId && formData.positionId !== 'none' && !selectedPosition?.roleCard && (
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-muted-foreground mt-2">
                     This position doesn&apos;t have a role card yet. Create one to provide better context for LoopBrain.
                   </p>
                 )}

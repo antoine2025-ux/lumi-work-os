@@ -8,11 +8,11 @@ export function OrgInsightsSummaryCardsSkeleton() {
       {Array.from({ length: 4 }).map((_, i) => (
         <div
           key={i}
-          className="rounded-2xl border border-slate-800 bg-[#020617] px-4 py-4 shadow-sm animate-pulse"
+          className="rounded-2xl border border-border bg-background px-4 py-4 shadow-sm animate-pulse"
         >
-          <div className="h-3 w-16 bg-slate-800 rounded mb-2" />
-          <div className="h-8 w-12 bg-slate-800 rounded mb-2" />
-          <div className="h-3 w-32 bg-slate-800 rounded" />
+          <div className="h-3 w-16 bg-muted rounded mb-2" />
+          <div className="h-8 w-12 bg-muted rounded mb-2" />
+          <div className="h-3 w-32 bg-muted rounded" />
         </div>
       ))}
     </div>
@@ -25,11 +25,11 @@ export function OrgInsightsChartsSkeleton() {
       {Array.from({ length: 2 }).map((_, i) => (
         <div
           key={i}
-          className="h-72 rounded-2xl border border-slate-800 bg-[#020617] px-4 py-4 animate-pulse"
+          className="h-72 rounded-2xl border border-border bg-background px-4 py-4 animate-pulse"
         >
-          <div className="h-4 w-40 bg-slate-800 rounded mb-1" />
-          <div className="h-3 w-64 bg-slate-800 rounded mb-3" />
-          <div className="h-56 bg-slate-800/50 rounded" />
+          <div className="h-4 w-40 bg-muted rounded mb-1" />
+          <div className="h-3 w-64 bg-muted rounded mb-3" />
+          <div className="h-56 bg-muted/50 rounded" />
         </div>
       ))}
     </div>

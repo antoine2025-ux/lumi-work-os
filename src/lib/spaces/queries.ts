@@ -98,6 +98,86 @@ export async function getMyDueTasks(userId: string, workspaceId: string) {
   })
 }
 
+/** Get projects user is involved in, excluding personal space and owner-only spaces (team-only). */
+export async function getMyTeamProjects(userId: string, workspaceId: string) {
+  return prisma.project.findMany({
+    where: {
+      workspaceId,
+      space: {
+        isPersonal: false,
+        // Exclude owner-only spaces (user's "personal use" team spaces like "Wytze")
+        NOT: {
+          AND: [{ ownerId: userId }, { members: { none: {} } }],
+        },
+      },
+      OR: [
+        { ownerId: userId },
+        { members: { some: { userId } } },
+        { tasks: { some: { assigneeId: userId } } },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      updatedAt: true,
+      space: { select: { id: true, name: true } },
+      tasks: {
+        where: { assigneeId: userId },
+        select: { id: true },
+      },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: 6,
+  })
+}
+
+/** Get pages user created in team spaces only (recently updated). */
+export async function getMyTeamRecentPages(userId: string, workspaceId: string) {
+  return prisma.wikiPage.findMany({
+    where: {
+      workspaceId,
+      createdById: userId,
+      spaceId: { not: null },
+      space: { isPersonal: false },
+    },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      updatedAt: true,
+      space: { select: { id: true, name: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: 5,
+  })
+}
+
+/** Get project tasks due soon for user, excluding tasks in personal-space projects. */
+export async function getMyTeamDueTasks(userId: string, workspaceId: string) {
+  const nextWeek = new Date()
+  nextWeek.setDate(nextWeek.getDate() + 7)
+
+  return prisma.task.findMany({
+    where: {
+      workspaceId,
+      assigneeId: userId,
+      status: { not: 'DONE' },
+      dueDate: { lte: nextWeek },
+      project: { space: { isPersonal: false } },
+    },
+    select: {
+      id: true,
+      title: true,
+      priority: true,
+      dueDate: true,
+      project: { select: { id: true, name: true } },
+    },
+    orderBy: { dueDate: 'asc' },
+    take: 5,
+  })
+}
+
 /** Get projects owned by this space */
 export async function getTeamProjects(spaceId: string) {
   return prisma.project.findMany({

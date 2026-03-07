@@ -104,7 +104,7 @@ function splitCommas(s: string) {
 function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         {label}{required && <span className="ml-0.5 text-red-400">*</span>}
       </Label>
       {children}
@@ -112,8 +112,8 @@ function Field({ label, children, required }: { label: string; children: React.R
   )
 }
 
-const INPUT_CLS = 'bg-[#050816] border-[#1e293b] text-slate-100 placeholder:text-slate-600 focus:border-blue-700 h-8 text-sm'
-const TEXTAREA_CLS = 'bg-[#050816] border-[#1e293b] text-slate-100 placeholder:text-slate-600 focus:border-blue-700 text-sm resize-none'
+const INPUT_CLS = 'bg-[#050816] border-border text-foreground placeholder:text-slate-600 focus:border-blue-700 h-8 text-sm'
+const TEXTAREA_CLS = 'bg-[#050816] border-border text-foreground placeholder:text-slate-600 focus:border-blue-700 text-sm resize-none'
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -466,8 +466,8 @@ export function CreateEntityModal({
       <SelectTrigger className={INPUT_CLS + ' h-8'}>
         <SelectValue placeholder={loadingPeople ? 'Loading…' : placeholder} />
       </SelectTrigger>
-      <SelectContent className="bg-[#0B1220] border-[#1e293b] text-slate-200">
-        <SelectItem value="_none" className="text-slate-500 focus:bg-[#1e293b]">None</SelectItem>
+      <SelectContent className="bg-card border-border text-foreground">
+        <SelectItem value="_none" className="text-muted-foreground focus:bg-[#1e293b]">None</SelectItem>
         {people.map((p) => (
           <SelectItem key={p.id} value={p.id} className="focus:bg-[#1e293b]">
             {p.fullName}
@@ -505,8 +505,8 @@ export function CreateEntityModal({
           <SelectTrigger className={INPUT_CLS + ' h-8'}>
             <SelectValue placeholder="Select color…" />
           </SelectTrigger>
-          <SelectContent className="bg-[#0B1220] border-[#1e293b] text-slate-200">
-            <SelectItem value="_none" className="text-slate-500 focus:bg-[#1e293b]">None</SelectItem>
+          <SelectContent className="bg-card border-border text-foreground">
+            <SelectItem value="_none" className="text-muted-foreground focus:bg-[#1e293b]">None</SelectItem>
             {COLOR_PALETTE.map((c) => (
               <SelectItem key={c.value} value={c.value} className="focus:bg-[#1e293b]">
                 <span className="flex items-center gap-2">
@@ -540,8 +540,8 @@ export function CreateEntityModal({
           <SelectTrigger className={INPUT_CLS + ' h-8'}>
             <SelectValue placeholder="Select department…" />
           </SelectTrigger>
-          <SelectContent className="bg-[#0B1220] border-[#1e293b] text-slate-200">
-            <SelectItem value="_none" className="text-slate-500 focus:bg-[#1e293b]">No department</SelectItem>
+          <SelectContent className="bg-card border-border text-foreground">
+            <SelectItem value="_none" className="text-muted-foreground focus:bg-[#1e293b]">No department</SelectItem>
             {departments.map((d) => (
               <SelectItem key={d.id} value={d.id} className="focus:bg-[#1e293b]">{d.name}</SelectItem>
             ))}
@@ -580,8 +580,8 @@ export function CreateEntityModal({
             <SelectTrigger className={INPUT_CLS + ' h-8'}>
               <SelectValue placeholder="Select…" />
             </SelectTrigger>
-            <SelectContent className="bg-[#0B1220] border-[#1e293b] text-slate-200">
-              <SelectItem value="_none" className="text-slate-500 focus:bg-[#1e293b]">None</SelectItem>
+            <SelectContent className="bg-card border-border text-foreground">
+              <SelectItem value="_none" className="text-muted-foreground focus:bg-[#1e293b]">None</SelectItem>
               {LEVEL_OPTIONS.map((l) => (
                 <SelectItem key={l} value={l} className="focus:bg-[#1e293b]">{l}</SelectItem>
               ))}
@@ -632,7 +632,7 @@ export function CreateEntityModal({
         />
       </Field>
       {!isEdit && (
-        <div className="pt-2 border-t border-[#1e293b]">
+        <div className="pt-2 border-t border-border">
           <Field label="Assign to person (optional)">
             {peopleSelect(
               jdForm.assignToPositionId || '_none',
@@ -670,8 +670,8 @@ export function CreateEntityModal({
             <SelectTrigger className={INPUT_CLS + ' h-8'}>
               <SelectValue placeholder="Select…" />
             </SelectTrigger>
-            <SelectContent className="bg-[#0B1220] border-[#1e293b] text-slate-200">
-              <SelectItem value="_none" className="text-slate-500 focus:bg-[#1e293b]">None</SelectItem>
+            <SelectContent className="bg-card border-border text-foreground">
+              <SelectItem value="_none" className="text-muted-foreground focus:bg-[#1e293b]">None</SelectItem>
               {LEVEL_OPTIONS.map((l) => (
                 <SelectItem key={l} value={l} className="focus:bg-[#1e293b]">{l}</SelectItem>
               ))}
@@ -713,7 +713,7 @@ export function CreateEntityModal({
           rows={2}
         />
       </Field>
-      <div className="pt-2 border-t border-[#1e293b]">
+      <div className="pt-2 border-t border-border">
         <Field label="Assign to person">
           {peopleSelect(
             rcForm.assignToPositionId || '_none',
@@ -735,9 +735,9 @@ export function CreateEntityModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="max-w-lg max-h-[88vh] overflow-y-auto bg-[#0B1220] border-[#1e293b] text-slate-100">
+      <DialogContent className="max-w-lg max-h-[88vh] overflow-y-auto bg-card border-border text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-slate-50 text-base">
+          <DialogTitle className="text-foreground text-base">
             {isEdit ? `Edit ${typeLabelFull(activeType ?? '')}` : 'Create new'}
           </DialogTitle>
         </DialogHeader>
@@ -753,7 +753,7 @@ export function CreateEntityModal({
                 <SelectTrigger className={INPUT_CLS + ' h-9'}>
                   <SelectValue placeholder="Select type…" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#0B1220] border-[#1e293b] text-slate-200">
+                <SelectContent className="bg-card border-border text-foreground">
                   <SelectItem value="department" className="focus:bg-[#1e293b]">🏢 Department</SelectItem>
                   <SelectItem value="team" className="focus:bg-[#1e293b]">👥 Team</SelectItem>
                   <SelectItem value="job-description" className="focus:bg-[#1e293b]">📋 Job Description</SelectItem>
@@ -782,7 +782,7 @@ export function CreateEntityModal({
             variant="outline"
             onClick={onClose}
             disabled={saving}
-            className="border-[#1e293b] text-slate-300 hover:text-slate-100 hover:bg-[#1e293b]"
+            className="border-border text-muted-foreground hover:text-foreground hover:bg-[#1e293b]"
           >
             Cancel
           </Button>

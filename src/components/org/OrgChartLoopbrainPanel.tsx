@@ -39,7 +39,7 @@ export function OrgChartLoopbrainPanel({
   selectedDeptName,
 }: OrgChartLoopbrainPanelProps) {
   const { currentWorkspace, userRole } = useWorkspace()
-  const [isOpen, setIsOpen] = useState(true)
+  const [isOpen, setIsOpen] = useState(false)
 
   // Workspace-level insights (loaded once)
   const [insights, setInsights] = useState<ProactiveInsightV0[]>([])

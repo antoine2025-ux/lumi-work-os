@@ -13,7 +13,7 @@ type ExportsSectionProps = {
 export function ExportsSection({ orgId }: ExportsSectionProps) {
   if (!orgId) {
     return (
-      <section className="rounded-2xl border border-[#111827] bg-[#020617] p-4 text-xs text-slate-400">
+      <section className="rounded-2xl border border-border bg-background p-4 text-xs text-muted-foreground">
         No organization selected.
       </section>
     );
@@ -21,9 +21,9 @@ export function ExportsSection({ orgId }: ExportsSectionProps) {
 
   // OrgExportsScreen is a client component, so we can use it directly
   return (
-    <section className="space-y-3 rounded-2xl border border-[#111827] bg-[#020617] p-2 shadow-sm">
+    <section className="space-y-3 rounded-2xl border border-border bg-background p-2 shadow-sm">
       <OrgExportsScreen />
-      <p className="px-2 pb-1 text-[11px] text-slate-500">
+      <p className="px-2 pb-1 text-[11px] text-muted-foreground">
         When no exports have been requested yet, you&apos;ll see an empty list here until the first
         job is created.
       </p>

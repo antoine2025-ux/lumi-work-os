@@ -56,7 +56,7 @@ export function PeopleStateSummary({
 
   return (
     <div className="mt-4 mb-2">
-      <p className="text-[12px] text-slate-500">
+      <p className="text-[12px] text-muted-foreground">
         {parts.join(" · ")}
       </p>
     </div>

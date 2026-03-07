@@ -69,24 +69,24 @@ function PersonChip({ person, onClick }: PersonChipProps) {
         "flex items-center gap-2",
         "px-2.5 py-1.5",
         "rounded-lg",
-        "bg-slate-800/50",
-        "hover:bg-slate-800/70",
+        "bg-muted/50",
+        "hover:bg-muted/70",
         "transition-colors",
         "group",
         "w-full text-left"
       )}
     >
       <Avatar className="h-8 w-8 border border-white/10 shrink-0">
-        <AvatarFallback className="bg-slate-700 text-slate-200 text-xs">
+        <AvatarFallback className="bg-slate-700 text-foreground text-xs">
           {initials}
         </AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-slate-200 group-hover:text-slate-100 truncate">
+        <p className="text-sm text-foreground group-hover:text-foreground truncate">
           {person.name}
         </p>
         {person.role && (
-          <p className="text-xs text-slate-400 truncate">{person.role}</p>
+          <p className="text-xs text-muted-foreground truncate">{person.role}</p>
         )}
       </div>
     </button>
@@ -115,8 +115,8 @@ export function Connections({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-slate-500" />
-              <span className="text-sm font-medium text-slate-300">
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">
                 Direct Reports ({directReports.length})
               </span>
             </div>
@@ -124,7 +124,7 @@ export function Connections({
               <button
                 type="button"
                 onClick={() => onViewAll("reports")}
-                className="text-xs text-slate-400 hover:text-slate-200 underline"
+                className="text-xs text-muted-foreground hover:text-foreground underline"
               >
                 View all
               </button>
@@ -147,8 +147,8 @@ export function Connections({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-slate-500" />
-              <span className="text-sm font-medium text-slate-300">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">
                 Peers ({peers.length})
               </span>
             </div>
@@ -156,7 +156,7 @@ export function Connections({
               <button
                 type="button"
                 onClick={() => onViewAll("peers")}
-                className="text-xs text-slate-400 hover:text-slate-200 underline"
+                className="text-xs text-muted-foreground hover:text-foreground underline"
               >
                 View all
               </button>
@@ -179,8 +179,8 @@ export function Connections({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-slate-500" />
-              <span className="text-sm font-medium text-slate-300">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">
                 Team Members ({teammates.length})
               </span>
             </div>
@@ -188,7 +188,7 @@ export function Connections({
               <button
                 type="button"
                 onClick={() => onViewAll("teammates")}
-                className="text-xs text-slate-400 hover:text-slate-200 underline"
+                className="text-xs text-muted-foreground hover:text-foreground underline"
               >
                 View all
               </button>
@@ -207,7 +207,7 @@ export function Connections({
       )}
 
       {directReports.length === 0 && peers.length === 0 && teammates.length === 0 && (
-        <p className="text-sm text-slate-400 italic">
+        <p className="text-sm text-muted-foreground italic">
           Reporting relationships not set yet.
         </p>
       )}

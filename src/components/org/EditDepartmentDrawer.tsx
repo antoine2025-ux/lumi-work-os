@@ -95,7 +95,7 @@ export function EditDepartmentDrawer(props: {
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-background border-l border-border shadow-2xl flex flex-col">
         <div className="p-6 border-b border-border">
           <div className="text-sm text-muted-foreground">Department</div>
-          <div className="mt-1 text-xl font-semibold text-slate-100">Edit department</div>
+          <div className="mt-1 text-xl font-semibold text-foreground">Edit department</div>
           <div className="mt-2 text-sm text-muted-foreground">
             Keep changes minimal and deliberate — structure edits affect reporting and ownership.
           </div>
@@ -104,7 +104,7 @@ export function EditDepartmentDrawer(props: {
         <div className="flex-1 overflow-y-auto p-6">
           <Card className="p-4 space-y-4">
             <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-100">Name</div>
+              <div className="text-sm font-medium text-foreground">Name</div>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -114,7 +114,7 @@ export function EditDepartmentDrawer(props: {
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-100">Owner</div>
+              <div className="text-sm font-medium text-foreground">Owner</div>
               <Select value={ownerId || "none"} onValueChange={setOwnerId}>
                 <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Unassigned" />
@@ -140,13 +140,13 @@ export function EditDepartmentDrawer(props: {
 
           {/* --- Danger zone --- */}
           <div className="mt-8 border-t border-white/10 pt-6">
-            <div className="text-sm font-medium text-white">Danger zone</div>
-            <div className="mt-1 text-sm text-white/60">
+            <div className="text-sm font-medium text-foreground">Danger zone</div>
+            <div className="mt-1 text-sm text-foreground/60">
               Deleting a department is permanent. Teams must be moved or deleted first.
             </div>
 
             {teamCount > 0 ? (
-              <div className="mt-3 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/70">
+              <div className="mt-3 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-foreground/70">
                 This department has {teamCount} team{teamCount === 1 ? "" : "s"}. Move or delete teams first.
                 <div className="mt-3">
                   <Button

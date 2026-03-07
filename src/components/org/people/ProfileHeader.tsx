@@ -51,20 +51,20 @@ export function ProfileHeader({
       <div className="flex items-start gap-4">
         {/* Avatar */}
         <Avatar className="h-20 w-20 border border-white/10 shrink-0">
-          <AvatarFallback className="bg-slate-800 text-slate-200 text-xl font-medium">
+          <AvatarFallback className="bg-muted text-foreground text-xl font-medium">
             {initials}
           </AvatarFallback>
         </Avatar>
 
         {/* Name + Role */}
         <div className="flex-1 min-w-0">
-          <h2 className="text-2xl font-semibold text-slate-100 mb-1">
-            {person.name || <span className="text-slate-500 italic" title="Name hasn't been set yet.">Unknown</span>}
+          <h2 className="text-2xl font-semibold text-foreground mb-1">
+            {person.name || <span className="text-muted-foreground italic" title="Name hasn't been set yet.">Unknown</span>}
           </h2>
           {person.role ? (
-            <p className="text-sm text-slate-400 mb-3">{person.role}</p>
+            <p className="text-sm text-muted-foreground mb-3">{person.role}</p>
           ) : (
-            <p className="text-sm text-slate-500 italic mb-3" title="Role hasn't been set yet.">Not set</p>
+            <p className="text-sm text-muted-foreground italic mb-3" title="Role hasn't been set yet.">Not set</p>
           )}
 
           {/* Team + Department Pills */}
@@ -85,7 +85,7 @@ export function ProfileHeader({
               <span
                 className={cn(
                   chipInactiveClass,
-                  "text-slate-500 italic cursor-default"
+                  "text-muted-foreground italic cursor-default"
                 )}
                 title="Team hasn't been set yet."
               >
@@ -108,7 +108,7 @@ export function ProfileHeader({
               <span
                 className={cn(
                   chipInactiveClass,
-                  "text-slate-500 italic cursor-default"
+                  "text-muted-foreground italic cursor-default"
                 )}
                 title="Department hasn't been set yet."
               >
@@ -144,7 +144,7 @@ export function ProfileHeader({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Close"
           >
             <X className="h-5 w-5" />

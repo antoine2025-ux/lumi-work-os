@@ -58,11 +58,6 @@ const QuickActions = dynamic(() => import("@/components/dashboard/quick-actions"
   ssr: false
 })
 
-const ProjectHealthAlerts = dynamic(
-  () => import("@/components/dashboard/project-health-alerts").then(mod => ({ default: mod.ProjectHealthAlerts })),
-  { loading: () => <div className="h-10 bg-muted animate-pulse rounded-lg" />, ssr: false }
-)
-
 const MyTasksWidget = dynamic(() => import("@/components/dashboard/my-tasks-widget").then(mod => ({ default: mod.MyTasksWidget })), {
   loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" />,
   ssr: false
@@ -203,7 +198,7 @@ export default function DashboardClient({
     <ErrorBoundary>
       <div className="flex min-h-screen bg-background" data-testid="dashboard-container">
         <main className="flex-1">
-          <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="max-w-7xl mx-auto px-6 pt-10 pb-8">
         {/* Onboarding Banner */}
         <OrgSetupBanner workspaceSlug={workspaceSlug} />
 
@@ -227,37 +222,27 @@ export default function DashboardClient({
           className="mb-6"
         />
 
-        {/* Project Health Alerts — proactive risk surface */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Project Health
-            </h2>
-          </div>
-          <ProjectHealthAlerts />
-        </div>
-
         {/* Dashboard Grid - 3x3 Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 md:grid-rows-[minmax(360px,1fr)_minmax(360px,1fr)_auto]">
           {/* Row 1: Calendar - Email - Recent Activity */}
-          <div className="min-h-0 min-w-0">
+          <div className="min-h-[360px] min-w-0">
             <MeetingsCard />
           </div>
-          <div className="min-h-0 min-w-0">
+          <div className="min-h-[360px] min-w-0">
             <EmailWidget />
           </div>
-          <div className="min-h-0 min-w-0">
+          <div className="min-h-[360px] min-w-0">
             <NotificationsWidget />
           </div>
 
           {/* Row 2: My Tasks - To-do - Projects */}
-          <div className="min-h-0 min-w-0">
+          <div className="min-h-[360px] min-w-0">
             <MyTasksWidget />
           </div>
-          <div className="min-h-0 min-w-0">
+          <div className="min-h-[360px] min-w-0">
             <TodaysTodosCard />
           </div>
-          <div className="min-h-0 min-w-0">
+          <div className="min-h-[360px] min-w-0">
             <ProjectsCard projects={projects} workspaceSlug={workspaceSlug} />
           </div>
 
@@ -268,56 +253,6 @@ export default function DashboardClient({
         </div>
         </div>
       </main>
-
-      <style jsx global>{`
-        .widget-card {
-          border-radius: 0.5rem;
-          border: 1px solid hsl(var(--border));
-          background: hsl(var(--card));
-          height: 100%;
-          min-height: 0;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
-
-        .widget-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 0.5rem;
-          padding: 1rem 1rem 0.75rem 1rem;
-          border-bottom: 1px solid hsl(var(--border));
-          flex-shrink: 0;
-        }
-
-        .widget-header-start {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          min-width: 0;
-        }
-
-        .widget-title {
-          font-weight: 600;
-          font-size: 0.875rem;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .widget-content {
-          flex: 1;
-          min-height: 0;
-          padding: 1rem;
-          overflow-y: auto;
-        }
-
-        .widget-actions {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-      `}</style>
       </div>
     </ErrorBoundary>
   )

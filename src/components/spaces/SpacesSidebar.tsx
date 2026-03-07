@@ -120,7 +120,7 @@ export function SpacesSidebar({ currentSpaceId }: SpacesSidebarProps) {
                       className={cn(
                         "flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm text-left transition-colors",
                         isActive
-                          ? "bg-muted border-l-2 border-amber-500 font-medium -ml-0.5 pl-2.5"
+                          ? "bg-muted border-l-2 border-primary font-medium -ml-0.5 pl-2.5"
                           : "hover:bg-muted/50"
                       )}
                     >

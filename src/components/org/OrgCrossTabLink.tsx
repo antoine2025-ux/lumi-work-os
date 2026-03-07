@@ -31,7 +31,7 @@ export function OrgCrossTabLink({
     "transition-colors duration-150",
     variant === "default"
       ? "text-primary hover:text-primary/80"
-      : "text-slate-400 hover:text-slate-300",
+      : "text-muted-foreground hover:text-muted-foreground",
     className
   );
 

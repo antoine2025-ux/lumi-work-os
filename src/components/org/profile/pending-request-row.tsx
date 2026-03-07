@@ -60,12 +60,12 @@ export function PendingRequestRow({
   };
 
   return (
-    <div className="p-3 rounded-lg border border-[#1e293b] bg-[#020617] flex items-center justify-between gap-2">
+    <div className="p-3 rounded-lg border border-border bg-background flex items-center justify-between gap-2">
       <div className="flex-1">
-        <div className="font-medium text-sm text-slate-200 mb-1">
+        <div className="font-medium text-sm text-foreground mb-1">
           {REASON_LABELS[leaveType] ?? leaveType}
         </div>
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-muted-foreground">
           {format(new Date(startDate), "MMM d")} - {format(new Date(endDate), "MMM d, yyyy")}
           <span className="ml-2">
             ({daysCount} {daysCount === 1 ? "day" : "days"})
@@ -81,7 +81,7 @@ export function PendingRequestRow({
           variant="ghost"
           onClick={handleCancel}
           disabled={loading}
-          className="text-slate-400 hover:text-destructive hover:bg-destructive/10 h-8 px-2"
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2"
         >
           <X className="h-4 w-4 mr-1" />
           {loading ? "..." : "Cancel"}

@@ -185,7 +185,7 @@ export function PositionInviteDialog({
             <div className="space-y-2">
               <Label htmlFor="email">Email Address *</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
@@ -197,7 +197,7 @@ export function PositionInviteDialog({
                   className="pl-10"
                 />
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 They&apos;ll receive an email invitation to join this position
               </p>
             </div>
@@ -220,7 +220,7 @@ export function PositionInviteDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 {role === 'ADMIN' && 'Admins can manage workspace settings and invite others.'}
                 {role === 'MEMBER' && 'Members can view and edit content.'}
                 {role === 'VIEWER' && 'Viewers have read-only access.'}

@@ -40,20 +40,20 @@ export function OrgChartItem({
       onClick={handleTitleClick}
       title={tooltip}
       className={cn(
-        "inline-flex max-w-full items-center gap-1 truncate text-left text-[13px] font-medium text-slate-100",
-        "rounded-sm outline-none transition-colors duration-150 hover:text-slate-50",
+        "inline-flex max-w-full items-center gap-1 truncate text-left text-[13px] font-medium text-foreground",
+        "rounded-sm outline-none transition-colors duration-150 hover:text-foreground",
         "focus-visible:ring-2 focus-visible:ring-[#5CA9FF] focus-visible:ring-offset-0"
       )}
     >
       <span className="truncate">
         {node.name}
       </span>
-      <span className="text-[10px] font-normal text-slate-400">
+      <span className="text-[10px] font-normal text-muted-foreground">
         View
       </span>
     </button>
   ) : (
-    <span className="truncate text-[13px] font-medium text-slate-100">
+    <span className="truncate text-[13px] font-medium text-foreground">
       {node.name}
     </span>
   );
@@ -61,7 +61,7 @@ export function OrgChartItem({
   return (
     <div className="flex flex-col gap-2">
       {/* Node card */}
-      <div className="rounded-2xl border border-slate-800 bg-[#020617] px-3 py-2.5 text-sm text-slate-200 shadow-sm transition-colors duration-150 hover:border-slate-700">
+      <div className="rounded-2xl border border-border bg-background px-3 py-2.5 text-sm text-foreground shadow-sm transition-colors duration-150 hover:border-border">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col">
             <OrgChartTooltip node={node}>
@@ -69,7 +69,7 @@ export function OrgChartItem({
             </OrgChartTooltip>
 
             {node.memberCount !== undefined && (
-              <span className="mt-0.5 text-[11px] text-slate-500">
+              <span className="mt-0.5 text-[11px] text-muted-foreground">
                 {node.memberCount}{" "}
                 {node.memberCount === 1 ? "person" : "people"}
               </span>
@@ -81,8 +81,8 @@ export function OrgChartItem({
               type="button"
               onClick={() => onToggle(node.id)}
               className={cn(
-                "inline-flex h-7 items-center gap-1 rounded-full border border-slate-700/70 px-2 text-[11px] font-medium text-slate-300 outline-none transition-colors transition-transform duration-150",
-                "hover:border-slate-500 hover:text-slate-50 active:scale-[0.97]",
+                "inline-flex h-7 items-center gap-1 rounded-full border border-border/70 px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors transition-transform duration-150",
+                "hover:border-slate-500 hover:text-foreground active:scale-[0.97]",
                 "focus-visible:ring-2 focus-visible:ring-[#5CA9FF] focus-visible:ring-offset-0"
               )}
             >
@@ -112,7 +112,7 @@ export function OrgChartItem({
           )}
         >
           {/* Vertical connector line */}
-          <div className="absolute left-1 top-0 h-full border-l border-slate-700/70" />
+          <div className="absolute left-1 top-0 h-full border-l border-border/70" />
 
           <div className="space-y-2 pl-3">
             {children}

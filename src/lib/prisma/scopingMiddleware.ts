@@ -97,6 +97,7 @@ export const WORKSPACE_SCOPED_MODELS = [
   'PersonAvailability',
   'PersonManagerLink',
   'Todo',
+  'PersonalNote',
   'Notification',
   'NotificationPreference',
   // Decision domain children

@@ -17,21 +17,21 @@ export function OrgPermissionsMatrix({ matrix }: Props) {
   const capabilities = Object.keys(ORG_CAPABILITY_DESCRIPTIONS) as OrgCapability[];
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-[#020617] p-6 text-[13px]">
+    <div className="rounded-2xl border border-border bg-background p-6 text-[13px]">
       <div className="mb-4">
-        <h2 className="text-[14px] font-semibold text-slate-100">
+        <h2 className="text-[14px] font-semibold text-foreground">
           Role permissions
         </h2>
-        <p className="mt-1 text-[11px] text-slate-500">
+        <p className="mt-1 text-[11px] text-muted-foreground">
           See what each role can do across the organization.
         </p>
       </div>
 
       <div className="overflow-x-auto">
         <div className="grid grid-cols-[200px_repeat(3,1fr)] gap-y-2 text-[12px] min-w-[600px]">
-          <div className="font-medium text-slate-400 py-2">Capability</div>
+          <div className="font-medium text-muted-foreground py-2">Capability</div>
           {roles.map((r) => (
-            <div key={r} className="text-center font-medium text-slate-400 capitalize py-2">
+            <div key={r} className="text-center font-medium text-muted-foreground capitalize py-2">
               {r === "OWNER" ? "Owner" : r === "ADMIN" ? "Admin" : "Member"}
             </div>
           ))}
@@ -39,8 +39,8 @@ export function OrgPermissionsMatrix({ matrix }: Props) {
           {capabilities.map((cap) => (
             <React.Fragment key={cap}>
               <div className="py-2 pr-4">
-                <div className="font-medium text-slate-200">{cap}</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
+                <div className="font-medium text-foreground">{cap}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
                   {ORG_CAPABILITY_DESCRIPTIONS[cap]}
                 </div>
               </div>

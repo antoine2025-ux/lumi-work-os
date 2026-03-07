@@ -69,14 +69,14 @@ export function TeamsDragList({ departmentId, teams, onReorder }: TeamsDragListP
           onDragStart={() => handleDragStart(i)}
           onDragOver={(e) => handleDragOver(e, i)}
           onDragEnd={handleDragEnd}
-          className={`cursor-move rounded-lg border border-slate-800 bg-slate-900/40 p-3 text-[12px] text-slate-200 transition-all duration-150 hover:border-slate-700 hover:bg-slate-900/60 ${
+          className={`cursor-move rounded-lg border border-border bg-card/40 p-3 text-[12px] text-foreground transition-all duration-150 hover:border-border hover:bg-card/60 ${
             draggedIndex === i ? "opacity-50" : ""
           }`}
         >
           <div className="flex items-center justify-between">
             <span>{team.name}</span>
             {team.memberCount !== undefined && (
-              <span className="text-[11px] text-slate-500">
+              <span className="text-[11px] text-muted-foreground">
                 {team.memberCount} {team.memberCount === 1 ? "member" : "members"}
               </span>
             )}

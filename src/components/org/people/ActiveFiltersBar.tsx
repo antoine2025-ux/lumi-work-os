@@ -74,7 +74,7 @@ export function ActiveFiltersBar({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-800/50 bg-slate-900/40 px-4 py-2.5">
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-card/40 px-4 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
         {chips.map((chip) => (
           <button
@@ -82,15 +82,15 @@ export function ActiveFiltersBar({
             type="button"
             onClick={chip.onRemove}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border border-slate-700/60 bg-slate-800/60",
-              "px-3 py-1 text-xs text-white/80",
-              "hover:border-slate-600/60 hover:bg-slate-800/80",
+              "inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/60",
+              "px-3 py-1 text-xs text-foreground/80",
+              "hover:border-slate-600/60 hover:bg-muted/80",
               "transition-colors"
             )}
           >
             <span className="font-medium">{chip.label}:</span>
             <span className="max-w-[12rem] truncate">{chip.value}</span>
-            <X className="h-3 w-3 text-white/50" />
+            <X className="h-3 w-3 text-foreground/50" />
           </button>
         ))}
       </div>
@@ -101,7 +101,7 @@ export function ActiveFiltersBar({
           <button
             type="button"
             onClick={onClearAll}
-            className="text-xs text-white/60 hover:text-white/80 transition-colors"
+            className="text-xs text-foreground/60 hover:text-foreground/80 transition-colors"
           >
             Clear all
           </button>

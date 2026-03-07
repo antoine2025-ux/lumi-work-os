@@ -102,22 +102,22 @@ export function AssignEntityDialog({ open, onClose, onAssigned, item }: AssignEn
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="max-w-sm bg-[#0B1220] border-[#1e293b] text-slate-100">
+      <DialogContent className="max-w-sm bg-card border-border text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-slate-50 text-base flex items-center gap-2">
+          <DialogTitle className="text-foreground text-base flex items-center gap-2">
             <UserPlus className="h-4 w-4" />
             Assign {typeLabel}
           </DialogTitle>
         </DialogHeader>
 
         {item && (
-          <p className="text-sm text-slate-400 -mt-1">
-            Assigning <span className="font-medium text-slate-200">{item.name}</span> to a person
+          <p className="text-sm text-muted-foreground -mt-1">
+            Assigning <span className="font-medium text-foreground">{item.name}</span> to a person
           </p>
         )}
 
         <div className="mt-2 space-y-1.5">
-          <Label className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Person
           </Label>
           <Select
@@ -125,11 +125,11 @@ export function AssignEntityDialog({ open, onClose, onAssigned, item }: AssignEn
             onValueChange={(v) => setSelectedId(v === '_none' ? '' : v)}
             disabled={loadingPeople}
           >
-            <SelectTrigger className="bg-[#050816] border-[#1e293b] text-slate-100 focus:border-blue-700 h-9 text-sm">
+            <SelectTrigger className="bg-[#050816] border-border text-foreground focus:border-blue-700 h-9 text-sm">
               <SelectValue placeholder={loadingPeople ? 'Loading…' : 'Select person…'} />
             </SelectTrigger>
-            <SelectContent className="bg-[#0B1220] border-[#1e293b] text-slate-200 max-h-60">
-              <SelectItem value="_none" className="text-slate-500 focus:bg-[#1e293b]">
+            <SelectContent className="bg-card border-border text-foreground max-h-60">
+              <SelectItem value="_none" className="text-muted-foreground focus:bg-[#1e293b]">
                 — Select person —
               </SelectItem>
               {people.map((p) => (
@@ -152,7 +152,7 @@ export function AssignEntityDialog({ open, onClose, onAssigned, item }: AssignEn
             variant="outline"
             onClick={onClose}
             disabled={saving}
-            className="border-[#1e293b] text-slate-300 hover:text-slate-100 hover:bg-[#1e293b]"
+            className="border-border text-muted-foreground hover:text-foreground hover:bg-[#1e293b]"
           >
             Cancel
           </Button>

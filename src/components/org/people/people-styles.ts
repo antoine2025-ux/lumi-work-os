@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 // Surface card styling (matches Org Chart tiles)
 export const surfaceCardClass = cn(
   "rounded-3xl",
-  "bg-slate-900/80",
+  "bg-card/80",
   "border border-white/5",
   "shadow-[0_24px_80px_rgba(0,0,0,0.25)]",
   "transition-all duration-200"
@@ -34,10 +34,10 @@ export const chipBaseClass = cn(
 // Chip inactive state
 export const chipInactiveClass = cn(
   chipBaseClass,
-  "bg-slate-800/50",
-  "text-slate-300",
-  "border-slate-700/50",
-  "hover:bg-slate-800/70",
+  "bg-muted/50",
+  "text-muted-foreground",
+  "border-border/50",
+  "hover:bg-muted/70",
   "hover:border-slate-600/50"
 );
 
@@ -52,22 +52,22 @@ export const chipActiveClass = cn(
 
 // Muted label styling (for section headers, meta text)
 export const mutedLabelClass = cn(
-  "text-[11px] font-semibold uppercase tracking-wider text-slate-500"
+  "text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
 );
 
 // Body text styling
 export const bodyTextClass = cn(
-  "text-[13px] text-slate-200"
+  "text-[13px] text-foreground"
 );
 
 // Muted body text
 export const mutedBodyTextClass = cn(
-  "text-[13px] text-slate-400"
+  "text-[13px] text-muted-foreground"
 );
 
 // Table header styling
 export const tableHeaderClass = cn(
-  "text-[11px] font-medium uppercase tracking-wider text-slate-500"
+  "text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
 );
 
 // Focus ring (consistent across all interactive elements)

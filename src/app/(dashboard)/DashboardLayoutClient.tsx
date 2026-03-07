@@ -90,7 +90,7 @@ export function DashboardLayoutClient({
   // Render header and skeleton immediately for better perceived performance
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen flex-col bg-[#020617]">
+      <div className="flex min-h-screen flex-col bg-background">
         <Header />
         <main className="flex-1 min-h-screen p-8">
           <div className="max-w-7xl mx-auto space-y-4">
@@ -109,7 +109,7 @@ export function DashboardLayoutClient({
   // Still loading workspace status -- show skeleton while we wait.
   if (isLoadingWorkspace) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#020617]">
+      <div className="flex min-h-screen flex-col bg-background">
         <Header />
         <main className="flex-1 min-h-screen">
           <div className="p-8">
@@ -146,9 +146,9 @@ export function DashboardLayoutClient({
 
   return (
     <LoopbrainAssistantProvider>
-      <div className="flex h-screen flex-col bg-[#020617]">
+      <div className="flex h-screen flex-col bg-background">
         <Header onMenuToggle={() => setMobileMenuOpen(true)} />
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex flex-1 min-h-0 overflow-hidden pt-12">
           {showSpacesSidebar && (
             <aside className="hidden lg:flex">
               <GlobalSidebar />

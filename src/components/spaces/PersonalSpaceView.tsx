@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CreatePageDialog } from "./create-page-dialog"
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog"
+import { QuickNoteModal } from "./QuickNoteModal"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/workspace-context"
 
@@ -54,6 +55,8 @@ export function PersonalSpaceView() {
   const [isCreatePageOpen, setIsCreatePageOpen] = useState(false)
   const [isCreatingPage, setIsCreatingPage] = useState(false)
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false)
+  const [editingNote, setEditingNote] = useState<{ id: string; title: string; content: string } | null>(null)
 
   const baseHref = workspaceSlug ? `/w/${workspaceSlug}` : ""
 
@@ -80,9 +83,9 @@ export function PersonalSpaceView() {
   })
 
   const { data: personalNotes, isLoading: notesLoading } = useQuery({
-    queryKey: ["spaces", "personal", "notes"],
+    queryKey: ["personal-notes"],
     queryFn: () =>
-      fetch("/api/spaces/personal/notes").then((r) => {
+      fetch("/api/personal-notes").then((r) => {
         if (!r.ok) throw new Error("Failed to load notes")
         return r.json()
       }),
@@ -151,32 +154,31 @@ export function PersonalSpaceView() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <User className="w-5 h-5" />
-            <h1 className="text-2xl font-semibold">My Work</h1>
-          </div>
-          <p className="text-sm text-muted-foreground">Spaces / Personal</p>
+          <h1 className="text-lg font-semibold text-foreground tracking-tight">My Work</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Spaces / Personal</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
+            className="h-8 gap-1.5 text-sm"
             onClick={() => (personalSpace ? createPageDirectly() : setIsCreatePageOpen(true))}
             disabled={personalSpace ? isCreatingPage : false}
           >
             {personalSpace && isCreatingPage ? (
-              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <FileText className="w-4 h-4 mr-1.5" />
+              <FileText className="w-4 h-4" />
             )}
             New Page
           </Button>
           <Button
             variant="outline"
             size="sm"
+            className="h-8 gap-1.5 text-sm"
             onClick={() => setIsCreateProjectOpen(true)}
           >
-            <Target className="w-4 h-4 mr-1.5" />
+            <Target className="w-4 h-4" />
             New Project
           </Button>
         </div>
@@ -200,11 +202,18 @@ export function PersonalSpaceView() {
 
       {/* WORKING ON - Projects from any team */}
       <section className="mb-8">
-        <h2 className="text-xs font-medium text-muted-foreground mb-4 flex items-center gap-2 uppercase tracking-wider">
-          <Calendar className="w-4 h-4" />
-          Working On
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Working On
+          </h2>
+          <Link
+            href={`${baseHref}/projects`}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            View all →
+          </Link>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
           {projectsLoading ? (
             <>
               {[...Array(6)].map((_, i) => (
@@ -218,13 +227,13 @@ export function PersonalSpaceView() {
               <Link
                 key={project.id}
                 href={`${baseHref}/projects/${project.id}`}
-                className="block p-4 bg-card rounded-lg border hover:border-amber-500/50 transition-colors"
+                className="block p-4 bg-card rounded-md border border-border hover:border-primary/50 transition-colors"
               >
-                <h3 className="font-medium mb-1">{project.name}</h3>
-                <p className="text-sm text-amber-500 mb-2">
+                <h3 className="text-sm font-medium text-foreground mb-1">{project.name}</h3>
+                <p className="text-xs text-muted-foreground mb-2">
                   {project.space?.name ?? "Unassigned"}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {Array.isArray(project.tasks) ? project.tasks.length : 0} tasks
                   assigned
                 </p>
@@ -237,13 +246,14 @@ export function PersonalSpaceView() {
         </div>
       </section>
 
-      {/* RECENT ACTIVITY - Pages touched across workspace */}
-      <section className="mb-8">
-        <h2 className="text-xs font-medium text-muted-foreground mb-4 flex items-center gap-2 uppercase tracking-wider">
-          <FileText className="w-4 h-4" />
-          Recent Activity
-        </h2>
-        <div className="space-y-1">
+      {/* RECENT ACTIVITY, PERSONAL NOTES, DUE SOON - 3-column grid */}
+      <div className="grid grid-cols-3 gap-6 mt-6">
+        {/* RECENT ACTIVITY - Pages touched across workspace */}
+        <section>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+            Recent Activity
+          </h2>
+          <div className="space-y-1">
           {pagesLoading ? (
             <>
               {[...Array(5)].map((_, i) => (
@@ -268,14 +278,14 @@ export function PersonalSpaceView() {
                 <Link
                   key={page.id}
                   href={`/wiki/${page.slug}`}
-                  className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted transition-colors"
+                  className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted transition-colors text-sm text-primary hover:underline"
                 >
                   <div className="flex items-center gap-3">
                     <FileText className="w-4 h-4 text-muted-foreground" />
-                    <span>{page.title}</span>
+                    <span className="truncate">{page.title}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="text-amber-500">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0">
+                    <span className="text-muted-foreground">
                       {page.space?.name ?? "Personal"}
                     </span>
                     <span>·</span>
@@ -290,8 +300,7 @@ export function PersonalSpaceView() {
 
       {/* PERSONAL NOTES - Private */}
       <section className="mb-8">
-        <h2 className="text-xs font-medium text-muted-foreground mb-4 flex items-center gap-2 uppercase tracking-wider">
-          <StickyNote className="w-4 h-4" />
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
           Personal Notes
         </h2>
         <div className="space-y-1">
@@ -307,20 +316,23 @@ export function PersonalSpaceView() {
             </>
           ) : (
             (personalNotes ?? []).map(
-              (note: { id: string; title: string; slug: string; updatedAt: string }) => (
-                <Link
+              (note: { id: string; title: string; content: string; updatedAt: string }) => (
+                <button
                   key={note.id}
-                  href={`/wiki/${note.slug}`}
-                  className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted transition-colors"
+                  onClick={() => {
+                    setEditingNote(note)
+                    setIsNoteModalOpen(true)
+                  }}
+                  className="flex items-center justify-between py-2 px-3 rounded hover:bg-muted transition-colors text-sm text-primary hover:underline w-full text-left"
                 >
                   <div className="flex items-center gap-3">
                     <StickyNote className="w-4 h-4 text-muted-foreground" />
-                    <span>{note.title}</span>
+                    <span className="truncate">{note.title}</span>
                   </div>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">
                     {safeFormatDistance(note.updatedAt)}
                   </span>
-                </Link>
+                </button>
               )
             )
           )}
@@ -328,14 +340,12 @@ export function PersonalSpaceView() {
             variant="ghost"
             size="sm"
             className="flex items-center gap-3 py-2 px-3 text-muted-foreground hover:text-foreground w-full justify-start"
-            onClick={() => (personalSpace ? createPageDirectly() : setIsCreatePageOpen(true))}
-            disabled={personalSpace ? isCreatingPage : false}
+            onClick={() => {
+              setEditingNote(null)
+              setIsNoteModalOpen(true)
+            }}
           >
-            {personalSpace && isCreatingPage ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Plus className="w-4 h-4" />
-            )}
+            <Plus className="w-4 h-4" />
             Add note
           </Button>
         </div>
@@ -343,8 +353,7 @@ export function PersonalSpaceView() {
 
       {/* DUE SOON - Tasks from any project */}
       <section>
-        <h2 className="text-xs font-medium text-muted-foreground mb-4 flex items-center gap-2 uppercase tracking-wider">
-          <CheckSquare className="w-4 h-4" />
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
           Due Soon
         </h2>
         <div className="space-y-2">
@@ -372,7 +381,7 @@ export function PersonalSpaceView() {
                 <Link
                   key={task.id}
                   href={`${baseHref}/projects/${task.project?.id ?? "#"}`}
-                  className="flex items-center gap-3 py-2 px-3 rounded hover:bg-muted transition-colors"
+                  className="flex items-center gap-3 py-2 px-3 rounded hover:bg-muted transition-colors text-sm text-primary hover:underline"
                 >
                   <span
                     className={cn(
@@ -392,6 +401,13 @@ export function PersonalSpaceView() {
           )}
         </div>
       </section>
+      </div>
+
+      <QuickNoteModal
+        open={isNoteModalOpen}
+        onOpenChange={setIsNoteModalOpen}
+        note={editingNote}
+      />
     </div>
   )
 }

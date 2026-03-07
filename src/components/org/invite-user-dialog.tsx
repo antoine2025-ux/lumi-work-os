@@ -110,7 +110,7 @@ export function InviteUserDialog({
             <div className="space-y-2">
               <Label htmlFor="email">Email Address *</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
@@ -122,7 +122,7 @@ export function InviteUserDialog({
                   className="pl-10"
                 />
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 They&apos;ll receive an email invitation to join your workspace
               </p>
             </div>
@@ -142,7 +142,7 @@ export function InviteUserDialog({
                   <SelectItem value="ADMIN">Admin</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Members can view and edit content. Admins can manage workspace settings and invite others.
               </p>
             </div>

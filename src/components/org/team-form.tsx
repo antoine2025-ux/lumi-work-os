@@ -119,7 +119,7 @@ export function TeamForm({
               </SelectContent>
             </Select>
             {departments.length === 0 && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Please create a department first
               </p>
             )}

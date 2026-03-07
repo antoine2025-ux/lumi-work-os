@@ -50,36 +50,36 @@ export function MemberPermissionsInspector({
       aria-label="Member permissions inspector"
     >
       <div
-        className={`flex h-full w-full max-w-md flex-col border-l border-slate-800 bg-[#020617] px-5 py-5 text-[13px] text-slate-200 shadow-xl transition-all duration-150 ${
+        className={`flex h-full w-full max-w-md flex-col border-l border-border bg-background px-5 py-5 text-[13px] text-foreground shadow-xl transition-all duration-150 ${
           open ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <div className="text-[14px] font-semibold text-slate-100">
+            <div className="text-[14px] font-semibold text-foreground">
               What can this person do?
             </div>
-            <p className="mt-1 text-[11px] text-slate-500">
+            <p className="mt-1 text-[11px] text-muted-foreground">
               See which actions this member can perform in the organization, based on their base role and any custom role.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="focus-ring rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition-colors hover:bg-slate-800"
+            className="focus-ring rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted"
             aria-label="Close permissions inspector"
           >
             Close
           </button>
         </div>
 
-        <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
-          <div className="mb-1 text-[13px] font-medium text-slate-100">
+        <div className="mb-4 rounded-2xl border border-border bg-background/60 px-4 py-3">
+          <div className="mb-1 text-[13px] font-medium text-foreground">
             {member.name || member.email || "Unknown member"}
           </div>
           {member.email && member.name && (
-            <div className="text-[11px] text-slate-500">{member.email}</div>
+            <div className="text-[11px] text-muted-foreground">{member.email}</div>
           )}
           <div className="mt-2">
             <RolePillGroup
@@ -99,9 +99,9 @@ export function MemberPermissionsInspector({
               return (
                 <div
                   key={group.id}
-                  className="rounded-xl border border-slate-900 bg-slate-950/40 px-4 py-3"
+                  className="rounded-xl border border-slate-900 bg-background/40 px-4 py-3"
                 >
-                  <div className="text-[12px] font-medium text-slate-400">
+                  <div className="text-[12px] font-medium text-muted-foreground">
                     {group.label}
                   </div>
                   <p className="mt-1 text-[11px] text-slate-600">
@@ -114,16 +114,16 @@ export function MemberPermissionsInspector({
             return (
               <div
                 key={group.id}
-                className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+                className="rounded-xl border border-border bg-background/60 px-4 py-3"
               >
-                <div className="mb-2 text-[12px] font-medium text-slate-100">
+                <div className="mb-2 text-[12px] font-medium text-foreground">
                   {group.label}
                 </div>
                 <ul className="space-y-1.5">
                   {presentCaps.map((cap) => (
-                    <li key={cap} className="text-[11px] text-slate-300">
-                      <span className="font-medium text-slate-100">{cap}</span>
-                      <span className="text-slate-500">
+                    <li key={cap} className="text-[11px] text-muted-foreground">
+                      <span className="font-medium text-foreground">{cap}</span>
+                      <span className="text-muted-foreground">
                         {" — "}
                         {ORG_CAPABILITY_DESCRIPTIONS[cap] ??
                           "No description available yet."}

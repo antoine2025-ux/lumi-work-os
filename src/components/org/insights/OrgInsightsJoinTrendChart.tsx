@@ -47,11 +47,11 @@ function OrgInsightsJoinTrendChartComponent({ snapshot, selectedDepartmentId }: 
   }, [snapshot.joinTrend, selectedDepartmentId]);
 
   return (
-    <div className="h-72 rounded-2xl border border-slate-800 bg-[#020617] px-4 py-4">
-      <div className="mb-1 text-[12px] font-semibold text-slate-100">
+    <div className="h-72 rounded-2xl border border-border bg-background px-4 py-4">
+      <div className="mb-1 text-[12px] font-semibold text-foreground">
         New members over time
       </div>
-      <p className="mb-3 text-[11px] text-slate-500">
+      <p className="mb-3 text-[11px] text-muted-foreground">
         Shows how many people joined {scopeLabel} in recent months.
       </p>
       <div className="h-56">
@@ -88,7 +88,7 @@ function OrgInsightsJoinTrendChartComponent({ snapshot, selectedDepartmentId }: 
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex h-full items-center justify-center text-[11px] text-slate-500">
+          <div className="flex h-full items-center justify-center text-[11px] text-muted-foreground">
             No recent join activity yet. As people join this org, you&apos;ll see the trend here.
           </div>
         )}

@@ -236,12 +236,12 @@ export function PeopleListClient({
 
   // Pending invitations tab content (placeholder rows)
   const pendingTabContent = (
-    <Card className="border-white/5 bg-slate-900/40 overflow-hidden">
+    <Card className="border-white/5 bg-card/40 overflow-hidden">
       {pendingCount === 0 ? (
         <div className="p-8 text-center">
           <Mail className="h-8 w-8 mx-auto text-slate-600 mb-3" />
-          <p className="text-sm font-medium text-slate-400">No pending invitations</p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-sm font-medium text-muted-foreground">No pending invitations</p>
+          <p className="text-xs text-muted-foreground mt-1">
             Invited members will appear here until they accept.
           </p>
           {canAdd && (
@@ -257,7 +257,7 @@ export function PeopleListClient({
             return (
             <div
               key={invitation.id}
-              className="flex items-center justify-between py-4 px-6 hover:bg-slate-800/30"
+              className="flex items-center justify-between py-4 px-6 hover:bg-muted/30"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10 border border-amber-500/20">
@@ -271,14 +271,14 @@ export function PeopleListClient({
                       setIsProfileModalOpen(true);
                     }}
                     className={cn(
-                      "text-sm font-medium text-slate-200 truncate block text-left w-full",
+                      "text-sm font-medium text-foreground truncate block text-left w-full",
                       "hover:text-primary transition-colors",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                     )}
                   >
                     {displayName}
                   </button>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     Invited by{" "}
                     {invitation.invitedBy?.name ??
                       invitation.invitedBy?.email ??
@@ -418,7 +418,7 @@ export function PeopleListClient({
             </div>
           </div>
         )}
-        <Card className="border-white/5 bg-slate-900/40">
+        <Card className="border-white/5 bg-card/40">
           <PeopleListSkeleton />
         </Card>
       </>
@@ -427,7 +427,7 @@ export function PeopleListClient({
       return (
         <div className="space-y-4">
           <Tabs defaultValue="people" className="w-full">
-            <TabsList className="mb-4 bg-slate-900/50">
+            <TabsList className="mb-4 bg-card/50">
               <TabsTrigger value="people">People</TabsTrigger>
               <TabsTrigger value="pending">
                 Pending {pendingCount > 0 && `(${pendingCount})`}
@@ -485,7 +485,7 @@ export function PeopleListClient({
             </div>
           </div>
         )}
-        <Card className="border-white/5 bg-slate-900/40 p-6">
+        <Card className="border-white/5 bg-card/40 p-6">
           <div className="text-sm text-destructive">Failed to load people: {String(error)}</div>
         </Card>
       </>
@@ -494,7 +494,7 @@ export function PeopleListClient({
       return (
         <div className="space-y-4">
           <Tabs defaultValue="people" className="w-full">
-            <TabsList className="mb-4 bg-slate-900/50">
+            <TabsList className="mb-4 bg-card/50">
               <TabsTrigger value="people">People</TabsTrigger>
               <TabsTrigger value="pending">
                 Pending {pendingCount > 0 && `(${pendingCount})`}
@@ -553,8 +553,8 @@ export function PeopleListClient({
             </div>
           </div>
         )}
-        <Card className="border-white/5 bg-slate-900/40 p-6">
-          <div className="text-sm text-slate-400">Loading people…</div>
+        <Card className="border-white/5 bg-card/40 p-6">
+          <div className="text-sm text-muted-foreground">Loading people…</div>
         </Card>
       </>
     );
@@ -562,7 +562,7 @@ export function PeopleListClient({
       return (
         <div className="space-y-4">
           <Tabs defaultValue="people" className="w-full">
-            <TabsList className="mb-4 bg-slate-900/50">
+            <TabsList className="mb-4 bg-card/50">
               <TabsTrigger value="people">People</TabsTrigger>
               <TabsTrigger value="pending">
                 Pending {pendingCount > 0 && `(${pendingCount})`}
@@ -635,7 +635,7 @@ export function PeopleListClient({
       return (
         <div className="space-y-4">
           <Tabs defaultValue="people" className="w-full">
-            <TabsList className="mb-4 bg-slate-900/50">
+            <TabsList className="mb-4 bg-card/50">
               <TabsTrigger value="people">People</TabsTrigger>
               <TabsTrigger value="pending">
                 Pending {pendingCount > 0 && `(${pendingCount})`}
@@ -693,7 +693,7 @@ export function PeopleListClient({
         </div>
       )}
 
-      <Card className="border-white/5 bg-slate-900/40 overflow-hidden">
+      <Card className="border-white/5 bg-card/40 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="p-8">
             <PeopleEmptyState
@@ -724,7 +724,7 @@ export function PeopleListClient({
                   className={cn(
                     "flex items-center justify-between",
                     "py-4 px-6",
-                    "hover:bg-slate-800/50",
+                    "hover:bg-muted/50",
                     "group transition-all duration-150",
                     "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                   )}
@@ -738,7 +738,7 @@ export function PeopleListClient({
                   <div className="hidden md:flex items-center gap-2 mx-4 flex-shrink-0">
                     {/* Team label */}
                     {badges.teamLabel && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-800/50 text-slate-400 border border-white/5">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted/50 text-muted-foreground border border-white/5">
                         {badges.teamLabel}
                       </span>
                     )}
@@ -792,13 +792,13 @@ export function PeopleListClient({
                               e.stopPropagation();
                               router.push(`${orgUrl.person(person.id)}?focus=manager`);
                             }}
-                            className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-slate-800/35 text-slate-500 border border-white/5 hover:bg-slate-800/50 hover:text-slate-400 transition-colors cursor-pointer"
+                            className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-muted/35 text-muted-foreground border border-white/5 hover:bg-muted/50 hover:text-muted-foreground transition-colors cursor-pointer"
                             title="Click to assign a manager"
                           >
                             {badges.issueLabel}
                           </button>
                         ) : (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-slate-800/35 text-slate-500 border border-white/5">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-muted/35 text-muted-foreground border border-white/5">
                             {badges.issueLabel}
                           </span>
                         )}
@@ -814,8 +814,8 @@ export function PeopleListClient({
                           className={cn(
                             "flex items-center justify-center",
                             "h-7 w-7 rounded",
-                            "text-slate-500 hover:text-slate-300",
-                            "hover:bg-slate-800/50",
+                            "text-muted-foreground hover:text-muted-foreground",
+                            "hover:bg-muted/50",
                             "transition-colors",
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                           )}
@@ -826,7 +826,7 @@ export function PeopleListClient({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         align="end"
-                        className="w-48 bg-slate-900 border-slate-700"
+                        className="w-48 bg-card border-border"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <DropdownMenuItem
@@ -889,7 +889,7 @@ export function PeopleListClient({
     return (
       <div className="space-y-4">
         <Tabs defaultValue="people" className="w-full">
-          <TabsList className="mb-4 bg-slate-900/50">
+          <TabsList className="mb-4 bg-card/50">
             <TabsTrigger value="people">People</TabsTrigger>
             <TabsTrigger value="pending">
               Pending {pendingCount > 0 && `(${pendingCount})`}

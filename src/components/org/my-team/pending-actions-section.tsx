@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -101,38 +100,30 @@ export function PendingActionsSection({ requests, workspaceSlug }: PendingAction
 
   if (requests.length === 0) {
     return (
-      <Card className="border-[#1e293b] bg-[#0B1220]">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-slate-50">
-            <AlertCircle className="h-5 w-5 text-amber-500" />
-            Pending Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-slate-500">
-            <Calendar className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p className="font-medium text-slate-400">No pending actions</p>
-            <p className="text-sm mt-1">Time off requests will appear here for approval</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="rounded-lg border border-border/50 bg-card/80 p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+          Pending Actions
+        </h3>
+        <div className="text-center py-6 text-muted-foreground">
+          <Calendar className="h-10 w-10 mx-auto mb-2 opacity-30" />
+          <p className="text-sm font-medium text-muted-foreground">No pending actions</p>
+          <p className="text-xs mt-1">Time off requests will appear here for approval</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="border-[#1e293b] bg-[#0B1220]">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between text-slate-50">
-          <span className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-amber-500" />
-            Pending Actions
-          </span>
-          <Badge variant="secondary" className="bg-slate-800 text-slate-300">
-            {requests.length}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="rounded-lg border border-border/50 bg-card/80 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Pending Actions
+        </h3>
+        <Badge variant="secondary" className="bg-muted text-muted-foreground text-xs">
+          {requests.length}
+        </Badge>
+      </div>
+      <div className="space-y-2 max-h-[280px] overflow-y-auto">
         {requests.map((request) => {
           const days =
             differenceInDays(new Date(request.endDate), new Date(request.startDate)) + 1;
@@ -141,12 +132,12 @@ export function PendingActionsSection({ requests, workspaceSlug }: PendingAction
           return (
             <div
               key={request.id}
-              className="border border-[#1e293b] rounded-lg p-4 space-y-3 bg-[#020617] hover:bg-[#0B1220] transition-colors"
+              className="py-3 space-y-2 border-b border-border/50 last:border-b-0"
             >
               <div className="flex items-start gap-3">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={request.person.image ?? undefined} />
-                  <AvatarFallback className="bg-[#243B7D] text-slate-100">
+                  <AvatarFallback className="bg-[#243B7D] text-foreground">
                     {request.person.name?.charAt(0) ?? request.person.email.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
@@ -154,33 +145,33 @@ export function PendingActionsSection({ requests, workspaceSlug }: PendingAction
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
-                      <div className="font-medium text-slate-200">
+                      <div className="font-medium text-foreground">
                         {request.person.name ?? request.person.email}
                       </div>
-                      <div className="text-sm text-slate-500">
+                      <div className="text-sm text-muted-foreground">
                         {request.person.email}
                       </div>
                     </div>
-                    <Badge variant="outline" className="border-slate-600 text-slate-400">
+                    <Badge variant="outline" className="border-slate-600 text-muted-foreground">
                       {getTypeDisplay(request.leaveType)}
                     </Badge>
                   </div>
 
-                  <div className="mt-2 text-sm text-slate-400">
+                  <div className="mt-2 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-slate-500" />
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span>
                         {format(new Date(request.startDate), "MMM d")} -{" "}
                         {format(new Date(request.endDate), "MMM d, yyyy")}
                       </span>
-                      <Badge variant="secondary" className="text-xs bg-slate-800 text-slate-300">
+                      <Badge variant="secondary" className="text-xs bg-muted text-muted-foreground">
                         {days} {days === 1 ? "day" : "days"}
                       </Badge>
                     </div>
                   </div>
 
                   {request.notes && (
-                    <div className="mt-2 text-sm text-slate-500">
+                    <div className="mt-2 text-sm text-muted-foreground">
                       <span className="font-medium">Note:</span> {request.notes}
                     </div>
                   )}
@@ -188,8 +179,8 @@ export function PendingActionsSection({ requests, workspaceSlug }: PendingAction
               </div>
 
               {isExpanded && (
-                <div className="space-y-2 pt-2 border-t border-[#1e293b]">
-                  <label className="text-sm font-medium text-slate-300">
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <label className="text-sm font-medium text-muted-foreground">
                     Reason for Denial
                   </label>
                   <Textarea
@@ -197,7 +188,7 @@ export function PendingActionsSection({ requests, workspaceSlug }: PendingAction
                     value={denialReason}
                     onChange={(e) => setDenialReason(e.target.value)}
                     rows={3}
-                    className="resize-none bg-[#020617] border-[#1e293b] text-slate-200"
+                    className="resize-none bg-background border-border text-foreground"
                   />
                 </div>
               )}
@@ -207,7 +198,7 @@ export function PendingActionsSection({ requests, workspaceSlug }: PendingAction
                   size="sm"
                   onClick={() => handleAction(request.id, "approve")}
                   disabled={!!processing}
-                  className="flex-1 border-slate-600 bg-[#243B7D] hover:bg-[#1e3a6f] text-slate-100"
+                  className="flex-1 border-slate-600 bg-[#243B7D] hover:bg-[#1e3a6f] text-foreground"
                 >
                   <Check className="h-4 w-4 mr-2" />
                   Approve
@@ -233,7 +224,7 @@ export function PendingActionsSection({ requests, workspaceSlug }: PendingAction
                         setDenialReason("");
                       }}
                       disabled={!!processing}
-                      className="text-slate-400 hover:text-slate-200"
+                      className="text-muted-foreground hover:text-foreground"
                     >
                       Cancel
                     </Button>
@@ -244,7 +235,7 @@ export function PendingActionsSection({ requests, workspaceSlug }: PendingAction
                     variant="outline"
                     onClick={() => setExpandedRequest(request.id)}
                     disabled={!!processing}
-                    className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-800"
+                    className="flex-1 border-slate-600 text-muted-foreground hover:bg-muted"
                   >
                     <X className="h-4 w-4 mr-2" />
                     Deny
@@ -254,7 +245,7 @@ export function PendingActionsSection({ requests, workspaceSlug }: PendingAction
             </div>
           );
         })}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

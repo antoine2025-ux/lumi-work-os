@@ -94,16 +94,16 @@ export function AdminActivityStrip({ initialItems }: AdminActivityStripProps = {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-[#111827] bg-[#020617] p-3">
-        <div className="h-4 w-32 animate-pulse rounded bg-[#111827]" />
-        <div className="mt-2 h-3 w-full max-w-md animate-pulse rounded bg-[#111827]" />
+      <div className="rounded-2xl border border-border bg-background p-3">
+        <div className="h-4 w-32 animate-pulse rounded bg-card" />
+        <div className="mt-2 h-3 w-full max-w-md animate-pulse rounded bg-card" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-[#111827] bg-[#020617] p-3 text-[11px] text-slate-400">
+      <div className="rounded-2xl border border-border bg-background p-3 text-[11px] text-muted-foreground">
         Failed to load admin activity: {error}
       </div>
     );
@@ -114,7 +114,7 @@ export function AdminActivityStrip({ initialItems }: AdminActivityStripProps = {
       <OrgEmptyState
         title="No activity yet"
         description="Activity will appear here once people join, roles change, or exports are created."
-        className="rounded-2xl border border-[#111827] bg-[#020617]"
+        className="rounded-2xl border border-border bg-background"
       />
     );
   }
@@ -122,12 +122,12 @@ export function AdminActivityStrip({ initialItems }: AdminActivityStripProps = {
   const top = items.slice(0, 6);
 
   return (
-    <section className="space-y-2 rounded-2xl border border-[#111827] bg-[#020617] p-3 text-[11px] text-slate-300">
+    <section className="space-y-2 rounded-2xl border border-border bg-background p-3 text-[11px] text-muted-foreground">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           Admin activity
         </div>
-        <div className="text-[10px] text-slate-500">
+        <div className="text-[10px] text-muted-foreground">
           Last {top.length} actions
         </div>
       </div>
@@ -150,14 +150,14 @@ export function AdminActivityStrip({ initialItems }: AdminActivityStripProps = {
               className="flex items-center justify-between gap-3 text-[11px]"
             >
               <div className="flex flex-col">
-                <span className="text-slate-200">
+                <span className="text-foreground">
                   {mapped.label}
                 </span>
-                <span className="text-[10px] text-slate-500">
+                <span className="text-[10px] text-muted-foreground">
                   by {actorLabel}
                 </span>
               </div>
-              <div className="shrink-0 text-right text-[10px] text-slate-500">
+              <div className="shrink-0 text-right text-[10px] text-muted-foreground">
                 {formatTime(item.createdAt)}
               </div>
             </li>

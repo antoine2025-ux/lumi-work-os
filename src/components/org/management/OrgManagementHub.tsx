@@ -128,7 +128,7 @@ function detailsCell(item: ManagementItem) {
       const tc = item.teamCount ?? 0
       const pc = item.peopleCount ?? 0
       return (
-        <span className="text-slate-400">
+        <span className="text-muted-foreground">
           {tc} team{tc !== 1 ? 's' : ''} · {pc} people
         </span>
       )
@@ -136,7 +136,7 @@ function detailsCell(item: ManagementItem) {
     case 'team': {
       const pc = item.peopleCount ?? 0
       return (
-        <span className="flex items-center gap-2 text-slate-400">
+        <span className="flex items-center gap-2 text-muted-foreground">
           {pc} people{item.leaderName ? ` · ${item.leaderName}` : ''}
         </span>
       )
@@ -144,12 +144,12 @@ function detailsCell(item: ManagementItem) {
     case 'job-description': {
       const pc = item.positionCount ?? 0
       return (
-        <span className="flex items-center gap-2 text-slate-400">
+        <span className="flex items-center gap-2 text-muted-foreground">
           {pc} pos.
           {item.level && (
             <Badge
               variant="outline"
-              className="text-xs border-slate-700 text-slate-400 py-0"
+              className="text-xs border-border text-muted-foreground py-0"
             >
               {item.level}
             </Badge>
@@ -159,7 +159,7 @@ function detailsCell(item: ManagementItem) {
     }
     case 'role-card':
       return (
-        <span className="text-slate-400">
+        <span className="text-muted-foreground">
           {item.assignedToName ?? (
             <span className="text-slate-600 italic">Template</span>
           )}
@@ -174,7 +174,7 @@ function SkeletonRows() {
   return (
     <>
       {[1, 2, 3, 4, 5].map((i) => (
-        <TableRow key={i} className="border-[#1e293b] hover:bg-transparent">
+        <TableRow key={i} className="border-border hover:bg-transparent">
           <TableCell className="py-3 px-4">
             <div className="h-5 w-12 rounded bg-[#1e293b] animate-pulse" />
           </TableCell>
@@ -217,7 +217,7 @@ function RowActions({
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 w-7 p-0 text-slate-500 hover:text-slate-200"
+          className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
         >
           <MoreHorizontal className="h-4 w-4" />
           <span className="sr-only">Actions</span>
@@ -225,7 +225,7 @@ function RowActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="bg-[#0B1220] border-[#1e293b] text-slate-200 min-w-[140px]"
+        className="bg-card border-border text-foreground min-w-[140px]"
       >
         <DropdownMenuItem
           onClick={() => onEdit(item)}
@@ -397,11 +397,11 @@ export function OrgManagementHub() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-50 flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
             <LayoutGrid className="h-6 w-6" />
             Org Management
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Manage your organization&apos;s structure, roles, and job descriptions
           </p>
         </div>
@@ -426,8 +426,8 @@ export function OrgManagementHub() {
                 className={cn(
                   'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-150',
                   active
-                    ? 'bg-[#0B1220] border border-[#243B7D] text-slate-50 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-[#0B1220]/60 border border-transparent'
+                    ? 'bg-card border border-border text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-card/60 border border-transparent'
                 )}
               >
                 {label}
@@ -436,8 +436,8 @@ export function OrgManagementHub() {
                     className={cn(
                       'text-[11px] rounded-full px-1.5 py-0 min-w-[1.25rem] text-center',
                       active
-                        ? 'bg-[#243B7D] text-slate-200'
-                        : 'bg-[#1e293b] text-slate-500'
+                        ? 'bg-[#243B7D] text-foreground'
+                        : 'bg-[#1e293b] text-muted-foreground'
                     )}
                   >
                     {count}
@@ -454,7 +454,7 @@ export function OrgManagementHub() {
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search…"
-            className="bg-[#0B1220] border-[#1e293b] text-slate-200 placeholder:text-slate-600 h-8 text-sm"
+            className="bg-card border-border text-foreground placeholder:text-slate-600 h-8 text-sm"
           />
         </div>
       </div>
@@ -467,21 +467,21 @@ export function OrgManagementHub() {
       )}
 
       {/* Table */}
-      <Card className="border-[#1e293b] bg-[#0B1220]">
+      <Card className="border-border bg-card">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="border-[#1e293b] hover:bg-transparent">
-                <TableHead className="text-slate-500 text-xs font-semibold uppercase tracking-wide w-20 py-3 px-4">
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground text-xs font-semibold uppercase tracking-wide w-20 py-3 px-4">
                   Type
                 </TableHead>
-                <TableHead className="text-slate-500 text-xs font-semibold uppercase tracking-wide py-3 px-4">
+                <TableHead className="text-muted-foreground text-xs font-semibold uppercase tracking-wide py-3 px-4">
                   Name
                 </TableHead>
-                <TableHead className="text-slate-500 text-xs font-semibold uppercase tracking-wide py-3 px-4 hidden sm:table-cell">
+                <TableHead className="text-muted-foreground text-xs font-semibold uppercase tracking-wide py-3 px-4 hidden sm:table-cell">
                   Context
                 </TableHead>
-                <TableHead className="text-slate-500 text-xs font-semibold uppercase tracking-wide py-3 px-4 hidden md:table-cell">
+                <TableHead className="text-muted-foreground text-xs font-semibold uppercase tracking-wide py-3 px-4 hidden md:table-cell">
                   Details
                 </TableHead>
                 <TableHead className="w-10 py-3 px-4" />
@@ -494,7 +494,7 @@ export function OrgManagementHub() {
                 <TableRow className="border-0 hover:bg-transparent">
                   <TableCell colSpan={5} className="py-16 text-center">
                     <LayoutGrid className="h-10 w-10 text-slate-700 mx-auto mb-3" />
-                    <p className="text-slate-400 font-medium">
+                    <p className="text-muted-foreground font-medium">
                       {search
                         ? `No results for "${search}"`
                         : activeFilter !== 'all'
@@ -512,13 +512,13 @@ export function OrgManagementHub() {
                 items.map((item) => (
                   <TableRow
                     key={`${item.type}-${item.id}`}
-                    className="border-[#1e293b] hover:bg-[#0f172a]/60 transition-colors"
+                    className="border-border hover:bg-[#0f172a]/60 transition-colors"
                   >
                     {/* Type */}
                     <TableCell className="py-3 px-4">
                       <div className="flex items-center gap-1.5">
                         {typeIcon(item.type)}
-                        <span className="text-[11px] text-slate-500 hidden sm:inline">
+                        <span className="text-[11px] text-muted-foreground hidden sm:inline">
                           {typeLabel(item.type)}
                         </span>
                         {item.color && (
@@ -532,9 +532,9 @@ export function OrgManagementHub() {
 
                     {/* Name */}
                     <TableCell className="py-3 px-4">
-                      <span className="font-medium text-slate-100 text-sm">{item.name}</span>
+                      <span className="font-medium text-foreground text-sm">{item.name}</span>
                       {item.description && (
-                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-1 max-w-xs">
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 max-w-xs">
                           {item.description}
                         </p>
                       )}
@@ -542,7 +542,7 @@ export function OrgManagementHub() {
 
                     {/* Context */}
                     <TableCell className="py-3 px-4 hidden sm:table-cell">
-                      <span className="text-sm text-slate-400">{contextCell(item)}</span>
+                      <span className="text-sm text-muted-foreground">{contextCell(item)}</span>
                     </TableCell>
 
                     {/* Details */}

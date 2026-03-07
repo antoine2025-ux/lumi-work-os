@@ -71,7 +71,7 @@ export default async function WorkspaceOrgTeamPage({ params }: PageProps) {
             href={backHref}
             className={cn(
               "inline-flex items-center gap-1.5",
-              "text-[12px] text-slate-500 hover:text-slate-300",
+              "text-[12px] text-muted-foreground hover:text-muted-foreground",
               "transition-colors duration-150"
             )}
           >
@@ -94,7 +94,7 @@ export default async function WorkspaceOrgTeamPage({ params }: PageProps) {
                 <Link
                   key={project.id}
                   href={`/w/${workspaceSlug}/projects/${project.id}`}
-                  className="block p-3 rounded-lg bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block p-3 rounded-lg bg-slate-50 dark:bg-card hover:bg-slate-100 dark:hover:bg-muted transition-colors"
                 >
                   <p className="font-medium">{project.name}</p>
                   <p className="text-sm text-muted-foreground">

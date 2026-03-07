@@ -39,7 +39,7 @@ export function OrgFeedbackDialog() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="focus-ring rounded-full border border-slate-800 px-3 py-1 text-[11px] text-slate-300 transition-colors hover:bg-slate-800"
+        className="focus-ring rounded-full border border-border px-3 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted"
         aria-label="Give feedback about Org Center"
       >
         Give feedback
@@ -56,22 +56,22 @@ export function OrgFeedbackDialog() {
       aria-label="Org Center feedback"
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-slate-800 bg-[#020617] p-5 text-[13px] text-slate-200 shadow-xl"
+        className="w-full max-w-md rounded-2xl border border-border bg-background p-5 text-[13px] text-foreground shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
-            <div className="text-[14px] font-semibold text-slate-50">
+            <div className="text-[14px] font-semibold text-foreground">
               Share feedback about Org Center
             </div>
-            <p className="mt-1 text-[11px] text-slate-500">
+            <p className="mt-1 text-[11px] text-muted-foreground">
               Tell us what works well and what&apos;s confusing. This goes directly to the team.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="focus-ring rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition-colors hover:bg-slate-800"
+            className="focus-ring rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted"
             aria-label="Close feedback dialog"
           >
             Close
@@ -87,7 +87,7 @@ export function OrgFeedbackDialog() {
         <form onSubmit={handleSubmit} className="space-y-3">
           <textarea
             rows={4}
-            className="focus-ring w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-[13px] text-slate-100 outline-none transition-colors"
+            className="focus-ring w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors"
             placeholder="What's working? What's confusing? What's missing?"
             value={value}
             onChange={(e) => setValue(e.target.value)}
@@ -96,7 +96,7 @@ export function OrgFeedbackDialog() {
           <button
             type="submit"
             disabled={sending || !value.trim()}
-            className="focus-ring rounded-full bg-blue-600 px-4 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="focus-ring rounded-full bg-blue-600 px-4 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {sending ? "Sending…" : "Send feedback"}
           </button>

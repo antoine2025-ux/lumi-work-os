@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Video, Phone, Calendar, RefreshCw, AlertCircle, ExternalLink, Maximize2 } from "lucide-react"
@@ -73,13 +72,13 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
 
   return (
     <>
-      <Card className={`widget-card ${className || ''}`}>
-        <div className="widget-header">
-          <div className="widget-header-start">
-            <Calendar className="h-4 w-4 flex-shrink-0" aria-hidden />
-            <span className="widget-title">CALENDAR</span>
+      <div className={`bg-card rounded-md border border-border flex flex-col h-full min-h-0 ${className || ''}`}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-muted-foreground" aria-hidden />
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Calendar</h3>
           </div>
-          <div className="widget-actions">
+          <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
               {isLoading ? '...' : todayEvents.length}
             </Badge>
@@ -104,11 +103,11 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
             </Button>
           </div>
         </div>
-        <div className="widget-content space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
+        <div className="p-3 flex-1 space-y-2 max-h-[340px] overflow-y-auto dashboard-card-scroll">
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {[...Array(3)].map((_, index) => (
-              <div key={index} className="flex items-center space-x-3 p-3 rounded-lg animate-pulse">
+              <div key={index} className="flex items-center space-x-3 p-2 rounded-md animate-pulse">
                 <div className="w-4 h-4 bg-muted rounded"></div>
                 <div className="flex-1 space-y-2">
                   <div className="h-4 bg-muted rounded w-3/4"></div>
@@ -147,7 +146,7 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
           todayEvents.map((meeting: CalendarEvent) => (
             <div 
               key={meeting.id} 
-              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer group bg-muted/50"
+              className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted transition-colors cursor-pointer group bg-muted/50"
               onClick={() => handleMeetingClick(meeting)}
               title={meeting.meetingLink && meeting.type === 'video' ? 'Click to join meeting' : 'Click to view in calendar'}
             >
@@ -200,7 +199,7 @@ export function MeetingsCard({ className }: MeetingsCardProps) {
           ))
         )}
         </div>
-      </Card>
+      </div>
     
     <CalendarModal 
       open={calendarModalOpen} 

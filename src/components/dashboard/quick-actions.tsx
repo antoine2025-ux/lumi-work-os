@@ -2,7 +2,6 @@
 
 import { CheckSquare, Sparkles, Plus, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import Link from "next/link"
 import { AILogo } from "@/components/ai-logo"
 import { useLoopbrainAssistant } from "@/components/loopbrain/assistant-context"
@@ -18,16 +17,15 @@ export function QuickActions({ workspaceSlug, className }: QuickActionsProps) {
   const isLoopbrainOpen = state.isOpen && !state.isMinimized
 
   return (
-    <Card className={`widget-card ${className || ''}`}>
-      <div className="widget-header">
-        <div className="widget-header-start">
-          <Sparkles className="h-4 w-4 flex-shrink-0" aria-hidden />
-          <span className="widget-title">QUICK ACTIONS</span>
+    <div className={cn("bg-card rounded-md border border-border flex flex-col h-full min-h-0", className)}>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden />
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Quick Actions</h3>
         </div>
-        <div className="widget-actions"></div>
       </div>
-      <div className="widget-content">
-        <div className="grid grid-cols-2 gap-3">
+      <div className="p-3 flex-1">
+        <div className="grid grid-cols-2 gap-2">
           <Link href="/todos">
             <Button variant="outline" size="sm" className="h-12 w-full">
               <CheckSquare className="h-4 w-4 mr-2" />
@@ -60,6 +58,6 @@ export function QuickActions({ workspaceSlug, className }: QuickActionsProps) {
           </Button>
         </div>
       </div>
-    </Card>
+    </div>
   )
 }

@@ -51,9 +51,9 @@ export default function HomeLayout({
 
   return (
     <LoopbrainAssistantProvider>
-      <div className="min-h-screen bg-slate-950">
+      <div className="min-h-screen bg-background">
         <Header />
-        <main className="min-h-screen">
+        <main className="min-h-screen pt-16">
           {children}
         </main>
       </div>

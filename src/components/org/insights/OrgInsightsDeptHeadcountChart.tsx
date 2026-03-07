@@ -40,11 +40,11 @@ function OrgInsightsDeptHeadcountChartComponent({ snapshot, selectedDepartmentId
   }, [snapshot.byDepartment, selectedDepartmentId]);
 
   return (
-    <div className="h-72 rounded-2xl border border-slate-800 bg-[#020617] px-4 py-4">
-      <div className="mb-1 text-[12px] font-semibold text-slate-100">
+    <div className="h-72 rounded-2xl border border-border bg-background px-4 py-4">
+      <div className="mb-1 text-[12px] font-semibold text-foreground">
         Headcount by department
       </div>
-      <p className="mb-3 text-[11px] text-slate-500">
+      <p className="mb-3 text-[11px] text-muted-foreground">
         Shows how people are distributed across departments in this org.
       </p>
       <div className="h-56">
@@ -79,7 +79,7 @@ function OrgInsightsDeptHeadcountChartComponent({ snapshot, selectedDepartmentId
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex h-full items-center justify-center text-[11px] text-slate-500">
+          <div className="flex h-full items-center justify-center text-[11px] text-muted-foreground">
             Not enough department data yet. Once people are assigned to departments, you&apos;ll see headcount here.
           </div>
         )}

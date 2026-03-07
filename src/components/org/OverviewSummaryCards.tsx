@@ -35,15 +35,15 @@ function StatCard({ title, count, helper, href }: StatCardProps) {
       )}
     >
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-slate-100">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent className="flex items-center justify-between">
         <div>
-          <div className="text-2xl font-semibold text-slate-100">{formatCount(count)}</div>
-          <div className="text-xs text-slate-500 mt-1">{helper}</div>
+          <div className="text-2xl font-semibold text-foreground">{formatCount(count)}</div>
+          <div className="text-xs text-muted-foreground mt-1">{helper}</div>
         </div>
         {/* Decorative chevron — no click handler */}
-        <ChevronRight className="h-5 w-5 text-slate-500" aria-hidden="true" />
+        <ChevronRight className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
       </CardContent>
     </Link>
   );

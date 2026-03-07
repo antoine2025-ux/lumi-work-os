@@ -23,7 +23,7 @@ export function TeamNode({ node, index: _index }: TeamNodeProps) {
 
   return (
     <div
-      className="group flex flex-col rounded-2xl border border-slate-800/60 bg-slate-900/40 px-4 py-4 transition-all duration-150 hover:-translate-y-[1px] hover:border-slate-700/70 hover:bg-slate-900/60 hover:shadow-lg hover:shadow-[0_0_0_2px_rgba(90,145,255,0.35)] hover:ring-1 hover:ring-blue-400/40"
+      className="group flex flex-col rounded-2xl border border-border/60 bg-card/40 px-4 py-4 transition-all duration-150 hover:-translate-y-[1px] hover:border-border/70 hover:bg-card/60 hover:shadow-lg hover:shadow-[0_0_0_2px_rgba(90,145,255,0.35)] hover:ring-1 hover:ring-blue-400/40"
       style={{
         transition: "box-shadow 120ms ease-in-out, ring 120ms ease-in-out",
       }}
@@ -35,7 +35,7 @@ export function TeamNode({ node, index: _index }: TeamNodeProps) {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20 flex-shrink-0">
             <Users className="h-4 w-4 text-blue-400" />
           </div>
-          <h4 className="text-base font-medium text-slate-200 flex-1 min-w-0">
+          <h4 className="text-base font-medium text-foreground flex-1 min-w-0">
             {node.name}
           </h4>
         </div>
@@ -48,13 +48,13 @@ export function TeamNode({ node, index: _index }: TeamNodeProps) {
       {node.lead ? (
         <div className="flex items-center gap-2.5 mb-3">
           <Avatar className="h-7 w-7 flex-shrink-0">
-            <AvatarFallback className="bg-slate-700/50 border border-slate-600/50 text-xs text-slate-300">
+            <AvatarFallback className="bg-slate-700/50 border border-slate-600/50 text-xs text-muted-foreground">
               {node.lead.initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col leading-tight min-w-0 flex-1">
-            <span className="text-xs text-slate-500 uppercase tracking-wide">Lead</span>
-            <span className="text-sm font-medium text-slate-300 truncate">
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">Lead</span>
+            <span className="text-sm font-medium text-muted-foreground truncate">
               {node.lead.name}
             </span>
           </div>

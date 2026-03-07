@@ -61,14 +61,14 @@ export default async function WorkspaceOrgDepartmentPage({ params }: PageProps) 
               <Card className="p-6 space-y-4 lg:col-span-1">
                 <div>
                   <div className="text-sm text-muted-foreground">Department owner</div>
-                  <div className="mt-1 font-medium text-slate-100">
+                  <div className="mt-1 font-medium text-foreground">
                     {personDisplayName((department as unknown as { ownerPerson?: Parameters<typeof personDisplayName>[0] }).ownerPerson) ?? "Unassigned"}
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground">Teams</div>
-                  <div className="mt-1 font-medium text-slate-100">{department.teams.length}</div>
+                  <div className="mt-1 font-medium text-foreground">{department.teams.length}</div>
                 </div>
               </Card>
 

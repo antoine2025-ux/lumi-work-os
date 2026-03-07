@@ -193,7 +193,7 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-32 rounded-2xl border bg-[#0B1220] animate-pulse" />
+          <div key={i} className="h-32 rounded-2xl border bg-card animate-pulse" />
         ))}
       </div>
     );
@@ -201,7 +201,7 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
 
   if (error || !data) {
     return (
-      <p className="text-sm text-slate-500">{error ?? "No role data available"}</p>
+      <p className="text-sm text-muted-foreground">{error ?? "No role data available"}</p>
     );
   }
 
@@ -224,12 +224,12 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
     <div className="space-y-4">
       {/* Admin: JD linking selector */}
       {isAdmin && (
-        <Card className="border-[#1e293b] bg-[#0B1220]">
+        <Card className="border-border bg-card">
           <CardContent className="py-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2">
-                <Link2 className="h-4 w-4 text-slate-500" />
-                <span className="text-xs text-slate-400 uppercase tracking-wide font-medium">
+                <Link2 className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
                   Linked Job Description
                 </span>
               </div>
@@ -239,18 +239,18 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
                   onValueChange={handleJdChange}
                   disabled={savingJd || jdListLoading || !data}
                 >
-                  <SelectTrigger className="h-7 text-xs w-52 border-slate-700 bg-transparent text-slate-300">
+                  <SelectTrigger className="h-7 text-xs w-52 border-border bg-transparent text-muted-foreground">
                     <SelectValue placeholder="Not linked" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">
-                      <span className="text-slate-400 italic">Not linked</span>
+                      <span className="text-muted-foreground italic">Not linked</span>
                     </SelectItem>
                     {jdList.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
                         {item.title}
                         {(item.level || item.jobFamily) && (
-                          <span className="ml-1 text-slate-500 text-xs">
+                          <span className="ml-1 text-muted-foreground text-xs">
                             · {[item.jobFamily, item.level].filter(Boolean).join(" ")}
                           </span>
                         )}
@@ -258,7 +258,7 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
                     ))}
                   </SelectContent>
                 </Select>
-                {savingJd && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
+                {savingJd && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
               </div>
             </div>
             {jdError && (
@@ -270,12 +270,12 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
 
       {/* Job Description card — shared template linked to this position */}
       {jd && (
-        <Card className="border-[#1e293b] bg-[#0B1220]">
+        <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-50">
+            <CardTitle className="flex items-center gap-2 text-foreground">
               <FileText className="h-5 w-5" />
               Job Description
-              <Badge variant="outline" className="ml-auto text-xs border-slate-600 text-slate-400">
+              <Badge variant="outline" className="ml-auto text-xs border-slate-600 text-muted-foreground">
                 {[jd.jobFamily, jd.level].filter(Boolean).join(" · ")}
               </Badge>
             </CardTitle>
@@ -287,10 +287,10 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
             <CardContent className="space-y-4">
               {jd.responsibilities.length > 0 && (
                 <div>
-                  <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Responsibilities</p>
+                  <p className={cn(orgTokens.title, "mb-2 text-muted-foreground")}>Responsibilities</p>
                   <ul className="space-y-1">
                     {jd.responsibilities.map((r, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
                         <CheckCircle className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
                         {r}
                       </li>
@@ -300,7 +300,7 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
               )}
               {jd.requiredSkills.length > 0 && (
                 <div>
-                  <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Required</p>
+                  <p className={cn(orgTokens.title, "mb-2 text-muted-foreground")}>Required</p>
                   <div className="flex flex-wrap gap-2">
                     {jd.requiredSkills.map((s, i) => (
                       <Badge key={i} variant="outline" className="border-blue-800 text-blue-300 text-xs">{s}</Badge>
@@ -310,10 +310,10 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
               )}
               {jd.preferredSkills.length > 0 && (
                 <div>
-                  <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Preferred</p>
+                  <p className={cn(orgTokens.title, "mb-2 text-muted-foreground")}>Preferred</p>
                   <div className="flex flex-wrap gap-2">
                     {jd.preferredSkills.map((s, i) => (
-                      <Badge key={i} variant="outline" className="border-slate-600 text-slate-400 text-xs">{s}</Badge>
+                      <Badge key={i} variant="outline" className="border-slate-600 text-muted-foreground text-xs">{s}</Badge>
                     ))}
                   </div>
                 </div>
@@ -325,13 +325,13 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
 
       {/* Role Definition card — person-specific, manager-authored */}
       {(template || responsibilities.length > 0) && (
-        <Card className="border-[#1e293b] bg-[#0B1220]">
+        <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-50">
+            <CardTitle className="flex items-center gap-2 text-foreground">
               <Briefcase className="h-5 w-5" />
               Role Definition
               {template && (
-                <Badge variant="outline" className="ml-auto text-xs border-slate-600 text-slate-400">
+                <Badge variant="outline" className="ml-auto text-xs border-slate-600 text-muted-foreground">
                   {template.jobFamily} · {template.level}
                 </Badge>
               )}
@@ -343,10 +343,10 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
           <CardContent className="space-y-4">
             {responsibilities.length > 0 && (
               <div>
-                <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Responsibilities</p>
+                <p className={cn(orgTokens.title, "mb-2 text-muted-foreground")}>Responsibilities</p>
                 <ul className="space-y-1">
                   {responsibilities.map((r, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
+                    <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
                       <CheckCircle className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
                       {r}
                     </li>
@@ -358,7 +358,7 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
             {/* Expected skills from template */}
             {(requiredSkillRefs.length > 0 || requiredSkills.length > 0) && (
               <div>
-                <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Required Skills</p>
+                <p className={cn(orgTokens.title, "mb-2 text-muted-foreground")}>Required Skills</p>
                 <div className="flex flex-wrap gap-2">
                   {requiredSkillRefs.length > 0
                     ? requiredSkillRefs.map((sr) => (
@@ -386,20 +386,20 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
 
             {(preferredSkillRefs.length > 0 || preferredSkills.length > 0) && (
               <div>
-                <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Preferred Skills</p>
+                <p className={cn(orgTokens.title, "mb-2 text-muted-foreground")}>Preferred Skills</p>
                 <div className="flex flex-wrap gap-2">
                   {preferredSkillRefs.length > 0
                     ? preferredSkillRefs.map((sr) => (
                         <Badge
                           key={sr.id}
                           variant="outline"
-                          className="border-slate-600 text-slate-400 text-xs"
+                          className="border-slate-600 text-muted-foreground text-xs"
                         >
                           {sr.skill.name}
                         </Badge>
                       ))
                     : preferredSkills.map((s, i) => (
-                        <Badge key={i} variant="outline" className="border-slate-600 text-slate-400 text-xs">
+                        <Badge key={i} variant="outline" className="border-slate-600 text-muted-foreground text-xs">
                           {s}
                         </Badge>
                       ))}
@@ -410,20 +410,20 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
             {/* Manager-authored context fields */}
             {template?.roleInOrg && (
               <div>
-                <p className={cn(orgTokens.title, "mb-1 text-slate-400 text-xs uppercase tracking-wide")}>Role in Org</p>
-                <p className="text-sm text-slate-300">{template.roleInOrg}</p>
+                <p className={cn(orgTokens.title, "mb-1 text-muted-foreground text-xs uppercase tracking-wide")}>Role in Org</p>
+                <p className="text-sm text-muted-foreground">{template.roleInOrg}</p>
               </div>
             )}
             {template?.focusArea && (
               <div>
-                <p className={cn(orgTokens.title, "mb-1 text-slate-400 text-xs uppercase tracking-wide")}>Focus Area</p>
-                <p className="text-sm text-slate-300">{template.focusArea}</p>
+                <p className={cn(orgTokens.title, "mb-1 text-muted-foreground text-xs uppercase tracking-wide")}>Focus Area</p>
+                <p className="text-sm text-muted-foreground">{template.focusArea}</p>
               </div>
             )}
             {template?.managerNotes && (
               <div>
-                <p className={cn(orgTokens.title, "mb-1 text-slate-400 text-xs uppercase tracking-wide")}>Manager Notes</p>
-                <p className="text-sm text-slate-400 italic">&ldquo;{template.managerNotes}&rdquo;</p>
+                <p className={cn(orgTokens.title, "mb-1 text-muted-foreground text-xs uppercase tracking-wide")}>Manager Notes</p>
+                <p className="text-sm text-muted-foreground italic">&ldquo;{template.managerNotes}&rdquo;</p>
               </div>
             )}
           </CardContent>
@@ -431,9 +431,9 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
       )}
 
       {/* My Skills Section */}
-      <Card className="border-[#1e293b] bg-[#0B1220]">
+      <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-slate-50">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <Star className="h-5 w-5" />
             {isOwnProfile ? "My Skills" : "Skills"}
           </CardTitle>
@@ -452,7 +452,7 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
                   <Badge
                     key={s.id}
                     variant="outline"
-                    className="border-slate-600 text-slate-300 text-xs"
+                    className="border-slate-600 text-muted-foreground text-xs"
                   >
                     {s.name}
                     {s.proficiency >= 4 && (
@@ -461,7 +461,7 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
                   </Badge>
                 ))
               ) : (
-                <p className="text-sm text-slate-500">No skills declared yet</p>
+                <p className="text-sm text-muted-foreground">No skills declared yet</p>
               )}
             </div>
           )}
@@ -470,9 +470,9 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
 
       {/* Current Work Section — only shown when viewer has access (self/manager/admin) */}
       {data.currentWork && (
-        <Card className="border-[#1e293b] bg-[#0B1220]">
+        <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-50">
+            <CardTitle className="flex items-center gap-2 text-foreground">
               <FolderOpen className="h-5 w-5" />
               Current Work
             </CardTitle>
@@ -480,15 +480,15 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
           <CardContent className="space-y-4">
             {data.currentWork.projects.length > 0 ? (
               <div>
-                <p className={cn(orgTokens.title, "mb-2 text-slate-300")}>Active Projects</p>
+                <p className={cn(orgTokens.title, "mb-2 text-muted-foreground")}>Active Projects</p>
                 <div className="space-y-1">
                   {data.currentWork.projects.map((p) => (
                     <div
                       key={p.allocationId}
-                      className="flex items-center justify-between text-sm text-slate-400"
+                      className="flex items-center justify-between text-sm text-muted-foreground"
                     >
                       <span>{p.projectName}</span>
-                      <Badge variant="outline" className="border-slate-700 text-slate-500 text-xs">
+                      <Badge variant="outline" className="border-border text-muted-foreground text-xs">
                         {Math.round(p.fraction * 100)}%
                       </Badge>
                     </div>
@@ -496,19 +496,19 @@ export function RoleCardView({ personUserId, isOwnProfile }: RoleCardViewProps) 
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-slate-500">No active project allocations</p>
+              <p className="text-sm text-muted-foreground">No active project allocations</p>
             )}
 
             <div className="flex items-center gap-4 pt-1">
-              <ListTodo className="h-4 w-4 text-slate-500" />
-              <span className="text-sm text-slate-400">
-                <span className="font-medium text-slate-200">
+              <ListTodo className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
                   {data.currentWork.taskCounts.inProgress}
                 </span>{" "}
                 in progress
               </span>
-              <span className="text-sm text-slate-400">
-                <span className="font-medium text-slate-200">
+              <span className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
                   {data.currentWork.taskCounts.todo}
                 </span>{" "}
                 to do
