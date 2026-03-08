@@ -75,10 +75,12 @@ export function GlobalNav() {
       </div>
 
       {/* Center — Navigation Tabs */}
+      {/* Using <a> tags (not <Link>) to force a full page navigation.
+          These links cross Next.js layout-group boundaries (home/ ↔ (dashboard)/w/[slug]/...)
+          and RSC client-side routing cannot reconcile the layout trees, producing a blank page. */}
       <nav className="flex items-center gap-1">
-        <Link
+        <a
           href={dashboardHref}
-          prefetch
           className={cn(
             "px-3 py-1.5 text-[13px] rounded-md transition-colors",
             isDashboardActive
@@ -87,10 +89,9 @@ export function GlobalNav() {
           )}
         >
           Dashboard
-        </Link>
-        <Link
+        </a>
+        <a
           href={spacesHref}
-          prefetch
           className={cn(
             "px-3 py-1.5 text-[13px] rounded-md transition-colors",
             isSpacesActive
@@ -99,10 +100,9 @@ export function GlobalNav() {
           )}
         >
           Spaces
-        </Link>
-        <Link
+        </a>
+        <a
           href={orgHref}
-          prefetch
           className={cn(
             "px-3 py-1.5 text-[13px] rounded-md transition-colors",
             isOrgActive
@@ -111,7 +111,7 @@ export function GlobalNav() {
           )}
         >
           Org
-        </Link>
+        </a>
       </nav>
 
       {/* Right — Actions */}
