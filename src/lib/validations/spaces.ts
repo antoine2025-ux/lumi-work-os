@@ -10,6 +10,7 @@ export const CreateSpaceSchema = z.object({
   icon: z.string().optional(),
   visibility: SpaceVisibilityEnum.default('PUBLIC'),
   parentId: z.string().optional(),
+  teamId: z.string().optional(), // If set, auto-adds all active OrgTeam members as SpaceMembers
 })
 
 export const UpdateSpaceSchema = z.object({

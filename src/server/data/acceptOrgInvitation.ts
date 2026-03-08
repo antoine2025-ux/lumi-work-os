@@ -2,6 +2,15 @@ import { prisma } from "@/lib/db";
 import { logOrgAuditEvent } from "@/server/audit/orgAudit";
 import { ensureOrgPositionForUser } from "@/lib/org/ensure-org-position";
 
+function mapOrgRoleToWorkspaceRole(orgRole: string | null | undefined): "ADMIN" | "MEMBER" | "VIEWER" {
+  switch (orgRole) {
+    case "ADMIN": return "ADMIN";
+    case "EDITOR": return "MEMBER";
+    case "VIEWER": return "VIEWER";
+    default: return "MEMBER";
+  }
+}
+
 type AcceptOrgInvitationResult = {
   workspace: {
     id: string;
@@ -70,7 +79,7 @@ export async function acceptOrgInvitationByToken(
         data: {
           workspaceId: invitation.workspaceId,
           userId,
-          role: "MEMBER",
+          role: mapOrgRoleToWorkspaceRole(invitation.role),
         },
       });
       await ensureOrgPositionForUser(prisma, {
@@ -138,12 +147,13 @@ export async function acceptOrgInvitationByToken(
   }
 
   // Normal path: create membership and mark invitation as accepted.
+  const workspaceRole = mapOrgRoleToWorkspaceRole(invitation.role);
   await prisma.$transaction(async (tx) => {
     await tx.workspaceMember.create({
       data: {
         workspaceId: invitation.workspaceId!,
         userId,
-        role: "MEMBER",
+        role: workspaceRole,
       },
     });
 

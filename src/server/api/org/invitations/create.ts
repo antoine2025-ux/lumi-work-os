@@ -19,10 +19,13 @@ function normalizeEmail(raw: unknown): string | null {
   return email;
 }
 
+type OrgRoleValue = "VIEWER" | "EDITOR" | "ADMIN";
+
 type Body = {
   workspaceId?: string;
   email?: string;
   fullName?: string;
+  role?: OrgRoleValue;
   title?: string;
   departmentId?: string;
   teamId?: string;
@@ -44,6 +47,9 @@ export async function POST(req: NextRequest) {
     const body = (await req.json().catch(() => ({}))) as Body;
     const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : null;
     const email = normalizeEmail(body.email);
+    const VALID_ORG_ROLES: OrgRoleValue[] = ["VIEWER", "EDITOR", "ADMIN"];
+    const role: OrgRoleValue =
+      body.role && VALID_ORG_ROLES.includes(body.role) ? body.role : "VIEWER";
 
     if (!workspaceId) {
       return createErrorResponse(
@@ -120,6 +126,7 @@ export async function POST(req: NextRequest) {
         workspaceId,
         email,
         fullName: body.fullName?.trim() || null,
+        role,
         status: "PENDING",
         invitedById: auth.user.userId,
         expiresAt,
