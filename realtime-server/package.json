@@ -9,7 +9,8 @@
   "dependencies": {
     "socket.io": "^4.8.1",
     "@hocuspocus/server": "^3.4.4",
-    "@prisma/client": "latest",
+    "@prisma/client": "^6.17.0",
+    "prisma": "^6.17.0",
     "jsonwebtoken": "^9.0.0",
     "cors": "^2.8.5",
     "express": "^4.18.2",
