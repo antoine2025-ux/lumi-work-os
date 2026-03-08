@@ -3,7 +3,6 @@
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context";
 import { TaskSidebar } from "@/components/tasks/task-sidebar";
@@ -11,6 +10,7 @@ import { GlobalSidebar } from "@/components/layout/GlobalSidebar";
 import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { LoopbrainMode } from "@/lib/loopbrain/orchestrator-types";
+import { useUserStatusContext } from "@/providers/user-status-provider";
 // PHASE C2: Removed redirect-handler import - middleware handles redirects
 
 // Lazy load Header to reduce initial bundle size and improve LCP
@@ -26,8 +26,10 @@ export function DashboardLayoutClient({
   const { data: session, status } = useSession();
   const _router = useRouter();
   const pathname = usePathname();
-  const [isFirstTime, setIsFirstTime] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Use centralized user status context - no separate API call needed
+  const { workspaceId, isFirstTime } = useUserStatusContext();
   
   // Derive Loopbrain mode from pathname for context-aware assistance
   const loopbrainMode: LoopbrainMode = pathname?.includes("/spaces")
@@ -37,38 +39,6 @@ export function DashboardLayoutClient({
       : pathname?.includes("/wiki")
         ? "spaces"
         : "dashboard";
-
-  // Use React Query for user status - automatic caching and no sequential delays
-  const { data: userStatus, isLoading: isLoadingWorkspace } = useQuery({
-    queryKey: ['user-status'],
-    queryFn: async () => {
-      const response = await fetch('/api/auth/user-status');
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch user status');
-      }
-      return response.json();
-    },
-    enabled: status === 'authenticated',
-    staleTime: 30 * 1000, // 30 seconds
-    refetchOnWindowFocus: false,
-    retry: (failureCount: number, error: unknown) => {
-      // Don't retry if no workspace (redirect instead)
-      if (error instanceof Error && error.message.includes('No workspace')) return false;
-      return failureCount < 2;
-    },
-  });
-
-  // PHASE A2: Removed sessionStorage workspaceId workaround - use only userStatus
-  const workspaceId = userStatus?.workspaceId || null;
-
-  // PHASE C2: Removed workspace redirect logic - middleware handles all redirects now
-  // Keep only first-time state tracking
-  useEffect(() => {
-    if (userStatus) {
-      setIsFirstTime(userStatus.isFirstTime || false);
-    }
-  }, [userStatus]);
 
   // This effect is kept for logout flag handling only
   useEffect(() => {
@@ -106,37 +76,9 @@ export function DashboardLayoutClient({
     return null;
   }
   
-  // Still loading workspace status -- show skeleton while we wait.
-  if (isLoadingWorkspace) {
-    return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
-        <main className="flex-1 min-h-screen">
-          <div className="p-8">
-            <div className="max-w-7xl mx-auto space-y-4">
-              <div className="h-8 w-64 bg-slate-900 rounded animate-pulse" />
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-48 bg-slate-900 rounded animate-pulse" />
-                ))}
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // Loading finished but no workspace exists (deleted or first-time user).
-  // Redirect instead of rendering a perpetual skeleton.
-  if (!workspaceId) {
-    if (typeof window !== "undefined") {
-      // isFirstTime means user has never had a workspace → /welcome
-      // Otherwise the workspace was deleted → /login for a clean session
-      window.location.href = isFirstTime ? "/welcome" : "/login";
-    }
-    return null;
-  }
+  // FIX 1: Removed workspaceId null guard that caused blank pages
+  // The parent DashboardLayout already ensures workspaceId exists before rendering this component
+  // UserStatusProvider provides workspaceId from session JWT, avoiding cold-start API failures
 
   const isOrgRoute = pathname?.includes("/org") ?? false;
   const isWorkspaceSettingsRoute =
