@@ -30,8 +30,12 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Mail
+  Mail,
+  Brain,
 } from "lucide-react"
+import { PolicyList } from "@/components/settings/loopbrain/policy-list"
+import { PolicyEditor } from "@/components/settings/loopbrain/policy-editor"
+import { ExecutionHistory } from "@/components/settings/loopbrain/execution-history"
 
 interface WorkspaceData {
   id: string
@@ -98,6 +102,8 @@ export default function SettingsPage() {
   const [slackNotifSaving, setSlackNotifSaving] = useState(false)
   const [gmailConnected, setGmailConnected] = useState(false)
   const [gmailLoading, setGmailLoading] = useState(false)
+  const [driveConnected, setDriveConnected] = useState(false)
+  const [driveLoading, setDriveLoading] = useState(false)
 
   // Get user role from userStatus (no separate API call needed)
   useEffect(() => {
@@ -199,13 +205,19 @@ export default function SettingsPage() {
   // Helper function to get allowed tabs based on role
   const getAllowedTabs = (role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'): string[] => {
     if (role === 'OWNER' || role === 'ADMIN') {
-      return ['workspace', 'notifications', 'appearance', 'integrations', 'permissions', 'migrations', 'members']
+      return ['workspace', 'notifications', 'appearance', 'integrations', 'loopbrain', 'permissions', 'migrations', 'members']
     } else if (role === 'MEMBER') {
-      return ['workspace', 'notifications', 'appearance', 'members']
+      return ['workspace', 'notifications', 'appearance', 'loopbrain', 'members']
     } else { // VIEWER
       return ['workspace', 'notifications', 'appearance']
     }
   }
+
+  // Loopbrain policy tab state
+  const [loopbrainView, setLoopbrainView] = useState<'list' | 'editor' | 'history'>('list')
+  const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null)
+  const [historyPolicyId, setHistoryPolicyId] = useState<string | null>(null)
+  const [historyPolicyName, setHistoryPolicyName] = useState("")
 
   const allowedTabs = getAllowedTabs(userRole)
   const canEdit = userRole === 'OWNER' || userRole === 'ADMIN'
@@ -294,12 +306,32 @@ export default function SettingsPage() {
     }
   }
 
+  // Fetch Google Drive integration status
+  const fetchDriveStatus = async () => {
+    if (!userStatus?.workspaceId) return
+    try {
+      setDriveLoading(true)
+      const response = await fetch('/api/integrations/drive/status')
+      if (response.ok) {
+        const data = await response.json()
+        setDriveConnected(data.connected === true)
+      } else {
+        setDriveConnected(false)
+      }
+    } catch {
+      setDriveConnected(false)
+    } finally {
+      setDriveLoading(false)
+    }
+  }
+
   // Fetch integrations when integrations tab is active (only if role allows)
   useEffect(() => {
     const canAccessIntegrations = userRole === 'OWNER' || userRole === 'ADMIN'
     if (activeTab === 'integrations' && userStatus?.workspaceId && canAccessIntegrations) {
       fetchSlackIntegration()
       fetchGmailStatus()
+      fetchDriveStatus()
     }
   }, [activeTab, userStatus?.workspaceId, userRole])
 
@@ -355,6 +387,30 @@ export default function SettingsPage() {
       setSlackMessage({ type: 'error', text: 'Failed to disconnect Gmail' })
     } finally {
       setGmailLoading(false)
+    }
+  }
+
+  const handleDriveConnect = () => {
+    window.location.href = '/api/integrations/drive/connect'
+  }
+
+  const handleDriveDisconnect = async () => {
+    if (!confirm('Disconnect Google Drive? Loopbrain will no longer be able to search or read your Drive files.')) {
+      return
+    }
+    try {
+      setDriveLoading(true)
+      const response = await fetch('/api/integrations/drive/disconnect', { method: 'POST' })
+      if (response.ok) {
+        setSlackMessage({ type: 'success', text: 'Google Drive disconnected successfully' })
+        setDriveConnected(false)
+      } else {
+        setSlackMessage({ type: 'error', text: 'Failed to disconnect Google Drive' })
+      }
+    } catch {
+      setSlackMessage({ type: 'error', text: 'Failed to disconnect Google Drive' })
+    } finally {
+      setDriveLoading(false)
     }
   }
 
@@ -562,6 +618,20 @@ export default function SettingsPage() {
           >
             <Plug className="mr-2 h-4 w-4" />
             Integrations
+          </Button>
+        )}
+        {allowedTabs.includes('loopbrain') && (
+          <Button
+            variant={activeTab === "loopbrain" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => {
+              setActiveTab("loopbrain")
+              setLoopbrainView('list')
+              router.push(`${pathname}?tab=loopbrain`, { scroll: false })
+            }}
+          >
+            <Brain className="mr-2 h-4 w-4" />
+            Loopbrain
           </Button>
         )}
         {allowedTabs.includes('permissions') && (
@@ -1096,18 +1166,58 @@ export default function SettingsPage() {
                   </div>
                   <span>Google Drive</span>
                 </CardTitle>
-                <CardDescription>Sync documents and files</CardDescription>
+                <CardDescription>Search, read, and create docs with Loopbrain</CardDescription>
               </CardHeader>
               <CardContent>
-                <Badge variant="outline" className="mb-4">Available</Badge>
-                <div className="space-y-2">
-                  <p className="text-sm">• Sync documents to wiki</p>
-                  <p className="text-sm">• Auto-import new files</p>
-                  <p className="text-sm">• Version control integration</p>
-                </div>
-                <div className="flex space-x-2 mt-4">
-                  <Button size="sm">Connect</Button>
-                </div>
+                {driveLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Checking connection...
+                  </div>
+                ) : driveConnected ? (
+                  <>
+                    <Badge variant="secondary" className="mb-4">Connected</Badge>
+                    <div className="space-y-2 mb-4">
+                      <p className="text-sm">&#8226; Search Drive files from Loopbrain</p>
+                      <p className="text-sm">&#8226; Read Docs and Sheets content</p>
+                      <p className="text-sm">&#8226; Create and update Google Docs</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleDriveDisconnect}
+                        disabled={driveLoading}
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Badge variant="outline" className="mb-4">Not Connected</Badge>
+                    <div className="space-y-2 mb-4">
+                      <p className="text-sm">&#8226; Search Drive files from Loopbrain</p>
+                      <p className="text-sm">&#8226; Read Docs and Sheets content</p>
+                      <p className="text-sm">&#8226; Create and update Google Docs</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={handleDriveConnect}
+                      disabled={driveLoading}
+                      className="w-full"
+                    >
+                      {driveLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        'Connect Google Drive'
+                      )}
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -1435,6 +1545,42 @@ export default function SettingsPage() {
       {activeTab === "members" && allowedTabs.includes('members') && (
         <div className="space-y-6">
           <WorkspaceMembers />
+        </div>
+      )}
+
+      {activeTab === "loopbrain" && allowedTabs.includes('loopbrain') && (
+        <div className="space-y-6">
+          {loopbrainView === 'list' && (
+            <PolicyList
+              onCreateNew={() => {
+                setEditingPolicyId(null)
+                setLoopbrainView('editor')
+              }}
+              onEdit={(id) => {
+                setEditingPolicyId(id)
+                setLoopbrainView('editor')
+              }}
+              onViewHistory={(id) => {
+                setHistoryPolicyId(id)
+                setHistoryPolicyName("")
+                setLoopbrainView('history')
+              }}
+            />
+          )}
+          {loopbrainView === 'editor' && (
+            <PolicyEditor
+              policyId={editingPolicyId}
+              onBack={() => setLoopbrainView('list')}
+              onSaved={() => setLoopbrainView('list')}
+            />
+          )}
+          {loopbrainView === 'history' && historyPolicyId && (
+            <ExecutionHistory
+              policyId={historyPolicyId}
+              policyName={historyPolicyName}
+              onBack={() => setLoopbrainView('list')}
+            />
+          )}
         </div>
       )}
     </div>

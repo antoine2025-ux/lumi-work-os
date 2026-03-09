@@ -74,6 +74,7 @@ import { toolRegistry } from './agent/tool-registry'
 import { generatePlan, formatPlanForUser, formatClarifyForUser, formatAdvisoryForUser } from './agent/planner'
 import { executeAgentPlan } from './agent/executor'
 import type { AgentPlan, AgentContext, MessageIntent } from './agent/types'
+import { enrichAgentContext } from './permissions'
 import { buildPlannerContext, formatContextForPrompt } from './agent/context-builder'
 import { getUserTaskContext } from './context/getUserTaskContext'
 import { isGoalQuestion, handleGoalQuery } from './goals/goal-queries'
@@ -276,6 +277,12 @@ export async function runLoopbrainQuery(
   const { intent, isTaskIntent } = classifyQueryIntent(req.query)
   if (intent === 'email_search' || req.mode === 'email_search') {
     return await handleEmailSearchMode(req, userCtx)
+  }
+
+  // 1.8b Drive search — MUST route to planner (searchDriveFiles/readDriveDocument). Bypass messageIntent
+  // so "can you search..." (which may classify as QUESTION) still uses the agent tools.
+  if (intent === 'drive_search') {
+    return await handleActionMode(req, 'ACTION')
   }
 
   // 1.9 Affirmative follow-up to action suggestions — route to agent before intent classification
@@ -5130,11 +5137,8 @@ async function handleActionMode(
   req: LoopbrainRequest,
   intent?: MessageIntent
 ): Promise<LoopbrainResponse> {
-  const agentContext: AgentContext = {
-    workspaceId: req.workspaceId,
-    userId: req.userId,
-    workspaceSlug: '', // populated at API layer if available
-  }
+  const userRole = await getMemberRole(req.workspaceId, req.userId)
+  const agentContext = await enrichAgentContext(req.workspaceId, req.userId, userRole)
 
   logger.info('Agent: entering action mode', {
     workspaceId: req.workspaceId,
@@ -5172,6 +5176,19 @@ async function handleActionMode(
     if (gmailSection) {
       contextSnippet = contextSnippet + gmailSection
     }
+  }
+
+  // Inject Drive hint when query asks about Drive files/meeting notes — nudge planner to use searchDriveFiles/readDriveDocument
+  const suggestsDrive =
+    queryLower.includes('drive') ||
+    (queryLower.includes('meeting notes') && (queryLower.includes('search') || queryLower.includes('find') || queryLower.includes('last') || queryLower.includes('gemini')))
+  if (suggestsDrive) {
+    const driveHint = [
+      '',
+      '--- Google Drive (you have full access) ---',
+      'User is asking about files in Google Drive. Use searchDriveFiles to find them, then readDriveDocument to get content. Do NOT say you lack Drive access.',
+    ].join('\n')
+    contextSnippet = contextSnippet + driveHint
   }
 
   // Inject calendar context (date, timezone, existing events) when query suggests scheduling
@@ -5366,11 +5383,8 @@ async function handlePlanExecution(
   req: LoopbrainRequest,
   plan: AgentPlan
 ): Promise<LoopbrainResponse> {
-  const agentContext: AgentContext = {
-    workspaceId: req.workspaceId,
-    userId: req.userId,
-    workspaceSlug: '',
-  }
+  const userRole = await getMemberRole(req.workspaceId, req.userId)
+  const agentContext = await enrichAgentContext(req.workspaceId, req.userId, userRole)
 
   logger.info('Agent: executing confirmed plan', {
     workspaceId: req.workspaceId,

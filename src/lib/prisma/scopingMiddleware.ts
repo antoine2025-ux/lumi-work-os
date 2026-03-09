@@ -129,6 +129,10 @@ export const WORKSPACE_SCOPED_MODELS = [
   'PersonRelationship',
   'PersonResponsibilityOverride',
   'TeamCapacityPlan',
+  // Loopbrain Policy Engine
+  'LoopbrainPolicy',
+  'PolicyExecution',
+  'PolicyActionLog',
   // LOW - UI preferences, minor features, utilities
   'LoopbrainChatFeedback',
   'LoopbrainOpenLoop',

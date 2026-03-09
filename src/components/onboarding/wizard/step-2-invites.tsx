@@ -1,3 +1,9 @@
+/*
+ * DEPRECATED: 2026-03-08
+ * Invite step removed from onboarding flow.
+ * Users complete org setup post-onboarding via /org.
+ * This file is preserved for reference only.
+ */
 'use client'
 
 import { useState } from 'react'

@@ -140,6 +140,7 @@ model User {
   notificationsActed      Notification[] @relation("NotificationActor")
   notificationPreferences NotificationPreference[]
   personalNotes           PersonalNote[]
+  loopbrainPolicies       LoopbrainPolicy[]
 
   @@map("users")
 }
@@ -342,6 +343,8 @@ model Workspace {
   loopbrainSessions           LoopbrainSession[]
   // Personal notes
   personalNotes               PersonalNote[]
+  // Loopbrain Policy Engine
+  loopbrainPolicies           LoopbrainPolicy[]
 
   @@map("workspaces")
 }
@@ -4815,6 +4818,118 @@ model GoalWorkflowRule {
   @@index([workspaceId, isActive])
   @@index([trigger])
   @@map("goal_workflow_rules")
+}
+
+// ---------------------------------------------------------------------------
+// Loopbrain Policy Engine
+// ---------------------------------------------------------------------------
+
+enum PolicyScheduleType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  CRON
+}
+
+enum PolicyTriggerType {
+  SCHEDULE
+  EMAIL_KEYWORD
+  TASK_STATUS_CHANGE
+  CALENDAR_EVENT
+}
+
+enum PolicyExecutionStatus {
+  RUNNING
+  SUCCESS
+  FAILURE
+  PARTIAL
+  TIMEOUT
+  CANCELLED
+}
+
+model LoopbrainPolicy {
+  id              String              @id @default(cuid())
+  workspaceId     String
+  userId          String
+  name            String
+  description     String?
+  content         String              @db.Text
+  compiledPlan    Json?
+  compiledAt      DateTime?
+  compileError    String?
+
+  scheduleType    PolicyScheduleType?
+  scheduleConfig  Json?
+  nextRunAt       DateTime?
+
+  triggerType     PolicyTriggerType   @default(SCHEDULE)
+  triggerConfig   Json?
+
+  maxActions      Int                 @default(50)
+  maxDurationMs   Int                 @default(300000)
+  tokenBudget     Int                 @default(50000)
+
+  consecutiveFailures Int             @default(0)
+  disabledReason  String?
+
+  enabled         Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  executions      PolicyExecution[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, enabled])
+  @@index([workspaceId, userId])
+  @@index([enabled, nextRunAt])
+  @@index([enabled, triggerType])
+  @@map("loopbrain_policies")
+}
+
+model PolicyExecution {
+  id              String                  @id @default(cuid())
+  policyId        String
+  workspaceId     String
+  userId          String
+  status          PolicyExecutionStatus   @default(RUNNING)
+  triggerSource   String
+  startedAt       DateTime                @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+  actionsCount    Int                     @default(0)
+  tokenUsage      Int?
+  result          Json?
+  errorMessage    String?
+  userFeedback    String?
+
+  policy          LoopbrainPolicy         @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  actionLogs      PolicyActionLog[]
+
+  @@index([policyId])
+  @@index([workspaceId])
+  @@index([policyId, startedAt(sort: Desc)])
+  @@index([workspaceId, startedAt(sort: Desc)])
+  @@map("policy_executions")
+}
+
+model PolicyActionLog {
+  id              String    @id @default(cuid())
+  executionId     String
+  stepNumber      Int
+  toolName        String
+  params          Json?
+  success         Boolean
+  result          Json?
+  errorMessage    String?
+  durationMs      Int?
+  createdAt       DateTime  @default(now())
+
+  execution       PolicyExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@map("policy_action_logs")
 }
 
 model OnboardingProgress {

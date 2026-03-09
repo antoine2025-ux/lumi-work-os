@@ -288,6 +288,7 @@ export async function POST(request: NextRequest) {
           conversationId: agentResult.conversationId,
           pendingPlan,
           toolCallsMade: agentResult.toolCallsMade,
+          clientAction: agentResult.clientAction ?? null,
           // Backward-compatible with old orchestrator response shape
           context: {
             retrievedItems: [],

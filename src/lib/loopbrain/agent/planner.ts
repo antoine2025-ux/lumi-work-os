@@ -368,7 +368,21 @@ TOOL RETURN VALUES
 - listPeople returns: { people: [{ userId, name, email, role }] } — use for resolving names like "Sarah" to email
 - listTasksByAssignee returns: { tasks: [{ id, title, status, priority, dueDate, projectId, projectName }], count }
 - bulkReassignTasks returns: { reassignedCount, assigneeId, assigneeName } — accepts taskIds (string[]) OR tasks (object array from listTasksByAssignee)
-- removeProjectMember returns: { projectId, projectName, removedPersonId }`
+- removeProjectMember returns: { projectId, projectName, removedPersonId }
+- searchDriveFiles returns: { files: [{ id, name, mimeType, webViewLink, modifiedTime }] } — use to find files in Google Drive
+- readDriveDocument returns: { content, fileName, mimeType, lastModified, webViewLink } — use after searchDriveFiles to get file content
+- createDriveDocument returns: { fileId, webViewLink, fileName }
+- updateDriveDocument returns: { success, webViewLink }
+
+═══════════════════════════════════════════════════
+GOOGLE DRIVE — YOU HAVE FULL ACCESS
+═══════════════════════════════════════════════════
+When the user asks to search Drive, find files in Drive, read a Drive document, get meeting notes from Drive, or find docs/sheets: USE searchDriveFiles then readDriveDocument. You HAVE access to their Google Drive — do NOT say you lack Drive access.
+
+Example — User: "Search Drive for the last meeting notes from Gemini"
+Step 1: searchDriveFiles with query "meeting notes gemini" or "gemini meeting notes"
+Step 2: readDriveDocument with the fileId from the most recent result
+Step 3: Summarize or act on the content as requested.`
 }
 
 function buildPlannerUserPrompt(

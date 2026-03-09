@@ -4,6 +4,7 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import { getCurrentOrg } from "@/lib/org/current-org";
+import type { OrgPermissionLevel } from "@/lib/orgPermissions";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,12 +17,19 @@ export async function GET(request: NextRequest) {
 
     const org = await getCurrentOrg();
 
+    const rawRole = user.roles[0];
+    const VALID_ORG_ROLES: OrgPermissionLevel[] = ["OWNER", "ADMIN", "MEMBER"];
+    const currentMemberRole: OrgPermissionLevel | null =
+      VALID_ORG_ROLES.includes(rawRole as OrgPermissionLevel)
+        ? (rawRole as OrgPermissionLevel)
+        : null;
+
     // Return format expected by useCurrentOrg hook
     return NextResponse.json({
       ok: true,
       data: {
         org: org ? { id: org.id, name: org.id } : null, // Temporary: use id as name
-        currentMemberRole: null, // TODO [P1]: Implement role checking — client relies on this for UI gating
+        currentMemberRole,
       },
     });
   } catch (error) {

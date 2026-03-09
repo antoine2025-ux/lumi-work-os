@@ -6,6 +6,8 @@ import { handleSlackLoopbrainMessage } from '@/lib/integrations/slack/interactiv
 import { sendSlackMessage } from '@/lib/integrations/slack-service'
 import { executeAgentPlan } from '@/lib/loopbrain/agent/executor'
 import { toolRegistry } from '@/lib/loopbrain/agent/tool-registry'
+import { enrichAgentContext } from '@/lib/loopbrain/permissions'
+import { getMemberRole } from '@/lib/loopbrain/context/getMemberRole'
 
 /**
  * Slack Webhook Handler
@@ -275,9 +277,11 @@ async function handleLoopbrainPlanAction(
       throw new Error('No plan data found in pending action')
     }
 
+    const slackUserRole = await getMemberRole(workspaceId, pendingAction.createdBy)
+    const slackAgentCtx = await enrichAgentContext(workspaceId, pendingAction.createdBy, slackUserRole)
     const result = await executeAgentPlan(
       plan,
-      { workspaceId, userId: pendingAction.createdBy, workspaceSlug: '' },
+      slackAgentCtx,
       toolRegistry
     )
 

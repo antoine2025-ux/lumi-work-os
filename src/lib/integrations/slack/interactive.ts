@@ -17,6 +17,8 @@ import { runLoopbrainQuery } from '@/lib/loopbrain/orchestrator'
 import { executeAgentPlan } from '@/lib/loopbrain/agent/executor'
 import { toolRegistry } from '@/lib/loopbrain/agent/tool-registry'
 import type { AgentPlan } from '@/lib/loopbrain/agent/types'
+import { enrichAgentContext } from '@/lib/loopbrain/permissions'
+import { getMemberRole } from '@/lib/loopbrain/context/getMemberRole'
 import { logger } from '@/lib/logger'
 import { IntegrationType, Prisma } from '@prisma/client'
 
@@ -338,9 +340,11 @@ async function handlePendingPlan(
   if (isSingleStep) {
     // Auto-execute single-step plans
     try {
+      const slackRole = await getMemberRole(workspaceId, userId)
+      const slackCtx = await enrichAgentContext(workspaceId, userId, slackRole)
       const result = await executeAgentPlan(
         plan,
-        { workspaceId, userId, workspaceSlug: '' },
+        slackCtx,
         toolRegistry
       )
 

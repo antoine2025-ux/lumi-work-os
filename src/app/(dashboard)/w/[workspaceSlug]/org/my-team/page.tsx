@@ -98,7 +98,9 @@ export default async function MyTeamPage({ params }: PageProps) {
   const teamMemberPersonIds = ledTeams.flatMap((t) =>
     t.positions.filter((p) => p.userId).map((p) => p.userId!)
   );
-  const approvablePersonIds = [...new Set([...reportPersonIds, ...teamMemberPersonIds])];
+  const approvablePersonIds = [
+    ...new Set([...reportPersonIds, ...teamMemberPersonIds]),
+  ].filter((id) => id !== context.userId);
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);

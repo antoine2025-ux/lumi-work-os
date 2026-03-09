@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Building2, ArrowRight, Loader2 } from 'lucide-react'
 import type { OnboardingStep1Data, CompanySize } from '@/lib/validations/onboarding'
+import { PaywallBanner, type PaywallTier } from '@/components/onboarding/PaywallBanner'
 import { cn } from '@/lib/utils'
 
 interface Step1WorkspaceProps {
@@ -18,9 +19,23 @@ interface Step1WorkspaceProps {
 const COMPANY_SIZES: Array<{ value: CompanySize; label: string; description: string }> = [
   { value: 'solo', label: 'Solo', description: 'Just me' },
   { value: '2-10', label: '2-10', description: 'Small team' },
-  { value: '11-50', label: '11-50', description: 'Growing company' },
-  { value: '50+', label: '50+', description: 'Large org' },
+  { value: '11-15', label: '11-15', description: 'Growing team' },
+  { value: '16-30', label: '16-30', description: 'Medium company' },
+  { value: '31-50', label: '31-50', description: 'Large company' },
+  { value: '50+', label: '50+', description: 'Enterprise' },
 ]
+
+function getPaywallTier(size: CompanySize | ''): PaywallTier | null {
+  switch (size) {
+    case 'solo': return 'trial'
+    case '2-10':
+    case '11-15': return 'business'
+    case '16-30': return 'scale'
+    case '31-50': return 'scale-plus'
+    case '50+': return 'enterprise'
+    default: return null
+  }
+}
 
 export function Step1Workspace({ defaultValues, submitting, onSubmit }: Step1WorkspaceProps) {
   const [workspaceName, setWorkspaceName] = useState(defaultValues?.workspaceName ?? '')
@@ -127,7 +142,7 @@ export function Step1Workspace({ defaultValues, submitting, onSubmit }: Step1Wor
           {/* Company size */}
           <div className="space-y-2">
             <Label>Company size</Label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {COMPANY_SIZES.map(size => (
                 <button
                   key={size.value}
@@ -148,6 +163,10 @@ export function Step1Workspace({ defaultValues, submitting, onSubmit }: Step1Wor
                 </button>
               ))}
             </div>
+
+            {getPaywallTier(companySize) && (
+              <PaywallBanner tier={getPaywallTier(companySize)!} className="mt-3" />
+            )}
           </div>
 
           {validationError && (

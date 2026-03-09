@@ -30,6 +30,12 @@ import { toolRegistry } from './agent/tool-registry'
 import { executeAction } from './actions/executor'
 import { formatActionForUser } from './format-action'
 import type { AgentContext } from './agent/types'
+import type { LoopbrainClientAction } from './orchestrator-types'
+import { streamDraftToPage } from './services/draft-page'
+import { enrichAgentContext, LoopbrainPermissionError, hasToolRole } from './permissions'
+import { getAccessibleProjectIds, assertProjectMembership } from './permissions/resource-acl'
+import { getAccessiblePersonIds } from './permissions/hierarchy'
+import { filterPersonData } from './permissions/context-filter'
 
 const MAX_TOOL_ITERATIONS = 10
 const LOOPBRAIN_MODEL = process.env.LOOPBRAIN_MODEL || 'claude-sonnet-4-6'
@@ -53,6 +59,8 @@ export interface AgentLoopResult {
   toolCallsMade: ToolCallRecord[]
   pendingPlan?: PendingPlan
   conversationId: string
+  /** Client-side navigation action to execute after rendering the response */
+  clientAction?: LoopbrainClientAction
 }
 
 export interface ExecutionProgressEvent {
@@ -63,10 +71,15 @@ export interface ExecutionProgressEvent {
   error?: string
   result?: unknown
   summary?: string
+  /** Client-side navigation action extracted from tool results (sent on 'complete' event) */
+  clientAction?: LoopbrainClientAction
 }
 
 export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopResult> {
   const { workspaceId, userId, conversationId: incomingConversationId, userMessage, userRole, userContext } = params
+
+  // Enrich agent context with role and org person ID (one DB query)
+  const agentCtx = await enrichAgentContext(workspaceId, userId, userRole)
 
   // 1. Load session (workspaceId is verified inside — cross-workspace IDs get a fresh session)
   const session = await loadSession(workspaceId, userId, incomingConversationId)
@@ -76,7 +89,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
   // 2. Check if this is a confirmation of a pending plan
   if (session.pendingPlan && isAffirmative(userMessage)) {
-    return await executePendingPlan(session, { ...params, conversationId })
+    return await executePendingPlan(session, { ...params, conversationId }, agentCtx)
   }
 
   // Clear any stale pending plan on new message
@@ -145,7 +158,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
         const readResults: LoopbrainMessage[] = []
         for (const readCall of readCalls) {
-          const result = await executeReadTool(readCall, workspaceId, userId)
+          const result = await executeReadTool(readCall, workspaceId, userId, agentCtx)
           readResults.push({
             role: 'tool',
             content: JSON.stringify(result),
@@ -207,7 +220,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
         arguments: toolCall.arguments,
       })
 
-      const result = await executeReadTool(toolCall, workspaceId, userId)
+      const result = await executeReadTool(toolCall, workspaceId, userId, agentCtx)
       toolResults.push({
         role: 'tool',
         content: JSON.stringify(result),
@@ -255,6 +268,7 @@ Timezone: ${userContext.timezone}
 
 IMPORTANT RULES:
 - Use tools to look up information rather than guessing. When the user asks about emails, calendar, projects, people, or documents, call the appropriate tool.
+- When the user asks to search Drive, find meeting notes, or read a Drive document, use searchDriveFiles then readDriveDocument. You have full access to their Google Drive.
 - For write operations (creating tasks, events, sending emails), always explain what you plan to do BEFORE calling the tool. The user will need to confirm.
 - Be concise and actionable. This is a workplace tool, not a general chatbot.
 - If a tool returns an error, explain what went wrong and suggest alternatives.
@@ -289,7 +303,8 @@ function isAffirmative(message: string): boolean {
 
 async function executePendingPlan(
   session: { id: string; messages: LoopbrainMessage[]; pendingPlan: PendingPlan | null },
-  params: AgentLoopParams
+  params: AgentLoopParams,
+  agentCtx: AgentContext,
 ): Promise<AgentLoopResult> {
   if (!session.pendingPlan) throw new Error('No pending plan')
 
@@ -316,12 +331,22 @@ async function executePendingPlan(
 
   // Execute each write tool
   const results: LoopbrainMessage[] = []
+  let clientAction: LoopbrainClientAction | undefined
   console.log('[PendingPlan] executing', session.pendingPlan.toolCalls.length, 'tool(s):', session.pendingPlan.toolCalls.map(tc => tc.name).join(', '))
   for (const toolCall of session.pendingPlan.toolCalls) {
     console.log('[PendingPlan] calling executeWriteTool for:', toolCall.name)
-    const result = await executeWriteTool(toolCall, params.workspaceId, params.userId)
+    const result = await executeWriteTool(toolCall, params.workspaceId, params.userId, agentCtx)
     const isError = typeof result === 'object' && result !== null && 'error' in result
     console.log('[PendingPlan] tool result for', toolCall.name, '— isError:', isError, JSON.stringify(result))
+
+    // Extract clientAction from tool results (e.g. draftWikiPage redirect)
+    if (!isError && typeof result === 'object' && result !== null && 'clientAction' in result) {
+      const ca = (result as Record<string, unknown>).clientAction
+      if (ca && typeof ca === 'object' && 'type' in ca && 'url' in ca) {
+        clientAction = ca as LoopbrainClientAction
+      }
+    }
+
     results.push({
       role: 'tool',
       content: JSON.stringify(result),
@@ -354,6 +379,7 @@ async function executePendingPlan(
     response: finalResponse.content,
     toolCallsMade: session.pendingPlan.toolCalls,
     conversationId: params.conversationId,
+    clientAction,
   }
 }
 
@@ -374,6 +400,10 @@ export async function executePlanWithProgress(
   const { conversationId } = params
   const toolCalls = session.pendingPlan.toolCalls
   const results: LoopbrainMessage[] = []
+  let clientAction: LoopbrainClientAction | undefined
+
+  // Enrich context for permission checks during tool execution
+  const agentCtx = await enrichAgentContext(params.workspaceId, params.userId, params.userRole)
 
   for (let i = 0; i < toolCalls.length; i++) {
     const toolCall = toolCalls[i]
@@ -386,7 +416,7 @@ export async function executePlanWithProgress(
       description,
     })
 
-    const result = await executeWriteTool(toolCall, params.workspaceId, params.userId)
+    const result = await executeWriteTool(toolCall, params.workspaceId, params.userId, agentCtx)
     const isError = typeof result === 'object' && result !== null && 'error' in result
 
     if (isError) {
@@ -400,6 +430,14 @@ export async function executePlanWithProgress(
       })
       await onEvent({ type: 'error', stepIndex: i, error: errorMsg })
       return { success: false, failedStepIndex: i, error: errorMsg }
+    }
+
+    // Extract clientAction from tool results (e.g. draftWikiPage returns a redirect)
+    if (!clientAction && !isError && typeof result === 'object' && result !== null && 'clientAction' in result) {
+      const ca = (result as Record<string, unknown>).clientAction
+      if (ca && typeof ca === 'object' && 'type' in ca && 'url' in ca) {
+        clientAction = ca as LoopbrainClientAction
+      }
     }
 
     results.push({
@@ -446,7 +484,7 @@ export async function executePlanWithProgress(
     timestamp: new Date().toISOString(),
   })
 
-  await onEvent({ type: 'complete', summary: finalResponse.content })
+  await onEvent({ type: 'complete', summary: finalResponse.content, clientAction })
   return {
     success: true,
     response: finalResponse.content,
@@ -510,7 +548,8 @@ async function callLLMWithTools(
 async function executeReadTool(
   toolCall: { id: string; name: string; arguments: Record<string, unknown> },
   workspaceId: string,
-  userId: string
+  userId: string,
+  agentCtx?: AgentContext,
 ): Promise<unknown> {
   setWorkspaceContext(workspaceId)
 
@@ -651,8 +690,18 @@ async function executeReadTool(
           args.status && args.status !== 'ALL'
             ? (args.status as 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED')
             : undefined
+
+        // Non-admins only see projects they have access to
+        const projectFilter: Record<string, unknown> = {
+          workspaceId, isArchived: false, ...(statusVal ? { status: statusVal } : {}),
+        }
+        if (agentCtx && !hasToolRole(agentCtx, 'ADMIN')) {
+          const accessibleIds = await getAccessibleProjectIds(agentCtx)
+          projectFilter.id = { in: accessibleIds }
+        }
+
         const projects = await prisma.project.findMany({
-          where: { workspaceId, isArchived: false, ...(statusVal ? { status: statusVal } : {}) },
+          where: projectFilter,
           select: { id: true, name: true, status: true, description: true },
           orderBy: { updatedAt: 'desc' },
           take: 20,
@@ -773,8 +822,9 @@ async function executeReadTool(
 
         if (!member) return { error: `Person ${args.personId} not found in workspace` }
 
-        return {
+        const profile: Record<string, unknown> = {
           id: args.personId,
+          userId: args.personId,
           name: member.user.name,
           email: member.user.email,
           workspaceRole: member.role,
@@ -790,6 +840,12 @@ async function executeReadTool(
             role: pm.role,
           })),
         }
+
+        // Apply hierarchy-based field filtering
+        if (agentCtx) {
+          return await filterPersonData(profile, agentCtx)
+        }
+        return profile
       } catch (err) {
         return { error: String(err) }
       }
@@ -904,8 +960,15 @@ async function executeReadTool(
         }
 
         // Workspace-wide: lightweight capacity summary per member
+        // Non-admins only see capacity for people in their hierarchy
+        let memberFilter: Record<string, unknown> = { workspaceId }
+        if (agentCtx && !hasToolRole(agentCtx, 'ADMIN')) {
+          const accessibleIds = await getAccessiblePersonIds(agentCtx)
+          memberFilter = { workspaceId, userId: { in: accessibleIds } }
+        }
+
         const members = await prisma.workspaceMember.findMany({
-          where: { workspaceId },
+          where: memberFilter,
           select: { userId: true, user: { select: { name: true } } },
           take: 20,
         })
@@ -944,6 +1007,15 @@ async function executeReadTool(
       try {
         const args = toolCall.arguments as { projectId?: string }
         if (!args.projectId) return { error: 'projectId is required' }
+
+        // Verify project access for non-admins
+        if (agentCtx && !hasToolRole(agentCtx, 'ADMIN')) {
+          try {
+            await assertProjectMembership(agentCtx, args.projectId)
+          } catch {
+            return { error: 'You do not have access to this project' }
+          }
+        }
 
         const [project, tasks] = await Promise.all([
           prisma.project.findFirst({
@@ -994,7 +1066,50 @@ async function executeReadTool(
       try {
         const tool = toolRegistry.get('listTasksByAssignee')
         if (!tool) return { error: 'listTasksByAssignee tool not found in registry' }
-        const result = await tool.execute(toolCall.arguments, { workspaceId, userId, workspaceSlug: '' })
+        const ctx = agentCtx ?? { workspaceId, userId, workspaceSlug: '', userRole: 'MEMBER' as const }
+        const result = await tool.execute(toolCall.arguments, ctx)
+        return result.success
+          ? result.data ?? { message: result.humanReadable }
+          : { error: result.error ?? result.humanReadable }
+      } catch (err) {
+        return { error: String(err) }
+      }
+    }
+
+    case 'readWikiPage': {
+      try {
+        const tool = toolRegistry.get('readWikiPage')
+        if (!tool) return { error: 'readWikiPage tool not found in registry' }
+        const ctx = agentCtx ?? { workspaceId, userId, workspaceSlug: '', userRole: 'MEMBER' as const }
+        const result = await tool.execute(toolCall.arguments, ctx)
+        return result.success
+          ? result.data ?? { message: result.humanReadable }
+          : { error: result.error ?? result.humanReadable }
+      } catch (err) {
+        return { error: String(err) }
+      }
+    }
+
+    case 'searchDriveFiles': {
+      try {
+        const tool = toolRegistry.get('searchDriveFiles')
+        if (!tool) return { error: 'searchDriveFiles tool not found' }
+        const ctx = agentCtx ?? { workspaceId, userId, workspaceSlug: '', userRole: 'MEMBER' as const }
+        const result = await tool.execute(toolCall.arguments, ctx)
+        return result.success
+          ? result.data ?? { message: result.humanReadable }
+          : { error: result.error ?? result.humanReadable }
+      } catch (err) {
+        return { error: String(err) }
+      }
+    }
+
+    case 'readDriveDocument': {
+      try {
+        const tool = toolRegistry.get('readDriveDocument')
+        if (!tool) return { error: 'readDriveDocument tool not found' }
+        const ctx = agentCtx ?? { workspaceId, userId, workspaceSlug: '', userRole: 'MEMBER' as const }
+        const result = await tool.execute(toolCall.arguments, ctx)
         return result.success
           ? result.data ?? { message: result.humanReadable }
           : { error: result.error ?? result.humanReadable }
@@ -1012,11 +1127,12 @@ async function executeReadTool(
 async function executeWriteTool(
   toolCall: ToolCallRecord,
   workspaceId: string,
-  userId: string
+  userId: string,
+  agentCtx?: AgentContext,
 ): Promise<unknown> {
   console.log('[WriteToolExec]', toolCall.name, JSON.stringify(toolCall.arguments))
   setWorkspaceContext(workspaceId)
-  const context: AgentContext = { workspaceId, userId, workspaceSlug: '' }
+  const context: AgentContext = agentCtx ?? { workspaceId, userId, workspaceSlug: '', userRole: 'MEMBER' }
   const args = toolCall.arguments
 
   switch (toolCall.name) {
@@ -1111,6 +1227,45 @@ async function executeWriteTool(
           ? { id: result.data?.id, slug: result.data?.slug, title: result.data?.title }
           : { error: result.error ?? result.humanReadable }
       } catch (err) {
+        return { error: String(err) }
+      }
+    }
+
+    case 'draftWikiPage': {
+      try {
+        console.log('[Agent Loop] draftWikiPage: executing tool', { args })
+        const tool = toolRegistry.get('draftWikiPage')
+        if (!tool) return { error: 'draftWikiPage tool not registered' }
+        const result = await tool.execute(args, context)
+        if (!result.success) return { error: result.error ?? result.humanReadable }
+
+        const data = result.data ?? {}
+        console.log('[Agent Loop] draftWikiPage: tool result', { id: data.id, slug: data.slug, hasClientAction: !!data._clientAction, hasDraftTask: !!data._draftTask })
+
+        // Fire-and-forget: stream LLM content into the page via Hocuspocus.
+        // The HTTP response returns immediately so the client can navigate.
+        const draftTask = data._draftTask as
+          | { pageId: string; topic: string; outline?: string[] }
+          | undefined
+        if (draftTask) {
+          console.log('[Agent Loop] draftWikiPage: launching streamDraftToPage', { pageId: draftTask.pageId, topic: draftTask.topic })
+          void streamDraftToPage({
+            pageId: draftTask.pageId,
+            workspaceId,
+            topic: draftTask.topic,
+            outline: draftTask.outline,
+            userId,
+          })
+        }
+
+        return {
+          id: data.id,
+          slug: data.slug,
+          title: data.title,
+          clientAction: data._clientAction,
+        }
+      } catch (err) {
+        console.error('[Agent Loop] draftWikiPage: error', err)
         return { error: String(err) }
       }
     }

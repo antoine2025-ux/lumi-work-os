@@ -9,6 +9,7 @@ import type {
   LoopbrainResponse,
   LoopbrainMode,
   ExtractedTask,
+  LoopbrainClientAction,
 } from './orchestrator-types'
 
 /**
@@ -29,6 +30,8 @@ export interface ExecutionStreamEvent {
   error?: string
   result?: unknown
   summary?: string
+  /** Client-side navigation action (present on 'complete' events) */
+  clientAction?: LoopbrainClientAction
 }
 
 /**
@@ -227,7 +230,7 @@ export async function executeLoopbrainPlanStream(
   params: { conversationId: string },
   callbacks: {
     onProgress: (event: ExecutionStreamEvent) => void
-    onComplete: (summary: string) => void
+    onComplete: (summary: string, clientAction?: LoopbrainClientAction) => void
     onError: (error: string) => void
   }
 ): Promise<void> {
@@ -272,7 +275,7 @@ export async function executeLoopbrainPlanStream(
           const event = JSON.parse(dataMatch[1].trim()) as ExecutionStreamEvent
           callbacks.onProgress(event)
           if (event.type === 'complete' && event.summary) {
-            callbacks.onComplete(event.summary)
+            callbacks.onComplete(event.summary, event.clientAction)
           }
           if (event.type === 'error' && event.error) {
             callbacks.onError(event.error)
@@ -289,7 +292,7 @@ export async function executeLoopbrainPlanStream(
           const event = JSON.parse(dataMatch[1].trim()) as ExecutionStreamEvent
           callbacks.onProgress(event)
           if (event.type === 'complete' && event.summary) {
-            callbacks.onComplete(event.summary)
+            callbacks.onComplete(event.summary, event.clientAction)
           }
           if (event.type === 'error' && event.error) {
             callbacks.onError(event.error)

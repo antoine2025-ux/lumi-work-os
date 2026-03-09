@@ -8,6 +8,7 @@ import { SocketProvider } from "@/lib/realtime/socket-context"
 import { WorkspaceProvider } from "@/lib/workspace-context"
 import { AuthWrapper } from "@/components/auth-wrapper"
 import { UserStatusProvider, useUserStatusContext } from "@/providers/user-status-provider"
+import { Toaster } from "@/components/ui/use-toast"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 
@@ -105,6 +106,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                   <DataPrefetcher />
                   {children}
                   <CommandPalette />
+                  <Toaster />
                 </KeyboardShortcutsWrapper>
               </SocketWrapper>
             </WorkspaceProvider>

@@ -173,8 +173,8 @@ export default async function MyProfilePage({ params }: PageProps) {
   const isManager = managerLinks.length > 0 || ledTeams.length > 0;
   const showPendingApprovals = isAdmin || isManager;
 
-  const approvablePersonIds = isAdmin
-    ? undefined // admin sees all workspace pending requests
+  const approvablePersonIds: { not: string } | string[] = isAdmin
+    ? { not: context.userId }
     : [
         ...new Set([
           ...managerLinks.map((l) => l.personId),
@@ -182,13 +182,15 @@ export default async function MyProfilePage({ params }: PageProps) {
             t.positions.map((p) => p.userId).filter((id): id is string => id !== null)
           ),
         ]),
-      ];
+      ].filter((id) => id !== context.userId);
 
   const pendingLeaveRequests = showPendingApprovals
     ? await prisma.leaveRequest.findMany({
         where: {
           workspaceId: context.workspaceId,
-          ...(approvablePersonIds ? { personId: { in: approvablePersonIds } } : {}),
+          personId: Array.isArray(approvablePersonIds)
+            ? { in: approvablePersonIds }
+            : approvablePersonIds,
           status: "PENDING",
         },
         orderBy: { createdAt: "asc" },

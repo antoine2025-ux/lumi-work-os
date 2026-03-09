@@ -15,8 +15,13 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { sendGmail } from '@/lib/integrations/gmail-send'
 import { createCalendarEvent } from '@/lib/integrations/calendar-events'
 import { logger } from '@/lib/logger'
-import type { LoopbrainTool, AgentContext, ToolResult } from './types'
+import type { LoopbrainTool, AgentContext, ToolResult, ToolPermissions } from './types'
 import { getDefaultSpaceForUser } from '@/lib/spaces/get-default-space'
+import { searchDriveFilesTool } from './tools/drive/search-drive-files'
+import { readDriveDocumentTool } from './tools/drive/read-drive-document'
+import { createDriveDocumentTool } from './tools/drive/create-drive-document'
+import { updateDriveDocumentTool } from './tools/drive/update-drive-document'
+import { extractTextFromProseMirror, isValidProseMirrorJSON } from '@/lib/wiki/text-extract'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -52,6 +57,14 @@ const TASK_STATUS_ALIASES: Record<string, string> = {
   COMPLETED: 'DONE',
   CLOSED: 'DONE',
   FINISHED: 'DONE',
+}
+
+function coerceNumber(val: unknown): unknown {
+  if (typeof val === 'string') {
+    const n = Number(val)
+    return Number.isFinite(n) ? n : val
+  }
+  return val
 }
 
 function normalizeEnum(val: unknown): unknown {
@@ -114,6 +127,11 @@ const CreateTodoSchema = z.object({
   ).optional(),
 })
 
+const ReadWikiPageSchema = z.object({
+  pageId: z.string().optional().describe('Wiki page ID (use this OR slug, not both)'),
+  slug: z.string().optional().describe('Wiki page slug (use this OR pageId, not both)'),
+}).refine((d) => d.pageId || d.slug, { message: 'Provide either pageId or slug' })
+
 const CreateWikiPageSchema = z.object({
   title: z.string().min(1).max(300),
   content: z.string().min(1),
@@ -157,7 +175,7 @@ const ListTasksByAssigneeSchema = z.object({
     normalizeEnum,
     z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'])
   ).optional().describe('Optional status filter'),
-  limit: z.number().int().min(1).max(100).optional().default(50),
+  limit: z.preprocess(coerceNumber, z.number().int().min(1).max(100).optional().default(50)),
 })
 
 const BulkReassignTasksSchema = z.object({
@@ -202,12 +220,12 @@ const ListProjectsSchema = z.object({
     normalizeEnum,
     z.enum(['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED'])
   ).optional(),
-  limit: z.number().int().min(1).max(50).optional().default(20),
+  limit: z.preprocess(coerceNumber, z.number().int().min(1).max(50).optional().default(20)),
 })
 
 const ListPeopleSchema = z.object({
   search: z.string().optional(),
-  limit: z.number().int().min(1).max(100).optional().default(50),
+  limit: z.preprocess(coerceNumber, z.number().int().min(1).max(100).optional().default(50)),
 })
 
 const SendEmailSchema = z.object({
@@ -248,6 +266,7 @@ const createProjectTool: LoopbrainTool = {
   category: 'project',
   parameters: CreateProjectSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: ['spaceMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateProjectSchema.parse(params)
     scope(context)
@@ -291,6 +310,7 @@ const createTaskTool: LoopbrainTool = {
   category: 'task',
   parameters: CreateTaskSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: ['projectMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateTaskSchema.parse(params)
     scope(context)
@@ -326,6 +346,7 @@ const createEpicTool: LoopbrainTool = {
   category: 'project',
   parameters: CreateEpicSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: ['projectMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateEpicSchema.parse(params)
     scope(context)
@@ -356,6 +377,7 @@ const assignTaskTool: LoopbrainTool = {
   category: 'task',
   parameters: AssignTaskSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = AssignTaskSchema.parse(params)
     scope(context)
@@ -384,6 +406,7 @@ const createTodoTool: LoopbrainTool = {
   category: 'todo',
   parameters: CreateTodoSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateTodoSchema.parse(params)
     scope(context)
@@ -411,12 +434,100 @@ const createTodoTool: LoopbrainTool = {
   },
 }
 
+const readWikiPageTool: LoopbrainTool = {
+  name: 'readWikiPage',
+  description: 'Read the full content of a wiki page by ID or slug. Returns title, plaintext content, tags, author, and last-updated date. Use after searchWiki when you need the actual page content.',
+  category: 'wiki',
+  parameters: ReadWikiPageSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = ReadWikiPageSchema.parse(params)
+    scope(context)
+    try {
+      let page: {
+        id: string
+        title: string
+        slug: string
+        content: string
+        contentJson: unknown
+        textContent: string | null
+        tags: string[]
+        updatedAt: Date
+        createdBy: { name: string | null; email: string | null }
+      } | null = null
+
+      const select = {
+        id: true,
+        title: true,
+        slug: true,
+        content: true,
+        contentJson: true,
+        textContent: true,
+        tags: true,
+        updatedAt: true,
+        createdBy: { select: { name: true, email: true } },
+      }
+
+      if (p.pageId) {
+        page = await prisma.wikiPage.findUnique({
+          where: { id: p.pageId },
+          select,
+        })
+      } else if (p.slug) {
+        page = await prisma.wikiPage.findUnique({
+          where: { workspaceId_slug: { workspaceId: context.workspaceId, slug: p.slug } },
+          select,
+        })
+      }
+
+      if (!page) {
+        return { success: false, error: 'Wiki page not found', humanReadable: 'No wiki page found with that ID or slug.' }
+      }
+
+      // Resolve plaintext: prefer pre-extracted textContent, then TipTap JSON extraction, then raw content
+      let plaintext: string
+      if (page.textContent) {
+        plaintext = page.textContent
+      } else if (page.contentJson && isValidProseMirrorJSON(page.contentJson)) {
+        plaintext = extractTextFromProseMirror(page.contentJson)
+      } else {
+        plaintext = page.content
+      }
+
+      // Truncate to a safe token budget (~5000 chars ≈ ~1250 tokens)
+      const CONTENT_LIMIT = 5000
+      const truncated = plaintext.length > CONTENT_LIMIT
+      const content = truncated ? plaintext.slice(0, CONTENT_LIMIT) + '\n\n[content truncated — page has more text]' : plaintext
+
+      return {
+        success: true,
+        data: {
+          id: page.id,
+          slug: page.slug,
+          title: page.title,
+          content,
+          tags: page.tags,
+          createdBy: page.createdBy.name ?? page.createdBy.email ?? 'Unknown',
+          updatedAt: page.updatedAt.toISOString(),
+          truncated,
+        },
+        humanReadable: `Read wiki page "${page.title}" (${page.slug})${truncated ? ' — content truncated at 5000 chars' : ''}`,
+      }
+    } catch (err) {
+      logger.error('readWikiPage tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to read wiki page' }
+    }
+  },
+}
+
 const createWikiPageTool: LoopbrainTool = {
   name: 'createWikiPage',
   description: 'Create a new wiki page in the workspace',
   category: 'wiki',
   parameters: CreateWikiPageSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateWikiPageSchema.parse(params)
     scope(context)
@@ -443,12 +554,86 @@ const createWikiPageTool: LoopbrainTool = {
   },
 }
 
+const DraftWikiPageSchema = z.object({
+  title: z.string().min(1).max(300),
+  topic: z.string().min(1),
+  outline: z.array(z.string()).optional(),
+  spaceId: z.string().optional(),
+})
+
+const draftWikiPageTool: LoopbrainTool = {
+  name: 'draftWikiPage',
+  description: 'Create a blank wiki page and trigger AI drafting into it via Hocuspocus',
+  category: 'wiki',
+  parameters: DraftWikiPageSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = DraftWikiPageSchema.parse(params)
+    scope(context)
+    try {
+      // Resolve a space for the page (prefer explicit, then company wiki, then null)
+      let spaceId: string | null = p.spaceId ?? null
+      if (!spaceId) {
+        const companyWiki = await prisma.space.findFirst({
+          where: { workspaceId: context.workspaceId, type: 'WIKI' },
+          select: { id: true },
+        })
+        spaceId = companyWiki?.id ?? null
+      }
+
+      // Create a blank page (no content — content will stream via Hocuspocus)
+      const slug = slugify(p.title) + '-' + Date.now().toString(36)
+      const page = await prisma.wikiPage.create({
+        data: {
+          workspaceId: context.workspaceId,
+          title: p.title,
+          slug,
+          content: '',
+          contentFormat: 'JSON',
+          contentJson: { type: 'doc', content: [{ type: 'paragraph' }] },
+          createdById: context.userId,
+          ...(spaceId ? { spaceId } : {}),
+        },
+      })
+
+      return {
+        success: true,
+        data: {
+          id: page.id,
+          slug: page.slug,
+          title: page.title,
+          topic: p.topic,
+          outline: p.outline,
+          // Marker for the agent-loop to trigger background drafting
+          _draftTask: {
+            pageId: page.id,
+            topic: p.topic,
+            outline: p.outline,
+          },
+          // Client action — navigate to the new page
+          _clientAction: {
+            type: 'navigate',
+            url: `/wiki/${page.slug}`,
+            label: `Opening ${page.title}…`,
+          },
+        },
+        humanReadable: `Created wiki page "${page.title}" — AI is now drafting content about: ${p.topic}`,
+      }
+    } catch (err) {
+      logger.error('draftWikiPage tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to create draft wiki page' }
+    }
+  },
+}
+
 const createGoalTool: LoopbrainTool = {
   name: 'createGoal',
   description: 'Create a new goal/OKR for the workspace',
   category: 'goal',
   parameters: CreateGoalSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateGoalSchema.parse(params)
     scope(context)
@@ -487,6 +672,7 @@ const addPersonToProjectTool: LoopbrainTool = {
   category: 'project',
   parameters: AddPersonToProjectSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'ADMIN', resourceChecks: ['projectMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = AddPersonToProjectSchema.parse(params)
     scope(context)
@@ -521,6 +707,7 @@ const updateTaskStatusTool: LoopbrainTool = {
   category: 'task',
   parameters: UpdateTaskStatusSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = UpdateTaskStatusSchema.parse(params)
     scope(context)
@@ -550,6 +737,7 @@ const updateProjectTool: LoopbrainTool = {
   category: 'project',
   parameters: UpdateProjectSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: ['projectMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = UpdateProjectSchema.parse(params)
     scope(context)
@@ -581,6 +769,7 @@ const linkProjectToGoalTool: LoopbrainTool = {
   category: 'project',
   parameters: LinkProjectToGoalSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: ['projectMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = LinkProjectToGoalSchema.parse(params)
     scope(context)
@@ -615,6 +804,7 @@ const addSubtaskTool: LoopbrainTool = {
   category: 'task',
   parameters: AddSubtaskSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = AddSubtaskSchema.parse(params)
     scope(context)
@@ -645,6 +835,7 @@ const sendEmailTool: LoopbrainTool = {
   category: 'email',
   parameters: SendEmailSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = SendEmailSchema.parse(params)
     scope(context)
@@ -676,6 +867,7 @@ const replyToEmailTool: LoopbrainTool = {
   category: 'email',
   parameters: ReplyToEmailSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = ReplyToEmailSchema.parse(params)
     scope(context)
@@ -710,6 +902,7 @@ const createCalendarEventTool: LoopbrainTool = {
   category: 'calendar',
   parameters: CreateCalendarEventSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateCalendarEventSchema.parse(params)
     scope(context)
@@ -746,6 +939,7 @@ const createMultipleCalendarEventsTool: LoopbrainTool = {
   category: 'calendar',
   parameters: CreateMultipleCalendarEventsSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateMultipleCalendarEventsSchema.parse(params)
     scope(context)
@@ -807,6 +1001,7 @@ const listProjectsTool: LoopbrainTool = {
   category: 'project',
   parameters: ListProjectsSchema,
   requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = ListProjectsSchema.parse(params)
     scope(context)
@@ -839,6 +1034,7 @@ const listPeopleTool: LoopbrainTool = {
   category: 'org',
   parameters: ListPeopleSchema,
   requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = ListPeopleSchema.parse(params)
     scope(context)
@@ -888,6 +1084,7 @@ const listTasksByAssigneeTool: LoopbrainTool = {
   category: 'task',
   parameters: ListTasksByAssigneeSchema,
   requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = ListTasksByAssigneeSchema.parse(params)
     scope(context)
@@ -936,6 +1133,7 @@ const bulkReassignTasksTool: LoopbrainTool = {
   category: 'task',
   parameters: BulkReassignTasksSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = BulkReassignTasksSchema.parse(params)
     // Accept either explicit taskIds or a full tasks array (e.g. passed from $stepN.data.tasks)
@@ -991,6 +1189,7 @@ const removeProjectMemberTool: LoopbrainTool = {
   category: 'project',
   parameters: RemoveProjectMemberSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'ADMIN', resourceChecks: ['projectMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = RemoveProjectMemberSchema.parse(params)
     scope(context)
@@ -1048,7 +1247,9 @@ const ALL_TOOLS: LoopbrainTool[] = [
   createEpicTool,
   assignTaskTool,
   createTodoTool,
+  readWikiPageTool,
   createWikiPageTool,
+  draftWikiPageTool,
   createGoalTool,
   addPersonToProjectTool,
   updateTaskStatusTool,
@@ -1064,6 +1265,10 @@ const ALL_TOOLS: LoopbrainTool[] = [
   listTasksByAssigneeTool,
   bulkReassignTasksTool,
   removeProjectMemberTool,
+  searchDriveFilesTool,
+  readDriveDocumentTool,
+  createDriveDocumentTool,
+  updateDriveDocumentTool,
 ]
 
 export class ToolRegistry {
@@ -1086,6 +1291,29 @@ export class ToolRegistry {
 
   getByCategory(category: string): LoopbrainTool[] {
     return this.getAll().filter((t) => t.category === category)
+  }
+
+  /** Return ToolDefinition[] for the compiler (only tools with real implementations) */
+  toToolDefinitions(): import('@/lib/ai/providers').ToolDefinition[] {
+    return this.getAll().map((t) => {
+      let parameters: Record<string, unknown> = {}
+      try {
+        if ('shape' in t.parameters) {
+          const shape = (t.parameters as z.ZodObject<z.ZodRawShape>).shape
+          const props: Record<string, unknown> = {}
+          const required: string[] = []
+          for (const [key, val] of Object.entries(shape)) {
+            const zVal = val as z.ZodTypeAny
+            props[key] = { type: 'string', description: key }
+            if (!zVal.isOptional()) required.push(key)
+          }
+          parameters = { type: 'object', properties: props, required }
+        }
+      } catch {
+        parameters = { type: 'object', properties: {} }
+      }
+      return { name: t.name, description: t.description, parameters }
+    })
   }
 
   /** Build a concise tool-spec block for the planner LLM prompt */

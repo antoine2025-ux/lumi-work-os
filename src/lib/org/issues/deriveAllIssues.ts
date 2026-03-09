@@ -11,9 +11,11 @@ import { prisma } from "@/lib/db";
 import {
   deriveOwnershipIssues,
   deriveIssues,
+  deriveCapacityIssues,
   buildIssueExplainability,
   deriveWorkImpactIssues,
   type OrgIssueMetadata,
+  type CapacityIssueContext,
 } from "@/lib/org/deriveIssues";
 import { resolveTeamOwners, resolveDepartmentOwners } from "@/lib/org/ownership-resolver";
 import { batchIsPersonManagerExempt } from "@/lib/org/manager-exemption";
@@ -22,6 +24,14 @@ import {
   getWorkspaceThresholdsAsync,
   type CapacityThresholdsWithWindow,
 } from "@/lib/org/capacity/thresholds";
+import {
+  getCapacityContractsBatch,
+  resolveActiveContractBatch,
+  computeEffectiveCapacity,
+  type EffectiveCapacity,
+} from "@/lib/org/capacity";
+import { getWorkAllocationsBatch } from "@/lib/org/allocations";
+import { getAvailabilityEventsBatch } from "@/lib/org/availability";
 import type { SerializedIssueWindow, IssueWindowLabel } from "@/lib/org/intelligence/types";
 import { resolveWorkImpactSummary } from "@/lib/org/impact/resolveWorkImpact";
 import { deriveDecisionIssues } from "@/lib/org/issues/deriveDecisionIssues";
@@ -166,7 +176,12 @@ export async function deriveAllIssues(
   });
 
   const userIds = positions.map((p) => p.userId!).filter(Boolean);
-  const exemptions = await batchIsPersonManagerExempt(userIds, workspaceId);
+  const [exemptions, contractsByPerson, allocationsByPerson, availabilityByPerson] = await Promise.all([
+    batchIsPersonManagerExempt(userIds, workspaceId),
+    getCapacityContractsBatch(workspaceId, userIds),
+    getWorkAllocationsBatch(workspaceId, userIds, window),
+    getAvailabilityEventsBatch(workspaceId, userIds, window),
+  ]);
 
   const personInputs = positions.map((p) => ({
     id: p.userId!,
@@ -269,7 +284,47 @@ export async function deriveAllIssues(
     console.warn("[deriveAllIssues] Work staffing issue derivation failed:", err);
   }
 
-  // 12. Combine all derived issues
+  // 12. Derive capacity issues (OVERALLOCATED_PERSON, UNAVAILABLE_OWNER, LOW_EFFECTIVE_CAPACITY, etc.)
+  let capacityIssues: OrgIssueMetadata[] = [];
+  try {
+    const effectiveCapacities = new Map<string, EffectiveCapacity>();
+    for (const personId of userIds) {
+      effectiveCapacities.set(personId, computeEffectiveCapacity(personId, window, {
+        availabilityEvents: availabilityByPerson.get(personId) ?? [],
+        capacityContracts: contractsByPerson.get(personId) ?? [],
+        workAllocations: allocationsByPerson.get(personId) ?? [],
+      }));
+    }
+
+    const contractResolutions = resolveActiveContractBatch(contractsByPerson, window.start);
+
+    const capacityPersonMetadata = new Map(
+      positions.map((p) => [p.userId!, { name: p.user?.name ?? p.user?.email ?? p.userId! }])
+    );
+
+    const capacityContext: CapacityIssueContext = {
+      timeWindow: window,
+      workspaceSlug,
+      effectiveCapacities,
+      contractResolutions,
+      teamOwnershipResolutions: teamResolutions,
+      deptOwnershipResolutions: deptResolutions,
+      personMetadata: capacityPersonMetadata,
+      workAllocations: allocationsByPerson,
+      availabilityEvents: availabilityByPerson,
+      thresholds: {
+        lowCapacityHoursThreshold: thresholds.lowCapacityHoursThreshold,
+        overallocationThreshold: thresholds.overallocationThreshold,
+        minCapacityForCoverage: thresholds.minCapacityForCoverage,
+      },
+    };
+
+    capacityIssues = deriveCapacityIssues(capacityContext);
+  } catch (err) {
+    console.warn("[deriveAllIssues] Capacity issue derivation failed:", err);
+  }
+
+  // 13. Combine all derived issues
   const allIssues: OrgIssueMetadata[] = [
     ...ownershipIssues,
     ...personIssues,
@@ -277,6 +332,7 @@ export async function deriveAllIssues(
     ...decisionIssues,
     ...responsibilityIssues,
     ...workStaffingIssues,
+    ...capacityIssues,
   ];
 
   // 13. Return standardized payload

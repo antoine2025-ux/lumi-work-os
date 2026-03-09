@@ -36,6 +36,7 @@ export type LoopbrainIntent =
   | 'meeting_prep'
   | 'email_search'
   | 'slack_search'
+  | 'drive_search'
   | 'unknown'
 
 /**
@@ -229,7 +230,26 @@ export function detectIntentFromKeywords(
     return { intent, confidence, reasons }
   }
 
-  // ----- Slack search (checked after email — high specificity) -----
+  // ----- Drive search (checked after email, before slack — high specificity) -----
+
+  const driveSearchKeywords = [
+    'search in drive', 'search drive', 'search my drive', 'search google drive',
+    'find in drive', 'find in google drive', 'look in drive', 'look in google drive',
+    'drive files', 'google drive files', 'files in drive', 'documents in drive',
+    'meeting notes in drive', 'meeting notes from drive', 'drive meeting notes',
+    'last meeting notes', 'recent meeting notes', 'gemini meeting notes',
+  ]
+  if (
+    driveSearchKeywords.some((kw) => queryLower.includes(kw)) ||
+    (queryLower.includes('drive') && (queryLower.includes('search') || queryLower.includes('find') || queryLower.includes('meeting')))
+  ) {
+    intent = 'drive_search'
+    confidence = 0.90
+    reasons.push('Detected Google Drive search keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Slack search (checked after email and drive — high specificity) -----
 
   const slackSearchKeywords = [
     'in slack', 'on slack', 'posted in slack', 'from slack',
@@ -511,6 +531,11 @@ function selectModeFromIntent(
     case 'slack_search':
       mode = 'slack_search'
       reasons.push('Slack search has its own dedicated mode')
+      break
+
+    case 'drive_search':
+      mode = 'dashboard'
+      reasons.push('Drive search routes to planner (tools: searchDriveFiles, readDriveDocument)')
       break
 
     case 'onboarding_briefing':
