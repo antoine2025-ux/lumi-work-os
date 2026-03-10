@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { handleApiError } from "@/lib/api-errors";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
@@ -81,15 +82,6 @@ export async function GET(request: NextRequest) {
       ...result,
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/intelligence/landing] Error:", error);
-
-    if (error instanceof Error && error.message.includes("Access denied")) {
-      return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
-    }
-
-    return NextResponse.json(
-      { ok: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }

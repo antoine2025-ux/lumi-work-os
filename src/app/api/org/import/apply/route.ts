@@ -9,6 +9,7 @@ import { asFte, asPercent, asShrinkage, ImportError } from "@/server/org/import/
 import { getPeopleEmailMap } from "@/server/org/import/lookup"
 import { runInBatches } from "@/server/org/import/batch"
 import { logOrgAuditBatch } from "@/lib/audit/org-audit"
+import { ImportApplySchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,10 +20,9 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["OWNER", "ADMIN"] })
     setWorkspaceContext(workspaceId)
 
-    const body = (await req.json()) as { entity: string; csv: string }
+    const body = ImportApplySchema.parse(await req.json())
 
-    const entity = String(body?.entity ?? "")
-    const csvText = String(body?.csv ?? "")
+    const { entity, csv: csvText } = body;
     const { rows } = parseCsv(csvText)
 
     const emailMap = await getPeopleEmailMap(workspaceId)

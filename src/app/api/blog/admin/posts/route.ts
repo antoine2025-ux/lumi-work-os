@@ -4,6 +4,7 @@ import { assertAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
 import { blogPrisma } from "@/lib/blog-db"
+import { BlogPostCreateSchema } from '@/lib/validations/blog'
 
 // GET /api/blog/admin/posts - List all posts
 export async function GET(request: NextRequest) {
@@ -47,36 +48,20 @@ export async function POST(request: NextRequest) {
     })
     setWorkspaceContext(auth.workspaceId)
 
-    let body
-    try {
-      body = await request.json()
-      console.log("[BLOG API] Request body parsed:", { 
-        title: body.title, 
-        slug: body.slug, 
-        excerpt: body.excerpt?.substring(0, 50), 
-        contentLength: body.content?.length,
-        category: body.category,
-        status: body.status 
-      })
-    } catch (parseError) {
-      console.error("[BLOG API] Failed to parse request body:", parseError)
-      return NextResponse.json(
-        { error: "Invalid request body" },
-        { status: 400 }
-      )
-    }
+    const body = BlogPostCreateSchema.parse(await request.json())
+    const { title, slug, excerpt, content, category, status, featuredImage, tags } = body
 
-    const { title, slug, excerpt, content, category, status } = body
+    console.log("[BLOG API] Request body parsed:", { 
+      title, 
+      slug, 
+      excerpt: excerpt.substring(0, 50), 
+      contentLength: content.length,
+      category,
+      status 
+    })
 
     // Sanitize slug: trim whitespace and ensure it's URL-safe
     const sanitizedSlug = slug.trim().toLowerCase().replace(/\s+/g, '-')
-
-    if (!title || !slug || !excerpt || !content || !category) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      )
-    }
 
     // Check if slug already exists
     try {
@@ -137,9 +122,9 @@ export async function POST(request: NextRequest) {
     const validStatus = status === "PUBLISHED" ? "PUBLISHED" : "DRAFT"
     
     // Set publishedAt if status is PUBLISHED
-    const publishedAt = validStatus === "PUBLISHED" ? new Date() : null
+    const finalPublishedAt = validStatus === "PUBLISHED" ? new Date() : null
 
-    console.log("[BLOG API] Creating post with:", { title, slug, status: validStatus, publishedAt })
+    console.log("[BLOG API] Creating post with:", { title, slug, status: validStatus, publishedAt: finalPublishedAt })
 
     try {
       const post = await blogPrisma.blogPost.create({
@@ -148,9 +133,9 @@ export async function POST(request: NextRequest) {
           slug: sanitizedSlug,
           excerpt,
           content,
-          category: category || "NEWS",
+          category: category as any,
           status: validStatus,
-          publishedAt,
+          publishedAt: finalPublishedAt,
         },
       })
 

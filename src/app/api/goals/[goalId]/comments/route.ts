@@ -2,17 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const CreateCommentSchema = z.object({
-  content: z.string().min(1).max(5000),
-})
+import { CreateCommentSchema } from '@/lib/validations/goals'
 
 // ============================================================================
 // GET /api/goals/[goalId]/comments - Get goal comments

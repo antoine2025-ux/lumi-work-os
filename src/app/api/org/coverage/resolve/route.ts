@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 import { getRoleCoverages, resolveCoverage, type RoleCoverage } from "@/lib/org/coverage";
 import { resolveEffectiveCapacityBatch } from "@/lib/org/capacity/resolveEffectiveCapacity";
@@ -231,8 +232,7 @@ export async function GET(request: NextRequest) {
       responseMeta: getCoverageResponseMeta(),
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/coverage/resolve] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 

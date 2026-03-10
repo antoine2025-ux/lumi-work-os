@@ -5,6 +5,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { MergeDuplicateSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,11 +16,7 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
     setWorkspaceContext(workspaceId);
 
-    const body = (await req.json()) as {
-      candidateId: string;
-      canonicalId: string;
-      mergedId: string;
-    };
+    const body = MergeDuplicateSchema.parse(await req.json());
 
     if (body.canonicalId === body.mergedId) {
       return NextResponse.json({ ok: false, error: "canonicalId and mergedId must differ" }, { status: 400 });

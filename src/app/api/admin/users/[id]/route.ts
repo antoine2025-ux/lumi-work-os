@@ -8,6 +8,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { safeRebuildOrgContext } from '@/lib/org/org-context-service'
 import { handleApiError } from '@/lib/api-errors'
+import { AdminUpdateUserSchema } from '@/lib/validations/admin'
 
 // GET /api/admin/users/[id] - Get a specific user
 export async function GET(
@@ -71,7 +72,7 @@ export async function PUT(
     setWorkspaceContext(authCtx.workspaceId)
 
     const { id } = await params
-    const body = await request.json()
+    const body = AdminUpdateUserSchema.parse(await request.json())
     const { 
       name, 
       email, 

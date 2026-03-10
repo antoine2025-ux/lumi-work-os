@@ -423,16 +423,17 @@ src/
 
 ## 9. Coverage Summary
 
+> Updated March 10, 2026 from live audit. Prior estimates from Feb 24 audit were lower due to 59 new routes added since.
+
 | Security Layer | Coverage | Denominator |
 |----------------|----------|-------------|
-| `getUnifiedAuth` | 74% | 326/439 documented (actual: ~326/498) |
-| `assertAccess` | 66% | 290/439 documented |
-| `setWorkspaceContext` | 67% | 296/439 documented |
-| `handleApiError` | 56% | 246/439 documented |
-| Zod validation | 23% | 102/439 documented |
+| `getUnifiedAuth` | 85.3% | 425/498 |
+| `assertAccess` | 83.3% | 415/498 |
+| `setWorkspaceContext` | 80.3% | 400/498 |
+| `handleApiError` | 90.5% | 447/494 (100% eligible) ✅ |
+| Zod validation | 38.8% | 120/309 mutating |
 | Workspace-scoped models | 90% | 152/168 |
-
-> Note: Coverage percentages above use 439 as denominator (from Feb 24 audit). With 498 actual routes, effective coverage is lower: e.g. `getUnifiedAuth` is ~65% against 498.
+| Genuinely unprotected routes | 0 | Fixed March 10, 2026 |
 
 ---
 

@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 import { resolveWorkImpact } from "@/lib/org/impact/resolveWorkImpact";
 import { deleteExplicitImpact } from "@/lib/org/impact/read";
@@ -84,7 +85,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       ...result,
     });
   } catch (error: unknown) {
-    console.error("[DELETE /api/org/work/[id]/impact/[impactId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

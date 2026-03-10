@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from '@/lib/unified-auth';
 import { assertAccess } from '@/lib/auth/assertAccess';
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
+import { handleApiError } from '@/lib/api-errors';
 
 type RouteParams = {
   params: Promise<{
@@ -57,12 +58,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         })),
       },
     });
-  } catch (error) {
-    console.error("Failed to fetch role:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to fetch role" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -148,12 +145,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         })),
       },
     });
-  } catch (error) {
-    console.error("Failed to update role:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to update role" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -196,12 +189,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error("Failed to delete role:", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to delete role" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

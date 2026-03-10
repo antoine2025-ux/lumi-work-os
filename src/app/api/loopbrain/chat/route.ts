@@ -23,6 +23,7 @@ import { isOrgLoopbrainEnabled } from '@/lib/loopbrain/orgGate'
 import { ensureOrgContextSyncedSync } from '@/lib/loopbrain/ensureOrgContextSynced'
 import { handleApiError } from '@/lib/api-errors'
 import { formatActionForUser } from '@/lib/loopbrain/format-action'
+import { LoopbrainChatSchema } from '@/lib/validations/loopbrain'
 
 /**
  * POST /api/loopbrain/chat
@@ -67,39 +68,8 @@ export async function POST(request: NextRequest) {
     const workspaceId = auth.workspaceId
     const userId = auth.user.userId
 
-    // Parse request body
-    let body: {
-      mode?: string
-      query?: string
-      projectId?: string
-      pageId?: string
-      taskId?: string
-      epicId?: string
-      roleId?: string
-      teamId?: string
-      personId?: string
-      useSemanticSearch?: boolean
-      maxContextItems?: number
-      sendToSlack?: boolean
-      slackChannel?: string
-      clientMetadata?: Record<string, unknown>
-      slackChannelHints?: string[]
-      pendingPlan?: AgentPlan
-      conversationContext?: string
-      pendingClarification?: ClarificationContext
-      pendingAdvisory?: AdvisoryContext
-      pendingMeetingExtraction?: { tasks: ExtractedTask[] }
-      conversationId?: string  // Agent loop: client-generated UUID, persisted across turns
-    }
-
-    try {
-      body = await request.json()
-    } catch (_error) {
-      return NextResponse.json(
-        { error: 'Invalid JSON in request body' },
-        { status: 400 }
-      )
-    }
+    // Parse and validate request body
+    const body = LoopbrainChatSchema.parse(await request.json())
 
     // Validate required fields
     if (!body.mode || typeof body.mode !== 'string') {

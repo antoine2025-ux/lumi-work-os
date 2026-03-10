@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { sendSlackMessage } from '@/lib/integrations/slack-service'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
@@ -52,14 +53,8 @@ export async function POST(request: NextRequest) {
       ts: result.ts,
       message: 'Message sent successfully'
     })
-  } catch (error) {
-    logger.error('Error sending Slack message:', {
-      error: error instanceof Error ? error.message : String(error)
-    })
-    return NextResponse.json(
-      { error: 'Failed to send Slack message' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

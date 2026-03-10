@@ -5,6 +5,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { GenerateDuplicateCandidatesSchema } from '@/lib/validations/org';
 
 export async function GET(req: NextRequest) {
   try {

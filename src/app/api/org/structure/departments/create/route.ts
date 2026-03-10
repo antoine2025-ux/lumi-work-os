@@ -9,12 +9,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
-import { requireNonEmptyString } from "@/server/org/validate";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { createDepartment } from "@/server/org/structure/write";
 import { prisma } from "@/lib/db";
 import { logOrgAudit } from "@/lib/audit/org-audit";
-import { handleApiError } from "@/lib/api-errors"
+import { handleApiError } from "@/lib/api-errors";
+import { CreateDepartmentSchema } from "@/lib/validations/org";
 
 export async function POST(request: NextRequest) {
   let userId: string | undefined;
@@ -38,17 +38,9 @@ export async function POST(request: NextRequest) {
     await assertAccess({ userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
     await setWorkspaceContext(workspaceId);
 
-    const body = await request.json();
-    const name = requireNonEmptyString(body.name, "name");
+    const body = CreateDepartmentSchema.parse(await request.json());
+    const name = body.name;
     const ownerPersonId = body.ownerPersonId || null;
-
-    // Validate ownerPersonId if provided
-    if (ownerPersonId && typeof ownerPersonId !== "string") {
-      return NextResponse.json(
-        { error: "Invalid ownerPersonId" },
-        { status: 400 }
-      );
-    }
 
     // Check for duplicate department name
     const existingDepartment = await prisma.orgDepartment.findFirst({

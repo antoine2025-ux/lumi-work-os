@@ -2,23 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getTodayWindow, getWeekWindow } from '@/lib/datetime'
 import { logger } from '@/lib/logger'
 import { handleApiError } from '@/lib/api-errors'
-
-// Schema for creating a todo
-const TodoCreateSchema = z.object({
-  title: z.string().min(1, 'Title is required').max(500),
-  note: z.string().max(5000).optional().nullable(),
-  status: z.enum(['OPEN', 'DONE']).optional().default('OPEN'),
-  dueAt: z.string().datetime().optional().nullable(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional().nullable(),
-  assignedToId: z.string().optional(),
-  anchorType: z.enum(['NONE', 'PROJECT', 'TASK', 'PAGE']).optional().default('NONE'),
-  anchorId: z.string().optional().nullable(),
-})
+import { TodoCreateSchema } from '@/lib/validations/todos'
 
 // View types for the new todo views
 type TodoView = 'my' | 'assignedToMe' | 'assignedByMe' | 'created' | 'completed' | 'today' | 'inbox' | 'upcoming'

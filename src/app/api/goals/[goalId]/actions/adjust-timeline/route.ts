@@ -2,17 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { cascadeParentChanges } from '@/lib/goals/cascading'
 import { recalculateGoalAnalytics } from '@/lib/goals/analytics-engine'
 import { evaluateWorkflowRules } from '@/lib/goals/workflow-engine'
-
-const Schema = z.object({
-  newEndDate: z.string().transform((s) => new Date(s)),
-  reason: z.string().optional(),
-})
+import { AdjustTimelineSchema } from '@/lib/validations/goals'
 
 export async function POST(
   request: NextRequest,
@@ -32,7 +27,7 @@ export async function POST(
     setWorkspaceContext(auth.workspaceId)
 
     const body = await request.json()
-    const data = Schema.parse(body)
+    const data = AdjustTimelineSchema.parse(body)
 
     const goal = await prisma.goal.findFirst({
       where: { id: goalId, workspaceId: auth.workspaceId },

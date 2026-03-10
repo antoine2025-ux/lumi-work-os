@@ -3,13 +3,8 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
-
-const PersonalNoteCreateSchema = z.object({
-  title: z.string().max(500).optional(),
-  content: z.string().max(50000).optional(),
-})
+import { PersonalNoteCreateSchema } from '@/lib/validations/personal-notes'
 
 // GET /api/personal-notes - List notes for current user
 export async function GET(request: NextRequest) {

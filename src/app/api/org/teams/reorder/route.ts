@@ -7,6 +7,7 @@ import { handleApiError } from "@/lib/api-errors";
 import { isOrgCenterForceDisabled } from "@/lib/org/feature-flags";
 import { recordOrgApiHit } from "@/lib/org/monitoring.server";
 import { logOrgAuditBatch } from "@/lib/audit/org-audit";
+import { ReorderTeamsSchema } from "@/lib/validations/org";
 
 export async function POST(req: NextRequest) {
   const routeId = "/api/org/teams/reorder";
@@ -33,11 +34,11 @@ export async function POST(req: NextRequest) {
     });
     setWorkspaceContext(auth.workspaceId);
 
-    const body = await req.json();
-    const updates: { id: string; position: number }[] = body.updates ?? [];
+    const body = ReorderTeamsSchema.parse(await req.json());
+    const updates = body.updates;
 
     // Fetch team names for audit logging
-    const teamIds = updates.map((u) => u.id);
+    const teamIds = updates.map((u: { id: string; position: number }) => u.id);
     const teams = await prisma.orgTeam.findMany({
       where: { id: { in: teamIds }, workspaceId: auth.workspaceId },
       select: { id: true, name: true, order: true },
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     // Update teams in a transaction
     await Promise.all(
-      updates.map((u) =>
+      updates.map((u: { id: string; position: number }) =>
         prisma.orgTeam.update({
           where: { id: u.id, workspaceId: auth.workspaceId },
           data: { order: u.position },
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     // Log audit entries (fire-and-forget batch)
     const auditEntries = updates
-      .map((u) => {
+      .map((u: { id: string; position: number }) => {
         const team = teamMap.get(u.id);
         if (!team || team.order === u.position) return null;
         return {
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
       .filter((e): e is NonNullable<typeof e> => e !== null);
 
     if (auditEntries.length > 0) {
-      logOrgAuditBatch(auditEntries).catch((e) =>
+      logOrgAuditBatch(auditEntries).catch((e: any) =>
         console.error("[POST /api/org/teams/reorder] Audit error:", e)
       );
     }

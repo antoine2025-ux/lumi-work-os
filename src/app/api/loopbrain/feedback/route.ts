@@ -12,12 +12,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { handleApiError } from "@/lib/api-errors";
 import {
   updateProfileFromFeedback,
   type ChatFeedback,
   type FeedbackRating,
   type FeedbackSignal,
 } from "@/lib/loopbrain/personalization/profile";
+import { LoopbrainFeedbackSchema } from "@/lib/validations/loopbrain";
 
 export const dynamic = "force-dynamic";
 
@@ -51,30 +53,9 @@ export async function POST(req: NextRequest) {
     const workspaceId = auth.workspaceId;
     const userId = auth.user.userId;
 
-    const body = (await req.json()) as {
-      messageId?: string;
-      rating?: string;
-      signal?: string;
-      comment?: string;
-    };
-
-    // Validate rating
-    const rating = body.rating as FeedbackRating | undefined;
-    if (!rating || !VALID_RATINGS.includes(rating)) {
-      return NextResponse.json(
-        { ok: false, error: "Invalid or missing 'rating'. Must be 'up' or 'down'." },
-        { status: 400 },
-      );
-    }
-
-    // Validate signal (optional)
-    const signal = (body.signal as FeedbackSignal | undefined) || undefined;
-    if (signal && !VALID_SIGNALS.includes(signal)) {
-      return NextResponse.json(
-        { ok: false, error: `Invalid 'signal'. Must be one of: ${VALID_SIGNALS.join(", ")}` },
-        { status: 400 },
-      );
-    }
+    const body = LoopbrainFeedbackSchema.parse(await req.json());
+    const rating = body.rating as FeedbackRating;
+    const signal = body.signal as FeedbackSignal | undefined;
 
     // Sanitize string inputs
     const messageId = body.messageId
@@ -116,11 +97,7 @@ export async function POST(req: NextRequest) {
         verbosity: updatedProfile.verbosity,
       },
     });
-  } catch (error) {
-    console.error("[loopbrain/feedback] Failed to process feedback", error);
-    return NextResponse.json(
-      { ok: false, error: "Failed to process feedback." },
-      { status: 500 },
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, req);
   }
 }

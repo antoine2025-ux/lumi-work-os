@@ -4,6 +4,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
+import { TaskTemplateCreateSchema } from '@/lib/validations/tasks'
 
 // GET /api/task-templates - Get all task templates for a workspace
 export async function GET(request: NextRequest) {
@@ -79,20 +80,14 @@ export async function POST(request: NextRequest) {
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
-    const body = await request.json()
+    const body = TaskTemplateCreateSchema.parse(await request.json())
     const { 
       name, 
       description, 
-      category = 'general',
-      isPublic = false,
+      category,
+      isPublic,
       tasks = []
     } = body
-
-    if (!name) {
-      return NextResponse.json({ 
-        error: 'Missing required field: name' 
-      }, { status: 400 })
-    }
 
     const template = await prisma.taskTemplate.create({
       data: {

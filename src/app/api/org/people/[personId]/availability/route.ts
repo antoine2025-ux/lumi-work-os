@@ -10,11 +10,9 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
-import { optionalEnum } from "@/server/org/validate";
 import { updateAvailability } from "@/server/org/availability/write";
-import { handleApiError } from "@/lib/api-errors"
-
-const ALLOWED_STATUSES = ["UNKNOWN", "AVAILABLE", "PARTIALLY_AVAILABLE", "UNAVAILABLE"] as const;
+import { handleApiError } from "@/lib/api-errors";
+import { UpdatePersonAvailabilitySchema } from "@/lib/validations/org";
 
 export async function PUT(
   request: NextRequest,
@@ -44,8 +42,8 @@ export async function PUT(
     setWorkspaceContext(workspaceId);
 
     // Step 4: Parse and validate request body
-    const body = await request.json();
-    const status = optionalEnum(body.status, ALLOWED_STATUSES) ?? "UNKNOWN";
+    const body = UpdatePersonAvailabilitySchema.parse(await request.json());
+    const status = body.status;
 
     // Step 5: Update availability
     let updated;

@@ -9,13 +9,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
-import { requireNonEmptyString } from "@/server/org/validate";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { removeTeamMember } from "@/server/org/structure/write";
 import { handleApiError } from "@/lib/api-errors"
 import { logOrgAudit } from "@/lib/audit/org-audit"
 import { computeChanges } from "@/lib/audit/diff"
 import { prisma } from "@/lib/db"
+import { RemoveTeamMemberSchema } from "@/lib/validations/org"
 
 export async function POST(request: NextRequest, ctx: { params: Promise<{ teamId: string }> }) {
   try {
@@ -43,8 +43,8 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ teamId
 
     // Step 4: Parse request
     const { teamId } = await ctx.params;
-    const body = await request.json();
-    const personId = requireNonEmptyString(body.personId, "personId");
+    const body = RemoveTeamMemberSchema.parse(await request.json());
+    const personId = body.personId;
 
     // Step 4a: Fetch person before update for audit logging
     const personBefore = await prisma.orgPosition.findFirst({

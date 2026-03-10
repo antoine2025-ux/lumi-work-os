@@ -11,17 +11,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
-
-type Resolution = "PENDING" | "ACKNOWLEDGED" | "FALSE_POSITIVE" | "RESOLVED";
-
-type PatchBody = {
-  entityType: "person" | "team" | "department" | "position";
-  entityId: string;
-  issueType: string;
-  resolution: Resolution;
-  resolutionNote?: string;
-};
+import { ResolveIntegrityIssueSchema } from '@/lib/validations/org';
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -46,31 +38,15 @@ export async function PATCH(request: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     // Step 4: Parse and validate body
-    const body: PatchBody = await request.json();
+    const body = ResolveIntegrityIssueSchema.parse(await request.json());
+    const { issueId, resolution, notes } = body;
 
-    if (!body.entityType || !body.entityId || !body.issueType || !body.resolution) {
-      return NextResponse.json(
-        { ok: false, error: "Missing required fields: entityType, entityId, issueType, resolution" },
-        { status: 400 }
-      );
-    }
+    // Use issueId as the issueKey directly
+    const issueKey = issueId;
 
-    const validResolutions: Resolution[] = ["PENDING", "ACKNOWLEDGED", "FALSE_POSITIVE", "RESOLVED"];
-    if (!validResolutions.includes(body.resolution)) {
-      return NextResponse.json(
-        { ok: false, error: `Invalid resolution. Must be one of: ${validResolutions.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Step 6: Build issueKey for reconciliation (PRIMARY IDENTIFIER)
-    // Format: `${issueType}:${entityType}:${entityId}`
-    const entityTypeUpper = body.entityType.toUpperCase();
-    const issueKey = `${body.issueType}:${entityTypeUpper}:${body.entityId}`;
-
-    // Step 7: Upsert the resolution record using OrgIssueResolution (hybrid storage: store resolved by issueKey)
-    // Only persist if resolution is not PENDING (PENDING means not resolved, so no record needed)
-    if (body.resolution === "PENDING") {
+    // Step 7: Delete resolution if resolution is to reopen (not applicable with current schema)
+    // The schema only allows FIXED, IGNORED, DEFERRED
+    if (false) {
       // Delete resolution record if it exists (reopen issue)
       await prisma.orgIssueResolution.deleteMany({
         where: {
@@ -103,17 +79,17 @@ export async function PATCH(request: NextRequest) {
       create: {
         workspaceId,
         issueKey,
-        issueType: body.issueType,
-        entityType: entityTypeUpper,
-        entityId: body.entityId,
+        issueType: issueId.split(':')[0] || 'UNKNOWN',
+        entityType: issueId.split(':')[1] || 'UNKNOWN',
+        entityId: issueId.split(':')[2] || issueId,
         resolvedBy: userId,
         resolvedAt: new Date(),
-        resolutionNote: body.resolutionNote ?? null,
+        resolutionNote: notes ?? null,
       },
       update: {
         resolvedBy: userId,
         resolvedAt: new Date(),
-        resolutionNote: body.resolutionNote ?? null,
+        resolutionNote: notes ?? null,
       },
     });
 
@@ -127,7 +103,7 @@ export async function PATCH(request: NextRequest) {
       ok: true,
       issue: {
         id: result.id,
-        resolution: body.resolution,
+        resolution: resolution,
         resolutionNote: result.resolutionNote,
         resolvedById: result.resolvedBy,
         resolvedAt: result.resolvedAt.toISOString(),
@@ -135,14 +111,7 @@ export async function PATCH(request: NextRequest) {
       persisted: true,
     });
   } catch (error: unknown) {
-    console.error("[PATCH /api/org/integrity/resolution] Error:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Failed to update resolution",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }
 

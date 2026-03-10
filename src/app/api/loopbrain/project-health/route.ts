@@ -20,6 +20,7 @@ import {
   buildProjectHealthSnapshot,
   buildMultipleProjectHealthSnapshots,
 } from "@/lib/loopbrain/reasoning/projectHealth";
+import { LoopbrainProjectHealthSchema } from "@/lib/validations/loopbrain";
 
 /**
  * GET /api/loopbrain/project-health
@@ -132,17 +133,9 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(auth.workspaceId);
 
     // Parse request body
-    let body: {
-      projectIds?: string[];
-      includeHistory?: boolean;
-      velocityWeeks?: number;
-    } = {};
-
-    try {
-      body = await request.json();
-    } catch {
-      // Empty body is valid
-    }
+    const body = LoopbrainProjectHealthSchema.parse(
+      await request.json().catch(() => ({}))
+    );
 
     const { includeHistory = true, velocityWeeks = 4 } = body;
     let projectIds = body.projectIds;

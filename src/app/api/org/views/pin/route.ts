@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from '@/lib/unified-auth';
 import { assertAccess } from '@/lib/auth/assertAccess';
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
+import { PinViewSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +15,7 @@ export async function POST(req: NextRequest) {
     setWorkspaceContext(auth.workspaceId);
 
     const workspaceId = auth.workspaceId;
-    const body = (await req.json()) as { id: string; pinned: boolean };
+    const body = PinViewSchema.parse(await req.json());
 
     const view = await prisma.savedView.findUnique({ where: { id: body.id } });
     if (!view) return NextResponse.json({ ok: false }, { status: 404 });
@@ -29,7 +31,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, view: updated });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (error: unknown) {
+    return handleApiError(error, req);
   }
 }

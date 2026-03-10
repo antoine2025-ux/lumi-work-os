@@ -5,6 +5,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
+import { DraftPageSchema } from '@/lib/validations/assistant'
 
 // POST /api/ai/draft-page - Stream content generation for a specific page
 export async function POST(request: NextRequest) {
@@ -19,14 +20,8 @@ export async function POST(request: NextRequest) {
     await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
     setWorkspaceContext(auth.workspaceId)
 
-    const { pageId, prompt, workspaceId } = await request.json()
-
-    if (!pageId || !prompt) {
-      return new Response(JSON.stringify({ error: 'Page ID and prompt are required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
+    const body = DraftPageSchema.parse(await request.json())
+    const { pageId, prompt, workspaceId } = body
 
     // Get page info
     const page = await prisma.wikiPage.findUnique({

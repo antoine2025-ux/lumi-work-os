@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 
@@ -45,8 +46,7 @@ export async function GET(request: NextRequest) {
       hasMore: sessions.length === limit
     })
 
-  } catch (error) {
-    console.error('Error fetching chat history:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }

@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { listOrgIssues } from "@/lib/org/issues/listOrgIssues";
 import { sortIssuesForSnapshot } from "@/lib/org/issues/sortIssues";
 import { computeSummaries } from "@/lib/org/intelligence/computeSummaries";
@@ -70,13 +71,6 @@ export async function GET(request: NextRequest) {
       topIssues,
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/issues/summary] Error:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Failed to load issues summary",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }

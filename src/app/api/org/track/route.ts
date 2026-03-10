@@ -5,6 +5,7 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { isOrgCenterForceDisabled } from "@/lib/org/feature-flags";
 import { recordOrgApiHit } from "@/lib/org/monitoring.server";
+import { OrgTrackEventSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   const routeId = "/api/org/track";
@@ -25,12 +26,9 @@ export async function POST(req: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     const userId = user.userId;
-    const body = await req.json().catch(() => ({} as any));
+    const body = OrgTrackEventSchema.parse(await req.json().catch(() => ({})));
 
-    const eventType =
-      typeof body.type === "string" && body.type.trim().length > 0
-        ? body.type.trim()
-        : "ORG_CENTER_EVENT";
+    const eventType = body.type || "ORG_CENTER_EVENT";
 
     const payload = {
       category: body.category ?? "org_center",
@@ -49,7 +47,7 @@ export async function POST(req: NextRequest) {
           action: eventType, // e.g. "ORG_CENTER_PAGE_VIEW", "ORG_CENTER_FEEDBACK"
           entityType: payload.category,
           entityId: payload.route ?? "",
-          metadata: payload,
+          metadata: payload as any,
         },
       });
       await recordOrgApiHit(routeId, 200, workspaceId, userId).catch(() => {});

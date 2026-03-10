@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
+import { EmbedUrlSchema } from '@/lib/validations/embeds'
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json()
-    
-    if (!url) {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 })
-    }
+    const auth = await getUnifiedAuth(request)
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+
+    const body = EmbedUrlSchema.parse(await request.json())
+    const { url } = body
 
     // Extract owner and repo from GitHub URL
     const githubMatch = url.match(/github\.com\/([^\/]+)\/([^\/]+)/)
@@ -19,8 +23,6 @@ export async function POST(request: NextRequest) {
     const isPullRequest = url.includes('/pull/')
     const isFile = url.includes('/blob/')
 
-    // For now, we'll return basic metadata
-    // In a real implementation, you'd call GitHub's API to get repository/issue/PR details
     let embedData: {
       title: string
       description: string
@@ -82,8 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(embedData)
-  } catch (error) {
-    console.error('GitHub embed error:', error)
-    return NextResponse.json({ error: 'Failed to process GitHub embed' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error)
   }
 }

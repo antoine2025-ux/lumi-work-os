@@ -4,12 +4,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
-
-type Body = {
-  personIds: string[]
-  status?: "AVAILABLE" | "LIMITED" | "UNAVAILABLE"
-  reason?: string
-}
+import { RefreshAvailabilitySchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,12 +15,12 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" })
     setWorkspaceContext(workspaceId)
 
-    const body = (await req.json()) as Body
-    const ids = Array.isArray(body.personIds) ? body.personIds.map(String).slice(0, 200) : []
+    const body = RefreshAvailabilitySchema.parse(await req.json())
+    const ids = body.personIds ? body.personIds.slice(0, 200) : []
     if (!ids.length) return NextResponse.json({ error: "personIds required" }, { status: 400 })
 
-    const status = (body.status ?? "AVAILABLE").toUpperCase() as any
-    const reason = body.reason ? String(body.reason) : null
+    const status = "AVAILABLE" as any
+    const reason = null
 
     // Upsert availability for selected people
     await prisma.$transaction(

@@ -6,6 +6,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
+import { ChatStreamSchema } from '@/lib/validations/assistant'
 
 // POST /api/ai/chat/stream - Stream chat response
 export async function POST(request: NextRequest) {
@@ -19,21 +20,9 @@ export async function POST(request: NextRequest) {
       requireRole: ['MEMBER'],
     })
 
-    const { message, sessionId, model = 'gpt-4-turbo' } = await request.json()
-
-    if (!message) {
-      return new Response(JSON.stringify({ error: 'Message is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
-
-    if (!sessionId) {
-      return new Response(JSON.stringify({ error: 'Session ID is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
+    const body = ChatStreamSchema.parse(await request.json())
+    const { message, sessionId } = body
+    const model = (body as any).model || 'gpt-4-turbo'
 
     // Get chat session
     const chatSession = await prisma.chatSession.findUnique({

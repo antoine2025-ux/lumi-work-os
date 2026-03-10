@@ -18,7 +18,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { answerQ4, type Q4Timeframe, type Q4Output } from "@/lib/loopbrain/reasoning/q4";
 import { prisma } from "@/lib/db";
-import { handleApiError } from "@/lib/api-errors"
+import { handleApiError } from "@/lib/api-errors";
+import { LoopbrainOrgQ4Schema } from "@/lib/validations/loopbrain";
 
 async function handleRequest(request: NextRequest) {
   const auth = await getUnifiedAuth(request);
@@ -116,37 +117,13 @@ async function handleRequest(request: NextRequest) {
     parsedTimeframe = { startDate, endDate };
   } else {
     // POST (legacy support)
-    const body = await request.json();
+    const body = LoopbrainOrgQ4Schema.parse(await request.json());
     projectId = body.projectId;
 
-    if (!projectId || typeof projectId !== "string") {
-      return NextResponse.json(
-        {
-          errors: [{ code: "MISSING_PROJECT_ID", message: "projectId is required and must be a string" }],
-        },
-        { status: 400 }
-      );
-    }
-
-    const timeframe = body.timeframe;
-    if (!timeframe || typeof timeframe !== "object") {
-      return NextResponse.json(
-        {
-          errors: [
-            {
-              code: "MISSING_TIMEFRAME",
-              message: "timeframe is required and must be an object with startDate and endDate (or durationWeeks)",
-            },
-          ],
-        },
-        { status: 400 }
-      );
-    }
-
     parsedTimeframe = {
-      startDate: timeframe.startDate ? new Date(timeframe.startDate) : undefined,
-      endDate: timeframe.endDate ? new Date(timeframe.endDate) : undefined,
-      durationWeeks: timeframe.durationWeeks ? Number(timeframe.durationWeeks) : undefined,
+      startDate: body.timeframe.startDate ? new Date(body.timeframe.startDate) : undefined,
+      endDate: body.timeframe.endDate ? new Date(body.timeframe.endDate) : undefined,
+      durationWeeks: body.timeframe.durationWeeks,
     };
   }
 

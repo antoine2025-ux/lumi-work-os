@@ -7,6 +7,8 @@ import { measureOrgHealth } from "@/server/orgHealth";
 import { getUnifiedAuth } from '@/lib/unified-auth';
 import { assertAccess } from '@/lib/auth/assertAccess';
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
+import { handleApiError } from '@/lib/api-errors';
+import { ApplyIssuesSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,13 +19,8 @@ export async function POST(req: NextRequest) {
 
     const workspaceId = auth.workspaceId;
 
-    const body = (await req.json()) as {
-      actions: Array<{ personId: string; patch: any }>;
-      suggestionRunId?: string;
-    };
-
-    const actions = Array.isArray(body.actions) ? body.actions : [];
-    if (!actions.length) return NextResponse.json({ ok: false, error: "actions required" }, { status: 400 });
+    const body = ApplyIssuesSchema.parse(await req.json());
+    const actions = body.actions;
 
     // Capture baseline health snapshot before applying changes
     const beforeSnapshot = await prisma.orgHealthSnapshot.findFirst({

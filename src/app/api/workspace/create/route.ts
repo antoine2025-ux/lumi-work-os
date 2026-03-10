@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
 import { createUserWorkspace } from '@/lib/simple-auth'
 import { handleApiError } from '@/lib/api-errors'
+import { CreateWorkspaceSchema } from '@/lib/validations/workspace'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,15 +21,11 @@ export async function POST(request: NextRequest) {
       id: session.user.id,
       name: session.user.name
     })
-    const body = await request.json()
+    
+    const body = CreateWorkspaceSchema.parse(await request.json())
     const { name, slug, description, teamSize, industry } = body
 
     console.log('[workspace/create] Workspace data:', { name, slug })
-
-    // Validate required fields
-    if (!name || !slug) {
-      return NextResponse.json({ error: 'Name and slug are required' }, { status: 400 })
-    }
 
     // Check if user already has a workspace
     // Use direct workspaceMember query to avoid nested relation issues with customRoleId

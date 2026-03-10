@@ -8,6 +8,7 @@ import { buildLogContextFromRequest } from '@/lib/request-context'
 import { handleApiError } from '@/lib/api-errors'
 import { cache, CACHE_KEYS } from '@/lib/cache'
 import { clearAuthCache } from '@/lib/auth-cache'
+import { UpdateWorkspaceSchema } from '@/lib/validations/workspace'
 
 // GET /api/workspaces/[workspaceId] - Get workspace details
 export async function GET(
@@ -124,47 +125,26 @@ export async function PUT(
     // Set workspace context for Prisma middleware
     setWorkspaceContext(workspaceId)
 
-    const body = await request.json()
-    const { name, description, slug } = body
-
-    // Validate required fields
-    if (!name) {
-      return NextResponse.json(
-        { error: "Workspace name is required" },
-        { status: 400 }
-      )
-    }
-
-    // Check if slug is being changed and if it's unique
-    if (slug) {
-      const existingWorkspace = await prisma.workspace.findFirst({
-        where: { 
-          slug: slug,
-          id: { not: workspaceId }
-        }
-      })
-      
-      if (existingWorkspace) {
-        return NextResponse.json(
-          { error: "Workspace URL is already taken" },
-          { status: 400 }
-        )
-      }
-    }
+    const body = UpdateWorkspaceSchema.parse(await request.json())
+    const { name, description, logo, settings } = body
 
     // Build update data - explicitly exclude ownerId
     const updateData: Record<string, unknown> = {}
     
-    if (name) {
+    if (name !== undefined) {
       updateData.name = name.trim()
     }
     
     if (description !== undefined) {
-      updateData.description = description || null
+      updateData.description = description
     }
     
-    if (slug) {
-      updateData.slug = slug
+    if (logo !== undefined) {
+      updateData.logo = logo
+    }
+    
+    if (settings !== undefined) {
+      updateData.settings = settings
     }
 
     // IMPORTANT: never set ownerId here.

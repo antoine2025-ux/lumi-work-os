@@ -48,7 +48,7 @@ export async function GET(
         settings: template.settings
       }
     })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleApiError(error, request)
   }
 }

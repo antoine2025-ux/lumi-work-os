@@ -2,23 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { syncGoalContext } from '@/lib/goals/loopbrain-integration'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const UpdateGoalSchema = z.object({
-  title: z.string().min(1).max(200).optional(),
-  description: z.string().optional(),
-  status: z.enum(['DRAFT', 'ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED']).optional(),
-  ownerId: z.string().optional(),
-  startDate: z.string().transform(str => new Date(str)).optional(),
-  endDate: z.string().transform(str => new Date(str)).optional(),
-})
+import { UpdateGoalSchema } from '@/lib/validations/goals'
 
 // ============================================================================
 // GET /api/goals/[goalId] - Get single goal

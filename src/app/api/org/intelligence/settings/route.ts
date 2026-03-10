@@ -16,8 +16,8 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import {
   getOrCreateIntelligenceSettings,
   updateIntelligenceSettings,
-  validateIntelligenceSettings,
 } from "@/server/org/intelligence/settings";
+import { UpdateIntelligenceSettingsSchema } from "@/lib/validations/org";
 
 export async function GET(request: NextRequest) {
   try {
@@ -73,31 +73,18 @@ export async function PUT(request: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     // Step 4: Parse and validate settings
-    const body = await request.json();
+    const body = UpdateIntelligenceSettingsSchema.parse(await request.json());
 
-    try {
-      // Validate before updating
-      validateIntelligenceSettings({
-        mgmtMediumDirectReports: body.mgmtMediumDirectReports,
-        mgmtHighDirectReports: body.mgmtHighDirectReports,
-        availabilityStaleDays: body.availabilityStaleDays,
-        snapshotFreshMinutes: body.snapshotFreshMinutes,
-        snapshotWarnMinutes: body.snapshotWarnMinutes,
-      });
+    // Update settings
+    await updateIntelligenceSettings({
+      mgmtMediumDirectReports: body.mgmtMediumDirectReports,
+      mgmtHighDirectReports: body.mgmtHighDirectReports,
+      availabilityStaleDays: body.availabilityStaleDays,
+      snapshotFreshMinutes: body.snapshotFreshMinutes,
+      snapshotWarnMinutes: body.snapshotWarnMinutes,
+    });
 
-      // Update if validation passes
-      await updateIntelligenceSettings({
-        mgmtMediumDirectReports: body.mgmtMediumDirectReports,
-        mgmtHighDirectReports: body.mgmtHighDirectReports,
-        availabilityStaleDays: body.availabilityStaleDays,
-        snapshotFreshMinutes: body.snapshotFreshMinutes,
-        snapshotWarnMinutes: body.snapshotWarnMinutes,
-      });
-
-      return NextResponse.json({ ok: true }, { status: 200 });
-    } catch (error) {
-    return handleApiError(error, request)
-  }
+    return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
     return handleApiError(error, request)
   }

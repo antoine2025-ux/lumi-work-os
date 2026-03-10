@@ -6,6 +6,7 @@ import OpenAI from 'openai'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import { searchWikiKnowledge, formatWikiKnowledgeForAI } from '@/lib/wiki-knowledge'
 import { handleApiError } from '@/lib/api-errors'
+import { AssistantGenerateDraftSchema } from '@/lib/validations/assistant'
 
 // Lazy initialization - only create client when needed
 function getOpenAIClient(): OpenAI | null {
@@ -141,11 +142,8 @@ export async function POST(request: NextRequest) {
     }
     setWorkspaceContext(auth.workspaceId)
 
-    const { sessionId } = await request.json()
-
-    if (!sessionId) {
-      return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
-    }
+    const body = AssistantGenerateDraftSchema.parse(await request.json())
+    const { sessionId, prompt } = body
 
     // Get the session with messages
     const session = await prisma.chatSession.findUnique({

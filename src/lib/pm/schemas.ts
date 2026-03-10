@@ -338,6 +338,43 @@ export const UpdateTaskPointsSchema = z.object({
   points: z.number().int().min(0).max(100).optional()
 })
 
+// Project Template schemas
+export const ProjectTemplateCreateSchema = z.object({
+  name: z.string().min(1).max(255),
+  description: z.string().optional(),
+  category: z.string().min(1),
+  isDefault: z.boolean().optional().default(false),
+  isPublic: z.boolean().optional().default(true),
+  templateData: z.record(z.string(), z.unknown()),
+})
+
+export const ProjectTemplateUpdateSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().optional(),
+  category: z.string().optional(),
+  isDefault: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
+  templateData: z.record(z.string(), z.unknown()).optional(),
+})
+
+export const ProjectTemplateApplySchema = z.object({
+  projectName: z.string().min(1).max(255),
+  projectDescription: z.string().optional(),
+})
+
+// Project Space Member schemas
+export const ProjectSpaceMemberAddSchema = z.object({
+  userId: z.string().min(1),
+  role: z.enum(['VIEWER', 'MEMBER', 'ADMIN']).optional().default('MEMBER'),
+})
+
+// Project Documentation schemas
+export const ProjectDocumentationUpdateSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  description: z.string().optional(),
+  url: z.string().url().optional(),
+})
+
 // Type exports
 export type ProjectCreateInput = z.infer<typeof ProjectCreateSchema>
 export type ProjectUpdateInput = z.infer<typeof ProjectUpdateSchema>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rate-limit'
+import { handleApiError } from '@/lib/api-errors'
 import { rateLimitExceeded } from '@/lib/rate-limit-response'
 
 export async function GET(request: NextRequest) {
@@ -16,10 +17,7 @@ export async function GET(request: NextRequest) {
         DATABASE_URL: process.env.DATABASE_URL ? 'set' : 'not set'
       }
     })
-  } catch (error) {
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

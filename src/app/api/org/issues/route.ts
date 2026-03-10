@@ -16,6 +16,7 @@ import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { listOrgIssues } from "@/lib/org/issues/listOrgIssues";
 import { deriveAllIssues } from "@/lib/org/issues/deriveAllIssues";
 import type { OrgIssueMetadata } from "@/lib/org/deriveIssues";
@@ -106,13 +107,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ ok: true, rows, total: filtered.length });
   } catch (error: unknown) {
-    console.error("[GET /api/org/issues] Error:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Failed to load issues",
-      },
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return handleApiError(error, req);
   }
 }

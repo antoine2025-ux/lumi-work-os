@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
+import { handleApiError } from '@/lib/api-errors'
 import { getGoogleCalendarClient, handleGoogleApiError } from '@/lib/google-calendar'
 import {
   CalendarEventCreateSchema,
@@ -184,16 +185,12 @@ export async function GET(request: NextRequest) {
 
     const events = (response.data.items || []).map(transformGoogleEvent)
     return NextResponse.json({ events })
-  } catch (error) {
+  } catch (error: unknown) {
     try {
       const apiError = handleGoogleApiError(error)
       return NextResponse.json(apiError, { status: apiError.status })
     } catch {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      return NextResponse.json(
-        { error: 'Failed to fetch calendar events', details: errorMessage },
-        { status: 500 },
-      )
+      return handleApiError(error, request)
     }
   }
 }
@@ -254,7 +251,7 @@ export async function POST(request: NextRequest) {
 
     const created = response.data
     return NextResponse.json({ event: transformGoogleEvent(created) }, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     // Zod validation error
     if (error && typeof error === 'object' && 'issues' in error) {
       return NextResponse.json({ error: 'Validation failed', details: error }, { status: 400 })
@@ -264,11 +261,7 @@ export async function POST(request: NextRequest) {
       const apiError = handleGoogleApiError(error)
       return NextResponse.json(apiError, { status: apiError.status })
     } catch {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      return NextResponse.json(
-        { error: 'Failed to create calendar event', details: errorMessage },
-        { status: 500 },
-      )
+      return handleApiError(error, request)
     }
   }
 }
@@ -331,7 +324,7 @@ export async function PUT(request: NextRequest) {
     })
 
     return NextResponse.json({ event: transformGoogleEvent(response.data) })
-  } catch (error) {
+  } catch (error: unknown) {
     if (error && typeof error === 'object' && 'issues' in error) {
       return NextResponse.json({ error: 'Validation failed', details: error }, { status: 400 })
     }
@@ -340,11 +333,7 @@ export async function PUT(request: NextRequest) {
       const apiError = handleGoogleApiError(error)
       return NextResponse.json(apiError, { status: apiError.status })
     } catch {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      return NextResponse.json(
-        { error: 'Failed to update calendar event', details: errorMessage },
-        { status: 500 },
-      )
+      return handleApiError(error, request)
     }
   }
 }
@@ -373,7 +362,7 @@ export async function DELETE(request: NextRequest) {
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     if (error && typeof error === 'object' && 'issues' in error) {
       return NextResponse.json({ error: 'Validation failed', details: error }, { status: 400 })
     }
@@ -382,11 +371,7 @@ export async function DELETE(request: NextRequest) {
       const apiError = handleGoogleApiError(error)
       return NextResponse.json(apiError, { status: apiError.status })
     } catch {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      return NextResponse.json(
-        { error: 'Failed to delete calendar event', details: errorMessage },
-        { status: 500 },
-      )
+      return handleApiError(error, request)
     }
   }
 }

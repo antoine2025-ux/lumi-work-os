@@ -11,7 +11,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
-import { handleApiError } from "@/lib/api-errors"
+import { handleApiError } from "@/lib/api-errors";
+import { UpdateTeamSchema } from "@/lib/validations/org";
 
 export async function GET(
   request: NextRequest,
@@ -138,7 +139,7 @@ export async function PUT(
     setWorkspaceContext(workspaceId);
 
     const { teamId } = await ctx.params;
-    const body = await request.json();
+    const body = UpdateTeamSchema.parse(await request.json());
     const { name, description, departmentId, leaderId, color } = body;
 
     const team = await prisma.orgTeam.findFirst({

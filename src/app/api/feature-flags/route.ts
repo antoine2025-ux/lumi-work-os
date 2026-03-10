@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { getFeatureFlags, setFeatureFlag } from "@/lib/feature-flags"
+import { FeatureFlagToggleSchema } from '@/lib/validations/assistant'
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,19 +20,8 @@ export async function GET(request: NextRequest) {
     const flags = await getFeatureFlags(auth.workspaceId)
 
     return NextResponse.json({ flags })
-  } catch (error) {
-    console.error("Error fetching feature flags:", error)
-    
-    // Handle auth errors
-    if (error instanceof Error && error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -46,27 +37,13 @@ export async function POST(request: NextRequest) {
       requireRole: ['ADMIN', 'OWNER'] 
     })
 
-    const { key, enabled } = await request.json()
-
-    if (!key || typeof enabled !== "boolean") {
-      return NextResponse.json({ error: "Invalid request" }, { status: 400 })
-    }
+    const body = FeatureFlagToggleSchema.parse(await request.json())
+    const { key, enabled } = body
 
     await setFeatureFlag(auth.workspaceId, key, enabled)
 
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error("Error setting feature flag:", error)
-    
-    // Handle auth errors
-    if (error instanceof Error && error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

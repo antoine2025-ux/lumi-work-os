@@ -11,10 +11,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import {
   getPersonResponsibilityOverrides,
   addPersonResponsibilityOverride,
 } from "@/lib/org/responsibility/read";
+import { AddResponsibilityOverrideSchema } from "@/lib/validations/org";
 
 type RouteParams = { params: Promise<{ personId: string }> };
 
@@ -59,8 +61,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ ok: true, overrides: response });
   } catch (error: unknown) {
-    console.error("[GET /api/org/people/[personId]/responsibility-overrides] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -95,14 +96,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     setWorkspaceContext(workspaceId);
 
-    const body = (await request.json()) as AddOverrideBody;
-
-    if (!body.tagId) {
-      return NextResponse.json(
-        { error: "Missing required field: tagId" },
-        { status: 400 }
-      );
-    }
+    const body = AddResponsibilityOverrideSchema.parse(await request.json());
 
     const override = await addPersonResponsibilityOverride({
       workspaceId,
@@ -115,18 +109,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ ok: true, override });
   } catch (error: unknown) {
-    // Handle unique constraint violation
-    if (
-      error instanceof Error &&
-      error.message.includes("Unique constraint failed")
-    ) {
-      return NextResponse.json(
-        { error: "This person already has an override for this tag" },
-        { status: 409 }
-      );
-    }
-
-    console.error("[POST /api/org/people/[personId]/responsibility-overrides] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

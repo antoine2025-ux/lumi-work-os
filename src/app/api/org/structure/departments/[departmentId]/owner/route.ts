@@ -10,7 +10,6 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
-import { optionalString } from "@/server/org/validate";
 import { prisma } from "@/lib/db";
 import { deriveOwnershipIssuesForEntity } from "@/lib/org/deriveIssues";
 import { getOrgOwnership } from "@/server/org/ownership/read";
@@ -23,6 +22,7 @@ import { computeIssueResolution } from "@/lib/org/mutations/utils";
 import { handleApiError } from "@/lib/api-errors"
 import { logOrgAudit } from "@/lib/audit/org-audit"
 import { computeChanges } from "@/lib/audit/diff"
+import { UpdateDepartmentOwnerSchema } from "@/lib/validations/org"
 
 export async function PUT(request: NextRequest, ctx: { params: Promise<{ departmentId: string }> }) {
   try {
@@ -57,8 +57,8 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ departm
 
     // Step 4: Parse request
     const { departmentId } = await ctx.params;
-    const body = await request.json();
-    const ownerPersonId = optionalString(body.ownerPersonId);
+    const body = UpdateDepartmentOwnerSchema.parse(await request.json());
+    const ownerPersonId = body.ownerPersonId;
 
     // Step 5: Validate department exists in workspace and fetch current owner
     const department = await prisma.orgDepartment.findFirst({

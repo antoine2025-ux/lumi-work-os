@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { logger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
@@ -86,14 +87,8 @@ export async function GET(request: NextRequest) {
 
     // Redirect to Slack
     return NextResponse.redirect(slackAuthUrl.toString())
-  } catch (error) {
-    logger.error('Error initiating Slack OAuth:', {
-      error: error instanceof Error ? error.message : String(error)
-    })
-    return NextResponse.json(
-      { error: 'Failed to initiate Slack OAuth' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

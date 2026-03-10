@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { revalidateTag } from "next/cache"
+import { handleApiError } from "@/lib/api-errors"
 import { prisma } from "@/lib/db"
 import { requireActiveWorkspaceId } from "@/server/org/context"
 import { normalizeRole, normalizeSkill } from "@/server/org/taxonomy/normalize"
@@ -9,15 +10,7 @@ import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { logOrgAudit } from '@/lib/audit/org-audit'
 import { computeChanges } from '@/lib/audit/diff'
-
-type Body = {
-  id: string
-  name?: string
-  title?: string | null
-  availability?: { status: "AVAILABLE" | "LIMITED" | "UNAVAILABLE"; reason?: string | null }
-  skills?: string[] // overwrite set (v0)
-  roles?: Array<{ role: string; percent: number }> // overwrite set (v0)
-}
+import { UpdatePersonProfileSchema } from '@/lib/validations/org'
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,9 +23,8 @@ export async function POST(req: NextRequest) {
 
     const workspaceId = await requireActiveWorkspaceId()
     assertWriteAllowed("people.updateProfile")
-    const body = (await req.json()) as Body
-    const personId = String(body.id ?? "")
-    if (!personId) return NextResponse.json({ error: "id required" }, { status: 400 })
+    const body = UpdatePersonProfileSchema.parse(await req.json())
+    const personId = body.id
 
     // Fetch before state for audit diff
     const position = await prisma.orgPosition.findUnique({
@@ -175,8 +167,8 @@ export async function POST(req: NextRequest) {
     }).catch((e) => console.error("[POST /api/org/people/update-profile] Audit log error (non-fatal):", e))
 
     return NextResponse.json({ ok: true })
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  } catch (error: unknown) {
+    return handleApiError(error, req)
   }
 }
 

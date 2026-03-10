@@ -9,10 +9,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
-
-const ALLOWED_SOURCES = ["SELF_REPORTED", "MANAGER_ADDED", "VERIFIED", "INFERRED"] as const;
-type SkillSource = typeof ALLOWED_SOURCES[number];
+import { AddPersonSkillSchema } from "@/lib/validations/org";
 
 export async function GET(
   request: NextRequest,
@@ -106,8 +105,7 @@ export async function GET(
       })),
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/people/[personId]/skills] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -139,26 +137,9 @@ export async function POST(
     setWorkspaceContext(workspaceId);
 
     // Step 4: Parse and validate request body
-    const body = await request.json();
-
-    if (!body.skillId || typeof body.skillId !== "string") {
-      return NextResponse.json({ error: "skillId is required" }, { status: 400 });
-    }
-
-    // Validate proficiency
-    const proficiency = body.proficiency !== undefined ? Number(body.proficiency) : 3;
-    if (isNaN(proficiency) || proficiency < 1 || proficiency > 5) {
-      return NextResponse.json({ error: "proficiency must be between 1 and 5" }, { status: 400 });
-    }
-
-    // Validate source
-    const source = (body.source as SkillSource) || "SELF_REPORTED";
-    if (!ALLOWED_SOURCES.includes(source)) {
-      return NextResponse.json(
-        { error: `source must be one of: ${ALLOWED_SOURCES.join(", ")}` },
-        { status: 400 }
-      );
-    }
+    const body = AddPersonSkillSchema.parse(await request.json());
+    const proficiency = body.proficiency;
+    const source = body.source;
 
     // Step 5: Get the user ID from position
     // Handle both OrgPosition ID and User ID (personId might be either)
@@ -254,8 +235,7 @@ export async function POST(
       },
     });
   } catch (error: unknown) {
-    console.error("[POST /api/org/people/[personId]/skills] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 

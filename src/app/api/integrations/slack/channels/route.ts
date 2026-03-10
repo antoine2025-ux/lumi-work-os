@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { getSlackChannels } from '@/lib/integrations/slack-service'
 import { logger } from '@/lib/logger'
 
@@ -25,14 +26,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       channels
     })
-  } catch (error) {
-    logger.error('Error fetching Slack channels:', {
-      error: error instanceof Error ? error.message : String(error)
-    })
-    return NextResponse.json(
-      { error: 'Failed to fetch Slack channels' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

@@ -8,6 +8,7 @@ import { assertProjectAccess } from '@/lib/pm/guards'
 import { handleApiError } from '@/lib/api-errors'
 import { generateDailySummary, saveDailySummary, getDailySummaries } from '@/lib/ai/daily-summary'
 import { prisma } from '@/lib/db'
+import { DailySummaryGenerateSchema } from '@/lib/pm/schemas'
 
 // GET /api/projects/[projectId]/daily-summaries - Get daily summaries for a project
 export async function GET(
@@ -76,7 +77,7 @@ export async function POST(
 ) {
   try {
     const { projectId } = await params
-    const body = await request.json()
+    const body = DailySummaryGenerateSchema.parse(await request.json())
     const { date } = body
 
     // Get session and verify access

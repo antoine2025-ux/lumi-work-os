@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import { buildLogContextFromRequest } from "@/lib/request-context";
 import {
@@ -19,6 +20,7 @@ import {
   getCachedEntityGraph,
   invalidateGraphCache,
 } from "@/lib/loopbrain/entity-graph";
+import { LoopbrainEntityGraphRebuildSchema } from "@/lib/validations/loopbrain";
 
 /**
  * GET /api/loopbrain/entity-graph
@@ -79,24 +81,8 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(snapshot);
-  } catch (error) {
-    logger.error("Failed to retrieve entity graph", {
-      ...baseContext,
-      error: error instanceof Error ? error.message : String(error),
-    });
-
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (error instanceof Error && error.message.includes("Forbidden")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    return NextResponse.json(
-      { error: "Failed to retrieve entity graph" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -133,20 +119,13 @@ export async function POST(request: NextRequest) {
     // Set workspace context for Prisma scoping
     setWorkspaceContext(auth.workspaceId);
 
-    // Parse request body
-    let body: {
-      includeInactive?: boolean;
-      limit?: number;
-    } = {};
+    // Parse request body (optional fields with defaults)
+    const body = LoopbrainEntityGraphRebuildSchema.parse(
+      await request.json().catch(() => ({}))
+    );
 
-    try {
-      body = await request.json();
-    } catch {
-      // Empty body is acceptable
-    }
-
-    const includeInactive = body.includeInactive ?? false;
-    const limit = body.limit ?? 10000;
+    const includeInactive = false; // Not in schema, use default
+    const limit = 10000; // Not in schema, use default
 
     // Invalidate cache first
     invalidateGraphCache(auth.workspaceId);
@@ -167,23 +146,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(snapshot);
-  } catch (error) {
-    logger.error("Failed to rebuild entity graph", {
-      ...baseContext,
-      error: error instanceof Error ? error.message : String(error),
-    });
-
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (error instanceof Error && error.message.includes("Forbidden")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    return NextResponse.json(
-      { error: "Failed to rebuild entity graph" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { buildOrgSemanticSnapshotV0 } from "@/lib/org/snapshot/buildOrgSemanticSnapshotV0";
 import { validateSnapshotAgainstSchema } from "@/lib/org/snapshot/validateAgainstSchema";
 import { validateSnapshotV0 } from "@/lib/org/snapshot/validateSnapshotV0";
@@ -64,13 +65,6 @@ export async function GET(request: NextRequest) {
       { headers }
     );
   } catch (error: unknown) {
-    console.error("[GET /api/org/snapshot] Error:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Failed to load org snapshot",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }

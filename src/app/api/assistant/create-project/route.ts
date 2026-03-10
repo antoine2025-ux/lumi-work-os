@@ -5,6 +5,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { getDefaultSpaceForUser } from '@/lib/spaces/get-default-space'
+import { AssistantCreateProjectSchema } from '@/lib/validations/assistant'
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,13 +22,9 @@ export async function POST(request: NextRequest) {
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
-    const { sessionId, projectData, templateId } = await request.json()
-
-    if (!sessionId || !projectData) {
-      return NextResponse.json({ 
-        error: 'Session ID and project data required' 
-      }, { status: 400 })
-    }
+    const body = AssistantCreateProjectSchema.parse(await request.json())
+    const { sessionId, projectData } = body
+    const templateId = (body as any).templateId
 
     // Get the session to extract project information from conversation
     const session = await prisma.chatSession.findUnique({

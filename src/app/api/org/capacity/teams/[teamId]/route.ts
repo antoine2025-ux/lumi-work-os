@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { handleApiError } from "@/lib/api-errors";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
@@ -14,6 +15,7 @@ import { resolveEffectiveCapacityBatch } from "@/lib/org/capacity/resolveEffecti
 import { getDefaultIssueWindow, getWorkspaceThresholdsAsync, getCapacityResponseMeta } from "@/lib/org/capacity/thresholds";
 import { getTeamCapacityStatus, getPersonCapacityStatus, type PersonCapacityMeta } from "@/lib/org/capacity/status";
 import { computeTeamCapacityRollup } from "@/lib/org/capacity/teamRollup";
+import { TeamCapacityUpdateSchema } from "@/lib/validations/org";
 
 type RouteContext = { params: Promise<{ teamId: string }> };
 
@@ -186,8 +188,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       responseMeta: getCapacityResponseMeta(),
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/capacity/teams/[teamId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -205,13 +206,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     setWorkspaceContext(workspaceId);
 
     const { teamId } = await context.params;
-    const body = await request.json();
+    const body = TeamCapacityUpdateSchema.parse(await request.json());
 
-    const { weeklyDemandHours, notes } = body;
-
-    if (weeklyDemandHours !== undefined && (typeof weeklyDemandHours !== "number" || weeklyDemandHours < 0)) {
-      return NextResponse.json({ error: "weeklyDemandHours must be a non-negative number" }, { status: 400 });
-    }
+    const { weeklyDemandHours } = body;
+    const notes = (body as any).notes;
 
     // Verify team exists
     const team = await prisma.orgTeam.findFirst({
@@ -243,7 +241,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       notes: plan.notes,
     });
   } catch (error: unknown) {
-    console.error("[PATCH /api/org/capacity/teams/[teamId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

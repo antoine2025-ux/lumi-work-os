@@ -5,6 +5,7 @@ import { WorkspaceRole } from "@prisma/client"
 import { logOrgAuditEvent } from "@/server/audit/orgAudit"
 import { handleApiError } from '@/lib/api-errors'
 import { ensureOrgPositionForUser } from '@/lib/org/ensure-org-position'
+import { CreateWorkspaceAltSchema } from '@/lib/validations/workspace'
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,15 +67,7 @@ export async function POST(request: NextRequest) {
     
     console.log("Auth context:", auth)
     
-    let body
-    try {
-      body = await request.json()
-      console.log("Request body parsed:", body)
-    } catch (parseError) {
-      console.error("Failed to parse request body:", parseError)
-      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 })
-    }
-    
+    const body = CreateWorkspaceAltSchema.parse(await request.json())
     const { name, description, slug } = body
 
     console.log("Creating workspace with data:", { name, slug, description })

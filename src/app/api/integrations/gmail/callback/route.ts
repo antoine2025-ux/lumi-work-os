@@ -5,6 +5,7 @@
 
 import { NextRequest } from 'next/server'
 import { getGmailOAuth2Client } from '@/lib/gmail'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { logger } from '@/lib/logger'
@@ -106,10 +107,7 @@ export async function GET(request: NextRequest) {
     }
 
     return Response.redirect(new URL('/home?gmail=connected', request.url))
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return Response.redirect(
-      new URL(`/home?gmail=error&message=${encodeURIComponent(message)}`, request.url)
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

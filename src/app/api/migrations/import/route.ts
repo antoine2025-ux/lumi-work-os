@@ -2,8 +2,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { MigrationService } from '@/lib/migrations/migration-service'
+import { ImportMigrationSchema } from '@/lib/validations/workspace'
 
 // POST /api/migrations/import - Import selected migration items
 export async function POST(request: NextRequest) {
@@ -13,14 +15,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
+    const body = ImportMigrationSchema.parse(await request.json())
     const { sessionId, itemIds } = body
-
-    if (!sessionId || !itemIds || !Array.isArray(itemIds)) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: sessionId, itemIds' 
-      }, { status: 400 })
-    }
 
     // Get user from database
     const user = await prisma.user.findUnique({
@@ -74,12 +70,8 @@ export async function POST(request: NextRequest) {
       errors: result.errors
     })
 
-  } catch (error) {
-    console.error('Error importing migration items:', error)
-    return NextResponse.json({ 
-      error: 'Failed to import migration items',
-      details: error.message 
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }
 

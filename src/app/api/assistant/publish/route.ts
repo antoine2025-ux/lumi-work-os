@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-errors'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
+import { AssistantPublishSchema } from '@/lib/validations/assistant'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,11 +21,8 @@ export async function POST(request: NextRequest) {
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
-    const { sessionId, settings } = await request.json()
-
-    if (!sessionId || !settings) {
-      return NextResponse.json({ error: 'Session ID and settings are required' }, { status: 400 })
-    }
+    const body = AssistantPublishSchema.parse(await request.json())
+    const { sessionId, settings } = body
 
     // Get the session
     const session = await prisma.chatSession.findUnique({
@@ -67,9 +66,9 @@ export async function POST(request: NextRequest) {
         slug: slug,
         workspaceId: auth.workspaceId,
         createdById: user.id,
-        category: settings.category || 'general',
-        permissionLevel: settings.visibility || 'public',
-        tags: settings.tags || [],
+        category: (settings.category as string) || 'general',
+        permissionLevel: (settings.visibility as string) || 'public',
+        tags: (settings.tags as string[]) || [],
         excerpt: session.draftBody.substring(0, 200) + (session.draftBody.length > 200 ? '...' : '')
       }
     })
@@ -93,11 +92,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-  } catch (error) {
-    console.error('Error publishing wiki page:', error)
-    return NextResponse.json({ 
-      error: 'Failed to publish wiki page', 
-      details: error instanceof Error ? error.message : 'Unknown error' 
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }

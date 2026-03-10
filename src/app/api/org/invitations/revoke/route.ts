@@ -7,10 +7,11 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import { logOrgAudit } from "@/lib/audit/org-audit";
 import { computeChanges } from "@/lib/audit/diff";
+import { OrgInvitationIdSchema } from "@/lib/validations/admin";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as { id: string };
+    const body = OrgInvitationIdSchema.parse(await req.json());
     const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
     if (!isAuthenticated || !workspaceId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from "@/lib/db"
 
@@ -72,13 +73,8 @@ export async function GET(
     }))
 
     return NextResponse.json({ members: membersList })
-  } catch (error) {
-    console.error("Error fetching members:", error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return NextResponse.json(
-      { error: "Failed to fetch members", details: errorMessage },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

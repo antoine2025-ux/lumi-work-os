@@ -2,18 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { recalculateGoalAnalytics } from '@/lib/goals/analytics-engine'
 import { evaluateWorkflowRules } from '@/lib/goals/workflow-engine'
-
-const Schema = z.object({
-  newProgress: z.number().min(0).max(100),
-  triggeredBy: z.enum(['manual_update', 'key_result_change', 'agent_action']),
-  sourceId: z.string().optional(),
-  confidence: z.number().min(0).max(1).optional().default(1.0),
-})
+import { UpdateProgressActionSchema } from '@/lib/validations/goals'
 
 export async function POST(
   request: NextRequest,
@@ -33,7 +26,7 @@ export async function POST(
     setWorkspaceContext(auth.workspaceId)
 
     const body = await request.json()
-    const data = Schema.parse(body)
+    const data = UpdateProgressActionSchema.parse(body)
 
     const goal = await prisma.goal.findFirst({
       where: { id: goalId, workspaceId: auth.workspaceId },

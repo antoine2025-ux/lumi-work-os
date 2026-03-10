@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { contextEngine, getWorkspaceContextObjects } from '@/lib/loopbrain/context-engine'
 import { logger } from '@/lib/logger'
 
@@ -169,30 +170,8 @@ export async function GET(request: NextRequest) {
 
     // Return context
     return NextResponse.json(response)
-  } catch (error) {
-    logger.error('Error in loopbrain context API', { error })
-
-    // Handle auth errors
-    if (error instanceof Error) {
-      if (error.message.includes('Unauthorized')) {
-        return NextResponse.json(
-          { error: 'Unauthorized' },
-          { status: 401 }
-        )
-      }
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json(
-          { error: 'Forbidden' },
-          { status: 403 }
-        )
-      }
-    }
-
-    // Generic error
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }
 

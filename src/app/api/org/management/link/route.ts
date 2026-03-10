@@ -4,12 +4,9 @@ import { requireActiveWorkspaceId } from "@/server/org/context"
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { logOrgAudit } from '@/lib/audit/org-audit'
-
-type Body = {
-  personId: string
-  managerId: string
-}
+import { CreateManagerLinkSchema } from '@/lib/validations/org'
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,11 +18,7 @@ export async function POST(req: NextRequest) {
     setWorkspaceContext(auth.workspaceId)
 
     const workspaceId = await requireActiveWorkspaceId(req)
-    const body = (await req.json()) as Body
-
-    if (!body?.personId || !body?.managerId) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 })
-    }
+    const body = CreateManagerLinkSchema.parse(await req.json())
 
     // Basic validation: ensure both are people in org (best-effort via OrgPosition)
     const [p1, p2] = await Promise.all([
@@ -72,8 +65,8 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json({ ok: true })
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  } catch (error: unknown) {
+    return handleApiError(error, req)
   }
 }
 

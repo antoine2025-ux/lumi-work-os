@@ -7,10 +7,11 @@ import { handleApiError } from "@/lib/api-errors";
 import { logOrgAudit } from "@/lib/audit/org-audit";
 import { computeChanges } from "@/lib/audit/diff";
 import { acceptOrgInvitationByToken } from "@/server/data/acceptOrgInvitation";
+import { OrgInvitationRespondSchema } from "@/lib/validations/admin";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as { token: string; decision: "ACCEPT" | "DECLINE" };
+    const body = OrgInvitationRespondSchema.parse(await req.json());
     const { user, isAuthenticated, workspaceId } = await getUnifiedAuth(req);
     if (!isAuthenticated) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

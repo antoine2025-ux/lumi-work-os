@@ -5,6 +5,7 @@
 
 import { NextRequest } from 'next/server'
 import { getDriveOAuth2Client } from '@/lib/drive'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { logger } from '@/lib/logger'
@@ -90,10 +91,7 @@ export async function GET(request: NextRequest) {
     }
 
     return Response.redirect(new URL('/home?drive=connected', request.url))
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return Response.redirect(
-      new URL(`/home?drive=error&message=${encodeURIComponent(message)}`, request.url),
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

@@ -10,8 +10,9 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
-import { handleApiError } from "@/lib/api-errors"
-import { logOrgAudit } from "@/lib/audit/org-audit"
+import { handleApiError } from "@/lib/api-errors";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { UpdateDepartmentSchema } from "@/lib/validations/org";
 
 export async function PUT(
   request: NextRequest,
@@ -30,7 +31,7 @@ export async function PUT(
     setWorkspaceContext(workspaceId);
 
     const { departmentId } = await ctx.params;
-    const body = await request.json();
+    const body = UpdateDepartmentSchema.parse(await request.json());
     const { name, description, ownerPersonId, color } = body;
 
     const department = await prisma.orgDepartment.findFirst({

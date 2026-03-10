@@ -5,6 +5,7 @@ import { getUnifiedAuth } from '@/lib/unified-auth'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import OpenAI from 'openai'
 import { handleApiError } from '@/lib/api-errors'
+import { AssistantMessageSchema } from '@/lib/validations/assistant'
 
 // Lazy initialization - only create client when needed
 function getOpenAIClient(): OpenAI | null {
@@ -78,11 +79,9 @@ export async function POST(request: NextRequest) {
     }
     setWorkspaceContext(auth.workspaceId)
 
-    const { sessionId, message, phase: _phase } = await request.json()
-
-    if (!sessionId || !message) {
-      return NextResponse.json({ error: 'Session ID and message required' }, { status: 400 })
-    }
+    const body = AssistantMessageSchema.parse(await request.json())
+    const { sessionId, message } = body
+    const _phase = (body as any).phase
 
     // Get the session
     const session = await prisma.chatSession.findUnique({
