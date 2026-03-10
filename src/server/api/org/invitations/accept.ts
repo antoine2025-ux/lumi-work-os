@@ -17,7 +17,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing token." }, { status: 400 });
     }
 
-    const result = await acceptOrgInvitationByToken(token, auth.user.userId);
+    const result = await acceptOrgInvitationByToken(token, auth.user.userId, {
+      sessionEmail: auth.user.email,
+      sessionName: auth.user.name,
+    });
 
     return NextResponse.json(
       {

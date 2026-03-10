@@ -87,10 +87,13 @@ export async function getAuthUser(): Promise<AuthUser | null> {
         })
       }
     } catch (prismaError: unknown) {
-      // Prisma failed - fall back to direct SQL query via Docker
       const prismaErr = prismaError instanceof Error ? prismaError : new Error(String(prismaError));
-      console.warn('[getAuthUser] Prisma failed, using direct SQL fallback:', prismaErr.message)
-      
+      console.warn('[getAuthUser] Prisma failed:', prismaErr.message)
+      // Docker fallback only makes sense locally; skip in production (no docker available)
+      const isLocalWithDocker = process.env.NODE_ENV !== 'production'
+      if (!isLocalWithDocker) {
+        throw prismaErr
+      }
       try {
         const { execSync } = await import('child_process')
         

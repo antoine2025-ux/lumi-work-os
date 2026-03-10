@@ -56,7 +56,10 @@ export async function POST(req: NextRequest) {
 
     // ACCEPT: use correct acceptance function
     try {
-      const result = await acceptOrgInvitationByToken(body.token, user.userId);
+      const result = await acceptOrgInvitationByToken(body.token, user.userId, {
+        sessionEmail: user.email,
+        sessionName: user.name,
+      });
       
       // Ensure the created position has a teamId
       const position = await prisma.orgPosition.findFirst({

@@ -5,7 +5,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
-import { sendEmail } from "@/server/mailer";
+import { sendWorkspaceInvite } from "@/lib/email/send-invite";
+import { getAppBaseUrl } from "@/lib/appUrl";
 import { logOrgAudit } from "@/lib/audit/org-audit";
 import { OrgInvitationIdSchema } from "@/lib/validations/admin";
 
@@ -26,6 +27,9 @@ export async function POST(req: NextRequest) {
 
     const invite = await prisma.orgInvitation.findUnique({ where: { id: body.id } });
     if (!invite) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+    if (invite.workspaceId && invite.workspaceId !== workspaceId) {
+      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    }
 
     // Extend expiry by 14 days and set back to PENDING if it was expired/declined.
     const updated = await prisma.orgInvitation.update({
@@ -36,23 +40,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Email sending happens below (best-effort)
-    const org = await prisma.org.findUnique({ where: { id: updated.orgId || workspaceId }, select: { name: true } }); // Reading Prisma field updated.orgId
-    const orgName = org?.name || "your organization";
-    const link = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/org/invite/${updated.token}`;
-    await sendEmail({
+    // Email sending (best-effort) — use same flow as create
+    const [workspace, inviter] = await Promise.all([
+      prisma.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } }),
+      prisma.user.findUnique({ where: { id: invite.invitedById ?? "" }, select: { name: true, email: true } }),
+    ]);
+    await sendWorkspaceInvite({
       to: updated.email,
-      subject: `You've been invited to ${orgName} on Loopwell`,
-      html: `
-      <div style="font-family: ui-sans-serif, system-ui; line-height: 1.4">
-        <h2 style="margin:0 0 12px 0;">You're invited to ${orgName}</h2>
-        <p style="margin:0 0 12px 0;">Role: <b>${updated.role || "VIEWER"}</b></p>
-        <p style="margin:0 0 12px 0;">
-          <a href="${link}">Accept invitation</a>
-        </p>
-        <p style="margin:0; color:#666">This link expires on ${updated.expiresAt?.toISOString()}.</p>
-      </div>
-    `,
+      workspaceName: workspace?.name ?? "your workspace",
+      inviterName: inviter?.name ?? inviter?.email ?? "A team member",
+      inviteToken: updated.token,
+      role: updated.role ?? "VIEWER",
     }).catch(() => null);
 
     // Log audit entry (fire-and-forget)
@@ -66,7 +64,9 @@ export async function POST(req: NextRequest) {
       metadata: { resent: true },
     }).catch((e) => console.error("[POST /api/org/invitations/resend] Audit error:", e));
 
-    return NextResponse.json({ ok: true, invite: updated, inviteLink: link, orgName });
+    const baseUrl = getAppBaseUrl();
+    const inviteLink = `${baseUrl}/invite/${updated.token}`;
+    return NextResponse.json({ ok: true, invite: updated, inviteLink, workspaceName: workspace?.name ?? "your workspace" });
   } catch (error) {
     return handleApiError(error, req);
   }
