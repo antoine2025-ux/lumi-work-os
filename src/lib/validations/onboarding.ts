@@ -5,8 +5,8 @@ import { nonEmptyString, emailString } from './common'
 // Admin Onboarding Wizard – Zod schemas for each step
 // ---------------------------------------------------------------------------
 
-/** Company size tiers – determines which onboarding steps are shown. */
-export const CompanySizeEnum = z.enum(['solo', '2-10', '11-50', '50+'])
+/** Company size tiers – determines paywall tier during onboarding. */
+export const CompanySizeEnum = z.enum(['solo', '2-10', '11-15', '16-30', '31-50', '50+'])
 export type CompanySize = z.infer<typeof CompanySizeEnum>
 
 /** Invite role options. */

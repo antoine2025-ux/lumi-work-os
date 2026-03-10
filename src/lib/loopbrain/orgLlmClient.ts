@@ -19,8 +19,7 @@ export async function runOrgQuestionLLM(params: {
 }> {
   const { system, user } = params;
 
-  // Use the standard Loopbrain model (or fallback to gpt-4o-mini for efficiency)
-  const model = process.env.LOOPBRAIN_MODEL || "gpt-4o-mini";
+  const model = process.env.LOOPBRAIN_MODEL || "claude-sonnet-4-6";
 
   try {
     // Use the user prompt as the main prompt, and pass system as systemPrompt

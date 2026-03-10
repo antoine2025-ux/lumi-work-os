@@ -91,7 +91,7 @@ export function AddTeamDrawer(props: {
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-background border-l border-border shadow-2xl flex flex-col">
         <div className="p-6 border-b border-border">
           <div className="text-sm text-muted-foreground">Team</div>
-          <div className="mt-1 text-xl font-semibold text-slate-100">Add team</div>
+          <div className="mt-1 text-xl font-semibold text-foreground">Add team</div>
           <div className="mt-2 text-sm text-muted-foreground">
             Create a team and optionally assign it to a department and owner.
           </div>
@@ -100,7 +100,7 @@ export function AddTeamDrawer(props: {
         <div className="flex-1 overflow-y-auto p-6">
           <Card className="p-4 space-y-4">
             <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-100">Name</div>
+              <div className="text-sm font-medium text-foreground">Name</div>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -110,7 +110,7 @@ export function AddTeamDrawer(props: {
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-100">Department</div>
+              <div className="text-sm font-medium text-foreground">Department</div>
               <Select value={departmentId && departmentId !== "none" ? departmentId : "none"} onValueChange={setDepartmentId}>
                 <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Not yet placed" />
@@ -130,7 +130,7 @@ export function AddTeamDrawer(props: {
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-100">Owner</div>
+              <div className="text-sm font-medium text-foreground">Owner</div>
               <Select value={ownerId && ownerId !== "none" ? ownerId : "none"} onValueChange={setOwnerId}>
                 <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Unassigned" />

@@ -22,6 +22,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { TaskEditDialog } from "@/components/tasks/task-edit-dialog"
+import { ErrorState } from "@/components/ui/error-state"
+import { TaskListSkeleton } from "@/components/ui/skeletons"
 
 interface Task {
   id: string
@@ -93,6 +95,7 @@ export default function MyTasksPage() {
   const { currentWorkspace } = useWorkspace()
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [dueFilter, setDueFilter] = useState('all')
@@ -108,6 +111,7 @@ export default function MyTasksPage() {
   const loadMyTasks = async () => {
     try {
       setIsLoading(true)
+      setError(null)
       const params = new URLSearchParams()
       
       if (statusFilter !== 'all') {
@@ -124,9 +128,12 @@ export default function MyTasksPage() {
       if (response.ok) {
         const data = await response.json()
         setTasks(data)
+      } else {
+        setError('Failed to load tasks')
       }
     } catch (error) {
       console.error('Error loading my tasks:', error)
+      setError('Failed to load tasks')
     } finally {
       setIsLoading(false)
     }
@@ -248,11 +255,23 @@ export default function MyTasksPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading your tasks...</p>
+      <div className="min-h-screen bg-background px-6 py-8">
+        <div className="max-w-7xl mx-auto">
+          <TaskListSkeleton />
         </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <ErrorState
+          title="Failed to load tasks"
+          description={error}
+          onRetry={loadMyTasks}
+          fullPage
+        />
       </div>
     )
   }
@@ -274,7 +293,7 @@ export default function MyTasksPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
@@ -352,9 +371,9 @@ export default function MyTasksPage() {
                   />
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-full sm:w-40">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -368,7 +387,7 @@ export default function MyTasksPage() {
                 </Select>
                 
                 <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-full sm:w-40">
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
                   <SelectContent>
@@ -382,7 +401,7 @@ export default function MyTasksPage() {
                 </Select>
                 
                 <Select value={dueFilter} onValueChange={setDueFilter}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-full sm:w-40">
                     <SelectValue placeholder="Due Date" />
                   </SelectTrigger>
                   <SelectContent>

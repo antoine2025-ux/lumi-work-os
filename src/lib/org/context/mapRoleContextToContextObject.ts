@@ -13,8 +13,31 @@ import type {
 function buildRoleSummary(role: RoleContext): string {
   const parts: string[] = [];
 
+  // Job description template context (shared definition)
+  if (role.jobDescriptionTitle) {
+    const jdLabel = [role.jobDescriptionTitle, role.jobDescriptionLevel]
+      .filter(Boolean)
+      .join(", ");
+    parts.push(`Job description: ${jdLabel}.`);
+  }
+  if (role.jobDescriptionSummary) {
+    parts.push(role.jobDescriptionSummary);
+  }
+
+  // Role description (person-specific or template)
   if (role.roleDescription) {
     parts.push(role.roleDescription);
+  }
+
+  // Manager-authored person-specific context
+  if (role.roleInOrg) {
+    parts.push(`Role in org: ${role.roleInOrg}.`);
+  }
+  if (role.focusArea) {
+    parts.push(`Focus area: ${role.focusArea}.`);
+  }
+  if (role.managerNotes) {
+    parts.push(`Manager notes: ${role.managerNotes}.`);
   }
 
   if (role.responsibilities.length > 0) {
@@ -30,7 +53,7 @@ function buildRoleSummary(role: RoleContext): string {
   }
 
   // Max ~3–4 lines; keep it compact.
-  return parts.join(" ").trim().slice(0, 600);
+  return parts.join(" ").trim().slice(0, 800);
 }
 
 /**
@@ -62,6 +85,16 @@ function buildRoleTags(role: RoleContext): string[] {
 
   if (role.responsibilities.length > 0) {
     tags.push(`responsibilities:${role.responsibilities.length}`);
+  }
+
+  if (role.jobDescriptionTitle) {
+    tags.push(`has_job_description:true`);
+  }
+  if (role.focusArea) {
+    tags.push(`has_focus_area:true`);
+  }
+  if (role.managerNotes) {
+    tags.push(`has_manager_notes:true`);
   }
 
   if (role.userId) {

@@ -60,8 +60,8 @@ function AlignmentChip({ alignment }: { alignment: AlignmentResult | null | unde
       label: "Misaligned",
     },
     UNKNOWN: {
-      bg: "bg-gray-100 dark:bg-gray-800",
-      text: "text-gray-600 dark:text-gray-400",
+      bg: "bg-gray-100 dark:bg-muted",
+      text: "text-gray-600 dark:text-muted-foreground",
       label: "Unknown",
     },
   };

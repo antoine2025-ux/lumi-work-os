@@ -8,9 +8,19 @@ import {
 import { logOrgAudit } from "@/lib/orgAudit";
 import { OrgDepartmentCreateSchema } from "@/lib/validations/org";
 import { handleApiError } from "@/lib/api-errors";
+import { getUnifiedAuth } from '@/lib/unified-auth';
+import { assertAccess } from '@/lib/auth/assertAccess';
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] });
+    setWorkspaceContext(auth.workspaceId);
+
     const body = OrgDepartmentCreateSchema.parse(await req.json());
     const name = body.name;
 
@@ -32,7 +42,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const orgId = context!.orgId;
+    const workspaceId = auth.workspaceId;
 
     if (!prisma) {
       return NextResponse.json(
@@ -50,7 +60,7 @@ export async function POST(req: NextRequest) {
     // Check for duplicate department name
     const existingDepartment = await prisma.orgDepartment.findFirst({
       where: {
-        workspaceId: orgId,
+        workspaceId,
         name,
       },
     });
@@ -68,10 +78,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // TODO: adjust model/field names as needed.
+    // TODO [BACKLOG]: Adjust model/field names if schema changes.
     const department = await prisma.orgDepartment.create({
       data: {
-        workspaceId: orgId,
+        workspaceId,
         name,
         description: body.description?.trim() || null,
         isActive: true,
@@ -81,7 +91,7 @@ export async function POST(req: NextRequest) {
     // Audit log
     await logOrgAudit(
       {
-        orgId,
+        workspaceId,
         action: "DEPARTMENT_CREATED",
         targetType: "DEPARTMENT",
         targetId: department.id,

@@ -102,7 +102,7 @@ export function ActiveFiltersChips({
         >
           <span className="font-medium text-[11px]">{chip.label}:</span>
           <span className="max-w-[12rem] truncate text-[11px]">{chip.value}</span>
-          <X className="h-3 w-3 text-slate-400 shrink-0" />
+          <X className="h-3 w-3 text-muted-foreground shrink-0" />
         </button>
       ))}
     </div>

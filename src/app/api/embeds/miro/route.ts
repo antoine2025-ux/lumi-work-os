@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
+import { EmbedUrlSchema } from '@/lib/validations/embeds'
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json()
-    
-    if (!url) {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 })
-    }
+    const auth = await getUnifiedAuth(request)
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+
+    const body = EmbedUrlSchema.parse(await request.json())
+    const { url } = body
 
     // Extract board ID from Miro URL
     const miroMatch = url.match(/miro\.com\/([^\/]+)/)
@@ -16,8 +20,6 @@ export async function POST(request: NextRequest) {
 
     const [, boardId] = miroMatch
 
-    // For now, we'll return basic metadata
-    // In a real implementation, you'd call Miro's API to get board details
     const embedData = {
       title: 'Miro Board',
       description: 'Interactive Miro whiteboard',
@@ -28,8 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(embedData)
-  } catch (error) {
-    console.error('Miro embed error:', error)
-    return NextResponse.json({ error: 'Failed to process Miro embed' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error)
   }
 }

@@ -23,12 +23,18 @@ export function useKeyboardShortcuts() {
       key: "k",
       metaKey: true,
       action: () => {
-        // Trigger command palette by dispatching a custom event
-        console.log("CmdK shortcut triggered")
-        const event = new CustomEvent("openCommandPalette")
-        document.dispatchEvent(event)
+        document.dispatchEvent(new CustomEvent("openCommandPalette"))
       },
-      description: "Open command palette",
+      description: "Open command palette (Mac)",
+      category: "navigation"
+    },
+    {
+      key: "k",
+      ctrlKey: true,
+      action: () => {
+        document.dispatchEvent(new CustomEvent("openCommandPalette"))
+      },
+      description: "Open command palette (Windows/Linux)",
       category: "navigation"
     },
     {
@@ -189,11 +195,13 @@ export function useKeyboardShortcuts() {
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     // Don't trigger shortcuts when typing in inputs
+    const target = event.target as HTMLElement
     if (
-      event.target instanceof HTMLInputElement ||
-      event.target instanceof HTMLTextAreaElement ||
-      event.target instanceof HTMLSelectElement ||
-      (event.target as HTMLElement)?.contentEditable === "true"
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      target?.contentEditable === "true" ||
+      target?.isContentEditable
     ) {
       return
     }

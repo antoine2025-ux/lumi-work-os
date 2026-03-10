@@ -27,7 +27,7 @@ export function AskLoopbrainButton({
           initialQuestion,
         })
       }
-      className={`inline-flex items-center gap-1 rounded-md border border-gray-700 bg-gray-900 px-3 py-1 text-xs hover:bg-gray-800 ${className}`}
+      className={`inline-flex items-center gap-1 rounded-md border border-border bg-card px-3 py-1 text-xs hover:bg-muted ${className}`}
     >
       <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
       Ask Loopbrain about this role

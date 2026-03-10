@@ -2,20 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
 import { updateGoalProgress } from '@/lib/goals/progress'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const UpdateProgressSchema = z.object({
-  keyResultId: z.string(),
-  newValue: z.number(),
-  note: z.string().optional(),
-})
+import { UpdateProgressSchema } from '@/lib/validations/goals'
 
 // ============================================================================
 // POST /api/goals/[goalId]/progress - Update key result progress

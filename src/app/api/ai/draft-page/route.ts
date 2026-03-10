@@ -2,23 +2,26 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { generateAIStream } from '@/lib/ai/providers'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
+import { DraftPageSchema } from '@/lib/validations/assistant'
 
 // POST /api/ai/draft-page - Stream content generation for a specific page
 export async function POST(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
-    const { pageId, prompt, workspaceId } = await request.json()
-
-    if (!pageId || !prompt) {
-      return new Response(JSON.stringify({ error: 'Page ID and prompt are required' }), {
-        status: 400,
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
         headers: { 'Content-Type': 'application/json' }
       })
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(auth.workspaceId)
 
-    // Set workspace context
-    setWorkspaceContext(workspaceId || auth.workspaceId)
+    const body = DraftPageSchema.parse(await request.json())
+    const { pageId, prompt, workspaceId } = body
 
     // Get page info
     const page = await prisma.wikiPage.findUnique({
@@ -114,11 +117,7 @@ The content you generate will be inserted directly into the page editor.`
       },
     })
   } catch (error) {
-    console.error('Error in draft-page endpoint:', error)
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return handleApiError(error, request)
   }
 }
 

@@ -22,7 +22,7 @@ export type OrgQuestionContext = {
   teamId?: string; // "team:<id>"
   departmentId?: string; // "department:<id>"
   roleId?: string; // "role:<workspaceId>:position:<id>" or "role:<workspaceId>:role-card:<id>"
-  orgId?: string; // usually "org"
+  orgId?: string; // Loopbrain entity ID (usually "org")
 };
 
 /**

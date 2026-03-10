@@ -121,10 +121,10 @@ export function PersonProfileDrawer({
 
     switch (type) {
       case "reports":
-        // TODO: When managerId is available, filter by managerId
+        // TODO [BACKLOG]: Filter direct reports using person.managerId (data now available)
         break;
       case "peers":
-        // TODO: When managerId is available, filter by same managerId
+        // TODO [BACKLOG]: Filter peers sharing the same managerId (data now available)
         break;
       case "teammates":
         if (person.teamId) {
@@ -158,7 +158,7 @@ export function PersonProfileDrawer({
       <div
         className={cn(
           "fixed right-0 top-0 h-full w-full max-w-[560px] z-50",
-          "bg-slate-900 border-l border-white/10 text-slate-100",
+          "bg-card border-l border-white/10 text-foreground",
           "overflow-hidden flex flex-col",
           "shadow-[0_24px_80px_rgba(0,0,0,0.35)]",
           "animate-in slide-in-from-right-full duration-250"
@@ -173,20 +173,20 @@ export function PersonProfileDrawer({
             <div className="space-y-6 animate-pulse">
               <div className="space-y-4">
                 <div className="flex items-start gap-4">
-                  <div className="h-20 w-20 rounded-full bg-slate-800" />
+                  <div className="h-20 w-20 rounded-full bg-muted" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-6 w-48 bg-slate-800 rounded" />
-                    <div className="h-4 w-32 bg-slate-800 rounded" />
+                    <div className="h-6 w-48 bg-muted rounded" />
+                    <div className="h-4 w-32 bg-muted rounded" />
                   </div>
                 </div>
               </div>
               <div className="space-y-3">
-                <div className="h-4 w-24 bg-slate-800 rounded" />
-                <div className="h-16 bg-slate-800 rounded" />
+                <div className="h-4 w-24 bg-muted rounded" />
+                <div className="h-16 bg-muted rounded" />
               </div>
               <div className="space-y-3">
-                <div className="h-4 w-24 bg-slate-800 rounded" />
-                <div className="h-16 bg-slate-800 rounded" />
+                <div className="h-4 w-24 bg-muted rounded" />
+                <div className="h-16 bg-muted rounded" />
               </div>
             </div>
           ) : (
@@ -229,7 +229,7 @@ export function PersonProfileDrawer({
                 {/* Cross-navigation Links */}
                 {orgId && (
                   <div className="space-y-2 pt-4 border-t border-white/10">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Navigation
                     </h3>
                     <div className="space-y-2">
@@ -239,14 +239,14 @@ export function PersonProfileDrawer({
                         className={cn(
                           "flex items-center justify-between gap-2",
                           "px-3 py-2 rounded-lg",
-                          "bg-slate-800/50 hover:bg-slate-800",
-                          "text-sm text-slate-200",
+                          "bg-muted/50 hover:bg-muted",
+                          "text-sm text-foreground",
                           "transition-colors duration-150"
                         )}
                         onClick={onClose}
                       >
                         <span>View reporting line in Org Chart</span>
-                        <ExternalLink className="h-4 w-4 text-slate-400" />
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
                       </Link>
 
                       {/* View team in Structure */}
@@ -256,14 +256,14 @@ export function PersonProfileDrawer({
                           className={cn(
                             "flex items-center justify-between gap-2",
                             "px-3 py-2 rounded-lg",
-                            "bg-slate-800/50 hover:bg-slate-800",
-                            "text-sm text-slate-200",
+                            "bg-muted/50 hover:bg-muted",
+                            "text-sm text-foreground",
                             "transition-colors duration-150"
                           )}
                           onClick={onClose}
                         >
                           <span>View team in Structure</span>
-                          <ExternalLink className="h-4 w-4 text-slate-400" />
+                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
                         </Link>
                       )}
 
@@ -274,14 +274,14 @@ export function PersonProfileDrawer({
                           className={cn(
                             "flex items-center justify-between gap-2",
                             "px-3 py-2 rounded-lg",
-                            "bg-slate-800/50 hover:bg-slate-800",
-                            "text-sm text-slate-200",
+                            "bg-muted/50 hover:bg-muted",
+                            "text-sm text-foreground",
                             "transition-colors duration-150"
                           )}
                           onClick={onClose}
                         >
                           <span>View department in Structure</span>
-                          <ExternalLink className="h-4 w-4 text-slate-400" />
+                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
                         </Link>
                       )}
                     </div>

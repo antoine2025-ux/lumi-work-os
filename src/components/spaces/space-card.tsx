@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { Folder, Globe, Lock, User, FileText, Target, ChevronRight } from "lucide-react"
+import { Folder, Globe, Lock, User, FileText, Target, ChevronRight, Users } from "lucide-react"
+import { formatDistanceToNow } from "date-fns"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -17,7 +18,24 @@ export interface SpaceCardData {
   isPersonal: boolean
   ownerId: string
   owner: { id: string; name: string | null; image: string | null } | null
-  _count: { projects: number; wikiPages: number; children: number }
+  _count: {
+    projects: number
+    wikiPages: number
+    children: number
+    members?: number
+  }
+  updatedAt?: string
+}
+
+function safeFormatDistance(dateStr: string | null | undefined): string {
+  if (!dateStr) return ""
+  try {
+    const d = new Date(dateStr)
+    if (Number.isNaN(d.getTime())) return ""
+    return formatDistanceToNow(d, { addSuffix: true })
+  } catch {
+    return ""
+  }
 }
 
 interface SpaceCardProps {
@@ -91,20 +109,38 @@ export function SpaceCard({ space, className }: SpaceCardProps) {
         </div>
 
         {/* Counts */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Target className="w-3 h-3" />
-            {space._count.projects} project{space._count.projects !== 1 ? "s" : ""}
-          </span>
-          <span className="flex items-center gap-1">
-            <FileText className="w-3 h-3" />
-            {space._count.wikiPages} page{space._count.wikiPages !== 1 ? "s" : ""}
-          </span>
-          {space._count.children > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Folder className="w-3 h-3" />
-              {space._count.children} folder{space._count.children !== 1 ? "s" : ""}
+              <Target className="w-3 h-3" />
+              {space._count.projects} project{space._count.projects !== 1 ? "s" : ""}
             </span>
+            <span className="flex items-center gap-1">
+              <FileText className="w-3 h-3" />
+              {space._count.wikiPages} page{space._count.wikiPages !== 1 ? "s" : ""}
+            </span>
+            {space._count.children > 0 && (
+              <span className="flex items-center gap-1">
+                <Folder className="w-3 h-3" />
+                {space._count.children} folder{space._count.children !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+          {(space._count.members !== undefined || space.updatedAt) && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {space._count.members !== undefined && (
+                <span className="flex items-center gap-1">
+                  <Users className="w-3 h-3" />
+                  {1 + space._count.members} member{(1 + space._count.members) !== 1 ? "s" : ""}
+                </span>
+              )}
+              {space.updatedAt && safeFormatDistance(space.updatedAt) && (
+                <>
+                  {space._count.members !== undefined && <span>·</span>}
+                  <span>Updated {safeFormatDistance(space.updatedAt)}</span>
+                </>
+              )}
+            </div>
           )}
         </div>
       </Card>

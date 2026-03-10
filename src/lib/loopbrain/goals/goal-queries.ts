@@ -88,6 +88,7 @@ async function getAtRiskGoals(workspaceId: string) {
         },
       },
     },
+    take: 200, // perf: guard against unbounded result set
   })
 
   const atRiskGoals = goals
@@ -149,6 +150,7 @@ async function getGoalProgress(workspaceId: string) {
         },
       },
     },
+    take: 200, // perf: guard against unbounded result set
   })
 
   const summary = {
@@ -211,6 +213,7 @@ async function getQuarterlyGoals(workspaceId: string, quarter: string) {
       { level: 'asc' },
       { progress: 'desc' },
     ],
+    take: 200, // perf: guard against unbounded result set
   })
 
   return {
@@ -259,6 +262,7 @@ async function getCompanyGoals(workspaceId: string) {
         },
       },
     },
+    take: 200, // perf: guard against unbounded result set
   })
 
   return {
@@ -303,6 +307,7 @@ async function getTeamGoals(workspaceId: string) {
         },
       },
     },
+    take: 200, // perf: guard against unbounded result set
   })
 
   return {
@@ -342,6 +347,7 @@ async function getGoalOverview(workspaceId: string) {
         progress: true,
         status: true,
       },
+      take: 200, // perf: guard against unbounded result set
     }),
   ])
 

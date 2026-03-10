@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
+import { EmbedUrlSchema } from '@/lib/validations/embeds'
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json()
-    
-    if (!url) {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 })
-    }
+    const auth = await getUnifiedAuth(request)
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+
+    const body = EmbedUrlSchema.parse(await request.json())
+    const { url } = body
 
     // Extract base ID and table ID from Airtable URL
     const airtableMatch = url.match(/airtable\.com\/([^\/]+)\/([^\/]+)/)
@@ -16,8 +20,6 @@ export async function POST(request: NextRequest) {
 
     const [, baseId, tableId] = airtableMatch
 
-    // For now, we'll return basic metadata
-    // In a real implementation, you'd call Airtable's API to get base/table details
     const embedData = {
       title: 'Airtable Base',
       description: 'Interactive Airtable database',
@@ -29,8 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(embedData)
-  } catch (error) {
-    console.error('Airtable embed error:', error)
-    return NextResponse.json({ error: 'Failed to process Airtable embed' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error)
   }
 }

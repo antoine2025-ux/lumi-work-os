@@ -8,27 +8,33 @@
 }
 
 :root {
-  /* Dark blue theme */
-  --background: #020617;
-  --foreground: #f1f5f9;
-  --card: #0f172a;
-  --card-foreground: #f1f5f9;
-  --popover: #0f172a;
-  --popover-foreground: #f1f5f9;
-  --primary: #3b82f6;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  /* Dark theme — cool slate/navy, polished premium palette */
+  --background: hsl(222 47% 4%);
+  --foreground: #F1F5F9;
+  --card: hsl(222 40% 10%);
+  --card-foreground: #F1F5F9;
+  --popover: #0F1729;
+  --popover-foreground: #F1F5F9;
+  --primary: #6366F1;
   --primary-foreground: #ffffff;
-  --secondary: #1e293b;
-  --secondary-foreground: #f1f5f9;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --accent: #1e293b;
-  --accent-foreground: #f1f5f9;
-  --destructive: #ef4444;
+  --secondary: #162032;
+  --secondary-foreground: #F1F5F9;
+  --muted: hsl(222 35% 15%);
+  --muted-foreground: hsl(215 20% 60%);
+  --accent: hsl(222 35% 17%);
+  --accent-foreground: #F1F5F9;
+  --destructive: #DC2626;
   --destructive-foreground: #ffffff;
-  --border: #1e293b;
-  --input: #1e293b;
-  --ring: #3b82f6;
+  --border: hsl(222 25% 20%);
+  --input: #1E293B;
+  --ring: #6366F1;
   --radius: 0.5rem;
+}
+
+/* Lucide icons — refined stroke for premium feel */
+.lucide {
+  stroke-width: 1.75;
 }
 
 /* Landing page theme tokens - Dark Mode (default) */
@@ -96,6 +102,7 @@ html.light {
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 * {
@@ -107,6 +114,8 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -158,6 +167,7 @@ body {
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 0; /* Hide horizontal (bottom) scrollbar */
 }
 
 ::-webkit-scrollbar-track {
@@ -171,6 +181,17 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--foreground);
+}
+
+/* Hide scrollbar corner (diagonal square where horizontal + vertical scrollbars meet) */
+::-webkit-scrollbar-corner {
+  background: transparent;
+  display: none;
+}
+
+/* Hide horizontal (bottom) scrollbar */
+::-webkit-scrollbar:horizontal {
+  height: 0;
 }
 
 /* TipTap Editor Styles */
@@ -606,6 +627,37 @@ img[src*="transparent"] {
 .blog-content th {
   background-color: rgb(30, 41, 59);
   font-weight: 600;
+}
+
+/* Email body rendering (Gmail modal) */
+.email-body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+}
+
+.email-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.email-body a {
+  color: rgb(96, 165, 250);
+  text-decoration: underline;
+}
+
+.email-body a:hover {
+  color: rgb(147, 197, 253);
+}
+
+.email-body table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.email-body th,
+.email-body td {
+  border: 1px solid var(--border);
+  padding: 0.5rem;
 }
 
 /* Org Center polish utilities */

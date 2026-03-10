@@ -207,7 +207,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
 
         if (!isOnOnboardingPage && !isOnStructurePage && !hasSkipParam) {
           const workspace = await prisma.workspace.findUnique({
-            where: { id: context.orgId },
+            where: { id: context.workspaceId },
             select: { orgCenterOnboardingCompletedAt: true },
           });
 
@@ -217,7 +217,7 @@ export default async function OrgLayout({ children }: OrgLayoutProps) {
             let provisionalCount = 0;
             try {
               provisionalCount = await prisma.workRequest.count({
-                where: { workspaceId: context.orgId, isProvisional: true, status: "OPEN" },
+                where: { workspaceId: context.workspaceId, isProvisional: true, status: "OPEN" },
               });
             } catch (error: any) {
               // Handle missing table (P2021) - table may not exist yet

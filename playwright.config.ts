@@ -17,6 +17,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 // Determine server mode
 const isCI = !!process.env.CI
+// Local: reuse only if E2E_REUSE_SERVER=true
 const reuseServer = process.env.E2E_REUSE_SERVER === 'true'
 
 // In CI, use production server for stability; locally use dev server for speed

@@ -54,7 +54,7 @@ function EmploymentStatusBadge({ status }: { status: string }) {
       );
     default:
       return (
-        <Badge variant="outline" className="text-slate-400">
+        <Badge variant="outline" className="text-muted-foreground">
           Unknown
         </Badge>
       );
@@ -83,7 +83,7 @@ function AvailabilityLabelBadge({ label }: { label: string }) {
       );
     default:
       return (
-        <Badge variant="outline" className="text-slate-400">
+        <Badge variant="outline" className="text-muted-foreground">
           Unknown
         </Badge>
       );
@@ -193,12 +193,12 @@ export function PersonAvailabilityCard({ personId, canEdit = false, onAvailabili
 
   if (derivedQ.loading) {
     return (
-      <Card className="border-slate-800 bg-slate-900/50">
+      <Card className="border-border bg-card/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-slate-200">Availability</CardTitle>
+          <CardTitle className="text-sm font-medium text-foreground">Availability</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-xs text-slate-500">Loading...</div>
+          <div className="text-xs text-muted-foreground">Loading...</div>
         </CardContent>
       </Card>
     );
@@ -211,19 +211,19 @@ export function PersonAvailabilityCard({ personId, canEdit = false, onAvailabili
     }
 
     return (
-      <Card className="border-slate-800 bg-slate-900/50">
+      <Card className="border-border bg-card/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-slate-200">Availability</CardTitle>
+          <CardTitle className="text-sm font-medium text-foreground">Availability</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-muted-foreground">
             Availability data could not be loaded.
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleRefresh}
-            className="h-7 px-2 text-xs text-slate-400 hover:text-slate-200"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
           >
             <RefreshCw className="h-3 w-3 mr-1.5" />
             Retry
@@ -238,16 +238,16 @@ export function PersonAvailabilityCard({ personId, canEdit = false, onAvailabili
 
   return (
     <>
-      <Card className="border-slate-800 bg-slate-900/50">
+      <Card className="border-border bg-card/50">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-slate-200">Availability</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">Availability</CardTitle>
             {canEdit && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setEditEmploymentOpen(true)}
-                className="h-7 px-2 text-slate-400 hover:text-slate-200"
+                className="h-7 px-2 text-muted-foreground hover:text-foreground"
               >
                 <Pencil className="h-3 w-3" />
               </Button>
@@ -257,7 +257,7 @@ export function PersonAvailabilityCard({ personId, canEdit = false, onAvailabili
         <CardContent className="space-y-4">
           {/* Employment Status */}
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
               Employment Status
             </div>
             <EmploymentStatusBadge status={derived.employmentStatus} />
@@ -265,13 +265,13 @@ export function PersonAvailabilityCard({ personId, canEdit = false, onAvailabili
 
           {/* Derived Availability */}
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
               Availability
             </div>
             <div className="flex items-center gap-2">
               <AvailabilityLabelBadge label={derived.label} />
               {derived.fraction !== 1 && derived.fraction !== 0 && (
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-muted-foreground">
                   ({Math.round(derived.fraction * 100)}%)
                 </span>
               )}
@@ -281,7 +281,7 @@ export function PersonAvailabilityCard({ personId, canEdit = false, onAvailabili
           {/* Quick Set Actions */}
           {canEdit && (
             <div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-2">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">
                 Quick Set
               </div>
               <div className="flex gap-2">
@@ -331,30 +331,30 @@ export function PersonAvailabilityCard({ personId, canEdit = false, onAvailabili
           {/* Reason if not available */}
           {derived.reason && (
             <div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
                 Reason
               </div>
-              <div className="text-xs text-slate-300">{formatReason(derived.reason)}</div>
+              <div className="text-xs text-muted-foreground">{formatReason(derived.reason)}</div>
             </div>
           )}
 
           {/* Expected Return */}
           {derived.expectedReturnDate && (
             <div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
                 Expected Return
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-300">
-                <Calendar className="h-3 w-3 text-slate-500" />
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3 text-muted-foreground" />
                 {formatDate(derived.expectedReturnDate)}
               </div>
             </div>
           )}
 
           {/* Availability Windows */}
-          <div className="pt-2 border-t border-slate-800">
+          <div className="pt-2 border-t border-border">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-[10px] text-slate-500 uppercase tracking-wide">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
                 Availability Windows ({windows.length})
               </div>
               {canEdit && (
@@ -362,7 +362,7 @@ export function PersonAvailabilityCard({ personId, canEdit = false, onAvailabili
                   variant="ghost"
                   size="sm"
                   onClick={() => setEditWindowsOpen(true)}
-                  className="h-6 px-2 text-[10px] text-slate-400 hover:text-slate-200"
+                  className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
                 >
                   <Plus className="h-3 w-3 mr-1" />
                   Add
@@ -371,21 +371,21 @@ export function PersonAvailabilityCard({ personId, canEdit = false, onAvailabili
             </div>
 
             {windows.length === 0 ? (
-              <div className="text-xs text-slate-500 italic">No windows defined</div>
+              <div className="text-xs text-muted-foreground italic">No windows defined</div>
             ) : (
               <div className="space-y-2">
                 {windows.slice(0, 3).map((w) => (
                   <div
                     key={w.id}
-                    className="flex items-start gap-2 text-xs p-2 rounded bg-slate-800/50"
+                    className="flex items-start gap-2 text-xs p-2 rounded bg-muted/50"
                   >
-                    <Clock className="h-3 w-3 text-slate-500 mt-0.5 shrink-0" />
+                    <Clock className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-slate-300">
+                      <div className="text-muted-foreground">
                         {formatDate(w.startDate)}
                         {w.endDate && ` – ${formatDate(w.endDate)}`}
                       </div>
-                      <div className="text-slate-500">
+                      <div className="text-muted-foreground">
                         {w.type === "PARTIAL" && w.fraction !== null
                           ? `${Math.round(w.fraction * 100)}% capacity`
                           : w.type === "UNAVAILABLE"

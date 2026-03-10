@@ -10,7 +10,10 @@
 
 import { ToolRegistry } from './tool-registry'
 import { logger } from '@/lib/logger'
-import type { AgentContext, AgentPlan, PlannedStep, ToolResult, ExecutionResult } from './types'
+import type { AgentContext, AgentPlan, PlannedStep, ToolResult, ExecutionResult, LoopbrainTool } from './types'
+import { assertToolRole, LoopbrainPermissionError } from '../permissions'
+import { assertProjectMembership, assertSpaceMembership } from '../permissions/resource-acl'
+import { assertHierarchyAccess } from '../permissions/hierarchy'
 
 // ---------------------------------------------------------------------------
 // Dependency resolution
@@ -80,6 +83,60 @@ function resolveRef(ref: string, stepResults: Map<number, ToolResult>): unknown 
 }
 
 // ---------------------------------------------------------------------------
+// Permission enforcement
+// ---------------------------------------------------------------------------
+
+/**
+ * Run permission checks declared by the tool before execution.
+ * Extracts resource IDs from resolved params to check project/space membership.
+ */
+async function enforceToolPermissions(
+  tool: LoopbrainTool,
+  params: Record<string, unknown>,
+  context: AgentContext,
+): Promise<void> {
+  const { permissions } = tool
+  if (!permissions) return
+
+  // 1. RBAC role check
+  assertToolRole(context, permissions.minimumRole)
+
+  // 2. Resource-level checks
+  if (permissions.resourceChecks) {
+    for (const check of permissions.resourceChecks) {
+      switch (check) {
+        case 'projectMembership': {
+          const projectId = (params.projectId as string) ?? undefined
+          if (projectId) {
+            await assertProjectMembership(context, projectId)
+          }
+          break
+        }
+        case 'spaceMembership': {
+          const spaceId = (params.spaceId as string) ?? undefined
+          if (spaceId) {
+            await assertSpaceMembership(context, spaceId)
+          }
+          break
+        }
+      }
+    }
+  }
+
+  // 3. Hierarchy check
+  if (permissions.hierarchyCheck) {
+    const targetPersonId =
+      (params.targetPersonId as string) ??
+      (params.personId as string) ??
+      (params.assigneeId as string) ??
+      undefined
+    if (targetPersonId) {
+      await assertHierarchyAccess(context, targetPersonId)
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Executor
 // ---------------------------------------------------------------------------
 
@@ -130,6 +187,28 @@ export async function executeAgentPlan(
 
     // Resolve inter-step references
     const resolvedParams = resolveReferences(step.parameters, stepResults)
+
+    // Permission check before execution
+    try {
+      await enforceToolPermissions(tool, resolvedParams, context)
+    } catch (err) {
+      if (err instanceof LoopbrainPermissionError) {
+        const error = `Permission denied: ${err.message}`
+        logger.warn('Agent executor: permission denied', {
+          stepNumber: step.stepNumber,
+          toolName: step.toolName,
+          code: err.code,
+          error,
+        })
+        return {
+          completed,
+          failed: { step, error },
+          summary: buildSummary(completed, results, { step, error }),
+          results,
+        }
+      }
+      throw err
+    }
 
     // Execute
     let result: ToolResult

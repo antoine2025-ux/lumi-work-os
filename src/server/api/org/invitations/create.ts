@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getAppBaseUrl } from "@/lib/appUrl";
 import { createErrorResponse, createSuccessResponse } from "@/server/api/responses";
 import { sendWorkspaceInvite } from "@/lib/email/send-invite";
+import { handleApiError } from "@/lib/api-errors";
 
 const INVITATION_EXPIRY_DAYS = 14;
 
@@ -18,9 +19,18 @@ function normalizeEmail(raw: unknown): string | null {
   return email;
 }
 
+type OrgRoleValue = "VIEWER" | "EDITOR" | "ADMIN";
+
 type Body = {
   workspaceId?: string;
   email?: string;
+  fullName?: string;
+  role?: OrgRoleValue;
+  title?: string;
+  departmentId?: string;
+  teamId?: string;
+  managerId?: string;
+  jobDescriptionId?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -37,6 +47,9 @@ export async function POST(req: NextRequest) {
     const body = (await req.json().catch(() => ({}))) as Body;
     const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : null;
     const email = normalizeEmail(body.email);
+    const VALID_ORG_ROLES: OrgRoleValue[] = ["VIEWER", "EDITOR", "ADMIN"];
+    const role: OrgRoleValue =
+      body.role && VALID_ORG_ROLES.includes(body.role) ? body.role : "VIEWER";
 
     if (!workspaceId) {
       return createErrorResponse(
@@ -112,9 +125,16 @@ export async function POST(req: NextRequest) {
       data: {
         workspaceId,
         email,
+        fullName: body.fullName?.trim() || null,
+        role,
         status: "PENDING",
         invitedById: auth.user.userId,
         expiresAt,
+        title: body.title,
+        departmentId: body.departmentId,
+        teamId: body.teamId,
+        managerId: body.managerId,
+        jobDescriptionId: body.jobDescriptionId ?? null,
       },
     });
 
@@ -148,11 +168,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err) {
-    console.error("[ORG_INVITATION_CREATE_ERROR]", err);
-    return createErrorResponse(
-      "INTERNAL_SERVER_ERROR",
-      "Something went wrong while creating the invitation."
-    );
+    return handleApiError(err, req);
   }
 }
 

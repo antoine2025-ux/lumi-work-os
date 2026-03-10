@@ -65,7 +65,8 @@ export function PeopleFiltersBar({
     { value: "all", label: "All" },
     { value: "leaders", label: "Leaders" },
     { value: "unassigned", label: "Unassigned" },
-    // Note: "new" and "recentlyChanged" can be added when data is available
+    { value: "new", label: "New" },
+    { value: "recentlyChanged", label: "Recently Changed" },
   ];
 
   // Use shared chip styles with slight size adjustment for filter bar
@@ -79,12 +80,12 @@ export function PeopleFiltersBar({
 
   const filterChipInactive = cn(
     filterChipBase,
-    "bg-slate-900/40",
+    "bg-card/40",
     "text-foreground/60",
-    "border-slate-800/70",
-    "hover:bg-slate-900/60",
+    "border-border/70",
+    "hover:bg-card/60",
     "hover:text-foreground/80",
-    "hover:border-slate-700/70"
+    "hover:border-border/70"
   );
 
   const filterChipActive = cn(
@@ -97,7 +98,7 @@ export function PeopleFiltersBar({
   );
 
   return (
-    <div className="rounded-2xl border border-white/5 bg-slate-900/40 p-4">
+    <div className="rounded-2xl border border-white/5 bg-card/40 p-4">
       <div className="flex flex-wrap items-center gap-3">
         {/* Left: View selector + Search */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -129,22 +130,22 @@ export function PeopleFiltersBar({
               placeholder="Search people, roles, teams, departments…"
               disabled={isLoading}
               className={cn(
-                "w-full rounded-full border border-slate-800/70 bg-slate-900/60",
+                "w-full rounded-full border border-border/70 bg-card/60",
                 "px-4 py-2 pl-9 pr-10",
-                "text-[13px] text-white/90 placeholder:text-white/40",
+                "text-[13px] text-foreground/90 placeholder:text-foreground/40",
                 "focus:border-primary/70 focus:outline-none focus:ring-1 focus:ring-primary/60",
                 "transition-colors duration-150",
                 "disabled:cursor-not-allowed disabled:opacity-50"
               )}
             />
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
             
             {/* Clear button */}
             {searchQuery && (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-white/40 hover:text-white/60 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-foreground/40 hover:text-foreground/60 transition-colors"
                 aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
@@ -208,7 +209,7 @@ export function PeopleFiltersBar({
                 "text-sm font-medium",
                 "bg-primary",
                 "hover:bg-primary/90",
-                "text-white",
+                "text-foreground",
                 "transition-colors duration-150",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
                 "disabled:cursor-not-allowed disabled:opacity-50"

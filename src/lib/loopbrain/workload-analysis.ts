@@ -109,6 +109,8 @@ export async function buildWorkloadAnalysis(
           project: { select: { name: true } },
           updatedAt: true,
         },
+        take: 500, // perf: cap per-person task load for AI analysis
+        orderBy: { updatedAt: 'desc' },
       }),
       // Todos assigned to person (uses assignedToId and dueAt)
       prisma.todo.findMany({
@@ -119,6 +121,7 @@ export async function buildWorkloadAnalysis(
           priority: true,
           dueAt: true, // Prisma schema uses 'dueAt' not 'dueDate'
         },
+        take: 200, // perf: cap per-person todo load
       }),
       // Work allocations (uses contextType/contextId, not projectId)
       prisma.workAllocation.findMany({
@@ -161,6 +164,7 @@ export async function buildWorkloadAnalysis(
               priority: true,
               effortHours: true, // Prisma uses effortHours not estimatedHours
             },
+            take: 100, // perf: cap work requests per person
           })
         : [],
     ]);

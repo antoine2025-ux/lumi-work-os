@@ -31,6 +31,11 @@ interface EditEmploymentDialogProps {
     location?: string | null;
     timezone?: string | null;
   };
+  /** Controlled mode: when provided, dialog is controlled externally */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** When true, do not render the trigger button (use with controlled mode) */
+  hideTrigger?: boolean;
 }
 
 export function EditEmploymentDialog({
@@ -38,8 +43,14 @@ export function EditEmploymentDialog({
   userId,
   workspaceId,
   currentData,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  hideTrigger = false,
 }: EditEmploymentDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined && controlledOnOpenChange !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
   const [loading, setLoading] = useState(false);
   const [permissions, setPermissions] = useState<{
     canEditField: Record<string, boolean>;
@@ -60,14 +71,27 @@ export function EditEmploymentDialog({
     }
   }, [open, userId, workspaceId]);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     startDate: currentData.startDate
       ? new Date(currentData.startDate).toISOString().split("T")[0]
       : "",
     employmentType: currentData.employmentType || "full-time",
     location: currentData.location || "",
     timezone: currentData.timezone || "",
-  });
+  }));
+
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        startDate: currentData.startDate
+          ? new Date(currentData.startDate).toISOString().split("T")[0]
+          : "",
+        employmentType: currentData.employmentType || "full-time",
+        location: currentData.location || "",
+        timezone: currentData.timezone || "",
+      });
+    }
+  }, [open, currentData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,11 +140,13 @@ export function EditEmploymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="border-slate-600 text-slate-300">
-          Edit Employment
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="border-slate-600 text-muted-foreground">
+            Edit Employment
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Employment Details</DialogTitle>

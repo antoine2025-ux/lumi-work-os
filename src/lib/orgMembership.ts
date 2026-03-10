@@ -34,17 +34,17 @@ function mapMemberToPermissionLevel(
 }
 
 /**
- * Resolve the current user's org membership and permission level for a given orgId (workspaceId).
+ * Resolve the current user's org membership and permission level for a given workspaceId.
  * Returns null if there's no logged-in user or no membership.
  */
 export async function resolveOrgPermissionForCurrentUser(
-  orgId: string,
+  workspaceId: string,
   request?: NextRequest
 ): Promise<{
   permissionLevel: OrgPermissionLevel;
   memberId: string | null;
 } | null> {
-  if (!orgId) return null;
+  if (!workspaceId) return null;
 
   try {
     const auth = await getUnifiedAuth(request);
@@ -54,7 +54,7 @@ export async function resolveOrgPermissionForCurrentUser(
 
     // Fetch workspace with owner info and membership
     const workspace = await prisma.workspace.findUnique({
-      where: { id: orgId },
+      where: { id: workspaceId },
       select: {
         id: true,
         ownerId: true,
@@ -67,7 +67,7 @@ export async function resolveOrgPermissionForCurrentUser(
     const member = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
-          workspaceId: orgId,
+          workspaceId,
           userId,
         },
       },

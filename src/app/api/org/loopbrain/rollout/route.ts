@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
     // Allow non-admin reads for eligibility checks
     const cfg = await prisma.orgLoopBrainRollout.findUnique({
-      where: { orgId_scope: { orgId: workspaceId, scope: "people_issues" } },
+      where: { workspaceId_scope: { workspaceId, scope: "people_issues" } },
     });
 
     return NextResponse.json({ ok: true, config: cfg });
@@ -42,14 +42,14 @@ export async function POST(req: NextRequest) {
     };
 
     const cfg = await prisma.orgLoopBrainRollout.upsert({
-      where: { orgId_scope: { orgId: workspaceId, scope: "people_issues" } },
+      where: { workspaceId_scope: { workspaceId, scope: "people_issues" } },
       update: {
         mode: body.mode,
         teamName: body.teamName || null,
         enabled: body.enabled,
       },
       create: {
-        orgId: workspaceId,
+        workspaceId,
         scope: "people_issues",
         mode: body.mode,
         teamName: body.teamName || null,
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.auditLogEntry.create({
       data: {
-        orgId: workspaceId,
+        workspaceId,
         actorUserId: user.userId,
         actorLabel: user.name || user.email || "Unknown user",
         action: "update_loopbrain_rollout",

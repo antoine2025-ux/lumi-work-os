@@ -63,7 +63,7 @@ export function CustomRoleSelector({
   return (
     <div className="flex items-center gap-2">
       <select
-        className="focus-ring rounded-full border border-slate-800 bg-[#020617] px-2 py-1 text-[11px] text-slate-200 transition-colors hover:border-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="focus-ring rounded-full border border-border bg-background px-2 py-1 text-[11px] text-foreground transition-colors hover:border-border disabled:cursor-not-allowed disabled:opacity-50"
         value={currentCustomRoleId || ""}
         onChange={(e) => handleChange(e.target.value || null)}
         disabled={updating}
@@ -77,7 +77,7 @@ export function CustomRoleSelector({
         ))}
       </select>
       {updating && (
-        <span className="text-[10px] text-slate-500">Updating…</span>
+        <span className="text-[10px] text-muted-foreground">Updating…</span>
       )}
       {error && (
         <span className="text-[10px] text-red-400">{error}</span>

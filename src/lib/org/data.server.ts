@@ -42,25 +42,25 @@ export type OrgOverviewStats = {
  * - TTL cache (1 min) for cross-request reuse.
  */
 const _getOrgOverviewStats = async (
-  orgId: string,
+  workspaceId: string,
   userId: string | null = null
 ): Promise<OrgOverviewStats> => {
-  return timeOrgLoader("getOrgOverviewStats", orgId, userId, async () => {
+  return timeOrgLoader("getOrgOverviewStats", workspaceId, userId, async () => {
     return logQueryDuration("getOrgOverviewStats", async () => {
       const [peopleCount, teamCount, departmentCount, openInvitesResult] =
         await Promise.allSettled([
           prisma.workspaceMember.count({
-            where: { workspaceId: orgId },
+            where: { workspaceId },
           }),
           prisma.orgTeam.count({
-            where: { workspaceId: orgId, isActive: true },
+            where: { workspaceId, isActive: true },
           }),
           prisma.orgDepartment.count({
-            where: { workspaceId: orgId, isActive: true },
+            where: { workspaceId, isActive: true },
           }),
           prisma.orgInvitation.count({
             where: {
-              workspaceId: orgId,
+              workspaceId,
               status: "PENDING",
             },
           }).catch(() => 0), // Gracefully handle if table doesn't exist
@@ -118,7 +118,7 @@ interface PositionWithTeamAndUser {
  * - Optimized selects to reduce over-fetching.
  */
 const _getOrgPeople = async (
-  orgId: string,
+  workspaceId: string,
   userId: string | null = null,
   filters?: {
     q?: string;
@@ -135,7 +135,7 @@ const _getOrgPeople = async (
   pageSize: number;
   totalPages: number;
 }> => {
-  return timeOrgLoader("getOrgPeople", orgId, userId, async () => {
+  return timeOrgLoader("getOrgPeople", workspaceId, userId, async () => {
     return logQueryDuration("getOrgPeople", async () => {
     const PAGE_SIZE = filters?.limit || 50;
     const page = filters?.page && filters.page > 0 ? filters.page : 1;
@@ -144,14 +144,14 @@ const _getOrgPeople = async (
     // Get total count for pagination
     const totalCount = await prisma.workspaceMember.count({
       where: {
-        workspaceId: orgId,
+        workspaceId,
       },
     });
 
     // Get paginated workspace members with optimized select
     const members = await prisma.workspaceMember.findMany({
     where: {
-      workspaceId: orgId,
+      workspaceId,
     },
     select: {
       userId: true,
@@ -175,7 +175,7 @@ const _getOrgPeople = async (
   // Use a simpler, more reliable filter structure
   // Start with minimal base filters
   const baseFilters: Prisma.OrgPositionWhereInput = {
-    workspaceId: orgId,
+    workspaceId,
     isActive: true,
     userId: {
       not: null,
@@ -256,7 +256,7 @@ const _getOrgPeople = async (
     
     // First, try a simple base query to ensure Prisma is working
     const baseQuery = {
-      workspaceId: orgId,
+      workspaceId,
       isActive: true,
       userId: { not: null },
     };
@@ -477,18 +477,18 @@ export const getOrgPeople = cache(
  * - TTL cache (3 min) for cross-request reuse.
  */
 const _getOrgStructureLists = async (
-  orgId: string,
+  workspaceId: string,
   userId: string | null = null
 ): Promise<{
   teams: StructureTeam[];
   departments: StructureDepartment[];
   roles: StructureRole[];
 }> => {
-  return timeOrgLoader("getOrgStructureLists", orgId, userId, async () => {
+  return timeOrgLoader("getOrgStructureLists", workspaceId, userId, async () => {
     return logQueryDuration("getOrgStructureLists", async () => {
       // Departments - optimized select (only count teams, don't fetch all)
     const departments = await prisma.orgDepartment.findMany({
-      where: { workspaceId: orgId, isActive: true },
+      where: { workspaceId, isActive: true },
       select: {
         id: true,
         name: true,
@@ -507,7 +507,7 @@ const _getOrgStructureLists = async (
     try {
       departmentOwners = await prisma.ownerAssignment.findMany({
         where: {
-          workspaceId: orgId,
+          workspaceId,
           entityType: "DEPARTMENT",
           entityId: { in: departments.map((d) => d.id) },
         },
@@ -532,7 +532,7 @@ const _getOrgStructureLists = async (
                  AND entity_id IN (${placeholders})`;
             const rawResults = await prisma.$queryRawUnsafe<Array<{ entity_id: string; owner_person_id: string }>>(
               query,
-              orgId,
+              workspaceId,
               'DEPARTMENT',
               ...departmentIds
             );
@@ -560,7 +560,7 @@ const _getOrgStructureLists = async (
 
     // Teams - optimized select (use _count instead of fetching all positions)
     const teams = await prisma.orgTeam.findMany({
-      where: { workspaceId: orgId, isActive: true },
+      where: { workspaceId, isActive: true },
       select: {
         id: true,
         name: true,
@@ -603,7 +603,7 @@ const _getOrgStructureLists = async (
     // Roles (using OrgPosition as roles - distinct titles) - optimized select
     const positions = await prisma.orgPosition.findMany({
       where: {
-        workspaceId: orgId,
+        workspaceId,
         isActive: true,
       },
       select: {
@@ -709,12 +709,16 @@ export const getOrgStructureLists = cache(
  * 
  * PERFORMANCE: Cached per-request to avoid duplicate queries.
  */
-export const getOrgChartData = cache(async (orgId: string): Promise<{
+export const getOrgChartData = cache(async (workspaceId: string): Promise<{
   departments: Array<{
     id: string;
     name: string;
     leadName: string | null;
     leadId: string | null;
+    reportsToName: string | null;
+    isHiring: boolean;
+    recentChangeSummary: string | undefined;
+    isReorg: boolean;
     teams: Array<{
       id: string;
       name: string;
@@ -724,18 +728,40 @@ export const getOrgChartData = cache(async (orgId: string): Promise<{
   }>;
 }> => {
   const departments = await prisma.orgDepartment.findMany({
-    where: { workspaceId: orgId, isActive: true },
-    include: {
+    where: { workspaceId, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      createdAt: true,
+      updatedAt: true,
       teams: {
         where: { isActive: true },
-        include: {
+        select: {
+          id: true,
+          name: true,
           positions: {
             where: { isActive: true },
-            include: {
+            select: {
+              id: true,
+              title: true,
+              level: true,
+              createdAt: true,
+              updatedAt: true,
               user: {
                 select: {
                   id: true,
                   name: true,
+                },
+              },
+              parent: {
+                select: {
+                  title: true,
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },
@@ -747,16 +773,46 @@ export const getOrgChartData = cache(async (orgId: string): Promise<{
     orderBy: { name: "asc" },
   });
 
+  // Batch-query most recent OrgAuditLog per department — graceful if table is empty
+  const latestAuditByDept = new Map<string, { action: string; createdAt: Date }>();
+  const deptIds = departments.map((d) => d.id);
+  if (deptIds.length > 0) {
+    try {
+      const auditLogs = await prisma.orgAuditLog.findMany({
+        where: {
+          workspaceId,
+          entityType: "DEPARTMENT",
+          entityId: { in: deptIds },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { entityId: true, action: true, createdAt: true },
+        take: 200,
+      });
+      for (const log of auditLogs) {
+        if (!latestAuditByDept.has(log.entityId)) {
+          latestAuditByDept.set(log.entityId, { action: log.action, createdAt: log.createdAt });
+        }
+      }
+    } catch {
+      // OrgAuditLog may not yet be populated — handle gracefully
+    }
+  }
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
   return {
     departments: departments.map((dept) => {
       // Find department lead: highest-level position across all teams
+      // Include vacant positions for high-level roles (level >= 5) to show department leads
       const allPositions = dept.teams.flatMap((team) =>
         team.positions
-          .filter((pos) => pos.user !== null)
+          .filter((pos) => pos.user !== null || pos.level >= 5)
           .map((pos) => ({
             level: pos.level,
-            userName: pos.user!.name,
-            userId: pos.user!.id,
+            userName: pos.user?.name ?? pos.title ?? 'Vacant',
+            userId: pos.user?.id ?? null,
+            parentUserName: pos.parent?.user?.name ?? null,
+            parentTitle: pos.parent?.title ?? null,
           }))
       );
 
@@ -765,11 +821,74 @@ export const getOrgChartData = cache(async (orgId: string): Promise<{
           ? allPositions.sort((a, b) => b.level - a.level)[0]
           : null;
 
+      // reportsToName: Show parent user name, or vacant parent position with "(Vacant)" label
+      const reportsToName = departmentLead
+        ? departmentLead.parentUserName ?? 
+          (departmentLead.parentTitle ? `${departmentLead.parentTitle} (Vacant)` : null)
+        : null;
+
+      // isHiring: any active position in this dept has no assigned person
+      const isHiring = dept.teams.some((team) =>
+        team.positions.some((pos) => pos.user === null)
+      );
+
+      // isReorg: detect structural changes (>20% of positions created in last 30 days)
+      // This filters out normal hiring and focuses on reorganizations
+      const allDeptPositions = dept.teams.flatMap((t) => t.positions);
+      const totalPositions = allDeptPositions.length;
+      const newPositions = allDeptPositions.filter((pos) => pos.createdAt > thirtyDaysAgo);
+      const newPositionRatio = totalPositions > 0 ? newPositions.length / totalPositions : 0;
+      const deptRecentlyCreated = dept.createdAt > thirtyDaysAgo;
+      const isReorg = newPositionRatio > 0.2 || deptRecentlyCreated;
+
+      // recentChangeSummary: OrgAuditLog first; fallback to position changes
+      const dateFmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      let recentChangeSummary: string | undefined;
+      const latestLog = latestAuditByDept.get(dept.id);
+      if (latestLog) {
+        recentChangeSummary = `${latestLog.action} · ${dateFmt(latestLog.createdAt)}`;
+      } else {
+        // Distinguish between new positions (hiring) vs updates (changes)
+        const recentNewPositions = allDeptPositions.filter((p) => p.createdAt > thirtyDaysAgo);
+        const recentUpdatedPositions = allDeptPositions.filter(
+          (p) => p.updatedAt > thirtyDaysAgo && p.createdAt <= thirtyDaysAgo
+        );
+        const deptUpdated = dept.updatedAt > thirtyDaysAgo && dept.createdAt <= thirtyDaysAgo;
+
+        if (recentNewPositions.length > 0 || recentUpdatedPositions.length > 0 || deptUpdated) {
+          const allRecentDates = [
+            ...recentNewPositions.map((p) => p.createdAt),
+            ...recentUpdatedPositions.map((p) => p.updatedAt),
+            ...(deptUpdated ? [dept.updatedAt] : []),
+          ];
+          const mostRecent = allRecentDates.reduce((a, b) => (a > b ? a : b));
+
+          const parts: string[] = [];
+          if (recentNewPositions.length > 0) {
+            parts.push(`${recentNewPositions.length} new position${recentNewPositions.length > 1 ? "s" : ""}`);
+          }
+          if (recentUpdatedPositions.length > 0) {
+            parts.push(`${recentUpdatedPositions.length} updated`);
+          }
+          if (deptUpdated && parts.length === 0) {
+            parts.push("Updated");
+          }
+
+          recentChangeSummary = parts.length > 0
+            ? `${parts.join(", ")} · ${dateFmt(mostRecent)}`
+            : undefined;
+        }
+      }
+
       return {
         id: dept.id,
         name: dept.name,
         leadName: departmentLead?.userName ?? null,
         leadId: departmentLead?.userId ?? null,
+        reportsToName,
+        isHiring,
+        recentChangeSummary,
+        isReorg,
         teams: dept.teams.map((team) => {
           const leadPosition = team.positions.find((pos) => pos.user !== null);
           const leadName = leadPosition?.user?.name ?? null;
@@ -884,13 +1003,13 @@ export async function getDirectReports(
  * PERFORMANCE: Cached per-request to avoid duplicate queries.
  */
 export const getOrgAdminActivity = cache(async (
-  orgId: string,
+  workspaceId: string,
   userId: string | null = null,
   limit: number = 24
 ): Promise<OrgAdminActivityItem[]> => {
-  return timeOrgLoader("getOrgAdminActivity", orgId, userId, async () => {
+  return timeOrgLoader("getOrgAdminActivity", workspaceId, userId, async () => {
     try {
-      const logs = await listOrgAuditForOrg(orgId, limit).catch((error) => {
+      const logs = await listOrgAuditForOrg(workspaceId, limit).catch((error) => {
         // If listOrgAuditForOrg fails (e.g., missing column), return empty array
         console.error("[getOrgAdminActivity] listOrgAuditForOrg failed:", error);
         return [];
@@ -931,12 +1050,12 @@ export const getOrgAdminActivity = cache(async (
  * - TTL cache (5 min) for cross-request reuse (insights change less frequently).
  */
 const _getOrgInsights = async (
-  orgId: string,
+  workspaceId: string,
   context: OrgPermissionContext,
   options?: { period?: "month"; periods?: number }
 ): Promise<OrgInsightsSnapshot> => {
-  return timeOrgLoader("getOrgInsights", orgId, context.userId, async () => {
-    return getOrgInsightsSnapshot(orgId, context, {
+  return timeOrgLoader("getOrgInsights", workspaceId, context.userId, async () => {
+    return getOrgInsightsSnapshot(workspaceId, context, {
       period: options?.period ?? "month",
       periods: options?.periods ?? 6,
     });

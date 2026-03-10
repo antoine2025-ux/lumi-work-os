@@ -15,7 +15,7 @@ export type OrgCustomRoleContext = {
 
 export type OrgPermissionContext = {
   userId: string;
-  orgId: string;
+  workspaceId: string;
   role: OrgRole;
   customRole?: OrgCustomRoleContext;
 };
@@ -57,14 +57,14 @@ export const getOrgPermissionContext = cache(async (
 
     // 2) Get the current workspace (org) ID from auth context
     // getCurrentWorkspaceId now returns null instead of throwing when no workspace is found
-    const currentOrgId = await getCurrentWorkspaceId(request);
-    if (!currentOrgId) {
+    const currentWorkspaceId = await getCurrentWorkspaceId(request);
+    if (!currentWorkspaceId) {
       // If no workspace is set, we'll fall back to first membership
       console.warn("[getOrgPermissionContext] No current workspace, will use first membership");
     }
 
     // 3) Resolve user's current org + membership.
-    const orgAndMembership = await getOrgAndMembershipForUser(userId, currentOrgId);
+    const orgAndMembership = await getOrgAndMembershipForUser(userId, currentWorkspaceId);
     if (!orgAndMembership) return null;
 
     const { org, membership } = orgAndMembership;
@@ -78,7 +78,7 @@ export const getOrgPermissionContext = cache(async (
 
     return {
       userId,
-      orgId: org.id,
+      workspaceId: org.id,
       role: normalizedRole,
       customRole,
     };

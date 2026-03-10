@@ -2,6 +2,15 @@ import { prisma } from "@/lib/db";
 import { logOrgAuditEvent } from "@/server/audit/orgAudit";
 import { ensureOrgPositionForUser } from "@/lib/org/ensure-org-position";
 
+function mapOrgRoleToWorkspaceRole(orgRole: string | null | undefined): "ADMIN" | "MEMBER" | "VIEWER" {
+  switch (orgRole) {
+    case "ADMIN": return "ADMIN";
+    case "EDITOR": return "MEMBER";
+    case "VIEWER": return "VIEWER";
+    default: return "MEMBER";
+  }
+}
+
 type AcceptOrgInvitationResult = {
   workspace: {
     id: string;
@@ -70,12 +79,14 @@ export async function acceptOrgInvitationByToken(
         data: {
           workspaceId: invitation.workspaceId,
           userId,
-          role: "MEMBER",
+          role: mapOrgRoleToWorkspaceRole(invitation.role),
         },
       });
       await ensureOrgPositionForUser(prisma, {
         workspaceId: invitation.workspaceId,
         userId,
+        title: invitation.title || undefined,
+        teamId: invitation.teamId || undefined,
       });
       return {
         workspace: invitation.workspace,
@@ -136,18 +147,21 @@ export async function acceptOrgInvitationByToken(
   }
 
   // Normal path: create membership and mark invitation as accepted.
+  const workspaceRole = mapOrgRoleToWorkspaceRole(invitation.role);
   await prisma.$transaction(async (tx) => {
     await tx.workspaceMember.create({
       data: {
         workspaceId: invitation.workspaceId!,
         userId,
-        role: "MEMBER",
+        role: workspaceRole,
       },
     });
 
     await ensureOrgPositionForUser(tx, {
       workspaceId: invitation.workspaceId!,
       userId,
+      title: invitation.title || undefined,
+      teamId: invitation.teamId || undefined,
     });
 
     await tx.orgInvitation.update({
@@ -170,6 +184,49 @@ export async function acceptOrgInvitationByToken(
       },
     });
   });
+
+  // Post-transaction: apply JD linking and auto-create RoleCard (best-effort).
+  if (invitation.jobDescriptionId && invitation.workspaceId) {
+    try {
+      const position = await prisma.orgPosition.findFirst({
+        where: { workspaceId: invitation.workspaceId, userId },
+        select: { id: true },
+      });
+      if (position) {
+        await prisma.orgPosition.update({
+          where: { id: position.id },
+          data: { jobDescriptionId: invitation.jobDescriptionId },
+        });
+        const jd = await prisma.jobDescription.findUnique({
+          where: { id: invitation.jobDescriptionId },
+        });
+        if (jd) {
+          const existingRoleCard = await prisma.roleCard.findFirst({
+            where: { positionId: position.id },
+          });
+          if (!existingRoleCard) {
+            await prisma.roleCard.create({
+              data: {
+                workspaceId: invitation.workspaceId,
+                positionId: position.id,
+                roleName: jd.title,
+                jobFamily: jd.jobFamily ?? '',
+                level: jd.level ?? '',
+                roleDescription: jd.summary ?? '',
+                responsibilities: jd.responsibilities,
+                requiredSkills: jd.requiredSkills,
+                preferredSkills: jd.preferredSkills,
+                keyMetrics: jd.keyMetrics,
+                createdById: userId,
+              },
+            });
+          }
+        }
+      }
+    } catch (jdError: unknown) {
+      console.warn('[acceptOrgInvitationByToken] JD linking failed (non-blocking):', jdError instanceof Error ? jdError.message : String(jdError));
+    }
+  }
 
   return {
     workspace: invitation.workspace,

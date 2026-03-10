@@ -9,10 +9,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
-
-const ALLOWED_STATUSES = ["ACTIVE", "ON_LEAVE", "TERMINATED", "CONTRACTOR"] as const;
-type EmploymentStatus = typeof ALLOWED_STATUSES[number];
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
+import { UpdatePersonEmploymentSchema } from "@/lib/validations/org";
 
 export async function PATCH(
   request: NextRequest,
@@ -42,18 +43,9 @@ export async function PATCH(
     setWorkspaceContext(workspaceId);
 
     // Step 4: Parse and validate request body
-    const body = await request.json();
+    const body = UpdatePersonEmploymentSchema.parse(await request.json());
 
-    // Validate employmentStatus
-    const employmentStatus = body.employmentStatus as EmploymentStatus | undefined;
-    if (employmentStatus && !ALLOWED_STATUSES.includes(employmentStatus)) {
-      return NextResponse.json(
-        { error: `Invalid employmentStatus. Must be one of: ${ALLOWED_STATUSES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Parse optional dates
+    const employmentStatus = body.employmentStatus;
     const employmentStartDate = body.employmentStartDate
       ? new Date(body.employmentStartDate)
       : body.employmentStartDate === null
@@ -66,15 +58,7 @@ export async function PATCH(
       ? null
       : undefined;
 
-    // Validate dates if provided
-    if (employmentStartDate && isNaN(employmentStartDate.getTime())) {
-      return NextResponse.json({ error: "Invalid employmentStartDate format" }, { status: 400 });
-    }
-    if (employmentEndDate && isNaN(employmentEndDate.getTime())) {
-      return NextResponse.json({ error: "Invalid employmentEndDate format" }, { status: 400 });
-    }
-
-    // Step 5: Find the workspace member record for this person
+    // Step 5: Find the workspace member record for this person (fetch before state for audit)
     // personId here refers to OrgPosition.id, need to get the user and find their membership
     const position = await prisma.orgPosition.findFirst({
       where: {
@@ -84,12 +68,34 @@ export async function PATCH(
       },
       select: {
         userId: true,
+        user: { select: { name: true } },
       },
     });
 
     if (!position || !position.userId) {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
+
+    // Get before state from workspace member
+    const memberBefore = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId: position.userId,
+        },
+      },
+      select: {
+        employmentStatus: true,
+        employmentStartDate: true,
+        employmentEndDate: true,
+      },
+    });
+
+    const before = {
+      employmentStatus: memberBefore?.employmentStatus ?? null,
+      employmentStartDate: memberBefore?.employmentStartDate?.toISOString() ?? null,
+      employmentEndDate: memberBefore?.employmentEndDate?.toISOString() ?? null,
+    };
 
     // Step 6: Update the workspace member
     const updateData: Record<string, unknown> = {};
@@ -119,6 +125,25 @@ export async function PATCH(
       },
     });
 
+    // Compute changes and log audit
+    const after = {
+      employmentStatus: updated.employmentStatus ?? null,
+      employmentStartDate: updated.employmentStartDate?.toISOString() ?? null,
+      employmentEndDate: updated.employmentEndDate?.toISOString() ?? null,
+    };
+    
+    const changes = computeChanges(before, after, ['employmentStatus', 'employmentStartDate', 'employmentEndDate']);
+    
+    logOrgAudit({
+      workspaceId,
+      entityType: "PERSON",
+      entityId: personId,
+      entityName: position.user?.name ?? undefined,
+      action: "UPDATED",
+      actorId: userId,
+      changes: changes ?? undefined,
+    }).catch((e) => console.error("[PATCH /api/org/people/[personId]/employment] Audit log error (non-fatal):", e));
+
     return NextResponse.json({
       ok: true,
       userId: updated.userId,
@@ -127,20 +152,7 @@ export async function PATCH(
       employmentEndDate: updated.employmentEndDate?.toISOString() ?? null,
     });
   } catch (error: unknown) {
-    console.error("[PATCH /api/org/people/[personId]/employment] Error:", error);
-
-    if (error && typeof error === "object" && "status" in error) {
-      const err = error as { status: number; message?: string };
-      return NextResponse.json(
-        { error: err.message || "Unauthorized" },
-        { status: err.status }
-      );
-    }
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }
 

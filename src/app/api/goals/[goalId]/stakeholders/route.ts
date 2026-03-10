@@ -2,20 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const AddStakeholderSchema = z.object({
-  userId: z.string(),
-  role: z.enum(['OWNER', 'CONTRIBUTOR', 'VIEWER', 'REVIEWER']),
-  canEdit: z.boolean().optional().default(false),
-  canApprove: z.boolean().optional().default(false),
-})
+import { AddStakeholderSchema } from '@/lib/validations/goals'
 
 // ============================================================================
 // GET /api/goals/[goalId]/stakeholders - List stakeholders

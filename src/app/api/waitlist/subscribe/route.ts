@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-errors'
+import { rateLimit } from '@/lib/rate-limit'
+import { rateLimitExceeded } from '@/lib/rate-limit-response'
+import { WaitlistSubscribeSchema } from '@/lib/validations/marketing'
 
 /**
  * Mailchimp Waitlist Subscription API
@@ -15,34 +19,13 @@ import { NextRequest, NextResponse } from 'next/server'
  * - Company (optional)
  */
 
-interface WaitlistSubscribeRequest {
-  firstName: string
-  lastName: string
-  email: string
-  linkedin?: string
-  company?: string
-}
-
 export async function POST(request: NextRequest) {
+  const limit = await rateLimit(request, { windowMs: 60 * 60 * 1000, max: 3, identifier: 'waitlist' })
+  if (!limit.success) return rateLimitExceeded(limit.resetAt)
+
   try {
-    const body: WaitlistSubscribeRequest = await request.json()
+    const body = WaitlistSubscribeSchema.parse(await request.json())
     const { firstName, lastName, email, linkedin, company } = body
-
-    // Validate required fields
-    if (!firstName || !lastName) {
-      return NextResponse.json(
-        { error: 'First name and last name are required' },
-        { status: 400 }
-      )
-    }
-
-    // Validate email
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json(
-        { error: 'Please provide a valid email address' },
-        { status: 400 }
-      )
-    }
 
     // Get Mailchimp credentials from environment
     const apiKey = process.env.MAILCHIMP_API_KEY
@@ -127,12 +110,8 @@ export async function POST(request: NextRequest) {
       message: 'Successfully joined the waitlist! We\'ll be in touch soon.',
       success: true,
     })
-  } catch (error) {
-    console.error('Waitlist subscription error:', error)
-    return NextResponse.json(
-      { error: 'An unexpected error occurred. Please try again later.' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }
 

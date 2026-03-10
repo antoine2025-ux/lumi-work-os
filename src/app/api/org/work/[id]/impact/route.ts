@@ -13,13 +13,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 import { resolveWorkImpact } from "@/lib/org/impact/resolveWorkImpact";
 import {
   createExplicitImpact,
   hasReverseImpact,
 } from "@/lib/org/impact/read";
-// Note: impactKey is computed via createExplicitImpact (single source of truth)
+import { CreateWorkImpactSchema } from "@/lib/validations/org";
 import type { ImpactSubjectType, ImpactType, ImpactSeverity } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -78,8 +79,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       ...result,
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/work/[id]/impact] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -134,42 +134,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Step 5: Parse and validate body
-    const body = (await request.json()) as CreateImpactBody;
+    const body = CreateWorkImpactSchema.parse(await request.json());
 
-    // Validate required fields
-    if (!body.subjectType || !body.impactType || !body.severity || !body.explanation) {
-      return NextResponse.json(
-        { error: "Missing required fields: subjectType, impactType, severity, explanation" },
-        { status: 400 }
-      );
-    }
-
-    // Validate subject identity based on type
     const subjectId = body.subjectId ?? null;
     const roleType = body.roleType ?? null;
     const domainKey = body.domainKey ?? null;
-
-    if (body.subjectType === "ROLE" && !roleType) {
-      return NextResponse.json(
-        { error: "roleType is required for ROLE subject type" },
-        { status: 400 }
-      );
-    }
-    if (body.subjectType === "DECISION_DOMAIN" && !domainKey) {
-      return NextResponse.json(
-        { error: "domainKey is required for DECISION_DOMAIN subject type" },
-        { status: 400 }
-      );
-    }
-    if (
-      ["TEAM", "DEPARTMENT", "PERSON", "WORK_REQUEST"].includes(body.subjectType) &&
-      !subjectId
-    ) {
-      return NextResponse.json(
-        { error: `subjectId is required for ${body.subjectType} subject type` },
-        { status: 400 }
-      );
-    }
 
     // Step 6: Validation rule 1 - Self-reference check
     if (body.subjectType === "WORK_REQUEST" && subjectId === workRequestId) {
@@ -221,18 +190,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       ...result,
     });
   } catch (error: unknown) {
-    // Handle unique constraint violation
-    if (
-      error instanceof Error &&
-      error.message.includes("Unique constraint failed")
-    ) {
-      return NextResponse.json(
-        { error: "An impact with this subject and type already exists" },
-        { status: 409 }
-      );
-    }
-
-    console.error("[POST /api/org/work/[id]/impact] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

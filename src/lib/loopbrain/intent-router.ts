@@ -30,6 +30,13 @@ export type LoopbrainIntent =
   | 'project_health'
   | 'workload_analysis'
   | 'calendar_availability'
+  | 'extract_tasks'
+  | 'onboarding_briefing'
+  | 'daily_briefing'
+  | 'meeting_prep'
+  | 'email_search'
+  | 'slack_search'
+  | 'drive_search'
   | 'unknown'
 
 /**
@@ -201,6 +208,122 @@ export function detectIntentFromKeywords(
   let confidence = 0.5
   let intent: LoopbrainIntent = 'unknown'
   
+  // ----- Email search (checked early — high specificity) -----
+
+  const emailSearchKeywords = [
+    'email about', 'email from', 'email thread about', 'email regarding',
+    'last email', 'recent email', 'latest email',
+    'find the email', 'find email', 'look up the email', 'look up email',
+    'check my email', 'check my inbox', 'check my gmail',
+    'search my email', 'search my inbox', 'search my gmail',
+    'what did', // partial — combined with "email" below
+  ]
+  const emailSearchRegex = /\bwhat did\s+\S+\s+email\b/i
+  if (
+    emailSearchKeywords.some((kw) => kw !== 'what did' && queryLower.includes(kw)) ||
+    emailSearchRegex.test(queryLower) ||
+    (queryLower.includes('gmail') && !queryLower.includes('connect'))
+  ) {
+    intent = 'email_search'
+    confidence = 0.90
+    reasons.push('Detected email search keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Drive search (checked after email, before slack — high specificity) -----
+
+  const driveSearchKeywords = [
+    'search in drive', 'search drive', 'search my drive', 'search google drive',
+    'find in drive', 'find in google drive', 'look in drive', 'look in google drive',
+    'drive files', 'google drive files', 'files in drive', 'documents in drive',
+    'meeting notes in drive', 'meeting notes from drive', 'drive meeting notes',
+    'last meeting notes', 'recent meeting notes', 'gemini meeting notes',
+  ]
+  if (
+    driveSearchKeywords.some((kw) => queryLower.includes(kw)) ||
+    (queryLower.includes('drive') && (queryLower.includes('search') || queryLower.includes('find') || queryLower.includes('meeting')))
+  ) {
+    intent = 'drive_search'
+    confidence = 0.90
+    reasons.push('Detected Google Drive search keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Slack search (checked after email and drive — high specificity) -----
+
+  const slackSearchKeywords = [
+    'in slack', 'on slack', 'posted in slack', 'from slack',
+    'slack channel', 'slack thread', 'slack message',
+    "what's happening in #", "what's the team discussing",
+    'check slack', 'look in slack', 'search slack',
+  ]
+  const channelMentionRegex = /#[\w-]+/
+  if (
+    slackSearchKeywords.some((kw) => queryLower.includes(kw)) ||
+    (queryLower.includes('slack') && !queryLower.includes('connect')) ||
+    (channelMentionRegex.test(queryLower) && queryLower.includes('slack'))
+  ) {
+    intent = 'slack_search'
+    confidence = 0.90
+    reasons.push('Detected Slack search keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Meeting task extraction (checked first — highest specificity) -----
+
+  const extractTasksKeywords = [
+    'extract tasks', 'action items', 'meeting tasks', 'tasks from notes',
+    'what came out of the meeting', 'create tasks from', 'pull out tasks',
+    'tasks from this meeting', 'standup tasks', 'meeting action items',
+    'extract action items', 'get tasks from', 'pull tasks from',
+  ]
+  if (extractTasksKeywords.some((kw) => queryLower.includes(kw))) {
+    intent = 'extract_tasks'
+    confidence = 0.92
+    reasons.push('Detected task extraction keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Daily briefing (checked before onboarding — generic "brief me" routes here) -----
+
+  const dailyBriefingKeywords = [
+    'brief me', 'briefing', 'daily briefing', "what's happening",
+    'what needs my attention', 'morning update', 'catch me up',
+    'what did i miss', 'what should i know', 'what do i need to know',
+  ]
+  if (dailyBriefingKeywords.some((kw) => queryLower.includes(kw))) {
+    intent = 'daily_briefing'
+    confidence = 0.93
+    reasons.push('Detected daily briefing keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Meeting prep -----
+
+  const meetingPrepKeywords = [
+    'prep me', 'meeting prep', 'prepare for meeting', 'prepare me for',
+    'what should i know before', 'upcoming meeting', 'next meeting',
+  ]
+  if (meetingPrepKeywords.some((kw) => queryLower.includes(kw))) {
+    intent = 'meeting_prep'
+    confidence = 0.93
+    reasons.push('Detected meeting prep keywords')
+    return { intent, confidence, reasons }
+  }
+
+  // ----- Onboarding briefing (narrowed — only explicitly onboarding-scoped phrases) -----
+
+  const onboardingKeywords = [
+    'get me up to speed', 'new here', 'just joined', 'orientation',
+    'onboard me', 'onboarding', 'introduce me', 'my orientation',
+  ]
+  if (onboardingKeywords.some((kw) => queryLower.includes(kw))) {
+    intent = 'onboarding_briefing'
+    confidence = 0.93
+    reasons.push('Detected onboarding keywords')
+    return { intent, confidence, reasons }
+  }
+
   // ----- Task-specific intents (checked first so they win over generic status_update) -----
 
   // Task status: user asking about their personal task progress
@@ -400,6 +523,36 @@ function selectModeFromIntent(
   let mode: LoopbrainMode | undefined
   
   switch (intent) {
+    case 'email_search':
+      mode = 'email_search'
+      reasons.push('Email search has its own dedicated mode')
+      break
+
+    case 'slack_search':
+      mode = 'slack_search'
+      reasons.push('Slack search has its own dedicated mode')
+      break
+
+    case 'drive_search':
+      mode = 'dashboard'
+      reasons.push('Drive search routes to planner (tools: searchDriveFiles, readDriveDocument)')
+      break
+
+    case 'onboarding_briefing':
+      mode = 'onboarding_briefing'
+      reasons.push('Onboarding briefing has its own dedicated mode')
+      break
+
+    case 'daily_briefing':
+      mode = 'daily_briefing'
+      reasons.push('Daily briefing has its own dedicated mode')
+      break
+
+    case 'meeting_prep':
+      mode = 'meeting_prep'
+      reasons.push('Meeting prep has its own dedicated mode')
+      break
+
     case 'task_status':
     case 'task_priority':
       // Task intents always route to spaces (where task context lives)
@@ -580,11 +733,16 @@ function detectClarificationNeeds(
 // Action vs Question classification (Phase 2 — no LLM, keyword-based)
 // ---------------------------------------------------------------------------
 
-const ACTION_VERBS = [
+/** Exported for calendar context injection in orchestrator */
+export const ACTION_VERBS = [
   'create', 'make', 'add', 'set up', 'setup', 'build', 'start',
-  'schedule', 'assign', 'move', 'change', 'update', 'remove',
+  'schedule', 'book', 'plan my', 'add to calendar', 'put on calendar',
+  'create event', 'create meeting', 'block time', 'block my',
+  'assign', 'move', 'change', 'update', 'remove',
   'delete', 'archive', 'write a wiki', 'draft a doc', 'draft a page',
   'new project', 'new task', 'new goal', 'new page', 'new todo',
+  'send email', 'send a message', 'email', 'reply to', 'respond to',
+  'reply', 'write back to',
 ]
 
 const QUESTION_ANCHORS = [
@@ -614,6 +772,11 @@ const ADVISORY_SIGNALS = [
  */
 export function classifyMessageIntent(message: string): MessageIntent {
   const lower = message.toLowerCase().trim()
+
+  // Short affirmatives route to ACTION so user can confirm suggested plans
+  // ^ anchor prevents false matches (e.g. "don't do it" does not match)
+  const AFFIRMATIVE_REGEX = /^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|please do|yes,?\s*please\s*do|proceed|go for it|sounds good|let's do it|do that|confirmed)\s*$/i
+  if (AFFIRMATIVE_REGEX.test(lower)) return 'ACTION'
 
   const hasAdvisory = ADVISORY_SIGNALS.some((s) => lower.includes(s))
   const hasAction = ACTION_VERBS.some((v) => lower.includes(v))

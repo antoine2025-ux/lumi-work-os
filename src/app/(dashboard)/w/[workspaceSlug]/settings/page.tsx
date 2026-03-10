@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { MigrationModal } from "@/components/migrations/migration-modal"
 import { WorkspaceMembers } from "@/components/settings/workspace-members"
+import { NotificationSettings } from "@/components/settings/notification-settings"
 import { useUserStatusContext } from '@/providers/user-status-provider'
 import { 
   Settings, 
@@ -28,8 +29,13 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Mail,
+  Brain,
 } from "lucide-react"
+import { PolicyList } from "@/components/settings/loopbrain/policy-list"
+import { PolicyEditor } from "@/components/settings/loopbrain/policy-editor"
+import { ExecutionHistory } from "@/components/settings/loopbrain/execution-history"
 
 interface WorkspaceData {
   id: string
@@ -53,6 +59,13 @@ interface SlackIntegration {
   teamId?: string
   teamName?: string
   lastSyncAt?: string
+  scopes?: string[]
+  notificationChannelId?: string | null
+  notifications?: {
+    dailyBriefing: boolean
+    healthAlerts: boolean
+    meetingPrepReminders: boolean
+  }
 }
 
 export default function SettingsPage() {
@@ -85,6 +98,12 @@ export default function SettingsPage() {
   const [slackIntegration, setSlackIntegration] = useState<SlackIntegration | null>(null)
   const [slackLoading, setSlackLoading] = useState(false)
   const [slackMessage, setSlackMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [slackChannels, setSlackChannels] = useState<Array<{ id: string; name: string }>>([])
+  const [slackNotifSaving, setSlackNotifSaving] = useState(false)
+  const [gmailConnected, setGmailConnected] = useState(false)
+  const [gmailLoading, setGmailLoading] = useState(false)
+  const [driveConnected, setDriveConnected] = useState(false)
+  const [driveLoading, setDriveLoading] = useState(false)
 
   // Get user role from userStatus (no separate API call needed)
   useEffect(() => {
@@ -186,16 +205,54 @@ export default function SettingsPage() {
   // Helper function to get allowed tabs based on role
   const getAllowedTabs = (role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'): string[] => {
     if (role === 'OWNER' || role === 'ADMIN') {
-      return ['workspace', 'notifications', 'appearance', 'integrations', 'permissions', 'migrations', 'members']
+      return ['workspace', 'notifications', 'appearance', 'integrations', 'loopbrain', 'permissions', 'migrations', 'members']
     } else if (role === 'MEMBER') {
-      return ['workspace', 'notifications', 'appearance', 'members']
+      return ['workspace', 'notifications', 'appearance', 'loopbrain', 'members']
     } else { // VIEWER
       return ['workspace', 'notifications', 'appearance']
     }
   }
 
+  // Loopbrain policy tab state
+  const [loopbrainView, setLoopbrainView] = useState<'list' | 'editor' | 'history'>('list')
+  const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null)
+  const [historyPolicyId, setHistoryPolicyId] = useState<string | null>(null)
+  const [historyPolicyName, setHistoryPolicyName] = useState("")
+
   const allowedTabs = getAllowedTabs(userRole)
   const canEdit = userRole === 'OWNER' || userRole === 'ADMIN'
+
+  // Save Slack notification preferences
+  const saveSlackNotificationConfig = async (config: {
+    notificationChannelId?: string | null
+    notifications?: { dailyBriefing: boolean; healthAlerts: boolean; meetingPrepReminders: boolean }
+  }) => {
+    try {
+      setSlackNotifSaving(true)
+      const response = await fetch('/api/integrations/slack', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      })
+      if (response.ok) {
+        setSlackMessage({ type: 'success', text: 'Notification settings saved' })
+        // Update local state
+        if (slackIntegration) {
+          setSlackIntegration({
+            ...slackIntegration,
+            ...(config.notificationChannelId !== undefined && { notificationChannelId: config.notificationChannelId }),
+            ...(config.notifications && { notifications: config.notifications }),
+          })
+        }
+      } else {
+        setSlackMessage({ type: 'error', text: 'Failed to save notification settings' })
+      }
+    } catch {
+      setSlackMessage({ type: 'error', text: 'Failed to save notification settings' })
+    } finally {
+      setSlackNotifSaving(false)
+    }
+  }
 
   // Fetch Slack integration status
   const fetchSlackIntegration = async () => {
@@ -207,6 +264,18 @@ export default function SettingsPage() {
       if (response.ok) {
         const data = await response.json()
         setSlackIntegration(data)
+        // Fetch channels if connected
+        if (data.connected) {
+          try {
+            const channelsRes = await fetch('/api/integrations/slack/channels')
+            if (channelsRes.ok) {
+              const channelsData = await channelsRes.json()
+              setSlackChannels(channelsData.channels ?? [])
+            }
+          } catch {
+            // Channels fetch is best-effort
+          }
+        }
       } else {
         setSlackIntegration({ connected: false })
       }
@@ -218,11 +287,51 @@ export default function SettingsPage() {
     }
   }
 
-  // Fetch Slack integration when integrations tab is active (only if role allows)
+  // Fetch Gmail integration status
+  const fetchGmailStatus = async () => {
+    if (!userStatus?.workspaceId) return
+    try {
+      setGmailLoading(true)
+      const response = await fetch('/api/integrations/gmail/status')
+      if (response.ok) {
+        const data = await response.json()
+        setGmailConnected(data.connected === true)
+      } else {
+        setGmailConnected(false)
+      }
+    } catch {
+      setGmailConnected(false)
+    } finally {
+      setGmailLoading(false)
+    }
+  }
+
+  // Fetch Google Drive integration status
+  const fetchDriveStatus = async () => {
+    if (!userStatus?.workspaceId) return
+    try {
+      setDriveLoading(true)
+      const response = await fetch('/api/integrations/drive/status')
+      if (response.ok) {
+        const data = await response.json()
+        setDriveConnected(data.connected === true)
+      } else {
+        setDriveConnected(false)
+      }
+    } catch {
+      setDriveConnected(false)
+    } finally {
+      setDriveLoading(false)
+    }
+  }
+
+  // Fetch integrations when integrations tab is active (only if role allows)
   useEffect(() => {
     const canAccessIntegrations = userRole === 'OWNER' || userRole === 'ADMIN'
     if (activeTab === 'integrations' && userStatus?.workspaceId && canAccessIntegrations) {
       fetchSlackIntegration()
+      fetchGmailStatus()
+      fetchDriveStatus()
     }
   }, [activeTab, userStatus?.workspaceId, userRole])
 
@@ -254,6 +363,54 @@ export default function SettingsPage() {
       setSlackMessage({ type: 'error', text: 'Failed to disconnect Slack' })
     } finally {
       setSlackLoading(false)
+    }
+  }
+
+  const handleGmailConnect = () => {
+    window.location.href = '/api/integrations/gmail/connect'
+  }
+
+  const handleGmailDisconnect = async () => {
+    if (!confirm('Disconnect Gmail? This will remove all email context from Loopbrain.')) {
+      return
+    }
+    try {
+      setGmailLoading(true)
+      const response = await fetch('/api/integrations/gmail/status', { method: 'DELETE' })
+      if (response.ok) {
+        setSlackMessage({ type: 'success', text: 'Gmail disconnected successfully' })
+        setGmailConnected(false)
+      } else {
+        setSlackMessage({ type: 'error', text: 'Failed to disconnect Gmail' })
+      }
+    } catch {
+      setSlackMessage({ type: 'error', text: 'Failed to disconnect Gmail' })
+    } finally {
+      setGmailLoading(false)
+    }
+  }
+
+  const handleDriveConnect = () => {
+    window.location.href = '/api/integrations/drive/connect'
+  }
+
+  const handleDriveDisconnect = async () => {
+    if (!confirm('Disconnect Google Drive? Loopbrain will no longer be able to search or read your Drive files.')) {
+      return
+    }
+    try {
+      setDriveLoading(true)
+      const response = await fetch('/api/integrations/drive/disconnect', { method: 'POST' })
+      if (response.ok) {
+        setSlackMessage({ type: 'success', text: 'Google Drive disconnected successfully' })
+        setDriveConnected(false)
+      } else {
+        setSlackMessage({ type: 'error', text: 'Failed to disconnect Google Drive' })
+      }
+    } catch {
+      setSlackMessage({ type: 'error', text: 'Failed to disconnect Google Drive' })
+    } finally {
+      setDriveLoading(false)
     }
   }
 
@@ -461,6 +618,20 @@ export default function SettingsPage() {
           >
             <Plug className="mr-2 h-4 w-4" />
             Integrations
+          </Button>
+        )}
+        {allowedTabs.includes('loopbrain') && (
+          <Button
+            variant={activeTab === "loopbrain" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => {
+              setActiveTab("loopbrain")
+              setLoopbrainView('list')
+              router.push(`${pathname}?tab=loopbrain`, { scroll: false })
+            }}
+          >
+            <Brain className="mr-2 h-4 w-4" />
+            Loopbrain
           </Button>
         )}
         {allowedTabs.includes('permissions') && (
@@ -716,43 +887,7 @@ export default function SettingsPage() {
       {/* Notifications Settings */}
       {activeTab === "notifications" && (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Notifications</CardTitle>
-              <CardDescription>
-                Choose what email notifications you want to receive
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">New Wiki Pages</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Get notified when new wiki pages are created
-                  </p>
-                </div>
-                <Button variant="outline" size="sm">Enabled</Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Onboarding Updates</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Receive updates on onboarding progress
-                  </p>
-                </div>
-                <Button variant="outline" size="sm">Enabled</Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Workflow Notifications</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Get notified about workflow status changes
-                  </p>
-                </div>
-                <Button variant="outline" size="sm">Enabled</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <NotificationSettings />
         </div>
       )}
 
@@ -841,17 +976,79 @@ export default function SettingsPage() {
                   <>
                     {slackIntegration?.connected ? (
                       <>
-                        <Badge variant="secondary" className="mb-4">Connected</Badge>
+                        <Badge variant="secondary" className="mb-3">Connected</Badge>
                         {slackIntegration.teamName && (
-                          <p className="text-sm text-muted-foreground mb-2">
+                          <p className="text-sm text-muted-foreground mb-3">
                             Workspace: {slackIntegration.teamName}
                           </p>
                         )}
-                        <div className="space-y-2 mb-4">
-                          <p className="text-sm">• Send notifications to channels</p>
-                          <p className="text-sm">• Loopbrain can send messages</p>
-                          <p className="text-sm">• Automatic token refresh</p>
+
+                        {/* Notification Channel */}
+                        <div className="space-y-3 mb-4">
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Notification Channel</label>
+                            <select
+                              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              value={slackIntegration.notificationChannelId ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value || null
+                                saveSlackNotificationConfig({ notificationChannelId: val })
+                              }}
+                              disabled={slackNotifSaving}
+                            >
+                              <option value="">Select a channel...</option>
+                              {slackChannels.map((ch) => (
+                                <option key={ch.id} value={ch.id}>#{ch.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Notification Toggles */}
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground block">Notifications</label>
+                            {[
+                              { key: 'dailyBriefing' as const, label: 'Send daily briefing to Slack' },
+                              { key: 'healthAlerts' as const, label: 'Send critical health alerts' },
+                              { key: 'meetingPrepReminders' as const, label: 'Send meeting prep reminders' },
+                            ].map(({ key, label }) => (
+                              <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-input"
+                                  checked={slackIntegration.notifications?.[key] ?? (key === 'healthAlerts')}
+                                  onChange={(e) => {
+                                    const current = slackIntegration.notifications ?? {
+                                      dailyBriefing: false,
+                                      healthAlerts: true,
+                                      meetingPrepReminders: false,
+                                    }
+                                    saveSlackNotificationConfig({
+                                      notifications: { ...current, [key]: e.target.checked },
+                                    })
+                                  }}
+                                  disabled={slackNotifSaving || !slackIntegration.notificationChannelId}
+                                />
+                                {label}
+                              </label>
+                            ))}
+                            {!slackIntegration.notificationChannelId && (
+                              <p className="text-xs text-muted-foreground">Select a channel to enable notifications</p>
+                            )}
+                          </div>
+
+                          {/* Transparency */}
+                          <div className="border-t pt-3 mt-3">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">What Loopbrain reads from Slack</p>
+                            <div className="space-y-1 text-xs text-muted-foreground">
+                              <p className="flex items-center gap-1"><span className="text-green-500">✓</span> Public channel messages (connected channels)</p>
+                              <p className="flex items-center gap-1"><span className="text-green-500">✓</span> Message text and author</p>
+                              <p className="flex items-center gap-1"><span className="text-red-400">✗</span> DMs and private channels</p>
+                              <p className="flex items-center gap-1"><span className="text-red-400">✗</span> File contents</p>
+                              <p className="flex items-center gap-1"><span className="text-red-400">✗</span> Emoji reactions</p>
+                            </div>
+                          </div>
                         </div>
+
                         <div className="flex space-x-2">
                           <Button 
                             variant="outline" 
@@ -896,23 +1093,131 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
+                    <Mail className="h-4 w-4 text-white" />
+                  </div>
+                  <span>Gmail</span>
+                </CardTitle>
+                <CardDescription>Email context for Loopbrain briefings and answers</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {gmailLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    {gmailConnected ? (
+                      <>
+                        <Badge variant="secondary" className="mb-4">Connected</Badge>
+                        <div className="space-y-1.5 mb-3">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">What Loopbrain can see</p>
+                          <p className="text-sm text-green-600 dark:text-green-400">&#10003; Subject lines and email previews (first 500 chars)</p>
+                          <p className="text-sm text-green-600 dark:text-green-400">&#10003; Sender and recipient names</p>
+                          <p className="text-sm text-green-600 dark:text-green-400">&#10003; Attachment filenames (not content)</p>
+                          <p className="text-sm text-muted-foreground">&#10007; Full email bodies</p>
+                          <p className="text-sm text-muted-foreground">&#10007; Attachment content</p>
+                          <p className="text-sm text-muted-foreground">&#10007; Spam, promotions, or social emails</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGmailDisconnect}
+                          disabled={gmailLoading}
+                        >
+                          Disconnect
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Badge variant="outline" className="mb-4">Not Connected</Badge>
+                        <div className="space-y-2 mb-4">
+                          <p className="text-sm">&#8226; Email context in daily briefings</p>
+                          <p className="text-sm">&#8226; Ask Loopbrain about your emails</p>
+                          <p className="text-sm">&#8226; Meeting prep with email history</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={handleGmailConnect}
+                          disabled={gmailLoading}
+                          className="w-full"
+                        >
+                          {gmailLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Connecting...
+                            </>
+                          ) : (
+                            'Connect Gmail'
+                          )}
+                        </Button>
+                      </>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
                     <Globe className="h-4 w-4 text-white" />
                   </div>
                   <span>Google Drive</span>
                 </CardTitle>
-                <CardDescription>Sync documents and files</CardDescription>
+                <CardDescription>Search, read, and create docs with Loopbrain</CardDescription>
               </CardHeader>
               <CardContent>
-                <Badge variant="outline" className="mb-4">Available</Badge>
-                <div className="space-y-2">
-                  <p className="text-sm">• Sync documents to wiki</p>
-                  <p className="text-sm">• Auto-import new files</p>
-                  <p className="text-sm">• Version control integration</p>
-                </div>
-                <div className="flex space-x-2 mt-4">
-                  <Button size="sm">Connect</Button>
-                </div>
+                {driveLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Checking connection...
+                  </div>
+                ) : driveConnected ? (
+                  <>
+                    <Badge variant="secondary" className="mb-4">Connected</Badge>
+                    <div className="space-y-2 mb-4">
+                      <p className="text-sm">&#8226; Search Drive files from Loopbrain</p>
+                      <p className="text-sm">&#8226; Read Docs and Sheets content</p>
+                      <p className="text-sm">&#8226; Create and update Google Docs</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleDriveDisconnect}
+                        disabled={driveLoading}
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Badge variant="outline" className="mb-4">Not Connected</Badge>
+                    <div className="space-y-2 mb-4">
+                      <p className="text-sm">&#8226; Search Drive files from Loopbrain</p>
+                      <p className="text-sm">&#8226; Read Docs and Sheets content</p>
+                      <p className="text-sm">&#8226; Create and update Google Docs</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={handleDriveConnect}
+                      disabled={driveLoading}
+                      className="w-full"
+                    >
+                      {driveLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        'Connect Google Drive'
+                      )}
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -1240,6 +1545,42 @@ export default function SettingsPage() {
       {activeTab === "members" && allowedTabs.includes('members') && (
         <div className="space-y-6">
           <WorkspaceMembers />
+        </div>
+      )}
+
+      {activeTab === "loopbrain" && allowedTabs.includes('loopbrain') && (
+        <div className="space-y-6">
+          {loopbrainView === 'list' && (
+            <PolicyList
+              onCreateNew={() => {
+                setEditingPolicyId(null)
+                setLoopbrainView('editor')
+              }}
+              onEdit={(id) => {
+                setEditingPolicyId(id)
+                setLoopbrainView('editor')
+              }}
+              onViewHistory={(id) => {
+                setHistoryPolicyId(id)
+                setHistoryPolicyName("")
+                setLoopbrainView('history')
+              }}
+            />
+          )}
+          {loopbrainView === 'editor' && (
+            <PolicyEditor
+              policyId={editingPolicyId}
+              onBack={() => setLoopbrainView('list')}
+              onSaved={() => setLoopbrainView('list')}
+            />
+          )}
+          {loopbrainView === 'history' && historyPolicyId && (
+            <ExecutionHistory
+              policyId={historyPolicyId}
+              policyName={historyPolicyName}
+              onBack={() => setLoopbrainView('list')}
+            />
+          )}
         </div>
       )}
     </div>

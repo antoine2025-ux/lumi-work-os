@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { AssistantStreamSchema } from '@/lib/validations/assistant'
 
 // Lazy initialization - only create client when needed
 function getOpenAIClient(): OpenAI | null {
@@ -15,11 +16,8 @@ export async function POST(request: NextRequest) {
   try {
     const _auth = await getUnifiedAuth(request)
     
-    const { message, sessionId } = await request.json()
-
-    if (!message || !sessionId) {
-      return NextResponse.json({ error: 'Message and session ID required' }, { status: 400 })
-    }
+    const body = AssistantStreamSchema.parse(await request.json())
+    const { message, sessionId } = body
 
     // Create a streaming response
     const openai = getOpenAIClient()

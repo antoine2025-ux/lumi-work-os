@@ -28,6 +28,7 @@ import {
   type MutationResult,
 } from "@/lib/org/mutations/types";
 import { computeIssueResolution } from "@/lib/org/mutations/utils";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 
 const ALLOWED_CONTEXT_TYPES: AllocationContextType[] = ["TEAM", "PROJECT", "ROLE", "OTHER"];
 const _ALLOWED_SOURCES: AllocationSource[] = ["MANUAL", "INTEGRATION"];
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 6: Compute issues BEFORE mutation (scoped to person)
-    // TODO: Enhance to derive actual capacity issues for the person
+    // TODO [BACKLOG]: Derive actual capacity issues for this person
     const issuesBefore: OrgIssueMetadata[] = [];
 
     // Step 7: Create the allocation
@@ -200,7 +201,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Step 8: Compute issues AFTER mutation (same scoped set)
-    // TODO: Enhance to derive actual capacity issues for the person
+    // TODO [BACKLOG]: Derive actual capacity issues for this person
     const issuesAfter: OrgIssueMetadata[] = [];
 
     // Step 9: Build response metadata
@@ -213,14 +214,24 @@ export async function POST(request: NextRequest) {
       responseMeta.mutationId
     );
 
-    // Step 11: Compute updated effective capacity for the person
+    // Step 11: Log audit entry (fire-and-forget)
+    logOrgAudit({
+      workspaceId,
+      entityType: "ALLOCATION",
+      entityId: created.id,
+      entityName: `Allocation for ${position.userId}`,
+      action: "CREATED",
+      actorId: userId,
+    }).catch((e) => console.error("[POST /api/org/allocations] Audit error:", e));
+
+    // Step 12: Compute updated effective capacity for the person
     const window = {
       start: startDate,
       end: endDate ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     };
     const effectiveCapacity = await resolveEffectiveCapacity(workspaceId, position.userId, window);
 
-    // Step 12: Return canonical MutationResult
+    // Step 13: Return canonical MutationResult
     const allocationData = {
       id: created.id,
       personId: created.personId,

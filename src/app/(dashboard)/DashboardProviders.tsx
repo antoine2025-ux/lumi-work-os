@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext } from "react";
-import { SessionProvider } from "next-auth/react";
 
 /**
  * Simple org context for dashboard components that need basic org info.
@@ -28,12 +27,12 @@ export function DashboardProviders({
   initialOrgId: string | null;
   initialOrgName: string | null;
 }) {
+  // FIX 2: Removed duplicate SessionProvider - root Providers component already has one
+  // The duplicate caused DashboardLayoutClient to re-enter status: "loading" on every mount
   return (
-    <SessionProvider>
-      <OrgContext.Provider value={{ orgId: initialOrgId, orgName: initialOrgName }}>
-        {children}
-      </OrgContext.Provider>
-    </SessionProvider>
+    <OrgContext.Provider value={{ orgId: initialOrgId, orgName: initialOrgName }}>
+      {children}
+    </OrgContext.Provider>
   );
 }
 

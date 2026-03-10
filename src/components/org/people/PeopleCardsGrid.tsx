@@ -32,7 +32,7 @@ function deriveStatusChips(
 
 /**
  * Derives manager name and direct reports count from people list
- * TODO: When managerId is available, use that instead
+ * TODO [BACKLOG]: Use person.managerId for manager lookup (data now available via OrgPosition.parentId)
  */
 function derivePersonMetadata(
   _person: OrgPerson,
@@ -42,9 +42,9 @@ function derivePersonMetadata(
   managerId?: string;
   directReportsCount?: number;
 } {
-  // TODO: When managerId is available:
-  // const manager = people.find(p => p.id === person.managerId);
-  // const directReports = people.filter(p => p.managerId === person.id);
+  // TODO [BACKLOG]: Use person.managerId — data is now available
+  // const manager = people.find(p => p.userId === person.managerId);
+  // const directReports = people.filter(p => p.managerId === person.userId);
   // return {
   //   managerName: manager?.name,
   //   managerId: manager?.id,

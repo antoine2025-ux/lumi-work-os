@@ -169,19 +169,19 @@ export function CreateDepartmentDialog(props: CreateDepartmentDialogProps) {
             New department
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-md border border-slate-800 bg-[#020617] text-slate-100">
+        <DialogContent className="max-w-md border border-border bg-background text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold text-slate-50">
+          <DialogTitle className="text-base font-semibold text-foreground">
             Create department
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">
+          <DialogDescription className="text-xs text-muted-foreground">
             Define a new department to group related teams (e.g. Engineering, Operations, CX).
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-medium text-slate-300">
+            <label className="block text-[11px] font-medium text-muted-foreground">
               Department name
             </label>
             <Input
@@ -191,14 +191,14 @@ export function CreateDepartmentDialog(props: CreateDepartmentDialogProps) {
                 setValues((prev) => ({ ...prev, name: e.target.value }))
               }
               placeholder="e.g. Customer Experience"
-              className="h-8 rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100 placeholder:text-slate-500"
+              className="h-8 rounded-md border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-medium text-slate-300">
+            <label className="block text-[11px] font-medium text-muted-foreground">
               Description
-              <span className="ml-1 text-[11px] font-normal text-slate-500">
+              <span className="ml-1 text-[11px] font-normal text-muted-foreground">
                 (optional)
               </span>
             </label>
@@ -208,12 +208,12 @@ export function CreateDepartmentDialog(props: CreateDepartmentDialogProps) {
                 setValues((prev) => ({ ...prev, description: e.target.value }))
               }
               placeholder="Short description of what this department is responsible for."
-              className="min-h-[72px] rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100 placeholder:text-slate-500"
+              className="min-h-[72px] rounded-md border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-slate-300">
+            <Label className="text-[11px] font-medium text-muted-foreground">
               Owner <span className="text-red-400">*</span>
             </Label>
             <Select
@@ -223,7 +223,7 @@ export function CreateDepartmentDialog(props: CreateDepartmentDialogProps) {
               }
               disabled={submitting || people.length === 0}
             >
-              <SelectTrigger className="h-8 rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100">
+              <SelectTrigger className="h-8 rounded-md border-border bg-background text-[13px] text-foreground">
                 <SelectValue placeholder="Select owner…" />
               </SelectTrigger>
               <SelectContent>
@@ -235,7 +235,7 @@ export function CreateDepartmentDialog(props: CreateDepartmentDialogProps) {
               </SelectContent>
             </Select>
             {people.length === 0 && (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 No people available. Create people first.
               </p>
             )}
@@ -252,7 +252,7 @@ export function CreateDepartmentDialog(props: CreateDepartmentDialogProps) {
               type="button"
               variant="ghost"
               size="sm"
-              className="text-[13px] text-slate-400 hover:text-slate-100"
+              className="text-[13px] text-muted-foreground hover:text-foreground"
               onClick={() => handleOpenChange(false)}
               disabled={submitting}
             >

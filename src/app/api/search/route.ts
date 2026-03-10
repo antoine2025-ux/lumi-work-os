@@ -1,92 +1,112 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getUnifiedAuth } from '@/lib/unified-auth'
-import { assertAccess } from '@/lib/auth/assertAccess'
-import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { prisma } from "@/lib/db"
-import { FileText, Users, BookOpen } from "lucide-react"
+import { NextRequest, NextResponse } from "next/server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
+import { prisma } from "@/lib/db";
+
+export type SearchResultItem = {
+  id: string;
+  title: string;
+  subtitle: string;
+  type: "wiki" | "project" | "task" | "person";
+  url: string;
+};
+
+export type SearchResponse = {
+  wiki: SearchResultItem[];
+  projects: SearchResultItem[];
+  tasks: SearchResultItem[];
+  people: SearchResultItem[];
+};
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await getUnifiedAuth(request)
-    
-    // Assert workspace access
-    await assertAccess({ 
-      userId: auth.user.userId, 
-      workspaceId: auth.workspaceId, 
-      scope: 'workspace', 
-      requireRole: ['MEMBER'] 
-    })
-
-    // Set workspace context for Prisma middleware
-    setWorkspaceContext(auth.workspaceId)
-
-    const query = request.nextUrl.searchParams.get("q")
-    if (!query || query.length < 2) {
-      return NextResponse.json({ results: [] })
+    const auth = await getUnifiedAuth(request);
+    if (!auth.isAuthenticated || !auth.user?.userId || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const searchTerm = query.toLowerCase()
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["VIEWER"],
+    });
 
-    // Parse search operators
-    const operators = {
-      project: query.match(/#(\w+)/g)?.map(m => m.slice(1)) || [],
-      user: query.match(/@(\w+)/g)?.map(m => m.slice(1)) || [],
-      status: query.match(/status:(\w+)/g)?.map(m => m.slice(7)) || [],
-      tag: query.match(/tag:(\w+)/g)?.map(m => m.slice(4)) || [],
-      in: query.match(/in:(\w+)/g)?.map(m => m.slice(3)) || []
+    setWorkspaceContext(auth.workspaceId);
+
+    const query = request.nextUrl.searchParams.get("q");
+    const limitParam = request.nextUrl.searchParams.get("limit");
+    const limit = Math.min(Math.max(parseInt(limitParam ?? "20", 10) || 20, 1), 50);
+
+    if (!query || query.trim().length < 2) {
+      return NextResponse.json({
+        wiki: [],
+        projects: [],
+        tasks: [],
+        people: [],
+      } satisfies SearchResponse);
     }
 
-    const results = []
+    const searchTerm = query.trim().toLowerCase();
 
-    // Search projects
-    if (operators.in.length === 0 || operators.in.includes("project")) {
-      const projects = await prisma.project.findMany({
+    // Fetch workspace slug for URLs
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: auth.workspaceId },
+      select: { slug: true },
+    });
+    const workspaceSlug = workspace?.slug ?? "default";
+
+    const perTypeLimit = Math.ceil(limit / 4);
+
+    const [wikiPages, projects, tasks, people] = await Promise.all([
+      prisma.wikiPage.findMany({
         where: {
           workspaceId: auth.workspaceId,
+          isPublished: true,
+          OR: [
+            { title: { contains: searchTerm, mode: "insensitive" } },
+            { content: { contains: searchTerm, mode: "insensitive" } },
+            { excerpt: { contains: searchTerm, mode: "insensitive" } },
+            { tags: { hasSome: [searchTerm] } },
+          ],
+        },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          excerpt: true,
+          category: true,
+        },
+        take: perTypeLimit,
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.project.findMany({
+        where: {
+          workspaceId: auth.workspaceId,
+          isArchived: false,
           OR: [
             { name: { contains: searchTerm, mode: "insensitive" } },
-            { description: { contains: searchTerm, mode: "insensitive" } }
+            { description: { contains: searchTerm, mode: "insensitive" } },
           ],
-          ...(operators.project.length > 0 && {
-            name: { in: operators.project }
-          })
         },
         select: {
           id: true,
           name: true,
           description: true,
           status: true,
-          color: true
         },
-        take: 5
-      })
-
-      results.push(...projects.map(project => ({
-        id: project.id,
-        title: project.name,
-        description: project.description || `Status: ${project.status}`,
-        type: "project" as const,
-        url: `/projects/${project.id}`,
-        icon: FileText,
-        color: project.color
-      })))
-    }
-
-    // Search tasks
-    if (operators.in.length === 0 || operators.in.includes("task")) {
-      const tasks = await (prisma.task.findMany as Function)({
+        take: perTypeLimit,
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.task.findMany({
         where: {
           workspaceId: auth.workspaceId,
           OR: [
             { title: { contains: searchTerm, mode: "insensitive" } },
-            { description: { contains: searchTerm, mode: "insensitive" } }
+            { description: { contains: searchTerm, mode: "insensitive" } },
           ],
-          ...(operators.status.length > 0 && {
-            status: { in: operators.status }
-          }),
-          ...(operators.tag.length > 0 && {
-            tags: { hasSome: operators.tag }
-          })
         },
         select: {
           id: true,
@@ -94,111 +114,90 @@ export async function GET(request: NextRequest) {
           description: true,
           status: true,
           priority: true,
+          projectId: true,
           project: {
-            select: { name: true, color: true }
-          }
+            select: { id: true, name: true },
+          },
         },
-        take: 5
-      }) as Array<{
-        id: string
-        title: string
-        description: string | null
-        status: string
-        priority: string
-        project: { name: string; color: string | null; id?: string }
-      }>
-
-      results.push(...tasks.map(task => ({
-        id: task.id,
-        title: task.title,
-        description: `${task.project.name} • ${task.status} • ${task.priority}`,
-        type: "task" as const,
-        url: `/projects/${task.project.id}?task=${task.id}`,
-        icon: FileText,
-        color: task.project.color
-      })))
-    }
-
-    // Search wiki pages
-    if (operators.in.length === 0 || operators.in.includes("wiki")) {
-      const wikiPages = await prisma.wikiPage.findMany({
+        take: perTypeLimit,
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.orgPosition.findMany({
         where: {
           workspaceId: auth.workspaceId,
+          isActive: true,
+          userId: { not: null },
           OR: [
             { title: { contains: searchTerm, mode: "insensitive" } },
-            { content: { contains: searchTerm, mode: "insensitive" } },
-            { excerpt: { contains: searchTerm, mode: "insensitive" } }
-          ]
+            {
+              user: {
+                OR: [
+                  { name: { contains: searchTerm, mode: "insensitive" } },
+                  { email: { contains: searchTerm, mode: "insensitive" } },
+                ],
+              },
+            },
+          ],
         },
         select: {
           id: true,
           title: true,
-          excerpt: true,
-          category: true
-        },
-        take: 5
-      })
-
-      results.push(...wikiPages.map(page => ({
-        id: page.id,
-        title: page.title,
-        description: page.excerpt || `Category: ${page.category}`,
-        type: "wiki" as const,
-        url: `/wiki/${page.id}`,
-        icon: BookOpen
-      })))
-    }
-
-    // Search users
-    if (operators.in.length === 0 || operators.in.includes("user") || operators.user.length > 0) {
-      const users = await prisma.user.findMany({
-        where: {
-          workspaceMemberships: {
-            some: { workspaceId: auth.workspaceId }
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
-          OR: [
-            { name: { contains: searchTerm, mode: "insensitive" } },
-            { email: { contains: searchTerm, mode: "insensitive" } },
-            ...(operators.user.length > 0 ? [
-              { name: { in: operators.user } },
-              { email: { in: operators.user } }
-            ] : [])
-          ]
+          team: {
+            select: { name: true },
+          },
         },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true
-        },
-        take: 5
-      })
+        take: perTypeLimit,
+      }),
+    ]);
 
-      results.push(...users.map(user => ({
-        id: user.id,
-        title: user.name || user.email,
-        description: user.email,
-        type: "user" as const,
-        url: `/users/${user.id}`,
-        icon: Users,
-        image: user.image
-      })))
-    }
+    const wiki: SearchResultItem[] = wikiPages.map((page) => ({
+      id: page.id,
+      title: page.title,
+      subtitle: page.excerpt ?? `Category: ${page.category}`,
+      type: "wiki" as const,
+      url: `/wiki/${page.slug}`,
+    }));
 
-    // Sort results by relevance (exact matches first, then partial matches)
-    results.sort((a, b) => {
-      const aExact = a.title.toLowerCase().includes(searchTerm)
-      const bExact = b.title.toLowerCase().includes(searchTerm)
-      
-      if (aExact && !bExact) return -1
-      if (!aExact && bExact) return 1
-      
-      return a.title.localeCompare(b.title)
-    })
+    const projectItems: SearchResultItem[] = projects.map((p) => ({
+      id: p.id,
+      title: p.name,
+      subtitle: p.description ?? `Status: ${p.status}`,
+      type: "project" as const,
+      url: `/w/${workspaceSlug}/projects/${p.id}`,
+    }));
 
-    return NextResponse.json({ results: results.slice(0, 10) })
+    const taskItems: SearchResultItem[] = tasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      subtitle: `${t.project.name} · ${t.status} · ${t.priority}`,
+      type: "task" as const,
+      url: `/w/${workspaceSlug}/projects/${t.projectId}?task=${t.id}`,
+    }));
+
+    const peopleItems: SearchResultItem[] = people
+      .filter((p) => p.user !== null)
+      .map((p) => ({
+        id: p.user!.id,
+        title: p.user!.name ?? p.user!.email,
+        subtitle: [p.title, p.team?.name].filter(Boolean).join(" · ") || p.user!.email,
+        type: "person" as const,
+        url: `/w/${workspaceSlug}/org/people/${p.user!.id}`,
+      }));
+
+    return NextResponse.json({
+      wiki,
+      projects: projectItems,
+      tasks: taskItems,
+      people: peopleItems,
+    } satisfies SearchResponse);
   } catch (error) {
-    console.error("Search error:", error)
-    return NextResponse.json({ error: "Search failed" }, { status: 500 })
+    return handleApiError(error, request);
   }
 }

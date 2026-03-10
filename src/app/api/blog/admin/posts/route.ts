@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from "next/server"
-import { checkBlogAdmin } from "@/lib/blog-admin-auth"
+import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
+import { handleApiError } from "@/lib/api-errors"
 import { blogPrisma } from "@/lib/blog-db"
+import { BlogPostCreateSchema } from '@/lib/validations/blog'
 
 // GET /api/blog/admin/posts - List all posts
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const isAdmin = await checkBlogAdmin()
-    if (!isAdmin) {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["OWNER"],
+    })
+    setWorkspaceContext(auth.workspaceId)
 
     const posts = await blogPrisma.blogPost.findMany({
       orderBy: {
@@ -18,55 +29,39 @@ export async function GET(_request: NextRequest) {
 
     return NextResponse.json({ posts })
   } catch (error) {
-    console.error("Error fetching blog posts:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    return handleApiError(error)
   }
 }
 
 // POST /api/blog/admin/posts - Create new post
 export async function POST(request: NextRequest) {
   try {
-    console.log("[BLOG API] POST /api/blog/admin/posts - Starting request")
-    
-    const isAdmin = await checkBlogAdmin()
-    console.log("[BLOG API] Admin check result:", isAdmin)
-    if (!isAdmin) {
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["OWNER"],
+    })
+    setWorkspaceContext(auth.workspaceId)
 
-    let body
-    try {
-      body = await request.json()
-      console.log("[BLOG API] Request body parsed:", { 
-        title: body.title, 
-        slug: body.slug, 
-        excerpt: body.excerpt?.substring(0, 50), 
-        contentLength: body.content?.length,
-        category: body.category,
-        status: body.status 
-      })
-    } catch (parseError) {
-      console.error("[BLOG API] Failed to parse request body:", parseError)
-      return NextResponse.json(
-        { error: "Invalid request body" },
-        { status: 400 }
-      )
-    }
+    const body = BlogPostCreateSchema.parse(await request.json())
+    const { title, slug, excerpt, content, category, status, featuredImage, tags } = body
 
-    const { title, slug, excerpt, content, category, status } = body
+    console.log("[BLOG API] Request body parsed:", { 
+      title, 
+      slug, 
+      excerpt: excerpt.substring(0, 50), 
+      contentLength: content.length,
+      category,
+      status 
+    })
 
     // Sanitize slug: trim whitespace and ensure it's URL-safe
     const sanitizedSlug = slug.trim().toLowerCase().replace(/\s+/g, '-')
-
-    if (!title || !slug || !excerpt || !content || !category) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      )
-    }
 
     // Check if slug already exists
     try {
@@ -127,9 +122,9 @@ export async function POST(request: NextRequest) {
     const validStatus = status === "PUBLISHED" ? "PUBLISHED" : "DRAFT"
     
     // Set publishedAt if status is PUBLISHED
-    const publishedAt = validStatus === "PUBLISHED" ? new Date() : null
+    const finalPublishedAt = validStatus === "PUBLISHED" ? new Date() : null
 
-    console.log("[BLOG API] Creating post with:", { title, slug, status: validStatus, publishedAt })
+    console.log("[BLOG API] Creating post with:", { title, slug, status: validStatus, publishedAt: finalPublishedAt })
 
     try {
       const post = await blogPrisma.blogPost.create({
@@ -138,9 +133,9 @@ export async function POST(request: NextRequest) {
           slug: sanitizedSlug,
           excerpt,
           content,
-          category: category || "NEWS",
+          category: category as any,
           status: validStatus,
-          publishedAt,
+          publishedAt: finalPublishedAt,
         },
       })
 
@@ -158,29 +153,7 @@ export async function POST(request: NextRequest) {
       throw prismaError // Re-throw to be caught by outer catch
     }
   } catch (error) {
-    console.error("[BLOG API] Error creating blog post:", error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    const errorStack = error instanceof Error ? error.stack : undefined
-    const errorCode = (error as any)?.code
-    console.error("[BLOG API] Error details:", { 
-      errorMessage, 
-      errorStack, 
-      errorCode,
-      error 
-    })
-    return NextResponse.json(
-      { 
-        error: "Internal server error",
-        message: errorMessage,
-        code: errorCode,
-        details: process.env.NODE_ENV === "development" ? {
-          message: errorMessage,
-          stack: errorStack,
-          code: errorCode
-        } : undefined
-      },
-      { status: 500 }
-    )
+    return handleApiError(error)
   }
 }
 

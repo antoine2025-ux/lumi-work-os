@@ -47,7 +47,7 @@ export function DeletePersonModal({
       <div
         className={cn(
           "relative w-full max-w-md",
-          "bg-slate-900 border border-slate-700 rounded-lg",
+          "bg-card border border-border rounded-lg",
           "shadow-xl",
           "p-6",
           "transform transition-all",
@@ -64,8 +64,8 @@ export function DeletePersonModal({
             "absolute top-4 right-4",
             "flex items-center justify-center",
             "h-8 w-8 rounded",
-            "text-slate-400 hover:text-slate-200",
-            "hover:bg-slate-800",
+            "text-muted-foreground hover:text-foreground",
+            "hover:bg-muted",
             "transition-colors",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
             isDeleting && "opacity-50 cursor-not-allowed"
@@ -80,12 +80,12 @@ export function DeletePersonModal({
         </div>
 
         {/* Title */}
-        <h2 className="text-lg font-semibold text-slate-100 mb-2">
+        <h2 className="text-lg font-semibold text-foreground mb-2">
           Delete {person.name || "person"}?
         </h2>
 
         {/* Message */}
-        <p className="text-sm text-slate-400 mb-6">
+        <p className="text-sm text-muted-foreground mb-6">
           This cannot be undone.
         </p>
 
@@ -98,7 +98,7 @@ export function DeletePersonModal({
             className={cn(
               "px-4 py-2",
               "text-sm font-medium",
-              "text-slate-300 hover:text-slate-100",
+              "text-muted-foreground hover:text-foreground",
               "rounded-md",
               "transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
@@ -114,7 +114,7 @@ export function DeletePersonModal({
             className={cn(
               "px-4 py-2",
               "text-sm font-medium",
-              "text-white",
+              "text-foreground",
               "bg-red-600 hover:bg-red-700",
               "rounded-md",
               "transition-colors",

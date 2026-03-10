@@ -2,18 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { handleApiError } from '@/lib/api-errors'
-
-// ============================================================================
-// Schemas
-// ============================================================================
-
-const UpdateRecommendationSchema = z.object({
-  status: z.enum(['ACKNOWLEDGED', 'IMPLEMENTING', 'COMPLETED', 'DISMISSED']),
-  feedback: z.string().optional(),
-})
+import { UpdateRecommendationSchema } from '@/lib/validations/goals'
 
 // ============================================================================
 // GET /api/goals/[goalId]/recommendations - List recommendations

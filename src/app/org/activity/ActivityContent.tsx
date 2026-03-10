@@ -19,9 +19,9 @@ async function ActivityDataLoader({ context }: ActivityContentProps) {
   
   // Load all data server-side to avoid issues with Server Components in Suspense
   const [adminActivity, orgActivity] = await Promise.allSettled([
-    getOrgAdminActivity(context.orgId, context.userId, 24),
+    getOrgAdminActivity(context.workspaceId, context.userId, 24),
     getOrgActivityForWorkspace({
-      workspaceId: context.orgId,
+      workspaceId: context.workspaceId,
       limit: 30,
       eventFilter: "all",
       timeframe: "30d",
@@ -48,7 +48,7 @@ async function ActivityDataLoader({ context }: ActivityContentProps) {
 
   return (
     <ActivityExportsClient
-      orgId={context.orgId}
+      orgId={context.workspaceId}
       initialAdminActivity={adminActivityData}
       initialOrgActivity={orgActivityData}
       role={context.role}

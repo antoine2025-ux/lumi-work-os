@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { AssistantSessionsCreateSchema } from '@/lib/validations/assistant'
 
 // POST /api/assistant/sessions - Create a new assistant session
 export async function POST(request: NextRequest) {
@@ -10,11 +12,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    const { intent, target = 'wiki_page' } = await request.json()
-    
-    if (!intent || !['doc_gen', 'assist'].includes(intent)) {
-      return NextResponse.json({ error: 'Invalid intent. Must be "doc_gen" or "assist"' }, { status: 400 })
-    }
+    const body = AssistantSessionsCreateSchema.parse(await request.json())
+    const { intent = 'assist', title } = body
+    const target = (body as any).target || 'wiki_page'
 
     const session = await prisma.chatSession.create({
       data: {
@@ -28,9 +28,8 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(session)
-  } catch (error) {
-    console.error('Error creating assistant session:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }
 
@@ -74,8 +73,7 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json(sessions)
-  } catch (error) {
-    console.error('Error fetching assistant sessions:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }

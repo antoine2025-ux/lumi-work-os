@@ -36,7 +36,7 @@ import {
   inferOrgQuestionTypeFromRequest,
   type OrgQuestionContext,
 } from './org-question-types'
-import { prisma } from '@/lib/db'
+import { prisma, prismaUnscoped } from '@/lib/db'
 import { buildEpicContext, type EpicWithRelations } from './context-sources/pm/epics'
 import { searchSimilarContextItems } from './embedding-service'
 import { generateAIResponse } from '@/lib/ai/providers'
@@ -69,29 +69,49 @@ import { deriveOpenLoops } from './world/openLoops/deriveOpenLoops'
 import { fetchOpenLoops } from './world/openLoops/fetchOpenLoops'
 import { formatOpenLoopsForPrompt } from './world/openLoops/formatOpenLoopsForPrompt'
 import { detectIntentFromKeywords, classifyMessageIntent, type LoopbrainIntent } from './intent-router'
+import { ACTION_VERBS } from './intent-router'
 import { toolRegistry } from './agent/tool-registry'
 import { generatePlan, formatPlanForUser, formatClarifyForUser, formatAdvisoryForUser } from './agent/planner'
 import { executeAgentPlan } from './agent/executor'
 import type { AgentPlan, AgentContext, MessageIntent } from './agent/types'
+import { enrichAgentContext } from './permissions'
 import { buildPlannerContext, formatContextForPrompt } from './agent/context-builder'
 import { getUserTaskContext } from './context/getUserTaskContext'
 import { isGoalQuestion, handleGoalQuery } from './goals/goal-queries'
+import { resolveUserContext, defaultUserContext, formatUserContextBlock, type LoopbrainUserContext } from './user-context'
 import { buildProjectHealthSnapshot } from './reasoning/projectHealth'
 import { buildWorkloadAnalysis, buildTeamWorkloadSnapshot } from './workload-analysis'
 import { formatProjectHealthEnvelope } from './reasoning/projectHealthAnswer'
 import { formatWorkloadEnvelope, formatTeamWorkloadEnvelope } from './reasoning/workloadAnswer'
 import { buildCalendarAvailabilitySnapshot, buildTeamAvailabilitySnapshot } from './reasoning/calendarAvailability'
 import { formatCalendarAvailabilityEnvelope, formatTeamAvailabilityEnvelope } from './reasoning/calendarAvailabilityAnswer'
+import { generateOnboardingBriefing } from './scenarios/onboarding-briefing'
+import { generateDailyBriefing } from './scenarios/daily-briefing'
+import { generateMeetingPrep, generateNextMeetingPrep, findEventByTitle } from './scenarios/meeting-prep'
+import {
+  loadGmailThreads,
+  formatGmailThreadsForPrompt,
+  formatGmailThreadsForPlannerContext,
+  isGmailConnected,
+} from './context-sources/gmail'
+import { loadCalendarEvents } from './context-sources/calendar'
+import { getTodayWindow, getTomorrowWindow } from '@/lib/datetime'
+import { addDays, startOfWeek } from 'date-fns'
+import { toZonedTime, fromZonedTime } from 'date-fns-tz'
+import { searchGmailForContext } from './context-sources/gmail-search'
+import { searchSlackMessages } from './context-sources/slack-search'
 import { extractEntityContext } from './reasoning/entityLinksAnswer'
 import { getCachedEntityGraph } from './entity-graph'
 import type { ProjectHealthSnapshotV0 } from './contract/projectHealth.v0'
 import type { WorkloadAnalysisSnapshotV0, TeamWorkloadSnapshotV0 } from './contract/workloadAnalysis.v0'
 import type { CalendarAvailabilitySnapshotV0, TeamAvailabilitySnapshotV0 } from './contract/calendarAvailability.v0'
+import { extractTasksFromMeetingNotes, truncateAtSentenceBoundary } from './scenarios/meeting-task-extraction'
+import { createExtractedTasks } from './scenarios/create-extracted-tasks'
 
 /**
  * Default LLM model for Loopbrain
  */
-const DEFAULT_LOOPBRAIN_MODEL = 'gpt-4-turbo'
+const DEFAULT_LOOPBRAIN_MODEL = 'claude-sonnet-4-6'
 
 /**
  * Dev-only: Track last Org debug snapshot for debugging routing decisions
@@ -160,12 +180,35 @@ export async function runLoopbrainQuery(
     })
   }
 
+  // Resolve user context (who is asking) — used to personalise all mode handlers
+  const userCtx = await resolveUserContext(req.userId, req.workspaceId)
+    .catch(() => defaultUserContext(req.userId))
+
   // ---- Agentic execution pre-check (Phase 2) ----
   // 1. Check if this message is a confirmation of a previously proposed plan
   const confirmTokens = new Set(['yes', 'y', 'go', 'proceed', 'do it', 'confirm', 'go ahead', 'ok'])
   const lowerTrimmed = req.query.toLowerCase().trim()
   if (req.pendingPlan && confirmTokens.has(lowerTrimmed)) {
     return await handlePlanExecution(req, req.pendingPlan)
+  }
+
+  // 1.6 Meeting task extraction — confirmation of user-reviewed task list (server-side bulk creation)
+  if (req.pendingMeetingExtraction) {
+    return await handleMeetingConfirmationMode(req, userCtx)
+  }
+
+  // 1.7 Meeting task extraction — initial extraction intent (intercept before ACTION branch)
+  {
+    const qLower = req.query.toLowerCase()
+    const extractTasksKeywords = [
+      'extract tasks', 'action items', 'meeting tasks', 'tasks from notes',
+      'what came out of the meeting', 'create tasks from', 'pull out tasks',
+      'tasks from this meeting', 'standup tasks', 'meeting action items',
+      'extract action items', 'get tasks from', 'pull tasks from',
+    ]
+    if (extractTasksKeywords.some((kw) => qLower.includes(kw))) {
+      return await handleMeetingExtractionMode(req, userCtx)
+    }
   }
 
   // 1.5a Check if this message is approving an advisory suggestion → convert to action
@@ -229,6 +272,53 @@ export async function runLoopbrainQuery(
     })
   }
 
+  // 1.8 Email search — route queries asking ABOUT emails to handleEmailSearchMode
+  // (These load Gmail and answer directly. Don't send to planner which would ask for clarification.)
+  const { intent, isTaskIntent } = classifyQueryIntent(req.query)
+  if (intent === 'email_search' || req.mode === 'email_search') {
+    return await handleEmailSearchMode(req, userCtx)
+  }
+
+  // 1.8b Drive search — MUST route to planner (searchDriveFiles/readDriveDocument). Bypass messageIntent
+  // so "can you search..." (which may classify as QUESTION) still uses the agent tools.
+  if (intent === 'drive_search') {
+    return await handleActionMode(req, 'ACTION')
+  }
+
+  // 1.9 Affirmative follow-up to action suggestions — route to agent before intent classification
+  const AFFIRMATIVE_PATTERNS = /^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|please do|yes please|proceed|go for it|sounds good|let's do it|make it happen|yes,?\s*please\s*do)/i
+  if (AFFIRMATIVE_PATTERNS.test(req.query.trim()) && req.conversationContext?.trim()) {
+    const lines = req.conversationContext.split('\n').filter(Boolean)
+    const lastAssistant = [...lines].reverse().find((l) => l.toLowerCase().startsWith('assistant:'))
+    const previousContent = lastAssistant ? lastAssistant.replace(/^assistant:\s*/i, '').trim() : ''
+    const suggestedActions =
+      previousContent &&
+      (/schedule/i.test(previousContent) ||
+        /would you like me to/i.test(previousContent) ||
+        /want me to/i.test(previousContent) ||
+        /\bI can\b/i.test(previousContent) ||
+        /set up/i.test(previousContent) ||
+        /\bcreate\b/i.test(previousContent) ||
+        /here's what/i.test(previousContent) ||
+        /actionable items/i.test(previousContent))
+    if (suggestedActions) {
+      // Extract numbered or bulleted action items only (avoid stuffing full narrative + email summary)
+      const actionLines = previousContent
+        .split('\n')
+        .filter((l) => /^\d+[\.\)]\s/.test(l.trim()) || /^[-•]\s/.test(l.trim()))
+        .join('\n')
+      const synthesizedQuery = actionLines
+        ? `User confirmed. Execute these actions:\n${actionLines}`
+        : `User confirmed. Execute the actions suggested in this conversation:\n${previousContent.slice(0, 1500)}`
+      logger.info('Affirmative follow-up, routing to action mode', {
+        workspaceId: req.workspaceId,
+        originalQuery: req.query,
+        hasActionLines: !!actionLines,
+      })
+      return await handleActionMode({ ...req, query: synthesizedQuery }, 'ACTION')
+    }
+  }
+
   // 2. Classify ACTION vs QUESTION
   const messageIntent = classifyMessageIntent(req.query)
   logger.debug('Message intent classified', {
@@ -241,9 +331,6 @@ export async function runLoopbrainQuery(
     return await handleActionMode(req, messageIntent)
   }
   // else: QUESTION — fall through to existing flow below
-
-  // Classify intent (lightweight, rule-based — no LLM)
-  const { intent, isTaskIntent } = classifyQueryIntent(req.query)
   logger.debug('Intent classified', {
     workspaceId: req.workspaceId,
     intent,
@@ -276,7 +363,7 @@ export async function runLoopbrainQuery(
 
   // Check for goal-related queries
   if (intent === 'goal_progress' || intent === 'goal_risk' || intent === 'goal_status' || intent === 'goal_recommendation' || isGoalQuestion(req.query)) {
-    return await handleGoalMode(req)
+    return await handleGoalMode(req, userCtx)
   }
 
   // Check for project health queries
@@ -294,18 +381,38 @@ export async function runLoopbrainQuery(
     return await handleCalendarAvailabilityMode(req)
   }
 
+  // Check for onboarding briefing queries
+  if (intent === 'onboarding_briefing' || req.mode === 'onboarding_briefing') {
+    return await handleOnboardingBriefingMode(req, userCtx)
+  }
+
+  // Check for daily briefing queries
+  if (intent === 'daily_briefing' || req.mode === 'daily_briefing') {
+    return await handleDailyBriefingMode(req, userCtx)
+  }
+
+  // Check for meeting prep queries
+  if (intent === 'meeting_prep' || req.mode === 'meeting_prep') {
+    return await handleMeetingPrepMode(req, userCtx)
+  }
+
+  // Check for Slack search queries
+  if (intent === 'slack_search' || req.mode === 'slack_search') {
+    return await handleSlackSearchMode(req, userCtx)
+  }
+
   try {
     // Route to mode-specific handler
     let result: LoopbrainResponse
     switch (req.mode) {
       case 'spaces':
-        result = await handleSpacesMode(req, { intent, isTaskIntent })
+        result = await handleSpacesMode(req, { intent, isTaskIntent }, userCtx)
         break
       case 'org':
-        result = await handleOrgMode(req)
+        result = await handleOrgMode(req, userCtx)
         break
       case 'dashboard':
-        result = await handleDashboardMode(req)
+        result = await handleDashboardMode(req, userCtx)
         break
       default:
         throw new Error(`Unsupported Loopbrain mode: ${req.mode}`)
@@ -344,6 +451,7 @@ export async function runLoopbrainQuery(
 async function handleSpacesMode(
   req: LoopbrainRequest,
   intentMeta?: { intent: LoopbrainIntent; isTaskIntent: boolean },
+  userCtx?: LoopbrainUserContext,
 ): Promise<LoopbrainResponse> {
   const intent = intentMeta?.intent ?? 'unknown'
   const isTaskIntent = intentMeta?.isTaskIntent ?? false
@@ -412,6 +520,15 @@ async function handleSpacesMode(
       limit: 50 // Fetch more to get good coverage of projects and tasks
     })
     contextSummary.structuredContext = structuredContext
+
+    // Prioritise the user's own projects first in the structured context list
+    if (userCtx && userCtx.activeProjectIds.length > 0) {
+      contextSummary.structuredContext = contextSummary.structuredContext.sort((a, b) => {
+        const aMatch = a.type === 'project' && userCtx.activeProjectIds.includes(a.id)
+        const bMatch = b.type === 'project' && userCtx.activeProjectIds.includes(b.id)
+        return (bMatch ? 1 : 0) - (aMatch ? 1 : 0)
+      })
+    }
   } catch (error) {
     logger.error('Error fetching structured ContextObjects for Spaces mode', {
       workspaceId: req.workspaceId,
@@ -555,17 +672,26 @@ async function handleSpacesMode(
   // Build prompt (include Slack availability)
   let prompt = buildSpacesPrompt(req, contextSummary, slackAvailable)
   
-  // Open Loops: fetch and inject into prompt
-  const openLoops = await fetchOpenLoops(req.workspaceId, req.userId)
+  // Open Loops + Gmail threads: fetch in parallel, inject into prompt
+  const [openLoops, spacesGmailThreads] = await Promise.all([
+    fetchOpenLoops(req.workspaceId, req.userId),
+    loadGmailThreads(req.userId, req.workspaceId),
+  ])
   const openLoopsSection = formatOpenLoopsForPrompt(openLoops)
   if (openLoopsSection) {
     prompt = prompt + "\n\n" + openLoopsSection
   }
+  const spacesGmailSection = formatGmailThreadsForPrompt(spacesGmailThreads)
+  if (spacesGmailSection) {
+    prompt = prompt + "\n\n" + spacesGmailSection
+  }
   
-  // Personalization: load user profile and build style instructions
+  // Personalization: combine user context block + style instructions
   const userProfile = await getProfile(req.workspaceId, req.userId)
   const styleBlock = buildStyleInstructions(userProfile)
-  const spacesSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: styleBlock })
+  const userCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+  const combinedStyleAndContext = [userCtxBlock, styleBlock].filter(Boolean).join('\n\n')
+  const spacesSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: combinedStyleAndContext })
   
   // Call LLM
   const llmResponse = await callLoopbrainLLM(prompt, spacesSystemPrompt)
@@ -602,7 +728,10 @@ async function handleSpacesMode(
         completion: llmResponse.usage.completionTokens,
         total: llmResponse.usage.totalTokens
       } : undefined,
-      retrievedCount: contextSummary.retrievedItems?.length || 0
+      retrievedCount: contextSummary.retrievedItems?.length || 0,
+      userContextResolved: !!userCtx,
+      userRole: userCtx?.role,
+      userTeam: userCtx?.teamName ?? undefined,
     }
   }
 }
@@ -658,7 +787,8 @@ function shouldQuerySlackForQuestion(question: string, slackChannelHints: string
  * Focus: Teams, Roles, Hierarchy
  */
 async function handleOrgMode(
-  req: LoopbrainRequest
+  req: LoopbrainRequest,
+  userCtx?: LoopbrainUserContext,
 ): Promise<LoopbrainResponse> {
   // Check if Slack is available
   const slackAvailable = await isSlackAvailable(req.workspaceId)
@@ -886,10 +1016,12 @@ async function handleOrgMode(
     systemPrompt = ORG_SYSTEM_PROMPT
   }
   
-  // Personalization: inject user style preferences into system prompt
+  // Personalization: combine user context block + style instructions
   const orgUserProfile = await getProfile(req.workspaceId, req.userId)
   const orgStyleBlock = buildStyleInstructions(orgUserProfile)
-  systemPrompt = buildPersonalizedSystemPrompt({ basePrompt: systemPrompt, styleInstructions: orgStyleBlock })
+  const orgUserCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+  const orgCombined = [orgUserCtxBlock, orgStyleBlock].filter(Boolean).join('\n\n')
+  systemPrompt = buildPersonalizedSystemPrompt({ basePrompt: systemPrompt, styleInstructions: orgCombined })
   
   // Call LLM with appropriate system prompt
   // Use Org-specific config if in org mode
@@ -985,6 +1117,9 @@ async function handleOrgMode(
         total: llmResponse.usage.totalTokens
       } : undefined,
       retrievedCount: contextSummary.retrievedItems?.length || 0,
+      userContextResolved: !!userCtx,
+      userRole: userCtx?.role,
+      userTeam: userCtx?.teamName ?? undefined,
       // Include routing metadata for debugging
       routing: {
         wantsOrg,
@@ -1006,7 +1141,8 @@ async function handleOrgMode(
  * Focus: Workspace overview, Activity
  */
 async function handleDashboardMode(
-  req: LoopbrainRequest
+  req: LoopbrainRequest,
+  userCtx?: LoopbrainUserContext,
 ): Promise<LoopbrainResponse> {
   // Check if Slack is available
   const slackAvailable = await isSlackAvailable(req.workspaceId)
@@ -1052,18 +1188,27 @@ async function handleDashboardMode(
   
   // Build prompt (include Slack availability)
   let prompt = buildDashboardPrompt(req, contextSummary, slackAvailable)
-  
-  // Open Loops: fetch and inject into prompt
-  const openLoops = await fetchOpenLoops(req.workspaceId, req.userId)
+
+  // Open Loops + Gmail threads: fetch in parallel, inject into prompt
+  const [openLoops, gmailThreads] = await Promise.all([
+    fetchOpenLoops(req.workspaceId, req.userId),
+    loadGmailThreads(req.userId, req.workspaceId),
+  ])
   const openLoopsSection = formatOpenLoopsForPrompt(openLoops)
   if (openLoopsSection) {
     prompt = prompt + "\n\n" + openLoopsSection
   }
-  
-  // Personalization: load user profile and build style instructions
+  const gmailSection = formatGmailThreadsForPrompt(gmailThreads)
+  if (gmailSection) {
+    prompt = prompt + "\n\n" + gmailSection
+  }
+
+  // Personalization: combine user context block + style instructions
   const dashUserProfile = await getProfile(req.workspaceId, req.userId)
   const dashStyleBlock = buildStyleInstructions(dashUserProfile)
-  const dashboardSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: dashStyleBlock })
+  const dashUserCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+  const dashCombined = [dashUserCtxBlock, dashStyleBlock].filter(Boolean).join('\n\n')
+  const dashboardSystemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: dashCombined })
   
   // Call LLM
   const llmResponse = await callLoopbrainLLM(prompt, dashboardSystemPrompt)
@@ -1100,7 +1245,10 @@ async function handleDashboardMode(
         completion: llmResponse.usage.completionTokens,
         total: llmResponse.usage.totalTokens
       } : undefined,
-      retrievedCount: contextSummary.retrievedItems?.length || 0
+      retrievedCount: contextSummary.retrievedItems?.length || 0,
+      userContextResolved: !!userCtx,
+      userRole: userCtx?.role,
+      userTeam: userCtx?.teamName ?? undefined,
     }
   }
 }
@@ -1163,7 +1311,7 @@ async function loadSpacesContextForRequest(
     }
 
     // Inline-load epics directly via Prisma (temporary fix to unblock Loopbrain)
-    // TODO: Refactor back to getProjectEpicsContext once verified working
+    // TODO [BACKLOG]: Refactor back to getProjectEpicsContext once verified working
     try {
       const epics = await prisma.epic.findMany({
         where: { projectId: req.projectId },
@@ -1380,7 +1528,7 @@ async function loadOrgContextForRequest(
   if (orgQuestion?.type === "org.health") {
     // For health-focused queries, use org object as primary but mark as health focus
     if (orgQuestion.orgId && byId[orgQuestion.orgId]) {
-      primary = byId[orgQuestion.orgId]
+      primary = byId[orgQuestion.orgId] // orgId here is the Loopbrain entity ID
     } else if (orgSlice.root) {
       const rootObj = orgSlice.all.find(obj => obj.id === orgSlice.root?.id)
       if (rootObj) {
@@ -2852,6 +3000,726 @@ function formatContextObject(ctx: LoopbrainContextObject): string {
 /**
  * Call LLM via existing AI provider
  */
+// ---------------------------------------------------------------------------
+// Onboarding Briefing mode
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a personalized onboarding briefing for the current user.
+ * Wraps generateOnboardingBriefing and returns a LoopbrainResponse with
+ * the `onboardingBriefing` field populated.
+ */
+async function handleOnboardingBriefingMode(
+  req: LoopbrainRequest,
+  userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('[onboarding-briefing] Mode handler started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    projectId: req.projectId,
+  })
+
+  // Extract project ID hint from query (e.g. "brief me on [project name]")
+  // req.projectId takes precedence if the UI anchored it
+  const briefing = await generateOnboardingBriefing(req.userId, req.workspaceId, {
+    projectId: req.projectId,
+  })
+
+  const answer = [
+    briefing.greeting,
+    '',
+    briefing.roleSummary,
+    '',
+    briefing.sections.map((s) => `**${s.title}**\n${s.content}`).join('\n\n'),
+  ].join('\n')
+
+  return {
+    mode: 'onboarding_briefing',
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer,
+    suggestions: [
+      { label: 'Brief me on a specific project', action: 'onboarding_briefing', payload: { scope: 'project' } },
+      { label: 'Show my tasks', action: 'navigate', payload: { url: '/my-tasks' } },
+    ],
+    onboardingBriefing: briefing,
+    metadata: {
+      routing: {
+        contextType: 'onboarding_briefing',
+        confidence: briefing.confidence === 'high' ? 0.9 : briefing.confidence === 'medium' ? 0.7 : 0.5,
+        itemCount: briefing.sections.length,
+        usedFallback: false,
+      },
+      userContextResolved: true,
+      userRole: userCtx.role,
+      userTeam: userCtx.teamName ?? undefined,
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Daily Briefing mode
+// ---------------------------------------------------------------------------
+
+async function handleDailyBriefingMode(
+  req: LoopbrainRequest,
+  userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('[daily-briefing] Mode handler started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+  })
+
+  const briefing = await generateDailyBriefing(req.userId, req.workspaceId)
+
+  const answer = [
+    briefing.greeting,
+    '',
+    ...briefing.sections.map((s) => `**${s.title}**\n${s.content}`),
+    '',
+    briefing.keyActions.length > 0
+      ? '**Key Actions**\n' + briefing.keyActions.map((a) => `- ${a.title}`).join('\n')
+      : '',
+  ].filter(Boolean).join('\n\n')
+
+  return {
+    mode: 'daily_briefing',
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer,
+    suggestions: [
+      { label: 'Show my tasks', action: 'navigate', payload: { url: '/my-tasks' } },
+      { label: 'Prep me for my next meeting', action: 'meeting_prep', payload: {} },
+      { label: 'Show project health', action: 'project_health', payload: {} },
+    ],
+    dailyBriefing: briefing,
+    metadata: {
+      routing: {
+        contextType: 'daily_briefing',
+        confidence: briefing.confidence === 'high' ? 0.9 : briefing.confidence === 'medium' ? 0.7 : 0.5,
+        itemCount: briefing.sections.length,
+        usedFallback: false,
+      },
+      userContextResolved: true,
+      userRole: userCtx.role,
+      userTeam: userCtx.teamName ?? undefined,
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Meeting Prep mode
+// ---------------------------------------------------------------------------
+
+const MEETING_TITLE_PREFIXES = [
+  'prep me for ',
+  'prepare me for ',
+  'what should i know before ',
+  'prepare for ',
+]
+
+function extractMeetingTitleFromQuery(query: string): string | null {
+  const lower = query.toLowerCase().trim()
+  for (const prefix of MEETING_TITLE_PREFIXES) {
+    if (lower.startsWith(prefix)) {
+      const remainder = query.slice(prefix.length).trim()
+      if (remainder.length > 0 && !['my next meeting', 'the next meeting', 'next meeting'].includes(remainder.toLowerCase())) {
+        return remainder
+      }
+    }
+  }
+  return null
+}
+
+async function handleMeetingPrepMode(
+  req: LoopbrainRequest,
+  userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('[meeting-prep] Mode handler started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    eventId: req.eventId,
+  })
+
+  let brief: Awaited<ReturnType<typeof generateMeetingPrep>>
+
+  if (req.eventId) {
+    // Path 1: Explicit eventId
+    brief = await generateMeetingPrep(req.userId, req.workspaceId, req.eventId)
+  } else {
+    // Try Path 2: Title match from query
+    const titleFragment = extractMeetingTitleFromQuery(req.query)
+    if (titleFragment) {
+      const matchedEventId = await findEventByTitle(req.userId, req.workspaceId, titleFragment)
+      if (matchedEventId) {
+        brief = await generateMeetingPrep(req.userId, req.workspaceId, matchedEventId)
+      } else {
+        return {
+          mode: 'meeting_prep',
+          workspaceId: req.workspaceId,
+          userId: req.userId,
+          query: req.query,
+          context: {},
+          answer: `I couldn't find a meeting matching "${titleFragment}" on your calendar today. Try "prep me for my next meeting" to prepare for whatever's coming up next.`,
+          suggestions: [
+            { label: 'Prep me for my next meeting', action: 'meeting_prep', payload: {} },
+            { label: 'Show my calendar', action: 'navigate', payload: { url: '/calendar' } },
+          ],
+          metadata: {
+            routing: {
+              contextType: 'meeting_prep',
+              confidence: 0.5,
+              itemCount: 0,
+              usedFallback: true,
+            },
+            userContextResolved: true,
+            userRole: userCtx.role,
+            userTeam: userCtx.teamName ?? undefined,
+          },
+        }
+      }
+    } else {
+      // Path 3: Next meeting
+      brief = await generateNextMeetingPrep(req.userId, req.workspaceId)
+    }
+  }
+
+  const attendeeLines = brief.attendees.length > 0
+    ? brief.attendees.map((a) => {
+        const parts = [a.name]
+        if (a.role) parts.push(`(${a.role})`)
+        if (a.recentActivity) parts.push(`— ${a.recentActivity}`)
+        return `- ${parts.join(' ')}`
+      }).join('\n')
+    : 'No attendee information available.'
+
+  const answer = [
+    `**${brief.meetingTitle}**`,
+    brief.meetingTime ? `*${brief.meetingTime}*` : '',
+    '',
+    '**Attendees**',
+    attendeeLines,
+    '',
+    brief.projectContext ? `**Project: ${brief.projectContext.projectName}**\nStatus: ${brief.projectContext.healthStatus}` : '',
+    brief.projectContext?.blockers.length ? `Blockers: ${brief.projectContext.blockers.join(', ')}` : '',
+    '',
+    brief.suggestedTopics.length > 0
+      ? '**Suggested Topics**\n' + brief.suggestedTopics.map((t) => `- ${t}`).join('\n')
+      : '',
+    '',
+    brief.recentDocs.length > 0
+      ? '**Recent Docs**\n' + brief.recentDocs.map((d) => `- [${d.title}](${d.href}) — ${d.editedBy}`).join('\n')
+      : '',
+  ].filter(Boolean).join('\n')
+
+  return {
+    mode: 'meeting_prep',
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer,
+    suggestions: [
+      { label: 'Show my calendar', action: 'navigate', payload: { url: '/calendar' } },
+      { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+    ],
+    meetingPrep: brief,
+    metadata: {
+      routing: {
+        contextType: 'meeting_prep',
+        confidence: 0.85,
+        itemCount: brief.attendees.length,
+        usedFallback: false,
+      },
+      userContextResolved: true,
+      userRole: userCtx.role,
+      userTeam: userCtx.teamName ?? undefined,
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Email Search mode
+// ---------------------------------------------------------------------------
+
+/** Format recent Gmail threads for the email search LLM prompt (fallback when targeted search returns 0). */
+function formatRecentThreadsForEmailPrompt(
+  threads: Awaited<ReturnType<typeof loadGmailThreads>>
+): string {
+  if (threads.length === 0) return ''
+  const lines = threads.map((t) => {
+    const dateStr = t.date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+    const preview = (t.bodyPreview || t.snippet).slice(0, 400)
+    return (
+      `From: ${t.from} (${dateStr}) — "${t.subject}"\n` +
+      `To: ${t.to.slice(0, 3).join(', ')}${t.to.length > 3 ? ', ...' : ''}\n` +
+      `Preview: "${preview}"\n`
+    )
+  })
+  return `[Recent email threads]\n\n${lines.join('\n')}`.trim()
+}
+
+async function handleEmailSearchMode(
+  req: LoopbrainRequest,
+  userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('[email-search] Mode handler started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+  })
+
+  // Check Gmail connection first — return helpful message if not connected
+  const gmailConnected = await isGmailConnected(req.userId, req.workspaceId)
+  if (!gmailConnected) {
+    return {
+      mode: 'email_search',
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer:
+        "Gmail isn't connected yet. Connect it in Settings → Integrations to let me read your emails.",
+      suggestions: [
+        { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+      ],
+      metadata: {
+        routing: {
+          contextType: 'email_search',
+          confidence: 0,
+          itemCount: 0,
+          usedFallback: true,
+        },
+        userContextResolved: true,
+        userRole: userCtx.role,
+        userTeam: userCtx.teamName ?? undefined,
+      },
+    }
+  }
+
+  const searchResult = await searchGmailForContext(
+    req.userId,
+    req.workspaceId,
+    req.query
+  )
+
+  // When targeted search returns 0, fall back to recent threads (broader fetch)
+  // — Gmail search can be restrictive (e.g. from:Name may not match display names)
+  let threads = searchResult.threads
+  let contextText = searchResult.contextText
+  let searchQuery = searchResult.searchQuery
+  let usedFallbackThreads = false
+
+  if (threads.length === 0) {
+    const recentThreads = await loadGmailThreads(req.userId, req.workspaceId, {
+      maxResults: 10,
+      includeBodyPreview: true,
+    })
+    if (recentThreads.length > 0) {
+      threads = recentThreads
+      usedFallbackThreads = true
+      contextText = formatRecentThreadsForEmailPrompt(recentThreads)
+      searchQuery = '(last 7 days)'
+    } else {
+      return {
+        mode: 'email_search',
+        workspaceId: req.workspaceId,
+        userId: req.userId,
+        query: req.query,
+        context: {},
+        answer: 'No recent emails found.',
+        suggestions: [
+          { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+        ],
+        metadata: {
+          routing: {
+            contextType: 'email_search',
+            confidence: 0.5,
+            itemCount: 0,
+            usedFallback: true,
+          },
+          userContextResolved: true,
+          userRole: userCtx.role,
+          userTeam: userCtx.teamName ?? undefined,
+        },
+      }
+    }
+  }
+
+  const prompt = [
+    'The user is asking about their email. Use the email context below to answer their question.',
+    'Be specific — cite sender names, dates, and subject lines. If the query mentions a person (e.g. "Wytze"), find emails from or to that person in the list.',
+    'If the answer is ambiguous, summarize the most relevant threads.',
+    '',
+    'PROACTIVE ACTION DETECTION:',
+    'After your summary, analyze the emails for actionable items. Look for:',
+    '- SCHEDULING: "Can you schedule...", "Let\'s meet...", "Put X on the calendar", time/date mentions with meeting requests',
+    '- REPLY NEEDED: Direct questions, requests for confirmation, action items directed at the user',
+    '- TASK CREATION: "Can you do X", "Please handle Y", deadlines, deliverables mentioned',
+    '',
+    'If you find actionable items (prioritize the top 3-5 most important — do not overwhelm):',
+    'Append a natural follow-up: describe what you can do in specific terms. Example: "Wytze is asking you to schedule lunch tomorrow at 1pm and plan your work blocks. Want me to set that up? I\'d create a lunch event at 1pm and schedule six 50-minute focused work blocks with breaks. Just say \'do it\' or \'yes\' to proceed."',
+    '',
+    'Be conversational — do NOT say "I detected 3 actionable items." Say something like "I noticed Sarah needs a reply on the budget by Friday" or "John is asking to meet next Tuesday at 2pm."',
+    'If no actionable items, just provide the summary without suggesting actions.',
+    '',
+    `Email context (${searchQuery}):`,
+    '',
+    contextText,
+    '',
+    `User question: ${req.query}`,
+  ].join('\n')
+
+  const profile = await getProfile(req.workspaceId, req.userId)
+  const styleBlock = buildStyleInstructions(profile)
+  const userCtxBlock = formatUserContextBlock(userCtx)
+  const combined = [userCtxBlock, styleBlock].filter(Boolean).join('\n\n')
+  const systemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: combined })
+
+  const llmResponse = await callLoopbrainLLM(prompt, systemPrompt)
+
+  const dateRange = threads.length > 0
+    ? (() => {
+        const dates = threads.map((t) => t.date)
+        const earliest = new Date(Math.min(...dates.map((d) => d.getTime())))
+        const latest = new Date(Math.max(...dates.map((d) => d.getTime())))
+        const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        return `${fmt(earliest)} – ${fmt(latest)}`
+      })()
+    : ''
+
+  const attribution = dateRange
+    ? `\n\n---\n*Based on ${threads.length} email${threads.length === 1 ? '' : 's'} from ${dateRange}*`
+    : ''
+
+  return {
+    mode: 'email_search',
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer: llmResponse.content + attribution,
+    suggestions: [
+      { label: 'Search more emails', action: 'email_search', payload: {} },
+      { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+    ],
+    metadata: {
+      model: llmResponse.model,
+      tokens: llmResponse.usage
+        ? {
+            prompt: llmResponse.usage.promptTokens,
+            completion: llmResponse.usage.completionTokens,
+            total: llmResponse.usage.totalTokens,
+          }
+        : undefined,
+      retrievedCount: threads.length,
+      routing: {
+        contextType: 'email_search',
+        confidence: usedFallbackThreads ? 0.7 : 0.9,
+        itemCount: threads.length,
+        usedFallback: usedFallbackThreads,
+      },
+      userContextResolved: true,
+      userRole: userCtx.role,
+      userTeam: userCtx.teamName ?? undefined,
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Slack Search mode
+// ---------------------------------------------------------------------------
+
+async function handleSlackSearchMode(
+  req: LoopbrainRequest,
+  userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('[slack-search] Mode handler started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+  })
+
+  const slackAvailable = await isSlackAvailable(req.workspaceId)
+  if (!slackAvailable) {
+    return {
+      mode: 'slack_search',
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer:
+        "Slack isn't connected to this workspace yet. An admin can connect it in Settings → Integrations.",
+      suggestions: [
+        { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+      ],
+      metadata: {
+        routing: {
+          contextType: 'slack_search',
+          confidence: 0.5,
+          itemCount: 0,
+          usedFallback: true,
+        },
+        userContextResolved: true,
+        userRole: userCtx.role,
+        userTeam: userCtx.teamName ?? undefined,
+      },
+    }
+  }
+
+  const searchResult = await searchSlackMessages(req.workspaceId, req.query)
+
+  if (searchResult.messages.length === 0) {
+    const channelNote = searchResult.targetChannel
+      ? ` in #${searchResult.targetChannel}`
+      : ''
+    return {
+      mode: 'slack_search',
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer:
+        `I couldn't find any Slack messages matching that query${channelNote}. Try different keywords or check Slack directly.`,
+      suggestions: [
+        { label: 'Search again', action: 'slack_search', payload: {} },
+        { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+      ],
+      metadata: {
+        routing: {
+          contextType: 'slack_search',
+          confidence: 0.5,
+          itemCount: 0,
+          usedFallback: true,
+        },
+        userContextResolved: true,
+        userRole: userCtx.role,
+        userTeam: userCtx.teamName ?? undefined,
+      },
+    }
+  }
+
+  const prompt = [
+    'The user is asking about Slack conversations. Use the Slack messages below to answer their question.',
+    'Be specific — cite usernames, channel names, dates, and quote relevant messages. Summarize the key discussion points.',
+    searchResult.targetChannel
+      ? `Searched channel: #${searchResult.targetChannel}`
+      : 'Searched across connected Slack channels',
+    '',
+    searchResult.contextText,
+    '',
+    `User question: ${req.query}`,
+  ].join('\n')
+
+  const profile = await getProfile(req.workspaceId, req.userId)
+  const styleBlock = buildStyleInstructions(profile)
+  const userCtxBlock = formatUserContextBlock(userCtx)
+  const combined = [userCtxBlock, styleBlock].filter(Boolean).join('\n\n')
+  const systemPrompt = buildPersonalizedSystemPrompt({ styleInstructions: combined })
+
+  const llmResponse = await callLoopbrainLLM(prompt, systemPrompt)
+
+  const channelNames = [...new Set(searchResult.messages.map((m) => `#${m.channelName}`))]
+  const attribution = `\n\n---\n*Based on ${searchResult.messages.length} message${searchResult.messages.length === 1 ? '' : 's'} from ${channelNames.join(', ')}*`
+
+  return {
+    mode: 'slack_search',
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer: llmResponse.content + attribution,
+    suggestions: [
+      { label: 'Search more in Slack', action: 'slack_search', payload: {} },
+      { label: 'Brief me on my day', action: 'daily_briefing', payload: {} },
+    ],
+    metadata: {
+      model: llmResponse.model,
+      tokens: llmResponse.usage
+        ? {
+            prompt: llmResponse.usage.promptTokens,
+            completion: llmResponse.usage.completionTokens,
+            total: llmResponse.usage.totalTokens,
+          }
+        : undefined,
+      retrievedCount: searchResult.messages.length,
+      routing: {
+        contextType: 'slack_search',
+        confidence: 0.9,
+        itemCount: searchResult.messages.length,
+        usedFallback: false,
+      },
+      userContextResolved: true,
+      userRole: userCtx.role,
+      userTeam: userCtx.teamName ?? undefined,
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Meeting Task Extraction modes
+// ---------------------------------------------------------------------------
+
+/**
+ * Load meeting notes content and extract action items via LLM.
+ * Returns a LoopbrainResponse with `meetingExtraction` populated for the
+ * MeetingTaskReview UI to render.
+ */
+async function handleMeetingExtractionMode(
+  req: LoopbrainRequest,
+  _userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  logger.info('Meeting task extraction mode started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    pageId: req.pageId,
+  })
+
+  let content = ''
+
+  if (req.pageId) {
+    // Load page content via context engine
+    try {
+      const pageCtx = await contextEngine.getPageContext(req.pageId, req.workspaceId)
+      content = pageCtx?.content ?? ''
+    } catch (err) {
+      logger.warn('Failed to load page content for meeting extraction', { pageId: req.pageId, err })
+    }
+  }
+
+  if (!content) {
+    // Fall back to extracting notes from the query itself
+    const marker = 'extract action items from these meeting notes:'
+    const idx = req.query.toLowerCase().indexOf(marker)
+    content = idx >= 0 ? req.query.slice(idx + marker.length).trim() : req.query
+  }
+
+  const truncated = truncateAtSentenceBoundary(content, 8000)
+
+  const emptyResponse = (): LoopbrainResponse => ({
+    mode: req.mode,
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    query: req.query,
+    context: {},
+    answer: 'No meeting notes content was found to extract tasks from. Please provide the notes text or navigate to the meeting notes page.',
+    suggestions: [],
+    meetingExtraction: {
+      tasks: [],
+      meetingSummary: '',
+      attendeesDetected: [],
+      confidence: 'low',
+    },
+  })
+
+  if (!truncated.trim()) {
+    return emptyResponse()
+  }
+
+  try {
+    const result = await extractTasksFromMeetingNotes(truncated, req.workspaceId, req.userId, {
+      projectId: req.projectId,
+      wikiPageId: req.pageId,
+    })
+
+    const taskCount = result.tasks.length
+    const answer =
+      taskCount > 0
+        ? `Found ${taskCount} action item${taskCount !== 1 ? 's' : ''} in the meeting notes. Review and confirm below to create tasks.`
+        : 'No action items were found in these meeting notes. Try adding clearer task language like "John will…" or "Action: …"'
+
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer,
+      suggestions: [],
+      meetingExtraction: result,
+    }
+  } catch (error) {
+    logger.error('Meeting task extraction failed', { workspaceId: req.workspaceId, error })
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer: 'Failed to extract tasks from the meeting notes. Please try again.',
+      suggestions: [],
+    }
+  }
+}
+
+/**
+ * Receive user-confirmed extracted tasks and create them in the database.
+ * Called when the client sends `pendingMeetingExtraction` (after MeetingTaskReview).
+ */
+async function handleMeetingConfirmationMode(
+  req: LoopbrainRequest,
+  _userCtx: LoopbrainUserContext
+): Promise<LoopbrainResponse> {
+  const tasks = req.pendingMeetingExtraction?.tasks ?? []
+
+  logger.info('Meeting task confirmation mode started', {
+    workspaceId: req.workspaceId,
+    userId: req.userId,
+    taskCount: tasks.length,
+  })
+
+  if (tasks.length === 0) {
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer: 'No tasks were provided for creation.',
+      suggestions: [],
+    }
+  }
+
+  try {
+    const { created, failed } = await createExtractedTasks(tasks, req.workspaceId, req.userId, {
+      wikiPageId: req.pageId,
+    })
+
+    const answer =
+      `Created ${created} task${created !== 1 ? 's' : ''}` +
+      (failed > 0
+        ? `, ${failed} could not be created (missing project link).`
+        : '.')
+
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer,
+      suggestions: [],
+    }
+  } catch (error) {
+    logger.error('Meeting task creation failed', { workspaceId: req.workspaceId, error })
+    return {
+      mode: req.mode,
+      workspaceId: req.workspaceId,
+      userId: req.userId,
+      query: req.query,
+      context: {},
+      answer: 'Failed to create tasks. Please try again.',
+      suggestions: [],
+    }
+  }
+}
+
 export async function callLoopbrainLLM(
   prompt: string,
   systemPrompt?: string,
@@ -3672,7 +4540,10 @@ function buildDashboardSuggestions(slackAvailable: boolean = false): LoopbrainSu
 /**
  * Handle goal-related queries
  */
-async function handleGoalMode(req: LoopbrainRequest): Promise<LoopbrainResponse> {
+async function handleGoalMode(
+  req: LoopbrainRequest,
+  userCtx?: LoopbrainUserContext,
+): Promise<LoopbrainResponse> {
   try {
     // Get structured goal data from query handlers
     const goalData = await handleGoalQuery(req.query, req.workspaceId)
@@ -3683,8 +4554,11 @@ async function handleGoalMode(req: LoopbrainRequest): Promise<LoopbrainResponse>
       ContextType.GOAL
     )
     
+    // Build user context prefix for system prompt
+    const goalUserCtxBlock = userCtx ? formatUserContextBlock(userCtx) : ''
+
     // Build prompt with goal data
-    const systemPrompt = `You are Loopbrain, an AI assistant with deep knowledge of organizational goals and OKRs.
+    const systemPrompt = `${goalUserCtxBlock ? goalUserCtxBlock + '\n\n' : ''}You are Loopbrain, an AI assistant with deep knowledge of organizational goals and OKRs.
 
 Current workspace goals data:
 ${JSON.stringify(goalData, null, 2)}
@@ -3721,6 +4595,9 @@ Based on the goal data provided, answer the user's question with specific insigh
       metadata: {
         model: llmResponse.model,
         retrievedCount: goalContexts.length,
+        userContextResolved: !!userCtx,
+        userRole: userCtx?.role,
+        userTeam: userCtx?.teamName ?? undefined,
       },
     }
   } catch (error) {
@@ -4260,11 +5137,8 @@ async function handleActionMode(
   req: LoopbrainRequest,
   intent?: MessageIntent
 ): Promise<LoopbrainResponse> {
-  const agentContext: AgentContext = {
-    workspaceId: req.workspaceId,
-    userId: req.userId,
-    workspaceSlug: '', // populated at API layer if available
-  }
+  const userRole = await getMemberRole(req.workspaceId, req.userId)
+  const agentContext = await enrichAgentContext(req.workspaceId, req.userId, userRole)
 
   logger.info('Agent: entering action mode', {
     workspaceId: req.workspaceId,
@@ -4274,7 +5148,145 @@ async function handleActionMode(
 
   // Build workspace context snapshot for the planner
   const plannerCtx = await buildPlannerContext(req.workspaceId)
-  const contextSnippet = formatContextForPrompt(plannerCtx)
+  let contextSnippet = formatContextForPrompt(plannerCtx)
+
+  // Inject Gmail context when query is about emails — reply/send OR read/ask (what was X's email about, etc.)
+  const queryLower = req.query.toLowerCase().trim()
+  const isShortAffirmative = /^(yes|yeah|yep|do it|go ahead|sounds good|proceed|sure|ok|okay|please do|go for it|do that|confirmed)$/i.test(queryLower)
+  const suggestsEmail =
+    queryLower.includes('reply') ||
+    queryLower.includes('respond') ||
+    (queryLower.includes('email') && (queryLower.includes('send') || queryLower.includes('to'))) ||
+    // Asking about emails: what/which/when + email, or email about/from, inbox, last email, message from
+    queryLower.includes('email about') ||
+    queryLower.includes('email from') ||
+    queryLower.includes('last email') ||
+    queryLower.includes('recent email') ||
+    queryLower.includes('message from') ||
+    (queryLower.includes('inbox') && !queryLower.includes('slack')) ||
+    ((queryLower.startsWith('what') || queryLower.startsWith('which') || queryLower.includes(' about')) &&
+      (queryLower.includes('email') || queryLower.includes('gmail')))
+  const suggestsEmailFromContext =
+    isShortAffirmative && !!req.conversationContext && req.conversationContext.toLowerCase().includes('email')
+  if (suggestsEmail || suggestsEmailFromContext) {
+    const gmailThreads = await loadGmailThreads(req.userId, req.workspaceId, {
+      maxResults: 8,
+    })
+    const gmailSection = formatGmailThreadsForPlannerContext(gmailThreads, 8)
+    if (gmailSection) {
+      contextSnippet = contextSnippet + gmailSection
+    }
+  }
+
+  // Inject Drive hint when query asks about Drive files/meeting notes — nudge planner to use searchDriveFiles/readDriveDocument
+  const suggestsDrive =
+    queryLower.includes('drive') ||
+    (queryLower.includes('meeting notes') && (queryLower.includes('search') || queryLower.includes('find') || queryLower.includes('last') || queryLower.includes('gemini')))
+  if (suggestsDrive) {
+    const driveHint = [
+      '',
+      '--- Google Drive (you have full access) ---',
+      'User is asking about files in Google Drive. Use searchDriveFiles to find them, then readDriveDocument to get content. Do NOT say you lack Drive access.',
+    ].join('\n')
+    contextSnippet = contextSnippet + driveHint
+  }
+
+  // Inject calendar context (date, timezone, existing events) when query suggests scheduling
+  const CALENDAR_KEYWORDS = [
+    'schedule', 'book', 'plan my', 'add to calendar', 'put on calendar',
+    'create event', 'create meeting', 'block time', 'block my',
+    'meeting', 'event', 'appointment', 'call', 'standup', 'sync', '1:1',
+  ]
+  const TIME_REFS = ['tomorrow', 'next monday', 'this afternoon', 'next week']
+  const suggestsCalendar =
+    CALENDAR_KEYWORDS.some((kw) => queryLower.includes(kw)) ||
+    (TIME_REFS.some((kw) => queryLower.includes(kw)) &&
+      ACTION_VERBS.some((v) => queryLower.includes(v)))
+  const suggestsCalendarFromContext =
+    isShortAffirmative && !!req.conversationContext && 
+    (req.conversationContext.toLowerCase().includes('schedule') ||
+      req.conversationContext.toLowerCase().includes('calendar') ||
+      req.conversationContext.toLowerCase().includes('lunch') ||
+      req.conversationContext.toLowerCase().includes('meeting'))
+
+  if (suggestsCalendar || suggestsCalendarFromContext) {
+    const user = await prismaUnscoped.user.findUnique({
+      where: { id: req.userId },
+      select: { timezone: true },
+    })
+    const userTz = user?.timezone || 'Europe/Tallinn'
+
+    const now = new Date()
+    const tomorrow = new Date(now)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const todayStr = now.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    const tomorrowStr = tomorrow.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    })
+
+    let rangeStart: Date
+    let rangeEnd: Date
+    if (queryLower.includes('tomorrow')) {
+      const { start, end } = getTomorrowWindow(userTz)
+      rangeStart = start
+      rangeEnd = end
+    } else if (queryLower.includes('next monday')) {
+      const zonedNow = toZonedTime(now, userTz)
+      const thisMonday = startOfWeek(zonedNow, { weekStartsOn: 1 })
+      const nextMonday =
+        zonedNow > thisMonday ? addDays(thisMonday, 7) : thisMonday
+      const nextMondayUtc = fromZonedTime(nextMonday, userTz)
+      const nextMondayEnd = addDays(nextMondayUtc, 1)
+      rangeStart = nextMondayUtc
+      rangeEnd = nextMondayEnd
+    } else if (queryLower.includes('this afternoon')) {
+      const { start, end } = getTodayWindow(userTz)
+      const zonedStart = toZonedTime(start, userTz)
+      zonedStart.setHours(12, 0, 0, 0)
+      rangeStart = fromZonedTime(zonedStart, userTz)
+      rangeEnd = end
+    } else if (queryLower.includes('next week')) {
+      const zonedNow = toZonedTime(now, userTz)
+      const thisMonday = startOfWeek(zonedNow, { weekStartsOn: 1 })
+      const nextMonday = addDays(thisMonday, 7)
+      const nextFriday = addDays(nextMonday, 4)
+      rangeStart = fromZonedTime(nextMonday, userTz)
+      rangeEnd = fromZonedTime(addDays(nextFriday, 1), userTz)
+    } else {
+      const { start: todayStart } = getTodayWindow(userTz)
+      const { end: tomorrowEnd } = getTomorrowWindow(userTz)
+      rangeStart = todayStart
+      rangeEnd = tomorrowEnd
+    }
+
+    const events = await loadCalendarEvents(req.workspaceId, req.userId, rangeStart, rangeEnd)
+    const eventsLine =
+      events.length > 0
+        ? events
+            .map(
+              (e) =>
+                `${e.startTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}-${e.endTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} ${e.title}`
+            )
+            .join(', ')
+        : 'No existing events'
+
+    const calendarSection = [
+      '',
+      '--- Calendar context ---',
+      `Current date: ${todayStr}`,
+      `Tomorrow: ${tomorrowStr}`,
+      `User timezone: ${userTz}`,
+      `Existing calendar events for target date(s): ${eventsLine}`,
+    ].join('\n')
+    contextSnippet = contextSnippet + calendarSection
+  }
 
   const plannerResult = await generatePlan({
     message: req.query,
@@ -4371,11 +5383,8 @@ async function handlePlanExecution(
   req: LoopbrainRequest,
   plan: AgentPlan
 ): Promise<LoopbrainResponse> {
-  const agentContext: AgentContext = {
-    workspaceId: req.workspaceId,
-    userId: req.userId,
-    workspaceSlug: '',
-  }
+  const userRole = await getMemberRole(req.workspaceId, req.userId)
+  const agentContext = await enrichAgentContext(req.workspaceId, req.userId, userRole)
 
   logger.info('Agent: executing confirmed plan', {
     workspaceId: req.workspaceId,

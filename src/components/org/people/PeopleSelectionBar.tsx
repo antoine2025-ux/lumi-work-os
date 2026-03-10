@@ -39,14 +39,14 @@ export function PeopleSelectionBar({
         "fixed bottom-6 left-1/2 -translate-x-1/2 z-50",
         "flex items-center gap-3",
         "rounded-3xl",
-        "bg-slate-900/95 backdrop-blur-sm",
+        "bg-card/95 backdrop-blur-sm",
         "border border-white/10",
         "shadow-[0_24px_80px_rgba(0,0,0,0.35)]",
         "px-5 py-3.5",
         "animate-in slide-in-from-bottom-4 duration-200"
       )}
     >
-      <span className="text-sm font-medium text-slate-200">
+      <span className="text-sm font-medium text-foreground">
         {selectedCount} {selectedCount === 1 ? "selected" : "selected"}
       </span>
 
@@ -64,7 +64,7 @@ export function PeopleSelectionBar({
           "transition-colors",
           canCompare
             ? "bg-primary/20 text-primary hover:bg-primary/30"
-            : "bg-slate-800/50 text-slate-500 cursor-not-allowed"
+            : "bg-muted/50 text-muted-foreground cursor-not-allowed"
         )}
       >
         <GitCompare className="h-4 w-4" />
@@ -79,8 +79,8 @@ export function PeopleSelectionBar({
           "px-3 py-1.5",
           "rounded-lg",
           "text-sm font-medium",
-          "bg-slate-800/50 text-slate-200",
-          "hover:bg-slate-800/70",
+          "bg-muted/50 text-foreground",
+          "hover:bg-muted/70",
           "transition-colors"
         )}
       >
@@ -101,8 +101,8 @@ export function PeopleSelectionBar({
                   "px-3 py-1.5",
                   "rounded-lg",
                   "text-sm font-medium",
-                  "bg-slate-800/50 text-slate-200",
-                  "hover:bg-slate-800/70",
+                  "bg-muted/50 text-foreground",
+                  "hover:bg-muted/70",
                   "transition-colors"
                 )}
               >
@@ -111,7 +111,7 @@ export function PeopleSelectionBar({
               </button>
             </PopoverTrigger>
             <PopoverContent
-              className="w-48 bg-slate-900 border-white/10 p-1"
+              className="w-48 bg-card border-white/10 p-1"
               align="end"
               side="top"
             >
@@ -122,14 +122,14 @@ export function PeopleSelectionBar({
                   className={cn(
                     "w-full flex items-center gap-2",
                     "px-3 py-2",
-                    "text-sm text-slate-200",
-                    "hover:bg-slate-800",
+                    "text-sm text-foreground",
+                    "hover:bg-muted",
                     "transition-colors duration-150",
                     "rounded-lg",
                     "text-left"
                   )}
                 >
-                  <Users className="h-4 w-4 text-slate-400" />
+                  <Users className="h-4 w-4 text-muted-foreground" />
                   <span>Assign team</span>
                 </button>
                 <button
@@ -138,14 +138,14 @@ export function PeopleSelectionBar({
                   className={cn(
                     "w-full flex items-center gap-2",
                     "px-3 py-2",
-                    "text-sm text-slate-200",
-                    "hover:bg-slate-800",
+                    "text-sm text-foreground",
+                    "hover:bg-muted",
                     "transition-colors duration-150",
                     "rounded-lg",
                     "text-left"
                   )}
                 >
-                  <Building2 className="h-4 w-4 text-slate-400" />
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
                   <span>Assign department</span>
                 </button>
                 <button
@@ -154,14 +154,14 @@ export function PeopleSelectionBar({
                   className={cn(
                     "w-full flex items-center gap-2",
                     "px-3 py-2",
-                    "text-sm text-slate-200",
-                    "hover:bg-slate-800",
+                    "text-sm text-foreground",
+                    "hover:bg-muted",
                     "transition-colors duration-150",
                     "rounded-lg",
                     "text-left"
                   )}
                 >
-                  <UserCheck className="h-4 w-4 text-slate-400" />
+                  <UserCheck className="h-4 w-4 text-muted-foreground" />
                   <span>Assign manager</span>
                 </button>
               </div>
@@ -176,8 +176,8 @@ export function PeopleSelectionBar({
         className={cn(
           "inline-flex items-center justify-center",
           "h-8 w-8 rounded-lg",
-          "text-slate-400",
-          "hover:bg-slate-800/70 hover:text-slate-200",
+          "text-muted-foreground",
+          "hover:bg-muted/70 hover:text-foreground",
           "transition-colors"
         )}
         aria-label="Clear selection"

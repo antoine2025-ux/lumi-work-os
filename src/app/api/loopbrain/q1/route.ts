@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch people for name resolution
-    const _orgId = project.orgId || workspaceId;
+    const _workspaceId = project.orgId || workspaceId; // Reading Prisma field project.orgId
     const users = await prisma.user.findMany({
       where: {
         orgPositions: {

@@ -19,6 +19,10 @@ interface WikiPageBodyProps {
     workspace_type?: string | null
   }
   showOpenButton?: boolean
+  /** When false, skips rendering the page title (parent already renders it) */
+  showTitle?: boolean
+  /** When false, skips rendering the "Last updated" metadata (parent already renders it) */
+  showMetadata?: boolean
   className?: string
 }
 
@@ -33,7 +37,13 @@ interface WikiPageBodyProps {
  * 
  * No background, borders, or containers - just the content structure
  */
-export function WikiPageBody({ page, showOpenButton = false, className = "" }: WikiPageBodyProps) {
+export function WikiPageBody({
+  page,
+  showOpenButton = false,
+  showTitle = true,
+  showMetadata = true,
+  className = "",
+}: WikiPageBodyProps) {
   const processedContent = useMemo(
     () => groupConsecutiveCodeBlocks(page.content || ''),
     [page.content]
@@ -65,12 +75,13 @@ export function WikiPageBody({ page, showOpenButton = false, className = "" }: W
 
   return (
     <div className={`max-w-4xl mx-auto w-full min-w-0 ${className}`}>
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
-        <div className="text-sm text-muted-foreground">
-          Last updated {formatDate(page.updatedAt)}
-        </div>
-        {showOpenButton && (
+      {/* Page Header - skip when parent already renders metadata (e.g. wiki-page-client view mode) */}
+      {showMetadata && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 w-full min-w-0">
+          <div className="text-sm text-muted-foreground">
+            Last updated {formatDate(page.updatedAt)}
+          </div>
+          {showOpenButton && (
           <Button
             variant="ghost"
             size="sm"
@@ -81,15 +92,16 @@ export function WikiPageBody({ page, showOpenButton = false, className = "" }: W
             <ExternalLink className="h-4 w-4 mr-2" />
             Open in Spaces
           </Button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
-      {/* Page Title */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-foreground">
-          {page.title}
-        </h1>
-      </div>
+      {/* Page Title - skip when parent already renders it (e.g. wiki-page-client view mode) */}
+      {showTitle && (
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-foreground">{page.title}</h1>
+        </div>
+      )}
 
       {/* Page Content - Render JSON or HTML based on format */}
       <div className="prose prose-foreground max-w-none min-h-[400px] dark:prose-invert">

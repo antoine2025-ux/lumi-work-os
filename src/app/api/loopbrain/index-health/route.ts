@@ -9,6 +9,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
@@ -20,60 +23,50 @@ export async function GET(request: NextRequest) {
     const auth = await getUnifiedAuth(request)
     const workspaceId = auth.workspaceId
 
-    if (!workspaceId) {
+    if (!auth.isAuthenticated || !workspaceId) {
       return NextResponse.json({ error: 'Workspace ID required' }, { status: 400 })
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId, scope: 'workspace', requireRole: ['ADMIN'] })
+    setWorkspaceContext(workspaceId)
 
     const { searchParams } = new URL(request.url)
     const sampleSize = parseInt(searchParams.get('sample') || '0', 10)
 
-    // Get counts of entities per type
-    const entityCounts = {
-      project: await prisma.project.count({ where: { workspaceId } }),
-      task: await prisma.task.count({ where: { workspaceId } }),
-      page: await prisma.wikiPage.count({ where: { workspaceId } }),
-      epic: await prisma.epic.count({ where: { workspaceId } }),
-      person: await prisma.user.count({
-        where: {
-          orgPositions: {
-            some: {
-              workspaceId,
-              isActive: true,
-            },
-          },
-        },
+    // perf: eliminated sequential count waterfall — run all 16 counts concurrently
+    const [
+      projectCount, taskCount, pageCount, epicCount, personCount,
+      teamCount, roleCount, timeOffCount,
+      ciProjectCount, ciTaskCount, ciPageCount, ciEpicCount,
+      ciPersonCount, ciTeamCount, ciRoleCount, ciTimeOffCount,
+    ] = await Promise.all([
+      prisma.project.count({ where: { workspaceId } }),
+      prisma.task.count({ where: { workspaceId } }),
+      prisma.wikiPage.count({ where: { workspaceId } }),
+      prisma.epic.count({ where: { workspaceId } }),
+      prisma.user.count({
+        where: { orgPositions: { some: { workspaceId, isActive: true } } },
       }),
-      team: await prisma.orgTeam.count({ where: { workspaceId } }),
-      role: await prisma.orgPosition.count({ where: { workspaceId } }),
-      time_off: await prisma.leaveRequest.count({ where: { workspaceId } }),
+      prisma.orgTeam.count({ where: { workspaceId } }),
+      prisma.orgPosition.count({ where: { workspaceId } }),
+      prisma.leaveRequest.count({ where: { workspaceId } }),
+      prisma.contextItem.count({ where: { workspaceId, type: 'project' } }),
+      prisma.contextItem.count({ where: { workspaceId, type: 'task' } }),
+      prisma.contextItem.count({ where: { workspaceId, type: 'page' } }),
+      prisma.contextItem.count({ where: { workspaceId, type: 'epic' } }),
+      prisma.contextItem.count({ where: { workspaceId, type: 'person' } }),
+      prisma.contextItem.count({ where: { workspaceId, type: 'team' } }),
+      prisma.contextItem.count({ where: { workspaceId, type: 'role' } }),
+      prisma.contextItem.count({ where: { workspaceId, type: 'time_off' } }),
+    ])
+
+    const entityCounts = {
+      project: projectCount, task: taskCount, page: pageCount, epic: epicCount,
+      person: personCount, team: teamCount, role: roleCount, time_off: timeOffCount,
     }
 
-    // Get counts of ContextItems per type
     const contextItemCounts = {
-      project: await prisma.contextItem.count({
-        where: { workspaceId, type: 'project' },
-      }),
-      task: await prisma.contextItem.count({
-        where: { workspaceId, type: 'task' },
-      }),
-      page: await prisma.contextItem.count({
-        where: { workspaceId, type: 'page' },
-      }),
-      epic: await prisma.contextItem.count({
-        where: { workspaceId, type: 'epic' },
-      }),
-      person: await prisma.contextItem.count({
-        where: { workspaceId, type: 'person' },
-      }),
-      team: await prisma.contextItem.count({
-        where: { workspaceId, type: 'team' },
-      }),
-      role: await prisma.contextItem.count({
-        where: { workspaceId, type: 'role' },
-      }),
-      time_off: await prisma.contextItem.count({
-        where: { workspaceId, type: 'time_off' },
-      }),
+      project: ciProjectCount, task: ciTaskCount, page: ciPageCount, epic: ciEpicCount,
+      person: ciPersonCount, team: ciTeamCount, role: ciRoleCount, time_off: ciTimeOffCount,
     }
 
     // Calculate coverage ratios
@@ -258,14 +251,7 @@ export async function GET(request: NextRequest) {
       }),
     })
   } catch (error) {
-    console.error('Error fetching index health:', error)
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch index health',
-        message: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }
 

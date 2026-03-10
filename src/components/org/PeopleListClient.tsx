@@ -22,15 +22,22 @@ import { PersonIdentityCell } from "@/components/org/people/PersonIdentityCell";
 import { DeletePersonModal } from "@/components/org/people/DeletePersonModal";
 import { getDisplayName, getPersonDisplayBadges } from "@/lib/org/personDisplay";
 import { cn } from "@/lib/utils";
-import { MoreVertical, Trash2, Eye, Edit } from "lucide-react";
+import { MoreVertical, Trash2, Eye, Edit, Download, Mail } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CancelInvitationButton } from "@/components/org/cancel-invitation-button";
+import { CopyInviteLinkButton } from "@/components/org/copy-invite-link-button";
+import { PendingProfileModal } from "@/components/org/people/PendingProfileModal";
+import type { PendingInvitation } from "@/components/org/people/PendingProfileModal";
 import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
 import { useOrgUrl } from "@/hooks/useOrgUrl";
+import { canRole } from "@/lib/orgPermissions";
+import { useToast } from "@/components/ui/use-toast";
 import type { OrgPerson } from "@/types/org";
 
 type AvailabilityStatus = "UNKNOWN" | "AVAILABLE" | "PARTIALLY_AVAILABLE" | "UNAVAILABLE";
@@ -52,16 +59,24 @@ type PeopleApiResponse = {
   people?: ExtendedOrgPerson[];
 };
 
+type Invitation = PendingInvitation;
+
 type PeopleListClientProps = {
   searchQuery?: string;
   hideSearch?: boolean;
   hideAddButton?: boolean;
+  /** Pending invitations for the "Pending" tab (server-loaded) */
+  initialInvitations?: Invitation[];
+  /** Workspace ID for cancel/copy actions on pending invitations */
+  workspaceId?: string;
 };
 
 export function PeopleListClient({ 
   searchQuery: externalQuery,
   hideSearch = false,
-  hideAddButton = false
+  hideAddButton = false,
+  initialInvitations = [],
+  workspaceId,
 }: PeopleListClientProps = {}) {
   const router = useRouter();
   const orgUrl = useOrgUrl();
@@ -71,10 +86,17 @@ export function PeopleListClient({
   const q = externalQuery !== undefined ? externalQuery : internalQ;
   const { role } = useCurrentOrgRole();
   const isOwner = role === "OWNER";
-  
+  const canManagePeople = canRole(role, "managePeople");
+  const { toast } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
+
   // Delete modal state
   const [personToDelete, setPersonToDelete] = useState<OrgPerson | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  // Pending profile modal state
+  const [selectedInvitation, setSelectedInvitation] = useState<Invitation | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Store refetch function and updateData in refs to avoid dependency issues
   const refetchRef = useRef(peopleQ.refetch);
@@ -209,6 +231,88 @@ export function PeopleListClient({
 
   const canAdd = flagsQ.data?.flags?.peopleWrite === true;
 
+  const showTabs = Boolean(workspaceId);
+  const pendingCount = initialInvitations.length;
+
+  // Pending invitations tab content (placeholder rows)
+  const pendingTabContent = (
+    <Card className="border-white/5 bg-card/40 overflow-hidden">
+      {pendingCount === 0 ? (
+        <div className="p-8 text-center">
+          <Mail className="h-8 w-8 mx-auto text-slate-600 mb-3" />
+          <p className="text-sm font-medium text-muted-foreground">No pending invitations</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Invited members will appear here until they accept.
+          </p>
+          {canAdd && (
+            <Button asChild size="sm" className="mt-4">
+              <Link href={orgUrl.newPerson}>Send invitation</Link>
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="divide-y divide-white/5">
+          {initialInvitations.map((invitation) => {
+            const displayName = invitation.fullName?.trim() || invitation.email;
+            return (
+            <div
+              key={invitation.id}
+              className="flex items-center justify-between py-4 px-6 hover:bg-muted/30"
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10 border border-amber-500/20">
+                  <Mail className="h-4 w-4 text-amber-500" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedInvitation(invitation);
+                      setIsProfileModalOpen(true);
+                    }}
+                    className={cn(
+                      "text-sm font-medium text-foreground truncate block text-left w-full",
+                      "hover:text-primary transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                    )}
+                  >
+                    {displayName}
+                  </button>
+                  <p className="text-xs text-muted-foreground">
+                    Invited by{" "}
+                    {invitation.invitedBy?.name ??
+                      invitation.invitedBy?.email ??
+                      "Unknown"}
+                    {invitation.expiresAt && (
+                      <> · Expires {new Date(invitation.expiresAt).toLocaleDateString()}</>
+                    )}
+                  </p>
+                </div>
+                <span className="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  Pending
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-4">
+                <CopyInviteLinkButton
+                  token={invitation.token ?? ""}
+                  inviteUrl={invitation.inviteUrl}
+                />
+                {workspaceId && (
+                  <CancelInvitationButton
+                    workspaceId={workspaceId}
+                    invitationId={invitation.id}
+                    email={invitation.email}
+                  />
+                )}
+              </div>
+            </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+
   // Handle row click navigation (workspace-scoped when in /w/[workspaceSlug]/org)
   const handleRowClick = useCallback(
     (person: OrgPerson) => {
@@ -256,11 +360,35 @@ export function PeopleListClient({
     }
   }, [personToDelete, peopleQ]);
 
+  const handleExport = useCallback(async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const response = await fetch("/api/org/people/export", { credentials: "include" });
+      if (!response.ok) {
+        toast({ variant: "destructive", title: "Export failed", description: "Could not download people export." });
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `people-export-${new Date().toISOString().split("T")[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ description: "Export downloaded" });
+    } catch {
+      toast({ variant: "destructive", title: "Export failed", description: "Could not download people export." });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, toast]);
+
   // Show skeleton while loading (no flash of empty state)
   // CRITICAL: Only show skeleton when actively loading AND we don't have cached data
   if (isLoading && !hasData) {
-    return (
-      <div className="space-y-4">
+    const loadingContent = (
+      <>
         {!hideSearch && (
           <div className="flex items-center justify-between gap-3">
             <Input
@@ -270,25 +398,65 @@ export function PeopleListClient({
               className="flex-1"
               disabled
             />
-            {!hideAddButton && canAdd && (
-              <Button asChild>
-                <Link href={orgUrl.newPerson}>Add person</Link>
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canManagePeople && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {isExporting ? "Exporting…" : "Export CSV"}
+                </Button>
+              )}
+              {!hideAddButton && canAdd && (
+                <Button asChild>
+                  <Link href={orgUrl.newPerson}>Add person</Link>
+                </Button>
+              )}
+            </div>
           </div>
         )}
-
-        <Card className="border-white/5 bg-slate-900/40">
+        <Card className="border-white/5 bg-card/40">
           <PeopleListSkeleton />
         </Card>
-      </div>
+      </>
     );
+    if (showTabs) {
+      return (
+        <div className="space-y-4">
+          <Tabs defaultValue="people" className="w-full">
+            <TabsList className="mb-4 bg-card/50">
+              <TabsTrigger value="people">People</TabsTrigger>
+              <TabsTrigger value="pending">
+                Pending {pendingCount > 0 && `(${pendingCount})`}
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="people" className="mt-0 space-y-4">
+              {loadingContent}
+            </TabsContent>
+            <TabsContent value="pending" className="mt-0">
+              {pendingTabContent}
+            </TabsContent>
+          </Tabs>
+          <PendingProfileModal
+            invitation={selectedInvitation}
+            open={isProfileModalOpen}
+            onOpenChange={setIsProfileModalOpen}
+            workspaceId={workspaceId}
+            onCancelSuccess={() => setSelectedInvitation(null)}
+          />
+        </div>
+      );
+    }
+    return <div className="space-y-4">{loadingContent}</div>;
   }
 
   // Show error state
   if (error) {
-    return (
-      <div className="space-y-4">
+    const errorContent = (
+      <>
         {!hideSearch && (
           <div className="flex items-center justify-between gap-3">
             <Input
@@ -297,25 +465,66 @@ export function PeopleListClient({
               placeholder="Search people…"
               className="flex-1"
             />
-            {!hideAddButton && canAdd && (
-              <Button asChild>
-                <Link href={orgUrl.newPerson}>Add person</Link>
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canManagePeople && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {isExporting ? "Exporting…" : "Export CSV"}
+                </Button>
+              )}
+              {!hideAddButton && canAdd && (
+                <Button asChild>
+                  <Link href={orgUrl.newPerson}>Add person</Link>
+                </Button>
+              )}
+            </div>
           </div>
         )}
-        <Card className="border-white/5 bg-slate-900/40 p-6">
+        <Card className="border-white/5 bg-card/40 p-6">
           <div className="text-sm text-destructive">Failed to load people: {String(error)}</div>
         </Card>
-      </div>
+      </>
     );
+    if (showTabs) {
+      return (
+        <div className="space-y-4">
+          <Tabs defaultValue="people" className="w-full">
+            <TabsList className="mb-4 bg-card/50">
+              <TabsTrigger value="people">People</TabsTrigger>
+              <TabsTrigger value="pending">
+                Pending {pendingCount > 0 && `(${pendingCount})`}
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="people" className="mt-0 space-y-4">
+              {errorContent}
+            </TabsContent>
+            <TabsContent value="pending" className="mt-0">
+              {pendingTabContent}
+            </TabsContent>
+          </Tabs>
+          <PendingProfileModal
+            invitation={selectedInvitation}
+            open={isProfileModalOpen}
+            onOpenChange={setIsProfileModalOpen}
+            workspaceId={workspaceId}
+            onCancelSuccess={() => setSelectedInvitation(null)}
+          />
+        </div>
+      );
+    }
+    return <div className="space-y-4">{errorContent}</div>;
   }
 
   // Safety check: if we're not loading, have no error, but also have no data, something went wrong
   // Show error state instead of empty state
   if (!isLoading && !hasData && !error) {
-    return (
-      <div className="space-y-4">
+    const noDataContent = (
+      <>
         {!hideSearch && (
           <div className="flex items-center justify-between gap-3">
             <Input
@@ -324,27 +533,67 @@ export function PeopleListClient({
               placeholder="Search people…"
               className="flex-1"
             />
-            {!hideAddButton && canAdd && (
-              <Button asChild>
-                <Link href={orgUrl.newPerson}>Add person</Link>
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canManagePeople && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {isExporting ? "Exporting…" : "Export CSV"}
+                </Button>
+              )}
+              {!hideAddButton && canAdd && (
+                <Button asChild>
+                  <Link href={orgUrl.newPerson}>Add person</Link>
+                </Button>
+              )}
+            </div>
           </div>
         )}
-        <Card className="border-white/5 bg-slate-900/40 p-6">
-          <div className="text-sm text-slate-400">Loading people…</div>
+        <Card className="border-white/5 bg-card/40 p-6">
+          <div className="text-sm text-muted-foreground">Loading people…</div>
         </Card>
-      </div>
+      </>
     );
+    if (showTabs) {
+      return (
+        <div className="space-y-4">
+          <Tabs defaultValue="people" className="w-full">
+            <TabsList className="mb-4 bg-card/50">
+              <TabsTrigger value="people">People</TabsTrigger>
+              <TabsTrigger value="pending">
+                Pending {pendingCount > 0 && `(${pendingCount})`}
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="people" className="mt-0 space-y-4">
+              {noDataContent}
+            </TabsContent>
+            <TabsContent value="pending" className="mt-0">
+              {pendingTabContent}
+            </TabsContent>
+          </Tabs>
+          <PendingProfileModal
+            invitation={selectedInvitation}
+            open={isProfileModalOpen}
+            onOpenChange={setIsProfileModalOpen}
+            workspaceId={workspaceId}
+            onCancelSuccess={() => setSelectedInvitation(null)}
+          />
+        </div>
+      );
+    }
+    return <div className="space-y-4">{noDataContent}</div>;
   }
 
   // Show empty state only when we have loaded data AND people count is 0 (no flash)
   // IMPORTANT: Only show empty state after data has been loaded, not during initial render
   // Also ensure we're not in a filtered state (q should be empty for true empty state)
   if (hasData && people.length === 0 && !q.trim()) {
-    console.log("[PeopleListClient] Showing empty state - hasData:", hasData, "people.length:", people.length, "q:", q);
-    return (
-      <div className="space-y-4">
+    const emptyContent = (
+      <>
         {!hideSearch && (
           <div className="flex items-center justify-between gap-3">
             <Input
@@ -354,27 +603,67 @@ export function PeopleListClient({
               className="flex-1"
               disabled
             />
-            {!hideAddButton && canAdd && (
-              <Button asChild>
-                <Link href={orgUrl.newPerson}>Add person</Link>
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canManagePeople && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {isExporting ? "Exporting…" : "Export CSV"}
+                </Button>
+              )}
+              {!hideAddButton && canAdd && (
+                <Button asChild>
+                  <Link href={orgUrl.newPerson}>Add person</Link>
+                </Button>
+              )}
+            </div>
           </div>
         )}
-
         <PeopleEmptyState
           hasFilters={false}
           onAddPerson={() => {
             router.push(orgUrl.newPerson);
           }}
         />
-      </div>
+      </>
     );
+    if (showTabs) {
+      return (
+        <div className="space-y-4">
+          <Tabs defaultValue="people" className="w-full">
+            <TabsList className="mb-4 bg-card/50">
+              <TabsTrigger value="people">People</TabsTrigger>
+              <TabsTrigger value="pending">
+                Pending {pendingCount > 0 && `(${pendingCount})`}
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="people" className="mt-0 space-y-4">
+              {emptyContent}
+            </TabsContent>
+            <TabsContent value="pending" className="mt-0">
+              {pendingTabContent}
+            </TabsContent>
+          </Tabs>
+          <PendingProfileModal
+            invitation={selectedInvitation}
+            open={isProfileModalOpen}
+            onOpenChange={setIsProfileModalOpen}
+            workspaceId={workspaceId}
+            onCancelSuccess={() => setSelectedInvitation(null)}
+          />
+        </div>
+      );
+    }
+    return <div className="space-y-4">{emptyContent}</div>;
   }
 
-  // Show filtered empty state or list
-  return (
-    <div className="space-y-4">
+  // Main content for People tab
+  const peopleContent = (
+    <>
       {!hideSearch && (
         <div className="flex items-center justify-between gap-3">
           <Input
@@ -383,15 +672,28 @@ export function PeopleListClient({
             placeholder="Search people…"
             className="flex-1"
           />
-          {!hideAddButton && canAdd && (
-            <Button asChild>
-              <Link href={orgUrl.newPerson}>Add person</Link>
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {canManagePeople && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={isExporting}
+              >
+                <Download className="h-4 w-4 mr-1.5" />
+                {isExporting ? "Exporting…" : "Export CSV"}
+              </Button>
+            )}
+            {!hideAddButton && canAdd && (
+              <Button asChild>
+                <Link href={orgUrl.newPerson}>Add person</Link>
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
-      <Card className="border-white/5 bg-slate-900/40 overflow-hidden">
+      <Card className="border-white/5 bg-card/40 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="p-8">
             <PeopleEmptyState
@@ -422,7 +724,7 @@ export function PeopleListClient({
                   className={cn(
                     "flex items-center justify-between",
                     "py-4 px-6",
-                    "hover:bg-slate-800/50",
+                    "hover:bg-muted/50",
                     "group transition-all duration-150",
                     "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                   )}
@@ -436,7 +738,7 @@ export function PeopleListClient({
                   <div className="hidden md:flex items-center gap-2 mx-4 flex-shrink-0">
                     {/* Team label */}
                     {badges.teamLabel && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-800/50 text-slate-400 border border-white/5">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted/50 text-muted-foreground border border-white/5">
                         {badges.teamLabel}
                       </span>
                     )}
@@ -490,13 +792,13 @@ export function PeopleListClient({
                               e.stopPropagation();
                               router.push(`${orgUrl.person(person.id)}?focus=manager`);
                             }}
-                            className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-slate-800/35 text-slate-500 border border-white/5 hover:bg-slate-800/50 hover:text-slate-400 transition-colors cursor-pointer"
+                            className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-muted/35 text-muted-foreground border border-white/5 hover:bg-muted/50 hover:text-muted-foreground transition-colors cursor-pointer"
                             title="Click to assign a manager"
                           >
                             {badges.issueLabel}
                           </button>
                         ) : (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-slate-800/35 text-slate-500 border border-white/5">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-muted/35 text-muted-foreground border border-white/5">
                             {badges.issueLabel}
                           </span>
                         )}
@@ -512,8 +814,8 @@ export function PeopleListClient({
                           className={cn(
                             "flex items-center justify-center",
                             "h-7 w-7 rounded",
-                            "text-slate-500 hover:text-slate-300",
-                            "hover:bg-slate-800/50",
+                            "text-muted-foreground hover:text-muted-foreground",
+                            "hover:bg-muted/50",
                             "transition-colors",
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                           )}
@@ -524,7 +826,7 @@ export function PeopleListClient({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         align="end"
-                        className="w-48 bg-slate-900 border-slate-700"
+                        className="w-48 bg-card border-border"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <DropdownMenuItem
@@ -579,6 +881,41 @@ export function PeopleListClient({
         }}
         onConfirm={handleConfirmDelete}
       />
+    </>
+  );
+
+  // Wrap with tabs when workspaceId is provided
+  if (showTabs) {
+    return (
+      <div className="space-y-4">
+        <Tabs defaultValue="people" className="w-full">
+          <TabsList className="mb-4 bg-card/50">
+            <TabsTrigger value="people">People</TabsTrigger>
+            <TabsTrigger value="pending">
+              Pending {pendingCount > 0 && `(${pendingCount})`}
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="people" className="mt-0 space-y-4">
+            {peopleContent}
+          </TabsContent>
+          <TabsContent value="pending" className="mt-0">
+            {pendingTabContent}
+          </TabsContent>
+        </Tabs>
+        <PendingProfileModal
+          invitation={selectedInvitation}
+          open={isProfileModalOpen}
+          onOpenChange={setIsProfileModalOpen}
+          workspaceId={workspaceId}
+          onCancelSuccess={() => setSelectedInvitation(null)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {peopleContent}
     </div>
   );
 }

@@ -1,9 +1,12 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { OrgDepartmentUpdateSchema } from "@/lib/validations/org";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 import { handleApiError } from "@/lib/api-errors";
 
 type RouteParams = {
@@ -13,11 +16,17 @@ type RouteParams = {
 };
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: RouteParams
 ) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(_req);
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: "workspace", requireRole: ["VIEWER"] });
+    setWorkspaceContext(auth.workspaceId);
+    const workspaceId = auth.workspaceId;
     const { id } = await params;
 
     const department = await prisma.orgDepartment.findFirst({
@@ -91,7 +100,7 @@ export async function GET(
 
     return NextResponse.json({ ok: true, department: dto });
   } catch (error) {
-    return handleApiError(error, _req);
+    return handleApiError(error, req);
   }
 }
 
@@ -104,7 +113,13 @@ export async function PUT(
   { params }: RouteParams
 ) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(req);
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    setWorkspaceContext(auth.workspaceId);
+    const workspaceId = auth.workspaceId;
     const { id } = await params;
     const body = OrgDepartmentUpdateSchema.parse(await req.json());
 
@@ -120,15 +135,37 @@ export async function PUT(
       );
     }
 
+    const before = {
+      name: existing.name,
+      description: existing.description ?? null,
+      ownerPersonId: existing.ownerPersonId ?? null,
+    };
+    const after = {
+      name: body.name?.trim() || existing.name,
+      description: body.description?.trim() || null,
+      ownerPersonId: body.ownerPersonId ?? null,
+    };
+
     // Update department (all fields editable)
     const updated = await prisma.orgDepartment.update({
       where: { id },
       data: {
-        name: body.name?.trim() || existing.name,
-        description: body.description?.trim() || null,
-        ownerPersonId: body.ownerPersonId || null,
+        name: after.name,
+        description: after.description,
+        ownerPersonId: after.ownerPersonId,
       },
     });
+
+    const changes = computeChanges(before, after, ["name", "description", "ownerPersonId"]);
+    logOrgAudit({
+      workspaceId,
+      entityType: "DEPARTMENT",
+      entityId: id,
+      entityName: updated.name,
+      action: "UPDATED",
+      actorId: auth.user.userId,
+      changes: changes ?? undefined,
+    }).catch((e) => console.error("[PUT /api/org/departments/[id]] Audit log error (non-fatal):", e));
 
     return NextResponse.json({ ok: true, department: updated });
   } catch (error) {
@@ -146,7 +183,13 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(req);
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    setWorkspaceContext(auth.workspaceId);
+    const workspaceId = auth.workspaceId;
     const { id } = await params;
     const { searchParams } = new URL(req.url);
     const hardDelete = searchParams.get("hard") === "true";
@@ -181,9 +224,8 @@ export async function DELETE(
       );
     }
 
-    // Get actor user ID for audit logging
-    const auth = await getUnifiedAuth(req);
-    const actorUserId = auth?.user?.userId || "system";
+    // Get actor user ID for audit logging (auth already obtained above)
+    const actorUserId = auth.user.userId || "system";
 
     if (hardDelete) {
       // Hard delete (admin-only): check audit logs and resolved issues

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Failed to get organization context" }, { status: 500 });
     }
 
-    if (!ctx.orgId) {
+    if (!ctx.workspaceId) {
       return NextResponse.json({ ok: false, error: "No organization membership" }, { status: 403 });
     }
 

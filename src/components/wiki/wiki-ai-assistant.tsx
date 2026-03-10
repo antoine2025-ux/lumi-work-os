@@ -28,7 +28,8 @@ import { AIWorkspaceSelectDialog } from "./ai-workspace-select-dialog"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { callSpacesLoopbrainAssistant } from "@/lib/loopbrain/client"
-import type { LoopbrainResponse, LoopbrainSuggestion } from "@/lib/loopbrain/orchestrator-types"
+import type { LoopbrainResponse, LoopbrainSuggestion, MeetingTaskExtractionResult } from "@/lib/loopbrain/orchestrator-types"
+import { MeetingTaskReview } from "@/components/loopbrain/MeetingTaskReview"
 import { useUserStatusContext } from '@/providers/user-status-provider'
 
 interface Message {
@@ -156,6 +157,8 @@ export function WikiAIAssistant({
   const [pendingPreview, setPendingPreview] = useState<LoopwellAIResponse | null>(null)
   // Loopbrain response state
   const [lastLoopbrainResponse, setLastLoopbrainResponse] = useState<LoopbrainResponse | null>(null)
+  // Meeting task extraction result (pending MeetingTaskReview confirmation)
+  const [meetingExtractionResult, setMeetingExtractionResult] = useState<MeetingTaskExtractionResult | null>(null)
   const [showWorkspaceSelectDialog, setShowWorkspaceSelectDialog] = useState(false)
   const [pendingPageTitle, setPendingPageTitle] = useState("")
   const [_pendingPageContent, setPendingPageContent] = useState("")
@@ -173,6 +176,8 @@ export function WikiAIAssistant({
     setSessionId(null)
     // Clear pending preview
     setPendingPreview(null)
+    // Clear meeting extraction result
+    setMeetingExtractionResult(null)
     // Reset page creation flow
     setPageCreationState('idle')
     setPendingPageTitle("")
@@ -1032,6 +1037,11 @@ export function WikiAIAssistant({
       // Store response for suggestions/retrieved items
       setLastLoopbrainResponse(result)
 
+      // Meeting task extraction — show review UI instead of a plain text message
+      if (result.meetingExtraction) {
+        setMeetingExtractionResult(result.meetingExtraction)
+      }
+
       // Add assistant message with answer
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -1461,6 +1471,43 @@ export function WikiAIAssistant({
                   )
                 })}
                 
+                {/* Meeting Task Review */}
+                {meetingExtractionResult && (
+                  <div className="mt-4 mb-4">
+                    <MeetingTaskReview
+                      extraction={meetingExtractionResult}
+                      isCreating={isLoading}
+                      onCancel={() => setMeetingExtractionResult(null)}
+                      onConfirm={async (selectedTasks) => {
+                        setIsLoading(true)
+                        try {
+                          const result = await callSpacesLoopbrainAssistant({
+                            query: 'Confirm task creation',
+                            pageId: currentPageId || undefined,
+                            pendingMeetingExtraction: { tasks: selectedTasks },
+                          })
+                          setMessages(prev => [...prev, {
+                            id: (Date.now() + 1).toString(),
+                            role: 'assistant',
+                            content: result.answer || 'Tasks created.',
+                            timestamp: new Date()
+                          }])
+                        } catch {
+                          setMessages(prev => [...prev, {
+                            id: (Date.now() + 1).toString(),
+                            role: 'assistant',
+                            content: 'Failed to create tasks. Please try again.',
+                            timestamp: new Date()
+                          }])
+                        } finally {
+                          setMeetingExtractionResult(null)
+                          setIsLoading(false)
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Pending Preview Card */}
                 {pendingPreview && (
                   <div className="mt-4 mb-4">
@@ -1519,27 +1566,24 @@ export function WikiAIAssistant({
                           setMessages(prev => [...prev, successMessage])
                           setPendingPreview(null)
                         } else if (pendingPreview.intent === 'extract_tasks') {
-                          const tasks = pendingPreview.preview?.tasks
-                          if (tasks && tasks.length > 0) {
-                            executeExtractTasks(tasks).then(({ created, failed }) => {
-                              const msg = failed === 0
-                                ? `Created ${created} todo${created !== 1 ? 's' : ''} from this page.`
-                                : `Created ${created} todo${created !== 1 ? 's' : ''}; ${failed} failed.`
-                              setMessages(prev => [...prev, {
-                                id: (Date.now() + 1).toString(),
-                                role: 'assistant',
-                                content: msg,
-                                timestamp: new Date()
-                              }])
-                            }).catch(() => {
-                              setMessages(prev => [...prev, {
-                                id: (Date.now() + 1).toString(),
-                                role: 'assistant',
-                                content: 'Failed to create todos. Please try again.',
-                                timestamp: new Date()
-                              }])
-                            })
-                          }
+                          setIsLoading(true)
+                          callSpacesLoopbrainAssistant({
+                            query: `Extract action items from these meeting notes:\n\n${currentContent ?? ''}`,
+                            pageId: currentPageId || undefined,
+                          }).then((result) => {
+                            if (result.meetingExtraction) {
+                              setMeetingExtractionResult(result.meetingExtraction)
+                            }
+                          }).catch(() => {
+                            setMessages(prev => [...prev, {
+                              id: (Date.now() + 1).toString(),
+                              role: 'assistant',
+                              content: 'Failed to extract tasks. Please try again.',
+                              timestamp: new Date()
+                            }])
+                          }).finally(() => {
+                            setIsLoading(false)
+                          })
                           setPendingPreview(null)
                         } else if (pendingPreview.intent === 'tag_pages') {
                           const tags = pendingPreview.preview?.tags

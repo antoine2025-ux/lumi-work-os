@@ -14,6 +14,7 @@ type PeopleActionsMenuProps = {
   onAssignDepartment?: () => void;
   onAssignManager?: () => void;
   onExport?: () => void;
+  isExporting?: boolean;
 };
 
 /**
@@ -26,6 +27,7 @@ export function PeopleActionsMenu({
   onAssignTeam,
   onAssignManager,
   onExport,
+  isExporting = false,
 }: PeopleActionsMenuProps) {
   const handleAction = (action: () => void | undefined) => {
     if (action) {
@@ -39,8 +41,8 @@ export function PeopleActionsMenu({
   const actionButtonClass = cn(
     "w-full flex items-center gap-2",
     "px-3 py-2",
-    "text-sm text-slate-200",
-    "hover:bg-slate-800",
+    "text-sm text-foreground",
+    "hover:bg-muted",
     "transition-colors duration-150",
     "rounded-lg",
     "text-left"
@@ -58,9 +60,9 @@ export function PeopleActionsMenu({
           type="button"
           className={cn(
             "inline-flex items-center gap-2",
-            "rounded-full border border-slate-700 bg-slate-800/50 px-3 py-1.5",
-            "text-[11px] text-slate-300",
-            "transition-colors hover:bg-slate-700 hover:text-slate-50",
+            "rounded-full border border-border bg-muted/50 px-3 py-1.5",
+            "text-[11px] text-muted-foreground",
+            "transition-colors hover:bg-slate-700 hover:text-foreground",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
           )}
           aria-label="People actions"
@@ -70,7 +72,7 @@ export function PeopleActionsMenu({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-56 bg-slate-900 border-white/10 p-1"
+        className="w-56 bg-card border-white/10 p-1"
         align="end"
         side="bottom"
       >
@@ -82,7 +84,7 @@ export function PeopleActionsMenu({
               onClick={() => handleAction(onInvite)}
               className={actionButtonClass}
             >
-              <UserPlus className="h-4 w-4 text-slate-400" />
+              <UserPlus className="h-4 w-4 text-muted-foreground" />
               <span>Invite people</span>
             </button>
           ) : (
@@ -92,7 +94,7 @@ export function PeopleActionsMenu({
                 disabled
                 className={disabledButtonClass}
               >
-                <UserPlus className="h-4 w-4 text-slate-400" />
+                <UserPlus className="h-4 w-4 text-muted-foreground" />
                 <span>Invite people</span>
               </button>
             </Tooltip>
@@ -105,7 +107,7 @@ export function PeopleActionsMenu({
               onClick={() => handleAction(onAssignTeam)}
               className={actionButtonClass}
             >
-              <Users className="h-4 w-4 text-slate-400" />
+              <Users className="h-4 w-4 text-muted-foreground" />
               <span>Assign team / department</span>
             </button>
           ) : (
@@ -115,7 +117,7 @@ export function PeopleActionsMenu({
                 disabled
                 className={disabledButtonClass}
               >
-                <Users className="h-4 w-4 text-slate-400" />
+                <Users className="h-4 w-4 text-muted-foreground" />
                 <span>Assign team / department</span>
               </button>
             </Tooltip>
@@ -128,7 +130,7 @@ export function PeopleActionsMenu({
               onClick={() => handleAction(onAssignManager)}
               className={actionButtonClass}
             >
-              <UserCheck className="h-4 w-4 text-slate-400" />
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
               <span>Assign manager</span>
             </button>
           ) : (
@@ -138,7 +140,7 @@ export function PeopleActionsMenu({
                 disabled
                 className={disabledButtonClass}
               >
-                <UserCheck className="h-4 w-4 text-slate-400" />
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
                 <span>Assign manager</span>
               </button>
             </Tooltip>
@@ -146,15 +148,29 @@ export function PeopleActionsMenu({
 
           <div className="h-px bg-white/5 my-1" />
 
-          {/* Export */}
-          <button
-            type="button"
-            onClick={() => handleAction(onExport)}
-            className={actionButtonClass}
-          >
-            <Download className="h-4 w-4 text-slate-400" />
-            <span>Export people (CSV)</span>
-          </button>
+          {/* Export - ADMIN+ only */}
+          {canManagePeople ? (
+            <button
+              type="button"
+              onClick={() => handleAction(onExport)}
+              disabled={isExporting}
+              className={isExporting ? disabledButtonClass : actionButtonClass}
+            >
+              <Download className="h-4 w-4 text-muted-foreground" />
+              <span>{isExporting ? "Exporting…" : "Export people (CSV)"}</span>
+            </button>
+          ) : (
+            <Tooltip content="Admins only">
+              <button
+                type="button"
+                disabled
+                className={disabledButtonClass}
+              >
+                <Download className="h-4 w-4 text-muted-foreground" />
+                <span>Export people (CSV)</span>
+              </button>
+            </Tooltip>
+          )}
         </div>
       </PopoverContent>
     </Popover>

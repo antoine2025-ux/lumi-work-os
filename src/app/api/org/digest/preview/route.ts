@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     if (!isAuthenticated || !workspaceId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["VIEWER"] });
     setWorkspaceContext(workspaceId);
 
     const digest = await buildWeeklyDigest(workspaceId);

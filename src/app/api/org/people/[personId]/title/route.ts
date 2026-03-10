@@ -10,9 +10,10 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
-import { optionalString } from "@/server/org/validate";
+import { OrgPersonTitleUpdateSchema } from "@/lib/validations/org";
 import { prisma } from "@/lib/db";
-import { handleApiError } from "@/lib/api-errors"
+import { handleApiError } from "@/lib/api-errors";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 
 export async function PUT(
   request: NextRequest,
@@ -35,16 +36,17 @@ export async function PUT(
 
     // Step 3: Parse and validate request body
     const body = await request.json();
-    const titleRaw = optionalString(body.title);
+    const { title } = OrgPersonTitleUpdateSchema.parse(body);
 
-    // Database has NOT NULL constraint on title, so use empty string instead of null
-    // Even though Prisma schema shows String?, the actual database requires a value
-    const title = titleRaw === null || titleRaw === undefined ? "" : titleRaw;
-
-    // Step 4: Verify person exists
+    // Step 4: Verify person exists (fetch before state for audit)
     const position = await prisma.orgPosition.findUnique({
       where: { id: personId },
-      select: { id: true, userId: true },
+      select: { 
+        id: true, 
+        userId: true,
+        title: true,
+        user: { select: { name: true } },
+      },
     });
 
     if (!position) {
@@ -62,14 +64,26 @@ export async function PUT(
     }
 
     // Step 6: Update title
-    // Use empty string (not null) to comply with database NOT NULL constraint
     const updated = await prisma.orgPosition.update({
       where: { id: personId },
-      data: { title: title || "" }, // Ensure we never use null - use empty string instead
+      data: { title },
       select: { id: true, title: true },
     });
 
-    // Step 7: Emit Loopbrain context (persist + trigger indexing non-blocking)
+    // Step 7: Log audit entry
+    logOrgAudit({
+      workspaceId,
+      entityType: "PERSON",
+      entityId: updated.id,
+      entityName: position.user?.name ?? undefined,
+      action: "UPDATED",
+      actorId: userId,
+      changes: {
+        title: { from: position.title, to: updated.title },
+      },
+    }).catch((e) => console.error("[PUT /api/org/people/[personId]/title] Audit log error (non-fatal):", e));
+
+    // Step 8: Emit Loopbrain context (persist + trigger indexing non-blocking)
     // Wrap in try-catch to prevent Loopbrain errors from breaking the update
     try {
       await emitOrgContextObject({

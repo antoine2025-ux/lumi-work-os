@@ -48,42 +48,52 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
-    // Enrich with completion stats
-    const enrichedCycles = await Promise.all(
-      cycles.map(async (cycle) => {
-        const reviewStats = await prisma.performanceReview.groupBy({
-          by: ['status'],
-          where: {
-            workspaceId: auth.workspaceId,
-            cycleId: cycle.id,
-          },
-          _count: true,
-        })
+    // perf: eliminated N+1 — single groupBy across all cycleIds, aggregate in memory
+    const cycleIds = cycles.map((c) => c.id)
+    const allReviewStats = await prisma.performanceReview.groupBy({
+      by: ['cycleId', 'status'],
+      where: {
+        workspaceId: auth.workspaceId,
+        cycleId: { in: cycleIds },
+      },
+      _count: true,
+    })
 
-        const totalReviews = reviewStats.reduce((sum, s) => sum + s._count, 0)
-        const submittedOrBeyond = reviewStats
-          .filter((s) =>
-            ['SUBMITTED', 'IN_REVIEW', 'FINALIZED', 'COMPLETED'].includes(s.status)
-          )
-          .reduce((sum, s) => sum + s._count, 0)
-        const finalized = reviewStats
-          .filter((s) => ['FINALIZED', 'COMPLETED'].includes(s.status))
-          .reduce((sum, s) => sum + s._count, 0)
+    // Group stats by cycleId for O(1) lookup
+    const statsByCycleId = new Map<string, typeof allReviewStats>()
+    for (const row of allReviewStats) {
+      const key = row.cycleId
+      if (!key) continue
+      if (!statsByCycleId.has(key)) statsByCycleId.set(key, [])
+      statsByCycleId.get(key)!.push(row)
+    }
 
-        return {
-          ...cycle,
-          stats: {
-            totalReviews,
-            submittedOrBeyond,
-            finalized,
-            completionPercent:
-              totalReviews > 0
-                ? Math.round((finalized / totalReviews) * 100)
-                : 0,
-          },
-        }
-      })
-    )
+    const enrichedCycles = cycles.map((cycle) => {
+      const reviewStats = statsByCycleId.get(cycle.id) ?? []
+      const totalReviews = reviewStats.reduce((sum, s) => sum + s._count, 0)
+      const submittedOrBeyond = reviewStats
+        .filter((s) =>
+          s.status != null &&
+          ['SUBMITTED', 'IN_REVIEW', 'FINALIZED', 'COMPLETED'].includes(s.status)
+        )
+        .reduce((sum, s) => sum + s._count, 0)
+      const finalized = reviewStats
+        .filter((s) => s.status != null && ['FINALIZED', 'COMPLETED'].includes(s.status))
+        .reduce((sum, s) => sum + s._count, 0)
+
+      return {
+        ...cycle,
+        stats: {
+          totalReviews,
+          submittedOrBeyond,
+          finalized,
+          completionPercent:
+            totalReviews > 0
+              ? Math.round((finalized / totalReviews) * 100)
+              : 0,
+        },
+      }
+    })
 
     return NextResponse.json(enrichedCycles)
   } catch (error) {

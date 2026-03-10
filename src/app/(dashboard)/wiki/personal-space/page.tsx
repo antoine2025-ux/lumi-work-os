@@ -11,7 +11,6 @@ import {
 } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import { useUserStatusContext } from "@/providers/user-status-provider"
-import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
@@ -394,9 +393,6 @@ export default function PersonalWorkspacePage() {
           )}
         </div>
       </div>
-
-      {/* Global Loopbrain Assistant */}
-      <LoopbrainAssistantLauncher mode="spaces" />
     </>
   )
 }

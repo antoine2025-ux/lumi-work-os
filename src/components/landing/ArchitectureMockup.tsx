@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, type Variants } from "framer-motion"
 import {
   FolderKanban,
   Users,
@@ -36,12 +36,12 @@ const TIMINGS = [2000, 2500, 2500, 3000, 2000, 2000]
 
 // ─── Stagger variants ─────────────────────────────────────────────────────────
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.1, delayChildren: 0.15 } },
 }
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 6 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
 }

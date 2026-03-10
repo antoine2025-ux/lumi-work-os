@@ -1,25 +1,50 @@
 import { NextRequest, NextResponse } from "next/server"
-import { blogPrisma } from "@/lib/blog-db"
-import { handleApiError } from "@/lib/api-errors"
+import { PrismaClient } from "@prisma/client"
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
-const prisma = blogPrisma
+// Use DIRECT_URL for migrations (bypasses connection pooler)
+const databaseUrl = process.env.DIRECT_URL || process.env.DATABASE_URL
+
+if (!databaseUrl) {
+  console.error("[MIGRATIONS] No DATABASE_URL or DIRECT_URL found")
+}
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: databaseUrl,
+    },
+  },
+})
 
 /**
  * POST /api/migrations/blog
  * Run blog migration manually
- * 
+ *
  * This endpoint allows running migrations after deployment
  * when migrations can't run during build (e.g., database not accessible from build environment)
- * 
- * Security: In production, you may want to add authentication/authorization
+ *
+ * Requires OWNER role in workspace.
  */
 export async function POST(request: NextRequest) {
   try {
-    // Optional: Add authentication check here
-    // const authHeader = request.headers.get("authorization")
-    // if (authHeader !== `Bearer ${process.env.MIGRATION_SECRET}`) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    // }
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (!auth.workspaceId) {
+      return NextResponse.json({ error: 'No workspace context' }, { status: 401 })
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['OWNER']
+    })
+    setWorkspaceContext(auth.workspaceId)
 
     console.log("[MIGRATIONS] Starting blog migration...")
 
@@ -39,39 +64,25 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Run migration SQL - split into separate statements for Supabase pooler
+    // Run migration SQL
     console.log("[MIGRATIONS] Creating blog_posts table...")
 
-    // Create BlogPostStatus enum
-    try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TYPE "BlogPostStatus" AS ENUM ('DRAFT', 'PUBLISHED');
-      `)
-      console.log("[MIGRATIONS] Created BlogPostStatus enum")
-    } catch (error: any) {
-      if (error.code === '42P07' || error.message?.includes('already exists')) {
-        console.log("[MIGRATIONS] BlogPostStatus enum already exists")
-      } else {
-        throw error
-      }
-    }
-
-    // Create BlogPostCategory enum
-    try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TYPE "BlogPostCategory" AS ENUM ('NEWS', 'PRODUCT', 'CONTEXTUAL_AI', 'LOOPWELL');
-      `)
-      console.log("[MIGRATIONS] Created BlogPostCategory enum")
-    } catch (error: any) {
-      if (error.code === '42P07' || error.message?.includes('already exists')) {
-        console.log("[MIGRATIONS] BlogPostCategory enum already exists")
-      } else {
-        throw error
-      }
-    }
-
-    // Create blog_posts table
     await prisma.$executeRawUnsafe(`
+      -- CreateEnum
+      DO $$ BEGIN
+        CREATE TYPE "BlogPostStatus" AS ENUM ('DRAFT', 'PUBLISHED');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+
+      -- CreateEnum
+      DO $$ BEGIN
+        CREATE TYPE "BlogPostCategory" AS ENUM ('NEWS', 'PRODUCT', 'CONTEXTUAL_AI', 'LOOPWELL');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+
+      -- CreateTable
       CREATE TABLE IF NOT EXISTS "blog_posts" (
           "id" TEXT NOT NULL,
           "title" TEXT NOT NULL,
@@ -83,29 +94,17 @@ export async function POST(request: NextRequest) {
           "publishedAt" TIMESTAMP(3),
           "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" TIMESTAMP(3) NOT NULL,
+
           CONSTRAINT "blog_posts_pkey" PRIMARY KEY ("id")
       );
+
+      -- CreateIndex
+      CREATE UNIQUE INDEX IF NOT EXISTS "blog_posts_slug_key" ON "blog_posts"("slug");
+      CREATE INDEX IF NOT EXISTS "blog_posts_slug_idx" ON "blog_posts"("slug");
+      CREATE INDEX IF NOT EXISTS "blog_posts_status_idx" ON "blog_posts"("status");
+      CREATE INDEX IF NOT EXISTS "blog_posts_category_idx" ON "blog_posts"("category");
+      CREATE INDEX IF NOT EXISTS "blog_posts_publishedAt_idx" ON "blog_posts"("publishedAt" DESC);
     `)
-    console.log("[MIGRATIONS] Created blog_posts table")
-
-    // Create indexes one by one
-    const indexes = [
-      { name: 'blog_posts_slug_key', sql: 'CREATE UNIQUE INDEX IF NOT EXISTS "blog_posts_slug_key" ON "blog_posts"("slug");' },
-      { name: 'blog_posts_slug_idx', sql: 'CREATE INDEX IF NOT EXISTS "blog_posts_slug_idx" ON "blog_posts"("slug");' },
-      { name: 'blog_posts_status_idx', sql: 'CREATE INDEX IF NOT EXISTS "blog_posts_status_idx" ON "blog_posts"("status");' },
-      { name: 'blog_posts_category_idx', sql: 'CREATE INDEX IF NOT EXISTS "blog_posts_category_idx" ON "blog_posts"("category");' },
-      { name: 'blog_posts_publishedAt_idx', sql: 'CREATE INDEX IF NOT EXISTS "blog_posts_publishedAt_idx" ON "blog_posts"("publishedAt" DESC);' },
-    ]
-
-    for (const index of indexes) {
-      try {
-        await prisma.$executeRawUnsafe(index.sql)
-        console.log(`[MIGRATIONS] Created index: ${index.name}`)
-      } catch (_error: any) {
-        // Index might already exist, continue
-        console.log(`[MIGRATIONS] Index ${index.name} may already exist, continuing...`)
-      }
-    }
 
     console.log("[MIGRATIONS] Blog migration completed successfully")
 
@@ -115,6 +114,8 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     return handleApiError(error, request)
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
@@ -126,7 +127,7 @@ export async function GET() {
   try {
     const tableExists = await prisma.$queryRaw<Array<{ exists: boolean }>>`
       SELECT EXISTS (
-        SELECT FROM information_schema.tables
+        SELECT FROM information_schema.tables 
         WHERE table_schema = 'public' AND table_name = 'blog_posts'
       ) as exists
     `
@@ -136,7 +137,16 @@ export async function GET() {
       tableExists: tableExists[0]?.exists || false,
     })
   } catch (error) {
-    return handleApiError(error)
+    console.error("[MIGRATIONS] Error checking blog migration:", error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    return NextResponse.json(
+      {
+        migrated: false,
+        error: errorMessage,
+      },
+      { status: 500 }
+    )
+  } finally {
+    await prisma.$disconnect()
   }
 }
-

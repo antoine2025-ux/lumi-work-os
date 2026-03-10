@@ -59,7 +59,7 @@ export async function createTeam(input: CreateTeamInput) {
       return { ok: false as const, error: "Unauthorized. Please ensure you are logged in." };
     }
 
-    const workspaceId = context.orgId;
+    const workspaceId = context.workspaceId;
 
     if (!prisma) {
       return { ok: false as const, error: "Database connection unavailable." };

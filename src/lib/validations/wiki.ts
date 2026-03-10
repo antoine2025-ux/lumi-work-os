@@ -17,6 +17,8 @@ export const WikiPageCreateSchema = z.object({
   permissionLevel: z.string().optional(),
   workspace_type: z.string().optional(),
   spaceId: z.string().optional(),
+  type: z.enum(['TEAM_DOC', 'COMPANY_WIKI', 'PERSONAL_NOTE', 'PROJECT_DOC']).optional(),
+  isSection: z.boolean().optional(),
 })
 
 /** PUT /api/wiki/pages/[id] */
@@ -30,6 +32,7 @@ export const WikiPageUpdateSchema = z.object({
   category: z.string().optional(),
   isPublished: z.boolean().optional(),
   permissionLevel: z.string().optional(),
+  isSection: z.boolean().optional(),
 })
 
 /** POST /api/wiki/workspaces */
@@ -47,4 +50,33 @@ export const WikiWorkspaceCreateSchema = z.object({
   isPrivate: z.boolean().optional(),
   visibility: z.enum(['PERSONAL', 'PRIVATE', 'PUBLIC']).optional(),
   memberIds: z.array(z.string()).optional(),
+})
+
+/** POST /api/wiki/workspaces/[id]/members */
+export const WikiWorkspaceMemberAddSchema = z.object({
+  userId: nonEmptyString,
+  role: z.enum(['OWNER', 'EDITOR', 'VIEWER']).optional().default('VIEWER'),
+})
+
+/** POST /api/wiki/upload - file validation constants */
+export const WIKI_UPLOAD_ALLOWED_MIME = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'application/pdf',
+] as const
+
+export const WIKI_UPLOAD_MAX_SIZE = 10 * 1024 * 1024 // 10MB
+
+/** POST /api/wiki/templates */
+export const WikiTemplateCreateSchema = z.object({
+  name: nonEmptyString.max(255),
+  description: z.string().trim().max(500).optional(),
+  icon: z.string().max(50).optional(),
+  category: z
+    .enum(['meetings', 'engineering', 'product', 'operations', 'general', 'custom'])
+    .optional(),
+  content: z.record(z.string(), z.unknown()), // ProseMirror JSON
 })

@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 import { getOrgIntelligenceSnapshot } from "@/lib/org/intelligence";
 
@@ -96,59 +97,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    const err = error as Error & { code?: string };
-    console.error("[GET /api/org/overview] Error:", err);
-    console.error("[GET /api/org/overview] Error stack:", err?.stack);
-
-    if (!userId || !workspaceId) {
-      console.error("[GET /api/org/overview] Missing userId or workspaceId", { userId, workspaceId });
-      return NextResponse.json(
-        {
-          error: "Unauthorized",
-          hint: "Authentication failed. Please ensure you are logged in and have workspace access."
-        },
-        { status: 401 }
-      );
-    }
-
-    if (err?.message?.includes("Forbidden") || err?.message?.includes("Unauthorized")) {
-      return NextResponse.json(
-        {
-          error: err.message || "Forbidden",
-          hint: "You don't have permission to access this resource."
-        },
-        { status: 403 }
-      );
-    }
-
-    // Return empty state instead of 500 for query errors
-    if (err?.code?.startsWith("P") || err?.message?.includes("prisma") || err?.message?.includes("database")) {
-      console.error("[GET /api/org/overview] Database error, returning empty state:", err.message);
-      return NextResponse.json(
-        {
-          summary: {
-            peopleCount: 0,
-            teamCount: 0,
-            deptCount: 0,
-            unownedEntities: 0,
-          },
-          readiness: {
-            people_added: false,
-            structure_defined: false,
-            ownership_assigned: false,
-          },
-        },
-        { status: 200 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        error: "Failed to load overview",
-        hint: err?.message || "An unexpected error occurred. Please try again."
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }
 

@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 import {
   getOrCreateWorkspaceEffortDefaults,
@@ -26,6 +27,7 @@ import {
   type MutationResult,
 } from "@/lib/org/mutations/types";
 import { computeIssueResolution } from "@/lib/org/mutations/utils";
+import { UpdateWorkRequestSchema } from "@/lib/validations/org";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -96,8 +98,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       responseMeta: getWorkRequestResponseMeta(),
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/work/requests/[id]] Error:", error);
-    return NextResponse.json({ ok: false, error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -146,14 +147,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Step 5: Parse and validate request body
-    const body = await request.json();
+    const body = UpdateWorkRequestSchema.parse(await request.json());
     const updates: Record<string, unknown> = {};
 
     // Optional updates
     if (body.title !== undefined) {
-      if (!body.title?.trim()) {
-        return NextResponse.json({ ok: false, error: "title cannot be empty" }, { status: 400 });
-      }
       updates.title = body.title.trim();
     }
 
@@ -162,13 +160,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     if (body.priority !== undefined) {
-      const validPriorities = ["P0", "P1", "P2", "P3"];
-      if (!validPriorities.includes(body.priority)) {
-        return NextResponse.json(
-          { ok: false, error: `priority must be one of: ${validPriorities.join(", ")}` },
-          { status: 400 }
-        );
-      }
       updates.priority = body.priority;
     }
 
@@ -176,32 +167,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       const desiredStart = body.desiredStart ? new Date(body.desiredStart) : existing.desiredStart;
       const desiredEnd = body.desiredEnd ? new Date(body.desiredEnd) : existing.desiredEnd;
 
-      if (isNaN(desiredStart.getTime()) || isNaN(desiredEnd.getTime())) {
-        return NextResponse.json(
-          { ok: false, error: "Invalid date format. Use ISO 8601 UTC" },
-          { status: 400 }
-        );
-      }
-
-      if (desiredEnd <= desiredStart) {
-        return NextResponse.json(
-          { ok: false, error: "desiredEnd must be after desiredStart" },
-          { status: 400 }
-        );
-      }
-
       if (body.desiredStart !== undefined) updates.desiredStart = desiredStart;
       if (body.desiredEnd !== undefined) updates.desiredEnd = desiredEnd;
     }
 
     if (body.effortType !== undefined) {
-      const validEffortTypes = ["HOURS", "TSHIRT"];
-      if (!validEffortTypes.includes(body.effortType)) {
-        return NextResponse.json(
-          { ok: false, error: `effortType must be one of: ${validEffortTypes.join(", ")}` },
-          { status: 400 }
-        );
-      }
       updates.effortType = body.effortType;
     }
 
@@ -210,26 +180,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     if (body.effortTShirt !== undefined) {
-      if (body.effortTShirt !== null) {
-        const validTShirtSizes = ["XS", "S", "M", "L", "XL"];
-        if (!validTShirtSizes.includes(body.effortTShirt)) {
-          return NextResponse.json(
-            { ok: false, error: `effortTShirt must be one of: ${validTShirtSizes.join(", ")}` },
-            { status: 400 }
-          );
-        }
-      }
       updates.effortTShirt = body.effortTShirt;
     }
 
     if (body.domainType !== undefined) {
-      const validDomainTypes = ["TEAM", "DEPARTMENT", "ROLE", "FUNCTION", "OTHER"];
-      if (!validDomainTypes.includes(body.domainType)) {
-        return NextResponse.json(
-          { ok: false, error: `domainType must be one of: ${validDomainTypes.join(", ")}` },
-          { status: 400 }
-        );
-      }
       updates.domainType = body.domainType;
     }
 
@@ -242,15 +196,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     if (body.requiredSeniority !== undefined) {
-      if (body.requiredSeniority !== null) {
-        const validSeniorities = ["JUNIOR", "MID", "SENIOR", "LEAD", "PRINCIPAL"];
-        if (!validSeniorities.includes(body.requiredSeniority)) {
-          return NextResponse.json(
-            { ok: false, error: `requiredSeniority must be one of: ${validSeniorities.join(", ")}` },
-            { status: 400 }
-          );
-        }
-      }
       updates.requiredSeniority = body.requiredSeniority;
     }
 
@@ -259,10 +204,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // O1: Allow converting provisional → normal (never the reverse)
-    if (body.isProvisional !== undefined) {
-      if (body.isProvisional === false && existing.isProvisional === true) {
+    if (body.provisional !== undefined) {
+      if (body.provisional === false && existing.isProvisional === true) {
         updates.isProvisional = false;
-      } else if (body.isProvisional === true) {
+      } else if (body.provisional === true) {
         return NextResponse.json(
           { ok: false, error: "Cannot set isProvisional to true via API" },
           { status: 400 }
@@ -276,12 +221,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Step 6: Determine time window (use request body or default)
-    const timeWindow = body.timeWindow
-      ? { start: new Date(body.timeWindow.start), end: new Date(body.timeWindow.end) }
+    const timeWindow = (body as any).timeWindow
+      ? { start: new Date((body as any).timeWindow.start), end: new Date((body as any).timeWindow.end) }
       : getDefaultIssueWindow();
 
     // Step 7: Compute issues BEFORE mutation (scoped to work request)
-    // TODO: Enhance to derive actual work request issues
+    // TODO [BACKLOG]: Derive actual work request issues
     const issuesBefore: OrgIssueMetadata[] = [];
 
     // Step 8: Update work request
@@ -300,7 +245,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     ]);
 
     // Step 10: Compute issues AFTER mutation (same scoped set)
-    // TODO: Enhance to derive actual work request issues
+    // TODO [BACKLOG]: Derive actual work request issues
     const issuesAfter: OrgIssueMetadata[] = [];
 
     // Step 11: Build response metadata
@@ -371,7 +316,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(response);
   } catch (error: unknown) {
-    console.error("[PUT /api/org/work/requests/[id]] Error:", error);
-    return NextResponse.json({ ok: false, error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

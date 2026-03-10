@@ -12,8 +12,16 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { sendGmail } from '@/lib/integrations/gmail-send'
+import { createCalendarEvent } from '@/lib/integrations/calendar-events'
 import { logger } from '@/lib/logger'
-import type { LoopbrainTool, AgentContext, ToolResult } from './types'
+import type { LoopbrainTool, AgentContext, ToolResult, ToolPermissions } from './types'
+import { getDefaultSpaceForUser } from '@/lib/spaces/get-default-space'
+import { searchDriveFilesTool } from './tools/drive/search-drive-files'
+import { readDriveDocumentTool } from './tools/drive/read-drive-document'
+import { createDriveDocumentTool } from './tools/drive/create-drive-document'
+import { updateDriveDocumentTool } from './tools/drive/update-drive-document'
+import { extractTextFromProseMirror, isValidProseMirrorJSON } from '@/lib/wiki/text-extract'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -49,6 +57,14 @@ const TASK_STATUS_ALIASES: Record<string, string> = {
   COMPLETED: 'DONE',
   CLOSED: 'DONE',
   FINISHED: 'DONE',
+}
+
+function coerceNumber(val: unknown): unknown {
+  if (typeof val === 'string') {
+    const n = Number(val)
+    return Number.isFinite(n) ? n : val
+  }
+  return val
 }
 
 function normalizeEnum(val: unknown): unknown {
@@ -111,6 +127,11 @@ const CreateTodoSchema = z.object({
   ).optional(),
 })
 
+const ReadWikiPageSchema = z.object({
+  pageId: z.string().optional().describe('Wiki page ID (use this OR slug, not both)'),
+  slug: z.string().optional().describe('Wiki page slug (use this OR pageId, not both)'),
+}).refine((d) => d.pageId || d.slug, { message: 'Provide either pageId or slug' })
+
 const CreateWikiPageSchema = z.object({
   title: z.string().min(1).max(300),
   content: z.string().min(1),
@@ -147,6 +168,22 @@ const UpdateTaskStatusSchema = z.object({
   ),
 })
 
+const ListTasksByAssigneeSchema = z.object({
+  personId: z.string().describe('The person/user ID whose tasks to list'),
+  projectId: z.string().optional().describe('Optional project ID to scope the query'),
+  status: z.preprocess(
+    normalizeEnum,
+    z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'])
+  ).optional().describe('Optional status filter'),
+  limit: z.preprocess(coerceNumber, z.number().int().min(1).max(100).optional().default(50)),
+})
+
+const BulkReassignTasksSchema = z.object({
+  taskIds: z.array(z.string()).min(1).optional().describe('Array of task IDs to reassign'),
+  tasks: z.array(z.object({ id: z.string() }).passthrough()).min(1).optional().describe('Array of task objects — use when passing $stepN.data.tasks directly; IDs are extracted automatically'),
+  newAssigneeId: z.string().describe('The person/user ID to reassign tasks to'),
+})
+
 const UpdateProjectSchema = z.object({
   projectId: z.string().min(1),
   name: z.string().min(1).max(200).optional(),
@@ -173,17 +210,50 @@ const AddSubtaskSchema = z.object({
   description: z.string().optional(),
 })
 
+const RemoveProjectMemberSchema = z.object({
+  projectId: z.string().describe('The project ID to remove the member from'),
+  personId: z.string().describe('The person/user ID to remove from the project'),
+})
+
 const ListProjectsSchema = z.object({
   status: z.preprocess(
     normalizeEnum,
     z.enum(['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED'])
   ).optional(),
-  limit: z.number().int().min(1).max(50).optional().default(20),
+  limit: z.preprocess(coerceNumber, z.number().int().min(1).max(50).optional().default(20)),
 })
 
 const ListPeopleSchema = z.object({
   search: z.string().optional(),
-  limit: z.number().int().min(1).max(100).optional().default(50),
+  limit: z.preprocess(coerceNumber, z.number().int().min(1).max(100).optional().default(50)),
+})
+
+const SendEmailSchema = z.object({
+  to: z.string().email(),
+  subject: z.string().min(1),
+  body: z.string().min(1),
+})
+
+const ReplyToEmailSchema = z.object({
+  to: z.string().email(),
+  subject: z.string().min(1),
+  body: z.string().min(1),
+  replyToThreadId: z.string().min(1),
+  replyToMessageId: z.string().min(1),
+})
+
+const CreateCalendarEventSchema = z.object({
+  summary: z.string().min(1),
+  startDateTime: z.string(),
+  endDateTime: z.string(),
+  description: z.string().optional(),
+  attendees: z.array(z.string().email()).optional(),
+  location: z.string().optional(),
+  timeZone: z.string().optional(),
+})
+
+const CreateMultipleCalendarEventsSchema = z.object({
+  events: z.array(CreateCalendarEventSchema).min(1).max(20),
 })
 
 // ---------------------------------------------------------------------------
@@ -196,10 +266,21 @@ const createProjectTool: LoopbrainTool = {
   category: 'project',
   parameters: CreateProjectSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: ['spaceMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateProjectSchema.parse(params)
     scope(context)
     try {
+      // Get default space for the user
+      const defaultSpaceId = await getDefaultSpaceForUser(context.userId, context.workspaceId)
+      if (!defaultSpaceId) {
+        return {
+          success: false,
+          error: 'No default space found. Please create a space first.',
+          humanReadable: 'Failed to create project: no default space found',
+        }
+      }
+
       const project = await prisma.project.create({
         data: {
           workspaceId: context.workspaceId,
@@ -208,6 +289,7 @@ const createProjectTool: LoopbrainTool = {
           status: p.status,
           priority: p.priority,
           createdById: context.userId,
+          spaceId: defaultSpaceId,
         },
       })
       return {
@@ -228,6 +310,7 @@ const createTaskTool: LoopbrainTool = {
   category: 'task',
   parameters: CreateTaskSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: ['projectMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateTaskSchema.parse(params)
     scope(context)
@@ -263,6 +346,7 @@ const createEpicTool: LoopbrainTool = {
   category: 'project',
   parameters: CreateEpicSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: ['projectMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateEpicSchema.parse(params)
     scope(context)
@@ -293,6 +377,7 @@ const assignTaskTool: LoopbrainTool = {
   category: 'task',
   parameters: AssignTaskSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = AssignTaskSchema.parse(params)
     scope(context)
@@ -321,6 +406,7 @@ const createTodoTool: LoopbrainTool = {
   category: 'todo',
   parameters: CreateTodoSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateTodoSchema.parse(params)
     scope(context)
@@ -348,12 +434,100 @@ const createTodoTool: LoopbrainTool = {
   },
 }
 
+const readWikiPageTool: LoopbrainTool = {
+  name: 'readWikiPage',
+  description: 'Read the full content of a wiki page by ID or slug. Returns title, plaintext content, tags, author, and last-updated date. Use after searchWiki when you need the actual page content.',
+  category: 'wiki',
+  parameters: ReadWikiPageSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = ReadWikiPageSchema.parse(params)
+    scope(context)
+    try {
+      let page: {
+        id: string
+        title: string
+        slug: string
+        content: string
+        contentJson: unknown
+        textContent: string | null
+        tags: string[]
+        updatedAt: Date
+        createdBy: { name: string | null; email: string | null }
+      } | null = null
+
+      const select = {
+        id: true,
+        title: true,
+        slug: true,
+        content: true,
+        contentJson: true,
+        textContent: true,
+        tags: true,
+        updatedAt: true,
+        createdBy: { select: { name: true, email: true } },
+      }
+
+      if (p.pageId) {
+        page = await prisma.wikiPage.findUnique({
+          where: { id: p.pageId },
+          select,
+        })
+      } else if (p.slug) {
+        page = await prisma.wikiPage.findUnique({
+          where: { workspaceId_slug: { workspaceId: context.workspaceId, slug: p.slug } },
+          select,
+        })
+      }
+
+      if (!page) {
+        return { success: false, error: 'Wiki page not found', humanReadable: 'No wiki page found with that ID or slug.' }
+      }
+
+      // Resolve plaintext: prefer pre-extracted textContent, then TipTap JSON extraction, then raw content
+      let plaintext: string
+      if (page.textContent) {
+        plaintext = page.textContent
+      } else if (page.contentJson && isValidProseMirrorJSON(page.contentJson)) {
+        plaintext = extractTextFromProseMirror(page.contentJson)
+      } else {
+        plaintext = page.content
+      }
+
+      // Truncate to a safe token budget (~5000 chars ≈ ~1250 tokens)
+      const CONTENT_LIMIT = 5000
+      const truncated = plaintext.length > CONTENT_LIMIT
+      const content = truncated ? plaintext.slice(0, CONTENT_LIMIT) + '\n\n[content truncated — page has more text]' : plaintext
+
+      return {
+        success: true,
+        data: {
+          id: page.id,
+          slug: page.slug,
+          title: page.title,
+          content,
+          tags: page.tags,
+          createdBy: page.createdBy.name ?? page.createdBy.email ?? 'Unknown',
+          updatedAt: page.updatedAt.toISOString(),
+          truncated,
+        },
+        humanReadable: `Read wiki page "${page.title}" (${page.slug})${truncated ? ' — content truncated at 5000 chars' : ''}`,
+      }
+    } catch (err) {
+      logger.error('readWikiPage tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to read wiki page' }
+    }
+  },
+}
+
 const createWikiPageTool: LoopbrainTool = {
   name: 'createWikiPage',
   description: 'Create a new wiki page in the workspace',
   category: 'wiki',
   parameters: CreateWikiPageSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateWikiPageSchema.parse(params)
     scope(context)
@@ -380,12 +554,86 @@ const createWikiPageTool: LoopbrainTool = {
   },
 }
 
+const DraftWikiPageSchema = z.object({
+  title: z.string().min(1).max(300),
+  topic: z.string().min(1),
+  outline: z.array(z.string()).optional(),
+  spaceId: z.string().optional(),
+})
+
+const draftWikiPageTool: LoopbrainTool = {
+  name: 'draftWikiPage',
+  description: 'Create a blank wiki page and trigger AI drafting into it via Hocuspocus',
+  category: 'wiki',
+  parameters: DraftWikiPageSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = DraftWikiPageSchema.parse(params)
+    scope(context)
+    try {
+      // Resolve a space for the page (prefer explicit, then company wiki, then null)
+      let spaceId: string | null = p.spaceId ?? null
+      if (!spaceId) {
+        const companyWiki = await prisma.space.findFirst({
+          where: { workspaceId: context.workspaceId, type: 'WIKI' },
+          select: { id: true },
+        })
+        spaceId = companyWiki?.id ?? null
+      }
+
+      // Create a blank page (no content — content will stream via Hocuspocus)
+      const slug = slugify(p.title) + '-' + Date.now().toString(36)
+      const page = await prisma.wikiPage.create({
+        data: {
+          workspaceId: context.workspaceId,
+          title: p.title,
+          slug,
+          content: '',
+          contentFormat: 'JSON',
+          contentJson: { type: 'doc', content: [{ type: 'paragraph' }] },
+          createdById: context.userId,
+          ...(spaceId ? { spaceId } : {}),
+        },
+      })
+
+      return {
+        success: true,
+        data: {
+          id: page.id,
+          slug: page.slug,
+          title: page.title,
+          topic: p.topic,
+          outline: p.outline,
+          // Marker for the agent-loop to trigger background drafting
+          _draftTask: {
+            pageId: page.id,
+            topic: p.topic,
+            outline: p.outline,
+          },
+          // Client action — navigate to the new page
+          _clientAction: {
+            type: 'navigate',
+            url: `/wiki/${page.slug}`,
+            label: `Opening ${page.title}…`,
+          },
+        },
+        humanReadable: `Created wiki page "${page.title}" — AI is now drafting content about: ${p.topic}`,
+      }
+    } catch (err) {
+      logger.error('draftWikiPage tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to create draft wiki page' }
+    }
+  },
+}
+
 const createGoalTool: LoopbrainTool = {
   name: 'createGoal',
   description: 'Create a new goal/OKR for the workspace',
   category: 'goal',
   parameters: CreateGoalSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = CreateGoalSchema.parse(params)
     scope(context)
@@ -424,6 +672,7 @@ const addPersonToProjectTool: LoopbrainTool = {
   category: 'project',
   parameters: AddPersonToProjectSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'ADMIN', resourceChecks: ['projectMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = AddPersonToProjectSchema.parse(params)
     scope(context)
@@ -458,6 +707,7 @@ const updateTaskStatusTool: LoopbrainTool = {
   category: 'task',
   parameters: UpdateTaskStatusSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = UpdateTaskStatusSchema.parse(params)
     scope(context)
@@ -487,6 +737,7 @@ const updateProjectTool: LoopbrainTool = {
   category: 'project',
   parameters: UpdateProjectSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: ['projectMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = UpdateProjectSchema.parse(params)
     scope(context)
@@ -518,6 +769,7 @@ const linkProjectToGoalTool: LoopbrainTool = {
   category: 'project',
   parameters: LinkProjectToGoalSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER', resourceChecks: ['projectMembership'] },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = LinkProjectToGoalSchema.parse(params)
     scope(context)
@@ -552,6 +804,7 @@ const addSubtaskTool: LoopbrainTool = {
   category: 'task',
   parameters: AddSubtaskSchema,
   requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = AddSubtaskSchema.parse(params)
     scope(context)
@@ -576,6 +829,168 @@ const addSubtaskTool: LoopbrainTool = {
   },
 }
 
+const sendEmailTool: LoopbrainTool = {
+  name: 'sendEmail',
+  description: 'Send a new email to someone. Use listPeople or workspace context to resolve names like "Sarah" to email addresses.',
+  category: 'email',
+  parameters: SendEmailSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = SendEmailSchema.parse(params)
+    scope(context)
+    const result = await sendGmail({
+      userId: context.userId,
+      workspaceId: context.workspaceId,
+      to: p.to,
+      subject: p.subject,
+      body: p.body,
+    })
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error ?? 'Send failed',
+        humanReadable: result.userMessage ?? 'Failed to send email',
+      }
+    }
+    return {
+      success: true,
+      data: { messageId: result.messageId, threadId: result.threadId },
+      humanReadable: `Email sent to ${p.to}`,
+    }
+  },
+}
+
+const replyToEmailTool: LoopbrainTool = {
+  name: 'replyToEmail',
+  description: 'Reply to an existing email thread. Requires threadId and messageId from recent emails context.',
+  category: 'email',
+  parameters: ReplyToEmailSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = ReplyToEmailSchema.parse(params)
+    scope(context)
+    const result = await sendGmail({
+      userId: context.userId,
+      workspaceId: context.workspaceId,
+      to: p.to,
+      subject: p.subject,
+      body: p.body,
+      replyToThreadId: p.replyToThreadId,
+      replyToMessageId: p.replyToMessageId,
+    })
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error ?? 'Send failed',
+        humanReadable: result.userMessage ?? 'Failed to send reply',
+      }
+    }
+    return {
+      success: true,
+      data: { messageId: result.messageId, threadId: result.threadId },
+      humanReadable: `Reply sent to ${p.to}`,
+    }
+  },
+}
+
+const createCalendarEventTool: LoopbrainTool = {
+  name: 'createCalendarEvent',
+  description:
+    'Create a single Google Calendar event. Use listPeople or workspace context to resolve attendee names to emails.',
+  category: 'calendar',
+  parameters: CreateCalendarEventSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = CreateCalendarEventSchema.parse(params)
+    scope(context)
+    const result = await createCalendarEvent({
+      userId: context.userId,
+      workspaceId: context.workspaceId,
+      summary: p.summary,
+      startDateTime: p.startDateTime,
+      endDateTime: p.endDateTime,
+      description: p.description,
+      attendees: p.attendees,
+      location: p.location,
+      timeZone: p.timeZone,
+    })
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error ?? 'Create failed',
+        humanReadable: result.userMessage ?? 'Failed to create calendar event',
+      }
+    }
+    return {
+      success: true,
+      data: { eventId: result.eventId, htmlLink: result.htmlLink },
+      humanReadable: `Created calendar event "${p.summary}"${result.htmlLink ? ` — [View in Calendar](${result.htmlLink})` : ''}`,
+    }
+  },
+}
+
+const createMultipleCalendarEventsTool: LoopbrainTool = {
+  name: 'createMultipleCalendarEvents',
+  description:
+    'Create multiple Google Calendar events in one step (e.g. work blocks + breaks). Use for batch scheduling like "plan my work blocks for tomorrow". Max 20 events.',
+  category: 'calendar',
+  parameters: CreateMultipleCalendarEventsSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = CreateMultipleCalendarEventsSchema.parse(params)
+    scope(context)
+    const results: Array<{
+      success: boolean
+      eventId?: string
+      htmlLink?: string
+      summary?: string
+      error?: string
+    }> = []
+
+    for (const event of p.events) {
+      const result = await createCalendarEvent({
+        userId: context.userId,
+        workspaceId: context.workspaceId,
+        summary: event.summary,
+        startDateTime: event.startDateTime,
+        endDateTime: event.endDateTime,
+        description: event.description,
+        attendees: event.attendees,
+        location: event.location,
+        timeZone: event.timeZone,
+      })
+      results.push({
+        success: result.success,
+        eventId: result.eventId,
+        htmlLink: result.htmlLink,
+        summary: event.summary,
+        error: result.userMessage ?? result.error,
+      })
+    }
+
+    const successCount = results.filter((r) => r.success).length
+    const failCount = results.filter((r) => !r.success).length
+
+    let summaryMsg: string
+    if (failCount === 0) {
+      summaryMsg = `Created ${successCount} event(s).`
+    } else {
+      const firstError = results.find((r) => !r.success)?.error ?? 'Unknown error'
+      summaryMsg = `${successCount}/${p.events.length} events created. ${failCount} failed: ${firstError}`
+    }
+
+    return {
+      success: true, // Don't fail the whole step — user sees partial success in summary
+      data: { results, summary: summaryMsg },
+      humanReadable: summaryMsg,
+    }
+  },
+}
+
 // ---------------------------------------------------------------------------
 // READ tools — used by the planner to resolve references
 // ---------------------------------------------------------------------------
@@ -586,6 +1001,7 @@ const listProjectsTool: LoopbrainTool = {
   category: 'project',
   parameters: ListProjectsSchema,
   requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = ListProjectsSchema.parse(params)
     scope(context)
@@ -618,6 +1034,7 @@ const listPeopleTool: LoopbrainTool = {
   category: 'org',
   parameters: ListPeopleSchema,
   requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
   async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
     const p = ListPeopleSchema.parse(params)
     scope(context)
@@ -661,6 +1078,165 @@ const listPeopleTool: LoopbrainTool = {
   },
 }
 
+const listTasksByAssigneeTool: LoopbrainTool = {
+  name: 'listTasksByAssignee',
+  description: 'List tasks assigned to a specific person, optionally filtered by project and status. Returns task IDs, titles, statuses, priorities, due dates, and project info.',
+  category: 'task',
+  parameters: ListTasksByAssigneeSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = ListTasksByAssigneeSchema.parse(params)
+    scope(context)
+    try {
+      const where: Record<string, unknown> = {
+        assigneeId: p.personId,
+        workspaceId: context.workspaceId,
+      }
+      if (p.projectId) where.projectId = p.projectId
+      if (p.status) where.status = p.status
+
+      const tasks = await prisma.task.findMany({
+        where,
+        include: {
+          project: { select: { id: true, name: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: p.limit,
+      })
+
+      const mapped = tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        dueDate: t.dueDate?.toISOString() ?? null,
+        projectId: t.project?.id ?? null,
+        projectName: t.project?.name ?? null,
+      }))
+
+      return {
+        success: true,
+        data: { tasks: mapped as unknown as Record<string, unknown>[], count: mapped.length },
+        humanReadable: `Found ${mapped.length} task(s) assigned to person ${p.personId}${p.projectId ? ` in project` : ''}`,
+      }
+    } catch (err) {
+      logger.error('listTasksByAssignee tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to list tasks by assignee' }
+    }
+  },
+}
+
+const bulkReassignTasksTool: LoopbrainTool = {
+  name: 'bulkReassignTasks',
+  description: 'Reassign multiple tasks to a new assignee in a single operation. Use after listTasksByAssignee to get the task IDs.',
+  category: 'task',
+  parameters: BulkReassignTasksSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = BulkReassignTasksSchema.parse(params)
+    // Accept either explicit taskIds or a full tasks array (e.g. passed from $stepN.data.tasks)
+    const ids = p.taskIds ?? p.tasks?.map(t => t.id) ?? []
+    if (ids.length === 0) {
+      return { success: false, error: 'No tasks provided', humanReadable: 'No tasks to reassign.' }
+    }
+    scope(context)
+    try {
+      // Verify new assignee exists in workspace
+      const assignee = await prisma.workspaceMember.findFirst({
+        where: { userId: p.newAssigneeId, workspaceId: context.workspaceId },
+        include: { user: { select: { id: true, name: true } } },
+      })
+      if (!assignee) {
+        return { success: false, error: 'Assignee not found in workspace', humanReadable: 'The target assignee is not a member of this workspace.' }
+      }
+
+      // Verify all tasks exist and belong to this workspace
+      const tasks = await prisma.task.findMany({
+        where: { id: { in: ids }, workspaceId: context.workspaceId },
+        select: { id: true, title: true, projectId: true },
+      })
+      if (tasks.length !== ids.length) {
+        const found = new Set(tasks.map(t => t.id))
+        const missing = ids.filter(id => !found.has(id))
+        return { success: false, error: `Tasks not found: ${missing.join(', ')}`, humanReadable: `${missing.length} task(s) not found in this workspace.` }
+      }
+
+      // Bulk update
+      const result = await prisma.task.updateMany({
+        where: { id: { in: ids }, workspaceId: context.workspaceId },
+        data: { assigneeId: p.newAssigneeId },
+      })
+
+      // TODO: re-index affected tasks after bulk reassign
+
+      return {
+        success: true,
+        data: { reassignedCount: result.count, assigneeId: p.newAssigneeId, assigneeName: assignee.user?.name ?? 'Unknown' },
+        humanReadable: `Reassigned ${result.count} task(s) to ${assignee.user?.name ?? p.newAssigneeId}`,
+      }
+    } catch (err) {
+      logger.error('bulkReassignTasks tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to reassign tasks' }
+    }
+  },
+}
+
+const removeProjectMemberTool: LoopbrainTool = {
+  name: 'removeProjectMember',
+  description: 'Remove a person from a project. This removes their project membership but does not delete their tasks — reassign tasks first if needed.',
+  category: 'project',
+  parameters: RemoveProjectMemberSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'ADMIN', resourceChecks: ['projectMembership'] },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = RemoveProjectMemberSchema.parse(params)
+    scope(context)
+    try {
+      // Verify project exists in workspace
+      const project = await prisma.project.findFirst({
+        where: { id: p.projectId, workspaceId: context.workspaceId },
+        select: { id: true, name: true },
+      })
+      if (!project) {
+        return { success: false, error: 'Project not found', humanReadable: 'Project not found in this workspace.' }
+      }
+
+      // Try ProjectMember first (primary membership model)
+      const memberDeleteResult = await prisma.projectMember.deleteMany({
+        where: { projectId: p.projectId, userId: p.personId, workspaceId: context.workspaceId },
+      })
+
+      if (memberDeleteResult.count > 0) {
+        return {
+          success: true,
+          data: { projectId: p.projectId, projectName: project.name, removedPersonId: p.personId },
+          humanReadable: `Removed person from project "${project.name}"`,
+        }
+      }
+
+      // Try ProjectPersonLink as fallback
+      const linkDeleteResult = await prisma.projectPersonLink.deleteMany({
+        where: { projectId: p.projectId, userId: p.personId, workspaceId: context.workspaceId },
+      })
+
+      if (linkDeleteResult.count > 0) {
+        return {
+          success: true,
+          data: { projectId: p.projectId, projectName: project.name, removedPersonId: p.personId },
+          humanReadable: `Removed person from project "${project.name}"`,
+        }
+      }
+
+      return { success: false, error: 'Person is not a member of this project', humanReadable: `This person is not a member of "${project.name}".` }
+    } catch (err) {
+      logger.error('removeProjectMember tool failed', { err, context })
+      return { success: false, error: String(err), humanReadable: 'Failed to remove project member' }
+    }
+  },
+}
+
 // ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
@@ -671,15 +1247,28 @@ const ALL_TOOLS: LoopbrainTool[] = [
   createEpicTool,
   assignTaskTool,
   createTodoTool,
+  readWikiPageTool,
   createWikiPageTool,
+  draftWikiPageTool,
   createGoalTool,
   addPersonToProjectTool,
   updateTaskStatusTool,
   updateProjectTool,
   linkProjectToGoalTool,
   addSubtaskTool,
+  sendEmailTool,
+  replyToEmailTool,
+  createCalendarEventTool,
+  createMultipleCalendarEventsTool,
   listProjectsTool,
   listPeopleTool,
+  listTasksByAssigneeTool,
+  bulkReassignTasksTool,
+  removeProjectMemberTool,
+  searchDriveFilesTool,
+  readDriveDocumentTool,
+  createDriveDocumentTool,
+  updateDriveDocumentTool,
 ]
 
 export class ToolRegistry {
@@ -702,6 +1291,29 @@ export class ToolRegistry {
 
   getByCategory(category: string): LoopbrainTool[] {
     return this.getAll().filter((t) => t.category === category)
+  }
+
+  /** Return ToolDefinition[] for the compiler (only tools with real implementations) */
+  toToolDefinitions(): import('@/lib/ai/providers').ToolDefinition[] {
+    return this.getAll().map((t) => {
+      let parameters: Record<string, unknown> = {}
+      try {
+        if ('shape' in t.parameters) {
+          const shape = (t.parameters as z.ZodObject<z.ZodRawShape>).shape
+          const props: Record<string, unknown> = {}
+          const required: string[] = []
+          for (const [key, val] of Object.entries(shape)) {
+            const zVal = val as z.ZodTypeAny
+            props[key] = { type: 'string', description: key }
+            if (!zVal.isOptional()) required.push(key)
+          }
+          parameters = { type: 'object', properties: props, required }
+        }
+      } catch {
+        parameters = { type: 'object', properties: {} }
+      }
+      return { name: t.name, description: t.description, parameters }
+    })
   }
 
   /** Build a concise tool-spec block for the planner LLM prompt */

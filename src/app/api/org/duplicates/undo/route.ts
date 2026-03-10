@@ -5,6 +5,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { UndoDuplicateMergeSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,10 +16,10 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
     setWorkspaceContext(workspaceId);
 
-    const body = (await req.json()) as { mergeLogId: string };
+    const body = UndoDuplicateMergeSchema.parse(await req.json());
 
     const log = await prisma.orgPersonMergeLog.findUnique({ where: { id: body.mergeLogId } });
-    if (!log || log.orgId !== workspaceId) return NextResponse.json({ ok: false }, { status: 404 });
+    if (!log || log.workspaceId !== workspaceId) return NextResponse.json({ ok: false }, { status: 404 });
     if (log.undoneAt) return NextResponse.json({ ok: false, error: "Already undone" }, { status: 400 });
 
     const snapshot = log.snapshot as any;
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
 
       await tx.auditLogEntry.create({
         data: {
-          orgId: workspaceId,
+          workspaceId,
           actorUserId: user.userId,
           actorLabel: user.name || user.email || "Unknown user",
           action: "undo_merge_person",

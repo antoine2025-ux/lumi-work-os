@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,7 +26,7 @@ interface Space {
 interface CreatePageDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  workspaceSlug: string
+  workspaceSlug?: string
 }
 
 function flattenSpaces(
@@ -46,6 +47,7 @@ export function CreatePageDialog({
   onOpenChange,
 }: CreatePageDialogProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [spaces, setSpaces] = useState<Space[]>([])
   const [selectedSpaceId, setSelectedSpaceId] = useState("")
   const [pageTitle, setPageTitle] = useState("")
@@ -93,6 +95,7 @@ export function CreatePageDialog({
         throw new Error(data.error ?? "Failed to create page")
       }
       const page = await res.json()
+      queryClient.invalidateQueries({ queryKey: ["sidebar-pages"] })
       handleClose()
       router.push(`/wiki/${page.slug ?? page.id}`)
     } catch (err) {

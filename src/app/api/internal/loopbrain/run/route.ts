@@ -19,6 +19,7 @@ import {
   listProactiveEngines,
   type ProactiveEngineResult,
 } from "@/server/loopbrain/engines/registry";
+import { LoopbrainEngineRunSchema } from '@/lib/validations/internal';
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -59,42 +60,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: {
-    engineKey?: string;
-    workspaceId?: string;
-    workspaceIds?: string[];
-  };
-  try {
-    body = (await request.json()) as {
-      engineKey?: string;
-      workspaceId?: string;
-      workspaceIds?: string[];
-    };
-  } catch {
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          "Invalid JSON; expect { engineKey: string, workspaceId?: string, workspaceIds?: string[] }",
-      },
-      { status: 400 },
-    );
-  }
-
-  // Validate engineKey
-  const engineKey = body.engineKey?.trim();
-  if (!engineKey) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Missing 'engineKey'. Available engines: " +
-          listProactiveEngines()
-            .map((e) => e.key)
-            .join(", "),
-      },
-      { status: 400 },
-    );
-  }
+  const body = LoopbrainEngineRunSchema.parse(await request.json());
+  const { engineKey, workspaceId, workspaceIds } = body;
 
   const engine = getProactiveEngine(engineKey);
   if (!engine) {
@@ -110,10 +77,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Collect workspace IDs
-  const workspaceIds: string[] = [];
-  if (body.workspaceId) workspaceIds.push(body.workspaceId);
-  if (Array.isArray(body.workspaceIds)) workspaceIds.push(...body.workspaceIds);
-  const unique = [...new Set(workspaceIds)];
+  const targetWorkspaceIds: string[] = [];
+  if (workspaceId) targetWorkspaceIds.push(workspaceId);
+  if (Array.isArray(workspaceIds)) targetWorkspaceIds.push(...workspaceIds);
+  const unique = [...new Set(targetWorkspaceIds)];
 
   if (unique.length === 0) {
     return NextResponse.json(
@@ -125,19 +92,15 @@ export async function POST(request: NextRequest) {
   // Run engine for each workspace
   const results: Array<{
     workspaceId: string;
-    orgId: string;
   } & ProactiveEngineResult> = [];
 
-  for (const workspaceId of unique) {
-    // When workspace fallback is used, orgId === workspaceId
-    const orgId = workspaceId;
+  for (const wsId of unique) {
     try {
-      const result = await engine.run({ workspaceId, orgId });
-      results.push({ workspaceId, orgId, ...result });
+      const result = await engine.run({ workspaceId: wsId });
+      results.push({ workspaceId: wsId, ...result });
     } catch (err) {
       results.push({
-        workspaceId,
-        orgId,
+        workspaceId: wsId,
         ok: false,
         error: err instanceof Error ? err.message : "Unknown error",
       });

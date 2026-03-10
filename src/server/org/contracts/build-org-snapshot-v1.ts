@@ -24,10 +24,10 @@ type ManagerLinkRow = { personId: string; managerId: string }
 
 type AvailabilityStatus = "AVAILABLE" | "LIMITED" | "UNAVAILABLE"
 
-export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> {
+export async function buildOrgSnapshotV1(workspaceId: string): Promise<OrgSnapshotV1> {
   // Get people from OrgPosition with User join
   const positions: PositionRow[] = await prisma.orgPosition.findMany({
-    where: { workspaceId: orgId, userId: { not: null }, isActive: true },
+    where: { workspaceId, userId: { not: null }, isActive: true },
     select: {
       teamId: true,
       userId: true,
@@ -40,17 +40,17 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
   }).catch(() => [] as PositionRow[])
 
   // Fetch health signals (used later in snapshot)
-  const health = await computeMinimalOrgHealth(orgId).catch(() => ({ trustScore: 0, signals: [] as { key: string; severity: "INFO" | "WARNING" | "HIGH"; count?: number }[] }))
+  const health = await computeMinimalOrgHealth(workspaceId).catch(() => ({ trustScore: 0, signals: [] as { key: string; severity: "INFO" | "WARNING" | "HIGH"; count?: number }[] }))
 
   const [orgRow, teams, owners, availability, roles, skills, taxRoles, taxSkills, capacityRows, domains, systems] = await Promise.all([
-    prisma.org.findFirst({ where: { id: orgId }, select: { id: true, name: true } }).catch(() => null),
-    prisma.orgTeam.findMany({ where: { workspaceId: orgId }, select: { id: true, name: true, leaderId: true }, take: 2000 }).catch(() => [] as TeamRow[]),
+    prisma.org.findFirst({ where: { id: workspaceId }, select: { id: true, name: true } }).catch(() => null),
+    prisma.orgTeam.findMany({ where: { workspaceId }, select: { id: true, name: true, leaderId: true }, take: 2000 }).catch(() => [] as TeamRow[]),
     (async (): Promise<OwnerRow[]> => {
       try {
         const ownerModel = prisma.ownerAssignment
         if (ownerModel && typeof ownerModel.findMany === "function") {
           return await ownerModel.findMany({
-            where: { workspaceId: orgId, isPrimary: true },
+            where: { workspaceId, isPrimary: true },
             select: { entityType: true, entityId: true, ownerPersonId: true },
             take: 200000,
           }).catch((error: unknown) => {
@@ -69,44 +69,44 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
       }
     })(),
     prisma.personAvailabilityHealth.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { personId: true, status: true, reason: true, updatedAt: true, createdAt: true },
       take: 50000,
     }).catch(() => [] as AvailabilityRow[]),
     prisma.personRoleAssignment.findMany({
-      where: { orgId },
+      where: { workspaceId },
       select: { personId: true, role: true, percent: true },
       take: 200000,
     }).catch(() => [] as RoleRow[]),
     prisma.personSkill.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { personId: true, skill: { select: { name: true } } },
       take: 200000,
     }).catch(() => [] as SkillRow[]),
-    prisma.orgRoleTaxonomy.findMany({ where: { orgId }, select: { label: true }, take: 5000 }).catch(() => [] as TaxonomyRow[]),
-    prisma.orgSkillTaxonomy.findMany({ where: { orgId }, select: { label: true }, take: 5000 }).catch(() => [] as TaxonomyRow[]),
+    prisma.orgRoleTaxonomy.findMany({ where: { workspaceId }, select: { label: true }, take: 5000 }).catch(() => [] as TaxonomyRow[]),
+    prisma.orgSkillTaxonomy.findMany({ where: { workspaceId }, select: { label: true }, take: 5000 }).catch(() => [] as TaxonomyRow[]),
     // Capacity data (FTE, shrinkage)
     prisma.personCapacity
       .findMany({
-        where: { orgId },
+        where: { workspaceId },
         select: { personId: true, fte: true, shrinkagePct: true },
         take: 50000,
       })
       .catch(() => [] as CapacityRow[]),
     // Domains
     prisma.domain
-      .findMany({ where: { orgId }, select: { id: true, name: true }, take: 2000 })
+      .findMany({ where: { workspaceId }, select: { id: true, name: true }, take: 2000 })
       .catch(() => [] as DomainRow[]),
     // Systems
     prisma.systemEntity
-      .findMany({ where: { orgId }, select: { id: true, name: true }, take: 2000 })
+      .findMany({ where: { workspaceId }, select: { id: true, name: true }, take: 2000 })
       .catch(() => [] as SystemRow[]),
   ])
 
   // Get team memberships from OrgPosition (teamId + userId)
   const teamMembers: TeamMemberRow[] = await prisma.orgPosition
     .findMany({
-      where: { workspaceId: orgId, teamId: { not: null }, userId: { not: null }, isActive: true },
+      where: { workspaceId, teamId: { not: null }, userId: { not: null }, isActive: true },
       select: { teamId: true, userId: true },
       take: 200000
     })
@@ -114,7 +114,7 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
     .catch(() => [] as TeamMemberRow[])
 
   const managerLinks: ManagerLinkRow[] = await prisma.personManagerLink
-    .findMany({ where: { workspaceId: orgId }, select: { personId: true, managerId: true }, take: 200000 })
+    .findMany({ where: { workspaceId }, select: { personId: true, managerId: true }, take: 200000 })
     .catch(() => [] as ManagerLinkRow[])
 
   const availabilityBy = new Map<string, AvailabilityRow>()
@@ -210,7 +210,7 @@ export async function buildOrgSnapshotV1(orgId: string): Promise<OrgSnapshotV1> 
     version: "v1",
     generatedAt: new Date().toISOString(),
     org: {
-      id: String(orgRow?.id ?? orgId),
+      id: String(orgRow?.id ?? workspaceId),
       name: orgRow?.name ? String(orgRow.name) : null,
     },
     people: people.slice(0, 10000), // Hard cap: max 10,000 people

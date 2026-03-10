@@ -3,7 +3,7 @@
 /**
  * LEGACY ROUTE - Redirects to slug-based URL
  * 
- * TODO: Remove this file once all internal links point to /w/[workspaceSlug]/ask
+ * TODO [BACKLOG]: Remove this file once all internal links point to /w/[workspaceSlug]/ask
  * This is a transitional redirect to maintain backward compatibility.
  */
 

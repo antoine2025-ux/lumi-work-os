@@ -326,7 +326,7 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      // TODO: Implement view timeline for epic
+                      // TODO [BACKLOG]: Implement per-epic timeline view
                     }}
                     onMouseEnter={() => setHoveredAction(`timeline-${epic.id}`)}
                     onMouseLeave={() => setHoveredAction(null)}
@@ -346,7 +346,7 @@ export function EpicsView({ projectId, workspaceId, colors, onCreateEpic }: Epic
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      // TODO: Implement epic settings
+                      // TODO [BACKLOG]: Implement epic settings panel
                     }}
                     onMouseEnter={() => setHoveredAction(`settings-${epic.id}`)}
                     onMouseLeave={() => setHoveredAction(null)}

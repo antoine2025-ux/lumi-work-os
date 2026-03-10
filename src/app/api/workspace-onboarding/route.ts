@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { 
   createWorkspaceWithOnboarding, 
   getWorkspaceTemplates,
   OnboardingOptions 
 } from '@/lib/workspace-onboarding'
+import { WorkspaceOnboardingSchema } from '@/lib/validations/workspace'
 
 // GET /api/workspace-onboarding/templates - Get available workspace templates
 export async function GET(_request: NextRequest) {
@@ -23,12 +25,8 @@ export async function GET(_request: NextRequest) {
         settings: template.settings
       }))
     })
-  } catch (error) {
-    console.error('Error fetching workspace templates:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to fetch templates'
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, _request);
   }
 }
 
@@ -52,7 +50,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    const body = await request.json()
+    const body = WorkspaceOnboardingSchema.parse(await request.json())
     const {
       templateId,
       customName,
@@ -121,12 +119,8 @@ export async function POST(request: NextRequest) {
       }
     })
 
-  } catch (error) {
-    console.error('Error creating workspace with onboarding:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to create workspace'
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

@@ -26,7 +26,7 @@ export function OrgIntelligenceOverview() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium text-slate-100">
+          <CardTitle className="text-sm font-medium text-foreground">
             What needs attention
           </CardTitle>
         </CardHeader>
@@ -42,12 +42,12 @@ export function OrgIntelligenceOverview() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium text-slate-100">
+          <CardTitle className="text-sm font-medium text-foreground">
             What needs attention
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-sm text-slate-400">
+          <div className="text-sm text-muted-foreground">
             Unable to load organizational insights right now.
           </div>
         </CardContent>
@@ -64,7 +64,7 @@ export function OrgIntelligenceOverview() {
     return (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-medium text-slate-100">
+          <CardTitle className="text-sm font-medium text-foreground">
             What needs attention
           </CardTitle>
           <Button asChild size="sm" variant="secondary">
@@ -84,7 +84,7 @@ export function OrgIntelligenceOverview() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-sm font-medium text-slate-100">
+        <CardTitle className="text-sm font-medium text-foreground">
           What needs attention
         </CardTitle>
         <Button asChild size="sm" variant="secondary">

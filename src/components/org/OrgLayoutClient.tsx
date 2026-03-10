@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
+import { cn } from "@/lib/utils";
 import { OrgSidebar } from "@/components/org/OrgSidebar";
 import { OrgDebugPanel } from "@/components/org/OrgDebugPanel";
 import { OrgPageTransition } from "@/components/org/OrgPageTransition";
@@ -33,16 +34,16 @@ export function OrgLayoutClient({
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#020617]">
+    <div className="flex min-h-screen flex-col bg-background">
       {showHeader && <Header />}
 
-      <div className="flex flex-1">
+      <div className={cn("flex flex-1", showHeader && "pt-12")}>
         <OrgSidebar
           beta={beta}
           workspaceSlug={workspaceSlug}
           userRole={userRole}
         />
-        <main className="relative flex-1 overflow-y-auto bg-[#020617]">
+        <main className="relative flex-1 overflow-y-auto bg-background">
           {/* Smooth page transitions - doesn't block data load */}
           <OrgPageTransition key={pathname}>
             {children}

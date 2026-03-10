@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { logOrgAuditEventStandalone } from "@/server/audit/orgAudit";
 import { createErrorResponse, createSuccessResponse } from "@/server/api/responses";
@@ -20,6 +22,14 @@ export async function POST(req: NextRequest) {
     const { workspaceId } = OrgMemberLeaveSchema.parse(
       await req.json().catch(() => ({}))
     );
+
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId,
+      scope: "workspace",
+      requireRole: ["VIEWER"],
+    });
+    setWorkspaceContext(workspaceId);
 
     const membership = await prisma.workspaceMember.findFirst({
       where: {

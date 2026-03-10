@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
@@ -8,6 +8,7 @@ import { assertProjectAccess } from '@/lib/pm/guards'
 import { handleApiError } from '@/lib/api-errors'
 import { logTaskHistory } from '@/lib/pm/history'
 import { emitProjectEvent } from '@/lib/pm/events'
+import { createNotification } from '@/lib/notifications/create'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 
@@ -209,18 +210,43 @@ export async function POST(
       userId: session.user.id
     })
 
-    // TODO: Send notifications to mentioned users
-    // This would integrate with your existing notification system
-    if (validatedData.mentions && validatedData.mentions.length > 0) {
-      // Get mentioned user details for notifications
-      const mentionedUsers = await prisma.user.findMany({
-        where: { id: { in: validatedData.mentions } },
-        select: { id: true, name: true, email: true }
-      })
+    // Notify task assignee when someone else comments (fire-and-forget)
+    if (task.assignee && task.assignee.id !== authCtx.user.userId) {
+      createNotification({
+        workspaceId: authCtx.workspaceId,
+        recipientId: task.assignee.id,
+        actorId: authCtx.user.userId,
+        type: 'comment',
+        title: `New comment on "${task.title}"`,
+        body: validatedData.content.substring(0, 200),
+        entityType: 'task',
+        entityId: task.id,
+        url: `/projects/${task.projectId}/tasks/${task.id}`,
+      }).catch((err) => console.error('Failed to create comment notification:', err))
+    }
 
-      // Here you would send notifications to mentioned users
-      // Example: await sendNotification(mentionedUsers, { type: 'mention', taskId, commentId: comment.id })
-      console.log('Mentioned users:', mentionedUsers.map(u => u.name))
+    // Mention notifications (fire-and-forget)
+    if (validatedData.mentions && validatedData.mentions.length > 0) {
+      const taskUrl = `/projects/${task.projectId}/tasks/${task.id}`
+      const excerpt = validatedData.content.substring(0, 200)
+      const actorName = authCtx.user.name ?? 'Someone'
+
+      for (const mentionId of validatedData.mentions) {
+        if (mentionId === authCtx.user.userId) continue // no self-mention
+        createNotification({
+          workspaceId: authCtx.workspaceId,
+          recipientId: mentionId,
+          actorId: authCtx.user.userId,
+          type: 'MENTION',
+          title: `${actorName} mentioned you on "${task.title}"`,
+          body: excerpt,
+          entityType: 'task',
+          entityId: task.id,
+          url: taskUrl,
+        }).catch((err) =>
+          console.error('Failed to create mention notification:', err)
+        )
+      }
     }
 
     return NextResponse.json(comment)

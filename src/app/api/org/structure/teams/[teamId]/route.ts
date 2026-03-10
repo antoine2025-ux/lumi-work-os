@@ -1,8 +1,9 @@
 /**
- * GET /api/org/structure/teams/[teamId]
- * Get team detail with members.
- * 
- * Strict auth pattern: getUnifiedAuth → assertAccess → setWorkspaceContext → Prisma
+ * GET    /api/org/structure/teams/[teamId] — Get team detail with members
+ * PUT    /api/org/structure/teams/[teamId] — Update a team (ADMIN)
+ * DELETE /api/org/structure/teams/[teamId] — Delete a team (ADMIN)
+ *
+ * Auth pattern: getUnifiedAuth → assertAccess → setWorkspaceContext → Prisma
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -10,7 +11,8 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
-import { handleApiError } from "@/lib/api-errors"
+import { handleApiError } from "@/lib/api-errors";
+import { UpdateTeamSchema } from "@/lib/validations/org";
 
 export async function GET(
   request: NextRequest,
@@ -120,3 +122,86 @@ export async function GET(
   }
 }
 
+export async function PUT(
+  request: NextRequest,
+  ctx: { params: Promise<{ teamId: string }> }
+) {
+  try {
+    const auth = await getUnifiedAuth(request);
+    const userId = auth?.user?.userId;
+    const workspaceId = auth?.workspaceId;
+
+    if (!userId || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await assertAccess({ userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    setWorkspaceContext(workspaceId);
+
+    const { teamId } = await ctx.params;
+    const body = UpdateTeamSchema.parse(await request.json());
+    const { name, description, departmentId, leaderId, color } = body;
+
+    const team = await prisma.orgTeam.findFirst({
+      where: { id: teamId, workspaceId },
+    });
+    if (!team) {
+      return NextResponse.json({ error: "Team not found" }, { status: 404 });
+    }
+
+    const updated = await prisma.orgTeam.update({
+      where: { id: teamId },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description: description || null }),
+        ...(departmentId !== undefined && { departmentId: departmentId || null }),
+        ...(leaderId !== undefined && { leaderId: leaderId || null }),
+        ...(color !== undefined && { color: color || null }),
+      },
+    });
+
+    return NextResponse.json({ ok: true, team: updated });
+  } catch (error) {
+    return handleApiError(error, request);
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  ctx: { params: Promise<{ teamId: string }> }
+) {
+  try {
+    const auth = await getUnifiedAuth(request);
+    const userId = auth?.user?.userId;
+    const workspaceId = auth?.workspaceId;
+
+    if (!userId || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await assertAccess({ userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    setWorkspaceContext(workspaceId);
+
+    const { teamId } = await ctx.params;
+
+    const team = await prisma.orgTeam.findFirst({
+      where: { id: teamId, workspaceId },
+      include: { _count: { select: { positions: { where: { isActive: true } } } } },
+    });
+    if (!team) {
+      return NextResponse.json({ error: "Team not found" }, { status: 404 });
+    }
+    if (team._count.positions > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete — ${team._count.positions} active position(s) still in this team. Move or archive them first.` },
+        { status: 400 }
+      );
+    }
+
+    await prisma.orgTeam.delete({ where: { id: teamId } });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return handleApiError(error, request);
+  }
+}

@@ -25,7 +25,7 @@ export default async function PositionsPage({ params }: PageProps) {
 
   const [positions, teams, roleCards] = await Promise.all([
     prisma.orgPosition.findMany({
-      where: { workspaceId: context.orgId, isActive: true, archivedAt: null },
+      where: { workspaceId: context.workspaceId, isActive: true, archivedAt: null },
       orderBy: [{ level: "asc" }, { title: "asc" }],
       select: {
         id: true,
@@ -36,7 +36,7 @@ export default async function PositionsPage({ params }: PageProps) {
       },
     }),
     prisma.orgTeam.findMany({
-      where: { workspaceId: context.orgId, isActive: true },
+      where: { workspaceId: context.workspaceId, isActive: true },
       orderBy: { name: "asc" },
       select: {
         id: true,
@@ -46,7 +46,7 @@ export default async function PositionsPage({ params }: PageProps) {
       },
     }),
     prisma.roleCard.findMany({
-      where: { workspaceId: context.orgId },
+      where: { workspaceId: context.workspaceId },
       orderBy: [{ jobFamily: "asc" }, { level: "asc" }],
       select: {
         id: true,
@@ -103,7 +103,7 @@ export default async function PositionsPage({ params }: PageProps) {
           positions={positionItems}
           teams={teamItems}
           roleTemplates={roleTemplateItems}
-          workspaceId={context.orgId}
+          workspaceId={context.workspaceId}
         />
       </div>
     </>

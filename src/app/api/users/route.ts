@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 export async function GET(request: NextRequest) {
   try {
     // Require authentication
     const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(auth.workspaceId)
     
     // Get all users (filtered to users in the current workspace)
     const users = await prisma.user.findMany({
@@ -28,19 +36,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(users)
   } catch (error) {
-    console.error("Error fetching users:", error)
-    
-    // Handle auth errors
-    if (error instanceof Error && (error.message.includes('Unauthorized') || error.message.includes('No workspace found'))) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      )
-    }
-    
-    return NextResponse.json(
-      { error: "Failed to fetch users" },
-      { status: 500 }
-    )
+    return handleApiError(error, request)
   }
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/simple-auth'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
 import { cache, CACHE_KEYS } from '@/lib/cache'
 import { logger } from '@/lib/logger'
@@ -256,7 +256,7 @@ export async function GET(request: NextRequest) {
         pendingInvite,
         user: session?.user ? {
           id: (session.user as { id?: string }).id || '',
-          //id: (session.user as any).id,  // TODO: check this row from Org commits
+
           name: session.user.name,
           email: session.user.email
         } : null

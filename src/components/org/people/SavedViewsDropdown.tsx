@@ -186,12 +186,12 @@ export function SavedViewsDropdown({
             "rounded-full",
             "px-4 py-1.5",
             "text-sm",
-            "bg-slate-900/40",
+            "bg-card/40",
             "text-foreground/60",
-            "hover:bg-slate-900/60",
+            "hover:bg-card/60",
             "hover:text-foreground/80",
             "transition-colors",
-            "border border-slate-800/70"
+            "border border-border/70"
           )}
         >
           <span>{currentView?.name || "Views"}</span>
@@ -204,20 +204,20 @@ export function SavedViewsDropdown({
               className="fixed inset-0 z-40"
               onClick={() => setIsOpen(false)}
             />
-            <div className="absolute left-0 top-full mt-2 z-50 w-64 rounded-lg border border-slate-800/70 bg-slate-900 shadow-lg overflow-hidden">
+            <div className="absolute left-0 top-full mt-2 z-50 w-64 rounded-lg border border-border/70 bg-card shadow-lg overflow-hidden">
               <div className="max-h-96 overflow-y-auto">
                 {views.map((view) => (
                   <div
                     key={view.id}
                     className={cn(
-                      "flex items-center justify-between px-4 py-2 hover:bg-slate-800/50 transition-colors",
-                      currentView?.id === view.id && "bg-slate-800/30"
+                      "flex items-center justify-between px-4 py-2 hover:bg-muted/50 transition-colors",
+                      currentView?.id === view.id && "bg-muted/30"
                     )}
                   >
                     <button
                       type="button"
                       onClick={() => handleViewSelect(view)}
-                      className="flex-1 text-left text-sm text-slate-200"
+                      className="flex-1 text-left text-sm text-foreground"
                     >
                       {view.name}
                     </button>
@@ -232,7 +232,7 @@ export function SavedViewsDropdown({
                             setIsRenameDialogOpen(true);
                             setIsOpen(false);
                           }}
-                          className="p-1 text-slate-400 hover:text-slate-200"
+                          className="p-1 text-muted-foreground hover:text-foreground"
                         >
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
@@ -242,7 +242,7 @@ export function SavedViewsDropdown({
                             e.stopPropagation();
                             handleDeleteView(view.id);
                           }}
-                          className="p-1 text-slate-400 hover:text-red-400"
+                          className="p-1 text-muted-foreground hover:text-red-400"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -250,7 +250,7 @@ export function SavedViewsDropdown({
                     )}
                   </div>
                 ))}
-                <div className="border-t border-slate-800/70">
+                <div className="border-t border-border/70">
                   <button
                     type="button"
                     onClick={() => {
@@ -258,7 +258,7 @@ export function SavedViewsDropdown({
                       setViewName("");
                       setIsOpen(false);
                     }}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800/50 transition-colors"
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
                   >
                     <Plus className="h-4 w-4" />
                     <span>Save current view…</span>
@@ -272,16 +272,16 @@ export function SavedViewsDropdown({
 
       {/* Save dialog */}
       <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-        <DialogContent className="bg-slate-900 border-white/10">
+        <DialogContent className="bg-card border-white/10">
           <DialogHeader>
-            <DialogTitle className="text-slate-100">Save View</DialogTitle>
+            <DialogTitle className="text-foreground">Save View</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Input
               value={viewName}
               onChange={(e) => setViewName(e.target.value)}
               placeholder="View name"
-              className="bg-slate-800 border-slate-700 text-slate-100"
+              className="bg-muted border-border text-foreground"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   handleSaveView();
@@ -308,16 +308,16 @@ export function SavedViewsDropdown({
 
       {/* Rename dialog */}
       <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
-        <DialogContent className="bg-slate-900 border-white/10">
+        <DialogContent className="bg-card border-white/10">
           <DialogHeader>
-            <DialogTitle className="text-slate-100">Rename View</DialogTitle>
+            <DialogTitle className="text-foreground">Rename View</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Input
               value={viewName}
               onChange={(e) => setViewName(e.target.value)}
               placeholder="View name"
-              className="bg-slate-800 border-slate-700 text-slate-100"
+              className="bg-muted border-border text-foreground"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   handleRenameView();

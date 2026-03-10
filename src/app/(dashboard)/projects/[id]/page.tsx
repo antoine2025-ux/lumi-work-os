@@ -19,6 +19,7 @@ import { useWorkspace } from "@/lib/workspace-context"
 import dynamic from "next/dynamic"
 import { useTheme } from "@/components/theme-provider"
 import { useProjectSlackHints, setProjectSlackHints, getProjectSlackHints } from "@/lib/client-state/project-slack-hints"
+import { useLoopbrainAnchors } from "@/components/loopbrain/assistant-context"
 
 // Keep essential imports at top for faster initial render
 import ReactMarkdown from "react-markdown"
@@ -50,9 +51,10 @@ const TimelineView = dynamic(() => import("@/components/tasks/timeline-view"), {
 const EpicsView = dynamic(() => import("@/components/projects/epics-view").then(mod => ({ default: mod.EpicsView })), { ssr: false })
 const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mod => ({ default: mod.WikiLayout })), { ssr: false })
 const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
-const LoopbrainAssistantLauncher = dynamic(() => import("@/components/loopbrain/assistant-launcher").then(mod => ({ default: mod.LoopbrainAssistantLauncher })), { ssr: false })
 const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
+const ProjectOrgStatus = dynamic(() => import("@/components/projects/project-org-status").then(mod => ({ default: mod.ProjectOrgStatus })), { ssr: false })
 const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
+const TaskTableView = dynamic(() => import("@/components/projects/TaskTableView").then(mod => ({ default: mod.TaskTableView })), { ssr: false })
 
 interface Project {
   id: string
@@ -130,6 +132,8 @@ export default function ProjectDetailPage() {
   const projectId = params?.id as string
   const { themeConfig } = useTheme()
   const { currentWorkspace, userRole } = useWorkspace()
+
+  useLoopbrainAnchors(projectId ? { projectId } : {})
   
   const [project, setProject] = useState<Project | null>(null)
   const [accessDenied, setAccessDenied] = useState(false)
@@ -184,7 +188,7 @@ export default function ProjectDetailPage() {
   const [isTaskListFullscreen, setIsTaskListFullscreen] = useState(false)
   const [_taskViewMode, _setTaskViewMode] = useState<'live' | 'kanban'>('kanban')
   const [currentView, setCurrentView] = useState<ViewMode>('board')
-  const [headerView, setHeaderView] = useState<'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'>('board')
+  const [headerView, setHeaderView] = useState<'board' | 'epics' | 'tasks' | 'table' | 'calendar' | 'timeline' | 'files' | 'health'>('board')
   const [showCelebration, setShowCelebration] = useState(false)
   const [wasCompleted, setWasCompleted] = useState(false)
   const [filteredTasks, setFilteredTasks] = useState<KanbanTask[]>([])
@@ -669,7 +673,8 @@ export default function ProjectDetailPage() {
               if (view === 'board') setCurrentView('board')
               else if (view === 'calendar') setCurrentView('calendar')
               else if (view === 'tasks') setCurrentView('list')
-              // TODO: Handle epics, timeline, files views
+              else if (view === 'table') setCurrentView('list')
+
             }}
             onEdit={() => {
               setIsEditDialogOpen(true)
@@ -835,6 +840,10 @@ export default function ProjectDetailPage() {
                   onCreateEpic={handleCreateEpic}
                 />
               </div>
+            ) : headerView === 'health' ? (
+              <div className="px-6 pt-3 pb-6">
+                <ProjectOrgStatus members={project?.members ?? []} />
+              </div>
             ) : (
               <Card className="bg-background border-0 shadow-none rounded-none">
                 <CardContent className="p-0">
@@ -868,6 +877,14 @@ export default function ProjectDetailPage() {
                       onToggleFullscreen={() => setIsTaskListFullscreen(true)}
                     />
                   )}
+
+                  {headerView === 'table' && (
+                    <TaskTableView
+                      projectId={projectId}
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                      onTasksUpdated={loadProject}
+                    />
+                  )}
                   
                   {headerView === 'calendar' && (
                     <CalendarView 
@@ -885,9 +902,10 @@ export default function ProjectDetailPage() {
                   
                   {headerView === 'files' && project && currentWorkspace && (
                     <div className="px-6 pt-3 pb-6">
-                      <ProjectDocumentationSection 
-                        projectId={project.id} 
-                        workspaceId={project.workspaceId || currentWorkspace.id} 
+                      <ProjectDocumentationSection
+                        projectId={project.id}
+                        projectName={project.name}
+                        workspaceId={project.workspaceId || currentWorkspace.id}
                       />
                     </div>
                   )}
@@ -1045,12 +1063,6 @@ export default function ProjectDetailPage() {
           </DialogContent>
         </Dialog>
       </div>
-
-      {/* Global Loopbrain Assistant */}
-      <LoopbrainAssistantLauncher 
-        mode="spaces" 
-        anchors={{ projectId }} 
-      />
 
       {/* Create Task Dialog */}
       <CreateTaskDialog

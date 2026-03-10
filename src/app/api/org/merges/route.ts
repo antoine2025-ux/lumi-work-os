@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     const merges = await prisma.orgPersonMergeLog.findMany({
-      where: { orgId: workspaceId },
+      where: { workspaceId },
       orderBy: { appliedAt: "desc" },
       take: 100,
     });

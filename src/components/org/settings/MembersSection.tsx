@@ -44,7 +44,7 @@ export function MembersSection({
 
   if (!orgId) {
     return (
-      <div className="rounded-2xl border border-[#111827] bg-[#020617] p-4 text-xs text-slate-400">
+      <div className="rounded-2xl border border-border bg-background p-4 text-xs text-muted-foreground">
         No organization selected.
       </div>
     );
@@ -55,14 +55,14 @@ export function MembersSection({
       capability="org:member:list"
       permissions={perms}
       fallback={
-        <div className="rounded-2xl border border-[#111827] bg-[#020617] p-4 text-xs text-slate-300">
+        <div className="rounded-2xl border border-border bg-background p-4 text-xs text-muted-foreground">
           You don&apos;t have permission to manage members in this org.
         </div>
       }
     >
-      <section className="rounded-2xl border border-[#111827] bg-[#020617] p-4 shadow-sm">
+      <section className="rounded-2xl border border-border bg-background p-4 shadow-sm">
         <div className="mb-4">
-          <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">
+          <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
             Members
           </p>
         </div>

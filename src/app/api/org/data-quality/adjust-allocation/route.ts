@@ -4,11 +4,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
-
-type Body = {
-  personId: string
-  targetTotalPct: number // e.g., 100
-}
+import { AdjustAllocationSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,16 +15,13 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" })
     setWorkspaceContext(workspaceId)
 
-    const body = (await req.json()) as Body
-    const personId = String(body.personId ?? "")
-    const target = Number(body.targetTotalPct ?? 100)
-    if (!personId || !Number.isFinite(target) || target <= 0 || target > 200) {
-      return NextResponse.json({ error: "Invalid fields" }, { status: 400 })
-    }
+    const body = AdjustAllocationSchema.parse(await req.json())
+    const { personId, adjustment, reason } = body;
+    const target = 100 + adjustment;
 
     // Normalize allocations for person proportionally (v0)
     const rows = await prisma.capacityAllocation.findMany({
-      where: { orgId: workspaceId, personId } as any,
+      where: { orgId: workspaceId, personId } as any, // orgId is a Prisma field
       select: { id: true, percent: true } as any,
       take: 1000,
     })
@@ -49,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.orgHealthSignal.updateMany({
       where: {
-        orgId: workspaceId,
+        orgId: workspaceId, // orgId is a Prisma field
         type: "DATA_QUALITY" as any,
         resolvedAt: null,
         dismissedAt: null,

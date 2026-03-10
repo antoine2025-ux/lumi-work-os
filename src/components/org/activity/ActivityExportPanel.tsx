@@ -28,13 +28,13 @@ export function ActivityExportPanel() {
       permissions={perms}
       fallback={null}
     >
-      <section className="space-y-2 rounded-2xl border border-[#111827] bg-[#020617] p-4 text-[11px] text-slate-300">
+      <section className="space-y-2 rounded-2xl border border-border bg-background p-4 text-[11px] text-muted-foreground">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Activity export
           </div>
-          <p className="mt-1 text-[11px] text-slate-500">
+          <p className="mt-1 text-[11px] text-muted-foreground">
             Download a snapshot of recent admin activity for this organization as CSV or JSON.
           </p>
         </div>
@@ -52,12 +52,12 @@ export function ActivityExportPanel() {
           type="button"
           disabled={disabled}
           onClick={() => handleDownload("json")}
-          className="focus-ring inline-flex items-center justify-center rounded-lg border border-[#111827] bg-[#020617] px-3 py-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-[#050816] disabled:cursor-not-allowed disabled:opacity-50"
+          className="focus-ring inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-[#050816] disabled:cursor-not-allowed disabled:opacity-50"
         >
           Download JSON
         </button>
       </div>
-      <p className="text-[10px] text-slate-500">
+      <p className="text-[10px] text-muted-foreground">
         Exports are limited to the most recent entries (up to 500). For deeper history, pagination
         can be added later.
       </p>

@@ -1,55 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  assertOrgCapability,
-  getOrgPermissionContext,
-  mapPermissionErrorToStatus,
-} from "@/lib/org/permissions.server";
-import { logOrgAudit } from "@/lib/orgAudit";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 import { OrgTeamCreateSchema } from "@/lib/validations/org";
 import { handleApiError } from "@/lib/api-errors";
 
 export async function GET(req: NextRequest) {
-  const context = await getOrgPermissionContext(req);
-  if (!context) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const teams = await prisma.orgTeam.findMany({
-    where: {
-      workspaceId: context.orgId,
+  try {
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["VIEWER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
+
+    const teams = await prisma.orgTeam.findMany({
+      where: {
+        workspaceId: auth.workspaceId,
       isActive: true,
     },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
-  return NextResponse.json({ teams });
+    return NextResponse.json({ teams });
+  } catch (error) {
+    return handleApiError(error, req);
+  }
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
+
     const body = OrgTeamCreateSchema.parse(await req.json());
     const name = body.name;
-
-    const context = await getOrgPermissionContext(req);
-
-    try {
-      assertOrgCapability(context, "org:team:create");
-    } catch (permError) {
-      const status = mapPermissionErrorToStatus(permError);
-      return NextResponse.json(
-        {
-          ok: false,
-          error: {
-            code: status === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
-            message: "Not allowed to create teams in this org.",
-          },
-        },
-        { status }
-      );
-    }
-
-    // At this point, context is guaranteed non-null & authorized
-    const orgId = context!.orgId;
+    const workspaceId = auth.workspaceId;
 
     // DepartmentId is optional - teams can be unassigned (departmentId = null)
     // This allows teams to exist temporarily without a department
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
       const department = await prisma.orgDepartment.findFirst({
         where: {
           id: body.departmentId,
-          workspaceId: orgId,
+          workspaceId,
         },
       });
 
@@ -93,7 +95,7 @@ export async function POST(req: NextRequest) {
     // Check for duplicate team name in the same department (or unassigned)
     const existingTeam = await prisma.orgTeam.findFirst({
       where: {
-        workspaceId: orgId,
+        workspaceId,
         departmentId: body.departmentId ?? null,
         name,
       },
@@ -117,7 +119,7 @@ export async function POST(req: NextRequest) {
     // Create team (departmentId can be null for unassigned teams)
     const team = await prisma.orgTeam.create({
       data: {
-        workspaceId: orgId,
+        workspaceId,
         departmentId: body.departmentId ?? null,
         name,
         description: body.description?.trim() || null,
@@ -126,20 +128,18 @@ export async function POST(req: NextRequest) {
     });
 
     // Audit log
-    await logOrgAudit(
-      {
-        orgId,
-        action: "TEAM_CREATED",
-        targetType: "TEAM",
-        targetId: team.id,
-        meta: {
-          name: team.name,
-          departmentId: team.departmentId,
-          description: team.description,
-        },
+    logOrgAudit({
+      workspaceId,
+      entityType: "TEAM",
+      entityId: team.id,
+      entityName: team.name,
+      action: "CREATED",
+      actorId: auth.user.userId,
+      metadata: {
+        departmentId: team.departmentId,
+        description: team.description,
       },
-      req
-    );
+    }).catch((e) => console.error("[POST /api/org/teams] Audit log error (non-fatal):", e));
 
     return NextResponse.json({
       ok: true,

@@ -34,8 +34,8 @@ const PROFICIENCY_LABELS = ["", "Beginner", "Basic", "Intermediate", "Advanced",
 function ProficiencyBadge({ level }: { level: number }) {
   const label = PROFICIENCY_LABELS[level] || `Level ${level}`;
   const colors: Record<number, string> = {
-    1: "bg-slate-600/30 text-slate-400",
-    2: "bg-slate-500/30 text-slate-300",
+    1: "bg-slate-600/30 text-muted-foreground",
+    2: "bg-slate-500/30 text-muted-foreground",
     3: "bg-blue-500/20 text-blue-400",
     4: "bg-emerald-500/20 text-emerald-400",
     5: "bg-amber-500/20 text-amber-400",
@@ -65,7 +65,7 @@ function SourceBadge({ source, verified }: { source: string; verified: boolean }
   };
 
   return (
-    <span className="text-xs text-slate-500">
+    <span className="text-xs text-muted-foreground">
       {labels[source] || source}
     </span>
   );
@@ -144,15 +144,15 @@ export function PersonSkillsCard({ personId, canEdit = false }: PersonSkillsCard
   }
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+    <div className="rounded-xl border border-border bg-card/50 p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-slate-200">Skills</h3>
+        <h3 className="text-sm font-medium text-foreground">Skills</h3>
         {canEdit && (
           <Button
             variant="ghost"
             size="sm"
             onClick={handleOpenAdd}
-            className="text-xs text-slate-400 hover:text-slate-200"
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
             <Plus className="h-3 w-3 mr-1" />
             Add skill
@@ -161,7 +161,7 @@ export function PersonSkillsCard({ personId, canEdit = false }: PersonSkillsCard
       </div>
 
       {isLoading && (
-        <div className="py-4 text-center text-sm text-slate-500">Loading...</div>
+        <div className="py-4 text-center text-sm text-muted-foreground">Loading...</div>
       )}
 
       {error && (
@@ -169,7 +169,7 @@ export function PersonSkillsCard({ personId, canEdit = false }: PersonSkillsCard
       )}
 
       {!isLoading && !error && skills.length === 0 && (
-        <div className="py-4 text-center text-sm text-slate-500">
+        <div className="py-4 text-center text-sm text-muted-foreground">
           No skills recorded
         </div>
       )}
@@ -179,16 +179,16 @@ export function PersonSkillsCard({ personId, canEdit = false }: PersonSkillsCard
           {skills.map((skill) => (
             <div
               key={skill.id}
-              className="flex items-center justify-between rounded-lg bg-slate-800/50 px-3 py-2 group"
+              className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 group"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-100 truncate">
+                    <span className="text-sm text-foreground truncate">
                       {skill.skill.name}
                     </span>
                     {skill.skill.category && (
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-muted-foreground">
                         {skill.skill.category}
                       </span>
                     )}
@@ -207,7 +207,7 @@ export function PersonSkillsCard({ personId, canEdit = false }: PersonSkillsCard
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
-                    className="p-1 text-slate-400 hover:text-slate-200"
+                    className="p-1 text-muted-foreground hover:text-foreground"
                     onClick={() => handleOpenEdit(skill)}
                     title="Edit"
                   >
@@ -215,7 +215,7 @@ export function PersonSkillsCard({ personId, canEdit = false }: PersonSkillsCard
                   </button>
                   <button
                     type="button"
-                    className="p-1 text-slate-400 hover:text-red-400"
+                    className="p-1 text-muted-foreground hover:text-red-400"
                     onClick={() => handleDelete(skill.id)}
                     disabled={deletingId === skill.id}
                     title="Remove"

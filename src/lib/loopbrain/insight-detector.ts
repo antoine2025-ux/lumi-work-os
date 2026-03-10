@@ -321,6 +321,8 @@ export async function detectWorkloadInsights(
         projectId: true,
         dueDate: true,
       },
+      take: 2000, // perf: cap workspace task scan for insight detection
+      orderBy: { updatedAt: 'desc' },
     });
 
     // Calculate blocked task ratio per project
@@ -471,6 +473,7 @@ export async function detectDependencyInsights(
         blocks: true,
         projectId: true,
       },
+      take: 2000, // perf: cap dependency graph size for insight detection
     });
 
     // Build dependency graph
@@ -831,6 +834,7 @@ export async function detectCommunicationInsights(
           },
         },
       },
+      take: 500, // perf: cap decision domain scan
     });
 
     // Transform to expected format
@@ -919,6 +923,7 @@ export async function detectProjectHealthInsights(
           status: true,
           updatedAt: true,
         },
+        take: 200, // perf: cap active project scan
       }),
       prisma.task.findMany({
         where: { workspaceId },
@@ -930,6 +935,8 @@ export async function detectProjectHealthInsights(
           projectId: true,
           updatedAt: true,
         },
+        take: 2000, // perf: cap workspace task scan for insight detection
+        orderBy: { updatedAt: 'desc' },
       }),
     ]);
 

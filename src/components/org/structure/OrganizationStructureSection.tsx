@@ -51,21 +51,21 @@ export function OrganizationStructureSection({
 
 
   return (
-    <section className="mt-12 pb-8 border-b border-slate-800/30">
+    <section className="mt-12 pb-8 border-b border-border/30">
       <header className="mb-10">
         <div className="flex items-start justify-between gap-4 mb-2">
           <div className="space-y-1.5 flex-1">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-100">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
               Organization structure
             </h2>
-            <p className="text-sm text-slate-500/70">
+            <p className="text-sm text-muted-foreground/70">
               Departments, teams, and key leads at a glance.
             </p>
           </div>
         </div>
         {/* Subheadline with toggle aligned right */}
         <div className="flex items-center justify-between gap-4">
-          <p className="text-xs text-slate-500/60">
+          <p className="text-xs text-muted-foreground/60">
             {viewMode === "list"
               ? "List view · Scan departments vertically."
               : "Org tree · Compare departments side by side."}

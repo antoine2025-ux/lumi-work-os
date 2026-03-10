@@ -129,20 +129,20 @@ export function OrgHelpPanel({ open, onClose }: OrgHelpPanelProps) {
     >
       <div
         ref={drawerRef}
-        className={`h-full w-full max-w-md border-l border-slate-800 bg-[#020617] shadow-xl transition-all duration-150 flex flex-col ${
+        className={`h-full w-full max-w-md border-l border-border bg-background shadow-xl transition-all duration-150 flex flex-col ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky header */}
-        <div className="sticky top-0 z-10 border-b border-slate-800 bg-[#020617] p-6 pb-4">
+        <div className="sticky top-0 z-10 border-b border-border bg-background p-6 pb-4">
           {view === "list" ? (
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-[15px] font-semibold text-slate-50" id="help-dialog-title">
+                <h2 className="text-[15px] font-semibold text-foreground" id="help-dialog-title">
                   Learn more
                 </h2>
-                <p className="mt-1 text-[12px] text-slate-400">
+                <p className="mt-1 text-[12px] text-muted-foreground">
                   Read documentation to better understand roles, structure, and org insights.
                 </p>
               </div>
@@ -150,7 +150,7 @@ export function OrgHelpPanel({ open, onClose }: OrgHelpPanelProps) {
                 ref={closeButtonRef}
                 type="button"
                 onClick={onClose}
-                className="rounded-full border border-slate-700 bg-slate-800/50 px-3 py-1.5 text-[11px] font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                className="rounded-full border border-border bg-muted/50 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                 aria-label="Close org help"
               >
                 Close
@@ -162,7 +162,7 @@ export function OrgHelpPanel({ open, onClose }: OrgHelpPanelProps) {
                 ref={backButtonRef}
                 type="button"
                 onClick={handleBackToList}
-                className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/50 px-3 py-1.5 text-[11px] font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                 aria-label="Back to Learn more"
               >
                 ← All articles
@@ -170,7 +170,7 @@ export function OrgHelpPanel({ open, onClose }: OrgHelpPanelProps) {
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full border border-slate-700 bg-slate-800/50 px-3 py-1.5 text-[11px] font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                className="rounded-full border border-border bg-muted/50 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                 aria-label="Close org help"
               >
                 Close
@@ -180,7 +180,7 @@ export function OrgHelpPanel({ open, onClose }: OrgHelpPanelProps) {
         </div>
 
         {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto p-6 pt-4 text-[13px] text-slate-200">
+        <div className="flex-1 overflow-y-auto p-6 pt-4 text-[13px] text-foreground">
           {view === "list" ? (
             <ul className="space-y-3 text-[12px]">
               {ARTICLES.map((article) => (
@@ -188,10 +188,10 @@ export function OrgHelpPanel({ open, onClose }: OrgHelpPanelProps) {
                   <button
                     type="button"
                     onClick={() => handleArticleClick(article.id)}
-                    className="w-full text-left rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-blue-400 transition-colors hover:bg-slate-900 hover:text-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                    className="w-full text-left rounded-lg border border-border bg-background/60 px-4 py-3 text-blue-400 transition-colors hover:bg-card hover:text-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                   >
                     <div className="font-medium">{article.title}</div>
-                    <div className="mt-1 text-[11px] text-slate-500">{article.description}</div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">{article.description}</div>
                   </button>
                 </li>
               ))}
@@ -199,7 +199,7 @@ export function OrgHelpPanel({ open, onClose }: OrgHelpPanelProps) {
           ) : (
             currentArticle && (
               <div>
-                <h1 className="mb-4 text-2xl font-semibold text-slate-50" id="article-title">
+                <h1 className="mb-4 text-2xl font-semibold text-foreground" id="article-title">
                   {currentArticle.title}
                 </h1>
                 <div aria-labelledby="article-title">

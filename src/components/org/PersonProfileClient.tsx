@@ -26,13 +26,15 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { Loader2, X, Pencil, ChevronDown, Check as CheckIcon } from "lucide-react";
+import { Loader2, X, Pencil, ChevronDown, Check as CheckIcon, Briefcase } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useSession } from "next-auth/react";
 import { getPersonDisplayBadges } from "@/lib/org/personDisplay";
 import { useCurrentOrgRole } from "@/hooks/useCurrentOrgRole";
 import { PersonAvailabilityCard } from "./people/PersonAvailabilityCard";
 import { PersonSkillsCard } from "./people/PersonSkillsCard";
 import { isMutationSuccess, publishMutationResult } from "@/lib/org/mutations";
+import { RoleCardView } from "./role-card/RoleCardView";
 
 type PersonProfileClientProps = {
   personId: string;
@@ -51,6 +53,7 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
       setEditPanelOpen(true);
     }
   }, [initialFocusField]);
+  const { data: session } = useSession();
   const flagsQ = useOrgQuery(() => OrgApi.getFlags(), []);
   const personQ = useOrgQuery(() => OrgApi.getPerson(personId), [personId, personKey]);
   const structureQ = useOrgQuery(() => OrgApi.getStructure(), []);
@@ -79,7 +82,7 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
           variant="ghost"
           size="sm"
           onClick={handleEditClick}
-          className="text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+          className="text-muted-foreground hover:text-foreground hover:bg-muted/50"
           aria-label="Edit profile"
         >
           <Pencil className="h-4 w-4 mr-2" />
@@ -94,13 +97,13 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
   const person = personQ.data;
 
   if (personQ.loading) {
-    return <div className="text-sm text-slate-400">Loading profile…</div>;
+    return <div className="text-sm text-muted-foreground">Loading profile…</div>;
   }
   if (personQ.error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[200px] gap-4 text-center">
-        <h2 className="text-lg font-semibold text-slate-200">Person Not Found in Org</h2>
-        <p className="text-sm text-slate-400 max-w-md">
+        <h2 className="text-lg font-semibold text-foreground">Person Not Found in Org</h2>
+        <p className="text-sm text-muted-foreground max-w-md">
           This person may be in the workspace but not in the org structure yet.
         </p>
         <Button asChild variant="outline">
@@ -112,8 +115,8 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
   if (!person) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[200px] gap-4 text-center">
-        <h2 className="text-lg font-semibold text-slate-200">Person Not Found in Org</h2>
-        <p className="text-sm text-slate-400 max-w-md">
+        <h2 className="text-lg font-semibold text-foreground">Person Not Found in Org</h2>
+        <p className="text-sm text-muted-foreground max-w-md">
           This person is in the workspace but not in the org structure yet.
         </p>
         <Button asChild variant="outline">
@@ -192,7 +195,7 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
           <div className="mb-6 relative">
             <div className={cn(
               "h-[200px] w-[200px] flex items-center justify-center relative",
-              "border border-slate-700/50 shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)]",
+              "border border-border/50 shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)]",
               "rounded-2xl overflow-hidden",
               "before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/5 before:to-transparent before:pointer-events-none" // Glass highlight
             )}>
@@ -201,7 +204,7 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
                 avatarGradient,
                 "shadow-[inset_0_4px_12px_rgba(0,0,0,0.4)]" // Deeper inner shadow
               )} />
-              <div className="relative z-10 text-white text-6xl font-bold tracking-wide">
+              <div className="relative z-10 text-foreground text-6xl font-bold tracking-wide">
                 {initials}
               </div>
             </div>
@@ -210,7 +213,7 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
           {/* Name - Stacked under avatar */}
           <div className="mb-2">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-2xl font-bold text-slate-50 tracking-tight">
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">
                 {person.fullName || "Unknown"}
               </h1>
               
@@ -240,7 +243,7 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
 
           {/* Role/Title as secondary text */}
           {person.title && (
-            <div className="text-base text-slate-300 font-medium mb-3">
+            <div className="text-base text-muted-foreground font-medium mb-3">
               {person.title}
             </div>
           )}
@@ -250,12 +253,12 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
           {(badges.teamLabel || badges.issueLabel) && (
             <div className="flex flex-wrap items-center gap-1.5">
               {badges.teamLabel && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-800/50 text-slate-400 border border-white/5">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted/50 text-muted-foreground border border-white/5">
                   {badges.teamLabel}
                 </span>
               )}
               {badges.issueLabel && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-slate-800/35 text-slate-500 border border-white/5">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-muted/35 text-muted-foreground border border-white/5">
                   {badges.issueLabel}
                 </span>
               )}
@@ -266,42 +269,42 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
 
       {/* Information Card - Premium Settings Panel Feel */}
       {/* POLISH: Increased spacing, smaller/muted labels, larger/brighter values, subtle dividers for better scanning */}
-      <Card className="border-white/5 bg-slate-900/40">
+      <Card className="border-white/5 bg-card/40">
         <CardContent className="p-6">
           <div className="space-y-6">
             {/* Role / Title */}
             <div className="pb-6 border-b border-white/5">
-              <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-2.5">Role / Title</div>
-              <div className="text-base text-slate-200">
+              <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2.5">Role / Title</div>
+              <div className="text-base text-foreground">
                 {person.title ?? (
-                  <span className="text-slate-500/60 italic">Not set</span>
+                  <span className="text-muted-foreground/60 italic">Not set</span>
                 )}
               </div>
             </div>
 
             {/* Team */}
             <div className="pb-6 border-b border-white/5">
-              <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-2.5">Team</div>
-              <div className="text-base text-slate-200">
+              <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2.5">Team</div>
+              <div className="text-base text-foreground">
                 {person.team?.name ?? (
-                  <span className="text-slate-500/60 italic">Not assigned</span>
+                  <span className="text-muted-foreground/60 italic">Not assigned</span>
                 )}
               </div>
             </div>
 
             {/* Department */}
             <div className="pb-6 border-b border-white/5">
-              <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-2.5">Department</div>
-              <div className="text-base text-slate-200">
+              <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2.5">Department</div>
+              <div className="text-base text-foreground">
                 {person.department?.name ?? (
-                  <span className="text-slate-500/60 italic">Not assigned</span>
+                  <span className="text-muted-foreground/60 italic">Not assigned</span>
                 )}
               </div>
             </div>
 
             {/* Manager */}
             <div>
-              <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-2.5">Manager</div>
+              <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2.5">Manager</div>
               {person.manager ? (
                 <Link
                   href={`/org/people/${person.manager.id}`}
@@ -310,12 +313,20 @@ export function PersonProfileClient({ personId, onEditButtonRender, initialFocus
                   {person.manager.fullName}
                 </Link>
               ) : (
-                <div className="text-base text-slate-500/60 italic">Not assigned</div>
+                <div className="text-base text-muted-foreground/60 italic">Not assigned</div>
               )}
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Role Card (job description, skills, current work) */}
+      <div className="mt-8">
+        <RoleCardView
+          personUserId={personId}
+          isOwnProfile={session?.user?.id === personId}
+        />
+      </div>
 
       {/* Edit Profile Panel */}
       {editPanelOpen && (
@@ -656,14 +667,14 @@ function EditProfilePanel({
       />
       
       {/* Side Panel */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-md border-l border-white/10 bg-slate-900 shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed right-0 top-0 h-full w-full max-w-md border-l border-white/10 bg-card shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-100">Edit profile</h2>
+          <h2 className="text-lg font-semibold text-foreground">Edit profile</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-white/10 bg-slate-800/50 p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors"
+            className="rounded-lg border border-white/10 bg-muted/50 p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -674,17 +685,17 @@ function EditProfilePanel({
           {/* Name */}
           {canWrite && (
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Name</Label>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Name</Label>
               <Input
                 value={nameValue}
                 onChange={(e) => handleNameChange(e.target.value)}
                 onBlur={handleNameBlur}
                 placeholder="Full name"
                 disabled={savingName}
-                className="bg-slate-800/50 border-white/10 text-slate-100"
+                className="bg-muted/50 border-white/10 text-foreground"
               />
               {savingName && (
-                <div className="text-xs text-slate-500 flex items-center gap-1">
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Saving...
                 </div>
@@ -695,13 +706,13 @@ function EditProfilePanel({
           {/* Role / Title */}
           {canWrite && (
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Role / Title</Label>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Role / Title</Label>
               <Input
                 value={titleValue}
                 onChange={(e) => handleTitleChange(e.target.value)}
                 onBlur={handleTitleBlur}
                 placeholder="e.g., Product Designer"
-                className="bg-slate-800/50 border-white/10 text-slate-100"
+                className="bg-muted/50 border-white/10 text-foreground"
               />
             </div>
           )}
@@ -709,18 +720,18 @@ function EditProfilePanel({
           {/* Team */}
           {canWrite && (
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Team</Label>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Team</Label>
               <Select
                 value={selectedTeamId}
                 onValueChange={handleTeamChange}
                 disabled={saving}
               >
-                <SelectTrigger className="bg-slate-800/50 border-white/10 text-slate-100">
+                <SelectTrigger className="bg-muted/50 border-white/10 text-foreground">
                   <SelectValue placeholder="Select team…" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">
-                    <span className="text-slate-500 italic">No team</span>
+                    <span className="text-muted-foreground italic">No team</span>
                   </SelectItem>
                   {teams.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
@@ -735,7 +746,7 @@ function EditProfilePanel({
           {/* Manager */}
           {canReporting && (
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Manager</Label>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Manager</Label>
               <Popover open={managerPopoverOpen} onOpenChange={setManagerPopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -745,8 +756,8 @@ function EditProfilePanel({
                     aria-expanded={managerPopoverOpen}
                     disabled={saving}
                     className={cn(
-                      "w-full justify-between bg-slate-800/50 border-white/10 text-slate-100 hover:bg-slate-800 hover:text-slate-100",
-                      !person.manager && "text-slate-500"
+                      "w-full justify-between bg-muted/50 border-white/10 text-foreground hover:bg-muted hover:text-foreground",
+                      !person.manager && "text-muted-foreground"
                     )}
                   >
                     <span className="truncate">
@@ -765,13 +776,13 @@ function EditProfilePanel({
                         placeholder="Search people…"
                         value={managerSearchQuery}
                         onChange={(e) => setManagerSearchQuery(e.target.value)}
-                        className="bg-slate-800/50 border-white/10 text-slate-100"
+                        className="bg-muted/50 border-white/10 text-foreground"
                         autoFocus
                       />
                     </div>
                     <div className="max-h-[300px] overflow-y-auto p-1">
                       {filteredManagerOptions.length === 0 && managerSearchQuery ? (
-                        <div className="px-2 py-4 text-center text-sm text-slate-500">
+                        <div className="px-2 py-4 text-center text-sm text-muted-foreground">
                           No people found.
                         </div>
                       ) : (
@@ -785,8 +796,8 @@ function EditProfilePanel({
                               handleManagerChange(null);
                             }}
                             className={cn(
-                              "w-full flex items-center px-2 py-1.5 rounded-sm text-sm text-left hover:bg-slate-800/50 transition-colors",
-                              !person.manager && "bg-slate-800/30"
+                              "w-full flex items-center px-2 py-1.5 rounded-sm text-sm text-left hover:bg-muted/50 transition-colors",
+                              !person.manager && "bg-muted/30"
                             )}
                           >
                             <CheckIcon
@@ -795,7 +806,7 @@ function EditProfilePanel({
                                 !person.manager ? "opacity-100" : "opacity-0"
                               )}
                             />
-                            <span className="text-slate-500 italic">No manager</span>
+                            <span className="text-muted-foreground italic">No manager</span>
                           </button>
                           {filteredManagerOptions.map((p) => (
                             <button
@@ -808,8 +819,8 @@ function EditProfilePanel({
                                 handleManagerChange(p.id);
                               }}
                               className={cn(
-                                "w-full flex items-center px-2 py-1.5 rounded-sm text-sm text-left hover:bg-slate-800/50 transition-colors",
-                                person.manager?.id === p.id && "bg-slate-800/30"
+                                "w-full flex items-center px-2 py-1.5 rounded-sm text-sm text-left hover:bg-muted/50 transition-colors",
+                                person.manager?.id === p.id && "bg-muted/30"
                               )}
                             >
                               <CheckIcon
@@ -819,9 +830,9 @@ function EditProfilePanel({
                                 )}
                               />
                               <div className="flex flex-col">
-                                <span className="text-slate-100">{p.fullName}</span>
+                                <span className="text-foreground">{p.fullName}</span>
                                 {p.email && (
-                                  <span className="text-xs text-slate-500">{p.email}</span>
+                                  <span className="text-xs text-muted-foreground">{p.email}</span>
                                 )}
                               </div>
                             </button>
@@ -833,7 +844,7 @@ function EditProfilePanel({
                 </PopoverContent>
               </Popover>
               {!person.manager && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Assign a manager to complete reporting lines.
                 </p>
               )}
@@ -849,8 +860,318 @@ function EditProfilePanel({
 
           {/* Skills */}
           <PersonSkillsCard personId={personId} canEdit={canWrite} />
+
+          {/* Role Card (admin/owner only) */}
+          {canReporting && (
+            <RoleCardEditorSection
+              personId={personId}
+              onRefreshed={onPersonChanged}
+            />
+          )}
         </div>
       </div>
     </>
+  );
+}
+
+// ─── Role Card Editor Section ─────────────────────────────────────────────────
+
+function RoleCardEditorSection({ personId, onRefreshed }) {
+  const [cardData, setCardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const [createForm, setCreateForm] = useState({
+    roleName: "",
+    jobFamily: "",
+    level: "",
+    roleDescription: "",
+    roleInOrg: "",
+    focusArea: "",
+  });
+
+  const [editForm, setEditForm] = useState({
+    roleName: "",
+    roleDescription: "",
+    roleInOrg: "",
+    focusArea: "",
+    managerNotes: "",
+  });
+
+  const loadRoleCard = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/org/people/${personId}/role-card`);
+      if (!res.ok) return;
+      const json = await res.json();
+      setCardData(json);
+      if (json.roleCard) {
+        setEditForm({
+          roleName: json.roleCard.roleName || "",
+          roleDescription: json.roleCard.roleDescription || "",
+          roleInOrg: json.roleCard.roleInOrg || "",
+          focusArea: json.roleCard.focusArea || "",
+          managerNotes: json.roleCard.managerNotes || "",
+        });
+      }
+    } catch {
+      // silently ignore network errors
+    } finally {
+      setLoading(false);
+    }
+  }, [personId]);
+
+  useEffect(() => {
+    loadRoleCard();
+  }, [loadRoleCard]);
+
+  const handleCreate = async () => {
+    setError(null);
+    if (
+      !createForm.roleName.trim() ||
+      !createForm.jobFamily.trim() ||
+      !createForm.level.trim() ||
+      !createForm.roleDescription.trim()
+    ) {
+      setError("Role name, job family, level, and description are required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const body = {
+        roleName: createForm.roleName.trim(),
+        jobFamily: createForm.jobFamily.trim(),
+        level: createForm.level.trim(),
+        roleDescription: createForm.roleDescription.trim(),
+        ...(createForm.roleInOrg.trim() && { roleInOrg: createForm.roleInOrg.trim() }),
+        ...(createForm.focusArea.trim() && { focusArea: createForm.focusArea.trim() }),
+        ...(cardData?.person?.positionId && { positionId: cardData.person.positionId }),
+      };
+      const res = await fetch("/api/org/role-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Failed to create role card");
+      await loadRoleCard();
+      setShowCreate(false);
+      setCreateForm({ roleName: "", jobFamily: "", level: "", roleDescription: "", roleInOrg: "", focusArea: "" });
+      onRefreshed?.();
+    } catch (e) {
+      setError(e.message || "Failed to create role card");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!cardData?.roleCard?.id) return;
+    setError(null);
+    setSaving(true);
+    try {
+      const body = {
+        ...(editForm.roleName.trim() && { roleName: editForm.roleName.trim() }),
+        ...(editForm.roleDescription.trim() && { roleDescription: editForm.roleDescription.trim() }),
+        roleInOrg: editForm.roleInOrg.trim() || null,
+        focusArea: editForm.focusArea.trim() || null,
+        managerNotes: editForm.managerNotes.trim() || null,
+      };
+      const res = await fetch(`/api/org/role-templates/${cardData.roleCard.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Failed to update role card");
+      await loadRoleCard();
+      onRefreshed?.();
+    } catch (e) {
+      setError(e.message || "Failed to save role card");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="border-t border-white/10 pt-6 space-y-2">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Role Card</Label>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
+  const roleCard = cardData?.roleCard;
+
+  return (
+    <div className="border-t border-white/10 pt-6 space-y-3">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Role Card</Label>
+        {!roleCard && (
+          <button
+            type="button"
+            onClick={() => setShowCreate((v) => !v)}
+            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            {showCreate ? "Cancel" : "+ Create"}
+          </button>
+        )}
+      </div>
+
+      {error && <p className="text-xs text-red-400">{error}</p>}
+
+      {!roleCard && !showCreate && (
+        <p className="text-xs text-muted-foreground">
+          No role card assigned. Click &ldquo;+ Create&rdquo; to add one.
+        </p>
+      )}
+
+      {!roleCard && showCreate && (
+        <div className="space-y-3 rounded-lg border border-white/10 bg-muted/30 p-4">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Role Name *</Label>
+            <Input
+              value={createForm.roleName}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, roleName: e.target.value }))}
+              placeholder="e.g., Senior Engineer"
+              className="h-8 text-sm bg-muted/50 border-white/10 text-foreground"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Job Family *</Label>
+              <Input
+                value={createForm.jobFamily}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, jobFamily: e.target.value }))}
+                placeholder="Engineering"
+                className="h-8 text-sm bg-muted/50 border-white/10 text-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Level *</Label>
+              <Input
+                value={createForm.level}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, level: e.target.value }))}
+                placeholder="Senior"
+                className="h-8 text-sm bg-muted/50 border-white/10 text-foreground"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Description *</Label>
+            <textarea
+              value={createForm.roleDescription}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, roleDescription: e.target.value }))}
+              placeholder="Describe the role..."
+              rows={3}
+              className="w-full rounded-md border border-white/10 bg-muted/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Role in Org</Label>
+            <Input
+              value={createForm.roleInOrg}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, roleInOrg: e.target.value }))}
+              placeholder="What this person actually does..."
+              className="h-8 text-sm bg-muted/50 border-white/10 text-foreground"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Focus Area</Label>
+            <Input
+              value={createForm.focusArea}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, focusArea: e.target.value }))}
+              placeholder="Current focus area..."
+              className="h-8 text-sm bg-muted/50 border-white/10 text-foreground"
+            />
+          </div>
+          <Button onClick={handleCreate} disabled={saving} size="sm" className="w-full">
+            {saving ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Role Card"
+            )}
+          </Button>
+        </div>
+      )}
+
+      {roleCard && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 rounded-md border border-white/10 bg-muted/30 px-3 py-2">
+            <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-sm text-foreground font-medium truncate">{roleCard.roleName}</span>
+            <span className="text-xs text-muted-foreground ml-auto shrink-0">
+              {roleCard.jobFamily} · {roleCard.level}
+            </span>
+          </div>
+          <div className="space-y-3 rounded-lg border border-white/10 bg-muted/30 p-4">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Role Name</Label>
+              <Input
+                value={editForm.roleName}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, roleName: e.target.value }))}
+                className="h-8 text-sm bg-muted/50 border-white/10 text-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Description</Label>
+              <textarea
+                value={editForm.roleDescription}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, roleDescription: e.target.value }))}
+                rows={3}
+                className="w-full rounded-md border border-white/10 bg-muted/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Role in Org</Label>
+              <Input
+                value={editForm.roleInOrg}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, roleInOrg: e.target.value }))}
+                placeholder="What this person actually does..."
+                className="h-8 text-sm bg-muted/50 border-white/10 text-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Focus Area</Label>
+              <Input
+                value={editForm.focusArea}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, focusArea: e.target.value }))}
+                placeholder="Current focus area..."
+                className="h-8 text-sm bg-muted/50 border-white/10 text-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Manager Notes</Label>
+              <textarea
+                value={editForm.managerNotes}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, managerNotes: e.target.value }))}
+                placeholder="Notes visible to managers only..."
+                rows={3}
+                className="w-full rounded-md border border-white/10 bg-muted/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              />
+            </div>
+            <Button onClick={handleSave} disabled={saving} size="sm" className="w-full">
+              {saving ? (
+                <>
+                  <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Role Card"
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -98,11 +98,11 @@ function deriveMetrics(people: OrgPerson[]): PeopleMetrics {
 
   // Departments with no leader (if we had leader data)
   const departmentsWithNoLeader: string[] = [];
-  // TODO: Implement when leader data is available
+  // TODO [BACKLOG]: Derive from OrgDepartment owner or OrgPosition hierarchy
 
   // Teams with zero members
   const teamsWithZeroMembers: string[] = [];
-  // TODO: Implement when we can cross-reference with all teams
+  // TODO [BACKLOG]: Cross-reference OrgTeam list with people team assignments
 
   // People missing data
   const peopleMissingData = {
@@ -113,7 +113,7 @@ function deriveMetrics(people: OrgPerson[]): PeopleMetrics {
 
   // Managers with large span of control (> 10 direct reports)
   const managersWithLargeSpan: Array<{ managerId: string; managerName: string; count: number }> = [];
-  // TODO: Implement when managerId/directReports data is available
+  // TODO [BACKLOG]: Compute span of control using person.managerId (data now available)
 
   return {
     total,
@@ -150,7 +150,7 @@ export function PeopleInsightsPanel({
         onFiltersChange({ quickChip: "leaders", leadersOnly: true });
         break;
       case "new-joiners":
-        // TODO: When new joiners filter is available
+        // TODO [BACKLOG]: Filter by joinedAt to show new joiners
         break;
       case "largest-departments":
         // Sort by department headcount (would need custom sort)
@@ -203,7 +203,7 @@ export function PeopleInsightsPanel({
       className={cn(
         "w-full lg:w-72",
         "rounded-3xl",
-        "bg-slate-900/50",
+        "bg-card/50",
         "border border-white/3",
         "shadow-[0_12px_50px_rgba(0,0,0,0.2)]",
         "p-6",
@@ -224,9 +224,9 @@ export function PeopleInsightsPanel({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-slate-600" />
-              <span className="text-xs text-slate-500">Total visible</span>
+              <span className="text-xs text-muted-foreground">Total visible</span>
             </div>
-            <span className="text-sm font-semibold text-slate-300 tabular-nums">
+            <span className="text-sm font-semibold text-muted-foreground tabular-nums">
               {metrics.total}
             </span>
           </div>
@@ -235,9 +235,9 @@ export function PeopleInsightsPanel({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <UserCheck className="h-4 w-4 text-slate-600" />
-                <span className="text-xs text-slate-500">Managers</span>
+                <span className="text-xs text-muted-foreground">Managers</span>
               </div>
-              <span className="text-sm font-semibold text-slate-300 tabular-nums">
+              <span className="text-sm font-semibold text-muted-foreground tabular-nums">
                 {metrics.managersCount}
               </span>
             </div>
@@ -246,9 +246,9 @@ export function PeopleInsightsPanel({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <UserX className="h-4 w-4 text-slate-600" />
-              <span className="text-xs text-slate-500">Unassigned</span>
+              <span className="text-xs text-muted-foreground">Unassigned</span>
             </div>
-            <span className="text-sm font-semibold text-slate-300 tabular-nums">
+            <span className="text-sm font-semibold text-muted-foreground tabular-nums">
               {metrics.unassignedCount}
             </span>
           </div>
@@ -256,15 +256,15 @@ export function PeopleInsightsPanel({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-slate-600" />
-              <span className="text-xs text-slate-500">New (30d)</span>
+              <span className="text-xs text-muted-foreground">New (30d)</span>
             </div>
             {metrics.newJoinersCount !== null ? (
-              <span className="text-sm font-semibold text-slate-300 tabular-nums">
+              <span className="text-sm font-semibold text-muted-foreground tabular-nums">
                 {metrics.newJoinersCount}
               </span>
             ) : (
               <div className="flex flex-col items-end">
-                <span className="text-sm font-semibold text-slate-500">—</span>
+                <span className="text-sm font-semibold text-muted-foreground">—</span>
                 <span className="text-[10px] text-slate-600">Start dates not set</span>
               </div>
             )}
@@ -282,7 +282,7 @@ export function PeopleInsightsPanel({
             href="/org/org-chart"
             className={cn(
               "inline-flex items-center gap-1",
-              "text-[10px] text-slate-400 hover:text-slate-300",
+              "text-[10px] text-muted-foreground hover:text-muted-foreground",
               "transition-colors duration-150"
             )}
           >
@@ -293,14 +293,14 @@ export function PeopleInsightsPanel({
         <div className="space-y-3">
           {metrics.headcountByDepartment.length > 0 && (
             <div>
-              <h4 className="text-[11px] font-medium text-slate-400 mb-1.5">Top Departments</h4>
+              <h4 className="text-[11px] font-medium text-muted-foreground mb-1.5">Top Departments</h4>
               <MiniBarList items={metrics.headcountByDepartment} maxItems={5} />
             </div>
           )}
 
           {metrics.headcountByTeam.length > 0 && (
             <div>
-              <h4 className="text-[11px] font-medium text-slate-400 mb-1.5">Top Teams</h4>
+              <h4 className="text-[11px] font-medium text-muted-foreground mb-1.5">Top Teams</h4>
               <MiniBarList items={metrics.headcountByTeam} maxItems={5} />
             </div>
           )}
@@ -315,7 +315,7 @@ export function PeopleInsightsPanel({
         metrics.peopleMissingData.department > 0 ||
         metrics.managersWithLargeSpan.length > 0) && (
         <div className="space-y-3 pt-4 border-t border-white/5">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Flags & Anomalies
           </h3>
           <div className="space-y-2.5">
@@ -323,7 +323,7 @@ export function PeopleInsightsPanel({
               <div className="flex items-center justify-between p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-xs text-slate-300">
+                  <span className="text-xs text-muted-foreground">
                     {metrics.peopleMissingData.role} missing role
                   </span>
                 </div>
@@ -345,7 +345,7 @@ export function PeopleInsightsPanel({
               <div className="flex items-center justify-between p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-xs text-slate-300">
+                  <span className="text-xs text-muted-foreground">
                     {metrics.peopleMissingData.team} missing team
                   </span>
                 </div>
@@ -366,7 +366,7 @@ export function PeopleInsightsPanel({
               <div className="flex items-center justify-between p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-xs text-slate-300">
+                  <span className="text-xs text-muted-foreground">
                     {metrics.peopleMissingData.department} missing department
                   </span>
                 </div>
@@ -388,7 +388,7 @@ export function PeopleInsightsPanel({
 
       {/* Quick Questions */}
       <div className="space-y-3">
-        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Quick Questions
         </h3>
         <QuickQuestionChips questions={quickQuestions} />

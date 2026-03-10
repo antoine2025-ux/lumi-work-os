@@ -1,7 +1,10 @@
 // src/app/api/org/role-cards/[id]/position/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 
 export async function GET(
@@ -9,13 +12,19 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(req);
-    if (!workspaceId) {
-      return NextResponse.json(
-        { ok: false, error: "Missing workspace" },
-        { status: 400 }
-      );
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
+
+    const workspaceId = auth.workspaceId;
     const { id: roleCardId } = await params;
 
     const roleCard = await prisma.roleCard.findFirst({
@@ -39,15 +48,8 @@ export async function GET(
       ok: true,
       positionId: roleCard.positionId,
     });
-  } catch (err: any) {
-    console.error("[Org] Failed to get position for role card", err);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: err?.message ?? "Failed to get position for role card",
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, req);
   }
 }
 

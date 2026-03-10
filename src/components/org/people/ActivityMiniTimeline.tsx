@@ -15,7 +15,7 @@ type ActivityItem = {
 
 /**
  * Derives activity from person data
- * TODO: When change history is available, use that
+ * TODO [BACKLOG]: Use OrgAuditLog change history when populated
  */
 function deriveActivity(person: OrgPerson): ActivityItem[] {
   const activities: ActivityItem[] = [];
@@ -29,7 +29,7 @@ function deriveActivity(person: OrgPerson): ActivityItem[] {
     });
   }
 
-  // TODO: Add more activities when change history is available
+  // TODO [BACKLOG]: Add role/team change activities from OrgAuditLog
   // - "Moved to Platform team"
   // - "Promoted to Senior Engineer"
   // etc.
@@ -50,10 +50,10 @@ export function ActivityMiniTimeline({ person }: ActivityMiniTimelineProps) {
   if (activities.length === 0) {
     return (
       <div className="space-y-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Activity
         </h3>
-        <p className="text-sm text-slate-400 italic">
+        <p className="text-sm text-muted-foreground italic">
           No recent activity recorded yet.
         </p>
       </div>
@@ -62,21 +62,21 @@ export function ActivityMiniTimeline({ person }: ActivityMiniTimelineProps) {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Activity
       </h3>
       <div className="space-y-2.5">
         {activities.map((activity) => (
           <div
             key={activity.id}
-            className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-800/30"
+            className="flex items-start gap-3 p-2.5 rounded-lg bg-muted/30"
           >
             <div className="mt-0.5 shrink-0">
-              <Calendar className="h-4 w-4 text-slate-500" />
+              <Calendar className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-slate-200">{activity.action}</p>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-sm text-foreground">{activity.action}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {new Date(activity.date).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",

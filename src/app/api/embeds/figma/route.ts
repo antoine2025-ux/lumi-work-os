@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
+import { EmbedUrlSchema } from '@/lib/validations/embeds'
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json()
-    
-    if (!url) {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 })
-    }
+    const auth = await getUnifiedAuth(request)
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+
+    const body = EmbedUrlSchema.parse(await request.json())
+    const { url } = body
 
     // Extract file ID from Figma URL
     const fileIdMatch = url.match(/figma\.com\/file\/([a-zA-Z0-9]+)/)
@@ -15,9 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const fileId = fileIdMatch[1]
-    
-    // For now, we'll return basic metadata
-    // In a real implementation, you'd call Figma's API to get file details
+
     const embedData = {
       title: 'Figma Design',
       description: 'Interactive Figma design',
@@ -29,8 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(embedData)
-  } catch (error) {
-    console.error('Figma embed error:', error)
-    return NextResponse.json({ error: 'Failed to process Figma embed' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error)
   }
 }

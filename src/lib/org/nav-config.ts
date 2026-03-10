@@ -9,10 +9,9 @@ import {
   User,
   Users,
   Building2,
-  Network,
-  Briefcase,
   Activity,
   Settings,
+  LayoutGrid,
 } from "lucide-react";
 
 export type NavItemRole = 'VIEWER' | 'MEMBER' | 'ADMIN' | 'OWNER';
@@ -50,8 +49,7 @@ export const ORG_SECTION_ITEMS: NavItem[] = [
  */
 export const ADMIN_SECTION_ITEMS: NavItem[] = [
   { href: '/people', label: 'People', icon: Users, requiredRole: 'ADMIN' },
-  { href: '/structure', label: 'Structure', icon: Network, requiredRole: 'ADMIN' },
-  { href: '/positions', label: 'Positions & Roles', icon: Briefcase, requiredRole: 'ADMIN' },
+  { href: '/management', label: 'Org Management', icon: LayoutGrid, requiredRole: 'ADMIN' },
   { href: '/admin', label: 'Health', icon: Activity, requiredRole: 'ADMIN' },
   { href: '/admin/settings', label: 'Settings', icon: Settings, requiredRole: 'ADMIN' },
 ];

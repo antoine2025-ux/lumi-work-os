@@ -43,11 +43,11 @@ export default async function WorkspaceOrgLayout({
   if (!isOrgCenterEnabled()) {
     return (
       <div className="px-10 pt-10">
-        <div className="max-w-lg rounded-2xl border border-slate-800 bg-slate-950 px-6 py-6 text-[13px] text-slate-200">
-          <div className="mb-1 text-[14px] font-semibold text-slate-50">
+        <div className="max-w-lg rounded-2xl border border-border bg-background px-6 py-6 text-[13px] text-foreground">
+          <div className="mb-1 text-[14px] font-semibold text-foreground">
             Org Center is not available
           </div>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-muted-foreground">
             Org Center is currently turned off for this environment.
           </p>
         </div>
@@ -68,16 +68,16 @@ export default async function WorkspaceOrgLayout({
   if (!context) {
     return (
       <div className="px-10 pt-10">
-        <div className="max-w-lg rounded-2xl border border-slate-800 bg-slate-950 px-6 py-6 text-[13px] text-slate-200">
-          <div className="mb-1 text-[14px] font-semibold text-slate-50">
+        <div className="max-w-lg rounded-2xl border border-border bg-background px-6 py-6 text-[13px] text-foreground">
+          <div className="mb-1 text-[14px] font-semibold text-foreground">
             No access to Org Center
           </div>
-          <p className="text-[11px] text-slate-500 mb-4">
+          <p className="text-[11px] text-muted-foreground mb-4">
             You need to be a member of a workspace to access the Org Center.
           </p>
           <a
             href="/welcome"
-            className="inline-block rounded-lg bg-blue-600 px-4 py-1.5 text-[12px] text-white hover:bg-blue-500 transition-colors"
+            className="inline-block rounded-lg bg-blue-600 px-4 py-1.5 text-[12px] text-foreground hover:bg-blue-500 transition-colors"
           >
             Create workspace
           </a>
@@ -89,12 +89,12 @@ export default async function WorkspaceOrgLayout({
   // Validate that the workspace slug matches the user's current workspace
   try {
     const workspace = await prisma.workspace.findUnique({
-      where: { id: context.orgId },
+      where: { id: context.workspaceId },
       select: { id: true, slug: true },
     });
 
     if (!workspace) {
-      console.error("[WorkspaceOrgLayout] Workspace not found for orgId:", context.orgId);
+      console.error("[WorkspaceOrgLayout] Workspace not found for orgId:", context.workspaceId);
       notFound();
     }
 
@@ -115,7 +115,7 @@ export default async function WorkspaceOrgLayout({
 
   // Ensure org context is synced for Loopbrain (non-blocking)
   // This runs in the background and doesn't block rendering
-  ensureOrgContextSynced(context.orgId).catch(err => {
+  ensureOrgContextSynced(context.workspaceId).catch(err => {
     console.error('[WorkspaceOrgLayout] Failed to ensure org context synced:', err)
   })
 

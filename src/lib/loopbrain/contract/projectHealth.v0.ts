@@ -530,10 +530,10 @@ export function getTaskCompletionPct(snapshot: ProjectHealthSnapshotV0): number 
 }
 
 // =============================================================================
-// TODO: Validation
+// TODO [BACKLOG]: Validation
 // =============================================================================
 
-// TODO: Add JSON Schema validation similar to validateAnswerEnvelope.ts
+// TODO [BACKLOG]: Add JSON Schema validation similar to validateAnswerEnvelope.ts
 // - Validate schemaVersion is "v0"
 // - Validate all percentages are 0.0–1.0
 // - Validate risk severity is valid enum

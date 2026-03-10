@@ -45,7 +45,7 @@ export function ListStructureView({ departments, teams }: ListStructureViewProps
             className={`relative flex flex-col rounded-2xl border transition-all duration-200 ${
               isExpanded
                 ? "border-blue-500/50 bg-gradient-to-b from-slate-900/80 to-slate-950/60 shadow-xl shadow-blue-500/10"
-                : "border-slate-800/50 bg-gradient-to-b from-[#020617] to-slate-950/80 hover:-translate-y-[1px] hover:border-slate-700/60 hover:shadow-md hover:shadow-slate-900/50"
+                : "border-border/50 bg-gradient-to-b from-[#020617] to-slate-950/80 hover:-translate-y-[1px] hover:border-border/60 hover:shadow-md hover:shadow-slate-900/50"
             }`}
           >
             {/* Department header - clickable to expand/collapse */}
@@ -72,18 +72,18 @@ export function ListStructureView({ departments, teams }: ListStructureViewProps
                 
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   {/* Primary: Department name */}
-                  <span className="text-xl font-semibold text-slate-100">
+                  <span className="text-xl font-semibold text-foreground">
                     {dept.name}
                   </span>
                   
                   {/* Secondary: Chips */}
                   {hasTeams && (
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="inline-flex items-center rounded-full bg-slate-800/80 backdrop-blur-sm border border-slate-700/60 px-3 py-1.5 text-xs font-medium text-slate-300">
+                      <span className="inline-flex items-center rounded-full bg-muted/80 backdrop-blur-sm border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground">
                         {deptTeams.length} {deptTeams.length === 1 ? "team" : "teams"}
                       </span>
                       {totalPeople > 0 && (
-                        <span className="inline-flex items-center rounded-full bg-slate-800/80 backdrop-blur-sm border border-slate-700/60 px-3 py-1.5 text-xs font-medium text-slate-300">
+                        <span className="inline-flex items-center rounded-full bg-muted/80 backdrop-blur-sm border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground">
                           {totalPeople} {totalPeople === 1 ? "person" : "people"}
                         </span>
                       )}
@@ -96,12 +96,12 @@ export function ListStructureView({ departments, teams }: ListStructureViewProps
               {hasTeams && (
                 <div className={`flex-shrink-0 ml-4 inline-flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 ${
                   isExpanded 
-                    ? "bg-slate-800/50" 
-                    : "group-hover:bg-slate-800/50 group-hover:ring-1 group-hover:ring-blue-500/30"
+                    ? "bg-muted/50" 
+                    : "group-hover:bg-muted/50 group-hover:ring-1 group-hover:ring-blue-500/30"
                 }`}>
                   <ChevronDown
-                    className={`h-4 w-4 text-slate-400 transform transition-transform duration-200 ${
-                      isExpanded ? "rotate-180 text-blue-400" : "rotate-0 group-hover:text-slate-300"
+                    className={`h-4 w-4 text-muted-foreground transform transition-transform duration-200 ${
+                      isExpanded ? "rotate-180 text-blue-400" : "rotate-0 group-hover:text-muted-foreground"
                     }`}
                   />
                 </div>
@@ -116,9 +116,9 @@ export function ListStructureView({ departments, teams }: ListStructureViewProps
                   isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <div className="px-6 md:px-7 pb-6 md:pb-7 border-t border-slate-800/60 bg-slate-950/40 pt-5">
+                <div className="px-6 md:px-7 pb-6 md:pb-7 border-t border-border/60 bg-background/40 pt-5">
                   <div className="mb-5">
-                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Teams
                     </span>
                   </div>
@@ -133,7 +133,7 @@ export function ListStructureView({ departments, teams }: ListStructureViewProps
 
             {!hasTeams && (
               <div className="px-5 md:px-6 pb-5 md:pb-6 pt-2">
-                <p className="text-sm text-slate-500">No teams yet</p>
+                <p className="text-sm text-muted-foreground">No teams yet</p>
               </div>
             )}
           </div>
@@ -159,10 +159,10 @@ function TeamMiniCard({ team }: TeamMiniCardProps) {
   };
 
   return (
-    <div className="group flex flex-col rounded-2xl border border-slate-800/60 bg-slate-900/40 px-4 py-4 transition-all duration-150 hover:-translate-y-[1px] hover:border-slate-700/70 hover:bg-slate-900/60 hover:shadow-lg">
+    <div className="group flex flex-col rounded-2xl border border-border/60 bg-card/40 px-4 py-4 transition-all duration-150 hover:-translate-y-[1px] hover:border-border/70 hover:bg-card/60 hover:shadow-lg">
       {/* Top row: Team name (primary) + headcount pill (aligned right) */}
       <div className="flex items-start justify-between gap-3 mb-3">
-        <h4 className="text-base font-medium text-slate-200 flex-1 min-w-0">
+        <h4 className="text-base font-medium text-foreground flex-1 min-w-0">
           {team.name}
         </h4>
         <span className="inline-flex items-center rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 text-xs font-medium text-blue-300 flex-shrink-0">
@@ -174,13 +174,13 @@ function TeamMiniCard({ team }: TeamMiniCardProps) {
       {team.leadName && (
         <div className="flex items-center gap-2.5 mb-3">
           <Avatar className="h-7 w-7 flex-shrink-0">
-            <AvatarFallback className="bg-slate-700/50 border border-slate-600/50 text-xs text-slate-300">
+            <AvatarFallback className="bg-slate-700/50 border border-slate-600/50 text-xs text-muted-foreground">
               {getInitials(team.leadName)}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col leading-tight min-w-0 flex-1">
-            <span className="text-xs text-slate-500 uppercase tracking-wide">Lead</span>
-            <span className="text-sm font-medium text-slate-300 truncate">
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">Lead</span>
+            <span className="text-sm font-medium text-muted-foreground truncate">
               {team.leadName}
             </span>
           </div>

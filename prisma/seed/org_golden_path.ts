@@ -69,7 +69,7 @@ async function seedGoldenPath() {
     update: {},
     create: {
       id: 'golden-path-pm-role',
-      orgId: org.id,
+      workspaceId: org.id,
       name: 'Product Manager',
       description: 'Owns product roadmap and feature prioritization',
     },
@@ -82,7 +82,7 @@ async function seedGoldenPath() {
     update: {},
     create: {
       id: 'golden-path-em-role',
-      orgId: org.id,
+      workspaceId: org.id,
       name: 'Engineering Manager',
       description: 'Owns technical decisions and engineering execution',
     },
@@ -199,6 +199,21 @@ async function seedGoldenPath() {
 
   console.log('✅ Created people: Alex (PM), Sam (EM), Dana (IC)')
 
+  // 3.5. Create default space for project
+  const goldenPathSpace = await prisma.space.upsert({
+    where: { id: 'golden-path-space-general' },
+    update: {},
+    create: {
+      id: 'golden-path-space-general',
+      workspaceId: workspace.id,
+      name: 'General',
+      description: 'Default space for golden path projects',
+      icon: '🏢',
+      color: '#6B7280',
+      ownerId: alex.id,
+    },
+  })
+
   // 4. Create Project
   const project = await prisma.project.upsert({
     where: { id: 'golden-path-payments-migration' },
@@ -211,6 +226,7 @@ async function seedGoldenPath() {
       description: 'Migrate payment processing to new infrastructure',
       status: 'ACTIVE',
       createdById: alex.id,
+      spaceId: goldenPathSpace.id,
     },
   })
 

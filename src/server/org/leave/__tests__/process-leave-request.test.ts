@@ -328,3 +328,104 @@ describe('processLeaveRequest — error paths', () => {
     expect(result.status).toBe('APPROVED')
   })
 })
+
+// ---------------------------------------------------------------------------
+// Leave request approval validation
+// ---------------------------------------------------------------------------
+
+describe('Leave request approval validation', () => {
+  describe('prevents self-approval', () => {
+    beforeEach(() => {
+      vi.clearAllMocks()
+    })
+
+    it('throws ACCESS_DENIED when actor tries to approve own leave request', async () => {
+      mockLeaveRequestFindFirst.mockResolvedValue(
+        makePendingLeaveRequest({ personId: ACTOR_USER_ID })
+      )
+      mockGetProfilePermissions.mockResolvedValue(makePermissions(true))
+
+      await expect(
+        processLeaveRequest({
+          leaveRequestId: LEAVE_REQUEST_ID,
+          workspaceId: WORKSPACE_ID,
+          actorUserId: ACTOR_USER_ID,
+          action: 'approve',
+        })
+      ).rejects.toMatchObject({
+        name: 'LeaveRequestError',
+        code: 'ACCESS_DENIED',
+        message: 'You cannot approve your own leave request',
+      })
+
+      expect(mockLeaveRequestUpdate).not.toHaveBeenCalled()
+      expect(mockPersonAvailabilityCreate).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('allows legitimate approvals', () => {
+    beforeEach(() => {
+      vi.clearAllMocks()
+      mockLeaveRequestUpdate.mockResolvedValue({})
+      mockPersonAvailabilityCreate.mockResolvedValue({ id: 'avail-1' })
+    })
+
+    it('allows admin to approve other users leave requests', async () => {
+      const otherUserId = 'other-user-123'
+      mockLeaveRequestFindFirst.mockResolvedValue(
+        makePendingLeaveRequest({ personId: otherUserId })
+      )
+      mockGetProfilePermissions.mockResolvedValue(makePermissions(true))
+      mockOrgTeamFindFirst.mockResolvedValue(null)
+
+      const result = await processLeaveRequest({
+        leaveRequestId: LEAVE_REQUEST_ID,
+        workspaceId: WORKSPACE_ID,
+        actorUserId: ACTOR_USER_ID,
+        action: 'approve',
+      })
+
+      expect(result.status).toBe('APPROVED')
+      expect(result.personId).toBe(otherUserId)
+      expect(mockLeaveRequestUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: LEAVE_REQUEST_ID },
+          data: expect.objectContaining({
+            status: 'APPROVED',
+            approvedById: ACTOR_USER_ID,
+          }),
+        })
+      )
+      expect(mockPersonAvailabilityCreate).toHaveBeenCalled()
+    })
+
+    it('allows manager to approve direct reports leave requests', async () => {
+      const directReportUserId = 'direct-report-456'
+      mockLeaveRequestFindFirst.mockResolvedValue(
+        makePendingLeaveRequest({ personId: directReportUserId })
+      )
+      mockGetProfilePermissions.mockResolvedValue(makePermissions(true))
+      mockOrgTeamFindFirst.mockResolvedValue(null)
+
+      const result = await processLeaveRequest({
+        leaveRequestId: LEAVE_REQUEST_ID,
+        workspaceId: WORKSPACE_ID,
+        actorUserId: ACTOR_USER_ID,
+        action: 'approve',
+      })
+
+      expect(result.status).toBe('APPROVED')
+      expect(result.personId).toBe(directReportUserId)
+      expect(mockLeaveRequestUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: LEAVE_REQUEST_ID },
+          data: expect.objectContaining({
+            status: 'APPROVED',
+            approvedById: ACTOR_USER_ID,
+          }),
+        })
+      )
+      expect(mockPersonAvailabilityCreate).toHaveBeenCalled()
+    })
+  })
+})

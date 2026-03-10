@@ -9,22 +9,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
-
-const ALLOWED_TYPES = ["AVAILABLE", "UNAVAILABLE", "PARTIAL"] as const;
-const ALLOWED_REASONS = [
-  "VACATION",
-  "SICK_LEAVE",
-  "PARENTAL_LEAVE",
-  "SABBATICAL",
-  "JURY_DUTY",
-  "BEREAVEMENT",
-  "TRAINING",
-  "OTHER",
-] as const;
-
-type AvailabilityType = typeof ALLOWED_TYPES[number];
-type AvailabilityReason = typeof ALLOWED_REASONS[number];
+import { CreateAvailabilityWindowSchema } from "@/lib/validations/org";
 
 export async function GET(
   request: NextRequest,
@@ -123,8 +110,7 @@ export async function GET(
       })),
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/people/[personId]/availability-windows] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -187,65 +173,16 @@ export async function POST(
     }
 
     // Step 5: Parse and validate request body
-    const body = await request.json();
-
-    // Validate required fields
-    if (!body.startDate) {
-      return NextResponse.json({ error: "startDate is required" }, { status: 400 });
-    }
+    const body = CreateAvailabilityWindowSchema.parse(await request.json());
 
     const startDate = new Date(body.startDate);
-    if (isNaN(startDate.getTime())) {
-      return NextResponse.json({ error: "Invalid startDate format" }, { status: 400 });
-    }
-
     const endDate = body.endDate ? new Date(body.endDate) : null;
-    if (endDate && isNaN(endDate.getTime())) {
-      return NextResponse.json({ error: "Invalid endDate format" }, { status: 400 });
-    }
-
-    // Validate startDate < endDate
-    if (endDate && startDate >= endDate) {
-      return NextResponse.json({ error: "startDate must be before endDate" }, { status: 400 });
-    }
-
-    // Validate type
-    const type = (body.type as AvailabilityType) || "UNAVAILABLE";
-    if (!ALLOWED_TYPES.includes(type)) {
-      return NextResponse.json(
-        { error: `Invalid type. Must be one of: ${ALLOWED_TYPES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate fraction
-    const fraction = body.fraction !== undefined ? Number(body.fraction) : null;
-    if (fraction !== null && (isNaN(fraction) || fraction < 0 || fraction > 1)) {
-      return NextResponse.json({ error: "fraction must be between 0 and 1" }, { status: 400 });
-    }
-
-    // Validate reason
-    const reason = body.reason as AvailabilityReason | undefined;
-    if (reason && !ALLOWED_REASONS.includes(reason)) {
-      return NextResponse.json(
-        { error: `Invalid reason. Must be one of: ${ALLOWED_REASONS.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate expectedReturnDate
+    const type = body.type;
+    const fraction = body.fraction ?? null;
+    const reason = body.reason ?? null;
     const expectedReturnDate = body.expectedReturnDate
       ? new Date(body.expectedReturnDate)
       : null;
-    if (expectedReturnDate && isNaN(expectedReturnDate.getTime())) {
-      return NextResponse.json({ error: "Invalid expectedReturnDate format" }, { status: 400 });
-    }
-    if (expectedReturnDate && expectedReturnDate < startDate) {
-      return NextResponse.json(
-        { error: "expectedReturnDate must be on or after startDate" },
-        { status: 400 }
-      );
-    }
 
     // Step 6: Create the availability window
     const created = await prisma.personAvailability.create({
@@ -290,39 +227,7 @@ export async function POST(
       },
     });
   } catch (error: unknown) {
-    const prismaError = error as any;
-    
-    console.error("[POST /api/org/people/[personId]/availability-windows] Error:", error);
-    
-    // Provide more specific error message for Prisma validation errors
-    if (prismaError?.code === 'P2003' || prismaError?.code === 'P2025') {
-      return NextResponse.json({ 
-        error: "Database constraint violation", 
-        details: prismaError?.meta || prismaError?.message 
-      }, { status: 400 });
-    }
-    
-    if (prismaError?.code === 'P2002') {
-      return NextResponse.json({ 
-        error: "Unique constraint violation", 
-        details: prismaError?.meta 
-      }, { status: 409 });
-    }
-    
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    
-    // Check if it's a validation error related to enum
-    if (prismaError?.constructor?.name === 'PrismaClientValidationError' || errorMessage?.includes('AvailabilityType')) {
-      return NextResponse.json({ 
-        error: "Invalid availability type. The database may not support this value yet. Please apply pending migrations.",
-        details: errorMessage,
-      }, { status: 400 });
-    }
-    
-    return NextResponse.json({ 
-      error: "Internal server error",
-      details: errorMessage 
-    }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 

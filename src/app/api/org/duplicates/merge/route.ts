@@ -5,6 +5,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { MergeDuplicateSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,18 +16,14 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
     setWorkspaceContext(workspaceId);
 
-    const body = (await req.json()) as {
-      candidateId: string;
-      canonicalId: string;
-      mergedId: string;
-    };
+    const body = MergeDuplicateSchema.parse(await req.json());
 
     if (body.canonicalId === body.mergedId) {
       return NextResponse.json({ ok: false, error: "canonicalId and mergedId must differ" }, { status: 400 });
     }
 
     const candidate = await prisma.orgDuplicateCandidate.findUnique({ where: { id: body.candidateId } });
-    if (!candidate || candidate.orgId !== workspaceId) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+    if (!candidate || candidate.workspaceId !== workspaceId) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
 
     // Load positions (personId refers to OrgPosition.id)
     const canonicalPos = await prisma.orgPosition.findUnique({
@@ -122,7 +119,7 @@ export async function POST(req: NextRequest) {
     // Snapshot merged for undo (including report rewires)
     await prisma.orgPersonMergeLog.create({
       data: {
-        orgId: workspaceId,
+        workspaceId,
         canonicalId: body.canonicalId,
         mergedId: body.mergedId,
         snapshot: mergedSnapshot,
@@ -177,7 +174,7 @@ export async function POST(req: NextRequest) {
 
       await tx.auditLogEntry.create({
         data: {
-          orgId: workspaceId,
+          workspaceId,
           actorUserId: user.userId,
           actorLabel: user.name || user.email || "Unknown user",
           action: "merge_person",

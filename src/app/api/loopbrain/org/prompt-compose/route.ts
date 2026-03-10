@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildOrgSummaryPreambleForCurrentWorkspace } from "@/lib/loopbrain/org-prompt-builder";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
+import { LoopbrainOrgPromptComposeSchema } from "@/lib/validations/loopbrain";
 
 type PromptComposeRequest = {
   question?: string;
@@ -8,20 +13,15 @@ type PromptComposeRequest = {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as PromptComposeRequest | null;
-
-    const questionRaw = body?.question ?? "";
-    const question = String(questionRaw).trim();
-
-    if (!question) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Missing 'question' in request body",
-        },
-        { status: 400 }
-      );
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    setWorkspaceContext(workspaceId);
+
+    const body = LoopbrainOrgPromptComposeSchema.parse(await request.json());
+    const question = body.question;
 
     // Build the Org preamble using the existing helper
     const orgPreamble = await buildOrgSummaryPreambleForCurrentWorkspace(
@@ -49,14 +49,7 @@ export async function POST(request: NextRequest) {
       metadata: body?.metadata ?? null,
     });
   } catch (error) {
-    console.error("Loopbrain Org prompt-compose error", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Failed to compose Org prompt",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }
 

@@ -33,6 +33,16 @@ export type RoleContext = {
   // Ownership / assignment
   userId?: string | null; // OrgPosition.userId linkage
 
+  // Manager-authored person-specific context (from RoleCard)
+  roleInOrg?: string | null;    // e.g. "Epic Owner for Platform Migration"
+  focusArea?: string | null;    // e.g. "Leading auth migration + API redesign"
+  managerNotes?: string | null; // Free-form manager context
+
+  // Linked JobDescription template (shared across positions)
+  jobDescriptionTitle?: string | null;   // JD template title
+  jobDescriptionSummary?: string | null; // JD template summary
+  jobDescriptionLevel?: string | null;   // JD template level (may differ from roleCard.level)
+
   // Meta
   createdAt: Date;
   updatedAt: Date;

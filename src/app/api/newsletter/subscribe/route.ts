@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rate-limit'
+import { handleApiError } from '@/lib/api-errors'
+import { rateLimitExceeded } from '@/lib/rate-limit-response'
+import { NewsletterSubscribeSchema } from '@/lib/validations/marketing'
 
 /**
  * Mailchimp Newsletter Subscription API
@@ -13,24 +17,13 @@ import { NextRequest, NextResponse } from 'next/server'
  * 3. Get your list ID: Audience → All contacts → Settings → Audience name and defaults
  */
 
-interface SubscribeRequest {
-  email: string
-  name?: string
-  companyName?: string
-}
-
 export async function POST(request: NextRequest) {
-  try {
-    const body: SubscribeRequest = await request.json()
-    const { email, name, companyName } = body
+  const limit = await rateLimit(request, { windowMs: 60 * 60 * 1000, max: 3, identifier: 'newsletter' })
+  if (!limit.success) return rateLimitExceeded(limit.resetAt)
 
-    // Validate email
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json(
-        { error: 'Please provide a valid email address' },
-        { status: 400 }
-      )
-    }
+  try {
+    const body = NewsletterSubscribeSchema.parse(await request.json())
+    const { email, name, companyName } = body
 
     // Get Mailchimp credentials from environment
     const apiKey = process.env.MAILCHIMP_API_KEY
@@ -100,12 +93,8 @@ export async function POST(request: NextRequest) {
       message: 'Successfully subscribed! Check your email for a confirmation message.',
       success: true,
     })
-  } catch (error) {
-    console.error('Newsletter subscription error:', error)
-    return NextResponse.json(
-      { error: 'An unexpected error occurred. Please try again later.' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

@@ -9,9 +9,19 @@
 --       intentionally replaced with the partial form below.
 
 -- ── 1. Enums ─────────────────────────────────────────────────────────────────
+-- Use DO blocks to avoid "already exists" when migration is re-run (e.g. after partial apply)
 
-CREATE TYPE "SpaceVisibility" AS ENUM ('PERSONAL', 'PRIVATE', 'PUBLIC');
-CREATE TYPE "SpaceRole" AS ENUM ('OWNER', 'EDITOR', 'VIEWER');
+DO $$ BEGIN
+  CREATE TYPE "SpaceVisibility" AS ENUM ('PERSONAL', 'PRIVATE', 'PUBLIC');
+EXCEPTION
+  WHEN duplicate_object THEN NULL; -- already exists
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "SpaceRole" AS ENUM ('OWNER', 'EDITOR', 'VIEWER');
+EXCEPTION
+  WHEN duplicate_object THEN NULL; -- already exists
+END $$;
 
 -- ── 2. spaces table ──────────────────────────────────────────────────────────
 

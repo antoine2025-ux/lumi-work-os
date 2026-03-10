@@ -81,7 +81,7 @@ export function ProfileHero(props: ProfileHeroProps) {
     <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 md:p-10 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
       <div className="flex flex-col md:flex-row items-center md:items-center gap-10">
         {/* Hero avatar - Bold, Slack-inspired identity anchor */}
-        <div className="size-[200px] md:size-[260px] shrink-0 rounded-3xl border border-white/10 flex items-center justify-center text-6xl md:text-7xl font-semibold bg-white/[0.05] text-white">
+        <div className="size-[200px] md:size-[260px] shrink-0 rounded-3xl border border-white/10 flex items-center justify-center text-6xl md:text-7xl font-semibold bg-white/[0.05] text-foreground">
           {person.avatarUrl ? (
             <img src={person.avatarUrl} alt="" className="h-full w-full rounded-3xl object-cover" />
           ) : (
@@ -94,25 +94,25 @@ export function ProfileHero(props: ProfileHeroProps) {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               {/* Full Name (H1) */}
-              <h1 className="text-3xl font-semibold tracking-tight text-white truncate">{name}</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-foreground truncate">{name}</h1>
 
               {/* Primary Role Title (H2, muted) */}
               {title ? (
-                <h2 className="mt-2 text-lg text-white/60 truncate">{title}</h2>
+                <h2 className="mt-2 text-lg text-foreground/60 truncate">{title}</h2>
               ) : (
-                <h2 className="mt-2 text-lg text-white/60">—</h2>
+                <h2 className="mt-2 text-lg text-foreground/60">—</h2>
               )}
 
               {/* Department · Team(s) */}
               {orgLine ? (
-                <div className="mt-1 text-sm text-white/50 truncate">{orgLine}</div>
+                <div className="mt-1 text-sm text-foreground/50 truncate">{orgLine}</div>
               ) : (
-                <div className="mt-1 text-sm text-white/50">—</div>
+                <div className="mt-1 text-sm text-foreground/50">—</div>
               )}
 
               {/* Location · Timezone */}
               {contextLine ? (
-                <div className="mt-2 text-xs text-white/50">{contextLine}</div>
+                <div className="mt-2 text-xs text-foreground/50">{contextLine}</div>
               ) : null}
 
               {/* Work email (subtle, copy on hover) */}
@@ -124,7 +124,7 @@ export function ProfileHero(props: ProfileHeroProps) {
                       setEmailCopied(true)
                       setTimeout(() => setEmailCopied(false), 2000)
                     }}
-                    className="text-xs text-white/60 hover:text-white/80 transition-colors"
+                    className="text-xs text-foreground/60 hover:text-foreground/80 transition-colors"
                     title="Click to copy email"
                   >
                     {person.email}
@@ -139,13 +139,13 @@ export function ProfileHero(props: ProfileHeroProps) {
               {/* Availability badge */}
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm">
                 <span className={`h-2 w-2 rounded-full ${availabilityDotClass(status)}`} />
-                <span className="text-white/70">{availabilityLabel(status)}</span>
+                <span className="text-foreground/70">{availabilityLabel(status)}</span>
               </div>
 
               {/* Overflow menu */}
               <div className="relative" ref={menuRef}>
                 <button
-                  className="h-9 w-9 rounded-xl border border-white/10 bg-white/[0.05] hover:bg-white/[0.08] inline-flex items-center justify-center text-sm text-white/70 transition-colors"
+                  className="h-9 w-9 rounded-xl border border-white/10 bg-white/[0.05] hover:bg-white/[0.08] inline-flex items-center justify-center text-sm text-foreground/70 transition-colors"
                   onClick={() => setMenuOpen((v) => !v)}
                   aria-label="Profile actions"
                 >
@@ -155,10 +155,10 @@ export function ProfileHero(props: ProfileHeroProps) {
                 </button>
 
                 {menuOpen && (
-                  <div className="absolute right-0 z-20 mt-2 w-56 rounded-2xl border border-white/10 bg-slate-900 shadow-lg overflow-hidden">
+                  <div className="absolute right-0 z-20 mt-2 w-56 rounded-2xl border border-white/10 bg-card shadow-lg overflow-hidden">
                     <Link
                       href={`/org/people/${person.personKey}/edit`}
-                      className="block px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 transition-colors"
+                      className="block px-4 py-2.5 text-sm text-foreground/80 hover:bg-white/10 transition-colors"
                       onClick={() => setMenuOpen(false)}
                     >
                       Edit profile
@@ -169,7 +169,7 @@ export function ProfileHero(props: ProfileHeroProps) {
                           copy(person.email!)
                           setMenuOpen(false)
                         }}
-                        className="w-full text-left px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 transition-colors"
+                        className="w-full text-left px-4 py-2.5 text-sm text-foreground/80 hover:bg-white/10 transition-colors"
                       >
                         Copy email
                       </button>
@@ -179,14 +179,14 @@ export function ProfileHero(props: ProfileHeroProps) {
                         copy(person.personId)
                         setMenuOpen(false)
                       }}
-                      className="w-full text-left px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 transition-colors"
+                      className="w-full text-left px-4 py-2.5 text-sm text-foreground/80 hover:bg-white/10 transition-colors"
                     >
                       Copy person ID
                     </button>
                     <div className="border-t border-white/10" />
                     <Link
                       href={`/org/chart?person=${person.personKey}`}
-                      className="block px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 transition-colors"
+                      className="block px-4 py-2.5 text-sm text-foreground/80 hover:bg-white/10 transition-colors"
                       onClick={() => setMenuOpen(false)}
                     >
                       Open in Org chart

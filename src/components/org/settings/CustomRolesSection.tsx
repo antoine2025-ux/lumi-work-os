@@ -84,12 +84,12 @@ export function CustomRolesSection() {
   const capabilityKeys = Object.keys(ORG_CAPABILITY_DESCRIPTIONS) as OrgCapability[];
 
   return (
-    <section className="mt-6 rounded-2xl border border-slate-800 bg-[#020617] p-6 text-[13px]">
+    <section className="mt-6 rounded-2xl border border-border bg-background p-6 text-[13px]">
       <div className="mb-4 flex flex-col gap-1">
-        <h2 className="text-[14px] font-semibold text-slate-100">
+        <h2 className="text-[14px] font-semibold text-foreground">
           Custom roles
         </h2>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-muted-foreground">
           Create organization-specific roles by bundling capabilities. These roles extend the base OWNER / ADMIN / MEMBER model.
         </p>
       </div>
@@ -102,9 +102,9 @@ export function CustomRolesSection() {
 
       <div className="mb-6">
         {loading ? (
-          <div className="text-[11px] text-slate-500">Loading custom roles…</div>
+          <div className="text-[11px] text-muted-foreground">Loading custom roles…</div>
         ) : roles.length === 0 ? (
-          <div className="text-[11px] text-slate-500">
+          <div className="text-[11px] text-muted-foreground">
             No custom roles yet. Use the form below to create the first one.
           </div>
         ) : (
@@ -112,23 +112,23 @@ export function CustomRolesSection() {
             {roles.map((role) => (
               <div
                 key={role.id}
-                className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+                className="rounded-xl border border-border bg-background/60 px-4 py-3"
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div>
-                    <div className="text-[13px] font-medium text-slate-100">
+                    <div className="text-[13px] font-medium text-foreground">
                       {role.name}
                     </div>
-                    <div className="text-[11px] text-slate-500">
+                    <div className="text-[11px] text-muted-foreground">
                       Key: {role.key}
                     </div>
                   </div>
-                  <div className="text-[11px] text-slate-400">
+                  <div className="text-[11px] text-muted-foreground">
                     {role.capabilities.length} capabilities
                   </div>
                 </div>
                 {role.description && (
-                  <p className="mt-2 text-[11px] text-slate-400">
+                  <p className="mt-2 text-[11px] text-muted-foreground">
                     {role.description}
                   </p>
                 )}
@@ -141,11 +141,11 @@ export function CustomRolesSection() {
       <form onSubmit={handleCreate} className="space-y-4">
         <div className="flex flex-col gap-2 md:flex-row md:gap-4">
           <div className="flex-1">
-            <label className="mb-1 block text-[11px] text-slate-400">
+            <label className="mb-1 block text-[11px] text-muted-foreground">
               Key
             </label>
             <input
-              className="w-full rounded-lg border border-slate-800 bg-[#020617] px-3 py-2 text-[13px] text-slate-100 outline-none transition-colors hover:border-slate-700 focus:border-[#5CA9FF] focus:ring-1 focus:ring-[#5CA9FF]"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground outline-none transition-colors hover:border-border focus:border-[#5CA9FF] focus:ring-1 focus:ring-[#5CA9FF]"
               placeholder="people-ops"
               value={form.key}
               onChange={(e) =>
@@ -154,11 +154,11 @@ export function CustomRolesSection() {
             />
           </div>
           <div className="flex-1">
-            <label className="mb-1 block text-[11px] text-slate-400">
+            <label className="mb-1 block text-[11px] text-muted-foreground">
               Name
             </label>
             <input
-              className="w-full rounded-lg border border-slate-800 bg-[#020617] px-3 py-2 text-[13px] text-slate-100 outline-none transition-colors hover:border-slate-700 focus:border-[#5CA9FF] focus:ring-1 focus:ring-[#5CA9FF]"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground outline-none transition-colors hover:border-border focus:border-[#5CA9FF] focus:ring-1 focus:ring-[#5CA9FF]"
               placeholder="People Ops"
               value={form.name}
               onChange={(e) =>
@@ -168,11 +168,11 @@ export function CustomRolesSection() {
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-[11px] text-slate-400">
+          <label className="mb-1 block text-[11px] text-muted-foreground">
             Description (optional)
           </label>
           <textarea
-            className="w-full rounded-lg border border-slate-800 bg-[#020617] px-3 py-2 text-[13px] text-slate-100 outline-none transition-colors hover:border-slate-700 focus:border-[#5CA9FF] focus:ring-1 focus:ring-[#5CA9FF]"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground outline-none transition-colors hover:border-border focus:border-[#5CA9FF] focus:ring-1 focus:ring-[#5CA9FF]"
             rows={2}
             placeholder="Explain when to assign this role."
             value={form.description}
@@ -183,7 +183,7 @@ export function CustomRolesSection() {
         </div>
 
         <div>
-          <div className="mb-2 text-[11px] text-slate-400">
+          <div className="mb-2 text-[11px] text-muted-foreground">
             Capabilities
           </div>
           <div className="grid gap-2 md:grid-cols-2">
@@ -192,7 +192,7 @@ export function CustomRolesSection() {
               return (
                 <label
                   key={cap}
-                  className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-[11px] text-slate-300 transition-colors hover:border-slate-700"
+                  className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background/60 px-3 py-2 text-[11px] text-muted-foreground transition-colors hover:border-border"
                 >
                   <input
                     type="checkbox"
@@ -201,10 +201,10 @@ export function CustomRolesSection() {
                     onChange={() => toggleCapability(cap)}
                   />
                   <span>
-                    <span className="block font-medium text-slate-100">
+                    <span className="block font-medium text-foreground">
                       {cap}
                     </span>
-                    <span className="block text-slate-500">
+                    <span className="block text-muted-foreground">
                       {ORG_CAPABILITY_DESCRIPTIONS[cap] ||
                         "No description yet."}
                     </span>

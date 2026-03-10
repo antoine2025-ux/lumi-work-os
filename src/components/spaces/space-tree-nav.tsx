@@ -10,7 +10,6 @@ import {
   Folder,
   FolderOpen,
   FileText,
-  LayoutGrid,
   Loader2,
   User,
 } from 'lucide-react'
@@ -27,6 +26,8 @@ interface SpaceNode {
   isPersonal: boolean
   parentId: string | null
   _count: { projects: number; wikiPages: number; children: number }
+  type?: string | null
+  slug?: string | null
 }
 
 interface SpaceDetail extends SpaceNode {
@@ -77,6 +78,7 @@ function SpaceTreeItem({ space, depth, workspaceSlug, currentSpaceId }: SpaceTre
     prevActiveRef.current = isActive
   }, [isActive])
 
+  // Chevron when space has any content: pages, projects, or subfolders
   const canExpand =
     space._count.projects > 0 ||
     space._count.wikiPages > 0 ||
@@ -114,25 +116,28 @@ function SpaceTreeItem({ space, depth, workspaceSlug, currentSpaceId }: SpaceTre
         )}
         style={{ paddingLeft: pl }}
       >
-        {/* Chevron toggle */}
-        <button
-          onClick={handleToggle}
-          className={cn(
-            'h-5 w-5 flex items-center justify-center flex-shrink-0 rounded hover:bg-accent transition-colors mr-1',
-            !canExpand && 'invisible pointer-events-none',
-          )}
-          aria-label={expanded ? 'Collapse' : 'Expand'}
-        >
-          {expanded ? (
-            <ChevronDown className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5" />
-          )}
-        </button>
+        {/* Chevron toggle - only render when space has expandable content */}
+        {canExpand && (
+          <button
+            onClick={handleToggle}
+            className="h-5 w-5 flex items-center justify-center flex-shrink-0 rounded hover:bg-accent transition-colors mr-1"
+            aria-label={expanded ? 'Collapse' : 'Expand'}
+          >
+            {expanded ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
+          </button>
+        )}
 
-        {/* Space link */}
+        {/* Space link — Company Wiki uses canonical /wiki/home route */}
         <Link
-          href={`/w/${workspaceSlug}/spaces/${space.id}`}
+          href={
+            space.type === 'WIKI' || space.slug === 'company-wiki'
+              ? '/wiki/home'
+              : `/w/${workspaceSlug}/spaces/${space.id}`
+          }
           className="flex-1 flex items-center gap-2 py-1.5 pr-2 min-w-0"
         >
           {space.isPersonal ? (
@@ -166,7 +171,40 @@ function SpaceTreeItem({ space, depth, workspaceSlug, currentSpaceId }: SpaceTre
 
           {detail && (
             <>
-              {/* Sub-spaces (folders) — recursive */}
+              {/* Projects first: status dot + name */}
+              {detail.projects.map((project) => {
+                const isAtRisk =
+                  project.status?.toLowerCase() === 'at_risk' ||
+                  project.status?.toLowerCase() === 'at risk'
+                const isInactive =
+                  project.status?.toLowerCase() === 'inactive' ||
+                  project.status?.toLowerCase() === 'completed'
+                const dotColor = isAtRisk ? 'bg-amber-500' : isInactive ? 'bg-muted-foreground' : 'bg-green-500'
+                return (
+                  <Link
+                    key={project.id}
+                    href={`/w/${workspaceSlug}/projects/${project.id}`}
+                    className="flex items-center gap-2 py-1.5 pr-2 text-[13px] rounded-md transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    style={{ paddingLeft: pl + 20 }}
+                  >
+                    <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', dotColor)} aria-hidden />
+                    <span className="truncate">{project.name}</span>
+                  </Link>
+                )
+              })}
+              {/* Pages: FileText + name */}
+              {detail.wikiPages.map((page) => (
+                <Link
+                  key={page.id}
+                  href={`/wiki/${page.slug}`}
+                  className="flex items-center gap-2 py-1.5 pr-2 text-[13px] rounded-md transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                  style={{ paddingLeft: pl + 20 }}
+                >
+                  <FileText className="w-[14px] h-[14px] flex-shrink-0 text-foreground/50" />
+                  <span className="truncate">{page.title}</span>
+                </Link>
+              ))}
+              {/* Subfolders: Folder + name (recursive) */}
               {detail.children.map((child) => (
                 <SpaceTreeItem
                   key={child.id}
@@ -175,32 +213,6 @@ function SpaceTreeItem({ space, depth, workspaceSlug, currentSpaceId }: SpaceTre
                   workspaceSlug={workspaceSlug}
                   currentSpaceId={currentSpaceId}
                 />
-              ))}
-
-              {/* Projects */}
-              {detail.projects.map((project) => (
-                <Link
-                  key={project.id}
-                  href={`/w/${workspaceSlug}/projects/${project.id}`}
-                  className="flex items-center gap-2 py-1.5 pr-2 text-sm rounded-md transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                  style={{ paddingLeft: pl + 20 }}
-                >
-                  <LayoutGrid className="h-3.5 w-3.5 flex-shrink-0 text-blue-500" />
-                  <span className="truncate">{project.name}</span>
-                </Link>
-              ))}
-
-              {/* Wiki pages */}
-              {detail.wikiPages.map((page) => (
-                <Link
-                  key={page.id}
-                  href={`/wiki/${page.slug}`}
-                  className="flex items-center gap-2 py-1.5 pr-2 text-sm rounded-md transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                  style={{ paddingLeft: pl + 20 }}
-                >
-                  <FileText className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
-                  <span className="truncate">{page.title}</span>
-                </Link>
               ))}
             </>
           )}
@@ -228,8 +240,11 @@ export function SpaceTreeNav({ workspaceSlug }: { workspaceSlug: string }) {
     staleTime: 30_000,
   })
 
-  // Only render top-level spaces in the tree; sub-spaces load lazily via SpaceTreeItem
-  const rootSpaces = (data?.spaces ?? []).filter((s) => !s.parentId)
+  // Only render top-level spaces in the tree; sub-spaces load lazily via SpaceTreeItem.
+  // Company Wiki has its own canonical route at /wiki/home — exclude from space tree.
+  const rootSpaces = (data?.spaces ?? []).filter(
+    (s) => !s.parentId && s.type !== 'WIKI' && s.slug !== 'company-wiki'
+  )
 
   if (isLoading) {
     return (

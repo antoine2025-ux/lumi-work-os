@@ -1,29 +1,38 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getOrgContext, requireAdmin } from "@/server/rbac";
+import { handleApiError } from "@/lib/api-errors";
+import { prisma } from "@/lib/db";
+import { getUnifiedAuth } from '@/lib/unified-auth';
+import { assertAccess } from '@/lib/auth/assertAccess';
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware';
+import { SetDefaultViewSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as { id: string; role: "VIEWER" | "EDITOR" | "ADMIN" | null };
-  const ctx = await getOrgContext(req);
-  if (!ctx.orgId) return NextResponse.json({ ok: false }, { status: 401 });
-  requireAdmin((ctx as any).canAdmin);
+  try {
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] });
+    setWorkspaceContext(auth.workspaceId);
 
-  // Clear previous default for role in this scope
-  const view = await prisma.savedView.findUnique({ where: { id: body.id } });
-  if (!view) return NextResponse.json({ ok: false }, { status: 404 });
-  if (view.orgId !== ctx.orgId) return NextResponse.json({ ok: false }, { status: 403 });
+    const workspaceId = auth.workspaceId;
+    const body = SetDefaultViewSchema.parse(await req.json());
 
-  await prisma.savedView.updateMany({
-    where: { orgId: ctx.orgId, scope: view.scope, defaultForRole: body.role as any },
-    data: { defaultForRole: null },
-  });
+    const view = await prisma.savedView.findUnique({ where: { id: body.id } });
+    if (!view) return NextResponse.json({ ok: false }, { status: 404 });
+    if (view.workspaceId !== workspaceId) return NextResponse.json({ ok: false }, { status: 403 });
 
-  const updated = await prisma.savedView.update({
-    where: { id: body.id },
-    data: { defaultForRole: body.role as any },
-  });
+    await prisma.savedView.updateMany({
+      where: { workspaceId, scope: view.scope, defaultForRole: body.role as any },
+      data: { defaultForRole: null },
+    });
 
-  return NextResponse.json({ ok: true, view: updated });
+    const updated = await prisma.savedView.update({
+      where: { id: body.id },
+      data: { defaultForRole: body.role as any },
+    });
+
+    return NextResponse.json({ ok: true, view: updated });
+  } catch (error: unknown) {
+    return handleApiError(error, req);
+  }
 }
-

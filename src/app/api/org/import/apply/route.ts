@@ -8,6 +8,8 @@ import { parseCsv } from "@/server/org/import/csv"
 import { asFte, asPercent, asShrinkage, ImportError } from "@/server/org/import/validators"
 import { getPeopleEmailMap } from "@/server/org/import/lookup"
 import { runInBatches } from "@/server/org/import/batch"
+import { logOrgAuditBatch } from "@/lib/audit/org-audit"
+import { ImportApplySchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,10 +20,9 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["OWNER", "ADMIN"] })
     setWorkspaceContext(workspaceId)
 
-    const body = (await req.json()) as { entity: string; csv: string }
+    const body = ImportApplySchema.parse(await req.json())
 
-    const entity = String(body?.entity ?? "")
-    const csvText = String(body?.csv ?? "")
+    const { entity, csv: csvText } = body;
     const { rows } = parseCsv(csvText)
 
     const emailMap = await getPeopleEmailMap(workspaceId)
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
 
         if (!personId) errors.push({ row, field: "personId/personEmail", message: "Required (or email must match an existing person)" })
         if (!managerId) errors.push({ row, field: "managerId/managerEmail", message: "Required (or email must match an existing person)" })
-        prepared.push({ orgId: workspaceId, personId, managerId })
+        prepared.push({ orgId: workspaceId, personId, managerId }) // orgId is a Prisma field
       })
       if (errors.length) return NextResponse.json({ ok: false, errors }, { status: 400 })
 
@@ -56,6 +57,19 @@ export async function POST(req: NextRequest) {
         data: Array.from(uniq.values()),
         skipDuplicates: true as any,
       })
+
+      // Log audit entries (fire-and-forget batch)
+      const auditEntries = Array.from(uniq.values()).map((link) => ({
+        workspaceId,
+        entityType: "MANAGER_LINK" as const,
+        entityId: `${link.personId}-${link.managerId}`,
+        entityName: `${link.personId} → ${link.managerId}`,
+        action: "CREATED" as const,
+        actorId: user.userId,
+      }))
+      logOrgAuditBatch(auditEntries).catch((e) =>
+        console.error("[POST /api/org/import/apply] manager_links audit error:", e)
+      )
 
       return NextResponse.json({ ok: true, applied: uniq.size })
     }
@@ -70,7 +84,7 @@ export async function POST(req: NextRequest) {
         const percent = asPercent(String(r.percent ?? ""), row, "percent", errors)
         if (!personId) errors.push({ row, field: "personId/personEmail", message: "Required (or email must match an existing person)" })
         if (!role) errors.push({ row, field: "role", message: "Required" })
-        prepared.push({ orgId: workspaceId, personId, role, percent })
+        prepared.push({ orgId: workspaceId, personId, role, percent }) // orgId is a Prisma field
       })
       if (errors.length) return NextResponse.json({ ok: false, errors }, { status: 400 })
 
@@ -90,6 +104,20 @@ export async function POST(req: NextRequest) {
       await runInBatches(ops, 200, async (batch) => {
         await prisma.$transaction(batch as any)
       })
+
+      // Log audit entries (fire-and-forget batch) - use UPDATED since upsert
+      const auditEntries = Array.from(uniq.values()).map((x) => ({
+        workspaceId,
+        entityType: "PERSON" as const,
+        entityId: x.personId,
+        entityName: x.personId,
+        action: "UPDATED" as const,
+        actorId: user.userId,
+        metadata: { importEntity: "roles" },
+      }))
+      logOrgAuditBatch(auditEntries).catch((e) =>
+        console.error("[POST /api/org/import/apply] roles audit error:", e)
+      )
 
       return NextResponse.json({ ok: true, applied: uniq.size })
     }
@@ -126,6 +154,20 @@ export async function POST(req: NextRequest) {
         await prisma.$transaction(batch as any)
       })
 
+      // Log audit entries (fire-and-forget batch) - use UPDATED since upsert
+      const auditEntries = Array.from(uniqPeople.values()).map((x) => ({
+        workspaceId,
+        entityType: "PERSON" as const,
+        entityId: x.personId,
+        entityName: x.personId,
+        action: "UPDATED" as const,
+        actorId: user.userId,
+        metadata: { importEntity: "availability" },
+      }))
+      logOrgAuditBatch(auditEntries).catch((e) =>
+        console.error("[POST /api/org/import/apply] availability audit error:", e)
+      )
+
       return NextResponse.json({ ok: true, applied: uniqPeople.size })
     }
 
@@ -158,6 +200,20 @@ export async function POST(req: NextRequest) {
       await runInBatches(ops, 200, async (batch) => {
         await prisma.$transaction(batch as any)
       })
+
+      // Log audit entries (fire-and-forget batch) - use UPDATED since upsert
+      const auditEntries = Array.from(uniqPeople.values()).map((x) => ({
+        workspaceId,
+        entityType: "PERSON" as const,
+        entityId: x.personId,
+        entityName: x.personId,
+        action: "UPDATED" as const,
+        actorId: user.userId,
+        metadata: { importEntity: "capacity" },
+      }))
+      logOrgAuditBatch(auditEntries).catch((e) =>
+        console.error("[POST /api/org/import/apply] capacity audit error:", e)
+      )
 
       return NextResponse.json({ ok: true, applied: uniqPeople.size })
     }

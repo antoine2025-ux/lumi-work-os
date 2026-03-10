@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateOrgQaQuestionsForWorkspace } from "@/lib/org/qa/evaluator";
+import { handleApiError } from "@/lib/api-errors";
 import { getCurrentWorkspaceId } from "@/lib/current-workspace";
 
 function isDevToolsEnabled() {
@@ -30,15 +31,7 @@ export async function GET(request: NextRequest) {
       },
       { status: 200 },
     );
-  } catch (error) {
-    console.error("Org QA smoke route error:", error);
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Failed to load Org QA smoke tests",
-      },
-      { status: 500 },
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

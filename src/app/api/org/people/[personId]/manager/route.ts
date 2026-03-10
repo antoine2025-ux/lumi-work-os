@@ -12,6 +12,7 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { OrgPersonManagerSchema } from "@/lib/validations/org";
 import { setOrgPersonManager } from "@/server/org/people/write";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 import { isPersonManagerExempt } from "@/lib/org/manager-exemption";
 import { prisma } from "@/lib/db";
 import { handleApiError } from "@/lib/api-errors";
@@ -83,7 +84,7 @@ export async function PUT(
     }
 
     // Step 7: Compute issues BEFORE mutation (scoped to person + direct reports)
-    // TODO: Enhance to derive actual issues for person and direct reports
+    // TODO [BACKLOG]: Derive actual issues for person and direct reports
     // For now, use empty array - maintains contract structure
     const issuesBefore: OrgIssueMetadata[] = [];
 
@@ -101,7 +102,7 @@ export async function PUT(
     });
 
     // Step 10: Compute issues AFTER mutation (same scoped set)
-    // TODO: Enhance to derive actual issues for person and direct reports
+    // TODO [BACKLOG]: Derive actual issues for person and direct reports
     const issuesAfter: OrgIssueMetadata[] = [];
 
     // Step 11: Build response metadata
@@ -114,21 +115,17 @@ export async function PUT(
       responseMeta.mutationId
     );
 
-    // Step 13: Log audit event (only critical fields: managerId)
-    try {
-      const { logOrgMutation } = await import("@/server/org/audit/write");
-      await logOrgMutation({
-        workspaceId,
-        actorUserId: userId,
-        action: managerId ? "MANAGER_ASSIGNED" : "MANAGER_REMOVED",
-        entityType: "PERSON",
-        entityId: position.id,
-        before: { managerId: updated.previousManagerId },
-        after: { managerId: updated.managerId },
-      });
-    } catch (auditError: any) {
-      console.error("[PUT /api/org/people/[personId]/manager] Audit logging error (non-fatal):", auditError);
-    }
+    // Step 13: Log audit event (manager link assignment)
+    logOrgAudit({
+      workspaceId,
+      entityType: "MANAGER_LINK",
+      entityId: position.id,
+      action: managerId ? "ASSIGNED" : "UNASSIGNED",
+      actorId: userId,
+      changes: {
+        managerId: { from: updated.previousManagerId, to: updated.managerId },
+      },
+    }).catch((e) => console.error("[PUT /api/org/people/[personId]/manager] Audit log error (non-fatal):", e));
 
     // Step 14: Emit Loopbrain context (non-blocking)
     try {

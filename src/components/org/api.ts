@@ -35,6 +35,7 @@ export type OrgPeopleListDTO = {
 
 export type OrgPersonDTO = {
   id: string;
+  userId: string;
   fullName: string;
   email: string | null;
   title: string | null;
@@ -366,7 +367,10 @@ export const OrgApi = {
     });
   },
   getOrgOverview: () => api<OrgOverviewDTO>("/api/org/overview"),
-  listPeople: () => api<OrgPeopleListDTO>("/api/org/people"),
+  listPeople: () =>
+    api<{ ok: boolean; data: OrgPeopleListDTO }>("/api/org/people").then((r) => ({
+      people: r.data.people,
+    })),
   getPerson: (personId: string) => api<OrgPersonDTO>(`/api/org/people/${personId}`),
   getStructure: () => api<OrgStructureDTO>("/api/org/structure"),
   getTeamDetail: (teamId: string) => api<OrgTeamDetailDTO>(`/api/org/structure/teams/${teamId}`),
@@ -384,6 +388,24 @@ export const OrgApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  createInvitation: (payload: {
+    email: string;
+    workspaceId: string;
+    fullName?: string;
+    title?: string;
+    departmentId?: string;
+    teamId?: string;
+    managerId?: string;
+    role?: "ADMIN" | "MEMBER" | "VIEWER";
+  }) =>
+    api<{ invitation: { id: string; token: string; email: string } }>(
+      "/api/org/invitations/create",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    ),
 
   updatePerson: (
     personId: string,

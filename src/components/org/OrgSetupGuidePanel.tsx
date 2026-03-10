@@ -154,19 +154,19 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
       aria-labelledby="setup-guide-title"
     >
       <div
-        className={`h-full w-full max-w-md border-l border-slate-800 bg-[#020617] shadow-xl transition-all duration-150 flex flex-col ${
+        className={`h-full w-full max-w-md border-l border-border bg-background shadow-xl transition-all duration-150 flex flex-col ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky header */}
-        <div className="sticky top-0 z-10 border-b border-slate-800 bg-[#020617] p-6 pb-4">
+        <div className="sticky top-0 z-10 border-b border-border bg-background p-6 pb-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-[15px] font-semibold text-slate-50" id="setup-guide-title">
+              <h2 className="text-[15px] font-semibold text-foreground" id="setup-guide-title">
                 Org setup
               </h2>
-              <p className="mt-1 text-[12px] text-slate-400">
+              <p className="mt-1 text-[12px] text-muted-foreground">
                 Complete these steps to set up your organization.
               </p>
             </div>
@@ -174,7 +174,7 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
               ref={closeButtonRef}
               type="button"
               onClick={onClose}
-              className="rounded-full border border-slate-700 bg-slate-800/50 px-3 py-1.5 text-[11px] font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+              className="rounded-full border border-border bg-muted/50 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
               aria-label="Close setup guide"
             >
               Close
@@ -186,7 +186,7 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
         <div className="flex-1 overflow-y-auto p-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-[13px] text-slate-400">Loading…</div>
+              <div className="text-[13px] text-muted-foreground">Loading…</div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -199,8 +199,8 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
                     className={cn(
                       "rounded-lg border p-4 transition-colors",
                       isComplete
-                        ? "border-slate-800 bg-slate-950/40"
-                        : "border-slate-800 bg-slate-950/60"
+                        ? "border-border bg-background/40"
+                        : "border-border bg-background/60"
                     )}
                   >
                     <div className="flex items-start gap-3">
@@ -211,8 +211,8 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
                             <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
                           </div>
                         ) : (
-                          <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-slate-700">
-                            <span className="text-[10px] font-medium text-slate-500">
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-border">
+                            <span className="text-[10px] font-medium text-muted-foreground">
                               {index + 1}
                             </span>
                           </div>
@@ -226,12 +226,12 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
                             <h3
                               className={cn(
                                 "text-[14px] font-semibold",
-                                isComplete ? "text-slate-400 line-through" : "text-slate-100"
+                                isComplete ? "text-muted-foreground line-through" : "text-foreground"
                               )}
                             >
                               {step.title}
                             </h3>
-                            <p className="mt-0.5 text-[12px] text-slate-500">
+                            <p className="mt-0.5 text-[12px] text-muted-foreground">
                               {step.description}
                             </p>
                           </div>
@@ -241,7 +241,7 @@ export function OrgSetupGuidePanel({ open, onClose }: OrgSetupGuidePanelProps) {
                             <Link href={step.href} onClick={onClose}>
                               <Button
                                 size="sm"
-                                className="h-7 px-3 text-[11px] font-medium bg-primary hover:bg-primary/90 text-white shrink-0"
+                                className="h-7 px-3 text-[11px] font-medium bg-primary hover:bg-primary/90 text-foreground shrink-0"
                               >
                                 Start
                               </Button>

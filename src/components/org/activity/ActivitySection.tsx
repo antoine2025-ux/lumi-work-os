@@ -34,14 +34,14 @@ type ActivitySectionProps = {
 export const ActivitySection = memo(function ActivitySection({ orgId, initialOrgActivity }: ActivitySectionProps) {
   if (!orgId) {
     return (
-      <section className="rounded-2xl border border-[#111827] bg-[#020617] p-4 text-xs text-slate-400">
+      <section className="rounded-2xl border border-border bg-background p-4 text-xs text-muted-foreground">
         No organization selected.
       </section>
     );
   }
 
   return (
-    <section className="space-y-3 rounded-2xl border border-[#111827] bg-[#020617] p-2 shadow-sm">
+    <section className="space-y-3 rounded-2xl border border-border bg-background p-2 shadow-sm">
       {initialOrgActivity ? (
         <>
           <ActivityExportButtons

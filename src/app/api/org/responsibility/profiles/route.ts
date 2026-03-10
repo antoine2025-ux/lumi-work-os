@@ -13,10 +13,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import {
   getRoleResponsibilityProfiles,
   createRoleResponsibilityProfile,
 } from "@/lib/org/responsibility/read";
+import { ResponsibilityProfileCreateSchema } from '@/lib/validations/responsibility';
 
 // ============================================================================
 // GET /api/org/responsibility/profiles
@@ -45,8 +47,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ ok: true, profiles });
   } catch (error: unknown) {
-    console.error("[GET /api/org/responsibility/profiles] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -108,14 +109,7 @@ export async function POST(request: NextRequest) {
 
     setWorkspaceContext(workspaceId);
 
-    const body = (await request.json()) as CreateProfileBody;
-
-    if (!body.roleType) {
-      return NextResponse.json(
-        { error: "Missing required field: roleType" },
-        { status: 400 }
-      );
-    }
+    const body = ResponsibilityProfileCreateSchema.parse(await request.json());
 
     // Validate tag consistency: no tag in both allowed/primary AND forbidden
     const validationError = validateTagConsistency(body);
@@ -135,19 +129,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, profile });
   } catch (error: unknown) {
-    // Handle unique constraint violation (hard invariant)
-    if (
-      error instanceof Error &&
-      error.message.includes("Unique constraint failed")
-    ) {
-      const body = await request.clone().json() as CreateProfileBody;
-      return NextResponse.json(
-        { error: `RoleResponsibilityProfile already exists for roleType=${body.roleType}` },
-        { status: 409 }
-      );
-    }
-
-    console.error("[POST /api/org/responsibility/profiles] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

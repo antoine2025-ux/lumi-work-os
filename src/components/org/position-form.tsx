@@ -275,7 +275,7 @@ export function PositionForm({
                       <p className="text-sm font-medium text-gray-900 truncate">
                         No user assigned
                       </p>
-                      <p className="text-sm text-gray-500 truncate">
+                      <p className="text-sm text-muted-foreground truncate">
                         Open position
                       </p>
                     </div>
@@ -304,7 +304,7 @@ export function PositionForm({
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {user.name}
                         </p>
-                        <p className="text-sm text-gray-500 truncate">
+                        <p className="text-sm text-muted-foreground truncate">
                           {user.email}
                         </p>
                       </div>
@@ -315,7 +315,7 @@ export function PositionForm({
                   ))}
                   
                   {filteredUsers.length === 0 && searchTerm && (
-                    <div className="p-4 text-center text-gray-500">
+                    <div className="p-4 text-center text-muted-foreground">
                       No available users found
                     </div>
                   )}
@@ -338,7 +338,7 @@ export function PositionForm({
                       </div>
                       <div>
                         <p className="font-medium">No user assigned</p>
-                        <p className="text-sm text-gray-500">Open position</p>
+                        <p className="text-sm text-muted-foreground">Open position</p>
                       </div>
                     </div>
                   )
@@ -356,7 +356,7 @@ export function PositionForm({
                     </div>
                     <div>
                       <p className="font-medium">{selectedUser.name}</p>
-                      <p className="text-sm text-gray-500">{selectedUser.email}</p>
+                      <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
                     </div>
                   </div>
                 ) : null

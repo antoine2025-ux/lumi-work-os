@@ -11,7 +11,7 @@
 export async function recordOrgApiHit(
   route: string,
   status: number,
-  orgId?: string | null,
+  workspaceId?: string | null,
   userId?: string | null
 ) {
   // Structured logging for observability
@@ -21,7 +21,7 @@ export async function recordOrgApiHit(
       type: "org_api_hit",
       route,
       status,
-      orgId: orgId ?? null,
+      orgId: workspaceId ?? null,
       userId: userId ?? null,
       ts: new Date().toISOString(),
     })
@@ -31,7 +31,7 @@ export async function recordOrgApiHit(
 export async function recordOrgApiError(
   route: string,
   error: unknown,
-  orgId?: string | null,
+  workspaceId?: string | null,
   userId?: string | null
 ) {
   const errorMessage = error instanceof Error ? error.message : String(error);
@@ -43,7 +43,7 @@ export async function recordOrgApiError(
       route,
       error: errorMessage,
       stack: errorStack,
-      orgId: orgId ?? null,
+      orgId: workspaceId ?? null,
       userId: userId ?? null,
       ts: new Date().toISOString(),
     })

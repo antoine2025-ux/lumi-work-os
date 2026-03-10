@@ -33,6 +33,7 @@ import type {
   AffectedEntityV0,
   DismissalReasonV0,
 } from "@/lib/loopbrain/contract/proactiveInsight.v0";
+import { LoopbrainInsightsTriggerSchema } from "@/lib/validations/loopbrain";
 
 /**
  * GET /api/loopbrain/insights
@@ -201,18 +202,9 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(auth.workspaceId);
 
     // Parse request body
-    let body: {
-      categories?: InsightCategoryV0[];
-      minConfidence?: number;
-      maxInsights?: number;
-      store?: boolean;
-    } = {};
-
-    try {
-      body = await request.json();
-    } catch {
-      // Empty body is valid
-    }
+    const body = LoopbrainInsightsTriggerSchema.parse(
+      await request.json().catch(() => ({}))
+    );
 
     const {
       categories,

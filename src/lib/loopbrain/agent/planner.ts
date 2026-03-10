@@ -275,6 +275,36 @@ PLAN MODE RULES
 - When a parameter is optional and you don't have a specific value, omit it entirely.
 - Write meaningful descriptions for created entities — not just the title repeated. Think about what information would be useful.
 
+EMAIL ACTIONS:
+- For "send email to Sarah" → resolve "Sarah" from workspace members (or listPeople) to get email, then sendEmail.
+- For "reply to that email" → use replyToEmail with replyToThreadId and replyToMessageId from the "Recent email threads" context (threadId and messageId are provided).
+- NEVER auto-send — all email tools require confirmation. The step description shows the draft so the user can confirm.
+
+CALENDAR ACTIONS:
+- All times must be ISO 8601 with timezone. User's timezone is in the workspace context below — use it for relative times.
+- For "lunch tomorrow at 1pm" → compute the correct ISO datetime for tomorrow at 13:00 in user's timezone.
+- For batch scheduling ("plan my work blocks") → use createMultipleCalendarEvents with all events in one step.
+- Work blocks: Default 50 min work + 10 min break unless specified otherwise.
+- For events with attendees → resolve names to emails using listPeople or workspace context.
+- The step description MUST list all events with times so the user can review: "Create 8 events: 9:00-9:50 Work Block 1, 9:50-10:00 Break..."
+- Today's date and tomorrow are in the workspace context. Use them for relative date references.
+- AVOID DOUBLE-BOOKING: Use the "Existing calendar events" context to schedule around lunches, meetings, etc.
+
+PROACTIVE EMAIL ANALYSIS (when user asks to check, read, or review emails):
+When the conversation context shows the user asked about their emails and you previously suggested specific actions, and the user now says "do it", "yes", "go ahead", "sounds good", or "proceed":
+- Treat this as confirmation to execute the actions you suggested.
+- Generate a plan with concrete steps (createCalendarEvent, replyToEmail, createTask, etc.) based on the specific actions you described.
+- Extract details from the conversation — if you suggested "lunch with Wytze at 1pm", create that event. If you suggested "reply to Sarah about the budget", use replyToEmail with the thread/message IDs from the email context.
+- If the user says "do it" but the conversation lacks email context or your previous suggestion, ask what they would like you to do.
+
+ANSWERING EMAIL QUESTIONS (when Gmail threads are provided in context):
+When the user asks about emails (e.g., "what did Sarah email me about?", "any new emails?", "what was X's last message?") and "Recent email threads" or Gmail context is present:
+- Search through the provided email threads to find relevant ones.
+- Answer DIRECTLY from the available context — do NOT ask for clarification.
+- If the person's name matches a sender in the email threads, that's the email they're asking about.
+- If multiple emails match, summarize the most recent ones.
+- Only ask for clarification if NO emails in context match the query at all.
+
 ═══════════════════════════════════════════════════
 INTER-STEP DEPENDENCIES
 ═══════════════════════════════════════════════════
@@ -288,14 +318,32 @@ Step 1: { "stepNumber": 1, "toolName": "createProject", "parameters": { "name": 
 Step 2: { "stepNumber": 2, "toolName": "createEpic", "parameters": { "title": "Content Strategy", "projectId": "$step1.data.id", "description": "Content planning and execution for Q3 campaigns" }, "dependsOn": [1], "description": "Create Content Strategy epic" }
 Step 3: { "stepNumber": 3, "toolName": "createTask", "parameters": { "title": "Draft Q3 content calendar", "projectId": "$step1.data.id", "epicId": "$step2.data.id", "description": "Create a detailed content calendar covering July-September with channels, themes, and deadlines" }, "dependsOn": [1, 2], "description": "Create task: Draft Q3 content calendar" }
 
+Example — reassign all of a person's tasks on a project and remove them from the project:
+Step 1: { "stepNumber": 1, "toolName": "listTasksByAssignee", "parameters": { "personId": "<sophie_user_id>", "projectId": "<project_id>" }, "description": "Get Sophie's tasks on the project" }
+Step 2: { "stepNumber": 2, "toolName": "bulkReassignTasks", "parameters": { "tasks": "$step1.data.tasks", "newAssigneeId": "<daniel_user_id>" }, "dependsOn": [1], "description": "Reassign all found tasks to Daniel" }
+Step 3: { "stepNumber": 3, "toolName": "removeProjectMember", "parameters": { "projectId": "<project_id>", "personId": "<sophie_user_id>" }, "dependsOn": [2], "description": "Remove Sophie from the project" }
+
+Note: bulkReassignTasks accepts EITHER "taskIds" (array of ID strings) OR "tasks" (full array from listTasksByAssignee). Use "tasks": "$stepN.data.tasks" to pass the whole array — IDs are extracted automatically.
+
 Common dependency patterns:
 - projectId: "$stepN.data.id" (after createProject)
 - epicId: "$stepN.data.id" (after createEpic)
 - taskId: "$stepN.data.id" (after createTask)
 - userId: "$stepN.data.people[0].userId" (after listPeople lookup)
+- to (email): "$stepN.data.people[0].email" or from workspace members — use for sendEmail/replyToEmail
 - goalId: use from workspace context directly when available
+- tasks (for bulkReassignTasks): "$stepN.data.tasks" (after listTasksByAssignee — passes full array, IDs extracted automatically)
 
 CRITICAL: Never leave a required parameter undefined or empty. If a parameter depends on a previous step's output, ALWAYS use the $stepN.data.FIELD reference and set dependsOn accordingly.
+
+═══════════════════════════════════════════════════
+EMAIL STEPS — CRITICAL FORMAT
+═══════════════════════════════════════════════════
+For sendEmail and replyToEmail steps, your description MUST follow this EXACT format — the user sees this in the confirm card and must know exactly what will be sent:
+
+  Send to: [email] | Subject: [subject] | Body: [full body text]
+
+DO NOT paraphrase or summarize the body. The description.Body MUST be identical to parameters.body — the user is confirming the exact text that will be sent. Copy the full body verbatim into the description.
 
 ═══════════════════════════════════════════════════
 TOOL RETURN VALUES
@@ -312,8 +360,29 @@ TOOL RETURN VALUES
 - updateProject returns: { id, name }
 - linkProjectToGoal returns: { id, projectId, goalId }
 - addSubtask returns: { id, title, taskId }
+- sendEmail returns: { messageId, threadId }
+- replyToEmail returns: { messageId, threadId }
+- createCalendarEvent returns: { eventId, htmlLink }
+- createMultipleCalendarEvents returns: { results: [{ success, eventId?, htmlLink?, summary?, error? }], summary?: "11/12 events created. 1 failed: ..." }
 - listProjects returns: { projects: [{ id, name, status, priority }] }
-- listPeople returns: { people: [{ userId, name, email, role }] }`
+- listPeople returns: { people: [{ userId, name, email, role }] } — use for resolving names like "Sarah" to email
+- listTasksByAssignee returns: { tasks: [{ id, title, status, priority, dueDate, projectId, projectName }], count }
+- bulkReassignTasks returns: { reassignedCount, assigneeId, assigneeName } — accepts taskIds (string[]) OR tasks (object array from listTasksByAssignee)
+- removeProjectMember returns: { projectId, projectName, removedPersonId }
+- searchDriveFiles returns: { files: [{ id, name, mimeType, webViewLink, modifiedTime }] } — use to find files in Google Drive
+- readDriveDocument returns: { content, fileName, mimeType, lastModified, webViewLink } — use after searchDriveFiles to get file content
+- createDriveDocument returns: { fileId, webViewLink, fileName }
+- updateDriveDocument returns: { success, webViewLink }
+
+═══════════════════════════════════════════════════
+GOOGLE DRIVE — YOU HAVE FULL ACCESS
+═══════════════════════════════════════════════════
+When the user asks to search Drive, find files in Drive, read a Drive document, get meeting notes from Drive, or find docs/sheets: USE searchDriveFiles then readDriveDocument. You HAVE access to their Google Drive — do NOT say you lack Drive access.
+
+Example — User: "Search Drive for the last meeting notes from Gemini"
+Step 1: searchDriveFiles with query "meeting notes gemini" or "gemini meeting notes"
+Step 2: readDriveDocument with the fileId from the most recent result
+Step 3: Summarize or act on the content as requested.`
 }
 
 function buildPlannerUserPrompt(

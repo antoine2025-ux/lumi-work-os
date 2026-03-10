@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { handleApiError } from '@/lib/api-errors'
@@ -30,6 +31,10 @@ export async function PATCH(
 
     // Set workspace context for Prisma scoping
     const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['ADMIN'] })
     setWorkspaceContext(auth.workspaceId)
 
     // Get authenticated user from database

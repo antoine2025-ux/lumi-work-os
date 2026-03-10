@@ -42,7 +42,7 @@ export function DepartmentOrgRow({
       href={hrefStructure}
       className={cn(
         "group relative flex w-full items-start md:items-center gap-4 md:gap-6 rounded-3xl",
-        "bg-gradient-to-b from-[#020617] to-slate-950/80 border border-slate-800/50",
+        "bg-gradient-to-b from-[#020617] to-slate-950/80 border border-border/50",
         "px-6 py-4 md:px-8 md:py-5",
         "transition-all duration-200",
         "hover:-translate-y-[1px] hover:border-blue-500/60 hover:bg-white/5 hover:shadow-[0_0_40px_rgba(0,0,0,0.40)]",
@@ -66,13 +66,13 @@ export function DepartmentOrgRow({
         {/* Text column: name + parent/reports to */}
         <div className="flex flex-col gap-1 min-w-0 flex-1">
           {/* Department name */}
-          <span className="text-lg md:text-xl font-semibold text-slate-100 truncate leading-tight">
+          <span className="text-lg md:text-xl font-semibold text-foreground truncate leading-tight">
             {name}
           </span>
 
           {/* Parent/reports to line */}
           {parentName && (
-            <span className="text-xs md:text-sm text-slate-400 leading-tight">
+            <span className="text-xs md:text-sm text-muted-foreground leading-tight">
               Reports to {parentName}
             </span>
           )}
@@ -84,18 +84,18 @@ export function DepartmentOrgRow({
         <div className="flex items-center gap-2 min-w-0 flex-shrink-0 pt-0.5 md:pt-0">
           {/* Lead avatar - 32x32 */}
           <Avatar className="h-8 w-8 flex-shrink-0">
-            <AvatarFallback className="bg-slate-700/80 border border-slate-600/50 text-xs font-semibold text-slate-300">
+            <AvatarFallback className="bg-slate-700/80 border border-slate-600/50 text-xs font-semibold text-muted-foreground">
               {initials || "?"}
             </AvatarFallback>
           </Avatar>
           {/* Lead name - single line, aligned with department name */}
-          <span className="text-xs md:text-sm text-slate-300/70 whitespace-nowrap leading-tight">
+          <span className="text-xs md:text-sm text-muted-foreground/70 whitespace-nowrap leading-tight">
             Lead: {leadName}
           </span>
         </div>
       ) : (
         <div className="flex items-center min-w-0 flex-shrink-0 pt-0.5 md:pt-0">
-          <span className="text-xs text-slate-500 whitespace-nowrap leading-tight">No lead assigned yet</span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap leading-tight">No lead assigned yet</span>
         </div>
       )}
 
@@ -104,13 +104,13 @@ export function DepartmentOrgRow({
         {/* Metrics pills - always show, even when 0 */}
         <div className="flex items-center gap-2">
           <span
-            className="inline-flex items-center rounded-full border border-slate-700/60 bg-slate-800/60 px-3 md:px-4 py-1 text-xs md:text-sm text-slate-300/80 whitespace-nowrap"
+            className="inline-flex items-center rounded-full border border-border/60 bg-muted/60 px-3 md:px-4 py-1 text-xs md:text-sm text-muted-foreground/80 whitespace-nowrap"
             title={`${teamsCount} ${teamsCount === 1 ? "team" : "teams"} in this department`}
           >
             {teamsCount} {teamsCount === 1 ? "team" : "teams"}
           </span>
           <span
-            className="inline-flex items-center rounded-full border border-slate-700/60 bg-slate-800/60 px-3 md:px-4 py-1 text-xs md:text-sm text-slate-300/80 whitespace-nowrap"
+            className="inline-flex items-center rounded-full border border-border/60 bg-muted/60 px-3 md:px-4 py-1 text-xs md:text-sm text-muted-foreground/80 whitespace-nowrap"
             title={`${peopleCount} ${peopleCount === 1 ? "person" : "people"} assigned to this department`}
           >
             {peopleCount} {peopleCount === 1 ? "person" : "people"}

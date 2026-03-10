@@ -16,6 +16,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import {
   computeOrgIntelligence,
   getLatestIntelligenceSnapshot,
@@ -54,12 +57,11 @@ export async function GET(request: NextRequest) {
     const auth = await getUnifiedAuth(request);
     const workspaceId = auth.workspaceId;
 
-    if (!workspaceId) {
-      return NextResponse.json(
-        { error: "workspaceId is required" },
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+    if (!auth.isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId, scope: "workspace", requireRole: ["VIEWER"] });
+    setWorkspaceContext(workspaceId);
 
     const { searchParams } = new URL(request.url);
     const version = searchParams.get("version");
@@ -115,15 +117,6 @@ export async function GET(request: NextRequest) {
       data: result,
     });
   } catch (error) {
-    console.error("Error computing org intelligence:", error);
-
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "Content-Type": "application/json" } });
-    }
-
-    return NextResponse.json(
-      { error: "Failed to compute org intelligence" },
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return handleApiError(error, request);
   }
 }

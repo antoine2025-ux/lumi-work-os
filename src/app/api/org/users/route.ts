@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
@@ -70,8 +71,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(availableUsers)
-  } catch (error) {
-    console.error('Error fetching available users:', error)
-    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }

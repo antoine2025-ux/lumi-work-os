@@ -31,3 +31,15 @@ export const CalendarEventUpdateSchema = z.object({
 export const CalendarEventDeleteSchema = z.object({
   eventId: nonEmptyString,
 }).strict()
+
+/** POST /api/integrations/calendar/events/create — Google-native params for Loopbrain / integration API */
+export const CalendarEventCreateIntegrationSchema = z.object({
+  summary: z.string().min(1).max(500),
+  startDateTime: z.string(),
+  endDateTime: z.string(),
+  description: z.string().optional(),
+  attendees: z.array(z.string().email()).optional(),
+  location: z.string().optional(),
+  timeZone: z.string().optional(),
+  recurrence: z.array(z.string()).optional(),
+}).strict()

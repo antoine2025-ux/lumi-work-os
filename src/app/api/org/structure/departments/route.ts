@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  assertOrgCapability,
-  getOrgPermissionContext,
-  mapPermissionErrorToStatus,
-} from "@/lib/org/permissions.server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 
 type OrgDepartmentStructureRow = {
@@ -17,27 +15,19 @@ type OrgDepartmentStructureRow = {
 
 export async function GET(req: NextRequest) {
   try {
-    const context = await getOrgPermissionContext(req);
-
-    try {
-      assertOrgCapability(context, "org:chart:view");
-    } catch (permError) {
-      const status = mapPermissionErrorToStatus(permError);
-      return NextResponse.json(
-        {
-          error:
-            status === 401
-              ? "Unauthenticated."
-              : "Not allowed to view org chart structure.",
-        },
-        { status }
-      );
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["VIEWER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
 
-    // IMPORTANT: In this codebase, orgId === workspaceId
-    // All Prisma queries use workspaceId field
-    const orgId = context!.orgId
-    const workspaceId = orgId // They're the same
+    const workspaceId = auth.workspaceId;
 
     // 1) Departments (ordered)
     const departments = await prisma.orgDepartment.findMany({

@@ -33,8 +33,8 @@ export function OrgStructureListView({ departments }: OrgStructureListViewProps)
           <section
             key={dept.id}
             className={cn(
-              "relative overflow-hidden rounded-[24px] border border-slate-800/60 bg-slate-950/70 transition-all duration-150",
-              "hover:scale-[1.005] hover:shadow-[0_8px_32px_rgba(15,23,42,0.4)] hover:border-slate-700/80"
+              "relative overflow-hidden rounded-[24px] border border-border/60 bg-background/70 transition-all duration-150",
+              "hover:scale-[1.005] hover:shadow-[0_8px_32px_rgba(15,23,42,0.4)] hover:border-border/80"
             )}
           >
             {/* Department header */}
@@ -59,10 +59,10 @@ export function OrgStructureListView({ departments }: OrgStructureListViewProps)
                 >
                   <div
                     id={`teams-${dept.id}`}
-                    className="relative border-t border-slate-800/50 bg-slate-950/50 px-5 pb-4 pt-3.5"
+                    className="relative border-t border-border/50 bg-background/50 px-5 pb-4 pt-3.5"
                   >
                     {/* Left rail */}
-                    <div className="pointer-events-none absolute left-5 top-3.5 bottom-4 w-px bg-slate-800/70" />
+                    <div className="pointer-events-none absolute left-5 top-3.5 bottom-4 w-px bg-muted/70" />
 
                     {/* Teams container with left padding to align with rail */}
                     <div className="flex flex-col gap-2.5 pl-7">

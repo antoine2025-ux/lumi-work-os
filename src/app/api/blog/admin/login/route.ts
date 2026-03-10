@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { getUnifiedAuth } from "@/lib/unified-auth"
+import { assertAccess } from "@/lib/auth/assertAccess"
+import { handleApiError } from "@/lib/api-errors"
+import { BlogAdminLoginSchema } from "@/lib/validations/admin"
 
 export async function POST(request: NextRequest) {
   try {
-    const { password } = await request.json()
-
-    if (!password) {
-      return NextResponse.json(
-        { error: "Password is required" },
-        { status: 400 }
-      )
+    const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["OWNER"],
+    })
+
+    const body = BlogAdminLoginSchema.parse(await request.json())
+    const { password } = body
 
     const adminPassword = process.env.BLOG_ADMIN_PASSWORD
 
@@ -44,11 +53,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Blog admin login error:", error)
-    return NextResponse.json(
-      { error: "Authentication failed" },
-      { status: 500 }
-    )
+    return handleApiError(error)
   }
 }
 

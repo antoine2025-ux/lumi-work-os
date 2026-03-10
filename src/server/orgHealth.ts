@@ -38,11 +38,11 @@ export function computeCompleteness(metrics: OrgHealthMetrics) {
   };
 }
 
-export async function measureOrgHealth(orgId: string) {
+export async function measureOrgHealth(workspaceId: string) {
   // Count active positions (people) in the org
   const totalPeople = await prisma.orgPosition.count({
     where: {
-      workspaceId: orgId,
+      workspaceId,
       archivedAt: null,
       isActive: true,
       userId: { not: null },
@@ -50,19 +50,19 @@ export async function measureOrgHealth(orgId: string) {
   });
 
   const missingManager = await prisma.orgPersonIssue.count({
-    where: { orgId, type: "MISSING_MANAGER", resolvedAt: null },
+    where: { workspaceId, type: "MISSING_MANAGER", resolvedAt: null },
   });
 
   const missingTeam = await prisma.orgPersonIssue.count({
-    where: { orgId, type: "MISSING_TEAM", resolvedAt: null },
+    where: { workspaceId, type: "MISSING_TEAM", resolvedAt: null },
   });
 
   const missingRole = await prisma.orgPersonIssue.count({
-    where: { orgId, type: "MISSING_ROLE", resolvedAt: null },
+    where: { workspaceId, type: "MISSING_ROLE", resolvedAt: null },
   });
 
   const openDuplicates = await prisma.orgDuplicateCandidate.count({
-    where: { orgId, status: "OPEN" },
+    where: { workspaceId, status: "OPEN" },
   });
 
   const metrics: OrgHealthMetrics = {
@@ -77,7 +77,7 @@ export async function measureOrgHealth(orgId: string) {
 
   const snapshot = await prisma.orgHealthSnapshot.create({
     data: {
-      orgId,
+      workspaceId,
       capturedAt: new Date(),
       capacityScore: score * 100, // Convert 0-1 score to 0-100 scale
     },

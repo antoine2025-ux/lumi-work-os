@@ -3,14 +3,14 @@ import { prisma } from "@/lib/db"
 import type { HealthSignal } from "@/server/org/health/signals"
 import { severityFromCount } from "@/server/org/health/signals"
 
-export async function computeMinimalOrgHealth(orgId: string) {
+export async function computeMinimalOrgHealth(workspaceId: string) {
   try {
     // Ownership gaps (teams/domains/systems)
-    // OwnerAssignment uses workspaceId (orgId param is the workspace identifier)
+    // OwnerAssignment uses workspaceId
     let owners: Array<{ entityType: string; entityId: string }> = []
     try {
       owners = await prisma.ownerAssignment.findMany({
-        where: { workspaceId: orgId, isPrimary: true },
+        where: { workspaceId, isPrimary: true },
         select: { entityType: true, entityId: true },
         take: 200000,
       })
@@ -35,9 +35,9 @@ export async function computeMinimalOrgHealth(orgId: string) {
     for (const o of owners) owned.add(`${o.entityType}::${o.entityId}`)
 
     const [teams, domains, systems] = await Promise.all([
-      prisma.orgTeam.findMany({ where: { workspaceId: orgId }, select: { id: true }, take: 50000 }).catch(() => []),
-      prisma.domain.findMany({ where: { orgId }, select: { id: true }, take: 50000 }).catch(() => []),
-      prisma.systemEntity.findMany({ where: { orgId }, select: { id: true }, take: 50000 }).catch(() => []),
+      prisma.orgTeam.findMany({ where: { workspaceId }, select: { id: true }, take: 50000 }).catch(() => []),
+      prisma.domain.findMany({ where: { workspaceId }, select: { id: true }, take: 50000 }).catch(() => []),
+      prisma.systemEntity.findMany({ where: { workspaceId }, select: { id: true }, take: 50000 }).catch(() => []),
     ])
 
     let unownedCount = 0
@@ -49,7 +49,7 @@ export async function computeMinimalOrgHealth(orgId: string) {
     // PersonAvailabilityHealth uses workspaceId (not orgId)
     const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
     const staleAvailability = await prisma.personAvailabilityHealth
-      .count({ where: { workspaceId: orgId, updatedAt: { lt: cutoff } } })
+      .count({ where: { workspaceId, updatedAt: { lt: cutoff } } })
       .catch(() => 0)
 
     // Manager conflicts and over-allocation: these models (personManagerConflict,

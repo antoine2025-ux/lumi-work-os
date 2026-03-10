@@ -6,6 +6,8 @@ import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import { getOrgContext } from "@/server/rbac";
 import { OrgBulkPatchSchema } from "@/lib/validations/org";
+import { logOrgAuditBatch, type OrgAuditEntry } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
 
 function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Failed to get organization context" }, { status: 500 });
     }
 
-    if (!ctx.orgId) {
+    if (!ctx.workspaceId) {
       return NextResponse.json({ ok: false, error: "No organization membership" }, { status: 403 });
     }
     if (!ctx.canEdit) {
@@ -43,13 +45,21 @@ export async function POST(req: NextRequest) {
     const workspaceId = auth.workspaceId;
 
     // Safety: ensure all personIds belong to this workspace
+    // Fetch before state for audit diff
     const positions = await prisma.orgPosition.findMany({
       where: {
         workspaceId,
         userId: { in: personIds },
         isActive: true,
       },
-      select: { id: true, userId: true },
+      select: { 
+        id: true, 
+        userId: true,
+        title: true,
+        teamId: true,
+        parentId: true,
+        user: { select: { name: true } },
+      },
     });
 
     if (positions.length !== personIds.length) {
@@ -125,6 +135,42 @@ export async function POST(req: NextRequest) {
       },
       data: updateData,
     });
+
+    // Collect audit entries for batch logging
+    const auditEntries: OrgAuditEntry[] = [];
+    for (const position of positions) {
+      const before = {
+        title: position.title ?? null,
+        teamId: position.teamId ?? null,
+        parentId: position.parentId ?? null,
+      };
+      const after = {
+        title: updateData.title !== undefined ? updateData.title : before.title,
+        teamId: updateData.teamId !== undefined ? updateData.teamId : before.teamId,
+        parentId: updateData.parentId !== undefined ? updateData.parentId : before.parentId,
+      };
+      
+      const changes = computeChanges(before, after, ['title', 'teamId', 'parentId']);
+      
+      if (changes) {
+        auditEntries.push({
+          workspaceId,
+          entityType: "PERSON",
+          entityId: position.id,
+          entityName: position.user?.name ?? undefined,
+          action: "UPDATED",
+          actorId: auth.user.userId,
+          changes,
+        });
+      }
+    }
+
+    // Batch write audit logs (fire-and-forget)
+    if (auditEntries.length > 0) {
+      logOrgAuditBatch(auditEntries).catch((e) => 
+        console.error(`[POST /api/org/people/bulk] Batch audit log error (non-fatal): ${auditEntries.length} entries`, e)
+      );
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

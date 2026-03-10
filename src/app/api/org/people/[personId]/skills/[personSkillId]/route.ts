@@ -9,9 +9,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
-
-const ALLOWED_SOURCES = ["SELF_REPORTED", "MANAGER_ADDED", "VERIFIED", "INFERRED"] as const;
+import { UpdatePersonSkillSchema } from "@/lib/validations/org";
 
 export async function PATCH(
   request: NextRequest,
@@ -85,46 +85,28 @@ export async function PATCH(
     }
 
     // Step 6: Parse and validate request body
-    const body = await request.json();
+    const body = UpdatePersonSkillSchema.parse(await request.json());
     const updateData: Record<string, unknown> = {};
 
-    // Validate proficiency
     if (body.proficiency !== undefined) {
-      const proficiency = Number(body.proficiency);
-      if (isNaN(proficiency) || proficiency < 1 || proficiency > 5) {
-        return NextResponse.json({ error: "proficiency must be between 1 and 5" }, { status: 400 });
-      }
-      updateData.proficiency = proficiency;
+      updateData.proficiency = body.proficiency;
     }
 
-    // Validate source
     if (body.source !== undefined) {
-      if (!ALLOWED_SOURCES.includes(body.source)) {
-        return NextResponse.json(
-          { error: `source must be one of: ${ALLOWED_SOURCES.join(", ")}` },
-          { status: 400 }
-        );
-      }
       updateData.source = body.source;
 
-      // If setting to VERIFIED, set verification info
       if (body.source === "VERIFIED") {
         updateData.verifiedAt = new Date();
         updateData.verifiedById = userId;
       }
     }
 
-    // Handle verifiedAt explicitly
     if (body.verifiedAt !== undefined) {
       if (body.verifiedAt === null) {
         updateData.verifiedAt = null;
         updateData.verifiedById = null;
       } else {
-        const date = new Date(body.verifiedAt);
-        if (isNaN(date.getTime())) {
-          return NextResponse.json({ error: "Invalid verifiedAt format" }, { status: 400 });
-        }
-        updateData.verifiedAt = date;
+        updateData.verifiedAt = new Date(body.verifiedAt);
         updateData.verifiedById = userId;
       }
     }
@@ -160,8 +142,7 @@ export async function PATCH(
       },
     });
   } catch (error: unknown) {
-    console.error("[PATCH /api/org/people/[personId]/skills/[personSkillId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -243,8 +224,7 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
-    console.error("[DELETE /api/org/people/[personId]/skills/[personSkillId]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { assertProjectAccess } from '@/lib/pm/guards'
 import { handleApiError } from '@/lib/api-errors'
 import { generateDailySummary, saveDailySummary, getDailySummaries } from '@/lib/ai/daily-summary'
 import { prisma } from '@/lib/db'
+import { DailySummaryGenerateSchema } from '@/lib/pm/schemas'
 
 // GET /api/projects/[projectId]/daily-summaries - Get daily summaries for a project
 export async function GET(
@@ -27,6 +29,10 @@ export async function GET(
 
     // Set workspace context for Prisma scoping
     const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
     setWorkspaceContext(auth.workspaceId)
     
     // Get authenticated user from database
@@ -71,7 +77,7 @@ export async function POST(
 ) {
   try {
     const { projectId } = await params
-    const body = await request.json()
+    const body = DailySummaryGenerateSchema.parse(await request.json())
     const { date } = body
 
     // Get session and verify access
@@ -82,6 +88,10 @@ export async function POST(
 
     // Set workspace context for Prisma scoping
     const authCtx = await getUnifiedAuth(request)
+    if (!authCtx.isAuthenticated || !authCtx.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: authCtx.user.userId, workspaceId: authCtx.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
     setWorkspaceContext(authCtx.workspaceId)
 
     // Get authenticated user from database

@@ -1,3 +1,4 @@
+import '@/lib/env' // validate environment variables on first DB access
 import { PrismaClient } from '@prisma/client'
 import { createScopedPrisma } from './prisma/scoped-prisma'
 
@@ -72,34 +73,10 @@ function createPrismaClient() {
   })
 }
 
-// Get or create singleton instance
-// FORCE clear cached client in development to ensure fresh Prisma client after schema changes
-// This is critical after Prisma schema changes - Next.js caches the module
-if (process.env.NODE_ENV === 'development') {
-  // Always clear in dev to force fresh client after schema changes
-  if (globalForPrisma.prisma) {
-    try {
-      globalForPrisma.prisma.$disconnect().catch(() => {})
-    } catch (_e) {
-      // Ignore
-    }
-  }
-  // Clear the cached instance - FORCE fresh client
-  globalForPrisma.prisma = undefined
-  // Also clear from globalThis to be thorough
-  if (typeof globalThis !== 'undefined') {
-    (globalThis as Record<string, unknown>).prisma = undefined
-  }
-  // Also clear from module cache if possible
-  if (typeof require !== 'undefined' && require.cache) {
-    // Clear Prisma client from require cache
-    Object.keys(require.cache).forEach(key => {
-      if (key.includes('@prisma/client') || key.includes('prisma')) {
-        delete require.cache[key]
-      }
-    })
-  }
-}
+// Get or create singleton instance (standard Prisma + Next.js pattern)
+// Note: Do NOT clear/recreate on every dev load - that causes "Engine is not yet connected"
+// when requests hit before the new client's engine is ready (Turbopack/chunk loading).
+// After prisma generate, restart the dev server to pick up schema changes.
 
 // Feature flag for workspace scoping (defense-in-depth layer)
 // When enabled, all workspace-scoped queries automatically require workspace context

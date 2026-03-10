@@ -14,7 +14,7 @@ type OrgLogPayload = {
   event: string;
   route?: string;
   loader?: string;
-  orgId?: string | null;
+  workspaceId?: string | null;
   userId?: string | null;
   durationMs?: number;
   meta?: Record<string, unknown>;
@@ -50,14 +50,14 @@ export function logOrgEvent(payload: OrgLogPayload) {
  * Also logs errors if the loader fails.
  * 
  * @param loaderName - Name of the loader being timed
- * @param orgId - Organization ID (can be null)
+ * @param workspaceId - Workspace ID (can be null)
  * @param userId - User ID (can be null)
  * @param fn - The async function to time
  * @returns The result of the function
  */
 export async function timeOrgLoader<T>(
   loaderName: string,
-  orgId: string | null,
+  workspaceId: string | null,
   userId: string | null,
   fn: () => Promise<T>
 ): Promise<T> {
@@ -71,7 +71,7 @@ export async function timeOrgLoader<T>(
       level: "info",
       event: "loader_timing",
       loader: loaderName,
-      orgId,
+      workspaceId,
       userId,
       durationMs: duration,
     });
@@ -85,7 +85,7 @@ export async function timeOrgLoader<T>(
       level: "error",
       event: "loader_error",
       loader: loaderName,
-      orgId,
+      workspaceId,
       userId,
       durationMs: duration,
       meta: {
@@ -103,7 +103,7 @@ export async function timeOrgLoader<T>(
  * 
  * @param event - Event type: "api_start", "api_success", "api_error", "api_unauthorized"
  * @param route - The API route path
- * @param orgId - Organization ID (can be null)
+ * @param workspaceId - Workspace ID (can be null)
  * @param userId - User ID (can be null)
  * @param durationMs - Duration in milliseconds (for success/error events)
  * @param meta - Additional metadata
@@ -111,7 +111,7 @@ export async function timeOrgLoader<T>(
 export function logOrgApiEvent(
   event: "api_start" | "api_success" | "api_error" | "api_unauthorized",
   route: string,
-  orgId: string | null = null,
+  workspaceId: string | null = null,
   userId: string | null = null,
   durationMs?: number,
   meta?: Record<string, unknown>
@@ -128,7 +128,7 @@ export function logOrgApiEvent(
     level,
     event,
     route,
-    orgId,
+    workspaceId,
     userId,
     durationMs,
     meta,

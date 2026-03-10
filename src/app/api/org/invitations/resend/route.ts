@@ -6,10 +6,12 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import { sendEmail } from "@/server/mailer";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { OrgInvitationIdSchema } from "@/lib/validations/admin";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as { id: string };
+    const body = OrgInvitationIdSchema.parse(await req.json());
     const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(req);
     if (!isAuthenticated || !workspaceId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Email sending happens below (best-effort)
-    const org = await prisma.org.findUnique({ where: { id: updated.orgId || workspaceId }, select: { name: true } });
+    const org = await prisma.org.findUnique({ where: { id: updated.orgId || workspaceId }, select: { name: true } }); // Reading Prisma field updated.orgId
     const orgName = org?.name || "your organization";
     const link = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/org/invite/${updated.token}`;
     await sendEmail({
@@ -52,6 +54,17 @@ export async function POST(req: NextRequest) {
       </div>
     `,
     }).catch(() => null);
+
+    // Log audit entry (fire-and-forget)
+    logOrgAudit({
+      workspaceId,
+      entityType: "INVITATION",
+      entityId: updated.id,
+      entityName: updated.email,
+      action: "UPDATED",
+      actorId: user.userId,
+      metadata: { resent: true },
+    }).catch((e) => console.error("[POST /api/org/invitations/resend] Audit error:", e));
 
     return NextResponse.json({ ok: true, invite: updated, inviteLink: link, orgName });
   } catch (error) {

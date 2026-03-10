@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { getOrgContext } from "@/server/rbac";
-import { handleApiError } from "@/lib/api-errors"
+import { handleApiError } from "@/lib/api-errors";
+import { CreateOrgViewSchema } from '@/lib/validations/org';
 
 function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: { code: "BAD_REQUEST", message } }, { status: 400 });
@@ -19,9 +22,11 @@ export async function GET(req: NextRequest) {
     const scope = searchParams.get("scope") || "people";
 
     const workspaceId = auth.workspaceId;
-    if (!workspaceId) {
-      return NextResponse.json({ ok: false, error: "No workspace" }, { status: 403 });
+    if (!auth.isAuthenticated || !workspaceId) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId, scope: "workspace", requireRole: ["VIEWER"] });
+    setWorkspaceContext(workspaceId);
 
     const views = await prisma.orgSavedView.findMany({
       where: { workspaceId, scope },
@@ -50,7 +55,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Failed to get organization context" }, { status: 500 });
     }
 
-    if (!ctx.orgId) {
+    if (!ctx.workspaceId) {
       return NextResponse.json({ ok: false, error: "No organization membership" }, { status: 403 });
     }
     if (!ctx.canEdit) {
@@ -58,22 +63,19 @@ export async function POST(req: NextRequest) {
     }
 
     const workspaceId = auth.workspaceId;
-    if (!workspaceId) {
-      return NextResponse.json({ ok: false, error: "No workspace" }, { status: 403 });
+    if (!auth.isAuthenticated || !workspaceId) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId, scope: "workspace", requireRole: ["MEMBER"] });
+    setWorkspaceContext(workspaceId);
 
-    const body = await req.json().catch(() => null);
-    if (!body) return badRequest("Invalid JSON body");
-
-    const { scope = "people", name, key, filters } = body ?? {};
-    if (!name || typeof name !== "string") return badRequest("name is required");
-    if (!key || typeof key !== "string") return badRequest("key is required");
-    if (!filters || typeof filters !== "object") return badRequest("filters must be an object");
+    const body = CreateOrgViewSchema.parse(await req.json());
+    const { scope, name, key, filters, shared } = body;
 
     const created = await prisma.orgSavedView.upsert({
-      where: { workspaceId_scope_key: { workspaceId, scope, key } },
-      update: { name: name.trim(), filters },
-      create: { workspaceId, scope, name: name.trim(), key: key.trim(), filters },
+      where: { workspaceId_scope_key: { workspaceId, scope, key: key || name.toLowerCase().replace(/\s+/g, '-') } },
+      update: { name: name.trim(), filters: filters as any },
+      create: { workspaceId, scope, name: name.trim(), key: (key || name.toLowerCase().replace(/\s+/g, '-')).trim(), filters: filters as any },
       select: { id: true, name: true, key: true, filters: true },
     });
 

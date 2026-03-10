@@ -9,6 +9,15 @@ import { ContextObject, ContextType } from './context-types'
 import { ContextObject as UnifiedContextObject } from '@/lib/context/context-types'
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from './agent/types'
 import type { OrgQuestionContext } from './org-question-types'
+import type { ExtractedTask, MeetingTaskExtractionResult } from './scenarios/meeting-task-extraction'
+import type { OnboardingBriefing } from './scenarios/onboarding-briefing'
+import type { DailyBriefing } from './scenarios/daily-briefing'
+import type { MeetingPrepBrief } from './scenarios/meeting-prep'
+
+export type { ExtractedTask, MeetingTaskExtractionResult }
+export type { OnboardingBriefing }
+export type { DailyBriefing }
+export type { MeetingPrepBrief }
 
 /**
  * Loopbrain operating modes
@@ -16,8 +25,12 @@ import type { OrgQuestionContext } from './org-question-types'
  * - spaces: Workspace/Spaces mode - focuses on projects, pages, tasks
  * - org: Organization mode - focuses on teams, roles, hierarchy
  * - dashboard: Dashboard mode - focuses on workspace overview and activity
+ * - onboarding_briefing: Generates a personalized briefing for new workspace members
+ * - daily_briefing: Generates a personalized daily briefing with tasks, changes, meetings
+ * - meeting_prep: Generates a context package for an upcoming meeting
+ * - email_search: On-demand Gmail search for email-related queries
  */
-export type LoopbrainMode = 'spaces' | 'org' | 'dashboard' | 'goals'
+export type LoopbrainMode = 'spaces' | 'org' | 'dashboard' | 'goals' | 'onboarding_briefing' | 'daily_briefing' | 'meeting_prep' | 'email_search' | 'slack_search'
 
 /**
  * Loopbrain request parameters
@@ -69,6 +82,10 @@ export interface LoopbrainRequest {
   pendingClarification?: ClarificationContext
   /** Pending advisory context from previous turn (advisory→execution transition) */
   pendingAdvisory?: AdvisoryContext
+  /** Confirmed extracted tasks from MeetingTaskReview awaiting server-side creation */
+  pendingMeetingExtraction?: { tasks: ExtractedTask[] }
+  /** Calendar event ID for meeting prep targeting */
+  eventId?: string
   /** Optional request ID (passed from API route for tracing) */
   requestId?: string
 }
@@ -152,6 +169,18 @@ export interface LoopbrainSuggestion {
 }
 
 /**
+ * Client-side action triggered by Loopbrain after a response.
+ * 'navigate' = soft router.push (preferred for internal routes)
+ * 'redirect' = full page load via window.location.href (external or hard reset)
+ */
+export interface LoopbrainClientAction {
+  type: 'redirect' | 'navigate'
+  url: string
+  /** Optional display text shown before navigation, e.g. "Opening Q2 Marketing Strategy..." */
+  label?: string
+}
+
+/**
  * Loopbrain response
  */
 export interface LoopbrainResponse {
@@ -192,6 +221,16 @@ export interface LoopbrainResponse {
   advisoryContext?: AdvisoryContext
   /** Awareness observations and proactive suggestions from the planner */
   insights?: string[]
+  /** Structured extraction result from meeting notes (for MeetingTaskReview UI) */
+  meetingExtraction?: MeetingTaskExtractionResult
+  /** Personalized onboarding briefing (for OnboardingBriefing UI) */
+  onboardingBriefing?: OnboardingBriefing
+  /** Personalized daily briefing (for DailyBriefingCard UI) */
+  dailyBriefing?: DailyBriefing
+  /** Meeting prep brief (for MeetingPrepBrief UI) */
+  meetingPrep?: MeetingPrepBrief
+  /** Client-side navigation action to execute after rendering the response */
+  clientAction?: LoopbrainClientAction
   /** Optional metadata (model, tokens, etc.) */
   metadata?: {
     model?: string
@@ -211,6 +250,10 @@ export interface LoopbrainResponse {
       inOrgMode?: boolean
       requestedMode?: string
     }
+    /** User context resolution debug fields */
+    userContextResolved?: boolean
+    userRole?: string
+    userTeam?: string
   }
 }
 

@@ -38,7 +38,7 @@ export function AvailabilityPill({
   return (
     <div className="flex items-center gap-1.5">
       {subtle ? (
-        <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium bg-slate-800/50 text-slate-400 border border-white/5">
+        <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium bg-muted/50 text-muted-foreground border border-white/5">
           {label}
         </span>
       ) : (
@@ -46,7 +46,7 @@ export function AvailabilityPill({
           {label}
         </Badge>
       )}
-      {stale && <span className="text-[9px] text-slate-500/60">Stale</span>}
+      {stale && <span className="text-[9px] text-muted-foreground/60">Stale</span>}
     </div>
   );
 }

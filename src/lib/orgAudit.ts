@@ -35,7 +35,7 @@ type AuditMeta = Prisma.JsonValue;
  */
 export async function logOrgAudit(
   params: {
-    orgId: string;
+    workspaceId: string;
     action: OrgAuditAction;
     targetType?: OrgAuditTargetType;
     targetId?: string | null;
@@ -55,7 +55,7 @@ export async function logOrgAudit(
 
     await prisma.orgAuditLog.create({
       data: {
-        workspaceId: params.orgId,
+        workspaceId: params.workspaceId,
         userId: actorUserId, // Required field
         actorUserId: actorUserId, // Optional field for clarity
         entityType: params.targetType ?? "UNKNOWN", // Required field, use fallback
@@ -77,11 +77,11 @@ export async function logOrgAudit(
  * Fetch a small number of recent audit entries for an org.
  * Handles missing actorUserId column gracefully by only using the user relation.
  */
-export async function listOrgAuditForOrg(orgId: string, limit = 20) {
+export async function listOrgAuditForOrg(workspaceId: string, limit = 20) {
   try {
     // Try to query with user relation only (actorUserId column may not exist yet)
     const logs = await prisma.orgAuditLog.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       orderBy: { createdAt: "desc" },
       take: limit,
       select: {
@@ -125,7 +125,7 @@ export async function listOrgAuditForOrg(orgId: string, limit = 20) {
       // Fallback: query without any relations, just return basic audit log data
       try {
         const logs = await prisma.orgAuditLog.findMany({
-          where: { workspaceId: orgId },
+          where: { workspaceId },
           orderBy: { createdAt: "desc" },
           take: limit,
           select: {

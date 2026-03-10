@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
+import { TaskTemplateUpdateSchema } from '@/lib/validations/tasks'
 
 // GET /api/task-templates/[id] - Get a specific task template
 export async function GET(
@@ -8,6 +12,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     const templateId = resolvedParams.id
 
@@ -39,8 +50,7 @@ export async function GET(
 
     return NextResponse.json(template)
   } catch (error) {
-    console.error('Error fetching task template:', error)
-    return NextResponse.json({ error: 'Failed to fetch task template' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -50,9 +60,16 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     const templateId = resolvedParams.id
-    const body = await request.json()
+    const body = TaskTemplateUpdateSchema.parse(await request.json())
     
     const { 
       name, 
@@ -82,9 +99,9 @@ export async function PUT(
       data: {
         ...(name && { name }),
         ...(description !== undefined && { description }),
-        ...(category && { category: category as any }),
+        ...(category && { category }),
         ...(isPublic !== undefined && { isPublic }),
-        ...(metadata !== undefined && { metadata }),
+        ...(metadata !== undefined && { metadata: metadata as any }),
         ...(tasks && {
           tasks: {
             deleteMany: {}, // Delete existing tasks
@@ -97,7 +114,8 @@ export async function PUT(
               assigneeRole: task.assigneeRole,
               tags: task.tags || [],
               dependencies: task.dependencies || [],
-              order: index
+              order: index,
+              workspaceId: workspaceId
             }))
           }
         })
@@ -120,8 +138,7 @@ export async function PUT(
 
     return NextResponse.json(template)
   } catch (error) {
-    console.error('Error updating task template:', error)
-    return NextResponse.json({ error: 'Failed to update task template' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -131,6 +148,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     const templateId = resolvedParams.id
 
@@ -154,8 +178,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Template deleted successfully' })
   } catch (error) {
-    console.error('Error deleting task template:', error)
-    return NextResponse.json({ error: 'Failed to delete task template' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 

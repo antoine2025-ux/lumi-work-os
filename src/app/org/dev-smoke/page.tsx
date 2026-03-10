@@ -31,7 +31,7 @@ export default async function OrgDevSmokePage() {
           <li>Org Center beta: {isOrgCenterBeta() ? "yes" : "no"}</li>
           <li>Current role: {context?.role ?? "none"}</li>
           <li>Has custom role: {context?.customRole ? "yes" : "no"}</li>
-          <li>Org ID: {context?.orgId ?? "none"}</li>
+          <li>Workspace ID: {context?.workspaceId ?? "none"}</li>
         </ul>
       </div>
 

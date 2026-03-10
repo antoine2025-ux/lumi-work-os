@@ -82,7 +82,7 @@ export function OrgPageHeader({
     // New structured breadcrumb (priority)
     if (Array.isArray(breadcrumb) && breadcrumb.length >= 2) {
       return (
-        <nav className="flex items-center gap-1 text-[12px] text-slate-500 mb-2" aria-label="Breadcrumb">
+        <nav className="flex items-center gap-1 text-[12px] text-muted-foreground mb-2" aria-label="Breadcrumb">
           {breadcrumb.map((item, index) => {
             const isLast = index === breadcrumb.length - 1;
             return (
@@ -90,12 +90,12 @@ export function OrgPageHeader({
                 {item.href && !isLast ? (
                   <Link
                     href={item.href}
-                    className="hover:text-slate-400 transition-colors"
+                    className="hover:text-muted-foreground transition-colors"
                   >
                     {item.label}
                   </Link>
                 ) : (
-                  <span className={isLast ? "text-slate-400" : ""}>
+                  <span className={isLast ? "text-muted-foreground" : ""}>
                     {item.label}
                   </span>
                 )}
@@ -110,7 +110,7 @@ export function OrgPageHeader({
     // Legacy breadcrumb (fallback)
     if (legacyBreadcrumb) {
       return (
-        <nav className="flex items-center text-[12px] text-slate-500 mb-2" aria-label="Breadcrumb">
+        <nav className="flex items-center text-[12px] text-muted-foreground mb-2" aria-label="Breadcrumb">
           {legacyBreadcrumb}
         </nav>
       );
@@ -125,7 +125,7 @@ export function OrgPageHeader({
       return (
         <Link
           href={backAction.href}
-          className="flex items-center gap-1 text-[13px] text-slate-400 hover:text-slate-300 transition-colors mb-2 group"
+          className="flex items-center gap-1 text-[13px] text-muted-foreground hover:text-muted-foreground transition-colors mb-2 group"
         >
           <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           {backAction.label}
@@ -154,7 +154,7 @@ export function OrgPageHeader({
     return (
       <div className="flex shrink-0 items-center gap-2 flex-wrap">
         {showSetupGuide && (
-          <OrgSetupGuideTrigger className="focus-ring rounded-full border border-slate-700 bg-slate-800/50 px-3 py-1.5 text-[11px] text-slate-300 transition-colors hover:bg-slate-700 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900" />
+          <OrgSetupGuideTrigger className="focus-ring rounded-full border border-border bg-muted/50 px-3 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900" />
         )}
         
         {hasNewActions && (
@@ -215,7 +215,7 @@ export function OrgPageHeader({
         {renderBackAction()}
 
         <div className="flex items-center gap-2">
-          <h1 className="mt-1 text-[20px] font-semibold text-slate-100">
+          <h1 className="mt-1 text-[20px] font-semibold text-foreground">
             {title}
           </h1>
           {showHelp && (
@@ -223,24 +223,24 @@ export function OrgPageHeader({
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="mt-1 inline-flex items-center justify-center h-4 w-4 rounded-full text-slate-500 hover:text-slate-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="mt-1 inline-flex items-center justify-center h-4 w-4 rounded-full text-muted-foreground hover:text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                   aria-label="Help"
                 >
                   <HelpCircle className="h-3.5 w-3.5" />
                 </button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-80 bg-slate-900 border-white/10 text-slate-200"
+                className="w-80 bg-card border-white/10 text-foreground"
                 side="bottom"
                 align="start"
               >
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-slate-100">About this page</h3>
-                  <div className="space-y-2 text-[13px] text-slate-300">
+                  <h3 className="text-sm font-semibold text-foreground">About this page</h3>
+                  <div className="space-y-2 text-[13px] text-muted-foreground">
                     {description && (
                       <p>{typeof description === "string" ? description : "View and manage your organization."}</p>
                     )}
-                    <p className="text-[12px] text-slate-400 pt-2 border-t border-white/5">
+                    <p className="text-[12px] text-muted-foreground pt-2 border-t border-white/5">
                       Click any person to see their full profile and connections.
                     </p>
                   </div>
@@ -251,14 +251,14 @@ export function OrgPageHeader({
         </div>
 
         {description ? (
-          <p className="mt-1 max-w-2xl text-[13px] text-slate-400">
+          <p className="mt-1 max-w-2xl text-[13px] text-muted-foreground">
             {description}
           </p>
         ) : (
           <div className="mt-1 h-[20px]" aria-hidden="true" />
         )}
         {secondaryDescription && (
-          <p className="mt-1 max-w-2xl text-[11px] text-slate-500">
+          <p className="mt-1 max-w-2xl text-[11px] text-muted-foreground">
             {secondaryDescription}
           </p>
         )}

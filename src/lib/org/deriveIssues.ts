@@ -1197,12 +1197,14 @@ type RoleCoverage = {
  * Capacity issue thresholds (re-exported from thresholds.ts for backwards compat)
  */
 export type { CapacityThresholds } from "./capacity/thresholds";
-import { 
+import {
   DEFAULT_CAPACITY_THRESHOLDS as THRESHOLDS,
   EVIDENCE_VERSION,
   SEMANTICS_VERSION,
   CAPACITY_DATA_ASSUMPTIONS,
 } from "./capacity/thresholds";
+import type { WorkAllocation } from "./allocations";
+import { type AvailabilityEvent, computeMinAvailabilityInWindow } from "./availability";
 export const DEFAULT_CAPACITY_THRESHOLDS = THRESHOLDS;
 
 /**
@@ -1231,7 +1233,13 @@ export type CapacityIssueContext = {
   
   // Person metadata (for fix URLs and names)
   personMetadata: Map<string, { name: string }>;
-  
+
+  // Raw work allocations per person (optional — populates OVERALLOCATED_PERSON evidence)
+  workAllocations?: Map<string, WorkAllocation[]>;
+
+  // Raw availability events per person (optional — populates UNAVAILABLE_OWNER evidence)
+  availabilityEvents?: Map<string, AvailabilityEvent[]>;
+
   // Workspace-scoped thresholds
   thresholds: {
     lowCapacityHoursThreshold: number;
@@ -1311,7 +1319,14 @@ export function deriveCapacityIssues(
         totalAllocatedHours: capacity.allocatedHours,
         contractWeeklyHours: capacity.contractedHours,
         thresholdPercent: thresholds.overallocationThreshold,
-        allocations: [], // TODO: Populate from allocation data if available
+        allocations: (context.workAllocations?.get(personId) ?? []).map((a) => ({
+          id: a.id,
+          percent: a.allocationPercent,
+          startDate: a.startDate.toISOString(),
+          endDate: a.endDate?.toISOString() ?? null,
+          contextType: a.contextType,
+          contextLabel: a.contextLabel,
+        })),
       };
 
       issues.push({
@@ -1385,7 +1400,21 @@ export function deriveCapacityIssues(
           ownerPersonId: ownership.ownerPersonId,
           windowStart,
           windowEnd,
-          limitingEvent: null, // TODO: Populate from availability data
+          limitingEvent: (() => {
+            const events = context.availabilityEvents?.get(ownership.ownerPersonId) ?? [];
+            if (events.length === 0) return null;
+            const avail = computeMinAvailabilityInWindow(events, timeWindow);
+            if (!avail.limitingEvent) return null;
+            const ev = avail.limitingEvent;
+            return {
+              id: ev.id,
+              type: ev.type,
+              startDate: ev.dateRange.start.toISOString(),
+              endDate: ev.dateRange.end?.toISOString() ?? null,
+              source: ev.source,
+              factor: avail.factor,
+            };
+          })(),
         };
 
         issues.push({
@@ -1424,7 +1453,21 @@ export function deriveCapacityIssues(
           ownerPersonId: ownership.ownerPersonId,
           windowStart,
           windowEnd,
-          limitingEvent: null,
+          limitingEvent: (() => {
+            const events = context.availabilityEvents?.get(ownership.ownerPersonId) ?? [];
+            if (events.length === 0) return null;
+            const avail = computeMinAvailabilityInWindow(events, timeWindow);
+            if (!avail.limitingEvent) return null;
+            const ev = avail.limitingEvent;
+            return {
+              id: ev.id,
+              type: ev.type,
+              startDate: ev.dateRange.start.toISOString(),
+              endDate: ev.dateRange.end?.toISOString() ?? null,
+              source: ev.source,
+              factor: avail.factor,
+            };
+          })(),
         };
 
         issues.push({
@@ -1463,7 +1506,21 @@ export function deriveCapacityIssues(
           ownerPersonId: coverage.primaryPersonId,
           windowStart,
           windowEnd,
-          limitingEvent: null,
+          limitingEvent: (() => {
+            const events = context.availabilityEvents?.get(coverage.primaryPersonId) ?? [];
+            if (events.length === 0) return null;
+            const avail = computeMinAvailabilityInWindow(events, timeWindow);
+            if (!avail.limitingEvent) return null;
+            const ev = avail.limitingEvent;
+            return {
+              id: ev.id,
+              type: ev.type,
+              startDate: ev.dateRange.start.toISOString(),
+              endDate: ev.dateRange.end?.toISOString() ?? null,
+              source: ev.source,
+              factor: avail.factor,
+            };
+          })(),
         };
 
         issues.push({

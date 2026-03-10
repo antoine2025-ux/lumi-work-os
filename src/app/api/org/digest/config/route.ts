@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     const cfg = await prisma.orgHealthDigest.findUnique({
-      where: { orgId: workspaceId },
+      where: { workspaceId },
     });
 
     return NextResponse.json({ ok: true, config: cfg });
@@ -40,10 +40,10 @@ export async function POST(req: NextRequest) {
     };
 
     const cfg = await prisma.orgHealthDigest.upsert({
-      where: { orgId: workspaceId },
+      where: { workspaceId },
       update: { enabled: body.enabled, recipients: body.recipients },
       create: {
-        orgId: workspaceId,
+        workspaceId,
         cadence: "WEEKLY",
         enabled: body.enabled,
         recipients: body.recipients,
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.auditLogEntry.create({
       data: {
-        orgId: workspaceId,
+        workspaceId,
         actorUserId: user.userId,
         actorLabel: user.name || user.email || "Unknown user",
         action: "update_org_digest_config",

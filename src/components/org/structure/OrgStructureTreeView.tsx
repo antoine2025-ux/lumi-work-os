@@ -42,7 +42,7 @@ export function OrgStructureTreeView({ departments }: OrgStructureTreeViewProps)
 
   if (!departments.length) {
     return (
-      <div className="rounded-[24px] border border-dashed border-slate-800 bg-slate-950/60 px-6 py-10 text-center text-sm text-slate-400">
+      <div className="rounded-[24px] border border-dashed border-border bg-background/60 px-6 py-10 text-center text-sm text-muted-foreground">
         No structure defined yet. Add departments and teams to see your org tree.
       </div>
     );
@@ -106,9 +106,9 @@ function DepartmentLane({ department, accentIndex }: DepartmentLaneProps) {
       ref={laneRef}
       onClick={handleClick}
       className={cn(
-        "group snap-start flex flex-col h-full basis-[360px] shrink-0 rounded-[32px] border border-white/5 bg-slate-900/40 shadow-[0_0_60px_rgba(0,0,0,0.6)] overflow-hidden transition-all duration-200 cursor-pointer",
+        "group snap-start flex flex-col h-full basis-[360px] shrink-0 rounded-[32px] border border-white/5 bg-card/40 shadow-[0_0_60px_rgba(0,0,0,0.6)] overflow-hidden transition-all duration-200 cursor-pointer",
         "hover:scale-[1.005] hover:shadow-[0_8px_32px_rgba(15,23,42,0.4)]",
-        isSelected ? accent.selectedOutline : "hover:border-slate-700/60"
+        isSelected ? accent.selectedOutline : "hover:border-border/60"
       )}
     >
       {/* Subtle top-glow accent on hover */}
@@ -117,7 +117,7 @@ function DepartmentLane({ department, accentIndex }: DepartmentLaneProps) {
       {/* Department header with icon + name + stats */}
       <header
         className={cn(
-          "relative px-5 pt-5 pb-3 border-b border-slate-800/30",
+          "relative px-5 pt-5 pb-3 border-b border-border/30",
           isSelected && accent.headerGlow
         )}
         style={{
@@ -136,19 +136,19 @@ function DepartmentLane({ department, accentIndex }: DepartmentLaneProps) {
               "flex-shrink-0"
             )}
           >
-            <Building className="h-5 w-5 text-slate-100" />
+            <Building className="h-5 w-5 text-foreground" />
           </div>
-          <h2 className="text-xl font-semibold tracking-tight text-slate-50">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
             {department.name}
           </h2>
         </div>
 
         {/* Stats row - smaller, muted */}
-        <div className="mt-3 inline-flex items-center gap-2 text-xs text-slate-300/70">
-          <span className="rounded-full border border-slate-600/40 bg-slate-900/60 px-2.5 py-0.5">
+        <div className="mt-3 inline-flex items-center gap-2 text-xs text-muted-foreground/70">
+          <span className="rounded-full border border-slate-600/40 bg-card/60 px-2.5 py-0.5">
             {department.teamsCount} {department.teamsCount === 1 ? "team" : "teams"}
           </span>
-          <span className="rounded-full border border-slate-600/40 bg-slate-900/60 px-2.5 py-0.5">
+          <span className="rounded-full border border-slate-600/40 bg-card/60 px-2.5 py-0.5">
             {department.peopleCount} {department.peopleCount === 1 ? "person" : "people"}
           </span>
         </div>
@@ -158,8 +158,8 @@ function DepartmentLane({ department, accentIndex }: DepartmentLaneProps) {
       {department.teams.length > 0 ? (
         <section className="mt-4 flex-1 px-5 pb-6">
           {/* Optional section label */}
-          <div className="mb-4 border-t border-slate-800/40 pt-4">
-            <div className="text-[0.7rem] uppercase tracking-[0.18em] text-slate-400/40">
+          <div className="mb-4 border-t border-border/40 pt-4">
+            <div className="text-[0.7rem] uppercase tracking-[0.18em] text-muted-foreground/40">
               Teams
             </div>
           </div>
@@ -178,7 +178,7 @@ function DepartmentLane({ department, accentIndex }: DepartmentLaneProps) {
         </section>
       ) : (
         <section className="mt-4 flex-1 px-5 pb-6">
-          <div className="rounded-xl border border-dashed border-slate-800/60 bg-slate-950/40 px-3 py-2 text-xs text-slate-500 text-center">
+          <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-3 py-2 text-xs text-muted-foreground text-center">
             No teams yet
           </div>
         </section>

@@ -88,7 +88,7 @@ export function NextStepCard() {
     return (
       <Card>
         <CardContent className="p-5">
-          <div className="text-sm text-slate-400">Loading…</div>
+          <div className="text-sm text-muted-foreground">Loading…</div>
         </CardContent>
       </Card>
     );
@@ -173,11 +173,11 @@ export function NextStepCard() {
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-slate-100">{nextStep.title}</h3>
-            <p className="mt-1 text-sm text-slate-400">{nextStep.description}</p>
+            <h3 className="text-base font-semibold text-foreground">{nextStep.title}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{nextStep.description}</p>
           </div>
           <div className="flex-shrink-0">
-            <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-white">
+            <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-foreground">
               <Link href={nextStep.ctaHref}>{nextStep.ctaLabel}</Link>
             </Button>
           </div>

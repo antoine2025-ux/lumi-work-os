@@ -6,6 +6,7 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import { getRolesForPerson } from "@/lib/org/roleQueries";
+import { GetPersonRolesSchema } from "@/lib/validations/org";
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,14 +17,8 @@ export async function POST(req: NextRequest) {
     await assertAccess({ userId: user.userId, workspaceId, scope: "workspace" });
     setWorkspaceContext(workspaceId);
 
-    const { personContextId } = await req.json().catch(() => ({}));
-
-    if (!personContextId || typeof personContextId !== "string") {
-      return NextResponse.json(
-        { ok: false, error: "personContextId is required" },
-        { status: 400 }
-      );
-    }
+    const body = GetPersonRolesSchema.parse(await req.json());
+    const personContextId = body.personContextId;
 
     const roles = await getRolesForPerson(workspaceId, personContextId);
 

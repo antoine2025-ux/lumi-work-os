@@ -7,10 +7,32 @@
 
 import type {
   LoopbrainResponse,
-  LoopbrainMode
+  LoopbrainMode,
+  ExtractedTask,
+  LoopbrainClientAction,
 } from './orchestrator-types'
+
+/**
+ * Extended response type that includes agent-loop fields not present on the
+ * base orchestrator response (e.g. conversationId from the session store).
+ */
+export type LoopbrainClientResponse = LoopbrainResponse & {
+  conversationId?: string
+}
 import type { AgentPlan, ClarificationContext, AdvisoryContext } from './agent/types'
 import { getProjectSlackHints } from '@/lib/client-state/project-slack-hints'
+
+export interface ExecutionStreamEvent {
+  type: 'progress' | 'complete' | 'error'
+  stepIndex?: number
+  status?: 'executing' | 'success' | 'error'
+  description?: string
+  error?: string
+  result?: unknown
+  summary?: string
+  /** Client-side navigation action (present on 'complete' events) */
+  clientAction?: LoopbrainClientAction
+}
 
 /**
  * Parameters for Loopbrain assistant call (generic, supports all modes)
@@ -46,6 +68,10 @@ export interface LoopbrainAssistantParams {
   pendingClarification?: ClarificationContext
   /** Pending advisory context from previous turn (advisory→execution transition) */
   pendingAdvisory?: AdvisoryContext
+  /** Confirmed extracted tasks from MeetingTaskReview for server-side bulk creation */
+  pendingMeetingExtraction?: { tasks: ExtractedTask[] }
+  /** Agent-loop conversation ID — sent back on follow-up turns to resume history */
+  conversationId?: string
 }
 
 /**
@@ -64,6 +90,8 @@ export interface SpacesAssistantParams {
   useSemanticSearch?: boolean
   /** Maximum number of context items to retrieve (default: 10) */
   maxContextItems?: number
+  /** Confirmed extracted tasks from MeetingTaskReview for server-side bulk creation */
+  pendingMeetingExtraction?: { tasks: ExtractedTask[] }
 }
 
 /**
@@ -75,7 +103,7 @@ export interface SpacesAssistantParams {
  */
 export async function callLoopbrainAssistant(
   params: LoopbrainAssistantParams
-): Promise<LoopbrainResponse> {
+): Promise<LoopbrainClientResponse> {
   const {
     mode,
     query,
@@ -136,6 +164,8 @@ export async function callLoopbrainAssistant(
     ...(params.conversationContext && { conversationContext: params.conversationContext }),
     ...(params.pendingClarification && { pendingClarification: params.pendingClarification }),
     ...(params.pendingAdvisory && { pendingAdvisory: params.pendingAdvisory }),
+    ...(params.pendingMeetingExtraction && { pendingMeetingExtraction: params.pendingMeetingExtraction }),
+    ...(params.conversationId && { conversationId: params.conversationId }),
   }
 
   try {
@@ -175,8 +205,8 @@ export async function callLoopbrainAssistant(
     // Parse and validate response
     const data = await response.json()
 
-    // Type assertion - backend should return LoopbrainResponse
-    return data as LoopbrainResponse
+    // Type assertion - backend should return LoopbrainResponse (agent loop may add conversationId)
+    return data as LoopbrainClientResponse
   } catch (error) {
     // Re-throw with user-friendly message
     if (error instanceof Error) {
@@ -193,6 +223,91 @@ export async function callLoopbrainAssistant(
 }
 
 /**
+ * Execute a pending plan via streaming API.
+ * Streams progress events as each step completes.
+ */
+export async function executeLoopbrainPlanStream(
+  params: { conversationId: string },
+  callbacks: {
+    onProgress: (event: ExecutionStreamEvent) => void
+    onComplete: (summary: string, clientAction?: LoopbrainClientAction) => void
+    onError: (error: string) => void
+  }
+): Promise<void> {
+  const res = await fetch('/api/loopbrain/execute-stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conversationId: params.conversationId }),
+  })
+
+  if (!res.ok) {
+    let msg = 'Execution failed'
+    try {
+      const data = await res.json()
+      if (data?.error) msg = data.error
+    } catch {
+      // ignore
+    }
+    callbacks.onError(msg)
+    throw new Error(msg)
+  }
+
+  const reader = res.body?.getReader()
+  if (!reader) {
+    callbacks.onError('No response body')
+    throw new Error('No response body')
+  }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n\n')
+      buffer = lines.pop() ?? ''
+      for (const chunk of lines) {
+        const dataMatch = chunk.match(/^data:\s*(.+)$/m)
+        if (!dataMatch) continue
+        try {
+          const event = JSON.parse(dataMatch[1].trim()) as ExecutionStreamEvent
+          callbacks.onProgress(event)
+          if (event.type === 'complete' && event.summary) {
+            callbacks.onComplete(event.summary, event.clientAction)
+          }
+          if (event.type === 'error' && event.error) {
+            callbacks.onError(event.error)
+          }
+        } catch (_e) {
+          // skip malformed events
+        }
+      }
+    }
+    if (buffer) {
+      const dataMatch = buffer.match(/^data:\s*(.+)$/m)
+      if (dataMatch) {
+        try {
+          const event = JSON.parse(dataMatch[1].trim()) as ExecutionStreamEvent
+          callbacks.onProgress(event)
+          if (event.type === 'complete' && event.summary) {
+            callbacks.onComplete(event.summary, event.clientAction)
+          }
+          if (event.type === 'error' && event.error) {
+            callbacks.onError(event.error)
+          }
+        } catch {
+          // skip
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}
+
+/**
  * Call Loopbrain assistant in Spaces mode (backward compatibility wrapper)
  * 
  * @param params - Spaces assistant parameters
@@ -201,10 +316,23 @@ export async function callLoopbrainAssistant(
  */
 export async function callSpacesLoopbrainAssistant(
   params: SpacesAssistantParams
-): Promise<LoopbrainResponse> {
+): Promise<LoopbrainClientResponse> {
   return callLoopbrainAssistant({
     mode: 'spaces',
     ...params
   })
+}
+
+/**
+ * Call Loopbrain assistant in Org mode
+ * 
+ * @param params - Loopbrain assistant parameters (without mode)
+ * @returns Loopbrain response with answer, context, and suggestions
+ * @throws Error if API call fails or returns non-2xx status
+ */
+export async function callOrgLoopbrainAssistant(
+  params: Omit<LoopbrainAssistantParams, 'mode'>
+): Promise<LoopbrainClientResponse> {
+  return callLoopbrainAssistant({ mode: 'org', ...params })
 }
 

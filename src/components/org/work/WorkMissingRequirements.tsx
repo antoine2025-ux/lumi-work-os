@@ -40,7 +40,7 @@ export function WorkMissingRequirements({ missingRequirements, workRequestId }: 
 
   return (
     <div id="missing-requirements" className="space-y-3">
-      <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
+      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
         <AlertTriangle className="h-4 w-4 text-amber-500" />
         <span>What&apos;s missing?</span>
       </div>
@@ -95,11 +95,11 @@ function MissingCard({
   href: string;
 }) {
   return (
-    <Card className="border-slate-800 bg-slate-950/40">
+    <Card className="border-border bg-background/40">
       <CardContent className="flex items-center justify-between gap-4 p-4">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 flex-shrink-0">{icon}</div>
-          <p className="text-[12px] text-slate-300">{message}</p>
+          <p className="text-[12px] text-muted-foreground">{message}</p>
         </div>
         <OrgPrimaryCta size="sm" asChild className="flex-shrink-0 text-[12px]">
           <Link href={href}>{ctaLabel}</Link>

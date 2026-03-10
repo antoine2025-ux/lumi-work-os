@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { generateAIResponse } from '@/lib/ai/providers'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 // Function to generate smart chat titles
 async function generateChatTitle(userMessage: string, aiResponse: string): Promise<string> {
@@ -71,6 +75,13 @@ Generate only the title, nothing else:`
 // POST /api/ai/chat-sessions/[id]/regenerate-title - Regenerate title for existing chat
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     const sessionId = resolvedParams.id
 
@@ -120,10 +131,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     })
 
   } catch (error) {
-    console.error('Error regenerating chat title:', error)
-    return NextResponse.json({
-      error: 'Failed to regenerate title',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

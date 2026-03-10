@@ -1,4 +1,11 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from '@next/bundle-analyzer';
+import { withSentryConfig } from '@sentry/nextjs';
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+  openAnalyzer: false,
+});
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['@prisma/client'],
@@ -12,12 +19,20 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   // Performance optimizations
   experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      'framer-motion',
+      '@radix-ui/react-primitive',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+    ],
   },
   // Transpile packages that need to be bundled
   transpilePackages: ['gray-matter', 'turndown'],
@@ -29,28 +44,6 @@ const nextConfig: NextConfig = {
         destination: '/api/:path*',
       },
     ]
-  },
-  // Bundle optimization
-  webpack: (config, { dev, isServer }) => {
-    if (!dev && !isServer) {
-      config.optimization.splitChunks = {
-        chunks: 'all',
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
-          },
-          common: {
-            name: 'common',
-            minChunks: 2,
-            chunks: 'all',
-            enforce: true,
-          },
-        },
-      };
-    }
-    return config;
   },
   async headers() {
     return [
@@ -90,4 +83,25 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 }
 
-export default nextConfig;
+const withBundleAnalyzerWrapped = withBundleAnalyzer(nextConfig);
+
+export default withSentryConfig(withBundleAnalyzerWrapped, {
+  // Sentry organization and project (set in CI env or .env.local)
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // Auth token for source map uploads during `next build`
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Silences Sentry build output in CI (still logs errors)
+  silent: !process.env.CI,
+
+  // Upload source maps to Sentry and strip them from the public bundle
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
+
+  // Automatically tree-shake Sentry logger statements in production
+  disableLogger: true,
+
+});

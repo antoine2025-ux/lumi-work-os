@@ -31,7 +31,7 @@ New issues surfaced by this audit:
 1. **`$queryRawUnsafe` with string interpolation** in auth paths — upgrade to parameterized queries
 2. **43 models missing from `WORKSPACE_SCOPED_MODELS`** — critical tenant isolation gap
 3. **Projects epic/timeline/files views** — tabs exist, not wired (line 672)
-4. **OrgChart gaps** — department context, hiring status, reorg flags unpopulated
+4. ~~**OrgChart gaps**~~ — department context, hiring status, reorg flags now wired in getOrgChartData
 5. **People filters** — Leaders/New/Recently Changed incomplete
 6. **204 TODO/FIXME comments** — up from ~53; needs triage
 
@@ -189,9 +189,9 @@ New issues surfaced by this audit:
 | Org intelligence snapshots | ✅ |
 | **Manager/reporting relationships** | ✅ *Fixed — `PersonManagerLink` model with FK + time windows* |
 | **Invite system** | ✅ *Fixed — end-to-end wired with email + 14-day expiry* |
-| OrgChart department context | ❌ `OrgChartClient.tsx:74` — TODO |
-| OrgChart hiring status | ❌ `OrgChartClient.tsx:77` — TODO |
-| OrgChart reorg flags | ❌ `OrgChartClient.tsx:78-79` — TODO |
+| OrgChart department context | ✅ Wired in getOrgChartData (reportsToName, isHiring, recentChangeSummary, isReorg) |
+| OrgChart hiring status | ✅ Wired |
+| OrgChart reorg flags | ✅ Wired |
 | Leaders filter | ❌ `PeoplePageClient.tsx:372` — TODO |
 | "New" people filter | ❌ `PeoplePageClient.tsx:389` — TODO |
 | "Recently Changed" filter | ❌ `PeoplePageClient.tsx:393` — TODO |
@@ -458,7 +458,7 @@ All wiki-rendering uses go through TipTap's sanitized schema.
 
 ### 5.8 Workspace Scoping Middleware — Critical Gap
 
-**`WORKSPACE_SCOPED_MODELS` has 79 entries.** The schema has 162 models; approximately **122 have a `workspaceId` column**. **43 workspace-scoped models are unregistered** (excluding `Workspace`, `WorkspaceMember`, `WorkspaceOnboardingState` which are intentionally self-excluded as root entities).
+**`WORKSPACE_SCOPED_MODELS` had 79 entries at time of this audit.** ✅ **RESOLVED Feb 24** — all 43 missing models were added; array now contains **122 models**. See §Post-Audit Resolutions.
 
 **Previously P0 models — now all present (resolved):**
 
@@ -521,9 +521,7 @@ Row-level security on `wiki_pages` is optional (off by default). When enabled, p
 
 | Issue | Location | Impact |
 |-------|----------|--------|
-| OrgChart: department context not populated | `OrgChartClient.tsx:74` | reportsToName always empty |
-| OrgChart: hiring status not populated | `OrgChartClient.tsx:77` | isHiring always false |
-| OrgChart: reorg flags not populated | `OrgChartClient.tsx:78-79` | recentChangeSummary/isReorg empty |
+| OrgChart: department context | `data.server.ts` getOrgChartData | ✅ Wired (reportsToName, isHiring, recentChangeSummary, isReorg) |
 | Leaders filter not wired | `PeoplePageClient.tsx:372` | Filter exists, no managerId data |
 | "New" people filter not wired | `PeoplePageClient.tsx:389` | joinedAt not exposed |
 | "Recently Changed" filter not wired | `PeoplePageClient.tsx:393` | Change history not tracked |
@@ -609,17 +607,17 @@ Row-level security on `wiki_pages` is optional (off by default). When enabled, p
 
 ### P0 — Critical (fix within sprint)
 
-| # | Issue | Effort | Risk if Ignored |
-|---|-------|--------|----------------|
-| 1 | Add ~43 models to `WORKSPACE_SCOPED_MODELS` | 2h | Cross-workspace data leakage for Org, Todo, Loopbrain, Availability, Decision domains |
-| 2 | Replace `$queryRawUnsafe` string interpolation with parameterized queries | 3h | Auth-path SQL injection in `simple-auth.ts` and `people/write.ts` |
+| # | Issue | Effort | Status |
+|---|-------|--------|--------|
+| 1 | Add ~43 models to `WORKSPACE_SCOPED_MODELS` | 2h | ✅ RESOLVED Feb 24 — 122 models total |
+| 2 | Replace `$queryRawUnsafe` string interpolation with parameterized queries | 3h | ✅ RESOLVED — all 13 call sites safe |
 
 ### P1 — High (next sprint)
 
 | # | Issue | Effort | Risk if Ignored |
 |---|-------|--------|----------------|
 | 3 | Wire Epic/Timeline/Files views in projects | 1 day | Dead project view tabs |
-| 4 | Complete OrgChart department context (reportsToName, hiring, reorg) | 1 day | Org chart incomplete |
+| 4 | ~~Complete OrgChart department context (reportsToName, hiring, reorg)~~ | — | ✅ Done |
 | 5 | Migrate `orgId` fallback to clean `workspaceId` | 1 day | Blocks multi-org support |
 | 6 | Wire People filter: Leaders / New / Recently Changed | 4h | Filter UX broken |
 | 7 | Wire bulk assignment API call | 2h | Org operations partially missing |
@@ -853,9 +851,39 @@ model PersonManagerLink {
 }
 ```
 
-The OrgChart TODO at line 74 (`reportsToName`) now has data available via PersonManagerLink — it just needs to be wired into the component query.
+OrgChart department context (reportsToName, isHiring, recentChangeSummary, isReorg) is wired in getOrgChartData. reportsToName uses department lead's manager via OrgPosition.parent (OrgDepartment.parentId does not exist in schema).
 
 ---
 
-*This document is the authoritative source of truth for the Loopwell codebase as of 2026-02-24.*
-*Previous audit: `CODEBASE_AUDIT_2026-02-20.md`. Next audit recommended: after P0/P1 remediations complete.*
+---
+
+## Post-Audit Resolutions (Feb 24–25, 2026)
+
+The following issues documented in this audit have been resolved since publication.
+
+| Issue (from this audit) | Resolution | Commit |
+|------------------------|------------|--------|
+| **§5.8** — 43 models missing from WORKSPACE_SCOPED_MODELS (79 total) | ✅ All 43 added. Now 122 total. | `d8619f1` |
+| **§5.5** — `$queryRawUnsafe` string interpolation in simple-auth.ts + people/write.ts | ✅ All 13 call sites now parameterized. No string interpolation remains. | `4b389f0` |
+| **§5.1** — 20 org routes with zero authentication (departments, roles, taxonomy, issues, views, etc.) | ✅ Canonical `getUnifiedAuth → assertAccess → setWorkspaceContext` applied to all 20 routes. | `28bb4a0` |
+| **§6 HIGH** — Wiki isolation test failures (4 tests returning 500) | ✅ Missing mock added to workspace-isolation.spec.ts; findMany mock fixed in wiki-security.spec.ts. 23/23 passing. | `28bb4a0` |
+| **NextAuth type augmentation** — 80 TypeScript errors in auth backbone | ✅ `src/types/next-auth.d.ts` fixed to use module augmentation; 26 import paths corrected. 0 TS errors. | `28bb4a0` |
+| **§6 HIGH** — Epic/Timeline/Files tabs not wired in projects | ✅ All three views now conditionally rendered in projects/[id]/page.tsx | (prior sprint) |
+| **§6 MEDIUM** — People filters (Leaders, New, Unassigned) | ✅ Wired in PeoplePageClient.tsx | (prior sprint) |
+
+### Remaining Open Issues (as of Feb 25)
+
+| Issue | Status | Priority |
+|-------|--------|----------|
+| `POST /api/migrations/blog` — no auth | ⚠️ Open | P0 (medium risk) |
+| OrgChart department context (reportsToName, isHiring, recentChangeSummary, isReorg) | ✅ Resolved | — |
+| People "Recently Changed" filter (needs OrgAuditLog) | ❌ Open | P1 |
+| `orgId` fallback in ~69 API files | ⚠️ Open | P1 |
+| Test mock gaps: auth-patterns.spec.ts (2), phase1-migrated-routes.spec.ts (1) | ⚠️ Open | P2 |
+| `capacity.request` action not fully wired | ⚠️ Open | P2 |
+
+---
+
+*This document is a point-in-time snapshot as of 2026-02-24 with post-audit updates appended above.*
+*For the live current state, see `CURRENT_STATE_AUDIT_2026-02-24.md`.*
+*Previous audit: `CODEBASE_AUDIT_2026-02-20.md`. Next full audit recommended after P1 sprint.*

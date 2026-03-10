@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { handleApiError } from '@/lib/api-errors'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
@@ -166,7 +167,6 @@ export async function GET(request: NextRequest) {
       query
     })
   } catch (error: unknown) {
-    console.error('Error searching wiki pages:', error)
-    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 })
+    return handleApiError(error, request);
   }
 }

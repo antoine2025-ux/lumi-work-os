@@ -17,7 +17,7 @@ function countManagers(_people: OrgPerson[]): number {
   // If people have managerId field, managers are those whose IDs are referenced by others
   // For now, we'll need to check if there's a managerId or directReports field
   // Since the current OrgPerson type doesn't have these, we'll return 0 for now
-  // TODO: Update when managerId/directReports data is available
+  // TODO [BACKLOG]: Use person.managerId to count managers (data now available)
   return 0;
 }
 
@@ -52,7 +52,7 @@ function countNewJoiners(people: OrgPerson[], days: number = 30, now: Date = new
  */
 function countRecentChanges(people: OrgPerson[], _days: number = 30, _now: Date = new Date()): number | null {
   // Since change history is not available in current data structure, return null
-  // TODO: Update when change history data is available
+  // TODO [BACKLOG]: Implement when OrgAuditLog change history is populated
   return null;
 }
 
@@ -112,7 +112,7 @@ export function PeopleInsights({ people, isLoading = false, now = new Date() }: 
             key={card.label}
             className={cn(
               "rounded-3xl",
-              "bg-slate-900/80",
+              "bg-card/80",
               "border",
               "p-4",
               "transition-all duration-200",
@@ -141,7 +141,7 @@ export function PeopleInsights({ people, isLoading = false, now = new Date() }: 
             <div className="flex items-center gap-1.5">
               <div className={cn(
                 "text-[10px] font-semibold uppercase tracking-wider",
-                isLowEmphasis ? "text-slate-600" : "text-slate-500"
+                isLowEmphasis ? "text-slate-600" : "text-muted-foreground"
               )}>
                 {card.label}
               </div>
@@ -151,13 +151,13 @@ export function PeopleInsights({ people, isLoading = false, now = new Date() }: 
             </div>
             <div className={cn(
               "mt-2 text-[32px] font-bold tabular-nums leading-none",
-              isLowEmphasis ? "text-slate-300" : "text-slate-100"
+              isLowEmphasis ? "text-muted-foreground" : "text-foreground"
             )}>
               {card.value}
             </div>
             <div className={cn(
               "mt-1.5 text-[11px]",
-              isLowEmphasis ? "text-slate-500" : "text-slate-400"
+              isLowEmphasis ? "text-muted-foreground" : "text-muted-foreground"
             )}>
               {card.helper}
             </div>

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { onRoleCardChanged } from '@/lib/org/liveUpdateHooks'
+import { RoleCardCreateSchema } from '@/lib/validations/role-cards'
 
 // GET /api/role-cards - Get all role cards for a workspace
 export async function GET(request: NextRequest) {
@@ -42,19 +44,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(roleCards)
   } catch (error: unknown) {
-    console.error('Error fetching role cards:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    
-    // Handle auth errors
-    if (errorMessage.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (errorMessage.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ error: 'Failed to fetch role cards' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -74,7 +64,7 @@ export async function POST(request: NextRequest) {
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
     
-    const body = await request.json()
+    const body = RoleCardCreateSchema.parse(await request.json())
     console.log('🔍 Request body:', body)
     
     const { 
@@ -82,14 +72,8 @@ export async function POST(request: NextRequest) {
       roleName, 
       jobFamily, 
       roleDescription,
-      responsibilities = []
+      responsibilities
     } = body
-
-    if (!positionId || !roleName || !roleDescription) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: positionId, roleName, roleDescription' 
-      }, { status: 400 })
-    }
 
     // Verify position exists and belongs to workspace
     const position = await prisma.orgPosition.findFirst({
@@ -150,18 +134,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ roleCard })
   } catch (error: unknown) {
-    console.error('Error creating role card:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    
-    // Handle auth errors
-    if (errorMessage.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (errorMessage.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ error: 'Failed to create role card' }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

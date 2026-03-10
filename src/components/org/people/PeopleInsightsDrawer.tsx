@@ -30,20 +30,20 @@ export function PeopleInsightsDrawer({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-md bg-slate-900 border-white/10 text-slate-100 max-h-[90vh] overflow-hidden flex flex-col"
+        className="max-w-md bg-card border-white/10 text-foreground max-h-[90vh] overflow-hidden flex flex-col"
         onInteractOutside={(_e) => {
           // Allow closing on outside click
         }}
       >
         <DialogHeader className="flex-shrink-0 pb-4 border-b border-white/10">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-semibold text-slate-100">
+            <DialogTitle className="text-lg font-semibold text-foreground">
               People Insights
             </DialogTitle>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Close"
             >
               <X className="h-5 w-5" />

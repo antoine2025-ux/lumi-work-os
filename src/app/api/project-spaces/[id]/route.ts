@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 
@@ -56,19 +57,7 @@ export async function GET(
     }
 
     return NextResponse.json(projectSpace)
-  } catch (error) {
-    console.error('Error fetching project space:', error)
-    
-    if (error instanceof Error && error.message.includes('Unauthorized')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    if (error instanceof Error && error.message.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to fetch project space' 
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

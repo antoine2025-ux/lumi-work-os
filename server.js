@@ -1,7 +1,6 @@
 const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
-const { Server: SocketIOServer } = require('socket.io')
 const cron = require('node-cron')
 
 // Initialize event listeners for org context updates
@@ -154,130 +153,29 @@ app.prepare().then(() => {
     }
   })
 
-  // Create Socket.io server
-  io = new SocketIOServer(httpServer, {
-    cors: {
-      origin: process.env.NODE_ENV === 'production' 
-        ? process.env.NEXTAUTH_URL 
-        : "http://localhost:3000",
-      methods: ["GET", "POST"]
-    },
-    pingTimeout: 120000, // Increased to 2 minutes
-    pingInterval: 30000, // Increased to 30 seconds
-    connectTimeout: 30000, // Increased to 30 seconds
-    transports: ['websocket', 'polling'],
-    allowEIO3: true, // Allow Engine.IO v3 clients
-    serveClient: false // Don't serve client files
-  })
+  // Create Socket.io server (createSocketServer wires setSocketServer for API route emits)
+  const { createSocketServer } = require('./src/lib/realtime/socket-server')
+  const { setSocketServer } = require('./src/lib/pm/events')
 
-  // Store active users
-  const activeUsers = new Map()
+  io = createSocketServer(httpServer)
+  setSocketServer(io)
 
-  // Socket.io event handlers
-  io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.id}`)
-    
-    // Handle user authentication
-    socket.on('authenticate', (data) => {
-      socket.data = data
-      activeUsers.set(socket.id, {
-        userId: data.userId,
-        userName: data.userName,
-        status: 'online',
-        lastSeen: new Date()
-      })
-      console.log(`User authenticated: ${data.userName} (${data.userId})`)
-      
-      // Notify others
-      socket.broadcast.emit('userJoined', {
-        userId: data.userId,
-        userName: data.userName
-      })
+  // Start Hocuspocus collaboration server (port 1234)
+  try {
+    const { createCollabServer } = require('./src/lib/collab/hocuspocus-server')
+    const collabServer = createCollabServer()
+    collabServer.listen().then(() => {
+      console.log('> Hocuspocus collab server running on port 1234')
+    }).catch((err) => {
+      console.error('[Hocuspocus] Failed to start:', err)
     })
-
-    // Handle project room management
-    socket.on('joinProject', (projectId) => {
-      socket.join(`project:${projectId}`)
-      console.log(`User joined project: ${projectId}`)
-      
-      if (socket.data) {
-        socket.to(`project:${projectId}`).emit('userJoined', {
-          userId: socket.data.userId,
-          userName: socket.data.userName,
-          projectId
-        })
-      }
-    })
-
-    socket.on('leaveProject', (projectId) => {
-      socket.leave(`project:${projectId}`)
-      console.log(`User left project: ${projectId}`)
-      
-      if (socket.data) {
-        socket.to(`project:${projectId}`).emit('userLeft', {
-          userId: socket.data.userId,
-          projectId
-        })
-      }
-    })
-
-    // Handle task updates
-    socket.on('updateTask', (data) => {
-      console.log(`Task updated: ${data.taskId}`)
-      socket.broadcast.emit('taskUpdated', {
-        taskId: data.taskId,
-        updates: data.updates,
-        userId: socket.data?.userId || 'unknown'
-      })
-    })
-
-    socket.on('createTask', (data) => {
-      console.log(`Task created in project: ${data.projectId}`)
-      socket.broadcast.emit('taskCreated', {
-        task: data.task,
-        projectId: data.projectId
-      })
-    })
-
-    socket.on('deleteTask', (data) => {
-      console.log(`Task deleted: ${data.taskId}`)
-      socket.broadcast.emit('taskDeleted', {
-        taskId: data.taskId,
-        projectId: data.projectId
-      })
-    })
-
-    // Handle presence updates
-    socket.on('updatePresence', (data) => {
-      const user = activeUsers.get(socket.id)
-      if (user) {
-        user.status = data.status
-        user.lastSeen = new Date()
-      }
-      
-      socket.broadcast.emit('userPresence', {
-        userId: socket.data?.userId || 'unknown',
-        status: data.status,
-        projectId: data.projectId
-      })
-    })
-
-    // Handle notifications
-    socket.on('sendNotification', (data) => {
-      socket.broadcast.emit('notification', data)
-    })
-
-    socket.on('disconnect', () => {
-      const user = activeUsers.get(socket.id)
-      if (user) {
-        socket.broadcast.emit('userLeft', {
-          userId: user.userId
-        })
-        activeUsers.delete(socket.id)
-      }
-      console.log(`User disconnected: ${socket.id}`)
-    })
-  })
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[Hocuspocus] Skipping (run npm run dev:collab for collab with next dev)')
+    } else {
+      console.error('[Hocuspocus] Failed to load:', err)
+    }
+  }
 
   // Start server
   httpServer.listen(port, (err) => {

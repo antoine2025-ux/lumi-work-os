@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { CreateMilestoneSchema } from '@/lib/pm/schemas'
 import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
@@ -19,6 +20,10 @@ export async function GET(
 
     // Get authenticated user with workspace context
     const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
     setWorkspaceContext(auth.workspaceId)
     
     // Get authenticated user from database
@@ -81,10 +86,11 @@ export async function POST(
 
     // Get authenticated user with workspace context
     const auth = await getUnifiedAuth(request)
-    setWorkspaceContext(auth.workspaceId)
-    if (!auth.isAuthenticated || !auth.user) {
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(auth.workspaceId)
 
     // Get authenticated user from database
     const user = await prisma.user.findUnique({

@@ -11,6 +11,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 import { handleApiError } from "@/lib/api-errors"
 
 export async function PATCH(
@@ -58,6 +59,7 @@ export async function PATCH(
         id: true,
         userId: true,
         archivedAt: true,
+        user: { select: { name: true } },
         team: {
           select: {
             id: true,
@@ -157,6 +159,15 @@ export async function PATCH(
         archivedAt: true,
       },
     });
+
+    logOrgAudit({
+      workspaceId,
+      entityType: "PERSON",
+      entityId: personId,
+      entityName: position.user?.name ?? undefined,
+      action: "ARCHIVED",
+      actorId: userId,
+    }).catch((e) => console.error("[PATCH /api/org/people/[personId]/archive] Audit log error (non-fatal):", e));
 
     return NextResponse.json(
       { 

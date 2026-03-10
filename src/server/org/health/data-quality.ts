@@ -1,14 +1,14 @@
 import { prisma } from "@/lib/db"
 import { getPeopleIdentityMap } from "@/server/org/people/identity"
 
-export async function getDataQualityDeepDive(orgId: string) {
-  const peopleMap = await getPeopleIdentityMap(orgId)
+export async function getDataQualityDeepDive(workspaceId: string) {
+  const peopleMap = await getPeopleIdentityMap(workspaceId)
 
   // 1) Stale availability: last availability older than N days (if createdAt/updatedAt exists)
   const stale: Array<{ personId: string; label: string; updatedAt: string }> = []
   try {
     const rows = await prisma.personAvailability.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { personId: true, updatedAt: true, createdAt: true },
       take: 50000,
     })
@@ -32,7 +32,7 @@ export async function getDataQualityDeepDive(orgId: string) {
   const conflicts: Array<{ personId: string; label: string; managers: number; managerIds: string[] }> = []
   try {
     const links = await prisma.personManagerLink.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { personId: true, managerId: true },
       take: 200000,
     })
@@ -65,7 +65,7 @@ export async function getDataQualityDeepDive(orgId: string) {
   const overAllocated: Array<{ personId: string; label: string; demandPct: number }> = []
   try {
     const allocs = await prisma.capacityAllocation.findMany({
-      where: { orgId },
+      where: { workspaceId },
       select: { personId: true, percent: true },
       take: 200000,
     })

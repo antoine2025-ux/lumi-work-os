@@ -210,12 +210,22 @@ export const cache = {
   },
 
   async invalidatePattern(pattern: string): Promise<void> {
+    // Always invalidate in-memory cache entries whose keys match the glob pattern.
+    // Convert the Redis glob-style pattern (only '*' wildcard supported here) to a RegExp.
+    const prefix = pattern.endsWith('*') ? pattern.slice(0, -1) : pattern;
+    const isGlob = pattern.endsWith('*');
+    for (const key of memoryCache.keys()) {
+      if (isGlob ? key.startsWith(prefix) : key === pattern) {
+        memoryCache.delete(key);
+      }
+    }
+
     try {
       const client = await connectRedis();
       if (!client || !isRedisAvailable) {
         return;
       }
-      
+
       const keys = await client.keys(pattern);
       if (keys.length > 0) {
         await client.del(keys);

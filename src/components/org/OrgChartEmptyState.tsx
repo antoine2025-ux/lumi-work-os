@@ -63,21 +63,21 @@ export function OrgChartEmptyState({
         "flex flex-col gap-4 md:flex-row md:items-center",
         "w-full",
         "rounded-3xl",
-        "bg-slate-900/80",
+        "bg-card/80",
         "border border-white/5",
         "shadow-[0_24px_80px_rgba(0,0,0,0.35)]",
         "px-8 py-6"
       )}
     >
       {/* Left: icon tile */}
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900/60 flex-shrink-0">
-        <SearchX className="h-7 w-7 text-white/60" />
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-card/60 flex-shrink-0">
+        <SearchX className="h-7 w-7 text-foreground/60" />
       </div>
 
       {/* Middle: text */}
       <div className="flex min-w-0 flex-col gap-1 flex-1">
-        <p className="truncate text-base font-medium text-white">{title}</p>
-        <p className="text-sm text-white/60">{body}</p>
+        <p className="truncate text-base font-medium text-foreground">{title}</p>
+        <p className="text-sm text-foreground/60">{body}</p>
       </div>
 
       {/* Right: clear button */}
@@ -89,8 +89,8 @@ export function OrgChartEmptyState({
             "rounded-full",
             "px-5 py-2",
             "text-sm font-medium",
-            "bg-slate-900/70",
-            "hover:bg-slate-900/90",
+            "bg-card/70",
+            "hover:bg-card/90",
             "text-primary",
             "transition-all duration-200",
             "hover:-translate-y-[1px]",

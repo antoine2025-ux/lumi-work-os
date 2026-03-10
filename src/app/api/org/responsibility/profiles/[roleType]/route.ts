@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import {
   getRoleResponsibilityProfile,
   updateRoleResponsibilityProfile,
@@ -54,8 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ ok: true, profile });
   } catch (error: unknown) {
-    console.error("[GET /api/org/responsibility/profiles/[roleType]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -131,12 +131,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ ok: true, profile });
   } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes("Record to update not found")) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
-    }
-
-    console.error("[PATCH /api/org/responsibility/profiles/[roleType]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -170,11 +165,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ ok: true, deleted: true });
   } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes("Record to delete does not exist")) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
-    }
-
-    console.error("[DELETE /api/org/responsibility/profiles/[roleType]] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

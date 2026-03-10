@@ -11,10 +11,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import {
   getResponsibilityTags,
   createResponsibilityTag,
 } from "@/lib/org/responsibility/read";
+import { ResponsibilityTagCreateSchema } from '@/lib/validations/responsibility';
 
 // ============================================================================
 // GET /api/org/responsibility/tags
@@ -46,8 +48,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ ok: true, tags });
   } catch (error: unknown) {
-    console.error("[GET /api/org/responsibility/tags] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -81,27 +82,11 @@ export async function POST(request: NextRequest) {
 
     setWorkspaceContext(workspaceId);
 
-    const body = (await request.json()) as CreateTagBody;
-
-    if (!body.key || !body.label) {
-      return NextResponse.json(
-        { error: "Missing required fields: key, label" },
-        { status: 400 }
-      );
-    }
-
-    // Validate key format (uppercase with underscores)
-    const normalizedKey = body.key.toUpperCase().replace(/\s+/g, "_");
-    if (!/^[A-Z][A-Z0-9_]*$/.test(normalizedKey)) {
-      return NextResponse.json(
-        { error: "Key must be uppercase alphanumeric with underscores (e.g., ENGINEERING_BACKEND)" },
-        { status: 400 }
-      );
-    }
+    const body = ResponsibilityTagCreateSchema.parse(await request.json());
 
     const tag = await createResponsibilityTag({
       workspaceId,
-      key: normalizedKey,
+      key: body.key,
       label: body.label,
       description: body.description,
       category: body.category,
@@ -109,18 +94,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, tag });
   } catch (error: unknown) {
-    // Handle unique constraint violation
-    if (
-      error instanceof Error &&
-      error.message.includes("Unique constraint failed")
-    ) {
-      return NextResponse.json(
-        { error: "A tag with this key already exists" },
-        { status: 409 }
-      );
-    }
-
-    console.error("[POST /api/org/responsibility/tags] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

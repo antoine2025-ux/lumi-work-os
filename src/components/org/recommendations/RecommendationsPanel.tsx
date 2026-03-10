@@ -97,7 +97,7 @@ function RecommendationCard({ rec }: { rec: OrgReasoningRecommendation }) {
   const canRenderAction = primaryAction?.href;
 
   return (
-    <Card className="bg-slate-900/50 border-slate-800 hover:border-slate-700 transition-colors">
+    <Card className="bg-card/50 border-border hover:border-border transition-colors">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
@@ -105,8 +105,8 @@ function RecommendationCard({ rec }: { rec: OrgReasoningRecommendation }) {
               <SeverityBadge severity={rec.severity} />
               <CategoryBadge category={rec.category} />
             </div>
-            <h4 className="text-sm font-medium text-slate-100 mb-1">{rec.title}</h4>
-            <p className="text-xs text-slate-400 line-clamp-2">{rec.summary}</p>
+            <h4 className="text-sm font-medium text-foreground mb-1">{rec.title}</h4>
+            <p className="text-xs text-muted-foreground line-clamp-2">{rec.summary}</p>
           </div>
           {canRenderAction && (
             <Link
@@ -134,7 +134,7 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-3">
       {[1, 2, 3].map((i) => (
-        <Card key={i} className="bg-slate-900/50 border-slate-800">
+        <Card key={i} className="bg-card/50 border-border">
           <CardContent className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
@@ -160,11 +160,11 @@ function LoadingSkeleton() {
 
 function EmptyState() {
   return (
-    <Card className="bg-slate-900/50 border-slate-800">
+    <Card className="bg-card/50 border-border">
       <CardContent className="p-6 text-center">
         <Lightbulb className="h-8 w-8 text-slate-600 mx-auto mb-3" />
-        <h4 className="text-sm font-medium text-slate-300 mb-1">No recommendations</h4>
-        <p className="text-xs text-slate-500">
+        <h4 className="text-sm font-medium text-muted-foreground mb-1">No recommendations</h4>
+        <p className="text-xs text-muted-foreground">
           Your organization looks healthy! We&apos;ll surface recommendations when we detect opportunities.
         </p>
       </CardContent>
@@ -181,7 +181,7 @@ function ErrorState({ error }: { error: Error }) {
   const isDev = process.env.NODE_ENV !== "production";
 
   return (
-    <Card className="bg-slate-900/50 border-red-900/50">
+    <Card className="bg-card/50 border-red-900/50">
       <CardContent className="p-4">
         <div className="flex items-center gap-3">
           <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
@@ -189,13 +189,13 @@ function ErrorState({ error }: { error: Error }) {
             <h4 className="text-sm font-medium text-red-400 mb-1">
               Unable to load recommendations
             </h4>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               {isDev && error.message ? error.message : "Please try again later."}
             </p>
             {isDev && error.stack && (
               <details className="mt-2">
-                <summary className="text-xs text-slate-400 cursor-pointer">Error details</summary>
-                <pre className="text-xs text-slate-500 mt-1 overflow-auto max-h-32">
+                <summary className="text-xs text-muted-foreground cursor-pointer">Error details</summary>
+                <pre className="text-xs text-muted-foreground mt-1 overflow-auto max-h-32">
                   {error.stack}
                 </pre>
               </details>
@@ -221,7 +221,7 @@ export function RecommendationsPanel({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <CardHeader className="p-0">
-          <CardTitle className="text-sm font-medium text-slate-200 flex items-center gap-2">
+          <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
             <Lightbulb className="h-4 w-4 text-amber-400" />
             Recommendations
           </CardTitle>
@@ -255,7 +255,7 @@ export function RecommendationsPanel({
             return (
               <div key={rec.code}>
                 {severityChanged && (
-                  <div className="border-t border-slate-800 my-3" />
+                  <div className="border-t border-border my-3" />
                 )}
                 <RecommendationCard rec={rec} />
               </div>

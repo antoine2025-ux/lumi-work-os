@@ -5,6 +5,10 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2, Play, X, ArrowDown, Lightbulb } from "lucide-react"
 import type { AgentPlan } from "@/lib/loopbrain/agent/types"
 
+// TODO (fast follow-up): Add "Edit" option for sendEmail/replyToEmail steps so users can
+// modify the draft body before confirming. Would require onEdit(stepIndex, newParams) callback
+// and an inline textarea or modal to edit parameters.body (and optionally to/subject).
+
 interface PlanConfirmationProps {
   plan: AgentPlan
   onConfirm: () => void
@@ -22,10 +26,18 @@ const TOOL_LABELS: Record<string, string> = {
   createWikiPage: "wiki",
   createGoal: "goal",
   addPersonToProject: "project",
+  assignToProject: "project",
   updateTaskStatus: "task",
   updateProject: "project",
   linkProjectToGoal: "link",
   addSubtask: "subtask",
+  sendEmail: "email",
+  replyToEmail: "reply",
+  createCalendarEvent: "calendar",
+  createMultipleCalendarEvents: "calendar",
+  createPerson: "person",
+  assignManager: "person",
+  createTimeOff: "time",
   listProjects: "read",
   listPeople: "read",
 }
@@ -117,7 +129,7 @@ export function PlanConfirmation({
           ) : (
             <>
               <Play className="h-3 w-3" />
-              Proceed
+              Approve & Execute
             </>
           )}
         </button>

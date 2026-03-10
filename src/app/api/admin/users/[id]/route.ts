@@ -1,12 +1,14 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { safeRebuildOrgContext } from '@/lib/org/org-context-service'
 import { handleApiError } from '@/lib/api-errors'
+import { AdminUpdateUserSchema } from '@/lib/validations/admin'
 
 // GET /api/admin/users/[id] - Get a specific user
 export async function GET(
@@ -21,6 +23,10 @@ export async function GET(
 
     // Set workspace context for Prisma scoping
     const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['OWNER'] })
     setWorkspaceContext(auth.workspaceId)
 
     const { id } = await params
@@ -59,10 +65,14 @@ export async function PUT(
 
     // Set workspace context for Prisma scoping
     const authCtx = await getUnifiedAuth(request)
+    if (!authCtx.isAuthenticated || !authCtx.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: authCtx.user.userId, workspaceId: authCtx.workspaceId, scope: 'workspace', requireRole: ['OWNER'] })
     setWorkspaceContext(authCtx.workspaceId)
 
     const { id } = await params
-    const body = await request.json()
+    const body = AdminUpdateUserSchema.parse(await request.json())
     const { 
       name, 
       email, 
@@ -342,6 +352,10 @@ export async function DELETE(
 
     // Set workspace context for Prisma scoping
     const authDel = await getUnifiedAuth(request)
+    if (!authDel.isAuthenticated || !authDel.workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: authDel.user.userId, workspaceId: authDel.workspaceId, scope: 'workspace', requireRole: ['OWNER'] })
     setWorkspaceContext(authDel.workspaceId)
 
     const { id } = await params

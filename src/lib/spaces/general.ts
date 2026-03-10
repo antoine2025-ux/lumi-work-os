@@ -19,6 +19,7 @@ export async function ensureGeneralSpace(workspaceId: string, ownerId: string) {
       name: 'General',
       visibility: 'PUBLIC',
       isPersonal: false,
+      type: 'TEAM',
       icon: 'home',
       color: '#6366f1',
     },

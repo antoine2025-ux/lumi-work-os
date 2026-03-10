@@ -196,10 +196,10 @@ export function AvailabilityWindowsEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#0a0f1a] border-slate-800 sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="bg-[#0a0f1a] border-border sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-slate-100">Availability Windows</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogTitle className="text-foreground">Availability Windows</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Manage time-bounded availability periods.
           </DialogDescription>
         </DialogHeader>
@@ -209,22 +209,22 @@ export function AvailabilityWindowsEditor({
             {/* List view */}
             <div className="space-y-2 py-4">
               {windows.length === 0 ? (
-                <div className="text-sm text-slate-500 text-center py-8">
+                <div className="text-sm text-muted-foreground text-center py-8">
                   No availability windows defined.
                 </div>
               ) : (
                 windows.map((w) => (
                   <div
                     key={w.id}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700"
+                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border border-border"
                   >
-                    <Calendar className="h-4 w-4 text-slate-500 mt-0.5 shrink-0" />
+                    <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-slate-200">
+                      <div className="text-sm text-foreground">
                         {formatDate(w.startDate)}
                         {w.endDate && ` – ${formatDate(w.endDate)}`}
                       </div>
-                      <div className="text-xs text-slate-400 mt-0.5">
+                      <div className="text-xs text-muted-foreground mt-0.5">
                         {w.type === "PARTIAL" && w.fraction !== null
                           ? `Partial (${Math.round(w.fraction * 100)}%)`
                           : w.type === "UNAVAILABLE"
@@ -233,7 +233,7 @@ export function AvailabilityWindowsEditor({
                         {w.reason && ` • ${REASON_OPTIONS.find((r) => r.value === w.reason)?.label ?? w.reason}`}
                       </div>
                       {w.note && (
-                        <div className="text-xs text-slate-500 mt-1 truncate">{w.note}</div>
+                        <div className="text-xs text-muted-foreground mt-1 truncate">{w.note}</div>
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -241,7 +241,7 @@ export function AvailabilityWindowsEditor({
                         variant="ghost"
                         size="icon"
                         onClick={() => openEditForm(w)}
-                        className="h-7 w-7 text-slate-400 hover:text-slate-200"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
                       >
                         <Pencil className="h-3 w-3" />
                       </Button>
@@ -250,7 +250,7 @@ export function AvailabilityWindowsEditor({
                         size="icon"
                         onClick={() => handleDelete(w.id)}
                         disabled={isDeleting === w.id}
-                        className="h-7 w-7 text-slate-400 hover:text-red-400"
+                        className="h-7 w-7 text-muted-foreground hover:text-red-400"
                       >
                         {isDeleting === w.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -268,7 +268,7 @@ export function AvailabilityWindowsEditor({
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="border-slate-700 text-slate-300"
+                className="border-border text-muted-foreground"
               >
                 Close
               </Button>
@@ -285,9 +285,9 @@ export function AvailabilityWindowsEditor({
               <div className="grid grid-cols-2 gap-4">
                 {/* Type */}
                 <div className="space-y-2">
-                  <Label className="text-xs text-slate-300">Type</Label>
+                  <Label className="text-xs text-muted-foreground">Type</Label>
                   <Select value={formType} onValueChange={(v) => setFormType(v as typeof formType)}>
-                    <SelectTrigger className="bg-slate-900 border-slate-700">
+                    <SelectTrigger className="bg-card border-border">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -303,7 +303,7 @@ export function AvailabilityWindowsEditor({
                 {/* Fraction (only for partial) */}
                 {formType === "PARTIAL" && (
                   <div className="space-y-2">
-                    <Label className="text-xs text-slate-300">Fraction (0-1)</Label>
+                    <Label className="text-xs text-muted-foreground">Fraction (0-1)</Label>
                     <Input
                       type="number"
                       min="0"
@@ -311,7 +311,7 @@ export function AvailabilityWindowsEditor({
                       step="0.1"
                       value={formFraction}
                       onChange={(e) => setFormFraction(e.target.value)}
-                      className="bg-slate-900 border-slate-700 text-slate-200"
+                      className="bg-card border-border text-foreground"
                     />
                   </div>
                 )}
@@ -320,23 +320,23 @@ export function AvailabilityWindowsEditor({
               <div className="grid grid-cols-2 gap-4">
                 {/* Start Date */}
                 <div className="space-y-2">
-                  <Label className="text-xs text-slate-300">Start Date *</Label>
+                  <Label className="text-xs text-muted-foreground">Start Date *</Label>
                   <Input
                     type="date"
                     value={formStartDate}
                     onChange={(e) => setFormStartDate(e.target.value)}
-                    className="bg-slate-900 border-slate-700 text-slate-200"
+                    className="bg-card border-border text-foreground"
                   />
                 </div>
 
                 {/* End Date */}
                 <div className="space-y-2">
-                  <Label className="text-xs text-slate-300">End Date</Label>
+                  <Label className="text-xs text-muted-foreground">End Date</Label>
                   <Input
                     type="date"
                     value={formEndDate}
                     onChange={(e) => setFormEndDate(e.target.value)}
-                    className="bg-slate-900 border-slate-700 text-slate-200"
+                    className="bg-card border-border text-foreground"
                   />
                 </div>
               </div>
@@ -344,9 +344,9 @@ export function AvailabilityWindowsEditor({
               <div className="grid grid-cols-2 gap-4">
                 {/* Reason */}
                 <div className="space-y-2">
-                  <Label className="text-xs text-slate-300">Reason</Label>
+                  <Label className="text-xs text-muted-foreground">Reason</Label>
                   <Select value={formReason} onValueChange={setFormReason}>
-                    <SelectTrigger className="bg-slate-900 border-slate-700">
+                    <SelectTrigger className="bg-card border-border">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                     <SelectContent>
@@ -361,24 +361,24 @@ export function AvailabilityWindowsEditor({
 
                 {/* Expected Return */}
                 <div className="space-y-2">
-                  <Label className="text-xs text-slate-300">Expected Return</Label>
+                  <Label className="text-xs text-muted-foreground">Expected Return</Label>
                   <Input
                     type="date"
                     value={formExpectedReturn}
                     onChange={(e) => setFormExpectedReturn(e.target.value)}
-                    className="bg-slate-900 border-slate-700 text-slate-200"
+                    className="bg-card border-border text-foreground"
                   />
                 </div>
               </div>
 
               {/* Note */}
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Note</Label>
+                <Label className="text-xs text-muted-foreground">Note</Label>
                 <Textarea
                   value={formNote}
                   onChange={(e) => setFormNote(e.target.value)}
                   placeholder="Optional note..."
-                  className="bg-slate-900 border-slate-700 text-slate-200 min-h-[60px]"
+                  className="bg-card border-border text-foreground min-h-[60px]"
                 />
               </div>
 
@@ -394,7 +394,7 @@ export function AvailabilityWindowsEditor({
                   resetForm();
                 }}
                 disabled={isSaving}
-                className="border-slate-700 text-slate-300"
+                className="border-border text-muted-foreground"
               >
                 Cancel
               </Button>

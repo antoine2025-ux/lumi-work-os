@@ -102,7 +102,7 @@ async function upsertRole(orgId, label) {
   const v = String(label || "").trim()
   if (!v) return
   await prisma.orgRoleTaxonomy.create({
-    data: { orgId, label: v },
+    data: { workspaceId: orgId, label: v },
   }).catch(async () => {
     // ignore duplicates
   })
@@ -112,7 +112,7 @@ async function upsertSkill(orgId, label) {
   const v = String(label || "").trim().toLowerCase()
   if (!v) return
   await prisma.orgSkillTaxonomy.create({
-    data: { orgId, label: v },
+    data: { workspaceId: orgId, label: v },
   }).catch(async () => {
     // ignore duplicates
   })
@@ -150,14 +150,14 @@ async function upsertTeam(workspaceId, departmentId, name) {
 
 async function upsertDomain(orgId, name) {
   const existing = await prisma.domain.findFirst({
-    where: { orgId, name },
+    where: { workspaceId: orgId, name },
     select: { id: true, name: true },
   }).catch(() => null)
 
   if (existing?.id) return existing
 
   const created = await prisma.domain.create({
-    data: { orgId, name },
+    data: { workspaceId: orgId, name },
     select: { id: true, name: true },
   })
   return created
@@ -166,14 +166,14 @@ async function upsertDomain(orgId, name) {
 async function upsertSystem(orgId, name) {
   // model name assumed as systemEntity (per earlier work). If yours differs, change here.
   const existing = await prisma.systemEntity.findFirst({
-    where: { orgId, name },
+    where: { workspaceId: orgId, name },
     select: { id: true, name: true },
   }).catch(() => null)
 
   if (existing?.id) return existing
 
   const created = await prisma.systemEntity.create({
-    data: { orgId, name },
+    data: { workspaceId: orgId, name },
     select: { id: true, name: true },
   })
   return created
@@ -222,16 +222,16 @@ async function setAvailability(workspaceId, personId, status, reason) {
 }
 
 async function setCapacity(orgId, personId, fte, shrinkagePct, allocationPct) {
-  // PersonCapacity model uses orgId and doesn't have allocationPct field
+  // PersonCapacity model uses workspaceId and doesn't have allocationPct field
   await prisma.personCapacity.upsert({
-    where: { orgId_personId: { orgId, personId } },
+    where: { workspaceId_personId: { workspaceId: orgId, personId } },
     update: {
       fte,
       shrinkagePct,
       // Note: allocationPct not in schema, skipping
     },
     create: {
-      orgId,
+      workspaceId: orgId,
       personId,
       fte,
       shrinkagePct,
@@ -242,7 +242,7 @@ async function setCapacity(orgId, personId, fte, shrinkagePct, allocationPct) {
 
 async function setRoles(orgId, personId, roles) {
   // overwrite roles for clarity in mock data
-  await prisma.personRoleAssignment.deleteMany({ where: { orgId, personId } }).catch(() => null)
+  await prisma.personRoleAssignment.deleteMany({ where: { workspaceId: orgId, personId } }).catch(() => null)
 
   const cleaned = roles
     .map((r) => ({ role: String(r.role || "").trim(), percent: Math.round(Number(r.percent || 100)) }))
@@ -252,7 +252,7 @@ async function setRoles(orgId, personId, roles) {
   if (!cleaned.length) return
 
   await prisma.personRoleAssignment.createMany({
-    data: cleaned.map((r) => ({ orgId, personId, role: r.role, percent: r.percent })),
+    data: cleaned.map((r) => ({ workspaceId: orgId, personId, role: r.role, percent: r.percent })),
     skipDuplicates: true,
   }).catch(() => null)
 
@@ -275,7 +275,7 @@ async function setSkills(workspaceId, personId, skills) {
     await upsertSkill(orgId, skillLabel)
     // Get the skill ID
     const skill = await prisma.orgSkillTaxonomy.findUnique({
-      where: { orgId_label: { orgId, label: skillLabel } },
+      where: { workspaceId_label: { workspaceId: orgId, label: skillLabel } },
       select: { id: true },
     }).catch(() => null)
     if (skill?.id) {
@@ -591,7 +591,7 @@ async function main() {
 
   for (const [email, roles, skills] of roleSkillPlan) {
     const pid = personIdByEmail[String(email).toLowerCase()]
-    await setRoles(orgId, pid, roles) // PersonRoleAssignment uses orgId
+    await setRoles(orgId, pid, roles) // PersonRoleAssignment uses workspaceId
     await setSkills(workspaceId, pid, skills) // PersonSkill uses workspaceId
   }
 

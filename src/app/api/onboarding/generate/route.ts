@@ -4,6 +4,7 @@ import OpenAI from 'openai'
 import { getWikiContext } from '@/lib/wiki'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { handleApiError } from '@/lib/api-errors'
 
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
     if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
     setWorkspaceContext(auth.workspaceId)
 
     const body = await request.json()

@@ -169,12 +169,12 @@ export function PersonCapacityCard({ personId, canEdit = false, onCapacityChange
 
   if (loading) {
     return (
-      <Card className="border-slate-800 bg-slate-900/50">
+      <Card className="border-border bg-card/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-slate-200">Capacity</CardTitle>
+          <CardTitle className="text-sm font-medium text-foreground">Capacity</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-xs text-slate-500">Loading...</div>
+          <div className="text-xs text-muted-foreground">Loading...</div>
         </CardContent>
       </Card>
     );
@@ -182,16 +182,16 @@ export function PersonCapacityCard({ personId, canEdit = false, onCapacityChange
 
   return (
     <>
-      <Card className="border-slate-800 bg-slate-900/50">
+      <Card className="border-border bg-card/50">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-slate-200">Capacity</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">Capacity</CardTitle>
             {canEdit && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setDialogOpen(true)}
-                className="h-7 px-2 text-slate-400 hover:text-slate-200"
+                className="h-7 px-2 text-muted-foreground hover:text-foreground"
               >
                 <Plus className="h-3 w-3" />
               </Button>
@@ -201,36 +201,36 @@ export function PersonCapacityCard({ personId, canEdit = false, onCapacityChange
         <CardContent className="space-y-4">
           {/* Current Capacity */}
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
               Weekly Hours
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-semibold text-slate-200">
+              <span className="text-lg font-semibold text-foreground">
                 {activeContract ? `${activeContract.weeklyCapacityHours}h` : "40h"}
               </span>
               {!activeContract && (
-                <span className="text-xs text-slate-500">(default)</span>
+                <span className="text-xs text-muted-foreground">(default)</span>
               )}
             </div>
           </div>
 
           {/* Contract History */}
           {contracts.length > 0 && (
-            <div className="pt-2 border-t border-slate-800">
-              <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-2">
+            <div className="pt-2 border-t border-border">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">
                 Contracts ({contracts.length})
               </div>
               <div className="space-y-2">
                 {contracts.slice(0, 3).map((c) => (
                   <div
                     key={c.id}
-                    className="flex items-start justify-between gap-2 text-xs p-2 rounded bg-slate-800/50"
+                    className="flex items-start justify-between gap-2 text-xs p-2 rounded bg-muted/50"
                   >
                     <div className="flex items-start gap-2">
-                      <Clock className="h-3 w-3 text-slate-500 mt-0.5 shrink-0" />
+                      <Clock className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
                       <div>
-                        <div className="text-slate-300">{c.weeklyCapacityHours}h/week</div>
-                        <div className="text-slate-500">
+                        <div className="text-muted-foreground">{c.weeklyCapacityHours}h/week</div>
+                        <div className="text-muted-foreground">
                           From {formatDate(c.effectiveFrom)}
                           {c.effectiveTo && ` to ${formatDate(c.effectiveTo)}`}
                         </div>
@@ -241,7 +241,7 @@ export function PersonCapacityCard({ personId, canEdit = false, onCapacityChange
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(c.id)}
-                        className="h-5 w-5 p-0 text-slate-500 hover:text-red-400"
+                        className="h-5 w-5 p-0 text-muted-foreground hover:text-red-400"
                       >
                         <X className="h-3 w-3" />
                       </Button>

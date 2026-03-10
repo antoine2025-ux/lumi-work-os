@@ -15,9 +15,9 @@ export const LOOPBRAIN_ORG_CONFIG = {
 
   /**
    * LLM model to use for Org queries
-   * Default: gpt-4o-mini (cost-effective for org queries)
+   * Default: claude-sonnet-4-6 (excellent reasoning for org queries)
    */
-  model: process.env.LOOPBRAIN_ORG_MODEL || "gpt-4o-mini",
+  model: process.env.LOOPBRAIN_ORG_MODEL || "claude-sonnet-4-6",
 
   /**
    * Maximum tokens for Org responses

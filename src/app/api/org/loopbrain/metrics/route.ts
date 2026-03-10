@@ -20,12 +20,12 @@ export async function GET(req: NextRequest) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     const runs = await prisma.orgSuggestionRun.findMany({
-      where: { orgId: workspaceId, scope: "people_issues", createdAt: { gte: since } },
+      where: { workspaceId, scope: "people_issues", createdAt: { gte: since } },
       select: { id: true, createdAt: true, engineId: true },
     });
 
     const feedback = await prisma.loopBrainFeedback.findMany({
-      where: { orgId: workspaceId, scope: "people_issues", createdAt: { gte: since } },
+      where: { workspaceId, scope: "people_issues", createdAt: { gte: since } },
       select: { accepted: true, partiallyApplied: true, createdAt: true, suggestionRunId: true },
     });
 
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch outcomes for impact metrics
     const outcomes = await prisma.loopBrainOutcome.findMany({
-      where: { orgId: workspaceId, scope: "people_issues", measuredAt: { gte: since } },
+      where: { workspaceId, scope: "people_issues", measuredAt: { gte: since } },
       orderBy: { measuredAt: "desc" },
       take: 100,
     });

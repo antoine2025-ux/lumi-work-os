@@ -5,6 +5,9 @@ import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 import type { OrgCapability } from "@/lib/org/capabilities";
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { computeChanges } from "@/lib/audit/diff";
+import { UpdateCustomRoleSchema } from "@/lib/validations/org";
 
 type Params = {
   params: Promise<{ roleId: string }>;
@@ -20,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     setWorkspaceContext(workspaceId);
 
     const { roleId } = await params;
-    const body = await req.json();
+    const body = UpdateCustomRoleSchema.parse(await req.json());
 
     const existing = await prisma.orgCustomRole.findUnique({
       where: { id: roleId },
@@ -35,16 +38,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     const updates: any = {};
 
-    if (typeof body.name === "string") {
-      updates.name = body.name.trim();
+    if (body.name !== undefined) {
+      updates.name = body.name;
     }
-    if (typeof body.description === "string") {
-      updates.description = body.description.trim() || null;
+    if (body.description !== undefined) {
+      updates.description = body.description;
     }
-    if (typeof body.key === "string") {
-      updates.key = body.key.trim();
+    if (body.key !== undefined) {
+      updates.key = body.key;
     }
-    if (Array.isArray(body.capabilities)) {
+    if (body.capabilities !== undefined) {
       updates.capabilities = body.capabilities.filter(
         (c: unknown): c is OrgCapability => typeof c === "string"
       );
@@ -54,6 +57,24 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       where: { id: roleId },
       data: updates,
     });
+
+    // Log audit entry (fire-and-forget)
+    const changes = computeChanges(
+      existing,
+      updated,
+      ["name", "description", "key", "capabilities"]
+    );
+    if (changes) {
+      logOrgAudit({
+        workspaceId,
+        entityType: "CUSTOM_ROLE",
+        entityId: updated.id,
+        entityName: updated.name,
+        action: "UPDATED",
+        actorId: user.userId,
+        changes,
+      }).catch((e) => console.error("[PATCH /api/org/custom-roles/[roleId]] Audit error:", e));
+    }
 
     return NextResponse.json({ role: updated }, { status: 200 });
   } catch (error) {
@@ -101,6 +122,16 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     await prisma.orgCustomRole.delete({
       where: { id: roleId },
     });
+
+    // Log audit entry (fire-and-forget)
+    logOrgAudit({
+      workspaceId,
+      entityType: "CUSTOM_ROLE",
+      entityId: roleId,
+      entityName: existing.name,
+      action: "DELETED",
+      actorId: user.userId,
+    }).catch((e) => console.error("[DELETE /api/org/custom-roles/[roleId]] Audit error:", e));
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {

@@ -1,20 +1,30 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors"
 
 export async function GET(request: NextRequest) {
   try {
-    const workspaceId = await getCurrentWorkspaceId(request);
-    
-    // For v1, orgId = workspaceId
-    const orgId = workspaceId;
+    const auth = await getUnifiedAuth(request);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["VIEWER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
+
+    const workspaceId = auth.workspaceId;
 
     const projects = await prisma.project.findMany({
       where: {
         OR: [
-          { orgId },
+          { orgId: workspaceId },
           { workspaceId }, // Fallback for projects without orgId
         ],
       },
@@ -66,7 +76,7 @@ export async function GET(request: NextRequest) {
             id: project.id,
             name: project.name,
             description: project.description,
-            orgId: project.orgId || project.workspaceId,
+            workspaceId: project.orgId || project.workspaceId,
             accountability: null,
           };
         }
@@ -135,7 +145,7 @@ export async function GET(request: NextRequest) {
           id: project.id,
           name: project.name,
           description: project.description,
-          orgId: project.orgId || project.workspaceId,
+          workspaceId: project.orgId || project.workspaceId,
           accountability: {
             ownerPersonId,
             ownerPerson,

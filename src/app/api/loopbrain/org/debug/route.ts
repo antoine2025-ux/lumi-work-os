@@ -2,9 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   fetchOrgContextSliceForCurrentWorkspace,
 } from "@/lib/loopbrain/org-context-reader";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 
 export async function GET(request: NextRequest) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request);
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
+    setWorkspaceContext(workspaceId);
+
     const slice = await fetchOrgContextSliceForCurrentWorkspace(request);
 
     const root = slice.root
@@ -55,14 +66,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Loopbrain Org debug endpoint error", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Failed to load Loopbrain Org debug context",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, request);
   }
 }
 

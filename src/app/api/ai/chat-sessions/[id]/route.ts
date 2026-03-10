@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/ai/chat-sessions/[id] - Get specific chat session
 export async function GET(
@@ -7,6 +11,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     const session = await prisma.chatSession.findUnique({
       where: { id: resolvedParams.id },
@@ -38,11 +49,7 @@ export async function GET(
       }
     })
   } catch (error) {
-    console.error('Error fetching chat session:', error)
-    return NextResponse.json({ 
-      success: false,
-      error: 'Failed to fetch chat session' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -52,6 +59,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     await prisma.chatSession.delete({
       where: { id: resolvedParams.id }
@@ -61,10 +75,6 @@ export async function DELETE(
       success: true
     })
   } catch (error) {
-    console.error('Error deleting chat session:', error)
-    return NextResponse.json({ 
-      success: false,
-      error: 'Failed to delete chat session' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

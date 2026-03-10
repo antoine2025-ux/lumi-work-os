@@ -11,6 +11,9 @@ import {
 } from '@/lib/org/liveUpdateHooks'
 import { safeRebuildOrgContext } from '@/lib/org/org-context-service'
 import { handleApiError } from '@/lib/api-errors'
+import { logOrgAudit } from '@/lib/audit/org-audit'
+import { computeChanges } from '@/lib/audit/diff'
+import { UpdatePositionSchema } from '@/lib/validations/org'
 
 // GET /api/org/positions/[id] - Get a specific org position
 export async function GET(
@@ -118,7 +121,7 @@ export async function PUT(
 
     setWorkspaceContext(auth.workspaceId)
 
-    const body = await request.json()
+    const body = UpdatePositionSchema.parse(await request.json())
     const { 
       title, 
       teamId,
@@ -129,16 +132,35 @@ export async function PUT(
       isActive
     } = body
 
-    // Check if position exists
+    // Check if position exists (fetch before state for audit)
     const existingPosition = await prisma.orgPosition.findFirst({
       where: { 
         id: resolvedParams.id,
         workspaceId: auth.workspaceId
+      },
+      select: {
+        id: true,
+        title: true,
+        teamId: true,
+        level: true,
+        parentId: true,
+        userId: true,
+        isActive: true,
+        workspaceId: true,
       }
     })
 
     if (!existingPosition) {
       return NextResponse.json({ error: 'Position not found' }, { status: 404 })
+    }
+    
+    const before = {
+      title: existingPosition.title,
+      teamId: existingPosition.teamId,
+      level: existingPosition.level,
+      parentId: existingPosition.parentId,
+      userId: existingPosition.userId,
+      isActive: existingPosition.isActive,
     }
 
     // Build update data - only include fields that are provided
@@ -267,6 +289,26 @@ export async function PUT(
       }
     }
 
+    // Log audit entry
+    const after = {
+      title: position.title,
+      teamId: position.teamId,
+      level: position.level,
+      parentId: position.parentId,
+      userId: position.userId,
+      isActive: position.isActive,
+    }
+    const changes = computeChanges(before, after, ['title', 'teamId', 'level', 'parentId', 'userId', 'isActive'])
+    logOrgAudit({
+      workspaceId: auth.workspaceId,
+      entityType: "POSITION",
+      entityId: position.id,
+      entityName: position.title,
+      action: "UPDATED",
+      actorId: auth.user.userId,
+      changes: changes ?? undefined,
+    }).catch((e) => console.error("[PUT /api/org/positions/[id]] Audit log error (non-fatal):", e))
+
     // Keep Loopbrain org context in sync
     // Fire-and-forget: don't await to avoid blocking the response
     void safeRebuildOrgContext(auth.workspaceId);
@@ -341,6 +383,16 @@ export async function DELETE(
         },
       },
     });
+
+    // Log audit entry
+    logOrgAudit({
+      workspaceId: auth.workspaceId,
+      entityType: "POSITION",
+      entityId: position.id,
+      entityName: position.title,
+      action: "ARCHIVED",
+      actorId: auth.user.userId,
+    }).catch((e) => console.error("[DELETE /api/org/positions/[id]] Audit log error (non-fatal):", e));
 
     // Emit position updated event (soft delete)
     await emitEvent<OrgPositionUpdatedEvent>(ORG_EVENTS.POSITION_UPDATED, {

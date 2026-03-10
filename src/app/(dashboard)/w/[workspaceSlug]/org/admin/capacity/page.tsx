@@ -58,7 +58,7 @@ export default async function CapacityPlanningPage({ params }: PageProps) {
   try {
     await assertAccess({
       userId: context.userId,
-      workspaceId: context.orgId,
+      workspaceId: context.workspaceId,
       scope: "workspace",
       requireRole: ["OWNER", "ADMIN"],
     });
@@ -73,7 +73,7 @@ export default async function CapacityPlanningPage({ params }: PageProps) {
 
   // Step 1: Fetch all active positions with user and team info
   const rawPositions = await prisma.orgPosition.findMany({
-    where: { workspaceId: context.orgId, isActive: true, userId: { not: null } },
+    where: { workspaceId: context.workspaceId, isActive: true, userId: { not: null } },
     include: {
       user: { select: { id: true, name: true, image: true } },
       team: { select: { id: true, name: true } },
@@ -91,8 +91,8 @@ export default async function CapacityPlanningPage({ params }: PageProps) {
 
   // Step 2: Batch fetch capacity contracts and allocations in parallel
   const [contractsByPerson, allocationsByPerson] = await Promise.all([
-    getCapacityContractsBatch(context.orgId, userIds),
-    getWorkAllocationsBatch(context.orgId, userIds, timeWindow),
+    getCapacityContractsBatch(context.workspaceId, userIds),
+    getWorkAllocationsBatch(context.workspaceId, userIds, timeWindow),
   ]);
 
   // Step 3: Batch-resolve which contract is active for each person this week

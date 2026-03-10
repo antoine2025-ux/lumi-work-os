@@ -40,7 +40,7 @@ export function FigmaEmbed({ embed, isEditable = false }: EmbedComponentProps) {
               size="sm"
               className="h-6 w-6 p-0"
               onClick={() => {
-                // TODO: Implement fullscreen mode
+                // TODO [BACKLOG]: Implement fullscreen mode for Figma embeds
               }}
             >
               <Maximize2 className="h-3 w-3" />

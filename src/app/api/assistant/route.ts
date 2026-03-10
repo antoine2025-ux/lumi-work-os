@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
+import { handleApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { AssistantCreateSessionSchema } from '@/lib/validations/assistant'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +22,8 @@ export async function POST(request: NextRequest) {
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
-    const { intent } = await request.json()
+    const body = AssistantCreateSessionSchema.parse(await request.json())
+    const { intent } = body
 
     // Create a new assistant session
     const session = await prisma.chatSession.create({
@@ -48,9 +51,8 @@ export async function POST(request: NextRequest) {
       intent: session.intent
     })
 
-  } catch (error) {
-    console.error('Error creating assistant session:', error)
-    return NextResponse.json({ error: 'Failed to create session' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }
 
@@ -78,8 +80,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(session)
 
-  } catch (error) {
-    console.error('Error fetching assistant session:', error)
-    return NextResponse.json({ error: 'Failed to fetch session' }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }

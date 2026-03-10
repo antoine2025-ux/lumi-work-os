@@ -1,333 +1,211 @@
 "use client"
 
-import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
 import Link from "next/link"
-import { cn } from "@/lib/utils"
+import { usePathname, useParams, useRouter } from "next/navigation"
+import { useEffect } from "react"
+import { useSession, signOut } from "next-auth/react"
 import { useWorkspace } from "@/lib/workspace-context"
-import { WorkspaceAccountMenu } from "@/components/layout/workspace-account-menu"
-import { LayoutDashboard, FolderKanban, Network, Target } from "lucide-react"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { Logo } from "@/components/logo"
-// Navigation items - hrefs will be made slug-aware in the component
-const navigationItems = [
-  {
-    name: "Dashboard",
-    href: "/", // Will be prefixed with /w/[slug] in component
-    icon: LayoutDashboard,
-    description: "Overview and quick actions"
-  },
-  {
-    name: "Spaces",
-    href: "/spaces/home",
-    icon: FolderKanban,
-    description: "Project management and tasks"
-  },
-  {
-    name: "Org",
-    href: "/org", // Will be prefixed with /w/[slug] in component
-    icon: Network,
-    description: "Organization chart and structure"
-  },
-  {
-    name: "Goals",
-    href: "/goals", // Will be prefixed with /w/[slug] in component
-    icon: Target,
-    description: "Goals and OKRs tracking"
-  },
-  // Part from Org repo
-  // {
-  //   name: "Settings",
-  //   href: "/settings", // Will be prefixed with /w/[slug] in component
-  //   icon: Sliders,
-  //   description: "Workspace configuration"
-  //   },
-  // {
-  //   name: "Members",
-  //   href: "/org/settings/members",
-  //   icon: Users,
-  //   description: "Manage org members and roles",
-  //   requiresAdmin: true
-  // },
-  // {
-  //   name: "Invitations",
-  //   href: "/org/settings/invitations",
-  //   icon: Users,
-  //   description: "Manage org invitations",
-  //   requiresAdmin: true
-  // }
-]
+import { NotificationCenter } from "@/components/notifications/NotificationCenter"
+import { Search, Menu, User, Settings, LogOut } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
-export function Header() {
+interface HeaderProps {
+  onMenuToggle?: () => void
+}
+
+function getInitials(
+  name: string | null | undefined,
+  email: string | null | undefined
+): string {
+  if (name) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase().slice(0, 2)
+    }
+    return name.slice(0, 2).toUpperCase()
+  }
+  if (email) return email.slice(0, 2).toUpperCase()
+  return "U"
+}
+
+export function Header({ onMenuToggle }: HeaderProps = {}) {
   const pathname = usePathname()
   const router = useRouter()
+  const params = useParams()
+  const { data: session } = useSession()
   const { currentWorkspace } = useWorkspace()
-  const [isVisible, setIsVisible] = useState(true)
-  const [lastScrollY, setLastScrollY] = useState(0)
-  const [_userRoleFromPermissions, setUserRoleFromPermissions] = useState<string | null>(null)
-  const [_mounted, setMounted] = useState(false)
 
-  // Fetch user permissions to check admin role
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/org/permissions", { cache: "no-store" });
-        const data = await res.json();
-        if (data?.ok) {
-          setUserRoleFromPermissions(data.role);
-        }
-      } catch {
-        // Silently fail
-      }
-    })();
-  }, []);
+  const slug =
+    (params?.workspaceSlug as string) ?? currentWorkspace?.slug ?? null
+  const basePath = slug ? `/w/${slug}` : ""
+  const profileHref = slug ? `/w/${slug}/org/profile` : "/org/profile"
+  const settingsHref = slug ? `/w/${slug}/settings` : "/settings"
 
-  // Set mounted state to prevent hydration mismatch with Radix UI
+  // Prefetch common routes on mount for instant navigation
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Prefetch all common routes on mount for instant navigation
-  useEffect(() => {
-    if (currentWorkspace?.slug) {
+    if (slug) {
       const commonRoutes = [
-        `/w/${currentWorkspace.slug}`,
-        `/w/${currentWorkspace.slug}/spaces/home`,
-        `/w/${currentWorkspace.slug}/ask`,
-        `/w/${currentWorkspace.slug}/settings`,
-        `/w/${currentWorkspace.slug}/org`
+        `/w/${slug}`,
+        `/w/${slug}/spaces/home`,
+        `/w/${slug}/org`,
       ]
-      commonRoutes.forEach(route => {
+      commonRoutes.forEach((route) => {
         router.prefetch(route)
       })
     }
-  }, [router, currentWorkspace])
+  }, [router, slug])
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY
-      
-      if (currentScrollY < lastScrollY || currentScrollY < 10) {
-        // Scrolling up or at the top
-        setIsVisible(true)
-      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        // Scrolling down and past 100px
-        setIsVisible(false)
-      }
-      
-      setLastScrollY(currentScrollY)
-    }
+  const dashboardHref = basePath || "/home"
+  const spacesHref = basePath ? `${basePath}/spaces/home` : "/spaces/home"
+  const orgHref = basePath ? `${basePath}/org` : "/org"
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [lastScrollY])
+  const isDashboardActive = basePath
+    ? pathname === basePath ||
+      pathname === `${basePath}/home` ||
+      pathname === "/home" ||
+      pathname === "/"
+    : pathname === "/home" || pathname === "/"
+  const isSpacesActive = basePath
+    ? pathname?.startsWith(`${basePath}/spaces`) ?? false
+    : pathname?.includes("/spaces") ?? false
+  const isOrgActive = basePath
+    ? pathname?.startsWith(`${basePath}/org`) ?? false
+    : pathname?.startsWith("/org") ?? false
+
+  const openSearch = () => {
+    document.dispatchEvent(new CustomEvent("openCommandPalette"))
+  }
 
   return (
-    <TooltipProvider>
-      <header className={cn(
-        "h-16 transition-transform duration-300 ease-in-out sticky top-0 z-50 bg-card border-b border-border",
-        isVisible ? "translate-y-0" : "-translate-y-full"
-      )}
-      >
-        <div className="flex h-full items-center px-6 relative">
-          {/* Logo */}
-          <div className="flex items-center space-x-2">
-            <Logo 
-              width={32} 
-              height={32} 
-              className="w-8 h-8"
-              priority
-            />
-            <span className="text-xl font-semibold text-foreground">Loopwell</span>
+    <header className="fixed top-0 left-0 right-0 z-50 flex items-center h-12 px-4 bg-background border-b border-border">
+      {/* Left — Logo + Workspace Name */}
+      <div className="flex items-center gap-4 min-w-0">
+        {onMenuToggle && !pathname?.includes("/org") && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden h-8 w-8 shrink-0"
+            onClick={onMenuToggle}
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
+        <div className="flex items-center gap-2.5 mr-8 min-w-0">
+          <div className="w-6 h-6 rounded flex items-center justify-center bg-primary text-primary-foreground font-semibold text-[11px] shrink-0">
+            L
           </div>
-          
-          {/* Navigation Items - Centered */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center justify-center">
-            <div className="flex items-center space-x-1">
-            {navigationItems.map((item) => {
-              // Part from Org repo
-              // Hide admin-only items if user is not admin
-              // if (item.requiresAdmin && userRoleFromPermissions !== "ADMIN") {
-              //   return null;
-              // }
-              
-              // Build slug-aware href
-              const slugHref = currentWorkspace?.slug 
-                ? `/w/${currentWorkspace.slug}${item.href === '/' ? '' : item.href}`
-                : item.href // Fallback to original if no workspace
-              
-              // Check if current pathname matches the navigation item
-              // Support both slug-based and legacy paths for active state
-              const isActive = pathname === slugHref || 
-                pathname === item.href ||
-                (item.href !== "/" && (pathname?.startsWith(slugHref) || pathname?.startsWith(item.href)))
-              
-              return (
-                <Link
-                  key={item.name}
-                  href={slugHref}
-                  prefetch={true}
-                  className={cn(
-                    "flex items-center space-x-2 px-4 py-2.5 rounded-lg text-base font-medium transition-all duration-300 ease-in-out group relative overflow-hidden",
-                    isActive
-                      ? "text-white bg-primary border border-primary min-w-[140px]"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted min-w-[52px] hover:min-w-[140px]"
-                  )}
-                  title={item.description}
-                >
-                  <item.icon className={cn(
-                    "h-5 w-5 transition-colors flex-shrink-0",
-                    isActive ? "text-white" : "text-muted-foreground group-hover:text-foreground"
-                  )} />
-                  
-                  {/* Page title with smooth animation */}
-                  <span className={cn(
-                    "text-base font-medium transition-all duration-300 ease-in-out whitespace-nowrap",
-                    isActive 
-                      ? "opacity-100 translate-x-0 w-auto" 
-                      : "opacity-0 -translate-x-2 w-0 group-hover:opacity-100 group-hover:translate-x-0 group-hover:w-auto"
-                  )}>
-                    {item.name}
-                  </span>
-                  
-                  {/* Active indicator */}
-                  {isActive && (
-                    <div 
-                      className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
-                    />
-                  )}
-                </Link>
-              )
-            })}
-            </div>
-          </div>
-
-          {/* Spacer to balance layout */}
-          <div className="flex-1"></div>
-
-          {/* Workspace Account Menu */}
-          <WorkspaceAccountMenu />
-          
-          {/* Part from Org repo */}
-          {/* User Controls
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted">
-              <Bell className="h-5 w-5" />
-            </Button>
-            
-            {mounted ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:bg-muted">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
-                      <AvatarFallback className="bg-muted text-foreground">
-                        {session?.user?.name?.charAt(0) || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{session?.user?.name || "Demo User"}</p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                      {session?.user?.email || "demo@example.com"}
-                      </p>
-                      {userRole && (
-                        <p className="text-xs leading-none text-muted-foreground">
-                          {currentWorkspace?.name} • {userRole}
-                        </p>
-                      )}
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={async () => {
-                    // STEP 1: Clear user status cache immediately
-                    clearUserStatusCache()
-                    
-                    // STEP 2: Sign out from NextAuth first (this clears server-side session)
-                    try {
-                      await signOut({ redirect: false })
-                    } catch (e) {
-                      console.log('Sign out error (continuing anyway):', e)
-                    }
-                  // STEP 3: Set logout flag BEFORE clearing storage
-                  sessionStorage.setItem('__logout_flag__', 'true')
-                    
-                  // STEP 4: Clear all local storage (except the logout flag)
-                  localStorage.clear()
-                  // Don't clear sessionStorage completely - we need the flag!
-                  // But clear other items
-                  Object.keys(sessionStorage).forEach(key => {
-                    if (key !== '__logout_flag__') {
-                      sessionStorage.removeItem(key)
-                    }
-                  })
-                  
-                  // STEP 5: Clear all cookies including NextAuth and Google OAuth cookies
-                  const cookies = document.cookie.split(";")
-                  cookies.forEach(function(c) { 
-                    const eqPos = c.indexOf('=')
-                    const name = eqPos > -1 ? c.substr(0, eqPos).trim() : c.trim()
-                    // Clear all cookies
-                    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
-                    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`
-                    // Try to clear Google cookies (may not work due to cross-domain, but worth trying)
-                    if (name.includes('google') || name.includes('gid') || name.includes('GA') || name.includes('oauth')) {
-                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.google.com`
-                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.googleapis.com`
-                      }
-                    })
-                    
-                    // STEP 6: Clear NextAuth session storage
-                    try {
-                      // Clear any NextAuth session data
-                      if (typeof window !== 'undefined') {
-                        // Clear indexedDB if used by NextAuth
-                        if ('indexedDB' in window) {
-                          indexedDB.databases().then(databases => {
-                            databases.forEach(db => {
-                              if (db.name && db.name.includes('next-auth')) {
-                                indexedDB.deleteDatabase(db.name)
-                              }
-                            })
-                          }).catch(() => {})
-                        }
-                      }
-                    } catch (e) {
-                      console.log('Could not clear indexedDB:', e)
-                    }
-                  // STEP 7: Force redirect to login immediately
-                    // Add a small delay to ensure cookies are cleared
-                    setTimeout(() => {
-                      window.location.href = '/login'
-                    }, 100)
-                  }}>
-                    Log out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:bg-muted">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
-                  <AvatarFallback className="bg-muted text-foreground">
-                    {session?.user?.name?.charAt(0) || "U"}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            )}
-          </div> */}
+          <span className="text-[13px] font-medium text-foreground truncate">
+            {currentWorkspace?.name ?? "Workspace"}
+          </span>
         </div>
-      </header>
-    </TooltipProvider>
+      </div>
+
+      {/* Center — Navigation Tabs */}
+      <nav className="flex items-center gap-1">
+        <Link
+          href={dashboardHref}
+          prefetch
+          className={cn(
+            "px-3 py-1.5 text-[13px] rounded-md transition-colors",
+            isDashboardActive
+              ? "text-foreground bg-accent font-medium"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+          )}
+        >
+          Dashboard
+        </Link>
+        <Link
+          href={spacesHref}
+          prefetch
+          className={cn(
+            "px-3 py-1.5 text-[13px] rounded-md transition-colors",
+            isSpacesActive
+              ? "text-foreground bg-accent font-medium"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+          )}
+        >
+          Spaces
+        </Link>
+        <Link
+          href={orgHref}
+          prefetch
+          className={cn(
+            "px-3 py-1.5 text-[13px] rounded-md transition-colors",
+            isOrgActive
+              ? "text-foreground bg-accent font-medium"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+          )}
+        >
+          Org
+        </Link>
+      </nav>
+
+      {/* Right — Actions */}
+      <div className="flex items-center gap-1 ml-auto">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          onClick={openSearch}
+          aria-label="Search"
+        >
+          <Search className="h-4 w-4" />
+        </Button>
+        <NotificationCenter />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative h-8 w-8 rounded-full p-0 ml-1 text-muted-foreground hover:text-foreground"
+              aria-label="User menu"
+            >
+              <Avatar className="h-7 w-7">
+                <AvatarImage
+                  src={session?.user?.image ?? undefined}
+                  alt={session?.user?.name ?? ""}
+                />
+                <AvatarFallback className="bg-accent text-accent-foreground text-[10px]">
+                  {getInitials(
+                    session?.user?.name,
+                    session?.user?.email ?? undefined
+                  )}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem asChild>
+              <Link href={profileHref} className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                My Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={settingsHref} className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={() => signOut({ callbackUrl: "/login" })}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
   )
 }

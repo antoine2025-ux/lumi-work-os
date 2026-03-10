@@ -190,7 +190,7 @@ export function PositionForm({
               </SelectContent>
             </Select>
             {departments.length === 0 && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Please create a department first
               </p>
             )}
@@ -215,12 +215,12 @@ export function PositionForm({
               </SelectContent>
             </Select>
             {!departmentId && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Please select a department first
               </p>
             )}
             {departmentId && filteredTeams.length === 0 && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 No teams found for this department. Please create a team first.
               </p>
             )}

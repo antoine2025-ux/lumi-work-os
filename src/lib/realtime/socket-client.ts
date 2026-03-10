@@ -73,9 +73,7 @@ export function createSocket(): SocketType {
     return socket
   }
 
-  const serverUrl = process.env.NODE_ENV === 'production' 
-    ? process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-    : 'http://localhost:3000'
+  const serverUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000'
 
   // Try different transport configurations
   const transportConfigs = [

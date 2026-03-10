@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 
 export interface AIModel {
   id: string
@@ -39,11 +40,38 @@ export interface AIGenerateOptions {
   presencePenalty?: number
 }
 
+export interface ToolDefinition {
+  name: string
+  description: string
+  parameters: Record<string, unknown>
+}
+
+export type ToolCallChatMessage =
+  | { role: 'system'; content: string }
+  | { role: 'user'; content: string }
+  | { role: 'assistant'; content: string | null; toolCalls?: Array<{ id: string; name: string; arguments: string }> }
+  | { role: 'tool'; content: string; toolCallId: string }
+
+export interface ToolCallResponse {
+  content: string
+  toolCalls?: Array<{ id: string; name: string; arguments: Record<string, unknown> }>
+}
+
+export interface GenerateWithToolsParams {
+  model: string
+  systemPrompt: string
+  messages: ToolCallChatMessage[]
+  tools: ToolDefinition[]
+  temperature?: number
+  maxTokens?: number
+}
+
 export interface AIProvider {
   name: string
   models: AIModel[]
   generateResponse: (prompt: string, model: string, options?: AIGenerateOptions) => Promise<AIResponse>
   generateStream?: (prompt: string, model: string, options?: AIGenerateOptions) => AsyncGenerator<string, void, unknown>
+  generateWithTools?: (params: GenerateWithToolsParams) => Promise<ToolCallResponse>
 }
 
 // OpenAI Provider
@@ -166,6 +194,81 @@ class OpenAIProvider implements AIProvider {
     } catch (error) {
       console.error('OpenAI streaming error:', error)
       throw new Error(`OpenAI streaming error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  async generateWithTools(params: GenerateWithToolsParams): Promise<ToolCallResponse> {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OpenAI API key not configured')
+    }
+
+    const openaiTools: OpenAI.ChatCompletionTool[] = params.tools.map((tool) => ({
+      type: 'function' as const,
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters as Record<string, unknown>,
+      },
+    }))
+
+    const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [
+      { role: 'system', content: params.systemPrompt },
+    ]
+    for (const msg of params.messages) {
+      switch (msg.role) {
+        case 'system':
+          openaiMessages.push({ role: 'system', content: msg.content })
+          break
+        case 'user':
+          openaiMessages.push({ role: 'user', content: msg.content })
+          break
+        case 'assistant':
+          openaiMessages.push({
+            role: 'assistant',
+            content: msg.content,
+            ...(msg.toolCalls?.length ? {
+              tool_calls: msg.toolCalls.map((tc) => ({
+                id: tc.id,
+                type: 'function' as const,
+                function: { name: tc.name, arguments: tc.arguments },
+              })),
+            } : {}),
+          })
+          break
+        case 'tool':
+          openaiMessages.push({
+            role: 'tool',
+            content: msg.content,
+            tool_call_id: msg.toolCallId,
+          })
+          break
+      }
+    }
+
+    const response = await this.client.chat.completions.create({
+      model: params.model,
+      messages: openaiMessages,
+      tools: openaiTools.length > 0 ? openaiTools : undefined,
+      temperature: params.temperature ?? 0.7,
+      max_tokens: params.maxTokens ?? 4096,
+    })
+
+    const choice = response.choices[0]
+    const message = choice.message
+
+    const toolCalls = message.tool_calls
+      ?.filter((tc): tc is OpenAI.ChatCompletionMessageToolCall & { type: 'function' } =>
+        tc.type === 'function'
+      )
+      .map((tc) => ({
+        id: tc.id,
+        name: tc.function.name,
+        arguments: JSON.parse(tc.function.arguments) as Record<string, unknown>,
+      }))
+
+    return {
+      content: message.content || '',
+      toolCalls: toolCalls?.length ? toolCalls : undefined,
     }
   }
 }
@@ -357,12 +460,12 @@ class GeminiProvider implements AIProvider {
 // Anthropic Provider (Claude)
 class AnthropicProvider implements AIProvider {
   name = 'Anthropic'
-  private apiKey: string
+  private client: Anthropic
 
   models: AIModel[] = [
     {
-      id: 'claude-sonnet-4-20250514',
-      name: 'Claude 3.5 Sonnet',
+      id: 'claude-sonnet-4-6',
+      name: 'Claude Sonnet 4.6',
       description: 'Excellent for creative writing and code',
       provider: 'Anthropic',
       maxTokens: 8192,
@@ -371,55 +474,57 @@ class AnthropicProvider implements AIProvider {
   ]
 
   constructor() {
-    this.apiKey = process.env.ANTHROPIC_API_KEY || ''
-    if (!this.apiKey) {
+    const apiKey = process.env.ANTHROPIC_API_KEY
+    if (!apiKey) {
       console.warn('Anthropic API key not found. Claude models will not be available.')
     }
+    this.client = new Anthropic({
+      apiKey: apiKey || 'dummy-key', // Allow initialization even without key
+    })
   }
 
   async generateResponse(prompt: string, model: string, options: AIGenerateOptions = {}): Promise<AIResponse> {
-    if (!this.apiKey) {
-      throw new Error('Anthropic API key not configured')
+    // Check if API key is available
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return {
+        content: 'AI features are disabled. Please configure ANTHROPIC_API_KEY environment variable.',
+        model: 'none'
+      }
     }
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: model,
-          max_tokens: options.maxTokens || 2000,
-          temperature: options.temperature || 0.7,
-          messages: [
-            {
-              role: 'user',
-              content: `${options.systemPrompt || "You are a helpful AI assistant."}\n\n${prompt}`
-            }
-          ]
-        })
+      // Build messages array with conversation history and current prompt
+      const messages: Array<{ role: 'user' | 'assistant', content: string }> = []
+      
+      // Add conversation history if provided
+      if (options.conversationHistory && Array.isArray(options.conversationHistory)) {
+        messages.push(...options.conversationHistory.map((msg) => ({
+          role: (msg.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+          content: msg.content || ''
+        })))
+      }
+      
+      // Add current user prompt
+      messages.push({ role: 'user', content: prompt })
+
+      const response = await this.client.messages.create({
+        model: model,
+        max_tokens: options.maxTokens || 2000,
+        temperature: options.temperature || 0.7,
+        system: options.systemPrompt || "You are a helpful AI assistant.",
+        messages: messages
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(`Anthropic API error: ${errorData.error?.message || response.statusText}`)
-      }
-
-      const data = await response.json()
-      
-      if (!data.content || !data.content[0]?.text) {
+      if (!response.content || !response.content[0] || response.content[0].type !== 'text') {
         throw new Error('No response content received from Anthropic')
       }
 
       return {
-        content: data.content[0].text,
-        usage: data.usage ? {
-          promptTokens: data.usage.input_tokens,
-          completionTokens: data.usage.output_tokens,
-          totalTokens: data.usage.input_tokens + data.usage.output_tokens
+        content: response.content[0].text,
+        usage: response.usage ? {
+          promptTokens: response.usage.input_tokens,
+          completionTokens: response.usage.output_tokens,
+          totalTokens: response.usage.input_tokens + response.usage.output_tokens
         } : undefined,
         model: model
       }
@@ -430,81 +535,37 @@ class AnthropicProvider implements AIProvider {
   }
 
   async *generateStream(prompt: string, model: string, options: AIGenerateOptions = {}): AsyncGenerator<string, void, unknown> {
-    if (!this.apiKey) {
+    if (!process.env.ANTHROPIC_API_KEY) {
       throw new Error('Anthropic API key not configured')
     }
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: model,
-          max_tokens: options.maxTokens || 2000,
-          temperature: options.temperature || 0.7,
-          messages: [
-            ...(options.conversationHistory || []),
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          stream: true
-        })
+      // Build messages array with conversation history and current prompt
+      const messages: Array<{ role: 'user' | 'assistant', content: string }> = []
+      
+      // Add conversation history if provided
+      if (options.conversationHistory && Array.isArray(options.conversationHistory)) {
+        messages.push(...options.conversationHistory.map((msg) => ({
+          role: (msg.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+          content: msg.content || ''
+        })))
+      }
+      
+      // Add current user prompt
+      messages.push({ role: 'user', content: prompt })
+
+      const stream = await this.client.messages.create({
+        model: model,
+        max_tokens: options.maxTokens || 2000,
+        temperature: options.temperature || 0.7,
+        system: options.systemPrompt || "You are a helpful AI assistant.",
+        messages: messages,
+        stream: true
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(`Anthropic API error: ${errorData.error?.message || response.statusText}`)
-      }
-
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-
-      if (!reader) {
-        throw new Error('No response body reader available')
-      }
-
-      let buffer = ''
-      let currentEvent: { type?: string; data?: Record<string, unknown> } = {}
-      
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent.type = line.slice(7).trim()
-          } else if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              currentEvent.data = data
-              
-              // Process the event
-              if (currentEvent.type === 'content_block_delta' || 
-                  (data.type === 'content_block_delta' && data.delta?.text)) {
-                const text = data.delta?.text || data.text
-                if (text) {
-                  yield text
-                }
-              }
-              
-              currentEvent = {}
-            } catch (_e) {
-              // Skip invalid JSON
-            }
-          } else if (line.trim() === '') {
-            // Empty line indicates end of event, reset
-            currentEvent = {}
-          }
+      for await (const chunk of stream) {
+        if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+          yield chunk.delta.text
         }
       }
     } catch (error) {
@@ -512,6 +573,123 @@ class AnthropicProvider implements AIProvider {
       throw new Error(`Anthropic streaming error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
+
+  async generateWithTools(params: GenerateWithToolsParams): Promise<ToolCallResponse> {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('Anthropic API key not configured')
+    }
+
+    const anthropicTools: Anthropic.Tool[] = params.tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      input_schema: tool.parameters as Anthropic.Tool.InputSchema,
+    }))
+
+    type AnthropicContent = Anthropic.TextBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
+    type AnthropicMessage = { role: 'user' | 'assistant'; content: string | AnthropicContent[] }
+    const anthropicMessages: AnthropicMessage[] = []
+
+    for (const msg of params.messages) {
+      switch (msg.role) {
+        case 'system':
+          break
+        case 'user':
+          anthropicMessages.push({ role: 'user', content: msg.content })
+          break
+        case 'assistant': {
+          const blocks: AnthropicContent[] = []
+          if (msg.content) {
+            blocks.push({ type: 'text', text: msg.content })
+          }
+          if (msg.toolCalls?.length) {
+            for (const tc of msg.toolCalls) {
+              blocks.push({
+                type: 'tool_use',
+                id: tc.id,
+                name: tc.name,
+                input: JSON.parse(tc.arguments) as Record<string, unknown>,
+              })
+            }
+          }
+          anthropicMessages.push({
+            role: 'assistant',
+            content: blocks.length > 0 ? blocks : (msg.content ?? ''),
+          })
+          break
+        }
+        case 'tool':
+          anthropicMessages.push({
+            role: 'user',
+            content: [{
+              type: 'tool_result',
+              tool_use_id: msg.toolCallId,
+              content: msg.content,
+            }],
+          })
+          break
+      }
+    }
+
+    const merged = mergeConsecutiveMessages(anthropicMessages)
+
+    const response = await this.client.messages.create({
+      model: params.model,
+      system: params.systemPrompt,
+      messages: merged as Anthropic.MessageParam[],
+      tools: anthropicTools.length > 0 ? anthropicTools : undefined,
+      max_tokens: params.maxTokens ?? 4096,
+      temperature: params.temperature ?? 0.7,
+    })
+
+    let content = ''
+    const toolCalls: Array<{ id: string; name: string; arguments: Record<string, unknown> }> = []
+
+    for (const block of response.content) {
+      if (block.type === 'text') {
+        content += block.text
+      } else if (block.type === 'tool_use') {
+        toolCalls.push({
+          id: block.id,
+          name: block.name,
+          arguments: block.input as Record<string, unknown>,
+        })
+      }
+    }
+
+    return {
+      content,
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    }
+  }
+}
+
+/**
+ * Merge consecutive same-role messages for Anthropic API compatibility.
+ * Anthropic requires strictly alternating user/assistant roles. Tool results
+ * (sent as user-role) may produce consecutive user messages that must be
+ * combined into a single message with merged content arrays.
+ */
+function mergeConsecutiveMessages(
+  messages: Array<{ role: 'user' | 'assistant'; content: string | unknown[] }>
+): Array<{ role: 'user' | 'assistant'; content: string | unknown[] }> {
+  const merged: Array<{ role: 'user' | 'assistant'; content: string | unknown[] }> = []
+
+  for (const msg of messages) {
+    const prev = merged[merged.length - 1]
+    if (prev && prev.role === msg.role) {
+      const prevBlocks = Array.isArray(prev.content)
+        ? prev.content
+        : [{ type: 'text' as const, text: prev.content }]
+      const curBlocks = Array.isArray(msg.content)
+        ? msg.content
+        : [{ type: 'text' as const, text: msg.content }]
+      prev.content = [...prevBlocks, ...curBlocks]
+    } else {
+      merged.push({ ...msg })
+    }
+  }
+
+  return merged
 }
 
 // Provider registry
@@ -575,4 +753,19 @@ export async function* generateAIStream(
   }
 
   yield* provider.generateStream(prompt, modelId, options)
+}
+
+export async function generateAIWithTools(
+  params: GenerateWithToolsParams
+): Promise<ToolCallResponse> {
+  const provider = getProvider(params.model)
+
+  if (!provider.generateWithTools) {
+    throw new Error(
+      `Provider ${provider.name} does not support tool calling. ` +
+      `Model "${params.model}" cannot be used with generateWithTools.`
+    )
+  }
+
+  return provider.generateWithTools(params)
 }

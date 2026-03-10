@@ -58,8 +58,9 @@ export default function WorkspaceSlugLayout({
     // The workspace context will be updated by the WorkspaceProvider
   }, [workspaceSlug, currentWorkspace, workspaces, isLoading, router])
 
-  // Show loading state while validating
-  if (isLoading || !workspaceSlug) {
+  // FIX 3: Show loading state while validating OR if workspaces haven't loaded yet
+  // This prevents "not found" redirect from firing before workspace list has finished loading
+  if (isLoading || !workspaceSlug || !workspaces?.length) {
     return (
       <div className="min-h-screen p-8">
         <div className="max-w-7xl mx-auto space-y-4">
@@ -70,7 +71,7 @@ export default function WorkspaceSlugLayout({
     )
   }
 
-  // Validate workspace access
+  // Validate workspace access - only evaluate after data has loaded
   const workspace = workspaces.find(w => w.slug === workspaceSlug)
   if (!workspace) {
     // Will redirect in useEffect, but show loading in meantime

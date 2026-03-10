@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import {
   getWorkspaceThresholdsAsync,
   saveWorkspaceThresholds,
@@ -48,8 +49,7 @@ export async function GET(request: NextRequest) {
       defaults: DEFAULT_CAPACITY_THRESHOLDS_WITH_WINDOW,
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/settings/capacity] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -163,7 +163,6 @@ export async function PATCH(request: NextRequest) {
       defaults: DEFAULT_CAPACITY_THRESHOLDS_WITH_WINDOW,
     });
   } catch (error: unknown) {
-    console.error("[PATCH /api/org/settings/capacity] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

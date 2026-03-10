@@ -1,18 +1,51 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { LocateFixed } from "lucide-react";
 import Link from "next/link";
 import { OrgDepartmentRow } from "@/components/org/OrgDepartmentRow";
 import { OrgEmptyState } from "@/components/org/OrgEmptyState";
 import { OrgNoAccessState } from "@/components/org/OrgNoAccessState";
 import { OrgChartFilters, type OrgChartFilter } from "@/components/org/OrgChartFilters";
 import { OrgChartEmptyState } from "@/components/org/OrgChartEmptyState";
-import { OrgChartTreeView } from "@/components/org/OrgChartTreeView";
+import dynamic from "next/dynamic";
+import { cn } from "@/lib/utils";
+
+// Lazy-load: react-d3-tree SVG renderer — only needed when tree view is active
+const OrgChartTreeView = dynamic(
+  () => import("@/components/org/OrgChartTreeView").then(m => ({ default: m.OrgChartTreeView })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    ),
+  }
+);
 import { getInitials } from "@/components/org/structure/utils";
 import type { OrgChartTree } from "@/lib/org/projections/buildOrgChartTree";
+
+// Lazy-load: Explorer view — custom progressive-disclosure tree
+const OrgChartExplorerView = dynamic(
+  () => import("@/components/org/OrgChartExplorerView").then(m => ({ default: m.OrgChartExplorerView })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    ),
+  }
+);
+
+// Lazy-load: Loopbrain panel — includes AI client calls
+const OrgChartLoopbrainPanel = dynamic(
+  () => import("@/components/org/OrgChartLoopbrainPanel").then(m => ({ default: m.OrgChartLoopbrainPanel })),
+  { ssr: false }
+);
 
 type OrgChartClientProps = {
   orgId: string;
@@ -22,6 +55,10 @@ type OrgChartClientProps = {
       name: string;
       leadName: string | null;
       leadId: string | null;
+      reportsToName: string | null;
+      isHiring: boolean;
+      recentChangeSummary: string | undefined;
+      isReorg: boolean;
       teams: Array<{
         id: string;
         name: string;
@@ -34,7 +71,7 @@ type OrgChartClientProps = {
   validation?: { totals?: { cycleMembers?: number; invalidManagerEdges?: number } } | null;
 };
 
-type ViewMode = "flat" | "tree";
+type ViewMode = "flat" | "tree" | "explorer";
 
 type DepartmentRowData = {
   id: string;
@@ -50,19 +87,21 @@ type DepartmentRowData = {
   accentIndex: number;
 };
 
+type ChartDepartment = NonNullable<OrgChartClientProps["chartData"]>["departments"][number];
+
 /**
  * Normalize department data for OrgDepartmentRow component
  */
 function normalizeOrgForOrgChart(
-  departments: OrgChartClientProps["chartData"]["departments"],
+  departments: ChartDepartment[] | null | undefined,
   baseIndex: number = 0
 ): DepartmentRowData[] {
   if (!departments) return [];
 
-  return departments.map((dept, index) => {
+  return departments.map((dept: ChartDepartment, index: number) => {
     const teamsCount = dept.teams.length;
     const peopleCount = dept.teams.reduce(
-      (sum, team) => sum + team.headcount,
+      (sum: number, team: { headcount: number }) => sum + team.headcount,
       0
     );
 
@@ -71,31 +110,41 @@ function normalizeOrgForOrgChart(
       name: dept.name,
       leaderName: dept.leadName,
       leaderInitials: dept.leadName ? getInitials(dept.leadName) : undefined,
-      reportsToName: undefined, // TODO: Populate from department hierarchy when available
+      reportsToName: dept.reportsToName ?? undefined,
       teamsCount,
       peopleCount,
-      isHiring: false, // TODO: Determine from recent job postings or positions
-      recentChangeSummary: undefined, // TODO: Calculate from recent changes
-      isReorg: false, // TODO: Determine from recent structural changes
+      isHiring: dept.isHiring,
+      recentChangeSummary: dept.recentChangeSummary,
+      isReorg: dept.isReorg,
       accentIndex: baseIndex + index,
     };
   });
 }
 
-export function OrgChartClient({ _orgId, chartData, chartTree, validation }: OrgChartClientProps) {
+export function OrgChartClient({ orgId: _orgId, chartData, chartTree, validation }: OrgChartClientProps) {
   const isLoading = !chartData;
   const noAccess = false; // Permission checked server-side
   const router = useRouter();
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>() ?? {};
+  const base = workspaceSlug ? `/w/${workspaceSlug}/org` : "/org";
+  const { data: session } = useSession();
+  const currentUserId = (session?.user as { id?: string })?.id ?? null;
+  const chartTreeViewRef = useRef<{ centerOnMe: () => void } | null>(null);
+  const explorerViewRef = useRef<{ resetToMe: () => void } | null>(null);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<OrgChartFilter>("all");
   const [error, setError] = useState<Error | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("flat");
 
+  // Loopbrain selection state
+  const [selectedDept, setSelectedDept] = useState<{ id: string; name: string } | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<{ id: string; name: string } | null>(null);
+
   // Load view preference from localStorage
   useEffect(() => {
     const savedView = localStorage.getItem("orgChartViewMode");
-    if (savedView === "tree" || savedView === "flat") {
+    if (savedView === "tree" || savedView === "flat" || savedView === "explorer") {
       setViewMode(savedView);
     }
   }, []);
@@ -155,11 +204,11 @@ export function OrgChartClient({ _orgId, chartData, chartTree, validation }: Org
 
   // Navigation handlers
   const handleOpenStructure = (deptId: string) => {
-    router.push(`/org/structure?department=${deptId}`);
+    router.push(`${base}/structure?department=${deptId}`);
   };
 
   const handleViewPeople = (deptId: string) => {
-    router.push(`/org/people?departmentId=${deptId}`);
+    router.push(`${base}/people?departmentId=${deptId}`);
   };
 
   const handleRefetch = () => {
@@ -179,7 +228,7 @@ export function OrgChartClient({ _orgId, chartData, chartTree, validation }: Org
     <>
       <div>
         {/* Structure Integrity Banner */}
-        {validation && <IntegrityBanner validation={validation} />}
+        {validation && <IntegrityBanner validation={validation} base={base} />}
 
         {isLoading && (!chartData || departments.length === 0) ? (
           <div className="mt-6 space-y-4">
@@ -214,32 +263,58 @@ export function OrgChartClient({ _orgId, chartData, chartTree, validation }: Org
                 </div>
               )}
 
-              {/* Spacer for tree view */}
-              {viewMode === "tree" && <div className="flex-1" />}
+              {/* Spacer for non-list views */}
+              {viewMode !== "flat" && <div className="flex-1" />}
 
-              {/* View Toggle */}
-              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 p-1">
-                <button
-                  onClick={() => handleViewModeChange("flat")}
-                  className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                    viewMode === "flat"
-                      ? "bg-primary text-white"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  List View
-                </button>
-                <button
-                  onClick={() => handleViewModeChange("tree")}
-                  className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                    viewMode === "tree"
-                      ? "bg-primary text-white"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                  disabled={!chartTree}
-                >
-                  Tree View
-                </button>
+              {/* View Toggle + Find me */}
+              <div className="flex items-center gap-2">
+                <div className="rounded-full border border-white/10 bg-slate-900/60 p-1 flex items-center gap-0">
+                  <button
+                    onClick={() => handleViewModeChange("flat")}
+                    className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                      viewMode === "flat"
+                        ? "bg-primary text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    List
+                  </button>
+                  <button
+                    onClick={() => handleViewModeChange("explorer")}
+                    className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                      viewMode === "explorer"
+                        ? "bg-primary text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                    disabled={!chartTree}
+                  >
+                    Explorer
+                  </button>
+                  <button
+                    onClick={() => handleViewModeChange("tree")}
+                    className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                      viewMode === "tree"
+                        ? "bg-primary text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                    disabled={!chartTree}
+                  >
+                    Tree
+                  </button>
+                </div>
+                {(viewMode === "tree" || viewMode === "explorer") && chartTree && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (viewMode === "tree") chartTreeViewRef.current?.centerOnMe();
+                      if (viewMode === "explorer") explorerViewRef.current?.resetToMe();
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                    title="Find me"
+                  >
+                    <LocateFixed className="h-4 w-4" />
+                  </button>
+                )}
               </div>
 
               {/* Right: Filters (only in flat view) */}
@@ -271,7 +346,7 @@ export function OrgChartClient({ _orgId, chartData, chartTree, validation }: Org
                 title="No org chart yet"
                 description="We couldn't build an org chart because there's not enough structure. Add departments, teams, and people to see your organization laid out visually."
                 primaryActionLabel="Set up structure"
-                primaryActionHref="/org/structure"
+                primaryActionHref={`${base}/structure`}
               />
             )}
 
@@ -288,34 +363,74 @@ export function OrgChartClient({ _orgId, chartData, chartTree, validation }: Org
                       />
                     ) : (
                       visibleDepartments.map((dept) => (
-                        <OrgDepartmentRow
+                        <div
                           key={dept.id}
-                          id={dept.id}
-                          name={dept.name}
-                          leaderName={dept.leaderName}
-                          leaderInitials={dept.leaderInitials}
-                          leaderRole="Department lead"
-                          reportsToName={dept.reportsToName}
-                          teamsCount={dept.teamsCount}
-                          peopleCount={dept.peopleCount}
-                          isHiring={dept.isHiring}
-                          recentChangeSummary={dept.recentChangeSummary}
-                          isReorg={dept.isReorg}
-                          onOpenStructure={handleOpenStructure}
-                          onViewPeople={handleViewPeople}
-                          accentIndex={dept.accentIndex}
-                        />
+                          className={cn(
+                            "rounded-3xl transition-all duration-150",
+                            selectedDept?.id === dept.id
+                              ? "ring-1 ring-primary/40"
+                              : "ring-0"
+                          )}
+                          onClick={() => {
+                            setSelectedDept({ id: dept.id, name: dept.name });
+                            setSelectedPerson(null);
+                          }}
+                        >
+                          <OrgDepartmentRow
+                            id={dept.id}
+                            name={dept.name}
+                            leaderName={dept.leaderName}
+                            leaderInitials={dept.leaderInitials}
+                            leaderRole="Department lead"
+                            reportsToName={dept.reportsToName}
+                            teamsCount={dept.teamsCount}
+                            peopleCount={dept.peopleCount}
+                            isHiring={dept.isHiring}
+                            recentChangeSummary={dept.recentChangeSummary}
+                            isReorg={dept.isReorg}
+                            onOpenStructure={handleOpenStructure}
+                            onViewPeople={handleViewPeople}
+                            accentIndex={dept.accentIndex}
+                          />
+                        </div>
                       ))
+                    )}
+                  </div>
+                ) : viewMode === "explorer" ? (
+                  <div className="mt-8">
+                    {chartTree ? (
+                      <OrgChartExplorerView
+                        ref={explorerViewRef}
+                        tree={chartTree}
+                        currentUserId={currentUserId}
+                        onNodeClick={(node) => {
+                          if (node.personId && node.personName) {
+                            setSelectedPerson({ id: node.personId, name: node.personName });
+                            setSelectedDept(null);
+                          } else if (node.personId) {
+                            router.push(`${base}/people/${node.personId}`);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-[500px] text-slate-400">
+                        Explorer view is not available
+                      </div>
                     )}
                   </div>
                 ) : (
                   <div className="mt-8">
                     {chartTree ? (
                       <OrgChartTreeView
+                        ref={chartTreeViewRef}
                         tree={chartTree}
+                        currentUserId={currentUserId}
                         onNodeClick={(node) => {
-                          if (node.personId) {
-                            router.push(`/org/people/${node.personId}`);
+                          if (node.personId && node.personName) {
+                            setSelectedPerson({ id: node.personId, name: node.personName });
+                            setSelectedDept(null);
+                          } else if (node.personId) {
+                            router.push(`${base}/people/${node.personId}`);
                           }
                         }}
                       />
@@ -328,13 +443,21 @@ export function OrgChartClient({ _orgId, chartData, chartTree, validation }: Org
                 )}
               </>
             )}
+
+            {/* Loopbrain intelligence panel — updates based on selected person or department */}
+            <OrgChartLoopbrainPanel
+              selectedPersonId={selectedPerson?.id}
+              selectedPersonName={selectedPerson?.name}
+              selectedDeptId={selectedDept?.id}
+              selectedDeptName={selectedDept?.name}
+            />
           </>
         ) : (
           <OrgEmptyState
             title="No org chart yet"
             description="We couldn't build an org chart because there's not enough structure. Add departments, teams, and people to see your organization laid out visually."
             primaryActionLabel="Set up structure"
-            primaryActionHref="/org/structure"
+            primaryActionHref={`${base}/structure`}
           />
         )}
       </div>
@@ -344,8 +467,12 @@ export function OrgChartClient({ _orgId, chartData, chartTree, validation }: Org
 
 // Remove unused imports if OrgPageHeader is no longer needed
 
-function IntegrityBanner(props: { validation: { totals?: { cycleMembers?: number; invalidManagerEdges?: number } } | null }) {
+function IntegrityBanner(props: {
+  validation: { totals?: { cycleMembers?: number; invalidManagerEdges?: number } } | null;
+  base: string;
+}) {
   const v = props.validation;
+  const base = props.base;
   const cycles = v?.totals?.cycleMembers || 0;
   const invalid = v?.totals?.invalidManagerEdges || 0;
 
@@ -367,7 +494,7 @@ function IntegrityBanner(props: { validation: { totals?: { cycleMembers?: number
         </div>
 
         <Link
-          href="/org/people?mode=fix&focus=validation"
+          href={`${base}/people?mode=fix&focus=validation`}
           className="inline-flex items-center justify-center rounded-xl bg-black px-3 py-2 text-sm text-white hover:opacity-90 dark:bg-white dark:text-black"
         >
           Repair in People →

@@ -20,24 +20,24 @@ export function OrgNoAccessState({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-3xl border border-white/5 bg-slate-900/80 shadow-[0_24px_80px_rgba(0,0,0,0.25)] px-6 py-6 text-sm text-slate-300",
+        "flex flex-col gap-3 rounded-3xl border border-white/5 bg-card/80 shadow-[0_24px_80px_rgba(0,0,0,0.25)] px-6 py-6 text-sm text-muted-foreground",
         className
       )}
     >
       <div>
-        <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
-        <p className="mt-1 text-xs text-slate-400">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
           {description}
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
         <span>Next steps:</span>
         <ul className="flex flex-wrap gap-2">
           <li>• Confirm you&apos;re in the correct org.</li>
           <li>• Ask an Org Owner/Admin to grant you access.</li>
         </ul>
       </div>
-      <div className="mt-1 text-[11px] text-slate-500">
+      <div className="mt-1 text-[11px] text-muted-foreground">
         If you have multiple workspaces, try switching orgs from your main Loopwell navigation.
       </div>
     </div>

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { handleApiError } from '@/lib/api-errors'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
+import { getDefaultSpaceForUser } from '@/lib/spaces/get-default-space'
+import { ProjectTemplateApplySchema } from '@/lib/pm/schemas'
 
 
 // POST /api/project-templates/[id]/apply - Apply a template to create a project
@@ -26,17 +29,11 @@ export async function POST(
 
     const resolvedParams = await params
     const templateId = resolvedParams.id
-    const body = await request.json()
+    const body = ProjectTemplateApplySchema.parse(await request.json())
     const { 
       projectName,
       projectDescription,
     } = body
-
-    if (!projectName) {
-      return NextResponse.json({ 
-        error: 'Project name is required' 
-      }, { status: 400 })
-    }
 
     // Get the template
     // Note: templateData relation requires prisma generate to be recognized in types
@@ -70,6 +67,14 @@ export async function POST(
     // Use authenticated user ID
     const createdById = auth.user.userId
 
+    // Get default space for the user
+    const defaultSpaceId = await getDefaultSpaceForUser(auth.user.userId, auth.workspaceId)
+    if (!defaultSpaceId) {
+      return NextResponse.json({
+        error: 'No default space found. Please create a space first.'
+      }, { status: 400 })
+    }
+
     // Create the project from template
     const project = await prisma.project.create({
       data: {
@@ -79,7 +84,8 @@ export async function POST(
         priority: 'MEDIUM',
         workspaceId: auth.workspaceId,
         createdById: createdById,
-        ownerId: createdById
+        ownerId: createdById,
+        spaceId: defaultSpaceId
       }
     })
 
@@ -171,10 +177,7 @@ export async function POST(
       }
     })
 
-  } catch (error) {
-    console.error('Error applying template:', error)
-    return NextResponse.json({ 
-      error: 'Failed to apply template' 
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

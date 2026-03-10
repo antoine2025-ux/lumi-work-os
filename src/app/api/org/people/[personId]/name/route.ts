@@ -11,9 +11,9 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
-import { requireNonEmptyString } from "@/server/org/validate";
 import { prisma } from "@/lib/db";
-import { handleApiError } from "@/lib/api-errors"
+import { handleApiError } from "@/lib/api-errors";
+import { UpdatePersonNameSchema } from "@/lib/validations/org";
 
 export async function PUT(
   request: NextRequest,
@@ -35,8 +35,8 @@ export async function PUT(
     setWorkspaceContext(workspaceId);
 
     // Step 3: Parse and validate request body
-    const body = await request.json();
-    const name = requireNonEmptyString(body.name, "name");
+    const body = UpdatePersonNameSchema.parse(await request.json());
+    const name = body.name;
 
     // Step 4: Verify person exists and get userId
     const position = await prisma.orgPosition.findUnique({

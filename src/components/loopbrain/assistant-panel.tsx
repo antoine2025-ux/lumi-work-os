@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { AILogo } from "@/components/ai-logo"
@@ -29,15 +30,19 @@ import {
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { callLoopbrainAssistant } from "@/lib/loopbrain/client"
+import { callLoopbrainAssistant, executeLoopbrainPlanStream } from "@/lib/loopbrain/client"
 import { useLoopbrainAssistant } from "./assistant-context"
-import type { LoopbrainResponse, LoopbrainMode } from "@/lib/loopbrain/orchestrator-types"
+import type { LoopbrainResponse, LoopbrainMode, MeetingTaskExtractionResult, OnboardingBriefing, DailyBriefing, MeetingPrepBrief as MeetingPrepBriefType, LoopbrainClientAction } from "@/lib/loopbrain/orchestrator-types"
 import type { AgentPlan, ClarifyingQuestion, ClarificationContext, AdvisoryContext, AdvisoryResponse } from "@/lib/loopbrain/agent/types"
 import { PlanConfirmation } from "./plan-confirmation"
+import { MeetingTaskReview } from "./MeetingTaskReview"
+import { OnboardingBriefing as OnboardingBriefingView } from "./OnboardingBriefing"
+import { MeetingPrepBrief as MeetingPrepBriefView } from "./MeetingPrepBrief"
 import { ClarifyingQuestions } from "./clarifying-questions"
-import { ExecutionProgress } from "./execution-progress"
+import { ExecutionProgress, type StepProgressState } from "./execution-progress"
 import { AdvisorySuggestion } from "./advisory-suggestion"
 import { OrgRoutingBadge } from "@/components/debug/OrgRoutingBadge"
+import { useWorkspace } from "@/lib/workspace-context"
 
 interface Message {
   id: string
@@ -64,8 +69,8 @@ export interface LoopbrainAssistantPanelProps {
   defaultOpen?: boolean
   /** Callback when open state changes */
   onOpenChange?: (isOpen: boolean) => void
-  /** Display mode (sidebar or floating) */
-  displayMode?: 'sidebar' | 'floating'
+  /** Display mode (sidebar, floating, or dashboard-sidebar) */
+  displayMode?: 'sidebar' | 'floating' | 'dashboard-sidebar'
   /** Callback when display mode changes */
   onDisplayModeChange?: (mode: 'sidebar' | 'floating') => void
 }
@@ -79,8 +84,11 @@ export function LoopbrainAssistantPanel({
   displayMode: propDisplayMode,
   onDisplayModeChange
 }: LoopbrainAssistantPanelProps) {
+  const router = useRouter()
+
   // Use context for persistent state
   const { state, setIsOpen, setIsMinimized, addMessage, clearMessages, pendingQuery, setPendingQuery } = useLoopbrainAssistant()
+  const { currentWorkspace } = useWorkspace()
 
   // Use controlled open if provided, otherwise use internal state
   const [internalOpen, setInternalOpen] = useState(defaultOpen)
@@ -99,7 +107,7 @@ export function LoopbrainAssistantPanel({
     }
   }, [pendingQuery, isOpen, setPendingQuery])
   const [isLoading, setIsLoading] = useState(false)
-  const [displayMode, setDisplayMode] = useState<'sidebar' | 'floating'>(propDisplayMode || 'floating')
+  const [displayMode, setDisplayMode] = useState<'sidebar' | 'floating' | 'dashboard-sidebar'>(propDisplayMode || 'floating')
   const [lastLoopbrainResponse, setLastLoopbrainResponse] = useState<LoopbrainResponse | null>(null)
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, string>>({}) // messageId -> rating|signal
   const [topInsights, setTopInsights] = useState<Array<{ id: string; title: string; priority: string; category: string; recommendations: Array<{ action: string; deepLink?: string }> }>>([])
@@ -107,6 +115,8 @@ export function LoopbrainAssistantPanel({
   const [isExecutingPlan, setIsExecutingPlan] = useState(false)
   const [executingPlan, setExecutingPlan] = useState<AgentPlan | null>(null)
   const [executionResult, setExecutionResult] = useState<string | null>(null)
+  const [stepProgress, setStepProgress] = useState<StepProgressState[]>([])
+  const [executionError, setExecutionError] = useState<string | null>(null)
   const [pendingClarification, setPendingClarification] = useState(false)
   const [clarifyingQuestions, setClarifyingQuestions] = useState<ClarifyingQuestion[] | null>(null)
   const [clarifyPreamble, setClarifyPreamble] = useState<string>('')
@@ -114,8 +124,30 @@ export function LoopbrainAssistantPanel({
   const [plannerInsights, setPlannerInsights] = useState<string[]>([])
   const [advisoryContext, setAdvisoryContext] = useState<AdvisoryContext | null>(null)
   const [advisoryResponse, setAdvisoryResponse] = useState<AdvisoryResponse | null>(null)
+  const [meetingExtraction, setMeetingExtraction] = useState<MeetingTaskExtractionResult | null>(null)
+  const [onboardingBriefing, setOnboardingBriefing] = useState<OnboardingBriefing | null>(null)
+  const [dailyBriefing, setDailyBriefing] = useState<DailyBriefing | null>(null)
+  const [meetingPrepBrief, setMeetingPrepBrief] = useState<MeetingPrepBriefType | null>(null)
+  const [isCreatingMeetingTasks, setIsCreatingMeetingTasks] = useState(false)
+  const [conversationId, setConversationId] = useState<string | null>(null)
+  const [loadingStatusLabel, setLoadingStatusLabel] = useState<string>('Analyzing request...')
+  const [pendingClientAction, setPendingClientAction] = useState<LoopbrainClientAction | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // Track previous workspace to detect workspace switches (undefined = not yet initialized)
+  const prevWorkspaceIdRef = useRef<string | null | undefined>(undefined)
+
+  // Execute a client action after a 500ms delay so the user sees the message first
+  const executeClientAction = useCallback((action: LoopbrainClientAction) => {
+    setTimeout(() => {
+      if (action.type === 'navigate') {
+        router.push(action.url)
+      } else {
+        window.location.href = action.url
+      }
+      setPendingClientAction(null)
+    }, 500)
+  }, [router])
 
   // Send feedback to the API and track locally
   const handleFeedback = async (messageId: string, rating: "up" | "down", signal?: "too_long" | "too_short") => {
@@ -161,6 +193,8 @@ export function LoopbrainAssistantPanel({
     setIsExecutingPlan(false)
     setExecutingPlan(null)
     setExecutionResult(null)
+    setStepProgress([])
+    setExecutionError(null)
     setPendingClarification(false)
     setClarifyingQuestions(null)
     setClarifyPreamble('')
@@ -168,48 +202,113 @@ export function LoopbrainAssistantPanel({
     setPlannerInsights([])
     setAdvisoryContext(null)
     setAdvisoryResponse(null)
+    setMeetingExtraction(null)
+    setIsCreatingMeetingTasks(false)
+    setConversationId(null)
     if (isOpen && !isMinimized) {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }
 
-  const handlePlanConfirm = async () => {
-    if (!pendingPlan || isExecutingPlan) return
+  // Reset conversation when the user switches workspaces so stale cross-workspace
+  // messages are never visible. We skip the initial render (undefined sentinel).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const wsId = currentWorkspace?.id ?? null
+    if (prevWorkspaceIdRef.current === undefined) {
+      prevWorkspaceIdRef.current = wsId
+      return
+    }
+    if (prevWorkspaceIdRef.current !== wsId) {
+      prevWorkspaceIdRef.current = wsId
+      handleNewChat()
+    }
+  }, [currentWorkspace?.id])
 
-    // Immediately show progress UI with animated steps
-    const planToExecute = pendingPlan
+  const handlePlanConfirm = async (planOverride?: AgentPlan | null) => {
+    const planToUse = planOverride ?? pendingPlan
+    if (!planToUse || isExecutingPlan) return
+
+    const planToExecute = planToUse
     setExecutingPlan(planToExecute)
     setExecutionResult(null)
+    setExecutionError(null)
+    setStepProgress(
+      (planToExecute.steps ?? []).map((s) => ({
+        description: s.description,
+        status: 'pending' as const,
+      }))
+    )
     setIsExecutingPlan(true)
     setPendingPlan(null)
 
-    try {
-      const result = await callLoopbrainAssistant({
-        mode,
-        query: "yes",
-        pageId: anchors.pageId,
-        projectId: anchors.projectId,
-        taskId: anchors.taskId,
-        roleId: anchors.roleId,
-        teamId: anchors.teamId,
-        personId: anchors.personId,
-        pendingPlan: planToExecute,
-      })
+    const convId = conversationId ?? crypto.randomUUID()
+    if (!conversationId) setConversationId(convId)
 
-      setLastLoopbrainResponse(result)
-      setExecutionResult(result.answer || 'Done.')
-      setPendingPlan(result.pendingPlan ?? null)
+    try {
+      await executeLoopbrainPlanStream(
+        { conversationId: convId },
+        {
+          onProgress: (event) => {
+            if (
+              event.type === 'progress' &&
+              typeof event.stepIndex === 'number' &&
+              event.stepIndex >= 0
+            ) {
+              const idx = event.stepIndex
+              setStepProgress((prev) => {
+                const next = [...prev]
+                if (event.description) {
+                  next[idx] = {
+                    description: event.description,
+                    status: event.status ?? 'pending',
+                    error: event.error,
+                  }
+                }
+                return next
+              })
+            }
+          },
+          onComplete: (summary, clientAction) => {
+            setExecutionResult(summary)
+            setExecutionError(null)
+            // Handle client action (e.g. redirect to newly created wiki page)
+            if (clientAction) {
+              setPendingClientAction(clientAction)
+              executeClientAction(clientAction)
+            }
+          },
+          onError: (err) => {
+            setExecutionError(err)
+          },
+        }
+      )
     } catch (error) {
       console.error('Error executing plan:', error)
-      setExecutionResult(
-        error instanceof Error ? `\u2717 ${error.message}` : '\u2717 Plan execution failed. Please try again.'
-      )
+      const msg =
+        error instanceof Error ? error.message : 'Plan execution failed. Please try again.'
+      setExecutionError(msg)
     } finally {
       setIsExecutingPlan(false)
       setClarificationContext(null)
       setAdvisoryContext(null)
       setAdvisoryResponse(null)
     }
+  }
+
+  const handleExecutionRetry = () => {
+    if (!executingPlan) return
+    setExecutionError(null)
+    setStepProgress([])
+    setExecutionResult(null)
+    handlePlanConfirm(executingPlan)
+  }
+
+  const handleExecutionCancel = () => {
+    setExecutionError(null)
+    setStepProgress([])
+    setExecutingPlan(null)
+    setExecutionResult(null)
   }
 
   const handlePlanCancel = () => {
@@ -385,6 +484,17 @@ export function LoopbrainAssistantPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
+  // Progressive loading status: "Analyzing request..." → "Building execution plan..." (after 750ms)
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingStatusLabel('Analyzing request...')
+      return
+    }
+    setLoadingStatusLabel('Analyzing request...')
+    const t = setTimeout(() => setLoadingStatusLabel('Building execution plan...'), 750)
+    return () => clearTimeout(t)
+  }, [isLoading])
+
   useEffect(() => {
     if (isOpen && messages.length > 0) {
       scrollToBottom()
@@ -476,10 +586,12 @@ export function LoopbrainAssistantPanel({
         ...(convContext && { conversationContext: convContext }),
         ...(activeClarification && { pendingClarification: activeClarification }),
         ...(activeAdvisory && { pendingAdvisory: activeAdvisory }),
+        ...(conversationId && { conversationId }),
       })
 
       // Store response for suggestions/retrieved items
       setLastLoopbrainResponse(result)
+      if (result.conversationId) setConversationId(result.conversationId)
       setPendingPlan(result.pendingPlan ?? null)
       setPendingClarification(result.pendingClarification ?? false)
       setClarifyingQuestions(result.clarifyingQuestions ?? null)
@@ -487,6 +599,26 @@ export function LoopbrainAssistantPanel({
       setAdvisoryContext(result.advisoryContext ?? null)
       setAdvisoryResponse(result.advisory ?? null)
       setPlannerInsights(result.insights ?? [])
+
+      // Meeting task extraction — show review UI
+      if (result.meetingExtraction) {
+        setMeetingExtraction(result.meetingExtraction)
+      }
+
+      // Onboarding briefing — show inline briefing card
+      if (result.onboardingBriefing) {
+        setOnboardingBriefing(result.onboardingBriefing)
+      }
+
+      // Daily briefing — show inline briefing
+      if (result.dailyBriefing) {
+        setDailyBriefing(result.dailyBriefing)
+      }
+
+      // Meeting prep — show inline prep brief
+      if (result.meetingPrep) {
+        setMeetingPrepBrief(result.meetingPrep)
+      }
 
       // Extract preamble from the answer if there are clarifying questions
       if (result.pendingClarification && result.clarifyingQuestions) {
@@ -502,6 +634,12 @@ export function LoopbrainAssistantPanel({
         timestamp: new Date()
       }
       addMessage(assistantMessage)
+
+      // Handle client action (navigation) after rendering the response
+      if (result.clientAction) {
+        setPendingClientAction(result.clientAction)
+        executeClientAction(result.clientAction)
+      }
     } catch (error) {
       console.error('Error calling Loopbrain:', error)
       const errorMessage: Message = {
@@ -516,23 +654,36 @@ export function LoopbrainAssistantPanel({
     }
   }
 
+  const isDashboardSidebar = displayMode === 'dashboard-sidebar'
+
+  // In dashboard-sidebar mode, hide entirely when not open
+  if (isDashboardSidebar && !isOpen) return null
+
   return (
-    <div 
+    <aside
       className={cn(
-        "fixed shadow-lg flex flex-col",
-        "transition-all duration-500 ease-in-out z-50",
-        isOpen 
-          ? isMinimized
-            ? "bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center cursor-pointer hover:shadow-xl bg-purple-600 hover:bg-purple-700 border-0"
-            : "bg-card border border-border " + (displayMode === 'floating'
-              ? "top-[50%] right-4 -translate-y-1/2 h-[600px] rounded-lg w-[500px]"
-              : "right-0 top-0 h-full rounded-none w-full md:w-96")
-          : "hidden"
+        "fixed flex flex-col z-50",
+        isDashboardSidebar
+          ? cn(
+              "right-0 top-14 bottom-0 w-[320px] bg-card border-l border-border",
+              "transition-transform duration-300 ease-in-out",
+              !isMinimized ? "translate-x-0" : "translate-x-full"
+            )
+          : cn(
+              "shadow-lg transition-all duration-500 ease-in-out",
+              isOpen
+                ? isMinimized
+                  ? "bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center cursor-pointer hover:shadow-xl bg-purple-600 hover:bg-purple-700 border-0"
+                  : "bg-card border border-border " + (displayMode === 'floating'
+                    ? "top-[50%] right-4 -translate-y-1/2 h-[600px] rounded-lg w-[500px]"
+                    : "right-0 top-0 h-full rounded-none w-full md:w-96")
+                : "hidden"
+            )
       )}
-      onClick={isOpen && isMinimized ? () => setIsMinimized(false) : undefined}
+      onClick={isOpen && isMinimized && !isDashboardSidebar ? () => setIsMinimized(false) : undefined}
     >
-      {/* Minimized Logo - Only visible when minimized */}
-      {isOpen && isMinimized && (
+      {/* Minimized Logo - Only visible when minimized (floating/sidebar modes only) */}
+      {isOpen && isMinimized && !isDashboardSidebar && (
         <AILogo 
           width={28} 
           height={28} 
@@ -545,31 +696,53 @@ export function LoopbrainAssistantPanel({
       {isOpen && !isMinimized && (
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 bg-card">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground">New AI chat</span>
-            <button
-              onClick={handleNewChat}
-              className="p-1.5 hover:bg-muted rounded transition-colors"
-              title="Start new chat"
-            >
-              <Plus className="h-4 w-4 text-muted-foreground" />
-            </button>
+            {isDashboardSidebar ? (
+              <>
+                <AILogo width={24} height={24} className="w-6 h-6" />
+                <span className="text-sm font-semibold text-foreground">Loopbrain</span>
+                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" aria-hidden />
+              </>
+            ) : (
+              <>
+                <span className="text-sm font-medium text-foreground">New AI chat</span>
+                <button
+                  onClick={handleNewChat}
+                  className="p-1.5 hover:bg-muted rounded transition-colors"
+                  title="Start new chat"
+                >
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-1">
-            {/* Floating/Sidebar Toggle Button */}
-            <button
-              onClick={() => {
-                const newMode = displayMode === 'sidebar' ? 'floating' : 'sidebar'
-                handleDisplayModeChange(newMode)
-              }}
-              className="p-1.5 hover:bg-muted rounded transition-colors"
-              title={displayMode === 'sidebar' ? 'Switch to floating' : 'Switch to sidebar'}
-            >
-              {displayMode === 'sidebar' ? (
-                <Move className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <Sidebar className="h-4 w-4 text-muted-foreground" />
-              )}
-            </button>
+            {/* Floating/Sidebar Toggle - hidden in dashboard-sidebar */}
+            {!isDashboardSidebar && (
+              <button
+                onClick={() => {
+                  const newMode = displayMode === 'sidebar' ? 'floating' : 'sidebar'
+                  handleDisplayModeChange(newMode)
+                }}
+                className="p-1.5 hover:bg-muted rounded transition-colors"
+                title={displayMode === 'sidebar' ? 'Switch to floating' : 'Switch to sidebar'}
+              >
+                {displayMode === 'sidebar' ? (
+                  <Move className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Sidebar className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+            )}
+            {/* New chat - only in dashboard-sidebar (floating/sidebar have it in header start) */}
+            {isDashboardSidebar && (
+              <button
+                onClick={handleNewChat}
+                className="p-1.5 hover:bg-muted rounded transition-colors"
+                title="Start new chat"
+              >
+                <Plus className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
             {/* Minimize Button */}
             <button 
               onClick={() => setIsMinimized(!isMinimized)}
@@ -582,11 +755,9 @@ export function LoopbrainAssistantPanel({
                 <Minus className="h-4 w-4 text-muted-foreground" />
               )}
             </button>
-            {/* Close Button */}
+            {/* Close Button - closes panel (user re-opens via Quick Actions) */}
             <button 
-              onClick={() => {
-                handleOpenChange(false)
-              }}
+              onClick={() => handleOpenChange(false)}
               className="p-1.5 hover:bg-muted rounded transition-colors"
               title="Close"
             >
@@ -853,7 +1024,7 @@ export function LoopbrainAssistantPanel({
                                           key={idx}
                                           onClick={() => {
                                             console.log('Loopbrain suggestion clicked', suggestion)
-                                            // TODO: wire to action executor in a later step
+                                            // TODO [P1]: Wire to /api/loopbrain/actions endpoint (executor is implemented)
                                           }}
                                           className="px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                                         >
@@ -948,12 +1119,101 @@ export function LoopbrainAssistantPanel({
                                   />
                                 )}
 
+                                {/* Meeting Task Review */}
+                                {meetingExtraction && (
+                                  <MeetingTaskReview
+                                    extraction={meetingExtraction}
+                                    isCreating={isCreatingMeetingTasks}
+                                    onCancel={() => setMeetingExtraction(null)}
+                                    onConfirm={async (selectedTasks) => {
+                                      setIsCreatingMeetingTasks(true)
+                                      try {
+                                        const result = await callLoopbrainAssistant({
+                                          mode,
+                                          query: 'Confirm task creation',
+                                          pageId: anchors.pageId,
+                                          projectId: anchors.projectId,
+                                          pendingMeetingExtraction: { tasks: selectedTasks },
+                                        })
+                                        const successMsg: Message = {
+                                          id: (Date.now() + 1).toString(),
+                                          role: 'assistant',
+                                          content: result.answer || 'Tasks created.',
+                                          timestamp: new Date(),
+                                        }
+                                        addMessage(successMsg)
+                                      } catch (err) {
+                                        console.error('Meeting task creation failed', err)
+                                        const errMsg: Message = {
+                                          id: (Date.now() + 1).toString(),
+                                          role: 'assistant',
+                                          content: 'Failed to create tasks. Please try again.',
+                                          timestamp: new Date(),
+                                        }
+                                        addMessage(errMsg)
+                                      } finally {
+                                        setMeetingExtraction(null)
+                                        setIsCreatingMeetingTasks(false)
+                                      }
+                                    }}
+                                  />
+                                )}
+
+                                {/* Onboarding Briefing */}
+                                {onboardingBriefing && (
+                                  <OnboardingBriefingView
+                                    briefing={onboardingBriefing}
+                                    onDismiss={() => setOnboardingBriefing(null)}
+                                    className="mt-2"
+                                  />
+                                )}
+
+                                {/* Daily Briefing */}
+                                {dailyBriefing && (
+                                  <div className="mt-2 space-y-2">
+                                    {dailyBriefing.sections.map((section, idx) => (
+                                      <div key={idx} className="rounded-md border border-border/60 p-3">
+                                        <h4 className="text-sm font-semibold mb-1">{section.title}</h4>
+                                        <p className="text-sm text-muted-foreground whitespace-pre-line">{section.content}</p>
+                                        {section.items && section.items.length > 0 && (
+                                          <ul className="mt-1.5 space-y-0.5">
+                                            {section.items.map((item, i) => (
+                                              <li key={i} className="text-xs text-muted-foreground">
+                                                {item.href ? (
+                                                  <a href={item.href} className="text-primary hover:underline">{item.text}</a>
+                                                ) : (
+                                                  item.text
+                                                )}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Meeting Prep Brief */}
+                                {meetingPrepBrief && (
+                                  <MeetingPrepBriefView
+                                    brief={meetingPrepBrief}
+                                    onDismiss={() => setMeetingPrepBrief(null)}
+                                    className="mt-2"
+                                  />
+                                )}
+
                                 {/* Execution Progress */}
                                 {executingPlan && (
                                   <ExecutionProgress
                                     plan={executingPlan}
                                     isExecuting={isExecutingPlan}
                                     executionResult={executionResult ?? undefined}
+                                    stepProgress={
+                                      stepProgress.length > 0 ? stepProgress : undefined
+                                    }
+                                    executionError={executionError ?? undefined}
+                                    onRetry={handleExecutionRetry}
+                                    onCancel={handleExecutionCancel}
                                   />
                                 )}
                               </>
@@ -969,8 +1229,8 @@ export function LoopbrainAssistantPanel({
                   <div className="flex justify-start">
                     <div className="bg-muted rounded-lg px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm text-muted-foreground">Analyzing intent...</span>
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">{loadingStatusLabel}</span>
                       </div>
                     </div>
                   </div>
@@ -1013,7 +1273,7 @@ export function LoopbrainAssistantPanel({
           </div>
         </div>
       )}
-    </div>
+    </aside>
   )
 }
 

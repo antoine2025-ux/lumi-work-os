@@ -1,17 +1,36 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { SessionProvider } from "next-auth/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ThemeProvider } from "@/components/theme-provider"
 import { SocketProvider } from "@/lib/realtime/socket-context"
 import { WorkspaceProvider } from "@/lib/workspace-context"
-import { CommandPalette } from "@/components/ui/command-palette"
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { AuthWrapper } from "@/components/auth-wrapper"
-import { DataPrefetcher } from "@/components/data-prefetcher"
 import { UserStatusProvider, useUserStatusContext } from "@/providers/user-status-provider"
-import { useState, useEffect } from "react"
+import { Toaster } from "@/components/ui/use-toast"
+import { useState } from "react"
 import { usePathname } from "next/navigation"
+
+// Lazy-load heavy dashboard components to keep root layout chunk small.
+// ChunkLoadError occurs when the layout chunk times out loading.
+const CommandPalette = dynamic(
+  () => import("@/components/ui/command-palette").then((mod) => ({ default: mod.CommandPalette })),
+  { ssr: false }
+)
+
+const DataPrefetcher = dynamic(
+  () => import("@/components/data-prefetcher").then((mod) => ({ default: mod.DataPrefetcher })),
+  { ssr: false }
+)
+
+const KeyboardShortcutsWrapper = dynamic(
+  () =>
+    import("@/components/providers-keyboard-shortcuts").then((mod) => ({
+      default: mod.KeyboardShortcutsWrapper,
+    })),
+  { ssr: false }
+)
 
 /**
  * SocketWrapper - Provides real-time socket connection
@@ -35,11 +54,6 @@ function SocketWrapper({ children }: { children: React.ReactNode }) {
       {children}
     </SocketProvider>
   )
-}
-
-function KeyboardShortcutsWrapper({ children }: { children: React.ReactNode }) {
-  useKeyboardShortcuts()
-  return <>{children}</>
 }
 
 /**
@@ -92,6 +106,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                   <DataPrefetcher />
                   {children}
                   <CommandPalette />
+                  <Toaster />
                 </KeyboardShortcutsWrapper>
               </SocketWrapper>
             </WorkspaceProvider>

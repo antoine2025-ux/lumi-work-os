@@ -22,19 +22,19 @@ export type LayerMetrics = {
  * - Depth is computed as distance to a root (a person with no manager).
  * - Handles cycles defensively (treat as depth=unknown and add a note).
  */
-export async function computeLayerMetrics(orgId: string): Promise<LayerMetrics> {
+export async function computeLayerMetrics(workspaceId: string): Promise<LayerMetrics> {
   const now = Date.now()
 
   // In this codebase, people are represented via OrgPosition with User
   const [positions, links] = await Promise.all([
     prisma.orgPosition.findMany({
-      where: { workspaceId: orgId, isActive: true, userId: { not: null } },
+      where: { workspaceId, isActive: true, userId: { not: null } },
       select: { userId: true },
       take: 100000,
     }).catch(() => []),
 
     prisma.personManagerLink.findMany({
-      where: { workspaceId: orgId },
+      where: { workspaceId },
       select: { personId: true, managerId: true, startsAt: true, endsAt: true },
       take: 200000,
     }).catch(() => []),

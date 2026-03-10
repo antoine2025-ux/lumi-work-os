@@ -39,8 +39,8 @@ export function DepartmentListRow({
     <Link
       href={href}
       className={cn(
-        "group relative flex w-full flex-wrap md:flex-nowrap items-center justify-between gap-4 rounded-3xl border border-slate-800/50 bg-gradient-to-b from-[#020617] to-slate-950/80 px-6 py-4 transition-all duration-200",
-        "hover:-translate-y-[1px] hover:border-slate-700/60 hover:shadow-[0_0_40px_rgba(0,0,0,0.40)] hover:bg-white/5",
+        "group relative flex w-full flex-wrap md:flex-nowrap items-center justify-between gap-4 rounded-3xl border border-border/50 bg-gradient-to-b from-[#020617] to-slate-950/80 px-6 py-4 transition-all duration-200",
+        "hover:-translate-y-[1px] hover:border-border/60 hover:shadow-[0_0_40px_rgba(0,0,0,0.40)] hover:bg-white/5",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
       )}
     >
@@ -61,7 +61,7 @@ export function DepartmentListRow({
         {/* Text column: name + lead */}
         <div className="flex flex-col gap-1 min-w-0 flex-1">
           {/* Department name */}
-          <span className="text-lg font-semibold text-slate-100 truncate">
+          <span className="text-lg font-semibold text-foreground truncate">
             {name}
           </span>
 
@@ -69,11 +69,11 @@ export function DepartmentListRow({
           {leadName && (
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6 flex-shrink-0">
-                <AvatarFallback className="bg-slate-700/50 border border-slate-600/50 text-[10px] text-slate-300">
+                <AvatarFallback className="bg-slate-700/50 border border-slate-600/50 text-[10px] text-muted-foreground">
                   {initials || "?"}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-xs text-slate-400 truncate">
+              <span className="text-xs text-muted-foreground truncate">
                 Lead: {leadName}
               </span>
             </div>
@@ -83,11 +83,11 @@ export function DepartmentListRow({
 
       {/* Middle cluster: pills for teams + people - wraps on small screens */}
       <div className="flex items-center gap-2 flex-shrink-0 order-3 md:order-2 w-full md:w-auto">
-        <span className="inline-flex items-center rounded-full border border-slate-700/60 bg-slate-800/80 backdrop-blur-sm px-3 py-1 text-xs font-medium text-slate-300">
+        <span className="inline-flex items-center rounded-full border border-border/60 bg-muted/80 backdrop-blur-sm px-3 py-1 text-xs font-medium text-muted-foreground">
           {teamsCount} {teamsCount === 1 ? "team" : "teams"}
         </span>
         {peopleCount > 0 && (
-          <span className="inline-flex items-center rounded-full border border-slate-700/60 bg-slate-800/80 backdrop-blur-sm px-3 py-1 text-xs font-medium text-slate-300">
+          <span className="inline-flex items-center rounded-full border border-border/60 bg-muted/80 backdrop-blur-sm px-3 py-1 text-xs font-medium text-muted-foreground">
             {peopleCount} {peopleCount === 1 ? "person" : "people"}
           </span>
         )}

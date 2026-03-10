@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react'
 
+export interface CalendarAttendee {
+  email?: string
+  displayName?: string
+  organizer?: boolean
+  responseStatus?: string
+}
+
 export interface CalendarEvent {
   id: string
   title: string
   time: string
   duration: string
   attendees: number
+  attendeeList?: CalendarAttendee[]
   team: string
   priority: 'HIGH' | 'MEDIUM' | 'LOW'
   type: 'video' | 'phone'
@@ -14,6 +22,8 @@ export interface CalendarEvent {
   startTime?: string
   endTime?: string
   meetingLink?: string
+  /** Optional color for multi-calendar overlay (hex) */
+  color?: string
 }
 
 export interface CalendarEventsResponse {

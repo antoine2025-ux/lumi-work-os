@@ -4,7 +4,9 @@ import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/pm/guards'
 import { emitProjectEvent } from '@/lib/pm/events'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 import { ProjectRole } from '@prisma/client'
 
 
@@ -15,10 +17,11 @@ export async function GET(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
-    setWorkspaceContext(auth.workspaceId)
-    if (!auth.isAuthenticated || !auth.user) {
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(auth.workspaceId)
 
     const resolvedParams = await params
     const { projectId, milestoneId } = resolvedParams
@@ -64,10 +67,7 @@ export async function GET(
 
     return NextResponse.json(milestone)
   } catch (error) {
-    console.error('Error fetching milestone:', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch milestone' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }
 
@@ -78,10 +78,11 @@ export async function PATCH(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
-    setWorkspaceContext(auth.workspaceId)
-    if (!auth.isAuthenticated || !auth.user) {
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(auth.workspaceId)
 
     const resolvedParams = await params
     const { projectId, milestoneId } = resolvedParams
@@ -146,18 +147,8 @@ export async function PATCH(
     )
 
     return NextResponse.json(milestone)
-  } catch (error: unknown) {
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json({ 
-        error: 'Validation error',
-        details: (error as any).issues 
-      }, { status: 400 })
-    }
-
-    console.error('Error updating milestone:', error)
-    return NextResponse.json({ 
-      error: 'Failed to update milestone' 
-    }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, request)
   }
 }
 
@@ -168,10 +159,11 @@ export async function DELETE(
 ) {
   try {
     const auth = await getUnifiedAuth(request)
-    setWorkspaceContext(auth.workspaceId)
-    if (!auth.isAuthenticated || !auth.user) {
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    await assertAccess({ userId: auth.user.userId, workspaceId: auth.workspaceId, scope: 'workspace', requireRole: ['MEMBER'] })
+    setWorkspaceContext(auth.workspaceId)
 
     const resolvedParams = await params
     const { projectId, milestoneId } = resolvedParams
@@ -221,9 +213,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting milestone:', error)
-    return NextResponse.json({ 
-      error: 'Failed to delete milestone' 
-    }, { status: 500 })
+    return handleApiError(error, request)
   }
 }

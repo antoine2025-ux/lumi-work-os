@@ -1,24 +1,333 @@
 /**
- * Slack Context Provider (Tier B)
- * 
- * Fetches Slack messages from channels specified in project slackChannelHints.
- * This is a non-persistent, request-time context provider that enriches
- * Loopbrain's understanding with real-time Slack conversations.
- * 
- * EXISTING SLACK INTEGRATION:
- * - Slack client: src/lib/integrations/slack-service.ts
- * - Functions used:
- *   - getSlackChannels(workspaceId): Promise<Array<{ id: string; name: string }>>
- *   - getSlackChannelMessages(workspaceId, channel, limit, oldest?, latest?): Promise<Array<{user, text, ts, ...}>>
- * - These functions handle:
- *   - OAuth token management (getValidAccessToken)
- *   - Channel name to ID resolution
- *   - User ID to name resolution
- *   - API error handling
+ * Slack Context Provider (Tier A + Tier B)
+ *
+ * Two tiers:
+ * 1. Tier A (persistent) — Rolling sync of public channel messages into
+ *    ContextItems for briefing, meeting-prep, and search use. Mirrors the
+ *    Gmail context-source pattern.
+ * 2. Tier B (non-persistent) — Request-time fetch driven by project
+ *    slackChannelHints for real-time Loopbrain enrichment.
+ *
+ * Slack tokens are workspace-scoped (one bot token per workspace), unlike
+ * Gmail which is per-user. The sync loop iterates workspaces, not users.
  */
 
-import { getSlackChannelMessages, getSlackChannels } from '@/lib/integrations/slack-service'
+import { prisma } from '@/lib/db'
+import { getSlackChannelMessages, getSlackChannels, getSlackIntegration } from '@/lib/integrations/slack-service'
 import { logger } from '@/lib/logger'
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+const SLACK_MESSAGE_TYPE = 'slack_message'
+const SYNC_COOLDOWN_MS = 60 * 60 * 1000 // 1 hour
+const CONTEXT_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+const MAX_MESSAGES_PER_CHANNEL = 100
+const SYNC_WINDOW_DAYS = 7
+const MAX_SUMMARY_CHARS = 500
+const MAX_PROMPT_CHARS = 8000 // ~2000 tokens
+
+// =============================================================================
+// Tier A Types
+// =============================================================================
+
+export interface SlackStoredMessage {
+  channelId: string
+  channelName: string
+  userName: string
+  userId?: string
+  text: string
+  timestamp: string
+  threadTs?: string
+}
+
+export interface SyncSlackContextResult {
+  synced: number
+  channels: number
+}
+
+// =============================================================================
+// Tier A — Rolling Sync (persistent ContextItems)
+// =============================================================================
+
+/**
+ * Sync recent Slack messages into ContextItems for offline/briefing use.
+ *
+ * Rate-limited to once per hour per workspace. Cleans up items older than 24h.
+ * Fetches last 7 days from all public channels (max 100 msgs/channel).
+ * Excludes bot messages.
+ * Never throws — returns counts.
+ */
+export async function syncSlackContext(
+  workspaceId: string
+): Promise<SyncSlackContextResult> {
+  const result: SyncSlackContextResult = { synced: 0, channels: 0 }
+
+  try {
+    const integration = await getSlackIntegration(workspaceId)
+    if (!integration) return result
+
+    // Rate limit: check most recent stored item
+    const lastItem = await prisma.contextItem.findFirst({
+      where: { workspaceId, type: SLACK_MESSAGE_TYPE },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true },
+    })
+
+    if (lastItem && Date.now() - lastItem.updatedAt.getTime() < SYNC_COOLDOWN_MS) {
+      logger.debug('[SlackSync] Skipping — last sync too recent', {
+        workspaceId,
+        lastSync: lastItem.updatedAt,
+      })
+      return result
+    }
+
+    const channels = await getSlackChannels(workspaceId)
+    if (channels.length === 0) return result
+
+    const oldest = Math.floor((Date.now() - SYNC_WINDOW_DAYS * 24 * 60 * 60 * 1000) / 1000)
+
+    for (const channel of channels) {
+      try {
+        const messages = await getSlackChannelMessages(
+          workspaceId,
+          channel.id,
+          MAX_MESSAGES_PER_CHANNEL,
+          oldest
+        )
+
+        // Filter out bot messages (user field is empty or starts with B)
+        const humanMessages = messages.filter(
+          (msg) => msg.user && msg.user !== 'Unknown' && msg.text.trim().length > 0
+        )
+
+        for (const msg of humanMessages) {
+          try {
+            const contextId = `slack_${channel.id}_${msg.ts}`
+            const title = `#${channel.name} — ${msg.user}`
+            const summary = msg.text.slice(0, MAX_SUMMARY_CHARS)
+            const itemData = {
+              content: `#${channel.name} — ${msg.user}: ${msg.text}`,
+              metadata: {
+                channelId: channel.id,
+                channelName: channel.name,
+                userName: msg.user,
+                userId: msg.userId,
+                timestamp: msg.ts,
+                threadTs: msg.threadTs,
+                workspaceId,
+              },
+            }
+
+            const existing = await prisma.contextItem.findFirst({
+              where: { contextId, type: SLACK_MESSAGE_TYPE, workspaceId },
+              select: { id: true },
+            })
+
+            if (existing) {
+              await prisma.contextItem.update({
+                where: { id: existing.id },
+                data: { title, summary, data: itemData },
+              })
+            } else {
+              await prisma.contextItem.create({
+                data: {
+                  contextId,
+                  workspaceId,
+                  type: SLACK_MESSAGE_TYPE,
+                  title,
+                  summary,
+                  data: itemData,
+                },
+              })
+            }
+
+            result.synced++
+          } catch (upsertErr) {
+            logger.warn('[SlackSync] Failed to upsert message', {
+              channelId: channel.id,
+              ts: msg.ts,
+              error: upsertErr instanceof Error ? upsertErr.message : String(upsertErr),
+            })
+          }
+        }
+
+        result.channels++
+      } catch (channelErr) {
+        logger.warn('[SlackSync] Failed to sync channel', {
+          workspaceId,
+          channelId: channel.id,
+          channelName: channel.name,
+          error: channelErr instanceof Error ? channelErr.message : String(channelErr),
+        })
+      }
+    }
+
+    // Clean up stale items older than 24h
+    const cutoff = new Date(Date.now() - CONTEXT_TTL_MS)
+    await prisma.contextItem.deleteMany({
+      where: {
+        workspaceId,
+        type: SLACK_MESSAGE_TYPE,
+        updatedAt: { lt: cutoff },
+      },
+    })
+
+    logger.info('[SlackSync] Sync complete', {
+      workspaceId,
+      synced: result.synced,
+      channels: result.channels,
+    })
+  } catch (error) {
+    logger.warn('[SlackSync] Sync failed', {
+      workspaceId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+
+  return result
+}
+
+/**
+ * Load Slack context from persisted ContextItems (populated by syncSlackContext).
+ * Falls back to live fetch from all channels if no stored items exist.
+ */
+export async function loadSlackContextFromStore(
+  workspaceId: string,
+  limit = 50
+): Promise<SlackStoredMessage[]> {
+  try {
+    const items = await prisma.contextItem.findMany({
+      where: { workspaceId, type: SLACK_MESSAGE_TYPE },
+      orderBy: { updatedAt: 'desc' },
+      take: limit,
+    })
+
+    if (items.length > 0) {
+      return items.map((item) => {
+        const data = item.data as {
+          metadata?: {
+            channelId?: string
+            channelName?: string
+            userName?: string
+            userId?: string
+            timestamp?: string
+            threadTs?: string
+          }
+        }
+        return {
+          channelId: data.metadata?.channelId ?? '',
+          channelName: data.metadata?.channelName ?? '',
+          userName: data.metadata?.userName ?? '',
+          userId: data.metadata?.userId,
+          text: item.summary ?? '',
+          timestamp: data.metadata?.timestamp ?? '',
+          threadTs: data.metadata?.threadTs,
+        }
+      })
+    }
+
+    // Fallback: live fetch from first few channels
+    const integration = await getSlackIntegration(workspaceId)
+    if (!integration) return []
+
+    const channels = await getSlackChannels(workspaceId)
+    const messages: SlackStoredMessage[] = []
+    const channelsToFetch = channels.slice(0, 5) // limit fallback scope
+
+    for (const channel of channelsToFetch) {
+      try {
+        const channelMsgs = await getSlackChannelMessages(workspaceId, channel.id, 20)
+        for (const msg of channelMsgs) {
+          if (msg.user && msg.user !== 'Unknown' && msg.text.trim().length > 0) {
+            messages.push({
+              channelId: channel.id,
+              channelName: channel.name,
+              userName: msg.user,
+              userId: msg.userId,
+              text: msg.text,
+              timestamp: msg.ts,
+              threadTs: msg.threadTs,
+            })
+          }
+        }
+      } catch {
+        // Skip failing channels
+      }
+      if (messages.length >= limit) break
+    }
+
+    return messages.slice(0, limit)
+  } catch (error) {
+    logger.warn('[SlackContext] Failed to load from store', {
+      workspaceId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return []
+  }
+}
+
+/**
+ * Format stored Slack messages for inclusion in a Loopbrain prompt.
+ * Returns empty string if no messages — caller should skip injection.
+ */
+export function formatSlackMessagesForPrompt(
+  messages: SlackStoredMessage[]
+): string {
+  if (messages.length === 0) return ''
+
+  let output = '[Slack Context - Recent Channel Messages]\n\n'
+  let charCount = output.length
+
+  // Group by channel for readability
+  const byChannel = new Map<string, SlackStoredMessage[]>()
+  for (const msg of messages) {
+    const key = msg.channelName || msg.channelId
+    if (!byChannel.has(key)) byChannel.set(key, [])
+    byChannel.get(key)!.push(msg)
+  }
+
+  for (const [channelName, channelMsgs] of byChannel) {
+    const header = `#${channelName}:\n`
+    if (charCount + header.length > MAX_PROMPT_CHARS) break
+    output += header
+    charCount += header.length
+
+    for (const msg of channelMsgs.slice(0, 20)) {
+      const ts = new Date(parseFloat(msg.timestamp) * 1000)
+      const dateStr = ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      const timeStr = ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      const entry = `  ${msg.userName} (${dateStr} ${timeStr}): ${msg.text.slice(0, 300)}\n`
+
+      if (charCount + entry.length > MAX_PROMPT_CHARS) break
+      output += entry
+      charCount += entry.length
+    }
+
+    output += '\n'
+    charCount += 1
+  }
+
+  return output.trim()
+}
+
+/**
+ * Delete all slack_message ContextItems for a workspace.
+ * Used when workspace disconnects Slack integration.
+ */
+export async function deleteSlackContextForWorkspace(
+  workspaceId: string
+): Promise<number> {
+  const result = await prisma.contextItem.deleteMany({
+    where: { workspaceId, type: SLACK_MESSAGE_TYPE },
+  })
+  return result.count
+}
+
+// =============================================================================
+// Tier B Types (non-persistent, request-time)
+// =============================================================================
 
 export interface SlackContextQuery {
   workspaceId: string

@@ -1,13 +1,11 @@
 /**
  * Calendar header component
- * Navigation, view toggle, and calendar connection
+ * Compact single-row: icon, title, nav, view tabs, create button
  */
 
-import { ChevronLeft, ChevronRight, Calendar, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ChevronLeft, ChevronRight, Calendar, Plus, X } from 'lucide-react'
 import { formatDateRange } from '@/lib/calendar-utils'
 import { cn } from '@/lib/utils'
-import { signIn } from 'next-auth/react'
 
 interface CalendarHeaderProps {
   currentDate: Date
@@ -16,6 +14,9 @@ interface CalendarHeaderProps {
   onDateChange: (date: Date) => void
   needsAuth?: boolean
   onCreateEvent?: () => void
+  onClose?: () => void
+  showWeekend?: boolean
+  onShowWeekendChange?: (show: boolean) => void
 }
 
 export function CalendarHeader({
@@ -25,11 +26,12 @@ export function CalendarHeader({
   onDateChange,
   needsAuth = false,
   onCreateEvent,
+  onClose,
+  showWeekend = false,
+  onShowWeekendChange,
 }: CalendarHeaderProps) {
-  
   const handlePrevious = () => {
     const newDate = new Date(currentDate)
-    
     switch (view) {
       case 'day':
         newDate.setDate(newDate.getDate() - 1)
@@ -41,13 +43,11 @@ export function CalendarHeader({
         newDate.setMonth(newDate.getMonth() - 1)
         break
     }
-    
     onDateChange(newDate)
   }
-  
+
   const handleNext = () => {
     const newDate = new Date(currentDate)
-    
     switch (view) {
       case 'day':
         newDate.setDate(newDate.getDate() + 1)
@@ -59,111 +59,93 @@ export function CalendarHeader({
         newDate.setMonth(newDate.getMonth() + 1)
         break
     }
-    
     onDateChange(newDate)
   }
-  
-  const handleToday = () => {
-    onDateChange(new Date())
-  }
-  
-  const handleConnectCalendar = () => {
-    signIn('google', { callbackUrl: window.location.href })
-  }
+
+  const dateLabel = formatDateRange(view, currentDate)
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
-      {/* Left: Date navigation */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePrevious}
-            className="h-8 w-8 p-0"
+    <div className="flex items-center gap-4 p-4 border-b border-border bg-card shrink-0">
+      <Calendar className="w-5 h-5 text-muted-foreground shrink-0" />
+      <span className="font-semibold text-lg text-foreground">Calendar</span>
+
+      {/* Navigation inline */}
+      <div className="flex items-center gap-2 ml-4">
+        <button
+          type="button"
+          onClick={handlePrevious}
+          className="p-1.5 rounded hover:bg-muted transition-colors"
+          aria-label="Previous"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm text-muted-foreground min-w-[120px] text-center">
+          {dateLabel}
+        </span>
+        <button
+          type="button"
+          onClick={handleNext}
+          className="p-1.5 rounded hover:bg-muted transition-colors"
+          aria-label="Next"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* View tabs */}
+      <div className="flex items-center gap-2 ml-auto">
+        {view === 'week' && onShowWeekendChange && (
+          <button
+            type="button"
+            onClick={() => onShowWeekendChange(!showWeekend)}
+            className={cn(
+              'px-2 py-1 text-xs rounded',
+              showWeekend ? 'bg-muted' : 'text-muted-foreground'
+            )}
           >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleToday}
-            className="h-8 px-3"
-          >
-            Today
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleNext}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        <div className="text-lg font-semibold ml-2">
-          {formatDateRange(view, currentDate)}
+            {showWeekend ? 'Hide' : 'Show'} Weekend
+          </button>
+        )}
+        <div className="flex bg-muted rounded-lg p-1">
+          {(['day', 'week', 'month'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => onViewChange(v)}
+              className={cn(
+                'px-3 py-1 text-sm rounded capitalize',
+                view === v ? 'bg-amber-500 text-black font-medium' : 'hover:bg-muted/80'
+              )}
+            >
+              {v}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Right: View toggle and connect button */}
-      <div className="flex items-center gap-2">
-        {onCreateEvent && !needsAuth && (
-          <Button onClick={onCreateEvent} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            New Event
-          </Button>
-        )}
-        {needsAuth && (
-          <Button
-            onClick={handleConnectCalendar}
-            size="sm"
-            variant="default"
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            Connect Calendar
-          </Button>
-        )}
-        
-        <div className="inline-flex items-center rounded-lg border border-border bg-background p-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onViewChange('day')}
-            className={cn(
-              'h-7 px-3 rounded-md text-sm',
-              view === 'day' && 'bg-muted'
-            )}
-          >
-            Day
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onViewChange('week')}
-            className={cn(
-              'h-7 px-3 rounded-md text-sm',
-              view === 'week' && 'bg-muted'
-            )}
-          >
-            Week
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onViewChange('month')}
-            className={cn(
-              'h-7 px-3 rounded-md text-sm',
-              view === 'month' && 'bg-muted'
-            )}
-          >
-            Month
-          </Button>
-        </div>
-      </div>
+      {/* Create button */}
+      {onCreateEvent && !needsAuth && (
+        <button
+          type="button"
+          onClick={onCreateEvent}
+          className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-black rounded-lg font-medium hover:bg-amber-600 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Create Event
+        </button>
+      )}
+
+      {/* Close */}
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="ml-2 p-1.5 rounded hover:bg-muted transition-colors"
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
     </div>
   )
 }

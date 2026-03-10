@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 import {
   getOrCreateWorkspaceEffortDefaults,
@@ -110,7 +111,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       responseMeta: getWorkRequestResponseMeta(),
     });
   } catch (error: unknown) {
-    console.error("[POST /api/org/work/requests/[id]/close] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

@@ -13,7 +13,7 @@ export async function OrgOverviewInsightsStripServer() {
     return null;
   }
 
-  const snapshot = await getOrgInsightsSnapshot(permissionContext.orgId, permissionContext, {
+  const snapshot = await getOrgInsightsSnapshot(permissionContext.workspaceId, permissionContext, {
     period: "month",
     periods: 3,
   });

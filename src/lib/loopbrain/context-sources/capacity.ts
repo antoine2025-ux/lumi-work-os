@@ -12,7 +12,8 @@
  * @see src/lib/loopbrain/contract/workloadAnalysis.v0.ts
  */
 
-import { prisma } from "@/lib/db";
+import { prisma, prismaUnscoped } from "@/lib/db";
+import { google } from "googleapis";
 import { logger } from "@/lib/logger";
 import type { UtilizationStatusV0 } from "../contract/workloadAnalysis.v0";
 
@@ -569,19 +570,64 @@ export async function buildTeamCapacitySummary(
 // =============================================================================
 
 /**
- * Load calendar events for a person.
- * NOTE: CalendarEvent model does not exist in the current Prisma schema.
- * This function returns an empty array until calendar integration is implemented.
+ * Load calendar events for a person from Google Calendar.
+ * Returns [] gracefully if the user has no Google account connected or the API fails.
  */
 async function loadCalendarEvents(
   _workspaceId: string,
-  _personId: string,
-  _startDate: Date,
-  _endDate: Date
+  personId: string,
+  startDate: Date,
+  endDate: Date
 ): Promise<Array<{ id: string; startTime: Date; endTime: Date }>> {
-  // CalendarEvent model does not exist in current schema
-  // Return empty array - calendar integration to be implemented later
-  return [];
+  try {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return [];
+    }
+
+    const account = await prismaUnscoped.account.findFirst({
+      where: { userId: personId, provider: "google" },
+      select: { access_token: true, refresh_token: true, expires_at: true },
+    });
+
+    if (!account?.access_token) return [];
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+    );
+    oauth2Client.setCredentials({
+      access_token: account.access_token,
+      refresh_token: account.refresh_token ?? undefined,
+      expiry_date: account.expires_at ? account.expires_at * 1000 : undefined,
+    });
+
+    const cal = google.calendar({ version: "v3", auth: oauth2Client });
+    const response = await cal.events.list({
+      calendarId: "primary",
+      timeMin: startDate.toISOString(),
+      timeMax: endDate.toISOString(),
+      singleEvents: true,
+      orderBy: "startTime",
+      maxResults: 50,
+    });
+
+    const items: Array<{ id: string; startTime: Date; endTime: Date }> = [];
+    for (const e of response.data.items ?? []) {
+      if (!e.start || !e.end) continue;
+      items.push({
+        id: e.id ?? "",
+        startTime: new Date(e.start.dateTime ?? e.start.date ?? ""),
+        endTime: new Date(e.end.dateTime ?? e.end.date ?? ""),
+      });
+    }
+    return items;
+  } catch (error) {
+    logger.warn("[UnifiedCapacity] Failed to load Google Calendar events", {
+      personId,
+      error,
+    });
+    return [];
+  }
 }
 
 function getWeekStart(date: Date): Date {

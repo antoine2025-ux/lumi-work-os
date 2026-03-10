@@ -82,6 +82,29 @@ export async function GET(request: NextRequest) {
     // 3. Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
+    // 4. Get user's team memberships for team-based filtering
+    const userPositions = await prisma.orgPosition.findMany({
+      where: { 
+        userId: auth.user.userId,
+        workspaceId: auth.workspaceId,
+        isActive: true
+      },
+      select: { teamId: true }
+    })
+    const userTeamIds = userPositions
+      .map(pos => pos.teamId)
+      .filter(Boolean) as string[]
+
+    // 5. Check if user is admin/owner (admins see all projects)
+    const workspaceMember = await prisma.workspaceMember.findFirst({
+      where: { 
+        userId: auth.user.userId, 
+        workspaceId: auth.workspaceId 
+      },
+      select: { role: true }
+    })
+    const isAdmin = ['ADMIN', 'OWNER'].includes(workspaceMember?.role ?? 'VIEWER')
+
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
@@ -92,8 +115,11 @@ export async function GET(request: NextRequest) {
       status || 'all'
     )
 
-    // Check cache first
-    const cached = await cache.get(cacheKey)
+    // Check cache first (only for admins - non-admins get user-specific filtered results)
+    let cached = null
+    if (isAdmin) {
+      cached = await cache.get(cacheKey)
+    }
     if (cached) {
       // Build ContextObjects for cached projects
       const cachedProjects = cached as typeof projects
@@ -124,12 +150,27 @@ export async function GET(request: NextRequest) {
       return response
     }
 
-    // Build where clause - workspace scoped
+    // Build where clause - workspace scoped with team-based filtering
     // NOTE: ProjectSpace visibility filtering removed - projectSpaceId field does not exist on Project model
-    const where: any = { workspaceId: auth.workspaceId } // 5. Use activeWorkspaceId, no hardcoded values
+    const where: any = { workspaceId: auth.workspaceId }
     if (status) {
       where.status = status
     }
+
+    // Apply team-based filtering for non-admins
+    if (!isAdmin) {
+      where.OR = [
+        // Projects on user's teams
+        { teamId: { in: userTeamIds } },
+        
+        // Projects user is explicitly a member of
+        { members: { some: { userId: auth.user.userId } } },
+        
+        // Workspace-wide projects (no team assigned)
+        { teamId: null },
+      ]
+    }
+    // Admins see all projects (no additional filter)
 
     // Optimized query: Use select instead of include, limit tasks loaded
     const dbStart = performance.now()
@@ -228,8 +269,10 @@ export async function GET(request: NextRequest) {
       contextObjects
     }
 
-    // Cache the result for 5 minutes (cache original projects only to maintain compatibility)
-    await cache.set(cacheKey, projects, CACHE_TTL.SHORT)
+    // Cache the result for 5 minutes (only for admins - non-admins get user-specific results)
+    if (isAdmin) {
+      await cache.set(cacheKey, projects, CACHE_TTL.SHORT)
+    }
 
     // Add HTTP caching headers for better performance
     const response = NextResponse.json(responseData)
@@ -305,6 +348,7 @@ export async function POST(request: NextRequest) {
       assigneeIds = [],
       wikiPageId,
       dailySummaryEnabled = false,
+      templateData,
     } = validatedData
 
     // Extract watcher IDs from the request body
@@ -411,6 +455,42 @@ export async function POST(request: NextRequest) {
             workspaceId: auth.workspaceId,
           },
         })
+      }
+
+      // Apply template data (epics + tasks) if provided
+      if (templateData?.taskGroups && templateData.taskGroups.length > 0) {
+        const createdById = auth.user.userId
+        for (let order = 0; order < templateData.taskGroups.length; order++) {
+          const taskGroup = templateData.taskGroups[order]
+          const epic = await tx.epic.create({
+            data: {
+              workspaceId: auth.workspaceId,
+              projectId: createdProject.id,
+              title: taskGroup.name,
+              description: null,
+              color: null,
+              order,
+            },
+          })
+          for (let taskOrder = 0; taskOrder < taskGroup.tasks.length; taskOrder++) {
+            const taskTemplate = taskGroup.tasks[taskOrder]
+            await tx.task.create({
+              data: {
+                projectId: createdProject.id,
+                workspaceId: auth.workspaceId,
+                epicId: epic.id,
+                title: taskTemplate.title,
+                description: taskTemplate.description ?? '',
+                status: 'TODO',
+                priority: (taskTemplate.priority ?? 'MEDIUM') as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
+                tags: [],
+                createdById,
+                assigneeId: effectiveOwnerId,
+                order: taskOrder,
+              },
+            })
+          }
+        }
       }
 
       // Reload project with all members

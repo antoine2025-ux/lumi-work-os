@@ -117,19 +117,19 @@ export function EditDepartmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border border-slate-800 bg-[#020617] text-slate-100">
+      <DialogContent className="max-w-md border border-border bg-background text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold text-slate-50">
+          <DialogTitle className="text-base font-semibold text-foreground">
             Edit department
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">
+          <DialogDescription className="text-xs text-muted-foreground">
             Update department name and owner.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-slate-300">
+            <Label className="text-[11px] font-medium text-muted-foreground">
               Department name
             </Label>
             <Input
@@ -137,13 +137,13 @@ export function EditDepartmentDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Customer Experience"
-              className="h-8 rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100 placeholder:text-slate-500"
+              className="h-8 rounded-md border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground"
               disabled={submitting}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-slate-300">
+            <Label className="text-[11px] font-medium text-muted-foreground">
               Owner <span className="text-red-400">*</span>
             </Label>
             <Select
@@ -151,7 +151,7 @@ export function EditDepartmentDialog({
               onValueChange={setOwnerPersonId}
               disabled={submitting || people.length === 0}
             >
-              <SelectTrigger className="h-8 rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100">
+              <SelectTrigger className="h-8 rounded-md border-border bg-background text-[13px] text-foreground">
                 <SelectValue placeholder="Select owner…" />
               </SelectTrigger>
               <SelectContent>
@@ -163,7 +163,7 @@ export function EditDepartmentDialog({
               </SelectContent>
             </Select>
             {people.length === 0 && (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 No people available. Create people first.
               </p>
             )}
@@ -180,7 +180,7 @@ export function EditDepartmentDialog({
               type="button"
               variant="ghost"
               size="sm"
-              className="text-[13px] text-slate-400 hover:text-slate-100"
+              className="text-[13px] text-muted-foreground hover:text-foreground"
               onClick={() => onOpenChange(false)}
               disabled={submitting}
             >

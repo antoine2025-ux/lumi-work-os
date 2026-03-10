@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getWorkspaceTemplate } from '@/lib/workspace-onboarding'
+import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
 
 // GET /api/workspace-onboarding/templates/[id] - Get specific workspace template
 export async function GET(
@@ -7,6 +11,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, workspaceId, isAuthenticated } = await getUnifiedAuth(request)
+    if (!isAuthenticated || !workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    await assertAccess({ userId: user.userId, workspaceId, scope: 'workspace', requireRole: ['VIEWER'] })
+    setWorkspaceContext(workspaceId)
+
     const resolvedParams = await params
     const { id } = resolvedParams
     
@@ -37,12 +48,8 @@ export async function GET(
         settings: template.settings
       }
     })
-  } catch (error) {
-    console.error('Error fetching workspace template:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to fetch template'
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }
 

@@ -213,7 +213,7 @@ export const contextMenuItems = {
       icon: Trash2,
       action: () => {
         if (confirm(`Are you sure you want to delete "${project.name}"?`)) {
-          // TODO: Delete project
+          // TODO [BACKLOG]: Wire project deletion API call
           console.log("Delete project", project.id)
         }
       },
@@ -227,7 +227,7 @@ export const contextMenuItems = {
       label: "Open",
       icon: Eye,
       action: () => {
-        // TODO: Open task detail modal or page
+        // TODO [BACKLOG]: Open task detail via TaskSidebar or route navigation
         console.log("Open task", task.id)
       }
     },

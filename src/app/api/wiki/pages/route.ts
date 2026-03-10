@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const pagination = parsePaginationParams(searchParams)
-    // TODO Sprint 4+: add ?spaceId= filter once pages are migrated to space-based nav
+    // TODO [BACKLOG]: Add ?spaceId= filter once pages are migrated to space-based nav
     
     // OPTIMIZED: Check cache first (non-blocking with timeout)
     // SECURITY: Cache key includes userId because personal page visibility is per-user
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
           excerpt: true,
           permissionLevel: true,
           workspace_type: true,
-          // NOTE: spaceId removed - field does not exist on WikiPage model
+          spaceId: true,
           category: true,
           tags: true,
           updatedAt: true,
@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
     logger.info('Creating new wiki page')
     const body = WikiPageCreateSchema.parse(await request.json())
     
-    const { title, content: _content, contentJson, parentId, tags = [], category = 'general', permissionLevel, workspace_type, spaceId } = body
+    const { title, content: _content, contentJson, parentId, tags = [], category = 'general', permissionLevel, workspace_type, spaceId, type: pageType, isSection } = body
     
     // Enforce JSON format for all new pages created via POST /api/wiki/pages
     // This ensures all new pages use the TipTap editor (Stage 1 requirement)
@@ -268,26 +268,54 @@ export async function POST(request: NextRequest) {
       }, { status: 409 })
     }
 
+    // Resolve space when spaceId provided (for type and workspace_type inference)
+    const space = spaceId
+      ? await prisma.space.findUnique({
+          where: { id: spaceId },
+          select: { type: true, isPersonal: true, slug: true },
+        })
+      : null
+
+    // Determine WikiPage type from explicit pageType or space
+    let finalPageType: 'TEAM_DOC' | 'COMPANY_WIKI' | 'PERSONAL_NOTE' | 'PROJECT_DOC' | null = null
+    if (pageType) {
+      finalPageType = pageType
+    } else if (space) {
+      if (space.isPersonal) finalPageType = 'PERSONAL_NOTE'
+      else if (space.type === 'WIKI') finalPageType = 'COMPANY_WIKI'
+      else finalPageType = 'TEAM_DOC'
+    }
+
     // Determine workspace_type with strict validation
-    // Priority: explicit workspace_type > permissionLevel > default to 'team'
+    // Priority: explicit workspace_type > spaceId > permissionLevel > default
     let finalWorkspaceType: string
     let finalPermissionLevel: string
-    
+
     if (workspace_type) {
-      // Explicit workspace_type provided - use it
       finalWorkspaceType = workspace_type
-      // If permissionLevel matches workspace_type, use it; otherwise infer from workspace_type
-      if (permissionLevel && (permissionLevel === 'personal' || permissionLevel === 'team')) {
-        finalPermissionLevel = permissionLevel
+      finalPermissionLevel =
+        permissionLevel && (permissionLevel === 'personal' || permissionLevel === 'team')
+          ? permissionLevel
+          : workspace_type === 'personal'
+            ? 'personal'
+            : 'team'
+    } else if (space) {
+      if (space.isPersonal) {
+        finalWorkspaceType = 'personal'
+        finalPermissionLevel = 'personal'
+      } else if (space.type === 'WIKI') {
+        finalWorkspaceType = 'company-wiki'
+        finalPermissionLevel = 'team'
       } else {
-        finalPermissionLevel = workspace_type === 'personal' ? 'personal' : 'team'
+        finalWorkspaceType = space.slug ?? 'team'
+        finalPermissionLevel = permissionLevel || 'team'
       }
     } else if (permissionLevel === 'personal') {
       // No workspace_type but permissionLevel is 'personal' - infer personal workspace
       finalWorkspaceType = 'personal'
       finalPermissionLevel = 'personal'
     } else {
-      // Default fallback - but log a warning
+      // Default fallback
       finalWorkspaceType = 'team'
       finalPermissionLevel = permissionLevel || 'team'
     }
@@ -319,6 +347,8 @@ export async function POST(request: NextRequest) {
           permissionLevel: finalPermissionLevel,
           workspace_type: finalWorkspaceType,
           spaceId: spaceId ?? null,
+          type: finalPageType,
+          isSection: isSection ?? false,
           createdById: auth.user.userId
         },
         include: {
@@ -334,6 +364,11 @@ export async function POST(request: NextRequest) {
     })
 
     logger.info('Wiki page created successfully', { pageId: page.id, title, workspaceId: auth.workspaceId, workspace_type: page.workspace_type })
+
+    // Link orphan attachments to this page when their URLs appear in content
+    const { extractUploadUrlsFromContent, linkAttachmentsToPage } = await import('@/lib/wiki/attachments')
+    const urls = extractUploadUrlsFromContent(finalContentJson)
+    await linkAttachmentsToPage(auth.workspaceId, page.id, urls)
     
     // Emit activity event
     emitEvent(ACTIVITY_EVENTS.WIKI_PAGE_CREATED, {

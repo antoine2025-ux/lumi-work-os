@@ -9,11 +9,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
-import { requireNonEmptyString } from "@/server/org/validate";
 import { emitOrgContextObject } from "@/server/org/loopbrain";
 import { createDepartment } from "@/server/org/structure/write";
 import { prisma } from "@/lib/db";
-import { handleApiError } from "@/lib/api-errors"
+import { logOrgAudit } from "@/lib/audit/org-audit";
+import { handleApiError } from "@/lib/api-errors";
+import { CreateDepartmentSchema } from "@/lib/validations/org";
 
 export async function POST(request: NextRequest) {
   let userId: string | undefined;
@@ -37,17 +38,9 @@ export async function POST(request: NextRequest) {
     await assertAccess({ userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] });
     await setWorkspaceContext(workspaceId);
 
-    const body = await request.json();
-    const name = requireNonEmptyString(body.name, "name");
+    const body = CreateDepartmentSchema.parse(await request.json());
+    const name = body.name;
     const ownerPersonId = body.ownerPersonId || null;
-
-    // Validate ownerPersonId if provided
-    if (ownerPersonId && typeof ownerPersonId !== "string") {
-      return NextResponse.json(
-        { error: "Invalid ownerPersonId" },
-        { status: 400 }
-      );
-    }
 
     // Check for duplicate department name
     const existingDepartment = await prisma.orgDepartment.findFirst({
@@ -75,10 +68,19 @@ export async function POST(request: NextRequest) {
         entity: { type: "department", id: dept.id },
         payload: { name },
       });
-    } catch (contextError: any) {
-      // Log but don't fail - context emission is non-blocking
-      console.warn("[POST /api/org/structure/departments/create] Failed to emit context object (non-blocking):", contextError?.message);
+    } catch (contextError: unknown) {
+      const err = contextError as { message?: string };
+      console.warn("[POST /api/org/structure/departments/create] Failed to emit context object (non-blocking):", err?.message);
     }
+
+    logOrgAudit({
+      workspaceId,
+      entityType: "DEPARTMENT",
+      entityId: dept.id,
+      entityName: dept.name,
+      action: "CREATED",
+      actorId: userId,
+    }).catch((e) => console.error("[POST /api/org/structure/departments/create] Audit log error (non-fatal):", e));
 
     return NextResponse.json(dept, { status: 201 });
   } catch (error) {

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getOrgPermissionContext } from "@/lib/org/permissions.server";
-import { assertOrgCapability, mapPermissionErrorToStatus } from "@/lib/org/permissions.server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { isOrgCenterForceDisabled } from "@/lib/org/feature-flags";
 import { recordOrgApiHit } from "@/lib/org/monitoring.server";
+import { logOrgAuditBatch } from "@/lib/audit/org-audit";
+import { ReorderTeamsSchema } from "@/lib/validations/org";
 
 export async function POST(req: NextRequest) {
   const routeId = "/api/org/teams/reorder";
@@ -17,42 +21,68 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const context = await getOrgPermissionContext();
-    if (!context) {
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
       await recordOrgApiHit(routeId, 401, null, null);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
 
-    try {
-      assertOrgCapability(context, "org:structure:write");
-    } catch (err) {
-      const status = mapPermissionErrorToStatus(err);
-      await recordOrgApiHit(routeId, status, context.orgId, context.userId);
-      return NextResponse.json(
-        { error: "You don't have permission to reorder teams." },
-        { status }
-      );
-    }
+    const body = ReorderTeamsSchema.parse(await req.json());
+    const updates = body.updates;
 
-    const body = await req.json();
-    const updates: { id: string; position: number }[] = body.updates ?? [];
+    // Fetch team names for audit logging
+    const teamIds = updates.map((u: { id: string; position: number }) => u.id);
+    const teams = await prisma.orgTeam.findMany({
+      where: { id: { in: teamIds }, workspaceId: auth.workspaceId },
+      select: { id: true, name: true, order: true },
+    });
+    const teamMap = new Map(teams.map((t) => [t.id, t]));
 
     // Update teams in a transaction
     await Promise.all(
-      updates.map((u) =>
+      updates.map((u: { id: string; position: number }) =>
         prisma.orgTeam.update({
-          where: { id: u.id, workspaceId: context.orgId },
+          where: { id: u.id, workspaceId: auth.workspaceId },
           data: { order: u.position },
         })
       )
     );
 
-    await recordOrgApiHit(routeId, 200, context.orgId, context.userId);
+    // Log audit entries (fire-and-forget batch)
+    const auditEntries = updates
+      .map((u: { id: string; position: number }) => {
+        const team = teamMap.get(u.id);
+        if (!team || team.order === u.position) return null;
+        return {
+          workspaceId: auth.workspaceId,
+          entityType: "TEAM" as const,
+          entityId: u.id,
+          entityName: team.name,
+          action: "UPDATED" as const,
+          actorId: auth.user.userId,
+          changes: { order: { from: team.order, to: u.position } },
+        };
+      })
+      .filter((e): e is NonNullable<typeof e> => e !== null);
+
+    if (auditEntries.length > 0) {
+      logOrgAuditBatch(auditEntries).catch((e: any) =>
+        console.error("[POST /api/org/teams/reorder] Audit error:", e)
+      );
+    }
+
+    await recordOrgApiHit(routeId, 200, auth.workspaceId, auth.user.userId);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[POST /api/org/teams/reorder] Error", error);
     await recordOrgApiHit(routeId, 500, null, null);
-    return NextResponse.json({ error: "Failed to reorder teams" }, { status: 500 });
+    return handleApiError(error, req);
   }
 }
 

@@ -39,13 +39,13 @@ export function ShortlistModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-900 border-white/10 text-slate-100">
+      <DialogContent className="bg-card border-white/10 text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-slate-100">Save Shortlist</DialogTitle>
+          <DialogTitle className="text-foreground">Save Shortlist</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-slate-200 mb-2 block">
+            <label className="text-sm font-medium text-foreground mb-2 block">
               Name
             </label>
             <Input
@@ -53,10 +53,10 @@ export function ShortlistModal({
               onChange={(e) => setName(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="e.g., Leadership candidates"
-              className="bg-slate-800 border-slate-700 text-slate-100"
+              className="bg-muted border-border text-foreground"
               autoFocus
             />
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {personCount} {personCount === 1 ? "person" : "people"} will be saved
             </p>
           </div>

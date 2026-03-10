@@ -120,7 +120,7 @@ export function RoleCard({
       <Card className="hover:shadow-md transition-shadow">
         <CardContent className="p-4">
           <div className="flex items-center space-x-3">
-            <div className={`h-10 w-10 rounded-full ${getLevelColor(role.level)} flex items-center justify-center text-white font-bold text-sm`}>
+            <div className={`h-10 w-10 rounded-full ${getLevelColor(role.level)} flex items-center justify-center text-foreground font-bold text-sm`}>
               {role.user?.image ? (
                 <img 
                   src={role.user.image} 
@@ -177,7 +177,7 @@ export function RoleCard({
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="text-center pb-4">
         <div className="flex justify-center mb-3">
-          <div className={`h-16 w-16 rounded-full ${getLevelColor(role.level)} flex items-center justify-center text-white font-bold text-xl`}>
+          <div className={`h-16 w-16 rounded-full ${getLevelColor(role.level)} flex items-center justify-center text-foreground font-bold text-xl`}>
             {role.user?.image ? (
               <img 
                 src={role.user.image} 

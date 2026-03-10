@@ -20,6 +20,7 @@ import {
   type EmptyPatch,
 } from "@/lib/org/mutations/types";
 import { computeIssueResolution } from "@/lib/org/mutations/utils";
+import { logOrgAudit } from "@/lib/audit/org-audit";
 
 export async function PUT(
   request: NextRequest,
@@ -59,7 +60,7 @@ export async function PUT(
     // Step 4: Parse and validate request body (Zod)
     const { teamId } = OrgPersonTeamSchema.parse(await request.json());
 
-    // Step 5: Verify person exists and belongs to workspace
+    // Step 5: Verify person exists and belongs to workspace (fetch before state for audit)
     // personId from URL can be either OrgPosition ID or User ID (userId)
     // Try to find by OrgPosition ID first, then by User ID if not found
     let position = await prisma.orgPosition.findFirst({
@@ -68,7 +69,12 @@ export async function PUT(
         workspaceId: workspaceId,
         isActive: true
       },
-      select: { id: true, userId: true },
+      select: { 
+        id: true, 
+        userId: true,
+        teamId: true,
+        user: { select: { name: true } },
+      },
     });
     
     // If not found by ID, try by userId (personId might be a User ID)
@@ -79,7 +85,12 @@ export async function PUT(
           workspaceId: workspaceId,
           isActive: true
         },
-        select: { id: true, userId: true },
+        select: { 
+          id: true, 
+          userId: true,
+          teamId: true,
+          user: { select: { name: true } },
+        },
       });
     }
 
@@ -118,7 +129,7 @@ export async function PUT(
     }
 
     // Step 7: Compute issues BEFORE mutation (scoped to person)
-    // TODO: Enhance to derive actual MISSING_TEAM issues for person
+    // TODO [BACKLOG]: Derive actual MISSING_TEAM issues for person
     const issuesBefore: OrgIssueMetadata[] = [];
 
     // Step 8: Update team assignment
@@ -129,7 +140,7 @@ export async function PUT(
     });
 
     // Step 9: Compute issues AFTER mutation (same scoped set)
-    // TODO: Enhance to derive actual MISSING_TEAM issues for person
+    // TODO [BACKLOG]: Derive actual MISSING_TEAM issues for person
     const issuesAfter: OrgIssueMetadata[] = [];
 
     // Step 10: Build response metadata
@@ -142,7 +153,20 @@ export async function PUT(
       responseMeta.mutationId
     );
 
-    // Step 12: Emit Loopbrain context (non-blocking)
+    // Step 12: Log audit entry
+    logOrgAudit({
+      workspaceId,
+      entityType: "PERSON",
+      entityId: updated.id,
+      entityName: position.user?.name ?? undefined,
+      action: "UPDATED",
+      actorId: userId,
+      changes: {
+        teamId: { from: position.teamId, to: updated.teamId },
+      },
+    }).catch((e) => console.error("[PUT /api/org/people/[personId]/team] Audit log error (non-fatal):", e));
+
+    // Step 13: Emit Loopbrain context (non-blocking)
     try {
       await emitOrgContextObject({
         workspaceId,
@@ -155,7 +179,7 @@ export async function PUT(
       console.warn("[PUT /api/org/people/[personId]/team] Failed to emit context object (non-blocking):", contextError?.message);
     }
 
-    // Step 13: Return canonical MutationResult
+    // Step 14: Return canonical MutationResult
     const response: MutationResult<{ personId: string; teamId: string | null }, EmptyPatch> = {
       ok: true,
       data: { personId: updated.userId ?? personId, teamId: updated.teamId },

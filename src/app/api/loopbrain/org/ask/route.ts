@@ -10,6 +10,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { handleApiError } from "@/lib/api-errors";
+import { LoopbrainOrgAskSchema } from "@/lib/validations/loopbrain";
 
 export const dynamic = "force-dynamic";
 
@@ -47,16 +48,9 @@ export async function POST(req: NextRequest) {
     });
     const workspaceId = auth.workspaceId;
 
-    const body = (await req.json()) as OrgAskRequestBody;
-    const question = (body.question ?? "").trim();
+    const body = LoopbrainOrgAskSchema.parse(await req.json());
+    const question = body.question;
     const limit = body.limit && body.limit > 0 ? body.limit : 100;
-
-    if (!question) {
-      return NextResponse.json(
-        { ok: false, error: "Missing 'question' in request body." },
-        { status: 400 }
-      );
-    }
 
     // Pull Org-related ContextItems from the context store
     const items = await prisma.contextItem.findMany({

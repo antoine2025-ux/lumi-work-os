@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/db"
 import { OwnedEntityType } from "@prisma/client"
 
-export async function computeOwnershipCoverageScore(orgId: string): Promise<number | null> {
+export async function computeOwnershipCoverageScore(workspaceId: string): Promise<number | null> {
   // Coverage % = entities with a primary owner / total entities (teams + domains + systems)
   const [teamCount, domainCount, systemCount] = await Promise.all([
-    prisma.orgTeam.count({ where: { workspaceId: orgId } }).catch(() => 0),
-    prisma.domain.count({ where: { orgId } }).catch(() => 0),
-    prisma.systemEntity.count({ where: { orgId } }).catch(() => 0),
+    prisma.orgTeam.count({ where: { workspaceId } }).catch(() => 0),
+    prisma.domain.count({ where: { workspaceId } }).catch(() => 0),
+    prisma.systemEntity.count({ where: { workspaceId } }).catch(() => 0),
   ])
 
   const total = Number(teamCount ?? 0) + Number(domainCount ?? 0) + Number(systemCount ?? 0)
@@ -16,7 +16,7 @@ export async function computeOwnershipCoverageScore(orgId: string): Promise<numb
   try {
     owned = await prisma.ownerAssignment.count({
       where: {
-        workspaceId: orgId,
+        workspaceId,
         isPrimary: true,
         entityType: { in: [OwnedEntityType.TEAM, OwnedEntityType.DOMAIN, OwnedEntityType.SYSTEM] },
       },

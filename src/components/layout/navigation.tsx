@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/workspace-context"
@@ -18,7 +18,8 @@ import {
   Clock,
   Workflow,
   CheckSquare,
-  Users2
+  Users2,
+  FolderOpen
 } from "lucide-react"
 
 // Core navigation items (always visible)
@@ -36,6 +37,13 @@ const coreNavigationItems = [
     icon: CheckSquare,
     description: "Personal and team to-dos",
     roles: ['OWNER', 'ADMIN', 'MEMBER']
+  },
+  {
+    name: "Projects",
+    href: "/projects",
+    icon: FolderOpen,
+    description: "Browse workspace projects",
+    roles: ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']
   },
   {
     name: "Spaces",
@@ -144,9 +152,12 @@ const devNavigationItems = [
 
 export function Navigation() {
   const pathname = usePathname()
+  const params = useParams()
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const { userRole, currentWorkspace } = useWorkspace()
+
+  const slug = (params?.workspaceSlug as string) ?? currentWorkspace?.slug ?? null
   
   // Filter navigation items based on user role and feature flags
   const getVisibleNavigationItems = () => {
@@ -158,7 +169,7 @@ export function Navigation() {
       ),
       ...featureNavigationItems.filter(item => {
         if (!userRole || !item.roles.includes(userRole)) return false
-        // TODO: Check feature flags when implemented
+        // TODO [BACKLOG]: Check FeatureFlag model when feature flag system is implemented
         return true
       }),
       ...adminNavigationItems.filter(item => 
@@ -200,10 +211,10 @@ export function Navigation() {
         {/* Navigation Items */}
         <div className="flex items-center space-x-1">
           {navigationItems.map((item) => {
-            // Build workspace-scoped href for workspace-aware routes
-            const slugHref = currentWorkspace?.slug 
-              ? `/w/${currentWorkspace.slug}${item.href === '/' ? '' : item.href}`
-              : item.href // Fallback to original if no workspace
+            // Build workspace-scoped href: params first (immediate), context hydrates later
+            const slugHref = slug
+              ? `/w/${slug}${item.href === '/' ? '' : item.href}`
+              : item.href
             
             const isActive = pathname === slugHref || 
               pathname === item.href ||

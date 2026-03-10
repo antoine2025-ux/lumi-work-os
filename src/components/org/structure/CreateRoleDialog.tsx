@@ -150,19 +150,19 @@ export function CreateRoleDialog(props: CreateRoleDialogProps) {
             New role
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-md border border-slate-800 bg-[#020617] text-slate-100">
+        <DialogContent className="max-w-md border border-border bg-background text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold text-slate-50">
+          <DialogTitle className="text-base font-semibold text-foreground">
             Create role
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">
+          <DialogDescription className="text-xs text-muted-foreground">
             Define a role so expectations and responsibilities are clear for people in this org.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-medium text-slate-300">
+            <label className="block text-[11px] font-medium text-muted-foreground">
               Role name
             </label>
             <Input
@@ -172,14 +172,14 @@ export function CreateRoleDialog(props: CreateRoleDialogProps) {
                 setValues((prev) => ({ ...prev, name: e.target.value }))
               }
               placeholder="e.g. Product Manager"
-              className="h-8 rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100 placeholder:text-slate-500"
+              className="h-8 rounded-md border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-medium text-slate-300">
+            <label className="block text-[11px] font-medium text-muted-foreground">
               Level
-              <span className="ml-1 text-[11px] font-normal text-slate-500">
+              <span className="ml-1 text-[11px] font-normal text-muted-foreground">
                 (optional)
               </span>
             </label>
@@ -189,14 +189,14 @@ export function CreateRoleDialog(props: CreateRoleDialogProps) {
                 setValues((prev) => ({ ...prev, level: e.target.value }))
               }
               placeholder="e.g. Senior, L3"
-              className="h-8 rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100 placeholder:text-slate-500"
+              className="h-8 rounded-md border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-medium text-slate-300">
+            <label className="block text-[11px] font-medium text-muted-foreground">
               Description
-              <span className="ml-1 text-[11px] font-normal text-slate-500">
+              <span className="ml-1 text-[11px] font-normal text-muted-foreground">
                 (optional)
               </span>
             </label>
@@ -209,7 +209,7 @@ export function CreateRoleDialog(props: CreateRoleDialogProps) {
                 }))
               }
               placeholder="Short description of responsibilities or expectations for this role."
-              className="min-h-[72px] rounded-md border-slate-700 bg-[#020617] text-[13px] text-slate-100 placeholder:text-slate-500"
+              className="min-h-[72px] rounded-md border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
@@ -224,7 +224,7 @@ export function CreateRoleDialog(props: CreateRoleDialogProps) {
               type="button"
               variant="ghost"
               size="sm"
-              className="text-[13px] text-slate-400 hover:text-slate-100"
+              className="text-[13px] text-muted-foreground hover:text-foreground"
               onClick={() => handleOpenChange(false)}
               disabled={submitting}
             >

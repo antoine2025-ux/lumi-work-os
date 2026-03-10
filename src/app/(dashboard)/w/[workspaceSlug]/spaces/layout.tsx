@@ -1,16 +1,12 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { WikiLayout } from "@/components/wiki/wiki-layout"
+import { SpacesLayoutShell } from "@/components/spaces/SpacesLayoutShell"
 
 export default function SpacesPageLayout({
   children,
 }: {
   children: ReactNode
 }) {
-  return (
-    <WikiLayout>
-      {children}
-    </WikiLayout>
-  )
+  return <SpacesLayoutShell>{children}</SpacesLayoutShell>
 }

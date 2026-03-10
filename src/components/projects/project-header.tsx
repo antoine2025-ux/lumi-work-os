@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2 } from "lucide-react"
+import { Edit, Trash2, Activity, Copy } from "lucide-react"
 import { ProjectSpaceBadge } from "./project-space-badge"
 
 interface ProjectHeaderProps {
@@ -40,12 +40,13 @@ interface ProjectHeaderProps {
     border: string
     success: string
   }
-  currentView?: 'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'
-  onViewChange?: (view: 'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files') => void
+  currentView?: 'board' | 'epics' | 'tasks' | 'table' | 'calendar' | 'timeline' | 'files' | 'health'
+  onViewChange?: (view: 'board' | 'epics' | 'tasks' | 'table' | 'calendar' | 'timeline' | 'files' | 'health') => void
   onMoreClick?: () => void
   channelHints?: string[]
   onEdit?: () => void
   onDelete?: () => void
+  onDuplicate?: () => void
 }
 
 export function ProjectHeader({
@@ -56,7 +57,8 @@ export function ProjectHeader({
   onViewChange,
   channelHints = [],
   onEdit,
-  onDelete
+  onDelete,
+  onDuplicate
 }: ProjectHeaderProps) {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
 
@@ -210,6 +212,20 @@ export function ProjectHeader({
             )}
           </button>
           <button
+            onClick={() => onViewChange?.('table')}
+            className={`px-3 py-1.5 text-sm font-medium transition-colors relative ${
+              currentView === 'table'
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            style={currentView === 'table' ? { color: colors.text } : {}}
+          >
+            Table
+            {currentView === 'table' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ backgroundColor: colors.primary }} />
+            )}
+          </button>
+          <button
             onClick={() => onViewChange?.('calendar')}
             className={`px-3 py-1.5 text-sm font-medium transition-colors relative ${
               currentView === 'calendar'
@@ -254,16 +270,35 @@ export function ProjectHeader({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className={`px-3 py-1.5 text-sm font-medium transition-colors relative ${
+                  currentView === 'health'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                style={currentView === 'health' ? { color: colors.text } : {}}
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
                 }}
               >
                 …
+                {currentView === 'health' && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ backgroundColor: colors.primary }} />
+                )}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onViewChange?.('health')
+                }}
+                className="cursor-pointer"
+              >
+                <Activity className="mr-2 h-4 w-4" />
+                Health
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={(e) => {
                   e.preventDefault()
@@ -274,6 +309,17 @@ export function ProjectHeader({
               >
                 <Edit className="mr-2 h-4 w-4" />
                 Edit Project
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onDuplicate?.()
+                }}
+                className="cursor-pointer"
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Duplicate Project
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

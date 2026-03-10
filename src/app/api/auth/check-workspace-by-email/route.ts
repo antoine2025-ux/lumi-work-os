@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/server/authOptions'
 import { prisma } from '@/lib/db'
+import { rateLimit } from '@/lib/rate-limit'
+import { rateLimitExceeded } from '@/lib/rate-limit-response'
 
 export async function GET(request: NextRequest) {
+  const limit = await rateLimit(request, { windowMs: 60 * 1000, max: 10, identifier: 'check-workspace-email' })
+  if (!limit.success) return rateLimitExceeded(limit.resetAt)
   try {
     // Verify user is authenticated (just check for email in session)
     const session = await getServerSession(authOptions)

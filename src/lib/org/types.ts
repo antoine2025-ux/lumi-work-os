@@ -1,30 +1,20 @@
 /**
  * Org Module Type Definitions
  * 
- * IMPORTANT: In this codebase, orgId and workspaceId are equivalent.
- * The Org feature uses workspaceId as the canonical identifier, but
- * many functions accept orgId as a parameter for backward compatibility
- * and API ergonomics. Internally, orgId is always treated as workspaceId.
- * 
- * This is a critical assumption for merging into Loopwell 2.0.
- * If Loopwell 2.0 has different org/workspace separation, this contract
- * must be re-evaluated.
+ * The Org feature uses workspaceId as the canonical identifier.
+ * A workspace IS the org in this codebase.
  */
 
 /**
- * OrgId is an alias for WorkspaceId in this codebase.
- * They represent the same entity - a workspace IS the org.
+ * WorkspaceId is the canonical identifier for organizations.
  */
-export type OrgId = string
 export type WorkspaceId = string
 
 /**
- * Type guard to ensure we're treating IDs consistently
- * In practice, orgId === workspaceId always in this codebase
+ * Legacy type alias - use WorkspaceId instead.
+ * @deprecated Use WorkspaceId directly
  */
-export function orgIdToWorkspaceId(orgId: OrgId): WorkspaceId {
-  return orgId // They're the same
-}
+export type OrgId = WorkspaceId
 
 /**
  * Type guard for consistency

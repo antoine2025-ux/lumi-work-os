@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { storeSlackIntegration } from '@/lib/integrations/slack-service'
+import { handleApiError } from '@/lib/api-errors'
 import { logger } from '@/lib/logger'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 
@@ -177,25 +178,8 @@ export async function GET(request: NextRequest) {
     const redirectUrl = `${redirectBase}/settings?tab=integrations&success=slack_connected`
     logger.info('Redirecting to settings after Slack OAuth', { redirectUrl })
     return NextResponse.redirect(redirectUrl)
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    const errorStack = error instanceof Error ? error.stack : undefined
-    const callbackUrl = new URL(request.url)
-    logger.error('Error in Slack OAuth callback:', {
-      error: errorMessage,
-      stack: errorStack,
-      url: request.url,
-      code: callbackUrl.searchParams.get('code'),
-      state: callbackUrl.searchParams.get('state')
-    })
-    const redirectBase = process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:3000'
-      : request.url.split('/api')[0]
-    // Include more specific error message in URL for debugging
-    const errorParam = encodeURIComponent(errorMessage.length > 50 ? 'callback_error' : errorMessage)
-    const redirectUrl = `${redirectBase}/settings?tab=integrations&error=${errorParam}`
-    logger.info('Redirecting to settings after Slack OAuth error', { redirectUrl, errorMessage })
-    return NextResponse.redirect(redirectUrl)
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 

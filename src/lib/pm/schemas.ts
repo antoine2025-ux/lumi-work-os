@@ -1,5 +1,27 @@
 import { z } from 'zod'
 
+// Template data schema for project creation (built-in starter templates)
+const TemplateTaskSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
+})
+
+const TemplateTaskGroupSchema = z.object({
+  name: z.string(),
+  tasks: z.array(TemplateTaskSchema),
+})
+
+export const ProjectTemplateDataSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  icon: z.string(),
+  category: z.enum(['engineering', 'product', 'marketing', 'operations', 'general']),
+  defaultStatuses: z.array(z.string()),
+  taskGroups: z.array(TemplateTaskGroupSchema),
+})
+
 // Project schemas
 export const ProjectCreateSchema = z.object({
   workspaceId: z.string().min(1, 'Workspace ID is required'),
@@ -31,6 +53,7 @@ export const ProjectCreateSchema = z.object({
   visibility: z.enum(['PUBLIC', 'TARGETED']).optional(), // New: simplified visibility
   memberUserIds: z.array(z.string()).optional(), // New: members for TARGETED projects
   dailySummaryEnabled: z.boolean().default(false),
+  templateData: ProjectTemplateDataSchema.optional(), // Built-in starter template to apply
 }).refine(
   (data) => {
     if (data.startDate && data.endDate) {
@@ -73,6 +96,10 @@ export const ProjectUpdateSchema = z.object({
     path: ['endDate']
   }
 )
+
+export const ProjectDuplicateSchema = z.object({
+  name: z.string().min(1, 'Project name is required').max(255, 'Project name too long').optional()
+})
 
 // Task schemas
 // Note: workspaceId is not included in the schema because it is always derived from
@@ -309,6 +336,43 @@ export const AssignTaskToMilestoneSchema = z.object({
 
 export const UpdateTaskPointsSchema = z.object({
   points: z.number().int().min(0).max(100).optional()
+})
+
+// Project Template schemas
+export const ProjectTemplateCreateSchema = z.object({
+  name: z.string().min(1).max(255),
+  description: z.string().optional(),
+  category: z.string().min(1),
+  isDefault: z.boolean().optional().default(false),
+  isPublic: z.boolean().optional().default(true),
+  templateData: z.record(z.string(), z.unknown()),
+})
+
+export const ProjectTemplateUpdateSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().optional(),
+  category: z.string().optional(),
+  isDefault: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
+  templateData: z.record(z.string(), z.unknown()).optional(),
+})
+
+export const ProjectTemplateApplySchema = z.object({
+  projectName: z.string().min(1).max(255),
+  projectDescription: z.string().optional(),
+})
+
+// Project Space Member schemas
+export const ProjectSpaceMemberAddSchema = z.object({
+  userId: z.string().min(1),
+  role: z.enum(['VIEWER', 'MEMBER', 'ADMIN']).optional().default('MEMBER'),
+})
+
+// Project Documentation schemas
+export const ProjectDocumentationUpdateSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  description: z.string().optional(),
+  url: z.string().url().optional(),
 })
 
 // Type exports

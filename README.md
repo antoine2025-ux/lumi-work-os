@@ -127,6 +127,9 @@ GOOGLE_CLIENT_SECRET="your-google-client-secret"
 # OpenAI
 OPENAI_API_KEY="your-openai-api-key"
 
+# Wiki real-time collaboration (optional)
+NEXT_PUBLIC_COLLAB_URL="ws://localhost:1234"
+
 # Supabase (for file storage)
 NEXT_PUBLIC_SUPABASE_URL="your-supabase-url"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"

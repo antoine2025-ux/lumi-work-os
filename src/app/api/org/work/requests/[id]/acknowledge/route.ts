@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 import { resolveWorkFeasibility } from "@/lib/org/work/resolveWorkFeasibility";
 import { logWorkRecommendation } from "@/lib/org/work/logWorkRecommendation";
@@ -128,7 +129,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       acknowledgedAt: updated.acknowledgedAt?.toISOString() ?? null,
     });
   } catch (error: unknown) {
-    console.error("[POST /api/org/work/requests/[id]/acknowledge] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

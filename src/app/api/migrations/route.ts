@@ -1,8 +1,10 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-errors'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { SliteAdapter } from '@/lib/migrations/adapters/slite-adapter'
 import { ClickUpAdapter } from '@/lib/migrations/adapters/clickup-adapter'
+import { StartMigrationSchema } from '@/lib/validations/workspace'
 
 // POST /api/migrations - Start a new migration
 export async function POST(request: NextRequest) {
@@ -13,14 +15,8 @@ export async function POST(request: NextRequest) {
     const auth = await getUnifiedAuth(request)
     console.log('🔐 Authenticated user:', auth.user.email, auth.isDevelopment ? '(dev mode)' : '(production)')
     
-    const body = await request.json()
+    const body = StartMigrationSchema.parse(await request.json())
     const { platform, apiKey, workspaceId, additionalConfig } = body
-
-    if (!platform || !apiKey || !workspaceId) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: platform, apiKey, workspaceId' 
-      }, { status: 400 })
-    }
 
     // Use authenticated user instead of creating default user
     const userId = auth.user.id
@@ -94,14 +90,8 @@ export async function POST(request: NextRequest) {
       previewUrl: `/migrations/review`
     })
 
-  } catch (error) {
-    console.error('Migration error:', error)
-    console.error('Error stack:', error.stack)
-    return NextResponse.json({ 
-      error: 'Migration failed', 
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }
 
@@ -135,10 +125,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(migrations)
 
-  } catch (error) {
-    console.error('Error fetching migrations:', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch migrations' 
-    }, { status: 500 })
+  } catch (error: unknown) {
+    return handleApiError(error, request)
   }
 }

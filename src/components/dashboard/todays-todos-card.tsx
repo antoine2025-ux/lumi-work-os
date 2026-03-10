@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -96,39 +95,39 @@ export function TodaysTodosCard({ className }: TodaysTodosCardProps) {
 
   return (
     <>
-      <Card className={cn("", className)}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center justify-between">
-            <Link href="/todos" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <List className="h-5 w-5 text-primary" />
-              <span className="cursor-pointer">To-do list</span>
+      <div className={cn("bg-card rounded-md border border-border flex flex-col h-full min-h-0", className)}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <List className="h-4 w-4 text-muted-foreground" aria-hidden />
+            <Link href="/todos" className="hover:opacity-80 transition-opacity">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground cursor-pointer">To-do</h3>
             </Link>
-            <div className="flex items-center gap-2">
-              {openCount > 0 && (
-                <Badge variant="outline" className="text-xs">{openCount}</Badge>
-              )}
-              <Select value={scheduleFilter} onValueChange={(v) => setScheduleFilter(v as ScheduleFilter)}>
-                <SelectTrigger className="w-32 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="thisWeek">This week</SelectItem>
-                  <SelectItem value="all">All</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-6 w-6"
-                onClick={() => setIsDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 max-h-[340px] overflow-y-auto dashboard-card-scroll">
+          </div>
+          <div className="flex items-center gap-2">
+            {openCount > 0 && (
+              <Badge variant="outline" className="text-xs">{openCount}</Badge>
+            )}
+            <Select value={scheduleFilter} onValueChange={(v) => setScheduleFilter(v as ScheduleFilter)}>
+              <SelectTrigger className="w-32 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="thisWeek">This week</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6"
+              onClick={() => setIsDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="p-3 flex-1 space-y-2 max-h-[340px] overflow-y-auto dashboard-card-scroll">
           {!isLoading && openCount === 0 ? (
             <div className="text-center py-6">
               <p className="text-sm text-muted-foreground">
@@ -173,8 +172,8 @@ export function TodaysTodosCard({ className }: TodaysTodosCardProps) {
               </Button>
             </Link>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <CreateTodoDialog
         open={isDialogOpen}

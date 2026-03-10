@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { Header } from "@/components/layout/header"
 import { LoopbrainAssistantProvider } from "@/components/loopbrain/assistant-context"
+import { LoopbrainAssistantLauncher } from "@/components/loopbrain/assistant-launcher"
 import { useUserStatusContext } from '@/providers/user-status-provider'
 // PHASE C2: Removed redirect-handler import - middleware handles redirects
 
@@ -50,12 +51,13 @@ export default function HomeLayout({
 
   return (
     <LoopbrainAssistantProvider>
-      <div className="min-h-screen bg-slate-950">
+      <div className="min-h-screen bg-background">
         <Header />
-        <main className="min-h-screen">
+        <main className="min-h-screen pt-16">
           {children}
         </main>
       </div>
+      <LoopbrainAssistantLauncher mode="dashboard" />
     </LoopbrainAssistantProvider>
   )
 }

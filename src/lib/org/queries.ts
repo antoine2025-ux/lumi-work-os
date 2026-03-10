@@ -66,10 +66,10 @@ export async function getDepartmentsWithTeams() {
   
   // Get workspace context for batch resolvers
   const context = await getOrgPermissionContext();
-  if (!context?.orgId) {
+  if (!context?.workspaceId) {
     return [];
   }
-  const workspaceId = context.orgId;
+  const workspaceId = context.workspaceId;
   
   const departments = await prisma.orgDepartment.findMany({
     where: { isActive: true },
@@ -161,10 +161,10 @@ export async function getUnassignedTeams() {
   
   // Get workspace context (same pattern as getDepartmentsWithTeams)
   const context = await getOrgPermissionContext();
-  if (!context?.orgId) {
+  if (!context?.workspaceId) {
     return [];
   }
-  const workspaceId = context.orgId;
+  const workspaceId = context.workspaceId;
   
   // Find teams with null departmentId (unassigned teams)
   // Note: This requires departmentId to be nullable in the schema
@@ -307,12 +307,12 @@ export type DepartmentDetail = {
  * Get a single department by ID with teams and owners.
  * Fetches data for the current workspace from getOrgPermissionContext.
  */
-export async function getDepartmentById(departmentId: string) {
+export async function getDepartmentById(departmentId: string, workspaceId: string) {
   if (!prisma) {
     return null;
   }
   const department = await prisma.orgDepartment.findUnique({
-    where: { id: departmentId },
+    where: { id: departmentId, workspaceId },
     include: {
       teams: {
         orderBy: { name: "asc" },
@@ -385,12 +385,12 @@ export function getDepartmentOwnerPerson(dept: DepartmentDetail | null) {
 /**
  * Get a single team by ID with owner information.
  */
-export async function getTeamById(teamId: string) {
+export async function getTeamById(teamId: string, workspaceId: string) {
   if (!prisma) {
     return null;
   }
   const team = await prisma.orgTeam.findUnique({
-    where: { id: teamId },
+    where: { id: teamId, workspaceId },
     include: {
       department: true,
     },
@@ -426,7 +426,7 @@ export async function getPeopleForOrgPicker(): Promise<PersonForPicker[]> {
     return [];
   }
 
-  const workspaceId = context.orgId;
+  const workspaceId = context.workspaceId;
 
   if (!prisma) {
     return [];
@@ -497,7 +497,7 @@ export async function getDepartmentsForPicker(): Promise<DepartmentForPicker[]> 
       return [];
     }
 
-    const workspaceId = context.orgId;
+    const workspaceId = context.workspaceId;
 
     if (!prisma) {
       console.warn("[getDepartmentsForPicker] Prisma client not available");

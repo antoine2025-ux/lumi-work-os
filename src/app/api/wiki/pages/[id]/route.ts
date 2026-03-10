@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type { JSONContent } from '@tiptap/core'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
@@ -9,6 +10,9 @@ import { emitEvent } from '@/lib/events/emit'
 import { ACTIVITY_EVENTS } from '@/lib/events/activityEvents'
 import { logger } from '@/lib/logger'
 import { WikiPageUpdateSchema } from '@/lib/validations/wiki'
+import { extractMentions } from '@/lib/mentions/extract'
+import { createNotification } from '@/lib/notifications/create'
+import { extractUploadUrlsFromContent, linkAttachmentsToPage } from '@/lib/wiki/attachments'
 
 // Shared include clause for wiki page queries (DRY)
 const WIKI_PAGE_INCLUDE = {
@@ -47,6 +51,30 @@ const WIKI_PAGE_INCLUDE = {
       }
     },
     orderBy: { version: 'desc' } as const
+  },
+  projectDocumentation: {
+    select: {
+      project: {
+        select: { id: true, name: true }
+      }
+    }
+  },
+  taskLinks: {
+    select: {
+      task: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          project: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        }
+      }
+    }
   }
 } as const
 
@@ -74,6 +102,9 @@ export async function GET(
 
     const resolvedParams = await params
     const pageIdOrSlug = decodeURIComponent(resolvedParams.id)
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc9fac'},body:JSON.stringify({sessionId:'dc9fac',location:'api/wiki/pages/[id]/route.ts:GET',message:'wiki page GET',data:{pageIdOrSlug,workspaceId:auth.workspaceId},timestamp:Date.now(),hypothesisId:'H2-H4'})}).catch(()=>{});
+    // #endregion
 
     // RLS defense-in-depth: set app.user_id so RLS policies pass
     // (Prisma service role bypasses RLS, but this guards against config changes)
@@ -106,6 +137,9 @@ export async function GET(
     })
 
     if (!page) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc9fac'},body:JSON.stringify({sessionId:'dc9fac',location:'api/wiki/pages/[id]/route.ts:404',message:'wiki 404 db_not_found',data:{pageIdOrSlug,workspaceId:auth.workspaceId,reason:'db_not_found'},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
       return NextResponse.json({
         error: 'Page not found'
       }, { status: 404 })
@@ -117,6 +151,9 @@ export async function GET(
     // Personal pages - only creator
     if (pageWorkspaceType === 'personal' || pageWorkspaceType?.startsWith('personal-space-')) {
       if (page.createdById !== auth.user.userId) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc9fac'},body:JSON.stringify({sessionId:'dc9fac',location:'api/wiki/pages/[id]/route.ts:404',message:'wiki 404 personal_forbidden',data:{pageIdOrSlug,workspaceId:auth.workspaceId,reason:'personal_forbidden',createdById:page.createdById},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
         return NextResponse.json({ error: 'Page not found' }, { status: 404 })
       }
     }
@@ -125,14 +162,40 @@ export async function GET(
     if (pageWorkspaceType?.startsWith('wiki-')) {
       const hasAccess = await canAccessWikiWorkspace(auth.user.userId, pageWorkspaceType)
       if (!hasAccess) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc9fac'},body:JSON.stringify({sessionId:'dc9fac',location:'api/wiki/pages/[id]/route.ts:404',message:'wiki 404 wiki_workspace_forbidden',data:{pageIdOrSlug,workspaceId:auth.workspaceId,reason:'wiki_workspace_forbidden',pageWorkspaceType},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
         return NextResponse.json({ error: 'Page not found' }, { status: 404 })
       }
     }
 
+    // Build linkedProjects from projectDocumentation (dedupe by id)
+    const projectDoc = (page as { projectDocumentation?: Array<{ project: { id: string; name: string } }> }).projectDocumentation
+    const linkedProjects = projectDoc
+      ? Array.from(
+          new Map(projectDoc.map((pd) => [pd.project.id, pd.project])).values()
+        )
+      : []
+
+    // Build linkedTasks from taskLinks
+    const taskLinksData = (page as { taskLinks?: Array<{ task: { id: string; title: string; status: string; project: { id: string; name: string } } }> }).taskLinks
+    const linkedTasks = taskLinksData
+      ? taskLinksData.map((tl) => ({
+          id: tl.task.id,
+          title: tl.task.title,
+          status: tl.task.status,
+          projectId: tl.task.project.id,
+          projectName: tl.task.project.name
+        }))
+      : []
+
     // Ensure contentFormat has a default value
+    const { projectDocumentation: _pd, taskLinks: _tl, ...pageRest } = page as typeof page & { projectDocumentation?: unknown; taskLinks?: unknown }
     const response = {
-      ...page,
-      contentFormat: (page as any).contentFormat || 'HTML'
+      ...pageRest,
+      contentFormat: (page as { contentFormat?: string }).contentFormat || 'HTML',
+      linkedProjects,
+      linkedTasks
     }
 
     return NextResponse.json(response)
@@ -318,6 +381,12 @@ export async function PUT(
       })
     }
 
+    // Link orphan attachments to this page when their URLs appear in content
+    if (finalFormat === 'JSON' && contentJson) {
+      const urls = extractUploadUrlsFromContent(contentJson as JSONContent)
+      await linkAttachmentsToPage(auth.workspaceId, resolvedParams.id, urls)
+    }
+
     // Emit activity event
     emitEvent(ACTIVITY_EVENTS.WIKI_PAGE_EDITED, {
       workspaceId: auth.workspaceId,
@@ -327,6 +396,39 @@ export async function PUT(
     }).catch((err) => 
       logger.error('Failed to emit wiki page edited event', { pageId: resolvedParams.id, error: err })
     )
+
+    // Mention notifications (fire-and-forget)
+    if (finalFormat === 'JSON' && contentJson && hasContentChange) {
+      const newMentions = extractMentions(contentJson as object)
+      const prevContent = (currentPage as { contentJson?: object }).contentJson
+      const prevMentions = extractMentions(prevContent ?? null)
+      const newlyMentioned = newMentions.filter(
+        (m) => !prevMentions.some((p) => p.personId === m.personId)
+      )
+      const pageSlug = (updatedPage as { slug?: string }).slug ?? resolvedParams.id
+      const pageTitle = (updatedPage as { title?: string }).title ?? 'Untitled'
+
+      for (const m of newlyMentioned) {
+        if (m.personId === auth.user.userId) continue // no self-mention
+        createNotification({
+          workspaceId: auth.workspaceId,
+          recipientId: m.personId,
+          actorId: auth.user.userId,
+          type: 'MENTION',
+          title: `${auth.user.name ?? 'Someone'} mentioned you in "${pageTitle}"`,
+          body: undefined,
+          entityType: 'wikiPage',
+          entityId: resolvedParams.id,
+          url: `/wiki/${pageSlug}`,
+        }).catch((err) =>
+          logger.error('Failed to create mention notification', {
+            pageId: resolvedParams.id,
+            recipientId: m.personId,
+            error: err,
+          })
+        )
+      }
+    }
 
     return NextResponse.json(updatedPage)
   } catch (error: any) {

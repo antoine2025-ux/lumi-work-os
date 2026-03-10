@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
+import { handleApiError } from "@/lib/api-errors";
 import { prisma } from "@/lib/db";
 import {
   getOrCreateWorkspaceEffortDefaults,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/org/work/effortDefaults";
 import { getWorkRequestResponseMeta } from "@/lib/org/work/types";
 import type { Prisma, WorkRequestStatus, WorkPriority, WorkDomainType } from "@prisma/client";
+import { CreateWorkRequestSchema } from "@/lib/validations/org";
 
 export async function GET(request: NextRequest) {
   try {
@@ -124,8 +126,7 @@ export async function GET(request: NextRequest) {
       responseMeta: getWorkRequestResponseMeta(),
     });
   } catch (error: unknown) {
-    console.error("[GET /api/org/work/requests] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }
 
@@ -152,13 +153,8 @@ export async function POST(request: NextRequest) {
     setWorkspaceContext(workspaceId);
 
     // Step 4: Parse and validate request body
-    const body = await request.json();
+    const body = CreateWorkRequestSchema.parse(await request.json());
     const isProvisional = body.provisional === true;
-
-    // Required fields
-    if (!body.title?.trim()) {
-      return NextResponse.json({ error: "title is required" }, { status: 400 });
-    }
 
     // O1: Provisional creation — relaxed defaults for onboarding
     if (isProvisional) {
@@ -405,7 +401,6 @@ export async function POST(request: NextRequest) {
       responseMeta: getWorkRequestResponseMeta(),
     });
   } catch (error: unknown) {
-    console.error("[POST /api/org/work/requests] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, request);
   }
 }

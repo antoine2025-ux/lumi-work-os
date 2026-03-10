@@ -1,18 +1,26 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getOrgContext, requireAdmin } from "@/server/rbac";
-import { getCurrentWorkspaceId } from "@/lib/current-workspace";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
 
 export async function GET(req: NextRequest) {
   try {
-    const ctx = await getOrgContext(req);
-    if (!ctx.orgId) return NextResponse.json({ ok: false }, { status: 401 });
-    requireAdmin((ctx as any).canAdmin);
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["VIEWER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
 
-    const workspaceId = await getCurrentWorkspaceId(req);
-    if (!workspaceId) return NextResponse.json({ ok: false, error: "Workspace required" }, { status: 400 });
+    const workspaceId = auth.workspaceId;
 
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get("q") || "").trim().toLowerCase();

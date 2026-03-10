@@ -14,7 +14,7 @@ type ViewModeToggleProps = {
  */
 export function ViewModeToggle({ value, onChange }: ViewModeToggleProps) {
   return (
-    <div className="inline-flex items-center rounded-full bg-slate-900/70 border border-slate-800/80 p-1 gap-1">
+    <div className="inline-flex items-center rounded-full bg-card/70 border border-border/80 p-1 gap-1">
       <button
         type="button"
         onClick={() => onChange("list")}
@@ -22,7 +22,7 @@ export function ViewModeToggle({ value, onChange }: ViewModeToggleProps) {
           "rounded-full px-3 py-1 text-xs transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70",
           value === "list"
             ? "bg-slate-100 text-slate-900 font-semibold shadow-sm"
-            : "text-slate-300 hover:bg-slate-800/80"
+            : "text-muted-foreground hover:bg-muted/80"
         )}
         aria-pressed={value === "list"}
       >
@@ -35,7 +35,7 @@ export function ViewModeToggle({ value, onChange }: ViewModeToggleProps) {
           "rounded-full px-3 py-1 text-xs transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70",
           value === "tree"
             ? "bg-slate-100 text-slate-900 font-semibold shadow-sm"
-            : "text-slate-300 hover:bg-slate-800/80"
+            : "text-muted-foreground hover:bg-muted/80"
         )}
         aria-pressed={value === "tree"}
       >

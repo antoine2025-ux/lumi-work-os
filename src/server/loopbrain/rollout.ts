@@ -1,13 +1,13 @@
 import { prisma } from "@/lib/db";
 
 export async function isLoopBrainEnabledForUser(args: {
-  orgId: string;
+  workspaceId: string;
   scope: string;
   role: string;
   teamName?: string | null;
 }) {
   const cfg = await prisma.orgLoopBrainRollout.findUnique({
-    where: { orgId_scope: { orgId: args.orgId, scope: args.scope } },
+    where: { workspaceId_scope: { workspaceId: args.workspaceId, scope: args.scope } },
   });
 
   if (!cfg || !cfg.enabled) return false;

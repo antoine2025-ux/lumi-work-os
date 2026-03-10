@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
+import { handleApiError } from '@/lib/api-errors'
+import { ProjectTemplateCreateSchema } from '@/lib/pm/schemas'
 
 // GET /api/project-templates - Get all project templates
 export async function GET(request: NextRequest) {
@@ -26,12 +28,8 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json(templates)
-  } catch (error) {
-    console.error('Error fetching project templates:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch project templates' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }
 
@@ -51,42 +49,32 @@ export async function POST(request: NextRequest) {
     // Set workspace context for Prisma middleware
     setWorkspaceContext(auth.workspaceId)
 
-    const body = await request.json()
+    const body = ProjectTemplateCreateSchema.parse(await request.json())
     const { 
       name, 
       description,
       category,
-      isDefault = false,
-      isPublic = true,
+      isDefault,
+      isPublic,
       templateData
     } = body
-
-    if (!name || !templateData) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: name, templateData' 
-      }, { status: 400 })
-    }
 
     // Create project template
     const template = await prisma.projectTemplate.create({
       data: {
         workspaceId: auth.workspaceId,
         name,
-        description,
+        description: description ?? null,
         category,
-        isDefault,
-        isPublic,
-        templateData,
+        isDefault: isDefault ?? false,
+        isPublic: isPublic ?? true,
+        templateData: templateData as any,
         createdById: auth.user.userId
       }
     })
 
     return NextResponse.json(template)
-  } catch (error) {
-    console.error('Error creating project template:', error)
-    return NextResponse.json(
-      { error: 'Failed to create project template' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    return handleApiError(error, request);
   }
 }

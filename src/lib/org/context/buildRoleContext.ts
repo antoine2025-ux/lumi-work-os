@@ -15,6 +15,8 @@ export type RoleContextSource = {
   team?: OrgTeam | null;
   department?: OrgDepartment | null;
   parentPosition?: OrgPosition | null;
+  /** Linked JobDescription template data (pre-selected by the caller) */
+  jobDescription?: { title: string; summary: string | null; level: string | null } | null;
 };
 
 /**
@@ -24,7 +26,7 @@ export type RoleContextSource = {
 export function buildRoleContext(
   source: RoleContextSource
 ): RoleContext | null {
-  const { workspaceId, roleCard, position, team, department, parentPosition } = source;
+  const { workspaceId, roleCard, position, team, department, parentPosition, jobDescription } = source;
 
   if (!roleCard && !position) {
     // Nothing to build from – safe guard
@@ -127,6 +129,14 @@ export function buildRoleContext(
     departmentId,
     reportsToRoleId,
     userId,
+    // Manager-authored context from RoleCard
+    roleInOrg: roleCard?.roleInOrg ?? null,
+    focusArea: roleCard?.focusArea ?? null,
+    managerNotes: roleCard?.managerNotes ?? null,
+    // Linked JobDescription template
+    jobDescriptionTitle: jobDescription?.title ?? null,
+    jobDescriptionSummary: jobDescription?.summary ?? null,
+    jobDescriptionLevel: jobDescription?.level ?? null,
     createdAt: roleCard?.createdAt ?? position?.createdAt ?? now,
     updatedAt: roleCard?.updatedAt ?? position?.updatedAt ?? now,
   };

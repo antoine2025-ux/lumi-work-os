@@ -318,7 +318,18 @@ export const authOptions: NextAuthOptions = {
       
       if (account) {
         token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token;
+        
+        // CRITICAL: Only update refreshToken if Google actually sent one
+        // Google only sends refresh_token on FIRST authorization
+        // On subsequent sign-ins, it sends access_token but NOT refresh_token
+        if (account.refresh_token) {
+          token.refreshToken = account.refresh_token;
+          console.log('[NextAuth] Stored refresh_token in JWT');
+        } else {
+          console.log('[NextAuth] No refresh_token from provider, preserving existing token');
+        }
+        // else: Keep existing token.refreshToken (don't overwrite with null)
+        
         token.expiresAt = account.expires_at;
       }
       return token;

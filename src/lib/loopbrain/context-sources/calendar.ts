@@ -7,9 +7,12 @@
  * @see src/lib/loopbrain/contract/calendarAvailability.v0.ts
  */
 
-import { prisma } from "@/lib/db";
+import { prisma, prismaUnscoped } from "@/lib/db";
+import { google } from "googleapis";
 import { logger } from "@/lib/logger";
 import { randomUUID } from "crypto";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/server/authOptions";
 import type {
   CalendarAvailabilitySnapshotV0,
   DayOfWeekV0,
@@ -41,7 +44,7 @@ interface BuildOptions {
   includeConflicts?: boolean;
 }
 
-interface CalendarEvent {
+export interface CalendarEvent {
   id: string;
   title: string;
   startTime: Date;
@@ -227,22 +230,152 @@ export async function buildCalendarAvailability(
 // =============================================================================
 
 /**
- * Load calendar events for a person.
- * This is a placeholder that can be extended to integrate with Google Calendar,
- * Outlook, or other calendar providers.
- *
- * NOTE: CalendarEvent model does not exist in the current Prisma schema.
- * This function returns an empty array until calendar integration is implemented.
+ * Load calendar events for a person from Google Calendar.
+ * Returns [] gracefully if the user has no Google account connected or the API fails.
  */
-async function loadCalendarEvents(
+function getOAuthRedirectBaseUrl(): string {
+  if (process.env.NODE_ENV === 'development') {
+    if (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL.includes('localhost')) {
+      return process.env.NEXTAUTH_URL
+    }
+    return 'http://localhost:3000'
+  }
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return 'http://localhost:3000'
+}
+
+export async function loadCalendarEvents(
   _workspaceId: string,
-  _personId: string,
-  _startDate: Date,
-  _endDate: Date
+  personId: string,
+  startDate: Date,
+  endDate: Date
 ): Promise<CalendarEvent[]> {
-  // CalendarEvent model does not exist in current schema
-  // Return empty array - calendar integration to be implemented later
-  return [];
+  console.log('[Calendar Debug] loadCalendarEvents called:', {
+    workspaceId: _workspaceId,
+    personId,
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+  })
+
+  try {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return [];
+    }
+
+    // First try Account table
+    let account = await prismaUnscoped.account.findFirst({
+      where: { userId: personId, provider: "google" },
+      select: { access_token: true, refresh_token: true, expires_at: true },
+    });
+
+    console.log('[Calendar Debug] Account lookup result:', {
+      accountFound: !!account,
+      hasRefreshToken: !!account?.refresh_token,
+      hasAccessToken: !!account?.access_token,
+    })
+
+    // If refresh_token is null in DB, try JWT session as fallback
+    if (!account?.refresh_token) {
+      console.log('[Calendar] refresh_token null in DB, checking JWT session...')
+      
+      try {
+        const session = await getServerSession(authOptions)
+        
+        if (session?.refreshToken && session?.accessToken) {
+          console.log('[Calendar] Found tokens in JWT session (fallback)')
+          
+          // Use tokens from JWT session
+          account = {
+            access_token: session.accessToken as string,
+            refresh_token: session.refreshToken as string,
+            expires_at: session.expiresAt ? Math.floor(new Date(session.expiresAt as number).getTime() / 1000) : null,
+          }
+        }
+      } catch (err) {
+        console.error('[Calendar] JWT session fallback failed:', err)
+      }
+    }
+
+    if (!account?.refresh_token) {
+      console.log('[Calendar] No refresh_token available (DB or JWT)')
+      return []
+    }
+
+    const baseUrl = getOAuthRedirectBaseUrl()
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      `${baseUrl}/api/auth/callback/google`
+    );
+    oauth2Client.setCredentials({
+      access_token: account.access_token ?? undefined,
+      refresh_token: account.refresh_token,
+      expiry_date: account.expires_at ? account.expires_at * 1000 : undefined,
+    });
+
+    // Persist refreshed tokens so create helper and future reads use fresh tokens
+    oauth2Client.on('tokens', (tokens) => {
+      if (tokens.access_token) {
+        prismaUnscoped.account
+          .updateMany({
+            where: { userId: personId, provider: 'google' },
+            data: {
+              access_token: tokens.access_token,
+              expires_at: tokens.expiry_date
+                ? Math.floor(tokens.expiry_date / 1000)
+                : undefined,
+            },
+          })
+          .catch((err: unknown) => {
+            logger.warn('[CalendarContext] Failed to persist refreshed token', { personId, err })
+          })
+      }
+    });
+
+    const cal = google.calendar({ version: "v3", auth: oauth2Client });
+    const response = await cal.events.list({
+      calendarId: "primary",
+      timeMin: startDate.toISOString(),
+      timeMax: endDate.toISOString(),
+      singleEvents: true,
+      orderBy: "startTime",
+      maxResults: 50,
+    });
+
+    const items: CalendarEvent[] = [];
+    for (const e of response.data.items ?? []) {
+      if (!e.start || !e.end) continue;
+      items.push({
+        id: e.id ?? "",
+        title: e.summary ?? "(No title)",
+        startTime: new Date(e.start.dateTime ?? e.start.date ?? ""),
+        endTime: new Date(e.end.dateTime ?? e.end.date ?? ""),
+        isAllDay: !e.start.dateTime,
+        status: e.status ?? "confirmed",
+      });
+    }
+    
+    logger.info("[CalendarContext] Successfully loaded calendar events", {
+      personId,
+      eventCount: items.length,
+      dateRange: `${startDate.toISOString()} to ${endDate.toISOString()}`,
+    });
+    
+    return items;
+  } catch (error) {
+    // Log detailed error information for debugging
+    const errorDetails = error instanceof Error 
+      ? { message: error.message, stack: error.stack, name: error.name }
+      : { raw: String(error) };
+    
+    logger.error("[CalendarContext] Failed to load Google Calendar events", {
+      personId,
+      error: errorDetails,
+      dateRange: `${startDate.toISOString()} to ${endDate.toISOString()}`,
+    });
+    return [];
+  }
 }
 
 // =============================================================================

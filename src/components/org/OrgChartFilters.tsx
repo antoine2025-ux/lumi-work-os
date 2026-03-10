@@ -34,10 +34,10 @@ export function OrgChartFilters({ activeFilter, onChange }: OrgChartFiltersProps
 
   const inactive = cn(
     base,
-    "bg-slate-800/50",
-    "text-slate-400",
-    "hover:bg-slate-800/70",
-    "hover:text-slate-200",
+    "bg-muted/50",
+    "text-muted-foreground",
+    "hover:bg-muted/70",
+    "hover:text-foreground",
     "hover:-translate-y-[1px]"
   );
 

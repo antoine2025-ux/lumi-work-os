@@ -19,6 +19,7 @@ import { useWorkspace } from "@/lib/workspace-context"
 import dynamic from "next/dynamic"
 import { useTheme } from "@/components/theme-provider"
 import { useProjectSlackHints, setProjectSlackHints } from "@/lib/client-state/project-slack-hints"
+import { useToast } from "@/components/ui/use-toast"
 
 // Keep essential imports at top for faster initial render
 import ReactMarkdown from "react-markdown"
@@ -46,15 +47,17 @@ const TimelineView = dynamic(() => import("@/components/tasks/timeline-view"), {
 const EpicsView = dynamic(() => import("@/components/projects/epics-view").then(mod => ({ default: mod.EpicsView })), { ssr: false })
 const WikiLayout = dynamic(() => import("@/components/wiki/wiki-layout").then(mod => ({ default: mod.WikiLayout })), { ssr: false })
 const CreateItemDialog = dynamic(() => import("@/components/projects/create-item-dialog").then(mod => ({ default: mod.CreateItemDialog })), { ssr: false })
-const LoopbrainAssistantLauncher = dynamic(() => import("@/components/loopbrain/assistant-launcher").then(mod => ({ default: mod.LoopbrainAssistantLauncher })), { ssr: false })
 const ProjectDocumentationSection = dynamic(() => import("@/components/projects/project-documentation-section").then(mod => ({ default: mod.ProjectDocumentationSection })), { ssr: false })
 const ProjectTodosSection = dynamic(() => import("@/components/todos/project-todos-section").then(mod => ({ default: mod.ProjectTodosSection })), { ssr: false })
+const TaskTableView = dynamic(() => import("@/components/projects/TaskTableView").then(mod => ({ default: mod.TaskTableView })), { ssr: false })
+const ProjectLoopbrainPanel = dynamic(() => import("@/components/projects/ProjectLoopbrainPanel").then(mod => ({ default: mod.ProjectLoopbrainPanel })), { ssr: false })
 
 import { ProjectOrgStatus } from '@/components/projects/project-org-status'
 import type { TaskFilter } from '@/components/search/task-search-filter'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProject, useProjectEpics } from '@/hooks/use-projects'
 import { useInvalidateProject } from '@/hooks/useProjectMutations'
+import { useLoopbrainAnchors } from '@/components/loopbrain/assistant-context'
 
 interface Project {
   id: string
@@ -138,8 +141,8 @@ interface Project {
   }
 }
 
-type HeaderView = 'board' | 'epics' | 'tasks' | 'calendar' | 'timeline' | 'files'
-const VALID_HEADER_VIEWS: HeaderView[] = ['board', 'epics', 'tasks', 'calendar', 'timeline', 'files']
+type HeaderView = 'board' | 'epics' | 'tasks' | 'table' | 'calendar' | 'timeline' | 'files' | 'health'
+const VALID_HEADER_VIEWS: HeaderView[] = ['board', 'epics', 'tasks', 'table', 'calendar', 'timeline', 'files', 'health']
 
 export default function ProjectDetailPage() {
   const params = useParams()
@@ -149,6 +152,8 @@ export default function ProjectDetailPage() {
   const projectId = params?.id as string
   const workspaceSlug = params?.workspaceSlug as string | undefined
   const { themeConfig } = useTheme()
+
+  useLoopbrainAnchors(projectId ? { projectId } : {})
   const { currentWorkspace } = useWorkspace()
 
   const tabParam = searchParams.get('tab')
@@ -242,6 +247,9 @@ export default function ProjectDetailPage() {
   const [newEpicDescription, setNewEpicDescription] = useState('')
   const [newEpicColor, setNewEpicColor] = useState('#3B82F6')
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
+  const [isDuplicating, setIsDuplicating] = useState(false)
+
+  const { toast } = useToast()
 
   // Use theme-based colors
   const colors = {
@@ -340,6 +348,57 @@ export default function ProjectDetailPage() {
     } catch (error) {
       console.error('Error deleting project:', error)
       alert('An error occurred while deleting the project')
+    }
+  }
+
+  const handleDuplicateProject = async () => {
+    if (!project) return
+    
+    const confirmed = window.confirm(
+      `Duplicate "${project.name}"? This will create a copy with the same structure but no assignments or history.`
+    )
+    
+    if (!confirmed) return
+
+    try {
+      setIsDuplicating(true)
+      
+      const response = await fetch(`/api/projects/${project.id}/duplicate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      })
+
+      if (response.ok) {
+        const newProject = await response.json()
+        
+        toast({
+          title: 'Project duplicated',
+          description: `Created "${newProject.name}"`,
+          variant: 'default'
+        })
+        
+        // Navigate to new project
+        router.push(workspaceSlug ? `/w/${workspaceSlug}/projects/${newProject.id}` : `/projects/${newProject.id}`)
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        toast({
+          title: 'Failed to duplicate project',
+          description: errorData.error || 'An error occurred',
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      console.error('Error duplicating project:', error)
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsDuplicating(false)
     }
   }
 
@@ -558,6 +617,7 @@ export default function ProjectDetailPage() {
               setIsEditDialogOpen(true)
             }}
             onDelete={handleDeleteProject}
+            onDuplicate={handleDuplicateProject}
           />
           
         </>
@@ -743,16 +803,17 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Project-Org Status */}
-      {project?.members && project.members.length > 0 && (
-        <div className="max-w-[1600px] mx-auto px-6 py-2">
-          <ProjectOrgStatus members={project.members} />
-        </div>
-      )}
-
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-6 pb-8">
         <div className="space-y-6">
+          {/* Loopbrain Intelligence Panel — MEMBER+ only; handles 403 gracefully */}
+          {project && currentWorkspace && (
+            <ProjectLoopbrainPanel
+              projectId={project.id}
+              projectName={project.name}
+              workspaceId={currentWorkspace.id}
+            />
+          )}
           {/* Tasks Section */}
           <>
             {headerView === 'epics' ? (
@@ -763,6 +824,10 @@ export default function ProjectDetailPage() {
                   colors={colors}
                   onCreateEpic={handleCreateEpic}
                 />
+              </div>
+            ) : headerView === 'health' ? (
+              <div className="px-6 pt-3 pb-6">
+                <ProjectOrgStatus members={project?.members ?? []} />
               </div>
             ) : (
               <Card className="bg-background border-0 shadow-none rounded-none">
@@ -791,7 +856,7 @@ export default function ProjectDetailPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            // TODO: Implement load all tasks functionality
+                            // TODO [BACKLOG]: Implement load all tasks with pagination
                           }}
                         >
                           Load All Tasks
@@ -812,14 +877,22 @@ export default function ProjectDetailPage() {
                   )}
                   
                   {headerView === 'tasks' && (
-                    <TaskList 
-                      projectId={projectId} 
+                    <TaskList
+                      projectId={projectId}
                       workspaceId={currentWorkspace?.id || 'workspace-1'}
                       isFullscreen={false}
                       onToggleFullscreen={() => setIsTaskListFullscreen(true)}
                     />
                   )}
-                  
+
+                  {headerView === 'table' && (
+                    <TaskTableView
+                      projectId={projectId}
+                      workspaceId={currentWorkspace?.id || 'workspace-1'}
+                      onTasksUpdated={loadProject}
+                    />
+                  )}
+
                   {headerView === 'calendar' && (
                     <CalendarView 
                       projectId={projectId} 
@@ -838,6 +911,7 @@ export default function ProjectDetailPage() {
                     <div className="px-6 pt-3 pb-6">
                       <ProjectDocumentationSection 
                         projectId={project.id} 
+                        projectName={project.name}
                         workspaceId={project.workspaceId || currentWorkspace.id} 
                       />
                     </div>
@@ -996,12 +1070,6 @@ export default function ProjectDetailPage() {
           </DialogContent>
         </Dialog>
       </div>
-
-      {/* Global Loopbrain Assistant */}
-      <LoopbrainAssistantLauncher 
-        mode="spaces" 
-        anchors={{ projectId }} 
-      />
 
       {/* Create Task Dialog */}
       <CreateTaskDialog

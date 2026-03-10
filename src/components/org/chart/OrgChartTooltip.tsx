@@ -23,18 +23,18 @@ export function OrgChartTooltip({ node, children }: OrgChartTooltipProps) {
 
   const tooltipContent = (
     <div className="space-y-1 max-w-xs">
-      <div className="text-[11px] font-semibold text-slate-50">
+      <div className="text-[11px] font-semibold text-foreground">
         {node.name}
       </div>
 
       {node.leadName && (
-        <p className="text-[11px] text-slate-300">
+        <p className="text-[11px] text-muted-foreground">
           Lead:{" "}
-          <span className="font-medium text-slate-100">
+          <span className="font-medium text-foreground">
             {node.leadName}
           </span>
           {node.leadRole && (
-            <span className="text-slate-400">
+            <span className="text-muted-foreground">
               {" "}
               • {node.leadRole}
             </span>
@@ -43,14 +43,14 @@ export function OrgChartTooltip({ node, children }: OrgChartTooltipProps) {
       )}
 
       {typeof node.memberCount === "number" && (
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-muted-foreground">
           {node.memberCount}{" "}
           {node.memberCount === 1 ? "person" : "people"}
         </p>
       )}
 
       {typeof node.openRolesCount === "number" && node.openRolesCount > 0 && (
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-muted-foreground">
           {node.openRolesCount} open{" "}
           {node.openRolesCount === 1 ? "role" : "roles"}
         </p>
@@ -63,7 +63,7 @@ export function OrgChartTooltip({ node, children }: OrgChartTooltipProps) {
       <Tooltip 
         content={tooltipContent} 
         side="top" 
-        className="max-w-xs bg-[#020617] px-3 py-2 text-[11px] text-slate-200 border border-slate-700 whitespace-normal"
+        className="max-w-xs bg-background px-3 py-2 text-[11px] text-foreground border border-border whitespace-normal"
       >
         {children}
       </Tooltip>

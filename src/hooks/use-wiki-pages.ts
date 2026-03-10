@@ -43,7 +43,7 @@ export function useWikiPagePrefetch() {
         queryFn: async () => {
           const params = new URLSearchParams({ limit: '20' })
           if (workspaceType) params.append('workspace_type', workspaceType)
-          
+
           const response = await fetch(`/api/wiki/recent-pages?${params}`)
           if (!response.ok) throw new Error('Failed to fetch pages')
           return response.json()
@@ -52,6 +52,23 @@ export function useWikiPagePrefetch() {
       })
     }
   }
+}
+
+/** Fetches Company Wiki pages only (spaceId = companyWikiSpaceId). Use for sidebar. Query key aligns with sidebar-pages for prefix invalidation. */
+export function useCompanyWikiPages(limit: number = 15) {
+  const { workspaceId } = useUserStatusContext()
+
+  return useQuery({
+    queryKey: ['sidebar-pages', 'company-wiki'],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: limit.toString(), scope: 'company-wiki' })
+      const response = await fetch(`/api/wiki/recent-pages?${params}`)
+      if (!response.ok) throw new Error('Failed to fetch company wiki pages')
+      return response.json() as Promise<WikiPage[]>
+    },
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  })
 }
 
 

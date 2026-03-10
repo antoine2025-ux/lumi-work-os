@@ -5,6 +5,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
 import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors";
+import { GenerateDuplicateCandidatesSchema } from '@/lib/validations/org';
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     const minConf = Number(searchParams.get("minConf") || "0.8");
 
     const rows = await prisma.orgDuplicateCandidate.findMany({
-      where: { orgId: workspaceId, status: "OPEN", confidence: { gte: minConf } },
+      where: { workspaceId, status: "OPEN", confidence: { gte: minConf } },
       orderBy: [{ confidence: "desc" }, { createdAt: "desc" }],
       take: 200,
     });

@@ -5,12 +5,7 @@ import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
 import { handleApiError } from "@/lib/api-errors"
 import { assertWriteAllowed } from "@/server/org/writes/guard"
-
-type Body = {
-  entityType: "TEAM" | "DOMAIN" | "SYSTEM"
-  ownerPersonId: string
-  entityIds: string[]
-}
+import { BulkAssignOwnershipSchema } from '@/lib/validations/org';
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,55 +17,52 @@ export async function POST(req: NextRequest) {
     }
     await assertAccess({ userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] })
     assertWriteAllowed("ownership.bulkAssign")
-    const body = (await req.json()) as Body
+    
+    const body = BulkAssignOwnershipSchema.parse(await req.json());
+    
+    // Process each assignment
+    for (const assignment of body.assignments) {
+      const entityType = assignment.entityType.toUpperCase() as "TEAM" | "DEPARTMENT" | "PROJECT" | "POSITION";
+      const ownerPersonId = assignment.ownerId;
+      const entityIds = [assignment.entityId];
 
-    const entityType = String(body.entityType ?? "").toUpperCase()
-    const ownerPersonId = String(body.ownerPersonId ?? "")
-    const entityIds = Array.isArray(body.entityIds) ? body.entityIds.map(String) : []
+      // Demote existing primaries
+      await prisma.ownerAssignment.updateMany({
+        where: { workspaceId, entityType: entityType as any, entityId: { in: entityIds }, isPrimary: true } as any,
+        data: { isPrimary: false },
+      })
 
-    if (!ownerPersonId || !entityIds.length) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 })
+      // Create new primaries
+      await prisma.ownerAssignment.createMany({
+        data: entityIds.map((id) => ({
+          workspaceId,
+          entityType: entityType as any,
+          entityId: id,
+          ownerPersonId,
+          isPrimary: true,
+        })),
+        skipDuplicates: true as any,
+      })
+
+      // Resolve matching OWNERSHIP signals for those entities only
+      await prisma.orgHealthSignal.updateMany({
+        where: {
+          orgId: workspaceId,
+          type: "OWNERSHIP" as any,
+          resolvedAt: null,
+          dismissedAt: null,
+          contextType: entityType,
+          contextId: { in: entityIds },
+        } as any,
+        data: { resolvedAt: new Date() },
+      })
     }
-    if (entityType !== "TEAM" && entityType !== "DOMAIN" && entityType !== "SYSTEM") {
-      return NextResponse.json({ error: "Invalid entityType" }, { status: 400 })
-    }
 
-    // Demote existing primaries
-    await prisma.ownerAssignment.updateMany({
-      where: { workspaceId, entityType: entityType as any, entityId: { in: entityIds }, isPrimary: true } as any,
-      data: { isPrimary: false },
-    })
+    revalidateTag("org:ownership", "default")
+    revalidateTag("org:health", "default")
+    revalidateTag("org:contracts", "default")
 
-    // Create new primaries
-    await prisma.ownerAssignment.createMany({
-      data: entityIds.map((id) => ({
-        workspaceId,
-        entityType: entityType as any,
-        entityId: id,
-        ownerPersonId,
-        isPrimary: true,
-      })),
-      skipDuplicates: true as any,
-    })
-
-    // Resolve matching OWNERSHIP signals for those entities only
-    await prisma.orgHealthSignal.updateMany({
-      where: {
-        orgId: workspaceId,
-        type: "OWNERSHIP" as any,
-        resolvedAt: null,
-        dismissedAt: null,
-        contextType: entityType,
-        contextId: { in: entityIds },
-      } as any,
-      data: { resolvedAt: new Date() },
-    })
-
-    revalidateTag("org:ownership")
-    revalidateTag("org:health")
-    revalidateTag("org:contracts")
-
-    return NextResponse.json({ ok: true, count: entityIds.length })
+    return NextResponse.json({ ok: true, count: body.assignments.length })
   } catch (error) {
     return handleApiError(error, req)
   }

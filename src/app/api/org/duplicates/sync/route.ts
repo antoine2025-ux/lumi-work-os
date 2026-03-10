@@ -129,15 +129,15 @@ export async function POST(req: NextRequest) {
       // Normalize pair ordering to maintain uniqueness
       const [personAId, personBId] = c.a < c.b ? [c.a, c.b] : [c.b, c.a];
       const existing = await prisma.orgDuplicateCandidate.findUnique({
-        where: { orgId_personAId_personBId: { orgId: workspaceId, personAId, personBId } } as any,
+        where: { workspaceId_personAId_personBId: { workspaceId, personAId, personBId } },
       });
 
       if (existing && existing.status !== "OPEN") continue;
 
       await prisma.orgDuplicateCandidate.upsert({
-        where: { orgId_personAId_personBId: { orgId: workspaceId, personAId, personBId } } as any,
+        where: { workspaceId_personAId_personBId: { workspaceId, personAId, personBId } },
         update: { confidence: c.confidence, reason: c.reason, features: c.features, status: "OPEN" },
-        create: { orgId: workspaceId, personAId, personBId, confidence: c.confidence, reason: c.reason, features: c.features, status: "OPEN" },
+        create: { workspaceId, personAId, personBId, confidence: c.confidence, reason: c.reason, features: c.features, status: "OPEN" },
       });
 
       upserted++;

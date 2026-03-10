@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  getOrgPermissionContext,
-  assertOrgCapability,
-  mapPermissionErrorToStatus,
-} from "@/lib/org/permissions.server";
+import { getUnifiedAuth } from "@/lib/unified-auth";
+import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { logOrgAudit } from "@/lib/orgAudit";
 import { handleApiError } from "@/lib/api-errors";
+import { AssignCustomRoleSchema } from "@/lib/validations/org";
 
 type Params = {
   params: Promise<{ memberId: string }>;
@@ -14,30 +13,26 @@ type Params = {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    const context = await getOrgPermissionContext();
-
-    try {
-      // Reuse whatever capability you use for managing member roles
-      assertOrgCapability(context, "org:member:role.change");
-    } catch (permError) {
-      const status = mapPermissionErrorToStatus(permError);
-      return NextResponse.json(
-        { error: "You are not allowed to change member roles." },
-        { status }
-      );
+    const auth = await getUnifiedAuth(req);
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: "workspace",
+      requireRole: ["ADMIN", "OWNER"],
+    });
+    setWorkspaceContext(auth.workspaceId);
 
     const { memberId } = await params;
-    const body = await req.json().catch(() => ({} as any));
-    const requestedCustomRoleId =
-      typeof body.customRoleId === "string" && body.customRoleId.trim().length > 0
-        ? body.customRoleId.trim()
-        : null;
+    const body = AssignCustomRoleSchema.parse(await req.json());
+    const requestedCustomRoleId = body.customRoleId;
 
-    const orgId = context!.orgId;
+    const workspaceId = auth.workspaceId;
 
     // Load membership and ensure it belongs to this org
-    // ADAPT: Using WorkspaceMember model (workspaceId = orgId)
+    // Using WorkspaceMember model
     const membership = await prisma.workspaceMember.findUnique({
       where: { id: memberId },
       include: {
@@ -52,7 +47,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       },
     });
 
-    if (!membership || membership.workspaceId !== orgId) {
+    if (!membership || membership.workspaceId !== workspaceId) {
       return NextResponse.json(
         { error: "Member not found in this org." },
         { status: 404 }
@@ -90,7 +85,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
       await logOrgAudit(
         {
-          orgId,
+          workspaceId,
           action: "MEMBER_CUSTOM_ROLE_UPDATED",
           targetType: "MEMBER",
           targetId: memberId,
@@ -116,7 +111,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       where: { id: requestedCustomRoleId },
     });
 
-    if (!customRole || customRole.workspaceId !== orgId) {
+    if (!customRole || customRole.workspaceId !== workspaceId) {
       return NextResponse.json(
         { error: "Custom role not found in this org." },
         { status: 400 }
@@ -149,7 +144,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       : null;
 
     // Get actor info for enriched payload
-    const actorId = context!.userId;
+    const actorId = auth.user.userId;
     const actor = await prisma.user.findUnique({
       where: { id: actorId },
       select: { id: true, name: true, email: true },
@@ -157,7 +152,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     await logOrgAudit(
       {
-        orgId,
+        workspaceId,
         action: "MEMBER_CUSTOM_ROLE_UPDATED",
         targetType: "MEMBER",
         targetId: memberId,

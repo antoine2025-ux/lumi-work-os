@@ -1,9 +1,9 @@
 import { computeOrgGuidance } from "./orgGuidance";
 import { measureOrgHealth } from "./orgHealth";
 
-export async function buildWeeklyDigest(orgId: string) {
-  const health = await measureOrgHealth(orgId);
-  const guidance = await computeOrgGuidance(orgId);
+export async function buildWeeklyDigest(workspaceId: string) {
+  const health = await measureOrgHealth(workspaceId);
+  const guidance = await computeOrgGuidance(workspaceId);
 
   return {
     score: Math.round(health.score * 100),
