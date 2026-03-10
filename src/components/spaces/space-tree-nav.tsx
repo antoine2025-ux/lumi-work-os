@@ -26,6 +26,8 @@ interface SpaceNode {
   isPersonal: boolean
   parentId: string | null
   _count: { projects: number; wikiPages: number; children: number }
+  type?: string | null
+  slug?: string | null
 }
 
 interface SpaceDetail extends SpaceNode {
@@ -129,9 +131,13 @@ function SpaceTreeItem({ space, depth, workspaceSlug, currentSpaceId }: SpaceTre
           </button>
         )}
 
-        {/* Space link */}
+        {/* Space link — Company Wiki uses canonical /wiki/home route */}
         <Link
-          href={`/w/${workspaceSlug}/spaces/${space.id}`}
+          href={
+            space.type === 'WIKI' || space.slug === 'company-wiki'
+              ? '/wiki/home'
+              : `/w/${workspaceSlug}/spaces/${space.id}`
+          }
           className="flex-1 flex items-center gap-2 py-1.5 pr-2 min-w-0"
         >
           {space.isPersonal ? (
@@ -234,8 +240,11 @@ export function SpaceTreeNav({ workspaceSlug }: { workspaceSlug: string }) {
     staleTime: 30_000,
   })
 
-  // Only render top-level spaces in the tree; sub-spaces load lazily via SpaceTreeItem
-  const rootSpaces = (data?.spaces ?? []).filter((s) => !s.parentId)
+  // Only render top-level spaces in the tree; sub-spaces load lazily via SpaceTreeItem.
+  // Company Wiki has its own canonical route at /wiki/home — exclude from space tree.
+  const rootSpaces = (data?.spaces ?? []).filter(
+    (s) => !s.parentId && s.type !== 'WIKI' && s.slug !== 'company-wiki'
+  )
 
   if (isLoading) {
     return (

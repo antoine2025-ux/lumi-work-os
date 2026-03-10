@@ -1,10 +1,13 @@
 /**
- * Draft Page Service — streams LLM-generated content into a wiki page
- * via the Hocuspocus document writer.
+ * Draft Page Service — generates LLM content and writes it to a wiki page.
+ *
+ * Primary path: DB-only write (direct Prisma update with generated markdown).
+ * Hocuspocus streaming path: opt-in via DRAFT_USE_HOCUSPOCUS=true env var
+ * (disabled by default until the Yjs dual-import issue is resolved).
  *
  * Called as a fire-and-forget background task after the agent loop returns
  * a redirect response. The user navigates to the blank page and sees content
- * appear progressively in the TipTap editor.
+ * once this completes.
  */
 import { LoopbrainDocumentWriter } from './document-writer'
 import { getProvider } from '@/lib/ai/providers'
@@ -26,48 +29,125 @@ export interface StreamDraftParams {
 }
 
 /**
- * Generate wiki page content via LLM and stream it into the Hocuspocus
- * document in real time. Saves the final content to the WikiPage record
- * as a persistence fallback.
+ * Generate wiki page content via LLM and persist it to the WikiPage record.
+ *
+ * Default: writes directly to DB (DB-only path, no Hocuspocus dependency).
+ * Set DRAFT_USE_HOCUSPOCUS=true to enable the real-time Yjs streaming path.
  *
  * This function is designed to be called with `void streamDraftToPage(...)`
  * — it handles its own errors internally and never throws.
  */
 export async function streamDraftToPage(params: StreamDraftParams): Promise<void> {
-  const { pageId, workspaceId, topic, outline, userId } = params
+  const { pageId, workspaceId, topic, userId } = params
+  const useHocuspocus = process.env.DRAFT_USE_HOCUSPOCUS === 'true'
 
-  console.log('[DraftPage] Starting streamDraftToPage', { pageId, workspaceId, topic, userId })
+  console.log('[DraftPage] Starting streamDraftToPage', {
+    pageId,
+    workspaceId,
+    topic,
+    userId,
+    mode: useHocuspocus ? 'hocuspocus' : 'db-only',
+    model: DRAFT_MODEL,
+  })
 
-  const writer = new LoopbrainDocumentWriter()
+  if (useHocuspocus) {
+    await streamViaHocuspocus(params)
+  } else {
+    await writeDirectlyToDB(params)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// DB-only path (primary)
+// ---------------------------------------------------------------------------
+
+async function writeDirectlyToDB(params: StreamDraftParams): Promise<void> {
+  const { pageId, workspaceId, topic, outline } = params
 
   try {
-    // 1. Connect to the page's Hocuspocus document (userId as auth token)
-    console.log('[DraftPage] Connecting to Hocuspocus...')
-    await writer.connect(pageId, userId)
-    console.log('[DraftPage] Connected to Hocuspocus successfully')
-
-    // 2. Generate the full draft via LLM
-    const systemPrompt = buildDraftPrompt(topic, outline)
+    // 1. Generate content via LLM
+    const prompt = buildDraftPrompt(topic, outline)
     const provider = getProvider(DRAFT_MODEL)
-    console.log('[DraftPage] Calling LLM with model:', DRAFT_MODEL)
-    const response = await provider.generateResponse(systemPrompt, DRAFT_MODEL, {
+
+    console.log('[DraftPage][db] Calling LLM', { model: DRAFT_MODEL, promptLength: prompt.length })
+
+    const response = await provider.generateResponse(prompt, DRAFT_MODEL, {
       maxTokens: 4000,
       temperature: 0.7,
     })
-    console.log('[DraftPage] LLM response received, content length:', response.content?.length ?? 0)
+
+    console.log('[DraftPage][db] LLM response received', {
+      contentLength: response.content?.length ?? 0,
+      preview: response.content?.slice(0, 200) ?? '(empty)',
+      model: response.model,
+    })
 
     const content = response.content
-    if (!content) {
-      logger.warn('Draft LLM returned empty content', { pageId, topic })
+    if (!content || content.startsWith('AI features are disabled')) {
+      logger.warn('[DraftPage][db] LLM returned empty or disabled response', { pageId, topic, response: content?.slice(0, 100) })
+      console.warn('[DraftPage][db] LLM returned empty or disabled response — aborting DB write', { pageId })
       return
     }
 
-    // 3. Parse the markdown and insert section-by-section with delays
+    // 2. Persist to DB
+    console.log('[DraftPage][db] Updating WikiPage', { pageId, contentLength: content.length })
+    setWorkspaceContext(workspaceId)
+    await prisma.wikiPage.update({
+      where: { id: pageId },
+      data: { content },
+    })
+
+    console.log('[DraftPage][db] WikiPage updated successfully', { pageId })
+    logger.info('[DraftPage][db] Draft page DB write complete', { pageId, topic, contentLength: content.length })
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    const stack = error instanceof Error ? error.stack : undefined
+    console.error('[DraftPage][db] DB write failed', { pageId, topic, error: msg, stack })
+    logger.error('[DraftPage][db] Draft page DB write failed', { pageId, topic, error: msg })
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hocuspocus streaming path (opt-in via DRAFT_USE_HOCUSPOCUS=true)
+// ---------------------------------------------------------------------------
+
+async function streamViaHocuspocus(params: StreamDraftParams): Promise<void> {
+  const { pageId, workspaceId, topic, outline, userId } = params
+  const writer = new LoopbrainDocumentWriter()
+
+  try {
+    // 1. Connect
+    console.log('[DraftPage][hocuspocus] Connecting to Hocuspocus...', { pageId })
+    await writer.connect(pageId, userId)
+    console.log('[DraftPage][hocuspocus] Connected to Hocuspocus successfully')
+
+    // 2. Generate content
+    const prompt = buildDraftPrompt(topic, outline)
+    const provider = getProvider(DRAFT_MODEL)
+
+    console.log('[DraftPage][hocuspocus] Calling LLM', { model: DRAFT_MODEL, promptLength: prompt.length })
+
+    const response = await provider.generateResponse(prompt, DRAFT_MODEL, {
+      maxTokens: 4000,
+      temperature: 0.7,
+    })
+
+    console.log('[DraftPage][hocuspocus] LLM response received', {
+      contentLength: response.content?.length ?? 0,
+      preview: response.content?.slice(0, 200) ?? '(empty)',
+    })
+
+    const content = response.content
+    if (!content || content.startsWith('AI features are disabled')) {
+      logger.warn('[DraftPage][hocuspocus] LLM returned empty or disabled response', { pageId, topic })
+      return
+    }
+
+    // 3. Stream into Hocuspocus document section-by-section
     const lines = content.split('\n')
     let bulletBuffer: string[] = []
 
     for (const line of lines) {
-      // Flush any buffered bullet items when we hit a non-bullet line
       if (bulletBuffer.length > 0 && !isBulletLine(line)) {
         await writer.insertBulletList(bulletBuffer)
         bulletBuffer = []
@@ -76,7 +156,6 @@ export async function streamDraftToPage(params: StreamDraftParams): Promise<void
 
       const trimmed = line.trimEnd()
 
-      // Headings
       if (trimmed.startsWith('### ')) {
         await writer.insertHeading(trimmed.slice(4), 3)
         await delay(INSERT_DELAY_MS)
@@ -86,66 +165,65 @@ export async function streamDraftToPage(params: StreamDraftParams): Promise<void
       } else if (trimmed.startsWith('# ')) {
         await writer.insertHeading(trimmed.slice(2), 1)
         await delay(INSERT_DELAY_MS)
-      }
-      // Bullet items — buffer consecutive lines
-      else if (isBulletLine(trimmed)) {
+      } else if (isBulletLine(trimmed)) {
         bulletBuffer.push(trimmed.replace(/^[-*]\s+/, ''))
-      }
-      // Blank lines
-      else if (trimmed === '') {
+      } else if (trimmed === '') {
         await writer.insertParagraph('')
         await delay(INSERT_DELAY_MS)
-      }
-      // Regular paragraphs
-      else {
+      } else {
         await writer.insertParagraph(trimmed)
         await delay(INSERT_DELAY_MS)
       }
     }
 
-    // Flush remaining bullets
     if (bulletBuffer.length > 0) {
       await writer.insertBulletList(bulletBuffer)
     }
 
-    // 4. Save the markdown as a plain-text fallback in the content field.
-    //    The primary persistence path is Hocuspocus onStoreDocument which
-    //    converts the Yjs doc → ProseMirror JSON → contentJson. This is a
-    //    safety net in case the collab server misses the save window.
+    // 4. Persist markdown to DB as fallback (Hocuspocus onStoreDocument is primary)
+    console.log('[DraftPage][hocuspocus] Saving markdown to DB as fallback', { pageId, contentLength: content.length })
     setWorkspaceContext(workspaceId)
     await prisma.wikiPage.update({
       where: { id: pageId },
       data: { content },
     })
 
-    logger.info('Draft page streaming complete', { pageId, topic, lineCount: lines.length })
+    logger.info('[DraftPage][hocuspocus] Streaming complete', { pageId, topic, lineCount: lines.length })
   } catch (error: unknown) {
-    // Fire-and-forget — log but don't propagate
-    console.error('[DraftPage] Draft page streaming failed:', error)
-    logger.error('Draft page streaming failed', { pageId, topic }, error)
+    const msg = error instanceof Error ? error.message : String(error)
+    const stack = error instanceof Error ? error.stack : undefined
+    console.error('[DraftPage][hocuspocus] Streaming failed — attempting DB-only fallback', { pageId, error: msg, stack })
+    logger.error('[DraftPage][hocuspocus] Streaming failed', { pageId, topic, error: msg })
 
-    // Fallback: if Hocuspocus failed but we can still generate content, save directly to DB
+    // Any failure in the Hocuspocus path falls back to direct DB write
     try {
-      const isConnectionError = error instanceof Error && error.message.includes('Hocuspocus')
-      if (isConnectionError) {
-        console.log('[DraftPage] Hocuspocus failed — attempting DB-only fallback')
-        const systemPrompt = buildDraftPrompt(topic, outline)
-        const provider = getProvider(DRAFT_MODEL)
-        const response = await provider.generateResponse(systemPrompt, DRAFT_MODEL, {
-          maxTokens: 4000,
-          temperature: 0.7,
+      console.log('[DraftPage][hocuspocus] DB fallback: generating content...', { pageId })
+      const prompt = buildDraftPrompt(topic, outline)
+      const provider = getProvider(DRAFT_MODEL)
+      const response = await provider.generateResponse(prompt, DRAFT_MODEL, {
+        maxTokens: 4000,
+        temperature: 0.7,
+      })
+
+      console.log('[DraftPage][hocuspocus] DB fallback: LLM response received', {
+        contentLength: response.content?.length ?? 0,
+        preview: response.content?.slice(0, 200) ?? '(empty)',
+      })
+
+      if (response.content && !response.content.startsWith('AI features are disabled')) {
+        setWorkspaceContext(workspaceId)
+        await prisma.wikiPage.update({
+          where: { id: pageId },
+          data: { content: response.content },
         })
-        if (response.content) {
-          setWorkspaceContext(workspaceId)
-          await prisma.wikiPage.update({
-            where: { id: pageId },
-            data: { content: response.content },
-          })
-          console.log('[DraftPage] DB-only fallback succeeded', { pageId, contentLength: response.content.length })
-        }
+        console.log('[DraftPage][hocuspocus] DB fallback succeeded', { pageId, contentLength: response.content.length })
+      } else {
+        console.warn('[DraftPage][hocuspocus] DB fallback: LLM returned empty or disabled response', { pageId })
       }
-    } catch (fallbackError) {
-      console.error('[DraftPage] DB-only fallback also failed:', fallbackError)
+    } catch (fallbackError: unknown) {
+      const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+      const fbStack = fallbackError instanceof Error ? fallbackError.stack : undefined
+      console.error('[DraftPage][hocuspocus] DB fallback also failed', { pageId, error: fbMsg, stack: fbStack })
     }
   } finally {
     await writer.disconnect()

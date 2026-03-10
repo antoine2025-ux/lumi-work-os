@@ -217,7 +217,7 @@ export function prefetchRoute(route: string, queryClient: QueryClient, workspace
       },
       staleTime: 2 * 60 * 1000,
     })
-  } else if (route.startsWith('/wiki/team-workspace')) {
+  } else if (route.startsWith('/wiki/home')) {
     queryClient.prefetchQuery({
       queryKey: ['wiki-pages', 'recent', workspaceId, 20, 'team'],
       queryFn: async () => {

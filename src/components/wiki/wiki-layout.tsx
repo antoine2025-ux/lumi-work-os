@@ -287,17 +287,13 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
         setRecentPages(recentData)
       }
 
-      // Redirect to the appropriate workspace
+      // Redirect to the space that contained the page
       if (workspaceType === 'personal' || workspaceType === 'personal-space') {
-        router.push('/wiki/personal-space')
-      } else if (workspaceType === 'team' || workspaceType === 'team-workspace') {
-        router.push('/wiki/team-workspace')
-      } else if (workspaceType && workspaceType !== 'team' && workspaceType !== 'personal') {
-        // Custom workspace
-        router.push(`/wiki/workspace/${workspaceType}`)
+        router.push('/spaces/home')
+      } else if (workspaceType === 'team' || workspaceType === 'team-workspace' || workspaceType?.startsWith('wiki-')) {
+        router.push('/wiki/home')
       } else {
-        // Default to home
-        router.push('/wiki')
+        router.push('/spaces/home')
       }
     } catch (error) {
       console.error('Error deleting page:', error)
@@ -590,7 +586,7 @@ export function WikiLayout({ children, currentPage: _currentPage, workspaceId: p
         // If no workspace selected, determine from current path
         if (pathname.includes('/wiki/personal-space')) {
           workspaceType = 'personal'
-        } else if (pathname.includes('/wiki/team-workspace')) {
+        } else if (pathname.includes('/wiki/home')) {
           workspaceType = 'team'
         } else if (pathname.includes('/wiki/workspace/')) {
           // Extract workspace ID from pathname for custom workspaces

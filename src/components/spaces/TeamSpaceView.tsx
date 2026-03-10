@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
@@ -102,6 +102,17 @@ export function TeamSpaceView({ spaceId }: TeamSpaceViewProps) {
     enabled: !!space,
   })
 
+  // Company Wiki has its own canonical route at /wiki/home; redirect to avoid duplicate view
+  useEffect(() => {
+    if (!space) return
+    const isCompanyWiki =
+      (space as { type?: string }).type === 'WIKI' ||
+      (space as { slug?: string | null }).slug === 'company-wiki'
+    if (isCompanyWiki) {
+      router.replace('/wiki/home')
+    }
+  }, [space, router])
+
   if (spaceLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -122,6 +133,17 @@ export function TeamSpaceView({ spaceId }: TeamSpaceViewProps) {
             Go back
           </Button>
         </Card>
+      </div>
+    )
+  }
+
+  const isCompanyWiki =
+    (space as { type?: string }).type === 'WIKI' ||
+    (space as { slug?: string | null }).slug === 'company-wiki'
+  if (isCompanyWiki) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }

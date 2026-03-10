@@ -102,6 +102,7 @@ interface WikiPageData {
   isSection?: boolean
   children?: WikiPageChild[]
   spaceId?: string | null
+  parent?: { slug: string } | null
 }
 
 interface AuthorOrgInfo {
@@ -240,19 +241,22 @@ export default function WikiPageClient({ authorOrgInfo }: WikiPageClientProps) {
       window.dispatchEvent(new CustomEvent('pageDeleted'))
       window.dispatchEvent(new CustomEvent('favoritesChanged'))
       
-      // Determine workspace and redirect accordingly
+      // Redirect to the space or page that contained the deleted page
+      const workspaceSlug = authorOrgInfo?.workspaceSlug
       const workspaceType = pageData.workspace_type || pageData.permissionLevel
-      
-      if (workspaceType === 'personal' || workspaceType === 'personal-space') {
-        router.push('/wiki/personal-space')
+
+      if (pageData.parent?.slug) {
+        router.push(`/wiki/${pageData.parent.slug}`)
+      } else if (pageData.spaceId && workspaceSlug) {
+        router.push(`/w/${workspaceSlug}/spaces/${pageData.spaceId}`)
+      } else if (workspaceType === 'personal' || workspaceType === 'personal-space') {
+        router.push('/spaces/home')
       } else if (workspaceType === 'team' || workspaceType === 'team-workspace') {
-        router.push('/wiki/team-workspace')
-      } else if (workspaceType && workspaceType !== 'team' && workspaceType !== 'personal') {
-        // Custom workspace
-        router.push(`/wiki/workspace/${workspaceType}`)
+        router.push('/wiki/home')
+      } else if (workspaceType?.startsWith('wiki-')) {
+        router.push('/wiki/home')
       } else {
-        // Default to home
-        router.push('/wiki')
+        router.push('/spaces/home')
       }
     } catch (error) {
       console.error('Error deleting page:', error)

@@ -52,7 +52,12 @@ export function SpacesSidebar({ currentSpaceId }: SpacesSidebarProps) {
   })
 
   const spaces = data?.spaces ?? []
-  const teamSpaces = spaces.filter((s) => !s.isPersonal)
+  const teamSpaces = spaces.filter(
+    (s) =>
+      !s.isPersonal &&
+      (s as { type?: string }).type !== 'WIKI' &&
+      (s as { slug?: string | null }).slug !== 'company-wiki'
+  )
 
   const isPersonalActive = pathname?.endsWith("/spaces/home") ?? false
 
@@ -148,7 +153,7 @@ export function SpacesSidebar({ currentSpaceId }: SpacesSidebarProps) {
               </h3>
               <div className="space-y-1">
                 <Link
-                  href="/wiki/team-workspace"
+                  href="/wiki/home"
                   className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm hover:bg-muted/50 transition-colors"
                 >
                   <Globe className="w-4 h-4" />
