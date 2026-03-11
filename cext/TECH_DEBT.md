@@ -43,6 +43,7 @@
 - **Effort:** 1-2 days.
 - **Risk:** May surface issues that need fixing.
 - **Dependencies:** Staging environment must exist.
+- **Note:** `cext/PERFORMANCE.md` has been created with development baseline measurements (response times, bottlenecks, guardrails). Proper load testing is still recommended before launch.
 
 ### Dependency audit
 - **What:** `npm audit` has never been run systematically. Transitive dependencies may have known CVEs.
