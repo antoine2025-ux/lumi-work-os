@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { answerQ4, type Q4Timeframe, type Q4Output } from "@/lib/loopbrain/reasoning/q4";
 import { prisma } from "@/lib/db";
 import { handleApiError } from "@/lib/api-errors"
@@ -31,6 +32,7 @@ async function handleRequest(request: NextRequest) {
     scope: "workspace",
     requireRole: ["MEMBER"],
   });
+  setWorkspaceContext(workspaceId);
 
   let projectId: string;
   let parsedTimeframe: Q4Timeframe | { startDate?: Date; endDate?: Date; durationWeeks?: number };

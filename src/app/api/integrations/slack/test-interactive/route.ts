@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { sendInteractiveSlackMessage, SlackBlockBuilder } from '@/lib/integrations/slack-interactive'
 import { getSlackIntegration } from '@/lib/integrations/slack-service'
 import { addHours } from 'date-fns'
@@ -17,6 +19,16 @@ import { logger } from '@/lib/logger'
 export async function POST(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['ADMIN'],
+    })
+    setWorkspaceContext(auth.workspaceId)
 
     // Get workspace Slack integration
     const integration = await getSlackIntegration(auth.workspaceId)
@@ -173,6 +185,17 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const auth = await getUnifiedAuth(request)
+    if (!auth.isAuthenticated || !auth.workspaceId) {
+      return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
+    }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['ADMIN'],
+    })
+    setWorkspaceContext(auth.workspaceId)
+
     const integration = await getSlackIntegration(auth.workspaceId)
 
     if (!integration) {

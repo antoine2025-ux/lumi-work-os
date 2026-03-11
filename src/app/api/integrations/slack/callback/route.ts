@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { storeSlackIntegration } from '@/lib/integrations/slack-service'
 import { logger } from '@/lib/logger'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
@@ -68,6 +69,14 @@ export async function GET(request: NextRequest) {
     let auth
     try {
       auth = await getUnifiedAuth(request)
+      if (auth.isAuthenticated && auth.user.userId === userId) {
+        await assertAccess({
+          userId: auth.user.userId,
+          workspaceId,
+          scope: 'workspace',
+          requireRole: ['ADMIN'],
+        })
+      }
       if (auth.workspaceId !== workspaceId || auth.user.userId !== userId) {
         logger.warn('State mismatch in Slack OAuth callback, but proceeding with state data', {
           stateWorkspaceId: workspaceId,

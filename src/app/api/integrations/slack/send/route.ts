@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { sendSlackMessage } from '@/lib/integrations/slack-service'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
       scope: 'workspace',
       requireRole: ['MEMBER']
     })
+    setWorkspaceContext(auth.workspaceId)
 
     const body = await request.json()
     const parsed = sendMessageSchema.safeParse(body)

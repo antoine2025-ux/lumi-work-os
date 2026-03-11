@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import {
   updateProfileFromFeedback,
   type ChatFeedback,
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
       scope: "workspace",
       requireRole: ["MEMBER"],
     });
+    setWorkspaceContext(auth.workspaceId);
 
     const workspaceId = auth.workspaceId;
     const userId = auth.user.userId;

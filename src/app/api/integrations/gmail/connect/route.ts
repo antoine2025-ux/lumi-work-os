@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { getGmailOAuth2Client, GMAIL_SCOPES } from '@/lib/gmail'
 import { handleApiError } from '@/lib/api-errors'
 
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
       scope: 'workspace',
       requireRole: ['MEMBER'],
     })
+    setWorkspaceContext(workspaceId)
 
     const oauth2Client = getGmailOAuth2Client()
     const state = JSON.stringify({ userId, workspaceId })

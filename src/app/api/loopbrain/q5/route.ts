@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { prisma } from "@/lib/db";
 import { answerQ5 } from "@/lib/loopbrain/q5";
 import { handleApiError } from "@/lib/api-errors"
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
       scope: "workspace",
       requireRole: ["MEMBER"],
     });
+    setWorkspaceContext(workspaceId);
 
     const { searchParams } = new URL(request.url);
     const personId = searchParams.get("personId");

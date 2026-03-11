@@ -98,6 +98,7 @@ if (process.env.NODE_ENV === 'development') {
     // Don't throw in dev to allow graceful degradation, but log clearly
   }
   
+  // SECURITY: Static query, no user input - $queryRaw safe.
   prismaUnscoped.$queryRaw<Array<{ current_database: string; inet_server_addr: string | null; current_schema: string }>>`
     SELECT current_database(), inet_server_addr(), current_schema()
   `.then((result) => {
@@ -189,6 +190,7 @@ if (typeof (prismaUnscoped as unknown as Record<string, unknown>).orgInvitation 
   
   // Verify table exists in database (async check, don't block startup)
   if (process.env.NODE_ENV === 'development') {
+    // SECURITY: Static query, no user input - $queryRaw safe.
     prismaUnscoped.$queryRaw`SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'org_invitations' LIMIT 1`
       .then((result: unknown) => {
         if (result && Array.isArray(result) && result.length > 0) {

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getUnifiedAuth } from '@/lib/unified-auth'
+import { assertAccess } from '@/lib/auth/assertAccess'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import OpenAI from 'openai'
 import { handleApiError } from '@/lib/api-errors'
@@ -76,6 +77,12 @@ export async function POST(request: NextRequest) {
     if (!auth.isAuthenticated || !auth.workspaceId) {
       return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
     }
+    await assertAccess({
+      userId: auth.user.userId,
+      workspaceId: auth.workspaceId,
+      scope: 'workspace',
+      requireRole: ['MEMBER'],
+    })
     setWorkspaceContext(auth.workspaceId)
 
     const { sessionId, message, phase: _phase } = await request.json()

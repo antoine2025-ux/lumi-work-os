@@ -91,7 +91,8 @@ export async function DELETE(
       );
     }
 
-    // Step 5: Delete department (no teams, safe to delete)
+    // Step 5: Delete department (no teams, safe to delete).
+    // SECURITY: $executeRaw tagged template parameterizes ${} values (no SQL injection).
     await prisma.$transaction(async (tx) => {
       // Delete department owner assignments if they exist
       await tx.$executeRaw`

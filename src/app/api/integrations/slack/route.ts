@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { prisma } from '@/lib/db'
 import {
   getSlackIntegration,
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
       scope: 'workspace',
       requireRole: ['MEMBER']
     })
+    setWorkspaceContext(auth.workspaceId)
 
     const integration = await getSlackIntegration(auth.workspaceId)
 
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
       scope: 'workspace',
       requireRole: ['ADMIN', 'OWNER'] // Only admins can configure integrations
     })
+    setWorkspaceContext(auth.workspaceId)
 
     const body = await request.json()
     const parsed = storeSlackConfigSchema.safeParse(body)
@@ -131,6 +134,7 @@ export async function PATCH(request: NextRequest) {
       scope: 'workspace',
       requireRole: ['ADMIN', 'OWNER']
     })
+    setWorkspaceContext(auth.workspaceId)
 
     const body = await request.json()
     const parsed = notificationConfigSchema.safeParse(body)
@@ -197,6 +201,7 @@ export async function DELETE(request: NextRequest) {
       scope: 'workspace',
       requireRole: ['ADMIN', 'OWNER']
     })
+    setWorkspaceContext(auth.workspaceId)
 
     await deactivateSlackIntegration(auth.workspaceId)
 

@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { sendGmail } from '@/lib/integrations/gmail-send'
 import { GmailSendSchema } from '@/lib/validations/gmail'
 import { handleApiError } from '@/lib/api-errors'
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
       scope: 'workspace',
       requireRole: ['MEMBER'],
     })
+    setWorkspaceContext(workspaceId)
 
     const body = await request.json()
     const data = GmailSendSchema.parse(body)

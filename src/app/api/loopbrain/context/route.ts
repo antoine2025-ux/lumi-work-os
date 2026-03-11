@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { contextEngine, getWorkspaceContextObjects } from '@/lib/loopbrain/context-engine'
 import { logger } from '@/lib/logger'
 
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
       scope: 'workspace',
       requireRole: ['MEMBER']
     })
+    setWorkspaceContext(auth.workspaceId)
 
     // Use workspaceId from auth (preferred source)
     const workspaceId = auth.workspaceId

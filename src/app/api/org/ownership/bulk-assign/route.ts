@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import { getUnifiedAuth } from "@/lib/unified-auth"
 import { assertAccess } from "@/lib/auth/assertAccess"
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware"
 import { handleApiError } from "@/lib/api-errors"
 import { assertWriteAllowed } from "@/server/org/writes/guard"
 
@@ -21,6 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     await assertAccess({ userId, workspaceId, scope: "workspace", requireRole: ["ADMIN"] })
+    setWorkspaceContext(workspaceId)
     assertWriteAllowed("ownership.bulkAssign")
     const body = (await req.json()) as Body
 

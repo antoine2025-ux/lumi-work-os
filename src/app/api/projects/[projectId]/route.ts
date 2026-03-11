@@ -38,6 +38,7 @@ export async function GET(
     setWorkspaceContext(auth.workspaceId)
 
     // Phase A: Log database connection info when debugging (DEV ONLY)
+    // SECURITY: Static query, no user input - $queryRaw safe.
     if (process.env.NODE_ENV === 'development' && process.env.DEBUG_DB === 'true') {
       try {
         const dbInfo = await prisma.$queryRaw<Array<{ current_database: string }>>`SELECT current_database()`

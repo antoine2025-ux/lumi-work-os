@@ -523,7 +523,7 @@ const _getOrgStructureLists = async (
         try {
           const departmentIds = departments.map((d) => d.id);
           if (departmentIds.length > 0) {
-            // Build IN clause with parameters (safer than ANY for Prisma)
+            // Build IN clause with positional parameters - SECURITY: no string interpolation, values passed as args.
             const placeholders = departmentIds.map((_, i) => `$${i + 3}::text`).join(', ');
             const query = `SELECT entity_id, owner_person_id
                FROM owner_assignments

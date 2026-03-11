@@ -117,7 +117,8 @@ export async function DELETE(
     // Step 4: Get personId and verify person exists (using minimal select to avoid schema issues)
     const { personId } = await ctx.params;
     
-    // Get only the userId from the position using raw SQL to avoid Prisma schema issues
+    // Get only the userId from the position using raw SQL to avoid Prisma schema issues.
+    // SECURITY: $queryRaw/$executeRaw tagged template parameterizes ${} values (no SQL injection).
     const positionResult = await prisma.$queryRaw<Array<{ userId: string | null; workspaceId: string }>>`
       SELECT "userId", "workspaceId"
       FROM org_positions
@@ -152,8 +153,9 @@ export async function DELETE(
       actorId: userId,
     }).catch((e) => console.error("[DELETE /api/org/people/[personId]] Audit log error (non-fatal):", e));
 
-    // Step 5: Hard delete related records and the OrgPosition using raw SQL
-    // This avoids Prisma trying to access non-existent fields like roleDescription
+    // Step 5: Hard delete related records and the OrgPosition using raw SQL.
+    // This avoids Prisma trying to access non-existent fields like roleDescription.
+    // SECURITY: $executeRaw tagged template parameterizes ${} values (no SQL injection).
     await prisma.$transaction(async (tx) => {
       // Delete availability records if userId exists
       if (userIdFromPosition) {

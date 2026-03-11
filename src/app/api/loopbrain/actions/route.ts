@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { executeAction } from '@/lib/loopbrain/actions/executor'
 import { LoopbrainActionSchema } from '@/lib/loopbrain/actions/action-types'
 import { toLoopbrainError } from '@/lib/loopbrain/errors'
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
       scope: 'workspace',
       requireRole: ['MEMBER', 'ADMIN', 'OWNER'],
     })
+    setWorkspaceContext(workspaceId)
 
     // Parse and validate request body
     const body = await request.json()

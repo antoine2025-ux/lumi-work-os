@@ -1,0 +1,456 @@
+Loopwell SQL Injection Analyzer - Phase 1, Task 4
+Scanning 2025 TypeScript files
+{
+  "totalSites": 55,
+  "safe": 34,
+  "unsafe": 0,
+  "needsReview": 21,
+  "findings": [
+    {
+      "file": "src/app/api/blog/admin/posts/route.ts",
+      "line": 85,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "      )\n    }\n\n    const { title, slug, excerpt, content, category, status } = body\n\n    // Sanitize slug: trim whitespace and ensure it's URL-safe\n    const sanitizedSlug = slug.trim().toLowerCase().replace(/\\s+/g, '-')\n\n    if (!title || !slug || !excerpt || !content || !category) {\n      return NextResponse.json(\n        { error: \"Missing required fields\" },\n        { status: 400 }\n      )\n    ..."
+    },
+    {
+      "file": "src/app/api/blog/admin/posts/route.ts",
+      "line": 90,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "    // Sanitize slug: trim whitespace and ensure it's URL-safe\n    const sanitizedSlug = slug.trim().toLowerCase().replace(/\\s+/g, '-')\n\n    if (!title || !slug || !excerpt || !content || !category) {\n      return NextResponse.json(\n        { error: \"Missing required fields\" },\n        { status: 400 }\n      )\n    }\n\n    // Check if slug already exists\n    try {\n      // First verify connection and..."
+    },
+    {
+      "file": "src/app/api/debug/db/route.ts",
+      "line": 58,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "    }\n\n    try {\n      if (directUrl) {\n        const url = new URL(directUrl)\n        directUrlInfo = {\n          host: url.hostname,\n          port: url.port || '5432',\n          database: url.pathname?.replace('/', '') || 'unknown',\n          username: url.username,\n          hasPassword: !!url.password,\n          url: `postgresql://${url.username}:***@${url.hostname}:${url.port || '5432'}/${ur..."
+    },
+    {
+      "file": "src/app/api/e2e-auth/route.ts",
+      "line": 44,
+      "pattern": "$queryRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "  \n  // Validate password\n  let body: { password?: string } = {}\n  try {\n    body = await request.json()\n  } catch {\n    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })\n  }\n  \n  if (body.password !== testPassword) {\n    return NextResponse.json({ error: 'Invalid test password' }, { status: 401 })\n  }\n  \n  try {\n    const testEmail = 'e2e-test@loopwell.test'\n    const testName ..."
+    },
+    {
+      "file": "src/app/api/e2e-auth/route.ts",
+      "line": 57,
+      "pattern": "$queryRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "  try {\n    const testEmail = 'e2e-test@loopwell.test'\n    const testName = 'E2E Test User'\n    \n    // Use raw SQL to avoid Prisma schema mismatch issues\n    // Upsert test user\n    const userResult = await prismaUnscoped.$queryRaw<{ id: string; email: string; name: string | null }[]>`\n      INSERT INTO users (id, email, name, \"emailVerified\", \"createdAt\", \"updatedAt\")\n      VALUES (gen_random_uu..."
+    },
+    {
+      "file": "src/app/api/e2e-auth/route.ts",
+      "line": 73,
+      "pattern": "$queryRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "    }\n    \n    // Find existing workspace membership\n    const membershipResult = await prismaUnscoped.$queryRaw<{ workspace_id: string; role: string }[]>`\n      SELECT wm.\"workspaceId\" as workspace_id, wm.role\n      FROM workspace_members wm\n      WHERE wm.\"userId\" = ${user.id}\n      LIMIT 1\n    `\n    \n    let workspaceId: string\n    let role = 'OWNER'\n    \n    if (membershipResult.length > 0) {\n..."
+    },
+    {
+      "file": "src/app/api/e2e-auth/route.ts",
+      "line": 82,
+      "pattern": "$queryRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "    \n    let workspaceId: string\n    let role = 'OWNER'\n    \n    if (membershipResult.length > 0) {\n      workspaceId = membershipResult[0].workspace_id\n      role = membershipResult[0].role\n    } else {\n      // Create workspace\n      const slug = `e2e-test-${Date.now()}`\n      const wsResult = await prismaUnscoped.$queryRaw<{ id: string }[]>`\n        INSERT INTO workspaces (id, name, slug, \"owne..."
+    },
+    {
+      "file": "src/app/api/migrations/blog/route.ts",
+      "line": 70,
+      "pattern": "$executeRawUnsafe",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "Unsafe API used - manual review required to verify parameterization",
+      "code": "    // Check if table already exists\n    const tableExists = await prisma.$queryRaw<Array<{ exists: boolean }>>`\n      SELECT EXISTS (\n        SELECT FROM information_schema.tables \n        WHERE table_schema = 'public' AND table_name = 'blog_posts'\n      ) as exists\n    `\n\n    if (tableExists[0]?.exists) {\n      return NextResponse.json({\n        success: true,\n        message: \"blog_posts table ..."
+    },
+    {
+      "file": "src/app/api/migrations/blog/route.ts",
+      "line": 52,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "  try {\n    const auth = await getUnifiedAuth(request)\n    if (!auth.isAuthenticated) {\n      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })\n    }\n    if (!auth.workspaceId) {\n      return NextResponse.json({ error: 'No workspace context' }, { status: 401 })\n    }\n    await assertAccess({\n      userId: auth.user.userId,\n      workspaceId: auth.workspaceId,\n      scope: 'works..."
+    },
+    {
+      "file": "src/app/api/migrations/blog/route.ts",
+      "line": 128,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "    console.log(\"[MIGRATIONS] Blog migration completed successfully\")\n\n    return NextResponse.json({\n      success: true,\n      message: \"Blog migration completed successfully\",\n    })\n  } catch (error) {\n    return handleApiError(error, request)\n  } finally {\n    await prisma.$disconnect()\n  }\n}\n\n/**\n * GET /api/migrations/blog\n * Check if blog migration has been applied\n */\nexport async functio..."
+    },
+    {
+      "file": "src/app/api/migrations/blog/route.ts",
+      "line": 70,
+      "pattern": "$executeRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "    // Check if table already exists\n    const tableExists = await prisma.$queryRaw<Array<{ exists: boolean }>>`\n      SELECT EXISTS (\n        SELECT FROM information_schema.tables \n        WHERE table_schema = 'public' AND table_name = 'blog_posts'\n      ) as exists\n    `\n\n    if (tableExists[0]?.exists) {\n      return NextResponse.json({\n        success: true,\n        message: \"blog_posts table ..."
+    },
+    {
+      "file": "src/app/api/org/people/[personId]/route.ts",
+      "line": 121,
+      "pattern": "$queryRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "        { status: 401 }\n      );\n    }\n\n    // Step 2: Assert OWNER/ADMIN access (only workspace owners/admins can delete people)\n    await assertAccess({\n      userId,\n      workspaceId,\n      scope: \"workspace\",\n      requireRole: [\"OWNER\", \"ADMIN\"],\n    });\n\n    // Step 3: Set workspace context\n    setWorkspaceContext(workspaceId);\n\n    // Step 4: Get personId and verify person exists (using mi..."
+    },
+    {
+      "file": "src/app/api/org/people/[personId]/route.ts",
+      "line": 161,
+      "pattern": "$executeRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "    const userName =\n      userIdFromPosition\n        ? await prisma.user.findUnique({ where: { id: userIdFromPosition }, select: { name: true } }).then((u) => u?.name)\n        : null;\n    logOrgAudit({\n      workspaceId,\n      entityType: \"PERSON\",\n      entityId: personId,\n      entityName: userName ?? undefined,\n      action: \"DELETED\",\n      actorId: userId,\n    }).catch((e) => console.error(\"..."
+    },
+    {
+      "file": "src/app/api/org/people/[personId]/route.ts",
+      "line": 169,
+      "pattern": "$executeRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "      entityName: userName ?? undefined,\n      action: \"DELETED\",\n      actorId: userId,\n    }).catch((e) => console.error(\"[DELETE /api/org/people/[personId]] Audit log error (non-fatal):\", e));\n\n    // Step 5: Hard delete related records and the OrgPosition using raw SQL\n    // This avoids Prisma trying to access non-existent fields like roleDescription\n    await prisma.$transaction(async (tx) =..."
+    },
+    {
+      "file": "src/app/api/org/people/[personId]/route.ts",
+      "line": 177,
+      "pattern": "$executeRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "      // Delete availability records if userId exists\n      if (userIdFromPosition) {\n        // Delete person availability health records\n        await tx.$executeRaw`\n          DELETE FROM person_availability_health\n          WHERE \"personId\" = ${userIdFromPosition} AND \"workspaceId\" = ${workspaceId}\n        `.catch(() => {\n          // Table might not exist, ignore\n        });\n\n        // Delet..."
+    },
+    {
+      "file": "src/app/api/org/people/[personId]/route.ts",
+      "line": 187,
+      "pattern": "$executeRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "        // Delete person availability records\n        await tx.$executeRaw`\n          DELETE FROM person_availability\n          WHERE \"personId\" = ${userIdFromPosition} AND \"workspaceId\" = ${workspaceId}\n        `.catch(() => {\n          // Table might not exist, ignore\n        });\n\n        // Delete person manager links\n        await tx.$executeRaw`\n          DELETE FROM person_manager_links\n    ..."
+    },
+    {
+      "file": "src/app/api/org/people/[personId]/route.ts",
+      "line": 195,
+      "pattern": "$executeRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "        // Delete person manager links\n        await tx.$executeRaw`\n          DELETE FROM person_manager_links\n          WHERE (\"personId\" = ${userIdFromPosition} OR \"managerId\" = ${userIdFromPosition}) AND \"workspaceId\" = ${workspaceId}\n        `.catch(() => {\n          // Table might not exist, ignore\n        });\n      }\n\n      // Handle self-referential parent/children relationships\n      // S..."
+    },
+    {
+      "file": "src/app/api/org/structure/departments/[departmentId]/owner/route.ts",
+      "line": 85,
+      "pattern": "$queryRawUnsafe",
+      "classification": "SAFE",
+      "reasoning": "Uses positional parameters ($1, $2, etc.) - parameterized query",
+      "code": "        id: departmentId,\n        workspaceId,\n        isActive: true\n      },\n      select: { id: true, name: true },\n    });\n\n    if (!department) {\n      return NextResponse.json(\n        { \n          ok: false,\n          error: \"Department not found or does not belong to this workspace\",\n          hint: \"The department you're trying to update does not exist or you don't have access to it.\"\n   ..."
+    },
+    {
+      "file": "src/app/api/org/structure/departments/[departmentId]/owner/route.ts",
+      "line": 149,
+      "pattern": "$executeRawUnsafe",
+      "classification": "SAFE",
+      "reasoning": "Uses positional parameters ($1, $2, etc.) - parameterized query",
+      "code": "            },\n            { status: 404 }\n          );\n        }\n      }\n    }\n\n    // Step 7: Compute issues BEFORE mutation\n    const issuesBefore = await deriveOwnershipIssuesForEntity(workspaceId, \"DEPARTMENT\", departmentId, workspaceSlug);\n\n    // Step 8: Update or create OwnerAssignment for department\n    // Use raw SQL to avoid enum type issues\n    if (userIdToAssign) {\n      // Upsert: de..."
+    },
+    {
+      "file": "src/app/api/org/structure/departments/[departmentId]/owner/route.ts",
+      "line": 165,
+      "pattern": "$executeRawUnsafe",
+      "classification": "SAFE",
+      "reasoning": "Uses positional parameters ($1, $2, etc.) - parameterized query",
+      "code": "          // Delete existing owner assignment for this department (raw SQL)\n          // Note: Column names must be quoted for camelCase in PostgreSQL\n          // Note: entityType is an enum, must cast to text for comparison\n          const _deleteResult = await tx.$executeRawUnsafe(\n            `DELETE FROM owner_assignments\n             WHERE \"workspaceId\" = $1::text\n               AND \"entityT..."
+    },
+    {
+      "file": "src/app/api/org/structure/departments/[departmentId]/owner/route.ts",
+      "line": 185,
+      "pattern": "$executeRawUnsafe",
+      "classification": "SAFE",
+      "reasoning": "Uses positional parameters ($1, $2, etc.) - parameterized query",
+      "code": "            `INSERT INTO owner_assignments (id, \"workspaceId\", \"entityType\", \"entityId\", \"entityLabel\", \"ownerPersonId\", \"isPrimary\", \"createdAt\", \"updatedAt\")\n             VALUES (gen_random_uuid()::text, $1::text, $2::\"OwnedEntityType\", $3::text, $4::text, $5::text, true, NOW(), NOW())`,\n            workspaceId,\n            'DEPARTMENT',\n            departmentId,\n            department.name,\n   ..."
+    },
+    {
+      "file": "src/app/api/org/structure/departments/[departmentId]/owner/route.ts",
+      "line": 85,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "        id: departmentId,\n        workspaceId,\n        isActive: true\n      },\n      select: { id: true, name: true },\n    });\n\n    if (!department) {\n      return NextResponse.json(\n        { \n          ok: false,\n          error: \"Department not found or does not belong to this workspace\",\n          hint: \"The department you're trying to update does not exist or you don't have access to it.\"\n   ..."
+    },
+    {
+      "file": "src/app/api/org/structure/departments/[departmentId]/owner/route.ts",
+      "line": 149,
+      "pattern": "$executeRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "            },\n            { status: 404 }\n          );\n        }\n      }\n    }\n\n    // Step 7: Compute issues BEFORE mutation\n    const issuesBefore = await deriveOwnershipIssuesForEntity(workspaceId, \"DEPARTMENT\", departmentId, workspaceSlug);\n\n    // Step 8: Update or create OwnerAssignment for department\n    // Use raw SQL to avoid enum type issues\n    if (userIdToAssign) {\n      // Upsert: de..."
+    },
+    {
+      "file": "src/app/api/org/structure/departments/[departmentId]/owner/route.ts",
+      "line": 165,
+      "pattern": "$executeRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "          // Delete existing owner assignment for this department (raw SQL)\n          // Note: Column names must be quoted for camelCase in PostgreSQL\n          // Note: entityType is an enum, must cast to text for comparison\n          const _deleteResult = await tx.$executeRawUnsafe(\n            `DELETE FROM owner_assignments\n             WHERE \"workspaceId\" = $1::text\n               AND \"entityT..."
+    },
+    {
+      "file": "src/app/api/org/structure/departments/[departmentId]/owner/route.ts",
+      "line": 185,
+      "pattern": "$executeRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "            `INSERT INTO owner_assignments (id, \"workspaceId\", \"entityType\", \"entityId\", \"entityLabel\", \"ownerPersonId\", \"isPrimary\", \"createdAt\", \"updatedAt\")\n             VALUES (gen_random_uuid()::text, $1::text, $2::\"OwnedEntityType\", $3::text, $4::text, $5::text, true, NOW(), NOW())`,\n            workspaceId,\n            'DEPARTMENT',\n            departmentId,\n            department.name,\n   ..."
+    },
+    {
+      "file": "src/app/api/org/structure/departments/[departmentId]/route.ts",
+      "line": 97,
+      "pattern": "$executeRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "        { status: 404 }\n      );\n    }\n\n    // Block deletion if department has teams\n    if (department.teams.length > 0) {\n      return NextResponse.json(\n        { \n          ok: false,\n          error: \"HAS_TEAMS\",\n          hint: `Department has ${department.teams.length} team${department.teams.length === 1 ? \"\" : \"s\"}. Move or delete teams first.`\n        },\n        { status: 400 }\n      );\n..."
+    },
+    {
+      "file": "src/app/api/org/teams/[id]/department/route.ts",
+      "line": 142,
+      "pattern": "$queryRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "          name: team.name,\n          id: { not: id }, // Exclude current team\n        },\n        include: {\n          department: {\n            select: {\n              id: true,\n              name: true,\n            },\n          },\n        },\n      });\n\n      if (existingTeam) {\n        // Get department name for better error message\n        const departmentName = existingTeam.department?.name || ..."
+    },
+    {
+      "file": "src/app/api/projects/[projectId]/documentation/route.ts",
+      "line": 64,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "    if (!projectId) {\n      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })\n    }\n\n    // Check project access\n    const nextAuthUser = {\n      id: auth.user.userId,\n      email: auth.user.email,\n      name: auth.user.name\n    } as any\n    // CRITICAL: Pass workspaceId to ensure workspace isolation\n    await assertProjectAccess(nextAuthUser, projectId, ProjectRole.VI..."
+    },
+    {
+      "file": "src/app/api/projects/[projectId]/documentation/route.ts",
+      "line": 72,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "      name: auth.user.name\n    } as any\n    // CRITICAL: Pass workspaceId to ensure workspace isolation\n    await assertProjectAccess(nextAuthUser, projectId, ProjectRole.VIEWER, auth.workspaceId)\n\n    // Fetch all documentation links for this project\n    console.log('[ProjectDocumentation] Attempting to fetch documentation for project:', projectId)\n    console.log('[ProjectDocumentation] Prisma c..."
+    },
+    {
+      "file": "src/app/api/projects/[projectId]/route.ts",
+      "line": 43,
+      "pattern": "$queryRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": ") {\n  const resolvedParams = await params\n  const projectId = resolvedParams.projectId\n\n  if (!projectId) {\n    return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })\n  }\n\n  try {\n    const auth = await getUnifiedAuth(request)\n    if (!auth.isAuthenticated || !auth.workspaceId) {\n      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })\n    }\n    await asse..."
+    },
+    {
+      "file": "src/app/api/test-db/route.ts",
+      "line": 27,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "      message: 'Database connection successful',\n      timestamp: new Date().toISOString(),\n    }\n\n    // Test basic connection with a simple query\n    const [userCount, workspaceCount, pageCount] = await Promise.all([\n      prisma.user.count().catch(() => 0),\n      prisma.workspace.count().catch(() => 0),\n      prisma.wikiPage.count().catch(() => 0),\n    ])\n\n    results.data = {\n      userCount,\n..."
+    },
+    {
+      "file": "src/app/api/test-db/route.ts",
+      "line": 63,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "        }\n      }\n    } catch (err) {\n      console.warn('Could not fetch database info:', err)\n    }\n\n    // Check connection pooler status\n    const databaseUrl = process.env.DATABASE_URL || ''\n    results.connection = {\n      usingPooler: databaseUrl.includes('pooler.supabase.com') || databaseUrl.includes('pgbouncer=true'),\n      hasDirectUrl: !!process.env.DIRECT_URL,\n      connectionType: dat..."
+    },
+    {
+      "file": "src/app/api/wiki/pages/[id]/route.ts",
+      "line": 112,
+      "pattern": "$executeRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "    // VIEWER and above can read wiki pages\n    await assertAccess({\n      userId: auth.user.userId,\n      workspaceId: auth.workspaceId,\n      scope: 'workspace',\n      requireRole: ['VIEWER']\n    })\n\n    setWorkspaceContext(auth.workspaceId)\n\n    const resolvedParams = await params\n    const pageIdOrSlug = decodeURIComponent(resolvedParams.id)\n    // #region agent log\n    fetch('http://127.0.0.1..."
+    },
+    {
+      "file": "src/app/api/wiki/pages/[id]/route.ts",
+      "line": 231,
+      "pattern": "$executeRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": ") {\n  try {\n    const auth = await getUnifiedAuth(request)\n    \n    await assertAccess({ \n      userId: auth.user.userId, \n      workspaceId: auth.workspaceId, \n      scope: 'workspace', \n      requireRole: ['MEMBER'] \n    })\n\n    setWorkspaceContext(auth.workspaceId)\n\n    const resolvedParams = await params\n    const body = WikiPageUpdateSchema.parse(await request.json())\n    const { title, conte..."
+    },
+    {
+      "file": "src/app/api/wiki/pages/[id]/route.ts",
+      "line": 461,
+      "pattern": "$executeRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "  request: NextRequest,\n  { params }: { params: Promise<{ id: string }> }\n) {\n  try {\n    const auth = await getUnifiedAuth(request)\n    \n    await assertAccess({ \n      userId: auth.user.userId, \n      workspaceId: auth.workspaceId, \n      scope: 'workspace', \n      requireRole: ['MEMBER'] \n    })\n\n    setWorkspaceContext(auth.workspaceId)\n\n    const resolvedParams = await params\n\n    // RLS defe..."
+    },
+    {
+      "file": "src/app/api/wiki/pages/route.ts",
+      "line": 39,
+      "pattern": "$executeRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "    const authStart = performance.now()\n    const auth = await getUnifiedAuth(request)\n    const authDurationMs = performance.now() - authStart\n    \n    // Assert workspace access\n    const accessStart = performance.now()\n    // VIEWER and above can list wiki pages\n    await assertAccess({\n      userId: auth.user.userId,\n      workspaceId: auth.workspaceId,\n      scope: 'workspace',\n      requireR..."
+    },
+    {
+      "file": "src/app/api/wiki/pages/route.ts",
+      "line": 333,
+      "pattern": "$executeRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "      // No workspace_type but permissionLevel is 'personal' - infer personal workspace\n      finalWorkspaceType = 'personal'\n      finalPermissionLevel = 'personal'\n    } else {\n      // Default fallback\n      finalWorkspaceType = 'team'\n      finalPermissionLevel = permissionLevel || 'team'\n    }\n    \n    // Import text extraction utility\n    const { extractTextFromProseMirror } = await import('..."
+    },
+    {
+      "file": "src/lib/db.ts",
+      "line": 101,
+      "pattern": "$queryRaw",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "queryRaw/executeRaw with template literals - verify Prisma.sql is used",
+      "code": "// When enabled, all workspace-scoped queries automatically require workspace context\n// This is a safety layer - routes must still use assertAccess() + explicit where: { workspaceId }\nconst WORKSPACE_SCOPING_ENABLED = process.env.PRISMA_WORKSPACE_SCOPING_ENABLED === 'true'\n\n// Base Prisma client (always unscoped) - for scripts/background jobs\n// Scripts should import this directly: import { prism..."
+    },
+    {
+      "file": "src/lib/db.ts",
+      "line": 192,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "// Verify ProjectDocumentation model is available (for documentation attachments feature)\nif (typeof (prisma as unknown as Record<string, unknown>).projectDocumentation === 'undefined') {\n  console.error('[PRISMA] ❌ CRITICAL: ProjectDocumentation model not found in Prisma Client!')\n  console.error('[PRISMA] Please run: npx prisma generate')\n  console.error('[PRISMA] Then restart your Next.js dev s..."
+    },
+    {
+      "file": "src/lib/org/data.server.ts",
+      "line": 533,
+      "pattern": "$queryRawUnsafe",
+      "classification": "NEEDS_REVIEW",
+      "reasoning": "Unsafe API used - manual review required to verify parameterization",
+      "code": "        select: {\n          entityId: true,\n          ownerPersonId: true,\n        },\n      });\n    } catch (error: unknown) {\n      const errorMsg = error instanceof Error ? error.message : String(error);\n      // If enum doesn't exist or table doesn't exist, use raw SQL as fallback\n      if (errorMsg.includes(\"OwnedEntityType\") || errorMsg.includes(\"does not exist\")) {\n        try {\n          co..."
+    },
+    {
+      "file": "src/lib/org/data.server.ts",
+      "line": 533,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "        select: {\n          entityId: true,\n          ownerPersonId: true,\n        },\n      });\n    } catch (error: unknown) {\n      const errorMsg = error instanceof Error ? error.message : String(error);\n      // If enum doesn't exist or table doesn't exist, use raw SQL as fallback\n      if (errorMsg.includes(\"OwnedEntityType\") || errorMsg.includes(\"does not exist\")) {\n        try {\n          co..."
+    },
+    {
+      "file": "src/lib/simple-auth.ts",
+      "line": 254,
+      "pattern": "$queryRawUnsafe",
+      "classification": "SAFE",
+      "reasoning": "Uses positional parameters ($1, $2, etc.) - parameterized query",
+      "code": "\n      // If Prisma fails because the table does not exist, do not fall back to raw SQL\n      // (raw SQL will fail the same way). Throw a clear message so the user can run migrations.\n      const tableMissing =\n        prismaErr.code === 'P2021' ||\n        prismaErr.code === 'P2022' ||\n        (prismaErr.message?.includes('does not exist') && prismaErr.message?.includes('users'));\n\n      if (tabl..."
+    },
+    {
+      "file": "src/lib/simple-auth.ts",
+      "line": 362,
+      "pattern": "$queryRawUnsafe",
+      "classification": "SAFE",
+      "reasoning": "Uses positional parameters ($1, $2, etc.) - parameterized query",
+      "code": "          name: true,\n          slug: true,\n          description: true,\n          logo: true,\n          createdAt: true,\n          updatedAt: true,\n          ownerId: true,\n        }\n      })\n    } catch (prismaError: unknown) {\n      const prismaErr2 = prismaError as PrismaLikeError;\n      console.error('[createUserWorkspace] Prisma workspace.create failed, trying raw SQL:', prismaErr2.message)\n..."
+    },
+    {
+      "file": "src/lib/simple-auth.ts",
+      "line": 427,
+      "pattern": "$executeRawUnsafe",
+      "classification": "SAFE",
+      "reasoning": "Uses positional parameters ($1, $2, etc.) - parameterized query",
+      "code": "        if (!workspace) {\n          throw new Error('Failed to create or retrieve workspace after raw SQL insert')\n        }\n        \n      } else {\n        // For other errors, throw as-is\n        throw prismaError as Error\n      }\n    }\n\n    // Add user as OWNER - use raw SQL directly to avoid Prisma schema validation issues\n    // The database schema may be out of sync with Prisma schema (e.g.,..."
+    },
+    {
+      "file": "src/lib/simple-auth.ts",
+      "line": 254,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "\n      // If Prisma fails because the table does not exist, do not fall back to raw SQL\n      // (raw SQL will fail the same way). Throw a clear message so the user can run migrations.\n      const tableMissing =\n        prismaErr.code === 'P2021' ||\n        prismaErr.code === 'P2022' ||\n        (prismaErr.message?.includes('does not exist') && prismaErr.message?.includes('users'));\n\n      if (tabl..."
+    },
+    {
+      "file": "src/lib/simple-auth.ts",
+      "line": 362,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "          name: true,\n          slug: true,\n          description: true,\n          logo: true,\n          createdAt: true,\n          updatedAt: true,\n          ownerId: true,\n        }\n      })\n    } catch (prismaError: unknown) {\n      const prismaErr2 = prismaError as PrismaLikeError;\n      console.error('[createUserWorkspace] Prisma workspace.create failed, trying raw SQL:', prismaErr2.message)\n..."
+    },
+    {
+      "file": "src/lib/simple-auth.ts",
+      "line": 427,
+      "pattern": "$executeRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "        if (!workspace) {\n          throw new Error('Failed to create or retrieve workspace after raw SQL insert')\n        }\n        \n      } else {\n        // For other errors, throw as-is\n        throw prismaError as Error\n      }\n    }\n\n    // Add user as OWNER - use raw SQL directly to avoid Prisma schema validation issues\n    // The database schema may be out of sync with Prisma schema (e.g.,..."
+    },
+    {
+      "file": "src/server/org/people/write.ts",
+      "line": 97,
+      "pattern": "$queryRawUnsafe",
+      "classification": "SAFE",
+      "reasoning": "Uses positional parameters ($1, $2, etc.) - parameterized query",
+      "code": "    // Use raw SQL to avoid Prisma trying to insert into non-existent columns (skills, bio, etc.)\n    // This is a workaround for schema/database mismatch - proper fix is to run migrations\n    try {\n      const user = await prisma.user.create({\n        data: {\n          email,\n          name: input.fullName,\n        },\n        select: { id: true },\n      });\n      userId = user.id;\n    } catch (pr..."
+    },
+    {
+      "file": "src/server/org/people/write.ts",
+      "line": 159,
+      "pattern": "$queryRawUnsafe",
+      "classification": "SAFE",
+      "reasoning": "Uses positional parameters ($1, $2, etc.) - parameterized query",
+      "code": "        userId,\n        title: input.title,\n        teamId: teamId,\n        parentId: input.managerId || null,\n        isActive: true,\n      },\n      select: { id: true, userId: true },\n    });\n    position = created;\n  } catch (prismaError: unknown) {\n    // Fallback to raw SQL if Prisma fails due to schema mismatch\n    const pErr = prismaError as Error & { code?: string };\n    if (pErr?.code ===..."
+    },
+    {
+      "file": "src/server/org/people/write.ts",
+      "line": 97,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "    // Use raw SQL to avoid Prisma trying to insert into non-existent columns (skills, bio, etc.)\n    // This is a workaround for schema/database mismatch - proper fix is to run migrations\n    try {\n      const user = await prisma.user.create({\n        data: {\n          email,\n          name: input.fullName,\n        },\n        select: { id: true },\n      });\n      userId = user.id;\n    } catch (pr..."
+    },
+    {
+      "file": "src/server/org/people/write.ts",
+      "line": 159,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "        userId,\n        title: input.title,\n        teamId: teamId,\n        parentId: input.managerId || null,\n        isActive: true,\n      },\n      select: { id: true, userId: true },\n    });\n    position = created;\n  } catch (prismaError: unknown) {\n    // Fallback to raw SQL if Prisma fails due to schema mismatch\n    const pErr = prismaError as Error & { code?: string };\n    if (pErr?.code ===..."
+    },
+    {
+      "file": "src/server/org/structure/read.ts",
+      "line": 94,
+      "pattern": "$queryRawUnsafe",
+      "classification": "SAFE",
+      "reasoning": "Uses positional parameters ($1, $2, etc.) - parameterized query",
+      "code": "\n  // Get department owners from OwnerAssignment (defensive: handle if enum doesn't exist)\n  let departmentOwners: Array<{ entityId: string; ownerPersonId: string }> = [];\n  try {\n    departmentOwners = await prisma.ownerAssignment.findMany({\n      where: {\n        workspaceId: effectiveWorkspaceId,\n        entityType: \"DEPARTMENT\",\n      },\n      select: {\n        entityId: true,\n        ownerPer..."
+    },
+    {
+      "file": "src/server/org/structure/read.ts",
+      "line": 94,
+      "pattern": "$queryRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "\n  // Get department owners from OwnerAssignment (defensive: handle if enum doesn't exist)\n  let departmentOwners: Array<{ entityId: string; ownerPersonId: string }> = [];\n  try {\n    departmentOwners = await prisma.ownerAssignment.findMany({\n      where: {\n        workspaceId: effectiveWorkspaceId,\n        entityType: \"DEPARTMENT\",\n      },\n      select: {\n        entityId: true,\n        ownerPer..."
+    },
+    {
+      "file": "src/server/org/structure/write.ts",
+      "line": 66,
+      "pattern": "$executeRawUnsafe",
+      "classification": "SAFE",
+      "reasoning": "Uses positional parameters ($1, $2, etc.) - parameterized query",
+      "code": "    }\n\n    // Create owner assignment (use raw SQL to avoid enum type issues)\n    try {\n      await prisma.ownerAssignment.create({\n        data: {\n          workspaceId: input.workspaceId,\n          entityType: \"DEPARTMENT\",\n          entityId: department.id,\n          entityLabel: department.name,\n          ownerPersonId: userId,\n          isPrimary: true,\n        },\n      });\n    } catch (error..."
+    },
+    {
+      "file": "src/server/org/structure/write.ts",
+      "line": 66,
+      "pattern": "$executeRaw",
+      "classification": "SAFE",
+      "reasoning": "Uses Prisma Prisma.sql tagged template - values are parameterized",
+      "code": "    }\n\n    // Create owner assignment (use raw SQL to avoid enum type issues)\n    try {\n      await prisma.ownerAssignment.create({\n        data: {\n          workspaceId: input.workspaceId,\n          entityType: \"DEPARTMENT\",\n          entityId: department.id,\n          entityLabel: department.name,\n          ownerPersonId: userId,\n          isPrimary: true,\n        },\n      });\n    } catch (error..."
+    }
+  ]
+}
+
+--- Summary ---
+Total call sites: 55
+SAFE: 34
+UNSAFE: 0
+NEEDS_REVIEW: 21

@@ -106,8 +106,8 @@ export async function GET(
     fetch('http://127.0.0.1:7242/ingest/2a79ccc7-8419-4f6b-84d3-31982e160042',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc9fac'},body:JSON.stringify({sessionId:'dc9fac',location:'api/wiki/pages/[id]/route.ts:GET',message:'wiki page GET',data:{pageIdOrSlug,workspaceId:auth.workspaceId},timestamp:Date.now(),hypothesisId:'H2-H4'})}).catch(()=>{});
     // #endregion
 
-    // RLS defense-in-depth: set app.user_id so RLS policies pass
-    // (Prisma service role bypasses RLS, but this guards against config changes)
+    // RLS defense-in-depth: set app.user_id so RLS policies pass.
+    // SECURITY: $executeRaw tagged template parameterizes ${} values (no SQL injection).
     const page = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.user_id', ${auth.user.userId}, true)`
 
@@ -226,7 +226,8 @@ export async function PUT(
     const body = WikiPageUpdateSchema.parse(await request.json())
     const { title, content, contentJson, contentFormat, parentId, tags, isPublished, permissionLevel, category } = body
 
-    // RLS defense-in-depth: set app.user_id so RLS policies pass
+    // RLS defense-in-depth: set app.user_id so RLS policies pass.
+    // SECURITY: $executeRaw tagged template parameterizes ${} values (no SQL injection).
     const currentPage = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.user_id', ${auth.user.userId}, true)`
       return tx.wikiPage.findUnique({
@@ -456,7 +457,8 @@ export async function DELETE(
 
     const resolvedParams = await params
 
-    // RLS defense-in-depth: set app.user_id so RLS policies pass
+    // RLS defense-in-depth: set app.user_id so RLS policies pass.
+    // SECURITY: $executeRaw tagged template parameterizes ${} values (no SQL injection).
     const deleted = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.user_id', ${auth.user.userId}, true)`
 

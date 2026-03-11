@@ -9,6 +9,7 @@ import { syncPersonContexts } from "@/lib/context/org/syncPersonContexts";
 import { syncRoleContexts } from "@/lib/context/org/syncRoleContexts";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { handleApiError } from "@/lib/api-errors"
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
       scope: "workspace",
       requireRole: ["MEMBER"],
     });
+    setWorkspaceContext(auth.workspaceId);
 
     /**
      * Step 1:

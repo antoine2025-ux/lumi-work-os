@@ -21,6 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUnifiedAuth } from "@/lib/unified-auth";
 import { assertAccess } from "@/lib/auth/assertAccess";
+import { setWorkspaceContext } from "@/lib/prisma/scopingMiddleware";
 import { listOrgPeople } from "@/server/org/people/read";
 import { getOrgIntelligenceSnapshot } from "@/lib/org/intelligence";
 import {
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
       scope: "workspace",
       requireRole: ["MEMBER"],
     });
+    setWorkspaceContext(workspaceId);
 
     // Step 3: Fetch people list and people signals in parallel
     // NOTE: listOrgPeople uses workspaceId directly for scoping (no implicit context)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getUnifiedAuth } from '@/lib/unified-auth'
 import { assertAccess } from '@/lib/auth/assertAccess'
+import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { getFeatureFlags, setFeatureFlag } from "@/lib/feature-flags"
 
 export async function GET(request: NextRequest) {
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest) {
       scope: 'workspace', 
       requireRole: ['MEMBER'] 
     })
+    setWorkspaceContext(auth.workspaceId)
 
     const flags = await getFeatureFlags(auth.workspaceId)
 
@@ -45,6 +47,7 @@ export async function POST(request: NextRequest) {
       scope: 'workspace', 
       requireRole: ['ADMIN', 'OWNER'] 
     })
+    setWorkspaceContext(auth.workspaceId)
 
     const { key, enabled } = await request.json()
 
