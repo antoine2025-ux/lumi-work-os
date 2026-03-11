@@ -21,6 +21,7 @@ export type ToolCategory =
   | 'todo'
   | 'email'
   | 'drive'
+  | 'slack'
 
 export interface ToolPermissions {
   minimumRole: AgentRole

@@ -275,7 +275,7 @@ Tracked debt with current counts and target dates.
 | `orgId` fallback pattern | 0 route fallbacks, 0 schema refs. 53 source files with variable name cleanup remaining (P1) ✅ Phase 1 | Phase 2: rename variables in 53 files | Schema migration done. Variable cleanup is cosmetic — tracked in TECH_DEBT.md P1. |
 | `console.log` in production | Unknown | 0 | Grep + remove or replace with structured logging |
 | `WORKSPACE_SCOPING_ENABLED` | ~~`false`~~ → `true` (default) | DONE | Enabled March 11, 2026. Default ON, opt-out with `PRISMA_WORKSPACE_SCOPING_ENABLED=false` |
-| Agent tool triple registration | 3 files per tool | Auto-dispatch from registry | Refactor `executeReadTool` in `agent-loop.ts` to use `toolRegistry.get(name)` instead of manual switch |
+| Agent tool triple registration | ~~3 files~~ → 2 files | DONE March 11, 2026 | Replaced switch with `toolRegistry.get(name).execute(args, ctx)` in both executeReadTool and executeWriteTool |
 
 ### 3.2 Post-MVP (pre-YC review)
 
@@ -358,18 +358,12 @@ Architectural decisions with context, so future sessions don't re-litigate them.
 **Rationale:** AI excels at implementing patterns consistently within a session. It struggles with global consistency across hundreds of sessions. The audit → rules → prompt pipeline solves the drift problem.
 **Consequences:** RULES.md, ARCHITECTURE.md, ARCHITECTURE_DECISIONS.md, and feature MDs must be maintained as living documents. Every AI session loads relevant context. Audit frequency must be maintained.
 
-### ADR-008: Agent tools require triple registration (known debt)
+### ADR-008: Agent tools auto-dispatch from registry
 
-**Date:** 2026-03-09
-**Status:** Active (debt — to be refactored)
-**Context:** Adding `readWikiPage` tool failed silently because `agent-loop.ts` has a hand-maintained switch statement in `executeReadTool` that dispatches tool calls. The tool was registered in `tool-schemas.ts` (LLM discovery) and `tool-registry.ts` (implementation), but the switch had no case for it — calls fell through to `default: { error: 'Unknown tool' }`.
-**Current state:** Every new agent tool must be registered in three places:
-1. `src/lib/loopbrain/tool-schemas.ts` — LLM-visible schema (so the planner knows the tool exists)
-2. `src/lib/loopbrain/agent/tool-registry.ts` — implementation (so the tool can execute)
-3. `src/lib/loopbrain/agent-loop.ts` — `executeReadTool` switch statement (so the executor dispatches to it)
-Missing any one of the three causes silent failure — the tool either isn't offered to the LLM, has no implementation, or gets "Unknown tool" at runtime.
-**Target refactor:** Replace the manual switch in `agent-loop.ts` with auto-dispatch: `const tool = toolRegistry.get(toolName); return tool.execute(args, ctx)`. Three tools (`listTasksByAssignee`, `searchDriveFiles`, `readDriveDocument`) already use this pattern — extend it to all tools and delete the switch.
-**Why not fix now:** Agent loop is working and validated. Refactoring the dispatch during MVP feature work risks breaking working tools. Schedule for post-MVP hardening.
+**Date:** 2026-03-09 (updated March 11, 2026)
+**Status:** Completed (March 11, 2026)
+**Context:** Adding `readWikiPage` tool failed silently because `agent-loop.ts` had a hand-maintained switch statement in `executeReadTool` that dispatched tool calls. The tool was registered in `tool-schemas.ts` and `tool-registry.ts`, but the switch had no case for it.
+**Resolution:** Replaced the manual switch in both `executeReadTool` and `executeWriteTool` with registry-based auto-dispatch: `const tool = toolRegistry.get(toolCall.name); return tool.execute(args, ctx)`. All tools now auto-dispatch. Adding a new tool requires only 2 registrations: `tool-schemas.ts` (LLM visibility) + `tool-registry.ts` (implementation). Migrated 14 read tools and 12 write tools; added 8 previously inline read tools and 5 write tools to the registry.
 ---
 
 ## 5. Invariants

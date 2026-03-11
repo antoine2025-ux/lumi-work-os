@@ -10,18 +10,35 @@
  */
 
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { prisma, prismaUnscoped } from '@/lib/db'
 import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { sendGmail } from '@/lib/integrations/gmail-send'
 import { createCalendarEvent } from '@/lib/integrations/calendar-events'
 import { logger } from '@/lib/logger'
-import type { LoopbrainTool, AgentContext, ToolResult, ToolPermissions } from './types'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/server/authOptions'
+import type { LoopbrainTool, AgentContext, ToolResult } from './types'
 import { getDefaultSpaceForUser } from '@/lib/spaces/get-default-space'
+import { executeAction } from '@/lib/loopbrain/actions/executor'
 import { searchDriveFilesTool } from './tools/drive/search-drive-files'
 import { readDriveDocumentTool } from './tools/drive/read-drive-document'
 import { createDriveDocumentTool } from './tools/drive/create-drive-document'
 import { updateDriveDocumentTool } from './tools/drive/update-drive-document'
 import { extractTextFromProseMirror, isValidProseMirrorJSON } from '@/lib/wiki/text-extract'
+import { streamDraftToPage } from '@/lib/loopbrain/services/draft-page'
+import { isGmailConnected } from '@/lib/loopbrain/context-sources/gmail'
+import { searchGmailForContext } from '@/lib/loopbrain/context-sources/gmail-search'
+import { loadCalendarEvents } from '@/lib/loopbrain/context-sources/calendar'
+import { isSlackAvailable } from '@/lib/loopbrain/slack-helper'
+import { searchSlackMessages } from '@/lib/loopbrain/context-sources/slack-search'
+import { searchSimilarContextItems } from '@/lib/loopbrain/embedding-service'
+import { ContextType } from '@/lib/loopbrain/context-types'
+import { PrismaContextEngine } from '@/lib/loopbrain/context-engine'
+import { buildWorkloadAnalysis } from '@/lib/loopbrain/workload-analysis'
+import { getAccessibleProjectIds, assertProjectMembership } from '@/lib/loopbrain/permissions/resource-acl'
+import { getAccessiblePersonIds } from '@/lib/loopbrain/permissions/hierarchy'
+import { hasToolRole } from '@/lib/loopbrain/permissions'
+import { filterPersonData } from '@/lib/loopbrain/permissions/context-filter'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -160,6 +177,33 @@ const AddPersonToProjectSchema = z.object({
   ).optional().default('MEMBER'),
 })
 
+const AssignToProjectSchema = z.object({
+  personId: z.string().min(1),
+  projectId: z.string().min(1),
+  role: z.preprocess(
+    normalizeEnum,
+    z.enum(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'])
+  ).optional().default('MEMBER'),
+})
+
+const CreateTimeOffSchema = z.object({
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+  reason: z.string().optional(),
+  type: z.string().optional().default('vacation'),
+})
+const AssignManagerSchema = z.object({
+  personId: z.string().min(1),
+  managerId: z.string().min(1),
+})
+const CreatePersonSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email().optional(),
+  title: z.string().optional(),
+  teamId: z.string().optional(),
+  departmentId: z.string().optional(),
+})
+
 const UpdateTaskStatusSchema = z.object({
   taskId: z.string().min(1),
   status: z.preprocess(
@@ -215,16 +259,38 @@ const RemoveProjectMemberSchema = z.object({
   personId: z.string().describe('The person/user ID to remove from the project'),
 })
 
+const SearchEmailSchema = z.object({ query: z.string().min(1) })
+const GetCalendarEventsSchema = z.object({
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+})
+const SearchSlackMessagesSchema = z.object({ query: z.string().min(1) })
+const GetPersonProfileSchema = z.object({ personId: z.string().min(1) })
+const SearchWikiSchema = z.object({
+  query: z.string().min(1),
+  limit: z.preprocess(coerceNumber, z.number().int().min(1).max(10).optional().default(5)),
+})
+const QueryOrgSchema = z.object({ question: z.string().optional() })
+const GetCapacitySchema = z.object({
+  personId: z.string().optional(),
+  teamId: z.string().optional(),
+})
+const GetProjectHealthSchema = z.object({ projectId: z.string().min(1) })
+
 const ListProjectsSchema = z.object({
-  status: z.preprocess(
-    normalizeEnum,
-    z.enum(['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED'])
-  ).optional(),
+  status: z
+    .preprocess(
+      normalizeEnum,
+      z.enum(['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED', 'ALL'])
+    )
+    .optional(),
   limit: z.preprocess(coerceNumber, z.number().int().min(1).max(50).optional().default(20)),
 })
 
 const ListPeopleSchema = z.object({
   search: z.string().optional(),
+  teamId: z.string().optional(),
+  departmentId: z.string().optional(),
   limit: z.preprocess(coerceNumber, z.number().int().min(1).max(100).optional().default(50)),
 })
 
@@ -243,14 +309,27 @@ const ReplyToEmailSchema = z.object({
 })
 
 const CreateCalendarEventSchema = z.object({
-  summary: z.string().min(1),
-  startDateTime: z.string(),
-  endDateTime: z.string(),
+  summary: z.string().optional(),
+  title: z.string().optional(),
+  startDateTime: z.string().optional(),
+  startTime: z.string().optional(),
+  endDateTime: z.string().optional(),
+  endTime: z.string().optional(),
   description: z.string().optional(),
   attendees: z.array(z.string().email()).optional(),
   location: z.string().optional(),
   timeZone: z.string().optional(),
-})
+}).refine((d) => (d.summary ?? d.title) && (d.startDateTime ?? d.startTime) && (d.endDateTime ?? d.endTime), {
+  message: 'createCalendarEvent requires title (or summary), startTime (or startDateTime), and endTime (or endDateTime)',
+}).transform((d) => ({
+  summary: d.summary ?? d.title ?? '',
+  startDateTime: d.startDateTime ?? d.startTime ?? '',
+  endDateTime: d.endDateTime ?? d.endTime ?? '',
+  description: d.description,
+  attendees: d.attendees,
+  location: d.location,
+  timeZone: d.timeZone,
+}))
 
 const CreateMultipleCalendarEventsSchema = z.object({
   events: z.array(CreateCalendarEventSchema).min(1).max(20),
@@ -597,22 +676,22 @@ const draftWikiPageTool: LoopbrainTool = {
         },
       })
 
+      // Fire-and-forget: stream LLM content into the page via Hocuspocus
+      void streamDraftToPage({
+        pageId: page.id,
+        workspaceId: context.workspaceId,
+        topic: p.topic,
+        outline: p.outline,
+        userId: context.userId,
+      })
+
       return {
         success: true,
         data: {
           id: page.id,
           slug: page.slug,
           title: page.title,
-          topic: p.topic,
-          outline: p.outline,
-          // Marker for the agent-loop to trigger background drafting
-          _draftTask: {
-            pageId: page.id,
-            topic: p.topic,
-            outline: p.outline,
-          },
-          // Client action — navigate to the new page
-          _clientAction: {
+          clientAction: {
             type: 'navigate',
             url: `/wiki/${page.slug}`,
             label: `Opening ${page.title}…`,
@@ -697,6 +776,111 @@ const addPersonToProjectTool: LoopbrainTool = {
     } catch (err: unknown) {
       logger.error('addPersonToProject tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to add person to project' }
+    }
+  },
+}
+
+const assignToProjectTool: LoopbrainTool = {
+  name: 'assignToProject',
+  description: 'Add a person to a project as a member. Maps personId to userId.',
+  category: 'project',
+  parameters: AssignToProjectSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'ADMIN', resourceChecks: ['projectMembership'] },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = AssignToProjectSchema.parse(params)
+    return addPersonToProjectTool.execute(
+      { userId: p.personId, projectId: p.projectId, role: p.role },
+      context
+    )
+  },
+}
+
+const createTimeOffTool: LoopbrainTool = {
+  name: 'createTimeOff',
+  description: 'Create a time-off / leave request for the current user.',
+  category: 'org',
+  parameters: CreateTimeOffSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = CreateTimeOffSchema.parse(params)
+    try {
+      const result = await executeAction({
+        action: {
+          type: 'timeoff.create',
+          userId: context.userId,
+          startDate: (p.startDate ?? '').slice(0, 10),
+          endDate: (p.endDate ?? '').slice(0, 10),
+          timeOffType: (p.type ?? 'vacation').toLowerCase(),
+          notes: p.reason,
+        },
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+      })
+      return result.ok
+        ? { success: true, data: { id: result.result?.entityId, message: result.result?.message }, humanReadable: 'Time off created' }
+        : { success: false, error: result.error?.message ?? 'Failed', humanReadable: result.error?.message ?? 'Failed to create time off' }
+    } catch (err: unknown) {
+      return { success: false, error: String(err), humanReadable: 'Failed to create time off' }
+    }
+  },
+}
+
+const assignManagerTool: LoopbrainTool = {
+  name: 'assignManager',
+  description: 'Assign a manager to a person.',
+  category: 'org',
+  parameters: AssignManagerSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'ADMIN' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = AssignManagerSchema.parse(params)
+    try {
+      const result = await executeAction({
+        action: {
+          type: 'org.assign_manager',
+          reportId: p.personId ?? '',
+          managerId: p.managerId ?? '',
+        },
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+      })
+      return result.ok
+        ? { success: true, data: { personId: p.personId, managerId: p.managerId, message: result.result?.message }, humanReadable: 'Manager assigned' }
+        : { success: false, error: result.error?.message ?? 'Failed', humanReadable: result.error?.message ?? 'Failed to assign manager' }
+    } catch (err: unknown) {
+      return { success: false, error: String(err), humanReadable: 'Failed to assign manager' }
+    }
+  },
+}
+
+const createPersonTool: LoopbrainTool = {
+  name: 'createPerson',
+  description: 'Create a new person record in the organization.',
+  category: 'org',
+  parameters: CreatePersonSchema,
+  requiresConfirmation: true,
+  permissions: { minimumRole: 'ADMIN' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = CreatePersonSchema.parse(params)
+    try {
+      const result = await executeAction({
+        action: {
+          type: 'org.create_person',
+          fullName: p.name ?? '',
+          email: p.email,
+          title: p.title,
+          teamId: p.teamId,
+        },
+        workspaceId: context.workspaceId,
+        userId: context.userId,
+      })
+      return result.ok
+        ? { success: true, data: { id: result.result?.entityId, name: p.name, message: result.result?.message }, humanReadable: 'Person created' }
+        : { success: false, error: result.error?.message ?? 'Failed', humanReadable: result.error?.message ?? 'Failed to create person' }
+    } catch (err: unknown) {
+      return { success: false, error: String(err), humanReadable: 'Failed to create person' }
     }
   },
 }
@@ -1006,13 +1190,22 @@ const listProjectsTool: LoopbrainTool = {
     const p = ListProjectsSchema.parse(params)
     scope(context)
     try {
+      const statusVal =
+        p.status && p.status !== 'ALL'
+          ? (p.status as 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED')
+          : undefined
+      const projectFilter: Record<string, unknown> = {
+        workspaceId: context.workspaceId,
+        isArchived: false,
+        ...(statusVal ? { status: statusVal } : {}),
+      }
+      if (!hasToolRole(context, 'ADMIN')) {
+        const accessibleIds = await getAccessibleProjectIds(context)
+        projectFilter.id = { in: accessibleIds }
+      }
       const projects = await prisma.project.findMany({
-        where: {
-          workspaceId: context.workspaceId,
-          isArchived: false,
-          ...(p.status ? { status: p.status } : {}),
-        },
-        select: { id: true, name: true, status: true, priority: true },
+        where: projectFilter,
+        select: { id: true, name: true, status: true, description: true },
         orderBy: { updatedAt: 'desc' },
         take: p.limit,
       })
@@ -1039,6 +1232,42 @@ const listPeopleTool: LoopbrainTool = {
     const p = ListPeopleSchema.parse(params)
     scope(context)
     try {
+      if (p.teamId || p.departmentId) {
+        const positions = await prisma.orgPosition.findMany({
+          where: {
+            workspaceId: context.workspaceId,
+            isActive: true,
+            userId: { not: null },
+            ...(p.teamId ? { teamId: p.teamId } : {}),
+            ...(p.departmentId ? { team: { departmentId: p.departmentId } } : {}),
+          },
+          select: {
+            userId: true,
+            title: true,
+            team: { select: { name: true, department: { select: { name: true } } } },
+            user: { select: { name: true, email: true } },
+          },
+          take: p.limit,
+        })
+        const people = positions
+          .filter(
+            (pos): pos is typeof pos & { userId: string; user: NonNullable<typeof pos.user> } =>
+              pos.userId !== null && pos.user !== null
+          )
+          .map((pos) => ({
+            id: pos.userId,
+            name: pos.user.name,
+            email: pos.user.email,
+            title: pos.title,
+            teamName: pos.team?.name ?? null,
+            departmentName: pos.team?.department?.name ?? null,
+          }))
+        return {
+          success: true,
+          data: { people: people as unknown as Record<string, unknown>[] },
+          humanReadable: `Found ${people.length} people`,
+        }
+      }
       const members = await prisma.workspaceMember.findMany({
         where: {
           workspaceId: context.workspaceId,
@@ -1060,12 +1289,28 @@ const listPeopleTool: LoopbrainTool = {
         },
         take: p.limit,
       })
-      const people = members.map((m) => ({
-        userId: m.userId,
-        name: m.user.name,
-        email: m.user.email,
-        role: m.role,
-      }))
+      const userIds = members.map((m) => m.userId)
+      const positions = await prisma.orgPosition.findMany({
+        where: { workspaceId: context.workspaceId, userId: { in: userIds }, isActive: true },
+        select: {
+          userId: true,
+          title: true,
+          team: { select: { name: true, department: { select: { name: true } } } },
+        },
+      })
+      const posMap = new Map(positions.map((pos) => [pos.userId, pos]))
+      const people = members.map((m) => {
+        const pos = posMap.get(m.userId)
+        return {
+          id: m.userId,
+          name: m.user.name,
+          email: m.user.email,
+          workspaceRole: m.role,
+          title: pos?.title ?? null,
+          teamName: pos?.team?.name ?? null,
+          departmentName: pos?.team?.department?.name ?? null,
+        }
+      })
       return {
         success: true,
         data: { people: people as unknown as Record<string, unknown>[] },
@@ -1123,6 +1368,486 @@ const listTasksByAssigneeTool: LoopbrainTool = {
     } catch (err: unknown) {
       logger.error('listTasksByAssignee tool failed', { err, context })
       return { success: false, error: String(err), humanReadable: 'Failed to list tasks by assignee' }
+    }
+  },
+}
+
+const searchEmailTool: LoopbrainTool = {
+  name: 'searchEmail',
+  description: "Search the user's Gmail inbox. Returns matching email threads with subject, sender, date, and snippet.",
+  category: 'email',
+  parameters: SearchEmailSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = SearchEmailSchema.parse(params)
+    scope(context)
+    try {
+      const connected = await isGmailConnected(context.userId, context.workspaceId)
+      if (!connected) {
+        return {
+          success: false,
+          error: 'Gmail is not connected for this workspace. Ask the user to connect Gmail in Settings > Integrations.',
+          humanReadable: 'Gmail not connected',
+        }
+      }
+      const result = await searchGmailForContext(context.userId, context.workspaceId, p.query)
+      return {
+        success: true,
+        data: {
+          emails: result.threads.slice(0, 10).map((t) => ({
+            id: t.id,
+            threadId: t.threadId,
+            subject: t.subject,
+            from: t.from,
+            date: t.date.toISOString(),
+            snippet: (t.snippet || t.bodyPreview).slice(0, 200),
+          })),
+        },
+        humanReadable: `Found ${result.threads.length} email(s)`,
+      }
+    } catch (err: unknown) {
+      return { success: false, error: String(err), humanReadable: 'Failed to search email' }
+    }
+  },
+}
+
+const getCalendarEventsTool: LoopbrainTool = {
+  name: 'getCalendarEvents',
+  description: 'Get calendar events for a date range. Returns event title, time, attendees, and location.',
+  category: 'calendar',
+  parameters: GetCalendarEventsSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = GetCalendarEventsSchema.parse(params)
+    scope(context)
+    try {
+      const start = p.startDate ? new Date(p.startDate) : new Date()
+      const end = p.endDate
+        ? new Date(p.endDate)
+        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      const account = await prismaUnscoped.account.findFirst({
+        where: { userId: context.userId, provider: 'google' },
+        select: { refresh_token: true, scope: true },
+      })
+      let hasRefreshToken = !!account?.refresh_token
+      if (!hasRefreshToken) {
+        try {
+          const session = await getServerSession(authOptions)
+          if (session?.refreshToken) hasRefreshToken = true
+        } catch {
+          // JWT session fallback is best-effort
+        }
+      }
+      if (!hasRefreshToken) {
+        return {
+          success: false,
+          error: 'Google Calendar is not connected. Please sign in with Google to access your calendar.',
+          humanReadable: 'Calendar not connected',
+        }
+      }
+      const hasCalendarScope = account?.scope?.includes('calendar')
+      if (account && !hasCalendarScope) {
+        return {
+          success: false,
+          error: 'Google Calendar access not granted. Please sign out and sign in again to grant calendar permissions.',
+          humanReadable: 'Calendar scope not granted',
+        }
+      }
+      const events = await loadCalendarEvents(context.workspaceId, context.userId, start, end)
+      return {
+        success: true,
+        data: {
+          events: events.slice(0, 20).map((e) => ({
+            id: e.id,
+            title: e.title,
+            startTime: e.startTime.toISOString(),
+            endTime: e.endTime.toISOString(),
+            isAllDay: e.isAllDay,
+            status: e.status,
+          })),
+        },
+        humanReadable: `Found ${events.length} calendar event(s)`,
+      }
+    } catch (err: unknown) {
+      return {
+        success: false,
+        error: `Calendar error: ${err instanceof Error ? err.message : String(err)}`,
+        humanReadable: 'Failed to load calendar events',
+      }
+    }
+  },
+}
+
+const searchSlackMessagesTool: LoopbrainTool = {
+  name: 'searchSlackMessages',
+  description: 'Search Slack messages for context. Returns matching messages with channel, author, and timestamp.',
+  category: 'slack',
+  parameters: SearchSlackMessagesSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'MEMBER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = SearchSlackMessagesSchema.parse(params)
+    scope(context)
+    try {
+      const slackConnected = await isSlackAvailable(context.workspaceId)
+      if (!slackConnected) {
+        return {
+          success: false,
+          error: 'Slack is not connected to this workspace. An admin can connect it in Settings > Integrations.',
+          humanReadable: 'Slack not connected',
+        }
+      }
+      const result = await searchSlackMessages(context.workspaceId, p.query)
+      return {
+        success: true,
+        data: {
+          messages: result.messages.slice(0, 20).map((m) => ({
+            channelName: m.channelName,
+            userName: m.userName,
+            text: m.text.slice(0, 500),
+            timestamp: m.timestamp,
+            threadTs: m.threadTs,
+          })),
+        },
+        humanReadable: `Found ${result.messages.length} Slack message(s)`,
+      }
+    } catch (err: unknown) {
+      return { success: false, error: String(err), humanReadable: 'Failed to search Slack' }
+    }
+  },
+}
+
+const getPersonProfileTool: LoopbrainTool = {
+  name: 'getPersonProfile',
+  description: 'Get detailed profile for a specific person — their projects, tasks, skills, reporting chain, and availability.',
+  category: 'org',
+  parameters: GetPersonProfileSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = GetPersonProfileSchema.parse(params)
+    scope(context)
+    try {
+      const [member, position, projectMemberships] = await Promise.all([
+        prisma.workspaceMember.findFirst({
+          where: { workspaceId: context.workspaceId, userId: p.personId },
+          select: {
+            userId: true,
+            role: true,
+            user: { select: { name: true, email: true } },
+          },
+        }),
+        prisma.orgPosition.findFirst({
+          where: { workspaceId: context.workspaceId, userId: p.personId, isActive: true },
+          select: {
+            title: true,
+            level: true,
+            team: { select: { name: true, department: { select: { name: true } } } },
+            parent: { select: { title: true, user: { select: { name: true } } } },
+          },
+        }),
+        prisma.projectMember.findMany({
+          where: { workspaceId: context.workspaceId, userId: p.personId },
+          select: {
+            role: true,
+            project: { select: { id: true, name: true, status: true } },
+          },
+          take: 10,
+        }),
+      ])
+      if (!member) {
+        return { success: false, error: `Person ${p.personId} not found in workspace`, humanReadable: 'Person not found' }
+      }
+      const profile: Record<string, unknown> = {
+        id: p.personId,
+        userId: p.personId,
+        name: member.user.name,
+        email: member.user.email,
+        workspaceRole: member.role,
+        title: position?.title ?? null,
+        level: position?.level ?? null,
+        team: position?.team?.name ?? null,
+        department: position?.team?.department?.name ?? null,
+        manager: position?.parent?.user?.name ?? position?.parent?.title ?? null,
+        projects: projectMemberships.map((pm) => ({
+          id: pm.project.id,
+          name: pm.project.name,
+          status: pm.project.status,
+          role: pm.role,
+        })),
+      }
+      const filtered = await filterPersonData(profile, context)
+      return {
+        success: true,
+        data: filtered,
+        humanReadable: `Got profile for ${member.user.name}`,
+      }
+    } catch (err: unknown) {
+      return { success: false, error: String(err), humanReadable: 'Failed to get person profile' }
+    }
+  },
+}
+
+const searchWikiTool: LoopbrainTool = {
+  name: 'searchWiki',
+  description: 'Semantic search across workspace wiki pages. Returns matching pages with title, content snippet, and author.',
+  category: 'wiki',
+  parameters: SearchWikiSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = SearchWikiSchema.parse(params)
+    scope(context)
+    try {
+      const limit = Math.min(p.limit ?? 5, 10)
+      try {
+        const semanticResults = await searchSimilarContextItems({
+          workspaceId: context.workspaceId,
+          query: p.query,
+          type: ContextType.PAGE,
+          limit,
+        })
+        if (semanticResults.length > 0) {
+          const pageIds = semanticResults.map((r) => r.contextId)
+          const pages = await prisma.wikiPage.findMany({
+            where: { workspaceId: context.workspaceId, id: { in: pageIds } },
+            select: { id: true, title: true, slug: true },
+          })
+          const pageMap = new Map(pages.map((pg) => [pg.id, pg]))
+          return {
+            success: true,
+            data: {
+              pages: semanticResults.map((r) => ({
+                pageId: r.contextId,
+                title: pageMap.get(r.contextId)?.title ?? r.title,
+                slug: pageMap.get(r.contextId)?.slug,
+                score: r.score,
+              })),
+            },
+            humanReadable: `Found ${semanticResults.length} wiki page(s)`,
+          }
+        }
+      } catch {
+        // fall through to keyword search
+      }
+      const pages = await prisma.wikiPage.findMany({
+        where: {
+          workspaceId: context.workspaceId,
+          isPublished: true,
+          title: { contains: p.query, mode: 'insensitive' },
+        },
+        select: { id: true, title: true, slug: true },
+        take: limit,
+      })
+      return {
+        success: true,
+        data: {
+          pages: pages.map((pg) => ({ pageId: pg.id, title: pg.title, slug: pg.slug, score: 1 })),
+        },
+        humanReadable: `Found ${pages.length} wiki page(s)`,
+      }
+    } catch (err: unknown) {
+      return { success: false, error: String(err), humanReadable: 'Failed to search wiki' }
+    }
+  },
+}
+
+const queryOrgTool: LoopbrainTool = {
+  name: 'queryOrg',
+  description: 'Query organizational data — people, teams, departments, reporting chains, roles.',
+  category: 'org',
+  parameters: QueryOrgSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    scope(context)
+    try {
+      const engine = new PrismaContextEngine()
+      const ctx = await engine.getOrgContext(context.workspaceId)
+      if (!ctx) {
+        return { success: true, data: { message: 'No org data found for this workspace' }, humanReadable: 'No org data' }
+      }
+      return {
+        success: true,
+        data: {
+          teams: (ctx.teams ?? []).map((t) => ({
+            id: t.id,
+            name: t.name,
+            department: t.department,
+            memberCount: t.memberCount,
+          })),
+          departments: (ctx.departments ?? []).map((d) => ({
+            id: d.id,
+            name: d.name,
+            teamCount: d.teamCount,
+          })),
+          roles: (ctx.roles ?? []).slice(0, 50).map((r) => ({
+            id: r.id,
+            title: r.title,
+            teamName: r.teamName ?? null,
+            department: r.department ?? null,
+            userName: r.userName ?? null,
+          })),
+        },
+        humanReadable: 'Got org context',
+      }
+    } catch (err: unknown) {
+      return { success: false, error: String(err), humanReadable: 'Failed to query org' }
+    }
+  },
+}
+
+const getCapacityTool: LoopbrainTool = {
+  name: 'getCapacity',
+  description: 'Get capacity and workload data for a person or team. Returns current allocation, availability, and utilization.',
+  category: 'org',
+  parameters: GetCapacitySchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = GetCapacitySchema.parse(params)
+    scope(context)
+    try {
+      if (p.personId) {
+        const snapshot = await buildWorkloadAnalysis(context.workspaceId, p.personId)
+        return {
+          success: true,
+          data: {
+            personId: snapshot.personId,
+            name: snapshot.personName,
+            assessment: snapshot.summary.assessment,
+            utilizationPct: Math.round(snapshot.capacityComparison.utilizationPct * 100),
+            hasCapacity: snapshot.capacityComparison.hasCapacity,
+            headroomHours: Math.round(snapshot.capacityComparison.headroomHours),
+            contractedHours: snapshot.capacityComparison.contractedHours,
+            taskCount: snapshot.taskLoad.totalCount,
+            overdueCount: snapshot.taskLoad.overdue.count,
+            primaryConcern: snapshot.summary.primaryConcern,
+            projects: snapshot.projectLoad.slice(0, 5).map((proj) => ({
+              projectId: proj.projectId,
+              name: proj.projectName,
+              allocationPct: proj.allocationPct,
+              taskCount: proj.taskCount,
+            })),
+          },
+          humanReadable: `Got capacity for ${snapshot.personName}`,
+        }
+      }
+      let memberFilter: Record<string, unknown> = { workspaceId: context.workspaceId }
+      if (!hasToolRole(context, 'ADMIN')) {
+        const accessibleIds = await getAccessiblePersonIds(context)
+        memberFilter = { workspaceId: context.workspaceId, userId: { in: accessibleIds } }
+      }
+      const members = await prisma.workspaceMember.findMany({
+        where: memberFilter,
+        select: { userId: true, user: { select: { name: true } } },
+        take: 20,
+      })
+      const summaries = await Promise.all(
+        members.map(async (m) => {
+          try {
+            const s = await buildWorkloadAnalysis(context.workspaceId, m.userId, {
+              includeNextWeek: false,
+              includeWorkRequests: false,
+            })
+            return {
+              personId: m.userId,
+              name: m.user.name,
+              assessment: s.summary.assessment,
+              utilizationPct: Math.round(s.capacityComparison.utilizationPct * 100),
+              hasCapacity: s.capacityComparison.hasCapacity,
+            }
+          } catch {
+            return {
+              personId: m.userId,
+              name: m.user.name,
+              assessment: 'UNKNOWN',
+              utilizationPct: 0,
+              hasCapacity: null,
+            }
+          }
+        })
+      )
+      return {
+        success: true,
+        data: { members: summaries },
+        humanReadable: `Got capacity for ${summaries.length} member(s)`,
+      }
+    } catch (err: unknown) {
+      return { success: false, error: String(err), humanReadable: 'Failed to get capacity' }
+    }
+  },
+}
+
+const getProjectHealthTool: LoopbrainTool = {
+  name: 'getProjectHealth',
+  description: "Get health status and insights for a project. Returns blockers, risks, velocity, and commendations.",
+  category: 'project',
+  parameters: GetProjectHealthSchema,
+  requiresConfirmation: false,
+  permissions: { minimumRole: 'VIEWER' },
+  async execute(params: unknown, context: AgentContext): Promise<ToolResult> {
+    const p = GetProjectHealthSchema.parse(params)
+    scope(context)
+    try {
+      if (!hasToolRole(context, 'ADMIN')) {
+        try {
+          await assertProjectMembership(context, p.projectId)
+        } catch {
+          return {
+            success: false,
+            error: 'You do not have access to this project',
+            humanReadable: 'Access denied',
+          }
+        }
+      }
+      const [project, tasks] = await Promise.all([
+        prisma.project.findFirst({
+          where: { id: p.projectId, workspaceId: context.workspaceId },
+          select: { id: true, name: true, status: true, updatedAt: true },
+        }),
+        prisma.task.findMany({
+          where: { projectId: p.projectId, workspaceId: context.workspaceId },
+          select: { id: true, title: true, status: true, priority: true, dueDate: true },
+          take: 200,
+        }),
+      ])
+      if (!project) {
+        return { success: false, error: `Project ${p.projectId} not found`, humanReadable: 'Project not found' }
+      }
+      const now = new Date()
+      const total = tasks.length
+      const done = tasks.filter((t) => t.status === 'DONE').length
+      const blocked = tasks.filter((t) => t.status === 'BLOCKED').length
+      const inProgress = tasks.filter((t) => t.status === 'IN_PROGRESS').length
+      const overdue = tasks.filter(
+        (t) => t.dueDate && t.dueDate < now && t.status !== 'DONE'
+      ).length
+      const completionRate = total > 0 ? Math.round((done / total) * 100) : 0
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      const isStalled = project.updatedAt < sevenDaysAgo && inProgress === 0
+      const rawHealth = 100 - blocked * 15 - overdue * 8 - (isStalled ? 20 : 0)
+      return {
+        success: true,
+        data: {
+          projectId: project.id,
+          name: project.name,
+          status: project.status,
+          healthScore: Math.max(0, Math.min(100, rawHealth)),
+          completionRate,
+          taskSummary: { total, done, blocked, inProgress, overdue },
+          isStalled,
+          blockers: tasks
+            .filter((t) => t.status === 'BLOCKED')
+            .slice(0, 5)
+            .map((t) => ({ id: t.id, title: t.title })),
+        },
+        humanReadable: `Got health for project "${project.name}"`,
+      }
+    } catch (err: unknown) {
+      return { success: false, error: String(err), humanReadable: 'Failed to get project health' }
     }
   },
 }
@@ -1252,6 +1977,10 @@ const ALL_TOOLS: LoopbrainTool[] = [
   draftWikiPageTool,
   createGoalTool,
   addPersonToProjectTool,
+  assignToProjectTool,
+  createTimeOffTool,
+  assignManagerTool,
+  createPersonTool,
   updateTaskStatusTool,
   updateProjectTool,
   linkProjectToGoalTool,
@@ -1263,6 +1992,14 @@ const ALL_TOOLS: LoopbrainTool[] = [
   listProjectsTool,
   listPeopleTool,
   listTasksByAssigneeTool,
+  searchEmailTool,
+  getCalendarEventsTool,
+  searchSlackMessagesTool,
+  getPersonProfileTool,
+  searchWikiTool,
+  queryOrgTool,
+  getCapacityTool,
+  getProjectHealthTool,
   bulkReassignTasksTool,
   removeProjectMemberTool,
   searchDriveFilesTool,

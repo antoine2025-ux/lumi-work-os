@@ -34,13 +34,6 @@
 
 
 
-### Agent tool triple registration → auto-dispatch (ADR-008)
-- **What:** Adding a new Loopbrain agent tool requires registering it in 3 files: `tool-schemas.ts`, `tool-registry.ts`, and the `executeReadTool` switch in `agent-loop.ts`. Missing any one causes silent failure.
-- **Why it matters:** Every new tool risks the same bug we hit with `readWikiPage`. Slows development and causes debugging headaches.
-- **Fix:** Replace the manual switch in `agent-loop.ts` with `toolRegistry.get(toolName).execute(args, ctx)`. Three tools already use this pattern — extend to all, delete the switch.
-- **Effort:** 1-2 hours.
-- **Risk:** Medium — touching the agent loop could break working tools. Test all tools after refactor.
-- **Dependencies:** None.
 
 ### pgvector search placeholder
 - **What:** `store/embedding-repository.ts` has vector search stubbed. Semantic search returns placeholder results.
@@ -121,6 +114,12 @@
 ---
 
 ## DONE — Completed Items
+
+### ✅ Agent tool auto-dispatch (March 11, 2026)
+- **Was:** Every new tool required registration in 3 files (tool-schemas.ts, tool-registry.ts, agent-loop.ts switch). Missing any one caused silent failure.
+- **Now:** Tools auto-dispatch from registry. Only 2 registrations needed: tool-schemas.ts + tool-registry.ts.
+- **What was done:** Replaced manual switch in executeReadTool and executeWriteTool with registry-based auto-dispatch. Migrated 14 read tools and 12 write tools. Added 8 read tools to registry (searchEmail, getCalendarEvents, searchSlackMessages, getPersonProfile, searchWiki, queryOrg, getCapacity, getProjectHealth) and 5 write tools (assignToProject, createTimeOff, assignManager, createPerson, createCalendarEvent param mapping). Updated listProjects/listPeople with permission logic. Moved streamDraftToPage into draftWikiPage tool.
+- **Files modified:** agent-loop.ts, tool-registry.ts, types.ts
 
 ### ✅ `WORKSPACE_SCOPING_ENABLED` — default ON (March 11, 2026)
 - **Was:** Prisma scoping middleware disabled by default. `PRISMA_WORKSPACE_SCOPING_ENABLED === 'true'` required explicit opt-in.
