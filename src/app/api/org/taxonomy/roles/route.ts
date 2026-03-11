@@ -26,13 +26,13 @@ export async function GET(req: NextRequest) {
     const take = Math.max(1, Math.min(20, Number(url.searchParams.get("take") ?? 10)))
 
     const rows = await prisma.orgRoleTaxonomy.findMany({
-      where: { orgId: workspaceId, ...(q ? { label: { contains: q, mode: "insensitive" } as any } : {}) } as any,
-      select: { label: true } as any,
-      orderBy: { label: "asc" } as any,
+      where: { workspaceId, ...(q ? { label: { contains: q, mode: "insensitive" } } : {}) },
+      select: { label: true },
+      orderBy: { label: "asc" },
       take,
-    } as any)
+    })
 
-    return NextResponse.json({ ok: true, roles: rows.map((r: any) => String(r.label)) })
+    return NextResponse.json({ ok: true, roles: rows.map((r) => String(r.label)) })
   } catch (error: unknown) {
     return handleApiError(error, req)
   }

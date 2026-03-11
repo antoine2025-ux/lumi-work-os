@@ -11,6 +11,7 @@ import { setWorkspaceContext } from '@/lib/prisma/scopingMiddleware'
 import { logOrgAudit } from '@/lib/audit/org-audit'
 import { computeChanges } from '@/lib/audit/diff'
 import { UpdatePersonProfileSchema } from '@/lib/validations/org'
+import type { AvailabilityStatus } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     const beforeAvailability = await prisma.personAvailabilityHealth.findUnique({
-      where: { workspaceId_personId: { workspaceId, personId } } as any,
+      where: { workspaceId_personId: { workspaceId, personId } },
       select: { status: true, reason: true }
     }).catch(() => null)
 
@@ -77,33 +78,44 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.availability) {
-      const status = String(body.availability.status ?? "AVAILABLE").toUpperCase()
+      const status = String(body.availability.status ?? "AVAILABLE").toUpperCase() as AvailabilityStatus
       const reason = body.availability.reason ? String(body.availability.reason) : null
       await prisma.personAvailabilityHealth.upsert({
-        where: { workspaceId_personId: { workspaceId, personId } } as any,
-        update: { status, reason } as any,
-        create: { workspaceId, personId, status, reason } as any,
-      } as any)
+        where: { workspaceId_personId: { workspaceId, personId } },
+        update: { status, reason },
+        create: { workspaceId, personId, status, reason },
+      })
     }
 
     // Skills overwrite (v0)
     if (Array.isArray(body.skills)) {
       const cleaned = Array.from(new Set(body.skills.map((s) => normalizeSkill(String(s))).filter(Boolean))).slice(0, 50)
-      
+
       // Upsert skills into taxonomy
       if (cleaned.length) {
         await prisma.orgSkillTaxonomy.createMany({
-          data: cleaned.map((label) => ({ orgId: workspaceId, label })) as any,
+          data: cleaned.map((label) => ({ workspaceId, label })),
           skipDuplicates: true,
-        } as any)
+        })
       }
-      
-      await prisma.personSkill.deleteMany({ where: { orgId: workspaceId, personId } as any })
+
+      await prisma.personSkill.deleteMany({ where: { workspaceId, personId } })
       if (cleaned.length) {
+        // Look up or create Skill entities, then create PersonSkill links
+        const skillRecords = await Promise.all(
+          cleaned.map((name) =>
+            prisma.skill.upsert({
+              where: { workspaceId_name: { workspaceId, name } },
+              update: {},
+              create: { workspaceId, name },
+              select: { id: true },
+            })
+          )
+        )
         await prisma.personSkill.createMany({
-          data: cleaned.map((skill) => ({ orgId: workspaceId, personId, skill })) as any,
+          data: skillRecords.map((s) => ({ workspaceId, personId, skillId: s.id })),
           skipDuplicates: true,
-        } as any)
+        })
       }
     }
 
@@ -117,17 +129,17 @@ export async function POST(req: NextRequest) {
       // Upsert roles into taxonomy
       if (cleaned.length) {
         await prisma.orgRoleTaxonomy.createMany({
-          data: cleaned.map((r) => ({ orgId: workspaceId, label: r.role })) as any,
+          data: cleaned.map((r) => ({ workspaceId, label: r.role })),
           skipDuplicates: true,
-        } as any)
+        })
       }
 
-      await prisma.personRoleAssignment.deleteMany({ where: { orgId: workspaceId, personId } as any })
+      await prisma.personRoleAssignment.deleteMany({ where: { workspaceId, personId } })
       if (cleaned.length) {
         await prisma.personRoleAssignment.createMany({
-          data: cleaned.map((r) => ({ orgId: workspaceId, personId, role: r.role, percent: Math.round(r.percent) })) as any,
+          data: cleaned.map((r) => ({ workspaceId, personId, role: r.role, percent: Math.round(r.percent) })),
           skipDuplicates: true,
-        } as any)
+        })
       }
     }
 

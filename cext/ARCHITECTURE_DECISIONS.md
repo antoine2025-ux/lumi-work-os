@@ -270,9 +270,9 @@ Tracked debt with current counts and target dates.
 | Auth coverage (`assertAccess`) | 83.3% (415/498) | 95%+ | Same sweep as above |
 | `handleApiError` coverage | 90.5% (447/494) — 100% of eligible routes ✅ | DONE | 47 excluded routes are auth/cron/webhook/dev/streaming with intentional patterns |
 | Genuinely unprotected routes | 0 (fixed March 10: deleted 4 test dirs, secured org-context-diagnostics + 8 embeds) | 0 | Done ✅ |
-| `as any` casts | 178 → ~123 remaining (52 fixed, 58 blocked on orgId migration, ~42 complex Prisma types, 3 debug/test) | 0 non-Prisma casts | Security-relevant and easy-type casts eliminated. orgId cluster resolves with migration. Complex Prisma types are low-risk, tracked for post-MVP. |
+| `as any` casts | 178 → ~85 remaining (52 fixed prev, 38 Tier B orgId fixed Mar 11, ~42 complex Prisma types, 3 debug/test) | 0 non-Prisma casts | Security-relevant and easy-type casts eliminated. Tier B orgId bugs fixed. Complex Prisma types are low-risk, tracked for post-MVP. |
 | `catch (error: any)` | Unknown | 0 | Grep + replace with `error: unknown` |
-| `orgId` fallback pattern | 69 routes | 0 | Systematic rename: `const orgId = workspaceId` → direct use |
+| `orgId` fallback pattern | Tier A: FIXED ✅ (Mar 11). Tier C: parameter naming remains (cosmetic) | 0 | Tier A: Dropped Project.orgId + OrgInvitation.orgId via migration 20260311120000. All code now uses workspaceId. Org model still exists (separate cleanup). Tier C: server/lib param names. |
 | `console.log` in production | Unknown | 0 | Grep + remove or replace with structured logging |
 | `WORKSPACE_SCOPING_ENABLED` | `false` | `true` | Enable after full model registration audit |
 | Agent tool triple registration | 3 files per tool | Auto-dispatch from registry | Refactor `executeReadTool` in `agent-loop.ts` to use `toolRegistry.get(name)` instead of manual switch |

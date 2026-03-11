@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     setWorkspaceContext(auth.workspaceId);
 
     const invites = await prisma.orgInvitation.findMany({
-      where: { orgId: auth.workspaceId }, // orgId is a Prisma field
+      where: { workspaceId: auth.workspaceId },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     const created = await prisma.orgInvitation.create({
       data: {
-        orgId: auth.workspaceId, // orgId is a Prisma field
+        workspaceId: auth.workspaceId,
         email: body.email.toLowerCase().trim(),
         role: body.role,
         token: token(),

@@ -17,14 +17,12 @@
 
 ## P0 — Must Fix Before MVP Launch
 
-### `orgId` fallback pattern (69 routes)
-- **What:** 69 API routes use `const orgId = workspaceId` as a naming bridge. Some Prisma models still have `orgId` as the field name instead of `workspaceId`.
-- **Why it matters:** Naming inconsistency confuses every AI session and every future developer. Also causes 58 `as any` casts because Prisma types correctly reject `orgId` when the field is `workspaceId` (or vice versa).
-- **Fix:** Schema migration: rename `orgId` → `workspaceId` on all affected models. Then remove the `const orgId = workspaceId` lines from all 69 routes. The 58 `as any` casts in the orgId cluster disappear automatically.
-- **Effort:** 3-4 hours (schema migration + route cleanup)
-- **Risk:** Medium — touches `prisma/schema.prisma` (stable seam). Requires migration testing against branch DB.
-- **Dependencies:** None
-- **Resolves additionally:** 58 `as any` casts (PRISMA-TYPE Sub-cluster B)
+### `orgId` fallback pattern (tiered)
+- **Tier B (code bugs): FIXED March 11, 2026** — Routes writing `{ orgId: workspaceId }` to models that only have `workspaceId` in the schema. 38 `as any` casts eliminated, 7 files fixed, 1 `@ts-nocheck` removed. Also fixed PersonSkill creating records with phantom `skill` field (should be `skillId` FK to Skill model), and PersonAvailability import using phantom unique constraint.
+- **Tier A (schema): FIXED March 11, 2026** — Dropped `Project.orgId` and `OrgInvitation.orgId` columns via migration `20260311120000_remove_legacy_orgid_fields`. All code references updated to use `workspaceId` only. **Note:** The `Org` model itself still exists (referenced by OrgMembership, AuditLogEntry, Role) — that's a separate, larger cleanup.
+- **Tier C (parameter naming): Still open** — server/lib function parameter names use `orgId`. Cosmetic, no runtime impact.
+- **Effort remaining:** Tier C: 1-2 hours.
+- **Risk:** Low for Tier C.
 
 ### `WORKSPACE_SCOPING_ENABLED` defaults to `false`
 - **What:** The Prisma scoping middleware that enforces multi-tenant isolation is disabled by default. Application-layer `where: { workspaceId }` is the only defense.
@@ -145,6 +143,10 @@
 ---
 
 ## DONE — Completed Items
+
+### ✅ `orgId` Tier A — schema migration (March 11, 2026)
+- **Was:** `Project.orgId` and `OrgInvitation.orgId` columns existed in schema; ~69 routes used OR/fallback patterns.
+- **Now:** Both columns dropped via migration `20260311120000_remove_legacy_orgid_fields`. All code uses `workspaceId` only. Org model retained (OrgMembership, AuditLogEntry, Role still reference it).
 
 ### ✅ `console.log` cleanup (March 11, 2026)
 - **Was:** ~834 console statements in production paths (src/app/api/, src/lib/, src/server/)

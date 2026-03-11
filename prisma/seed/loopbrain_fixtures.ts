@@ -439,7 +439,6 @@ export async function seedLoopbrainFixtures() {
     create: {
       id: 'fixture-payments-migration',
       workspaceId: workspace.id,
-      orgId: orgId,
       name: 'Payments Migration',
       description: 'Migrate payment processing to new infrastructure',
       status: 'ACTIVE',
@@ -467,7 +466,6 @@ export async function seedLoopbrainFixtures() {
     create: {
       id: 'fixture-incident-hardening',
       workspaceId: workspace.id,
-      orgId: orgId,
       name: 'Incident Hardening',
       description: 'Improve system reliability and incident response',
       status: 'ACTIVE',
@@ -494,7 +492,6 @@ export async function seedLoopbrainFixtures() {
     create: {
       id: 'fixture-market-expansion',
       workspaceId: workspace.id,
-      orgId: orgId,
       name: 'New Market Expansion',
       description: 'Expand into new geographic markets',
       status: 'ACTIVE',
@@ -521,7 +518,6 @@ export async function seedLoopbrainFixtures() {
     create: {
       id: 'fixture-legacy-cleanup',
       workspaceId: workspace.id,
-      orgId: orgId,
       name: 'Legacy Cleanup',
       description: 'Refactor and modernize legacy codebase',
       status: 'ACTIVE',
