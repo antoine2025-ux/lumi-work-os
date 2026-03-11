@@ -27,7 +27,7 @@ setWorkspaceContext(auth.workspaceId);
 - **Never** use `prismaUnscoped` unless the query genuinely cannot have workspace context (e.g., OAuth token lookups, user resolution by email). Document the justification in a comment.
 - If you're unsure whether a model needs workspace scoping: it does.
 - **Dual defense required:** The scoping middleware (`WORKSPACE_SCOPING_ENABLED`) is a safety net. Application-layer `where: { workspaceId }` in queries is the primary defense. Always include both — never rely on just one.
-- **Known gap:** The `Activity` model currently has no `workspaceId` field. Any new activity-related code must account for this isolation gap. Do not create new models without `workspaceId`.
+- The `Activity` model has `workspaceId` and is registered in `WORKSPACE_SCOPED_MODELS`.
 
 ### Service Layer Pattern
 
@@ -45,7 +45,7 @@ These files have high import counts. Changes require full test runs and explicit
 | `src/lib/unified-auth.ts` | Auth context for all routes |
 | `src/middleware.ts` | Route protection |
 | `src/server/authOptions.ts` | NextAuth configuration |
-| `src/lib/prisma/scopingMiddleware.ts` | Workspace isolation (152 models) |
+| `src/lib/prisma/scopingMiddleware.ts` | Workspace isolation (152 models — verify with WORKSPACE_SCOPED_MODELS) |
 | `prisma/schema.prisma` | Data model (168 models — verify count before adding) |
 | `src/lib/auth/assertAccess.ts` | RBAC enforcement |
 | `src/lib/api-errors.ts` | Centralized error handling |
@@ -112,7 +112,7 @@ Every new Prisma model must have:
 - Fields: camelCase
 - Files: kebab-case (`capacity-contract.ts`)
 - Components: PascalCase (`PersonProfileClient.tsx`)
-- Use `workspaceId` everywhere. **Never** use `orgId` as a field name for workspace reference. The legacy `orgId` pattern (~69 routes use `const orgId = workspaceId` fallback) is being migrated — do not add new instances.
+- Use `workspaceId` everywhere. **Never** use `orgId` as a field name for workspace reference. orgId schema migration complete (March 2026). Zero orgId columns in database. ~20 server utility files retain orgId as internal parameter names (cosmetic). Do not add new orgId references.
 
 ### Migration Safety
 
@@ -126,14 +126,14 @@ Every new Prisma model must have:
 
 ### Non-Negotiable
 
-- **Zod validation** on every POST, PUT, DELETE, and PATCH route. Schemas live in `src/lib/validations/`. Use `.parse()` or `.safeParse()` at the API boundary before any database operation. Current coverage is ~23% (102/498 routes) — every new route must raise this number, never lower it.
-- **`handleApiError()`** wrapping every route's try/catch. Import from `src/lib/api-errors.ts`. Current coverage is ~56% — same principle applies.
+- **Zod validation** on every POST, PUT, DELETE, and PATCH route. Schemas live in `src/lib/validations/`. Use `.parse()` or `.safeParse()` at the API boundary before any database operation. Coverage: ~60% of mutating routes, 100% of user-facing mutations. Strategy: validate all user input, skip internal/webhook/empty-body (see ARCHITECTURE_DECISIONS.md §2.2).
+- **`handleApiError()`** wrapping every route's try/catch. Import from `src/lib/api-errors.ts`. Coverage: 90.5% (100% of eligible routes). Remaining 47 routes are auth/cron/webhook/dev/streaming with intentional patterns.
 - **No `as any`** to bypass type safety. Use `unknown` and narrow, or define the type. Existing `as any` casts are tech debt, not precedent.
 - **No `catch (error: any)`**. Always `catch (error: unknown)`.
 - **No `console.log` in production paths.** Use structured logging or remove.
 - **No debug fetch calls** (e.g., `fetch('http://127.0.0.1:...')`) in committed code.
 - ✅ `ignoreBuildErrors` removed (March 11, 2026). Run `tsc --noEmit` locally to verify type safety.
-- **No unauthenticated mutation routes.** Known gap: `POST /api/migrations/blog` has no auth — do not follow this pattern.
+- **No unauthenticated mutation routes.** Every mutation route must use `getUnifiedAuth` + `assertAccess` + `setWorkspaceContext`.
 
 ### Prompt Injection Awareness
 
@@ -247,4 +247,4 @@ import { cn } from '@/lib/utils'
 
 ---
 
-*Last updated: March 2026. This file is the source of truth for development constraints. If a rule here conflicts with existing code, the rule wins — the existing code is tech debt.*
+*Last updated: March 11, 2026. This file is the source of truth for development constraints. If a rule here conflicts with existing code, the rule wins — the existing code is tech debt.*

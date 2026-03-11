@@ -59,14 +59,6 @@
 - **Risk:** May require package upgrades that break compatibility.
 - **Dependencies:** None.
 
-### Infrastructure documentation
-- **What:** Vercel, Railway, and Supabase configs are manual (dashboard clicks). No ENV var manifest or deployment runbook.
-- **Why it matters:** Bus factor of 1. If Tony is unavailable, nobody can deploy or debug infrastructure.
-- **Fix:** At minimum: document all environment variables, deployment steps, and service dependencies. Ideally: Terraform or Pulumi for infrastructure as code.
-- **Effort:** 1 day for docs, 3-5 days for IaC.
-- **Risk:** None for docs. IaC has migration risk.
-- **Dependencies:** None.
-
 ---
 
 ## P2 — Post-Launch Improvements
@@ -114,6 +106,19 @@
 ---
 
 ## DONE — Completed Items
+
+### ✅ Infrastructure documentation (March 11, 2026)
+- **Was:** No documentation for deployment, environment variables, or operational procedures. All knowledge was tribal (bus factor of 1).
+- **Now:** Complete operational documentation in `cext/DEPLOYMENT.md` covering:
+  - Architecture overview (Vercel, Railway, Supabase, external APIs)
+  - All 60+ environment variables with descriptions and examples
+  - Step-by-step deployment instructions for all services
+  - Local development setup guide
+  - Database operations (migrations, seeding, pooling)
+  - Monitoring and debugging procedures
+  - Known operational notes (build requirements, OAuth quirks, security posture)
+- **What was done:** Created comprehensive 500+ line deployment guide by reading source code to discover all environment variables (`src/lib/env.ts`, `src/lib/db.ts`, `src/server/authOptions.ts`, integration files, cron routes). Documented Vercel build requirements (`NODE_OPTIONS` for heap size), Railway collab server setup, Supabase connection pooling, and all external API integrations.
+- **Files created:** `cext/DEPLOYMENT.md`
 
 ### ✅ Agent tool auto-dispatch (March 11, 2026)
 - **Was:** Every new tool required registration in 3 files (tool-schemas.ts, tool-registry.ts, agent-loop.ts switch). Missing any one caused silent failure.
